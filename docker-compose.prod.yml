@@ -1,9 +1,11 @@
-# PRISM — production stack (pulls prebuilt images from GitHub Container Registry).
+# PRISM — OPTIONAL production stack: pulls prebuilt images from GitHub Container
+# Registry instead of building from source. For the standard build-from-source
+# flow, use docker-compose.yml instead (the only file most setups need).
 #
-# Replace Stevy2191 below with your GitHub username/org, then:
+# Migrations run automatically on backend startup. Usage:
+#   cp .env.example .env
 #   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
-#   docker compose -f docker-compose.prod.yml exec backend npm run migrate
 services:
   mariadb:
     image: mariadb:10.11

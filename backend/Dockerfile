@@ -17,4 +17,9 @@ VOLUME ["/uploads"]
 ENV NODE_ENV=production
 EXPOSE 3001
 
-CMD ["node", "src/index.js"]
+# Container health: the API health endpoint.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=5 \
+  CMD node -e "require('http').get('http://localhost:3001/api/v1/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+
+# Runs migrations, then starts the server.
+ENTRYPOINT ["./docker-entrypoint.sh"]

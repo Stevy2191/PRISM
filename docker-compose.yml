@@ -1,8 +1,11 @@
-# PRISM — local development stack (builds images from source).
-# Usage:
-#   cp .env.example .env   # then edit values
-#   docker compose up --build
-#   docker compose exec backend npm run migrate
+# PRISM — full self-hosted stack. Builds everything from source.
+#
+# This is the only file you need. To run PRISM:
+#   1. git clone <repo> && cd prism
+#   2. cp .env.example .env   # then fill in your values
+#   3. docker compose up -d
+#
+# The backend automatically waits for the database, runs migrations, and starts.
 services:
   mariadb:
     image: mariadb:10.11
@@ -42,7 +45,8 @@ services:
     build: ./frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:80"
 
