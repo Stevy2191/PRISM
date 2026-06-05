@@ -45,12 +45,11 @@ module.exports = {
     const username = process.env.BOOTSTRAP_LOCAL_USERNAME || 'admin';
     const password = process.env.BOOTSTRAP_LOCAL_PASSWORD || 'changeme';
 
-    const [existing] = await queryInterface.sequelize.query(
-      'SELECT id FROM Users WHERE username = ? LIMIT 1',
-      { replacements: [username] }
-    );
+    // rawSelect returns the scalar `id` (or null) — not a [results, metadata]
+    // array, which the sequelize-cli runner mishandles.
+    const existingId = await queryInterface.rawSelect('Users', { where: { username } }, ['id']);
 
-    if (existing.length === 0) {
+    if (!existingId) {
       const passwordHash = bcrypt.hashSync(password, 12);
       const now = new Date();
       await queryInterface.bulkInsert('Users', [
@@ -71,6 +70,10 @@ module.exports = {
       // eslint-disable-next-line no-console
       console.log(`[migration] created bootstrap local admin "${username}" (must change password on first login)`);
     }
+
+    // Explicitly return nothing: the sequelize-cli runner errors if up() resolves
+    // to the result of a queryInterface call (e.g. an array).
+    return undefined;
   },
 
   async down(queryInterface) {
@@ -88,5 +91,7 @@ module.exports = {
     await removeColumnIfExists('Users', 'mustChangePassword');
     await removeColumnIfExists('Users', 'isLocalAccount');
     await removeColumnIfExists('Users', 'passwordHash');
+
+    return undefined;
   },
 };
