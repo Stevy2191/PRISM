@@ -16,16 +16,26 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     const { STRING, BOOLEAN } = Sequelize;
 
-    await queryInterface.addColumn('Users', 'passwordHash', {
+    // Idempotent column adds: only add a column if it does not already exist.
+    // This lets the migration safely re-run if a previous attempt added some
+    // columns but did not complete (e.g. it was interrupted).
+    const addColumnIfMissing = async (table, column, definition) => {
+      const tableSchema = await queryInterface.describeTable(table);
+      if (!tableSchema[column]) {
+        await queryInterface.addColumn(table, column, definition);
+      }
+    };
+
+    await addColumnIfMissing('Users', 'passwordHash', {
       type: STRING(255),
       allowNull: true,
     });
-    await queryInterface.addColumn('Users', 'isLocalAccount', {
+    await addColumnIfMissing('Users', 'isLocalAccount', {
       type: BOOLEAN,
       allowNull: false,
       defaultValue: false,
     });
-    await queryInterface.addColumn('Users', 'mustChangePassword', {
+    await addColumnIfMissing('Users', 'mustChangePassword', {
       type: BOOLEAN,
       allowNull: false,
       defaultValue: false,
@@ -68,8 +78,15 @@ module.exports = {
     const username = process.env.BOOTSTRAP_LOCAL_USERNAME || 'admin';
     await queryInterface.bulkDelete('Users', { username, isLocalAccount: true });
 
-    await queryInterface.removeColumn('Users', 'mustChangePassword');
-    await queryInterface.removeColumn('Users', 'isLocalAccount');
-    await queryInterface.removeColumn('Users', 'passwordHash');
+    const removeColumnIfExists = async (table, column) => {
+      const tableSchema = await queryInterface.describeTable(table);
+      if (tableSchema[column]) {
+        await queryInterface.removeColumn(table, column);
+      }
+    };
+
+    await removeColumnIfExists('Users', 'mustChangePassword');
+    await removeColumnIfExists('Users', 'isLocalAccount');
+    await removeColumnIfExists('Users', 'passwordHash');
   },
 };
