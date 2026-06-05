@@ -2,9 +2,11 @@ const { DataTypes, Model } = require('sequelize');
 
 module.exports = (sequelize) => {
   class User extends Model {
-    // Strip nothing sensitive here (no local passwords), but keep a clean shape.
+    // Never expose the password hash in API responses.
     toJSON() {
-      return { ...this.get() };
+      const values = { ...this.get() };
+      delete values.passwordHash;
+      return values;
     }
   }
 
@@ -41,6 +43,22 @@ module.exports = (sequelize) => {
       departmentId: {
         type: DataTypes.INTEGER,
         allowNull: true,
+      },
+      // Local-account fields. AD/LDAP users have isLocalAccount=false and a null
+      // passwordHash; they authenticate against the directory instead.
+      passwordHash: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      isLocalAccount: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      mustChangePassword: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       lastLogin: {
         type: DataTypes.DATE,

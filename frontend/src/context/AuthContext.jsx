@@ -22,8 +22,15 @@ export function AuthProvider({ children }) {
     refresh();
   }, [refresh]);
 
-  const login = async (username, password) => {
-    const { data } = await api.post('/auth/login', { username, password });
+  // mode: 'ad' | 'local'. For local, `username` may be a username or email.
+  const login = async (username, password, mode = 'ad') => {
+    const { data } = await api.post('/auth/login', { username, password, mode });
+    setUser(data.user);
+    return data.user;
+  };
+
+  const changePassword = async (currentPassword, newPassword) => {
+    const { data } = await api.post('/auth/change-password', { currentPassword, newPassword });
     setUser(data.user);
     return data.user;
   };
@@ -41,7 +48,9 @@ export function AuthProvider({ children }) {
     loading,
     login,
     logout,
+    changePassword,
     refresh,
+    mustChangePassword: !!user?.mustChangePassword,
     isAdmin: user?.role === 'admin',
     isStaff: user?.role === 'admin' || user?.role === 'technician',
   };

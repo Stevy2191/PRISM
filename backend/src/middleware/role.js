@@ -19,4 +19,16 @@ function requireRole(...allowed) {
 const isAdmin = (user) => user && user.role === 'admin';
 const isStaff = (user) => user && (user.role === 'admin' || user.role === 'technician');
 
-module.exports = { requireRole, isAdmin, isStaff };
+// Blocks all protected actions for a local account that still must change its
+// password. The user can only hit /auth/change-password (and /auth/me, /logout)
+// until they do. Use after `authenticate`.
+function blockUntilPasswordChanged(req, res, next) {
+  if (req.user && req.user.mustChangePassword) {
+    return next(
+      new ApiError(403, 'You must change your password before continuing', 'PASSWORD_CHANGE_REQUIRED')
+    );
+  }
+  return next();
+}
+
+module.exports = { requireRole, isAdmin, isStaff, blockUntilPasswordChanged };

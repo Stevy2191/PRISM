@@ -3,10 +3,16 @@ import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { errMessage } from '../api/api';
 
+const TABS = [
+  { key: 'ad', label: 'Active Directory' },
+  { key: 'local', label: 'Local Account' },
+];
+
 export default function Login() {
   const { user, login, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [mode, setMode] = useState('ad');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +28,11 @@ export default function Login() {
     setError('');
     setSubmitting(true);
     try {
-      await login(username, password);
+      const loggedIn = await login(username, password, mode);
+      if (loggedIn.mustChangePassword) {
+        navigate('/change-password', { replace: true });
+        return;
+      }
       const dest = location.state?.from?.pathname || '/dashboard';
       navigate(dest, { replace: true });
     } catch (err) {
@@ -31,6 +41,8 @@ export default function Login() {
       setSubmitting(false);
     }
   };
+
+  const isLocal = mode === 'local';
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy-900 px-4">
@@ -45,47 +57,69 @@ export default function Login() {
           <p className="text-sm text-navy-300">Ticketing &amp; Project Management</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="card space-y-4 p-6">
-          <h2 className="text-lg font-semibold text-navy-900">Sign in</h2>
-
-          {error && (
-            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-          )}
-
-          <div>
-            <label className="label" htmlFor="username">Username</label>
-            <input
-              id="username"
-              className="input"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="domain username"
-              required
-            />
+        <div className="card overflow-hidden">
+          {/* Tabs */}
+          <div className="flex border-b border-navy-100">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => { setMode(t.key); setError(''); }}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+                  mode === t.key
+                    ? 'border-b-2 border-prism bg-navy-50 text-prism'
+                    : 'text-navy-500 hover:bg-navy-50'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
 
-          <div>
-            <label className="label" htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              className="input"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4 p-6">
+            {error && (
+              <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+            )}
 
-          <button type="submit" className="btn-primary w-full" disabled={submitting}>
-            {submitting ? 'Signing in…' : 'Sign in'}
-          </button>
+            <div>
+              <label className="label" htmlFor="username">
+                {isLocal ? 'Email or username' : 'Username'}
+              </label>
+              <input
+                id="username"
+                className="input"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder={isLocal ? 'you@example.com' : 'domain username'}
+                required
+              />
+            </div>
 
-          <p className="text-center text-xs text-navy-400">
-            Authenticate with your Active Directory credentials.
-          </p>
-        </form>
+            <div>
+              <label className="label" htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                className="input"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <button type="submit" className="btn-primary w-full" disabled={submitting}>
+              {submitting ? 'Signing in…' : 'Sign in'}
+            </button>
+
+            <p className="text-center text-xs text-navy-400">
+              {isLocal
+                ? 'Sign in with a local PRISM account.'
+                : 'Authenticate with your Active Directory credentials.'}
+            </p>
+          </form>
+        </div>
       </div>
     </div>
   );

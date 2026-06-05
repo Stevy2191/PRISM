@@ -19,6 +19,11 @@ export default function ProtectedRoute({ children, roles }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // A local account pending a forced password change is locked to /change-password.
+  if (user.mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
+
   if (roles && !roles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }

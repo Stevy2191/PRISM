@@ -1,7 +1,9 @@
+const bcrypt = require('bcryptjs');
 const { User, Department } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 
+const MIN_PASSWORD_LENGTH = 8;
 const userInclude = [{ model: Department, as: 'department' }];
 
 // GET /users — Admin only
@@ -11,6 +13,53 @@ const list = asyncHandler(async (req, res) => {
     order: [['displayName', 'ASC']],
   });
   res.json({ users });
+});
+
+// POST /users — Admin only. Creates a LOCAL account (username/password).
+// Directory (AD) users are never created here — they are provisioned on first
+// LDAP login. New local accounts must change their password on first login.
+const create = asyncHandler(async (req, res) => {
+  const { username, displayName, email, role, departmentId, password } = req.body || {};
+  if (!username || !username.trim()) {
+    throw new ApiError(400, 'Username is required', 'VALIDATION_ERROR');
+  }
+  if (!displayName || !displayName.trim()) {
+    throw new ApiError(400, 'Display name is required', 'VALIDATION_ERROR');
+  }
+  if (!password || password.length < MIN_PASSWORD_LENGTH) {
+    throw new ApiError(
+      400,
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+      'WEAK_PASSWORD'
+    );
+  }
+  if (role && !['admin', 'technician', 'requester'].includes(role)) {
+    throw new ApiError(400, 'Invalid role', 'VALIDATION_ERROR');
+  }
+  const existing = await User.findOne({ where: { username: username.trim() } });
+  if (existing) {
+    throw new ApiError(409, 'A user with this username already exists', 'USERNAME_TAKEN');
+  }
+  if (departmentId) {
+    const dept = await Department.findByPk(departmentId);
+    if (!dept) throw new ApiError(400, 'Department does not exist', 'VALIDATION_ERROR');
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const user = await User.create({
+    username: username.trim(),
+    displayName: displayName.trim(),
+    email: email || null,
+    role: role || 'requester',
+    departmentId: departmentId || null,
+    passwordHash,
+    isLocalAccount: true,
+    mustChangePassword: true,
+  });
+  await writeAudit(req, 'user.create_local', 'User', user.id, { username: user.username, role: user.role });
+
+  const fresh = await User.findByPk(user.id, { include: userInclude });
+  res.status(201).json({ user: fresh });
 });
 
 // GET /users/:id — self or admin
@@ -30,7 +79,7 @@ const update = asyncHandler(async (req, res) => {
   const user = await User.findByPk(id);
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
 
-  const { role, departmentId } = req.body || {};
+  const { role, departmentId, password } = req.body || {};
   const changes = {};
 
   if (role !== undefined) {
@@ -46,9 +95,26 @@ const update = asyncHandler(async (req, res) => {
     }
     changes.departmentId = departmentId;
   }
+  // Admin password reset for local accounts: sets a new password and forces a
+  // change on next login.
+  if (password !== undefined) {
+    if (!user.isLocalAccount) {
+      throw new ApiError(400, 'Cannot set a password on a directory (AD) account', 'NOT_LOCAL_ACCOUNT');
+    }
+    if (!password || password.length < MIN_PASSWORD_LENGTH) {
+      throw new ApiError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`, 'WEAK_PASSWORD');
+    }
+    changes.passwordHash = await bcrypt.hash(password, 12);
+    changes.mustChangePassword = true;
+  }
 
   await user.update(changes);
-  await writeAudit(req, 'user.update', 'User', user.id, changes);
+  const audited = { ...changes };
+  if (audited.passwordHash) {
+    delete audited.passwordHash;
+    audited.passwordReset = true;
+  }
+  await writeAudit(req, 'user.update', 'User', user.id, audited);
 
   const fresh = await User.findByPk(id, { include: userInclude });
   res.json({ user: fresh });
@@ -68,4 +134,4 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { list, get, update, remove };
+module.exports = { list, create, get, update, remove };

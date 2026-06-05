@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const NAV = [
@@ -72,6 +72,14 @@ export default function Layout() {
         <div className="border-t border-navy-800 p-4">
           <p className="truncate text-sm font-medium text-white">{user?.displayName}</p>
           <p className="mb-3 truncate text-xs capitalize text-navy-300">{user?.role}</p>
+          {user?.isLocalAccount && (
+            <Link
+              to="/change-password"
+              className="mb-2 block text-center text-xs text-navy-300 hover:text-white"
+            >
+              Change password
+            </Link>
+          )}
           <button onClick={handleLogout} className="w-full btn-secondary py-1.5 text-xs">
             Sign out
           </button>

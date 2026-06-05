@@ -3,12 +3,12 @@
 **PRISM** is a self-hosted ticketing and project management web application for use
 across departments (starting with IT). It provides ticket tracking, project and
 milestone management, time logging, attachments, reporting, and an API — all behind
-Active Directory / LDAP authentication.
+authentication.
 
 - **Frontend:** React (Vite) + React Router + Tailwind CSS
 - **Backend:** Node.js + Express
 - **Database:** MariaDB via Sequelize ORM (with migrations)
-- **Auth:** Active Directory / LDAP (`ldapjs`) + a single bootstrap admin
+- **Auth:** Active Directory / LDAP (`ldapjs`) **and** local username/password accounts
 - **Deployment:** Docker Compose (frontend, backend, mariadb)
 - **Storage:** Ticket attachments on a local Docker volume
 
@@ -58,7 +58,8 @@ cd PRISM
 
 # 2. Create your environment file and fill in your values
 cp .env.example .env
-#    Edit .env — set DB_PASSWORD, SESSION_SECRET, LDAP_* and the bootstrap admin.
+#    Edit .env — set DB_PASSWORD, SESSION_SECRET, LDAP_*, and the
+#    BOOTSTRAP_LOCAL_* admin credentials.
 
 # 3. Pull the images and start everything (database, backend, frontend)
 docker compose up -d
@@ -74,10 +75,21 @@ To update to the latest published images later:
 docker compose pull && docker compose up -d
 ```
 
-Log in for the first time with the **bootstrap admin** credentials
-(`BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD` from `.env`). Then go to
-**Admin → Users** to promote your real AD account to Admin, and disable the
-bootstrap account by clearing those env vars and restarting.
+### First login (bootstrap local admin)
+
+On the first migration, PRISM automatically creates a **bootstrap local admin**
+account from `.env`:
+
+| | |
+|---|---|
+| Username | `BOOTSTRAP_LOCAL_USERNAME` (default **`admin`**) |
+| Password | `BOOTSTRAP_LOCAL_PASSWORD` (default **`changeme`**) |
+
+Sign in on the **Local Account** tab of the login page with those credentials.
+You will be **forced to change the password immediately** on first login — do so
+right away, and never leave the default `changeme` in place. Then go to
+**Admin → Users** to promote your real AD account to Admin and create any other
+local accounts. You can delete the bootstrap account once other admins exist.
 
 > **GHCR access:** the images are published to `ghcr.io/stevy2191/prism-backend`
 > and `…/prism-frontend`. If they're private, run `docker login ghcr.io` on the
@@ -127,6 +139,33 @@ npm start
 The Express session table (`Sessions`) is created automatically at startup by
 `connect-session-sequelize`; all application tables come from the migration in
 `backend/migrations/`.
+
+---
+
+## Authentication
+
+PRISM supports two login methods, selectable via tabs on the login page:
+
+- **Active Directory** — username + password verified against LDAP/AD. AD users are
+  created automatically on first login (defaulting to the **Requester** role) and
+  their `displayName`/`email` are synced from the directory on every login.
+- **Local Account** — username **or** email + password, verified against a bcrypt
+  hash stored in the `Users` table. Local accounts are created **manually by an
+  Admin** (Admin → Users → *New Local Account*) and are never created or modified by
+  LDAP sync. New local accounts (including the bootstrap admin) must change their
+  password on first login.
+
+Sessions for both methods are stored in MariaDB. Programmatic clients can instead
+use an `X-API-Key` header (see *Generating an API key*).
+
+| User field | Meaning |
+|------------|---------|
+| `isLocalAccount` | `true` for local accounts, `false` for AD users |
+| `passwordHash` | bcrypt hash (local accounts only; `null` for AD users) |
+| `mustChangePassword` | forces a password change before any other action |
+
+Admins can reset a local account's password from **Admin → Users** (which re-arms
+`mustChangePassword`). AD passwords are managed in Active Directory, not in PRISM.
 
 ---
 
@@ -227,8 +266,8 @@ Authentication: session cookie (browser) **or** `X-API-Key` header (clients).
 
 | Area | Endpoints |
 |------|-----------|
-| Auth | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` |
-| Users | `GET /users` (admin), `GET/PATCH/DELETE /users/:id` |
+| Auth | `POST /auth/login` (`mode: ad\|local`), `POST /auth/logout`, `GET /auth/me`, `POST /auth/change-password` |
+| Users | `GET /users` (admin), `POST /users` (admin, local account), `GET/PATCH/DELETE /users/:id` |
 | Departments | `GET/POST /departments`, `GET/PATCH/DELETE /departments/:id` |
 | Projects | `GET/POST /projects`, `GET/PATCH/DELETE /projects/:id`, `…/:id/milestones[/:milestoneId]` |
 | Tickets | `GET/POST /tickets`, `GET/PATCH/DELETE /tickets/:id` |

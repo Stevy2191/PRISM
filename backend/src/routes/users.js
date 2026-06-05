@@ -6,6 +6,7 @@ const { requireRole } = require('../middleware/role');
 const router = express.Router();
 
 router.get('/', requireRole('admin'), ctrl.list);
+router.post('/', requireRole('admin'), ctrl.create); // create local account
 router.get('/:id', ctrl.get); // self-or-admin enforced in controller
 router.patch('/:id', requireRole('admin'), ctrl.update);
 router.delete('/:id', requireRole('admin'), ctrl.remove);

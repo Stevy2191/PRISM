@@ -11,7 +11,7 @@ const ticketsRoutes = require('./tickets');
 const apikeysRoutes = require('./apikeys');
 const reportsRoutes = require('./reports');
 const settingsController = require('../controllers/settingsController');
-const { requireRole } = require('../middleware/role');
+const { requireRole, blockUntilPasswordChanged } = require('../middleware/role');
 
 const router = express.Router();
 
@@ -19,13 +19,15 @@ router.get('/health', (req, res) => res.json({ ok: true, service: 'prism-backend
 
 router.use('/auth', authRoutes);
 
-// Protected routes
-router.use('/users', authenticate, usersRoutes);
-router.use('/departments', authenticate, departmentsRoutes);
-router.use('/projects', authenticate, projectsRoutes);
-router.use('/tickets', authenticate, ticketsRoutes);
-router.use('/apikeys', authenticate, apikeysRoutes);
-router.use('/reports', authenticate, reportsRoutes);
-router.get('/settings', authenticate, requireRole('admin'), settingsController.get);
+// Protected routes. `guard` = authenticated AND (for local accounts) not pending a
+// forced password change.
+const guard = [authenticate, blockUntilPasswordChanged];
+router.use('/users', guard, usersRoutes);
+router.use('/departments', guard, departmentsRoutes);
+router.use('/projects', guard, projectsRoutes);
+router.use('/tickets', guard, ticketsRoutes);
+router.use('/apikeys', guard, apikeysRoutes);
+router.use('/reports', guard, reportsRoutes);
+router.get('/settings', guard, requireRole('admin'), settingsController.get);
 
 module.exports = router;
