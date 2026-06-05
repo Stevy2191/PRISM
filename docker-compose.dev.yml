@@ -1,11 +1,13 @@
-# PRISM — OPTIONAL production stack: pulls prebuilt images from GitHub Container
-# Registry instead of building from source. For the standard build-from-source
-# flow, use docker-compose.yml instead (the only file most setups need).
+# PRISM — DEVELOPMENT stack. Builds the frontend and backend from source.
 #
-# Migrations run automatically on backend startup. Usage:
-#   cp .env.example .env
-#   docker compose -f docker-compose.prod.yml pull
-#   docker compose -f docker-compose.prod.yml up -d
+# Use this when working on the code (no prebuilt images needed):
+#   1. cp .env.example .env   # then fill in your values
+#   2. docker compose -f docker-compose.dev.yml up -d --build
+#
+# For a normal production deployment from prebuilt images, use the default
+# docker-compose.yml instead.
+#
+# The backend automatically waits for the database, runs migrations, and starts.
 services:
   mariadb:
     image: mariadb:10.11
@@ -17,6 +19,8 @@ services:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootchangeme}
     volumes:
       - mariadb_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -24,7 +28,7 @@ services:
       retries: 10
 
   backend:
-    image: ghcr.io/stevy2191/prism-backend:latest
+    build: ./backend
     restart: unless-stopped
     depends_on:
       mariadb:
@@ -36,14 +40,17 @@ services:
       PORT: 3001
     volumes:
       - uploads_data:/uploads
+    ports:
+      - "3001:3001"
 
   frontend:
-    image: ghcr.io/stevy2191/prism-frontend:latest
+    build: ./frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
-      - "80:80"
+      - "3000:80"
 
 volumes:
   mariadb_data:

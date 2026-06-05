@@ -47,9 +47,9 @@ New users default to **Requester** on first login. An Admin assigns roles afterw
 
 ## Quick start
 
-Requirements: Docker + Docker Compose. **`docker-compose.yml` is the only file you
-need** — it builds the frontend and backend from source, starts MariaDB, and runs
-database migrations automatically.
+Requirements: Docker + Docker Compose. The default `docker-compose.yml` pulls
+prebuilt images from GitHub Container Registry — no build step needed — starts
+MariaDB, and runs database migrations automatically.
 
 ```bash
 # 1. Clone the repository
@@ -60,21 +60,41 @@ cd PRISM
 cp .env.example .env
 #    Edit .env — set DB_PASSWORD, SESSION_SECRET, LDAP_* and the bootstrap admin.
 
-# 3. Build and start everything (database, backend, frontend)
+# 3. Pull the images and start everything (database, backend, frontend)
 docker compose up -d
 ```
 
 That's it. On first start the backend waits for the database to be ready, applies
 all migrations, and then comes online. Watch progress with `docker compose logs -f`.
+The app is served on **<http://localhost>** (port 80).
 
-Then open the app:
-- Frontend: <http://localhost:3000>
-- Backend health: <http://localhost:3001/api/v1/health>
+To update to the latest published images later:
+
+```bash
+docker compose pull && docker compose up -d
+```
 
 Log in for the first time with the **bootstrap admin** credentials
 (`BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD` from `.env`). Then go to
 **Admin → Users** to promote your real AD account to Admin, and disable the
 bootstrap account by clearing those env vars and restarting.
+
+> **GHCR access:** the images are published to `ghcr.io/stevy2191/prism-backend`
+> and `…/prism-frontend`. If they're private, run `docker login ghcr.io` on the
+> host first, or mark the packages public in your GitHub settings.
+
+### Building from source (development)
+
+If you're working on the code and want to build the images locally instead of
+pulling them, use the development compose file:
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+The dev stack exposes the frontend on <http://localhost:3000>, the backend on
+<http://localhost:3001>, and MariaDB on `3306` for direct access.
 
 ---
 
@@ -132,33 +152,22 @@ You can review the effective (non-secret) LDAP configuration in the app under
 
 ---
 
-## Optional: deploy from prebuilt images
+## Image publishing &amp; production notes
 
-The standard `docker compose up -d` flow above is all most deployments need. As an
-**optional** alternative, you can run from prebuilt images instead of building from
-source — handy for low-powered servers where you'd rather not run a build.
-
-On every push to `main`, GitHub Actions builds and publishes two images to GHCR:
+On every push to `main`, GitHub Actions builds and publishes both images to GHCR,
+tagged with `latest` and the git SHA — this is what the default `docker-compose.yml`
+pulls:
 
 - `ghcr.io/stevy2191/prism-backend:latest` (and `:<git-sha>`)
 - `ghcr.io/stevy2191/prism-frontend:latest` (and `:<git-sha>`)
 
-`docker-compose.prod.yml` is provided for this; it pulls those images rather than
-building:
+The frontend is exposed on port **80**. Put a TLS-terminating reverse proxy in
+front for HTTPS; if it forwards plain HTTP internally, set `COOKIE_SECURE=false`
+in `.env` so session cookies are still issued.
 
-```bash
-cp .env.example .env
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
-```
-
-Migrations still run automatically on backend startup. The frontend is exposed on
-port **80**; put a TLS-terminating reverse proxy in front for HTTPS, and if it
-forwards plain HTTP internally set `COOKIE_SECURE=false` so session cookies are
-still issued.
-
-> **GHCR notes:** images are private by default — either mark them public in your
-> GitHub packages settings, or `docker login ghcr.io` on the host before pulling.
+> **GHCR notes:** image names must be lowercase (`stevy2191`). Images are private
+> by default — either mark the packages public in your GitHub settings, or
+> `docker login ghcr.io` on the host before pulling.
 
 ---
 
@@ -218,8 +227,8 @@ Ticket list filters (query params): `status`, `priority`, `type`, `assignee`,
 
 ```
 prism/
-├── docker-compose.yml          # the only file you need (builds from source)
-├── docker-compose.prod.yml     # optional: run from prebuilt ghcr.io images
+├── docker-compose.yml          # default: run from prebuilt ghcr.io images
+├── docker-compose.dev.yml      # development: build everything from source
 ├── .env.example
 ├── .github/workflows/docker-publish.yml
 ├── backend/
