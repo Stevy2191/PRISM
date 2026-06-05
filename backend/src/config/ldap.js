@@ -1,0 +1,143 @@
+// LDAP / Active Directory configuration and authentication helper.
+//
+// Authentication flow:
+//   1. Bind with the service account (LDAP_BIND_DN / LDAP_BIND_PASSWORD).
+//   2. Search for the user using LDAP_USER_FILTER (e.g. (sAMAccountName={{username}})).
+//   3. Re-bind as the found user DN with the supplied password to verify credentials.
+//   4. Return the user's directory attributes (displayName, mail, sAMAccountName).
+const ldap = require('ldapjs');
+
+const ldapConfig = {
+  url: process.env.LDAP_URL || 'ldap://localhost:389',
+  baseDN: process.env.LDAP_BASE_DN || '',
+  bindDN: process.env.LDAP_BIND_DN || '',
+  bindPassword: process.env.LDAP_BIND_PASSWORD || '',
+  userFilter: process.env.LDAP_USER_FILTER || '(sAMAccountName={{username}})',
+};
+
+function createClient() {
+  return ldap.createClient({
+    url: ldapConfig.url,
+    reconnect: false,
+    timeout: 10000,
+    connectTimeout: 10000,
+  });
+}
+
+function bind(client, dn, password) {
+  return new Promise((resolve, reject) => {
+    client.bind(dn, password, (err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+}
+
+function searchUser(client, username) {
+  return new Promise((resolve, reject) => {
+    const filter = ldapConfig.userFilter.replace('{{username}}', escapeFilter(username));
+    const opts = {
+      filter,
+      scope: 'sub',
+      attributes: ['dn', 'displayName', 'cn', 'mail', 'sAMAccountName', 'userPrincipalName'],
+    };
+
+    client.search(ldapConfig.baseDN, opts, (err, res) => {
+      if (err) return reject(err);
+
+      let entry = null;
+      res.on('searchEntry', (e) => {
+        // ldapjs v3 exposes parsed attributes on e.pojo / e.object
+        entry = e.pojo || e.object || e;
+      });
+      res.on('error', (e) => reject(e));
+      res.on('end', () => resolve(entry));
+    });
+  });
+}
+
+// Escape characters that are special in LDAP search filters (RFC 4515).
+function escapeFilter(input) {
+  return String(input)
+    .replace(/\\/g, '\\5c')
+    .replace(/\*/g, '\\2a')
+    .replace(/\(/g, '\\28')
+    .replace(/\)/g, '\\29')
+    .replace(/\0/g, '\\00');
+}
+
+function attr(entry, name) {
+  if (!entry) return null;
+  // Normalize across the shapes ldapjs may return.
+  if (entry.attributes && Array.isArray(entry.attributes)) {
+    const found = entry.attributes.find((a) => a.type === name);
+    if (found) return Array.isArray(found.values) ? found.values[0] : found.values;
+  }
+  if (entry[name] !== undefined) {
+    return Array.isArray(entry[name]) ? entry[name][0] : entry[name];
+  }
+  return null;
+}
+
+/**
+ * Authenticate a user against LDAP/AD.
+ * @returns {Promise<{username, displayName, email, dn}>}
+ * @throws Error with code 'INVALID_CREDENTIALS' or 'LDAP_ERROR'
+ */
+async function authenticate(username, password) {
+  if (!username || !password) {
+    const e = new Error('Username and password are required');
+    e.code = 'INVALID_CREDENTIALS';
+    throw e;
+  }
+
+  const serviceClient = createClient();
+  try {
+    // 1. Service bind
+    await bind(serviceClient, ldapConfig.bindDN, ldapConfig.bindPassword);
+
+    // 2. Find user
+    const entry = await searchUser(serviceClient, username);
+    if (!entry) {
+      const e = new Error('Invalid username or password');
+      e.code = 'INVALID_CREDENTIALS';
+      throw e;
+    }
+
+    const userDN = entry.objectName || entry.dn || attr(entry, 'dn');
+    if (!userDN) {
+      const e = new Error('Could not resolve user DN');
+      e.code = 'LDAP_ERROR';
+      throw e;
+    }
+
+    // 3. Verify password by binding as the user
+    const userClient = createClient();
+    try {
+      await bind(userClient, userDN, password);
+    } catch (err) {
+      const e = new Error('Invalid username or password');
+      e.code = 'INVALID_CREDENTIALS';
+      throw e;
+    } finally {
+      userClient.unbind(() => {});
+    }
+
+    // 4. Extract profile attributes
+    return {
+      username: attr(entry, 'sAMAccountName') || username,
+      displayName: attr(entry, 'displayName') || attr(entry, 'cn') || username,
+      email: attr(entry, 'mail') || attr(entry, 'userPrincipalName') || null,
+      dn: userDN,
+    };
+  } catch (err) {
+    if (err.code === 'INVALID_CREDENTIALS') throw err;
+    const e = new Error(err.message || 'LDAP authentication failed');
+    e.code = err.code === 'LDAP_ERROR' ? 'LDAP_ERROR' : 'LDAP_ERROR';
+    throw e;
+  } finally {
+    serviceClient.unbind(() => {});
+  }
+}
+
+module.exports = { ldapConfig, authenticate };

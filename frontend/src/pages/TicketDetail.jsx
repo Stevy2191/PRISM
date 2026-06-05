@@ -1,0 +1,367 @@
+import { useEffect, useState, useRef } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import api, { errMessage } from '../api/api';
+import { useAuth } from '../context/AuthContext';
+import Badge from '../components/Badge';
+import Spinner from '../components/Spinner';
+
+const STATUSES = ['open', 'in_progress', 'on_hold', 'resolved', 'closed'];
+const PRIORITIES = ['low', 'medium', 'high', 'critical'];
+
+function formatMinutes(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
+
+export default function TicketDetail() {
+  const { id } = useParams();
+  const { user, isStaff, isAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  const [ticket, setTicket] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [time, setTime] = useState({ entries: [], totalMinutes: 0 });
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const [newComment, setNewComment] = useState('');
+  const [timeForm, setTimeForm] = useState({ minutes: '', note: '' });
+  const fileRef = useRef();
+
+  const load = async () => {
+    try {
+      const [t, c, a, tm] = await Promise.all([
+        api.get(`/tickets/${id}`),
+        api.get(`/tickets/${id}/comments`),
+        api.get(`/tickets/${id}/attachments`),
+        api.get(`/tickets/${id}/time`),
+      ]);
+      setTicket(t.data.ticket);
+      setComments(c.data.comments);
+      setAttachments(a.data.attachments);
+      setTime(tm.data);
+      if (isStaff) {
+        api.get('/users').then(({ data }) => setUsers(data.users)).catch(() => {});
+      }
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const patchTicket = async (changes) => {
+    try {
+      const { data } = await api.patch(`/tickets/${id}`, changes);
+      setTicket(data.ticket);
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const addComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    try {
+      const { data } = await api.post(`/tickets/${id}/comments`, { body: newComment });
+      setComments((c) => [...c, data.comment]);
+      setNewComment('');
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const deleteComment = async (commentId) => {
+    if (!confirm('Delete this comment?')) return;
+    try {
+      await api.delete(`/tickets/${id}/comments/${commentId}`);
+      setComments((c) => c.filter((x) => x.id !== commentId));
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const uploadFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const { data } = await api.post(`/tickets/${id}/attachments`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setAttachments((a) => [data.attachment, ...a]);
+      if (fileRef.current) fileRef.current.value = '';
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const deleteAttachment = async (attId) => {
+    if (!confirm('Delete this attachment?')) return;
+    try {
+      await api.delete(`/tickets/${id}/attachments/${attId}`);
+      setAttachments((a) => a.filter((x) => x.id !== attId));
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const addTime = async (e) => {
+    e.preventDefault();
+    const minutes = parseInt(timeForm.minutes, 10);
+    if (!minutes) return;
+    try {
+      const { data } = await api.post(`/tickets/${id}/time`, { minutes, note: timeForm.note });
+      setTime((t) => ({
+        entries: [data.entry, ...t.entries],
+        totalMinutes: t.totalMinutes + data.entry.minutes,
+      }));
+      setTimeForm({ minutes: '', note: '' });
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const deleteTime = async (entryId, minutes) => {
+    try {
+      await api.delete(`/tickets/${id}/time/${entryId}`);
+      setTime((t) => ({
+        entries: t.entries.filter((x) => x.id !== entryId),
+        totalMinutes: t.totalMinutes - minutes,
+      }));
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const deleteTicket = async () => {
+    if (!confirm('Delete this ticket permanently?')) return;
+    try {
+      await api.delete(`/tickets/${id}`);
+      navigate('/tickets');
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const downloadUrl = (att) => `/api/v1/tickets/${id}/attachments/${att.id}/download`;
+
+  if (loading) return <Spinner />;
+  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (!ticket) return null;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <Link to="/tickets" className="text-sm text-prism hover:underline">← Back to tickets</Link>
+          <h1 className="mt-1 text-2xl font-bold text-navy-900">
+            <span className="font-mono text-navy-400">#{ticket.id}</span> {ticket.title}
+          </h1>
+        </div>
+        {isAdmin && (
+          <button onClick={deleteTicket} className="btn-danger">Delete</button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Main column */}
+        <div className="space-y-6 lg:col-span-2">
+          <div className="card p-5">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy-500">Description</h2>
+            <p className="whitespace-pre-wrap text-navy-800">{ticket.description || 'No description provided.'}</p>
+          </div>
+
+          {/* Comments */}
+          <div className="card">
+            <div className="border-b border-navy-100 px-5 py-3">
+              <h2 className="font-semibold text-navy-900">Comments ({comments.length})</h2>
+            </div>
+            <ul className="divide-y divide-navy-100">
+              {comments.map((c) => (
+                <li key={c.id} className="px-5 py-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-navy-800">{c.author?.displayName}</p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-navy-400">{new Date(c.createdAt).toLocaleString()}</span>
+                      {(c.authorId === user.id || isStaff) && (
+                        <button onClick={() => deleteComment(c.id)} className="text-xs text-red-500 hover:underline">
+                          delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-navy-700">{c.body}</p>
+                </li>
+              ))}
+              {comments.length === 0 && <li className="px-5 py-4 text-sm text-navy-400">No comments yet.</li>}
+            </ul>
+            <form onSubmit={addComment} className="border-t border-navy-100 p-4">
+              <textarea
+                className="input min-h-[5rem]"
+                placeholder="Add a comment…"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+              />
+              <div className="mt-2 flex justify-end">
+                <button type="submit" className="btn-primary">Comment</button>
+              </div>
+            </form>
+          </div>
+
+          {/* Attachments */}
+          <div className="card">
+            <div className="flex items-center justify-between border-b border-navy-100 px-5 py-3">
+              <h2 className="font-semibold text-navy-900">Attachments ({attachments.length})</h2>
+              {isStaff && (
+                <label className="btn-secondary cursor-pointer text-xs">
+                  Upload
+                  <input ref={fileRef} type="file" className="hidden" onChange={uploadFile} />
+                </label>
+              )}
+            </div>
+            <ul className="divide-y divide-navy-100">
+              {attachments.map((a) => (
+                <li key={a.id} className="flex items-center justify-between px-5 py-3">
+                  <div className="min-w-0">
+                    <a href={downloadUrl(a)} className="font-medium text-prism hover:underline">
+                      {a.originalName}
+                    </a>
+                    <p className="text-xs text-navy-400">
+                      {(a.size / 1024).toFixed(1)} KB · {a.uploadedBy?.displayName || ''}
+                    </p>
+                  </div>
+                  {isStaff && (
+                    <button onClick={() => deleteAttachment(a.id)} className="text-xs text-red-500 hover:underline">
+                      delete
+                    </button>
+                  )}
+                </li>
+              ))}
+              {attachments.length === 0 && <li className="px-5 py-4 text-sm text-navy-400">No attachments.</li>}
+            </ul>
+          </div>
+        </div>
+
+        {/* Sidebar column */}
+        <div className="space-y-6">
+          <div className="card space-y-4 p-5">
+            <Field label="Status">
+              {isStaff ? (
+                <select className="input" value={ticket.status} onChange={(e) => patchTicket({ status: e.target.value })}>
+                  {STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+                </select>
+              ) : (
+                <Badge value={ticket.status} />
+              )}
+            </Field>
+            <Field label="Priority">
+              {isStaff ? (
+                <select className="input" value={ticket.priority} onChange={(e) => patchTicket({ priority: e.target.value })}>
+                  {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              ) : (
+                <Badge value={ticket.priority} />
+              )}
+            </Field>
+            <Field label="Type"><Badge value={ticket.type} /></Field>
+            <Field label="Requester">
+              <span className="text-sm text-navy-800">{ticket.requester?.displayName || '—'}</span>
+            </Field>
+            <Field label="Assignee">
+              {isStaff ? (
+                <select
+                  className="input"
+                  value={ticket.assigneeId || ''}
+                  onChange={(e) => patchTicket({ assigneeId: e.target.value || null })}
+                >
+                  <option value="">Unassigned</option>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+                </select>
+              ) : (
+                <span className="text-sm text-navy-800">{ticket.assignee?.displayName || 'Unassigned'}</span>
+              )}
+            </Field>
+            <Field label="Project">
+              {ticket.project ? (
+                <Link to={`/projects/${ticket.project.id}`} className="text-sm text-prism hover:underline">
+                  {ticket.project.name}
+                </Link>
+              ) : (
+                <span className="text-sm text-navy-400">—</span>
+              )}
+            </Field>
+            <Field label="Department">
+              <span className="text-sm text-navy-800">{ticket.department?.name || '—'}</span>
+            </Field>
+            <Field label="Due date">
+              <span className="text-sm text-navy-800">{ticket.dueDate || '—'}</span>
+            </Field>
+          </div>
+
+          {/* Time log */}
+          <div className="card">
+            <div className="flex items-center justify-between border-b border-navy-100 px-5 py-3">
+              <h2 className="font-semibold text-navy-900">Time Log</h2>
+              <span className="text-sm font-medium text-prism">{formatMinutes(time.totalMinutes)}</span>
+            </div>
+            <ul className="divide-y divide-navy-100">
+              {time.entries.map((entry) => (
+                <li key={entry.id} className="flex items-center justify-between px-5 py-2 text-sm">
+                  <div>
+                    <span className="font-medium text-navy-800">{formatMinutes(entry.minutes)}</span>
+                    <span className="text-navy-500"> · {entry.user?.displayName}</span>
+                    {entry.note && <p className="text-xs text-navy-400">{entry.note}</p>}
+                  </div>
+                  {(entry.userId === user.id || isAdmin) && (
+                    <button onClick={() => deleteTime(entry.id, entry.minutes)} className="text-xs text-red-500 hover:underline">
+                      delete
+                    </button>
+                  )}
+                </li>
+              ))}
+              {time.entries.length === 0 && <li className="px-5 py-3 text-sm text-navy-400">No time logged.</li>}
+            </ul>
+            {isStaff && (
+              <form onSubmit={addTime} className="flex flex-wrap gap-2 border-t border-navy-100 p-4">
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="min"
+                  className="input w-20"
+                  value={timeForm.minutes}
+                  onChange={(e) => setTimeForm((f) => ({ ...f, minutes: e.target.value }))}
+                />
+                <input
+                  placeholder="note"
+                  className="input flex-1"
+                  value={timeForm.note}
+                  onChange={(e) => setTimeForm((f) => ({ ...f, note: e.target.value }))}
+                />
+                <button type="submit" className="btn-primary">Log</button>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-navy-400">{label}</p>
+      {children}
+    </div>
+  );
+}
