@@ -165,9 +165,30 @@ The frontend is exposed on port **80**. Put a TLS-terminating reverse proxy in
 front for HTTPS; if it forwards plain HTTP internally, set `COOKIE_SECURE=false`
 in `.env` so session cookies are still issued.
 
-> **GHCR notes:** image names must be lowercase (`stevy2191`). Images are private
-> by default — either mark the packages public in your GitHub settings, or
-> `docker login ghcr.io` on the host before pulling.
+### Pulling the images
+
+`docker compose up -d` (and `docker compose pull`) fetch these images automatically,
+so you normally don't pull by hand. Image names must be **lowercase**
+(`ghcr.io/stevy2191/…`).
+
+**If the packages are public** — no authentication is needed. Any host can pull
+directly:
+
+```bash
+docker pull ghcr.io/stevy2191/prism-backend:latest
+docker pull ghcr.io/stevy2191/prism-frontend:latest
+```
+
+To make them public: GitHub → your profile → **Packages** → select the package →
+**Package settings** → **Danger Zone** → **Change visibility** → **Public**.
+
+**If the packages are private** (the default) — log in to GHCR on each host first
+with a Personal Access Token that has the `read:packages` scope:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u stevy2191 --password-stdin
+docker compose pull
+```
 
 ---
 
