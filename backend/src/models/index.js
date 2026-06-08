@@ -12,6 +12,8 @@ const Attachment = require('./Attachment')(sequelize);
 const TimeEntry = require('./TimeEntry')(sequelize);
 const ApiKey = require('./ApiKey')(sequelize);
 const AuditLog = require('./AuditLog')(sequelize);
+const Blueprint = require('./Blueprint')(sequelize);
+const TicketRelation = require('./TicketRelation')(sequelize);
 
 const db = {
   sequelize,
@@ -25,6 +27,8 @@ const db = {
   TimeEntry,
   ApiKey,
   AuditLog,
+  Blueprint,
+  TicketRelation,
 };
 
 // ---- Associations ----
@@ -75,6 +79,21 @@ Ticket.hasMany(TimeEntry, { foreignKey: 'ticketId', as: 'timeEntries', onDelete:
 TimeEntry.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 TimeEntry.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(TimeEntry, { foreignKey: 'userId', as: 'timeEntries' });
+
+// Project <-> TimeEntry (project-level time)
+Project.hasMany(TimeEntry, { foreignKey: 'projectId', as: 'timeEntries', onDelete: 'CASCADE' });
+TimeEntry.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+
+// Blueprint
+Blueprint.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
+Blueprint.belongsTo(Department, { foreignKey: 'defaultDepartmentId', as: 'defaultDepartment' });
+Ticket.belongsTo(Blueprint, { foreignKey: 'blueprintId', as: 'blueprint' });
+
+// Ticket relations (self-referential many-to-many via TicketRelation)
+Ticket.hasMany(TicketRelation, { foreignKey: 'ticketId', as: 'relations', onDelete: 'CASCADE' });
+Ticket.hasMany(TicketRelation, { foreignKey: 'relatedTicketId', as: 'inverseRelations', onDelete: 'CASCADE' });
+TicketRelation.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+TicketRelation.belongsTo(Ticket, { foreignKey: 'relatedTicketId', as: 'relatedTicket' });
 
 // User <-> ApiKey
 User.hasMany(ApiKey, { foreignKey: 'userId', as: 'apiKeys', onDelete: 'CASCADE' });

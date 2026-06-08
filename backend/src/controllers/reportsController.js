@@ -69,54 +69,104 @@ const tickets = asyncHandler(async (req, res) => {
   });
 });
 
-// GET /reports/time — time logged by user, ticket, project
+// GET /reports/time — time logged by user, by project, by department.
+// Supports date range (from/to) and CSV export (?format=csv).
+// Aggregated in JS so it correctly handles both ticket-level and project-level
+// (ticketId null) time entries.
 const time = asyncHandler(async (req, res) => {
   const where = dateRange('loggedAt', req.query);
 
-  const byUser = await TimeEntry.findAll({
+  const entries = await TimeEntry.findAll({
     where,
-    attributes: ['userId', [fn('SUM', col('minutes')), 'minutes']],
-    include: [{ model: User, as: 'user', attributes: ['id', 'displayName', 'username'] }],
-    group: ['userId', 'user.id'],
-    raw: true,
-    nest: true,
-  });
-
-  const byTicket = await TimeEntry.findAll({
-    where,
-    attributes: ['ticketId', [fn('SUM', col('minutes')), 'minutes']],
-    include: [{ model: Ticket, as: 'ticket', attributes: ['id', 'title', 'projectId'] }],
-    group: ['ticketId', 'ticket.id'],
-    raw: true,
-    nest: true,
-  });
-
-  // Time by project: join TimeEntry -> Ticket -> Project, summed per project.
-  const byProject = await TimeEntry.findAll({
-    where,
-    attributes: [[fn('SUM', col('minutes')), 'minutes']],
     include: [
+      { model: User, as: 'user', attributes: ['id', 'displayName', 'username'] },
       {
         model: Ticket,
         as: 'ticket',
-        attributes: ['projectId'],
-        include: [{ model: Project, as: 'project', attributes: ['id', 'name'] }],
+        attributes: ['id', 'title', 'projectId', 'departmentId'],
+        include: [
+          { model: Project, as: 'project', attributes: ['id', 'name'] },
+          { model: Department, as: 'department', attributes: ['id', 'name'] },
+        ],
+      },
+      {
+        model: Project,
+        as: 'project',
+        attributes: ['id', 'name', 'departmentId'],
+        include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
       },
     ],
-    group: ['ticket.projectId', 'ticket->project.id', 'ticket->project.name'],
-    raw: true,
-    nest: true,
+    order: [['loggedAt', 'DESC']],
   });
 
-  const totalMinutes = (await TimeEntry.sum('minutes', { where })) || 0;
+  const byUser = new Map();
+  const byProject = new Map();
+  const byDepartment = new Map();
+  let totalMinutes = 0;
 
-  res.json({
+  const bump = (map, key, label, minutes, extra = {}) => {
+    const cur = map.get(key) || { key, label, minutes: 0, ...extra };
+    cur.minutes += minutes;
+    map.set(key, cur);
+  };
+
+  for (const e of entries) {
+    totalMinutes += e.minutes;
+
+    const u = e.user;
+    bump(byUser, u ? u.id : 'unknown', u ? u.displayName : 'Unknown', e.minutes);
+
+    // Resolve the project (direct project entry, or via the ticket).
+    const project = e.project || e.ticket?.project || null;
+    bump(byProject, project ? project.id : 'none', project ? project.name : 'No project', e.minutes);
+
+    // Resolve the department (ticket's dept, else project's dept).
+    const dept = e.ticket?.department || e.project?.department || null;
+    bump(byDepartment, dept ? dept.id : 'none', dept ? dept.name : 'Unassigned', e.minutes);
+  }
+
+  const toSorted = (map) => [...map.values()].sort((a, b) => b.minutes - a.minutes);
+
+  // CSV export: flat per-entry detail so the data can be pivoted downstream.
+  if ((req.query.format || '').toLowerCase() === 'csv') {
+    const rows = [['Date', 'User', 'Minutes', 'Hours', 'Type', 'Reference', 'Department', 'Note']];
+    for (const e of entries) {
+      const project = e.project || e.ticket?.project || null;
+      const dept = e.ticket?.department || e.project?.department || null;
+      const isProject = !e.ticketId;
+      rows.push([
+        e.loggedAt ? new Date(e.loggedAt).toISOString().slice(0, 10) : '',
+        e.user ? e.user.displayName : '',
+        e.minutes,
+        (e.minutes / 60).toFixed(2),
+        isProject ? 'project' : 'ticket',
+        isProject ? (project ? `Project: ${project.name}` : 'Project') : `#${e.ticketId} ${e.ticket?.title || ''}`,
+        dept ? dept.name : 'Unassigned',
+        e.note || '',
+      ]);
+    }
+    const csv = rows.map((r) => r.map(csvCell).join(',')).join('\r\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="prism-time-report.csv"');
+    return res.send(csv);
+  }
+
+  return res.json({
     range: { from: req.query.from || null, to: req.query.to || null },
     totalMinutes,
-    byUser,
-    byTicket,
-    byProject,
+    byUser: toSorted(byUser),
+    byProject: toSorted(byProject),
+    byDepartment: toSorted(byDepartment),
   });
 });
+
+// Quote a CSV cell if it contains a comma, quote, or newline.
+function csvCell(value) {
+  const s = value === null || value === undefined ? '' : String(value);
+  if (/[",\r\n]/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
 
 module.exports = { tickets, time };

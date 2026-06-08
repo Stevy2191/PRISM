@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <rect width="64" height="64" rx="12" fill="#0f1b34"/>
-  <path d="M20 44 L32 16 L44 44 Z" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M32 16 L52 30" stroke="#5e7ce2" stroke-width="3" stroke-linecap="round"/>
-  <path d="M38 30 L52 24 M38 34 L52 32 M38 38 L52 40" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+  <!-- Incoming white light beam -->
+  <path d="M3 25 L23 30" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Refracted rainbow spectrum -->
+  <path d="M42 31 L61 21" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+  <path d="M42 31 L61 25" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+  <path d="M42 31 L61 30" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+  <path d="M42 31 L61 35" stroke="#22c55e" stroke-width="2" stroke-linecap="round"/>
+  <path d="M42 31 L61 40" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+  <path d="M42 31 L61 44" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
+  <!-- Prism triangle -->
+  <path d="M32 12 L49 46 L15 46 Z" stroke="#93c5fd" stroke-width="2.5" stroke-linejoin="round" fill="#1e3a5f" fill-opacity="0.6"/>
 </svg>

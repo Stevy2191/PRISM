@@ -31,4 +31,9 @@ router.get('/:id/time', ctrl.listTime);
 router.post('/:id/time', staff, ctrl.createTime);
 router.delete('/:id/time/:entryId', ctrl.removeTime);
 
+// Related tickets (managed by staff)
+router.get('/:id/relations', ctrl.listRelations);
+router.post('/:id/relations', staff, ctrl.createRelation);
+router.delete('/:id/relations/:relationId', staff, ctrl.removeRelation);
+
 module.exports = router;

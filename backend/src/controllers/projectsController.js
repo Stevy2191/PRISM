@@ -1,4 +1,5 @@
-const { Project, Milestone, Department, User, Ticket } = require('../models');
+const { Op } = require('sequelize');
+const { Project, Milestone, Department, User, Ticket, TimeEntry } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 
@@ -142,6 +143,75 @@ const removeMilestone = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Project time ----
+const timeUserAttrs = ['id', 'displayName', 'username'];
+
+// GET /projects/:id/time
+// All time across the project: project-level entries + entries on linked tickets.
+const listTime = asyncHandler(async (req, res) => {
+  const project = await Project.findByPk(req.params.id);
+  if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+
+  const ticketIds = (
+    await Ticket.findAll({ where: { projectId: project.id }, attributes: ['id'], raw: true })
+  ).map((t) => t.id);
+
+  const where = ticketIds.length
+    ? { [Op.or]: [{ projectId: project.id }, { ticketId: { [Op.in]: ticketIds } }] }
+    : { projectId: project.id };
+
+  const entries = await TimeEntry.findAll({
+    where,
+    include: [
+      { model: User, as: 'user', attributes: timeUserAttrs },
+      { model: Ticket, as: 'ticket', attributes: ['id', 'title'] },
+    ],
+    order: [['loggedAt', 'DESC']],
+  });
+  const totalMinutes = entries.reduce((sum, e) => sum + e.minutes, 0);
+  res.json({ entries, totalMinutes });
+});
+
+// POST /projects/:id/time — Admin/Technician. Logs project-level time.
+const createTime = asyncHandler(async (req, res) => {
+  const project = await Project.findByPk(req.params.id);
+  if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+
+  const { minutes, note, loggedAt } = req.body || {};
+  const mins = parseInt(minutes, 10);
+  if (!mins || mins < 1) {
+    throw new ApiError(400, 'minutes must be a positive integer', 'VALIDATION_ERROR');
+  }
+  const entry = await TimeEntry.create({
+    projectId: project.id,
+    ticketId: null,
+    userId: req.user.id,
+    minutes: mins,
+    note: note || null,
+    loggedAt: loggedAt ? new Date(loggedAt) : new Date(),
+  });
+  await writeAudit(req, 'time.create', 'TimeEntry', entry.id, { projectId: project.id, minutes: mins });
+
+  const fresh = await TimeEntry.findByPk(entry.id, {
+    include: [{ model: User, as: 'user', attributes: timeUserAttrs }],
+  });
+  res.status(201).json({ entry: fresh });
+});
+
+// DELETE /projects/:id/time/:entryId — owner or admin. Project-level entries only.
+const removeTime = asyncHandler(async (req, res) => {
+  const entry = await TimeEntry.findOne({
+    where: { id: req.params.entryId, projectId: req.params.id },
+  });
+  if (!entry) throw new ApiError(404, 'Time entry not found', 'NOT_FOUND');
+  if (entry.userId !== req.user.id && req.user.role !== 'admin') {
+    throw new ApiError(403, 'You can only remove your own time entries', 'FORBIDDEN');
+  }
+  await entry.destroy();
+  await writeAudit(req, 'time.delete', 'TimeEntry', entry.id, { projectId: req.params.id });
+  res.json({ ok: true });
+});
+
 module.exports = {
   list,
   create,
@@ -152,4 +222,7 @@ module.exports = {
   createMilestone,
   updateMilestone,
   removeMilestone,
+  listTime,
+  createTime,
+  removeTime,
 };

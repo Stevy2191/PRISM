@@ -29,27 +29,54 @@ export default function TicketDetail() {
 
   const [newComment, setNewComment] = useState('');
   const [timeForm, setTimeForm] = useState({ minutes: '', note: '' });
+  const [relations, setRelations] = useState([]);
+  const [allTickets, setAllTickets] = useState([]);
+  const [relForm, setRelForm] = useState({ relatedTicketId: '', relationType: 'related' });
   const fileRef = useRef();
 
   const load = async () => {
     try {
-      const [t, c, a, tm] = await Promise.all([
+      const [t, c, a, tm, rel] = await Promise.all([
         api.get(`/tickets/${id}`),
         api.get(`/tickets/${id}/comments`),
         api.get(`/tickets/${id}/attachments`),
         api.get(`/tickets/${id}/time`),
+        api.get(`/tickets/${id}/relations`),
       ]);
       setTicket(t.data.ticket);
       setComments(c.data.comments);
       setAttachments(a.data.attachments);
       setTime(tm.data);
+      setRelations(rel.data.relations);
       if (isStaff) {
         api.get('/users').then(({ data }) => setUsers(data.users)).catch(() => {});
+        api.get('/tickets').then(({ data }) => setAllTickets(data.tickets)).catch(() => {});
       }
     } catch (err) {
       setError(errMessage(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addRelation = async (e) => {
+    e.preventDefault();
+    if (!relForm.relatedTicketId) return;
+    try {
+      const { data } = await api.post(`/tickets/${id}/relations`, relForm);
+      setRelations((r) => [data.relation, ...r]);
+      setRelForm({ relatedTicketId: '', relationType: 'related' });
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const removeRelation = async (relationId) => {
+    try {
+      await api.delete(`/tickets/${id}/relations/${relationId}`);
+      setRelations((r) => r.filter((x) => x.id !== relationId));
+    } catch (err) {
+      alert(errMessage(err));
     }
   };
 
@@ -164,8 +191,13 @@ export default function TicketDetail() {
       <div className="flex items-start justify-between">
         <div>
           <Link to="/tickets" className="text-sm text-prism hover:underline">← Back to tickets</Link>
-          <h1 className="mt-1 text-2xl font-bold text-navy-900">
-            <span className="font-mono text-navy-400">#{ticket.id}</span> {ticket.title}
+          <h1 className="mt-1 flex flex-wrap items-center gap-3 text-2xl font-bold text-navy-900">
+            <span>
+              <span className="font-mono text-navy-400">#{ticket.id}</span> {ticket.title}
+            </span>
+            <span className="badge bg-prism/10 text-prism" title="Total time logged">
+              ⏱ {formatMinutes(time.totalMinutes)}
+            </span>
           </h1>
         </div>
         {isAdmin && (
@@ -179,6 +211,81 @@ export default function TicketDetail() {
           <div className="card p-5">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy-500">Description</h2>
             <p className="whitespace-pre-wrap text-navy-800">{ticket.description || 'No description provided.'}</p>
+          </div>
+
+          {/* Custom fields (from blueprint) */}
+          {Array.isArray(ticket.customFields) && ticket.customFields.length > 0 && (
+            <div className="card p-5">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-500">Details</h2>
+              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {ticket.customFields.map((cf, i) => (
+                  <div key={i}>
+                    <dt className="text-xs font-medium text-navy-400">{cf.label}</dt>
+                    <dd className="text-sm text-navy-800">
+                      {cf.type === 'checkbox'
+                        ? (cf.value ? 'Yes' : 'No')
+                        : (cf.value === '' || cf.value === null || cf.value === undefined ? '—' : String(cf.value))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+
+          {/* Related tickets */}
+          <div className="card">
+            <div className="border-b border-navy-100 px-5 py-3">
+              <h2 className="font-semibold text-navy-900">Related Tickets ({relations.length})</h2>
+            </div>
+            <ul className="divide-y divide-navy-100">
+              {relations.map((r) => (
+                <li key={r.id} className="flex items-center justify-between px-5 py-3">
+                  <div className="min-w-0">
+                    <Link to={`/tickets/${r.ticket?.id}`} className="font-medium text-navy-800 hover:text-prism">
+                      #{r.ticket?.id} {r.ticket?.title}
+                    </Link>
+                    <p className="text-xs text-navy-400">
+                      {r.direction === 'incoming' ? 'inbound' : 'outbound'} · {r.relationType.replace(/_/g, ' ')}
+                    </p>
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    {r.ticket && <Badge value={r.ticket.status} />}
+                    {isStaff && (
+                      <button onClick={() => removeRelation(r.id)} className="text-xs text-red-500 hover:underline">
+                        unlink
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+              {relations.length === 0 && <li className="px-5 py-4 text-sm text-navy-400">No related tickets.</li>}
+            </ul>
+            {isStaff && (
+              <form onSubmit={addRelation} className="flex flex-wrap gap-2 border-t border-navy-100 p-4">
+                <select
+                  className="input flex-1"
+                  value={relForm.relatedTicketId}
+                  onChange={(e) => setRelForm((f) => ({ ...f, relatedTicketId: e.target.value }))}
+                >
+                  <option value="">Select a ticket…</option>
+                  {allTickets
+                    .filter((t) => t.id !== ticket.id)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>#{t.id} {t.title}</option>
+                    ))}
+                </select>
+                <select
+                  className="input w-40"
+                  value={relForm.relationType}
+                  onChange={(e) => setRelForm((f) => ({ ...f, relationType: e.target.value }))}
+                >
+                  <option value="related">related</option>
+                  <option value="caused_by">caused by</option>
+                  <option value="duplicates">duplicates</option>
+                </select>
+                <button type="submit" className="btn-primary">Link</button>
+              </form>
+            )}
           </div>
 
           {/* Comments */}

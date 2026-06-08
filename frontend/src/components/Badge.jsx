@@ -18,6 +18,7 @@ const STYLES = {
   // Ticket type
   incident: 'bg-red-50 text-red-700',
   request: 'bg-sky-50 text-sky-700',
+  problem: 'bg-rose-100 text-rose-800',
   task: 'bg-violet-50 text-violet-700',
   change: 'bg-amber-50 text-amber-700',
 };

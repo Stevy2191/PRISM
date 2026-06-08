@@ -45,6 +45,25 @@ export default function Reports() {
     load();
   }, [load]);
 
+  const exportCsv = async () => {
+    try {
+      const params = { format: 'csv' };
+      if (range.from) params.from = range.from;
+      if (range.to) params.to = range.to;
+      const res = await api.get('/reports/time', { params, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'prism-time-report.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
   const statusData = (ticketReport?.byStatus || []).map((r) => ({
     name: String(r.status).replace(/_/g, ' '),
     count: Number(r.count),
@@ -89,61 +108,50 @@ export default function Reports() {
           </div>
 
           {/* Time logged */}
-          <div className="card">
-            <div className="flex items-center justify-between border-b border-navy-100 px-5 py-3">
-              <h2 className="font-semibold text-navy-900">Time Logged by User</h2>
-              <span className="text-sm font-medium text-prism">
-                Total: {formatMinutes(timeReport?.totalMinutes)}
-              </span>
-            </div>
-            <table className="min-w-full divide-y divide-navy-100">
-              <thead className="bg-navy-50">
-                <tr>
-                  <th className="table-th">User</th>
-                  <th className="table-th">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-navy-100">
-                {(timeReport?.byUser || []).map((row, i) => (
-                  <tr key={i} className="hover:bg-navy-50">
-                    <td className="table-td">{row.user?.displayName || `User ${row.userId}`}</td>
-                    <td className="table-td">{formatMinutes(row.minutes)}</td>
-                  </tr>
-                ))}
-                {(!timeReport?.byUser || timeReport.byUser.length === 0) && (
-                  <tr><td colSpan={2} className="table-td text-navy-400">No time logged in this range.</td></tr>
-                )}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-navy-900">
+              Time Logged · Total {formatMinutes(timeReport?.totalMinutes)}
+            </h2>
+            <button onClick={exportCsv} className="btn-secondary">Export CSV</button>
           </div>
 
-          {/* Time by project */}
-          <div className="card">
-            <div className="border-b border-navy-100 px-5 py-3">
-              <h2 className="font-semibold text-navy-900">Time Logged by Project</h2>
-            </div>
-            <table className="min-w-full divide-y divide-navy-100">
-              <thead className="bg-navy-50">
-                <tr>
-                  <th className="table-th">Project</th>
-                  <th className="table-th">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-navy-100">
-                {(timeReport?.byProject || []).map((row, i) => (
-                  <tr key={i} className="hover:bg-navy-50">
-                    <td className="table-td">{row.ticket?.project?.name || 'No project'}</td>
-                    <td className="table-td">{formatMinutes(row.minutes)}</td>
-                  </tr>
-                ))}
-                {(!timeReport?.byProject || timeReport.byProject.length === 0) && (
-                  <tr><td colSpan={2} className="table-td text-navy-400">No data.</td></tr>
-                )}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <TimeTable title="By User" rows={timeReport?.byUser} label="User" />
+            <TimeTable title="By Project" rows={timeReport?.byProject} label="Project" />
+            <TimeTable title="By Department" rows={timeReport?.byDepartment} label="Department" />
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function TimeTable({ title, rows, label }) {
+  const data = rows || [];
+  return (
+    <div className="card">
+      <div className="border-b border-navy-100 px-5 py-3">
+        <h2 className="font-semibold text-navy-900">{title}</h2>
+      </div>
+      <table className="min-w-full divide-y divide-navy-100">
+        <thead className="bg-navy-50">
+          <tr>
+            <th className="table-th">{label}</th>
+            <th className="table-th">Time</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-navy-100">
+          {data.map((row) => (
+            <tr key={row.key} className="hover:bg-navy-50">
+              <td className="table-td">{row.label}</td>
+              <td className="table-td">{formatMinutes(row.minutes)}</td>
+            </tr>
+          ))}
+          {data.length === 0 && (
+            <tr><td colSpan={2} className="table-td text-navy-400">No data.</td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }

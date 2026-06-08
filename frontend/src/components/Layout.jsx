@@ -11,6 +11,7 @@ const NAV = [
 const ADMIN_NAV = [
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/departments', label: 'Departments' },
+  { to: '/admin/blueprints', label: 'Blueprints' },
   { to: '/admin/apikeys', label: 'API Keys' },
   { to: '/admin/settings', label: 'Settings' },
 ];
@@ -18,9 +19,18 @@ const ADMIN_NAV = [
 function PrismLogo() {
   return (
     <div className="flex items-center gap-2 px-5 py-5">
-      <svg viewBox="0 0 64 64" className="h-8 w-8">
-        <path d="M20 44 L32 16 L44 44 Z" fill="none" stroke="#38bdf8" strokeWidth="3" strokeLinejoin="round" />
-        <path d="M32 16 L52 30" stroke="#5e7ce2" strokeWidth="3" strokeLinecap="round" />
+      <svg viewBox="0 0 64 64" className="h-8 w-8" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Incoming white light beam */}
+        <path d="M3 25 L23 30" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" />
+        {/* Refracted rainbow spectrum */}
+        <path d="M42 31 L62 20" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+        <path d="M42 31 L62 25" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+        <path d="M42 31 L62 30" stroke="#eab308" strokeWidth="2" strokeLinecap="round" />
+        <path d="M42 31 L62 35" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" />
+        <path d="M42 31 L62 40" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
+        <path d="M42 31 L62 45" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
+        {/* Prism triangle */}
+        <path d="M32 11 L50 47 L14 47 Z" stroke="#93c5fd" strokeWidth="2.5" strokeLinejoin="round" fill="#1e3a5f" fillOpacity="0.6" />
       </svg>
       <span className="text-xl font-bold tracking-wide text-white">PRISM</span>
     </div>

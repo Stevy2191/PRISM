@@ -13,6 +13,7 @@ import ProjectNew from './pages/ProjectNew';
 import ProjectDetail from './pages/ProjectDetail';
 import AdminUsers from './pages/AdminUsers';
 import AdminDepartments from './pages/AdminDepartments';
+import AdminBlueprints from './pages/AdminBlueprints';
 import AdminApiKeys from './pages/AdminApiKeys';
 import AdminSettings from './pages/AdminSettings';
 import Reports from './pages/Reports';
@@ -79,6 +80,14 @@ export default function App() {
           element={
             <ProtectedRoute roles={['admin']}>
               <AdminDepartments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/blueprints"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AdminBlueprints />
             </ProtectedRoute>
           }
         />

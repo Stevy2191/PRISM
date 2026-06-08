@@ -10,6 +10,7 @@ const projectsRoutes = require('./projects');
 const ticketsRoutes = require('./tickets');
 const apikeysRoutes = require('./apikeys');
 const reportsRoutes = require('./reports');
+const blueprintsRoutes = require('./blueprints');
 const settingsController = require('../controllers/settingsController');
 const { requireRole, blockUntilPasswordChanged } = require('../middleware/role');
 
@@ -28,6 +29,7 @@ router.use('/projects', guard, projectsRoutes);
 router.use('/tickets', guard, ticketsRoutes);
 router.use('/apikeys', guard, apikeysRoutes);
 router.use('/reports', guard, reportsRoutes);
+router.use('/blueprints', guard, blueprintsRoutes);
 router.get('/settings', guard, requireRole('admin'), settingsController.get);
 
 module.exports = router;

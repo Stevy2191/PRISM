@@ -270,16 +270,34 @@ Authentication: session cookie (browser) **or** `X-API-Key` header (clients).
 | Users | `GET /users` (admin), `POST /users` (admin, local account), `GET/PATCH/DELETE /users/:id` |
 | Departments | `GET/POST /departments`, `GET/PATCH/DELETE /departments/:id` |
 | Projects | `GET/POST /projects`, `GET/PATCH/DELETE /projects/:id`, `…/:id/milestones[/:milestoneId]` |
+| Project time | `GET/POST /projects/:id/time`, `DELETE …/:entryId` (project-level time) |
 | Tickets | `GET/POST /tickets`, `GET/PATCH/DELETE /tickets/:id` |
 | Ticket comments | `GET/POST /tickets/:id/comments`, `PATCH/DELETE …/:commentId` |
 | Ticket attachments | `GET/POST /tickets/:id/attachments`, `GET …/:attachmentId/download`, `DELETE …/:attachmentId` |
 | Ticket time | `GET/POST /tickets/:id/time`, `DELETE …/:entryId` |
+| Ticket relations | `GET/POST /tickets/:id/relations`, `DELETE …/:relationId` |
+| Blueprints | `GET /blueprints`, `GET /blueprints/:id`, `POST/PATCH/DELETE` (staff) |
 | API keys | `GET/POST /apikeys`, `DELETE /apikeys/:id` |
-| Reports | `GET /reports/tickets`, `GET /reports/time` (date-range params `from`, `to`) |
+| Reports | `GET /reports/tickets`, `GET /reports/time` (date range `from`/`to`; `?format=csv` to export) |
 | Settings | `GET /settings` (admin, read-only) |
 
 Ticket list filters (query params): `status`, `priority`, `type`, `assignee`,
 `project`, `department`, `requester`.
+
+### Blueprints, related tickets &amp; time tracking
+
+- **Blueprints** are reusable ticket templates (name, category, default field values,
+  and custom fields of type text/textarea/number/select/checkbox/date). Staff manage
+  them at **Admin → Blueprints**; on the new-ticket form, **Use Blueprint** pre-fills
+  the form and renders the custom fields, which are stored on the ticket.
+- **Ticket types** are `incident`, `request`, `problem`, `task`, `change`. A
+  **problem** represents the root cause behind one or more incidents; use
+  **Related Tickets** on the ticket detail page to link them (`related`, `caused_by`,
+  `duplicates`).
+- **Time tracking** works on both tickets and projects. A `TimeEntry` references
+  exactly one of `ticketId` / `projectId`. The project detail page has a **Time Log**
+  tab aggregating ticket + project-level time, and **Reports** breaks time down by
+  user, project, and department with CSV export.
 
 ---
 

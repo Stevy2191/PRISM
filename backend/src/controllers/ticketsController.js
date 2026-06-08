@@ -5,11 +5,13 @@ const {
   Comment,
   Attachment,
   TimeEntry,
+  TicketRelation,
   User,
   Project,
   Department,
   sequelize,
 } = require('../models');
+const { Op } = require('sequelize');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
@@ -59,8 +61,10 @@ const list = asyncHandler(async (req, res) => {
 // POST /tickets
 // Requesters can create tickets for themselves only.
 const create = asyncHandler(async (req, res) => {
-  const { title, description, priority, type, status, projectId, departmentId, dueDate } =
-    req.body || {};
+  const {
+    title, description, priority, type, status, projectId, departmentId, dueDate,
+    blueprintId, customFields,
+  } = req.body || {};
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
   }
@@ -84,6 +88,8 @@ const create = asyncHandler(async (req, res) => {
     projectId: projectId || null,
     departmentId: departmentId || null,
     dueDate: dueDate || null,
+    blueprintId: blueprintId || null,
+    customFields: Array.isArray(customFields) && customFields.length ? customFields : null,
   });
   await writeAudit(req, 'ticket.create', 'Ticket', ticket.id, { title: ticket.title });
 
@@ -119,6 +125,7 @@ const update = asyncHandler(async (req, res) => {
       'projectId',
       'departmentId',
       'dueDate',
+      'customFields',
     ];
   } else {
     allowed = ['title', 'description', 'priority'];
@@ -362,6 +369,99 @@ const removeTime = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Related tickets ----
+
+const relTicketAttrs = ['id', 'title', 'status', 'priority', 'type'];
+
+// GET /tickets/:id/relations
+// Returns relations where this ticket is on either side, normalized so each item
+// describes "the other ticket" plus the relation type and direction.
+const listRelations = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+
+  const rows = await TicketRelation.findAll({
+    where: { [Op.or]: [{ ticketId: ticket.id }, { relatedTicketId: ticket.id }] },
+    include: [
+      { model: Ticket, as: 'ticket', attributes: relTicketAttrs },
+      { model: Ticket, as: 'relatedTicket', attributes: relTicketAttrs },
+    ],
+    order: [['createdAt', 'DESC']],
+  });
+
+  const relations = rows.map((r) => {
+    const outgoing = r.ticketId === ticket.id;
+    return {
+      id: r.id,
+      relationType: r.relationType,
+      direction: outgoing ? 'outgoing' : 'incoming',
+      ticket: outgoing ? r.relatedTicket : r.ticket,
+    };
+  });
+  res.json({ relations });
+});
+
+// POST /tickets/:id/relations — Admin/Technician
+const createRelation = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+
+  const { relatedTicketId, relationType } = req.body || {};
+  const relId = parseInt(relatedTicketId, 10);
+  if (!relId) throw new ApiError(400, 'relatedTicketId is required', 'VALIDATION_ERROR');
+  if (relId === ticket.id) {
+    throw new ApiError(400, 'A ticket cannot be related to itself', 'VALIDATION_ERROR');
+  }
+  if (relationType && !['related', 'caused_by', 'duplicates'].includes(relationType)) {
+    throw new ApiError(400, 'Invalid relation type', 'VALIDATION_ERROR');
+  }
+  const related = await Ticket.findByPk(relId);
+  if (!related) throw new ApiError(404, 'Related ticket not found', 'NOT_FOUND');
+
+  const existing = await TicketRelation.findOne({
+    where: { ticketId: ticket.id, relatedTicketId: relId },
+  });
+  if (existing) throw new ApiError(409, 'These tickets are already linked', 'DUPLICATE_RELATION');
+
+  const relation = await TicketRelation.create({
+    ticketId: ticket.id,
+    relatedTicketId: relId,
+    relationType: relationType || 'related',
+  });
+  await writeAudit(req, 'relation.create', 'TicketRelation', relation.id, {
+    ticketId: ticket.id,
+    relatedTicketId: relId,
+    relationType: relation.relationType,
+  });
+
+  const fresh = await TicketRelation.findByPk(relation.id, {
+    include: [{ model: Ticket, as: 'relatedTicket', attributes: relTicketAttrs }],
+  });
+  res.status(201).json({
+    relation: {
+      id: fresh.id,
+      relationType: fresh.relationType,
+      direction: 'outgoing',
+      ticket: fresh.relatedTicket,
+    },
+  });
+});
+
+// DELETE /tickets/:id/relations/:relationId — Admin/Technician
+const removeRelation = asyncHandler(async (req, res) => {
+  const relation = await TicketRelation.findOne({
+    where: {
+      id: req.params.relationId,
+      [Op.or]: [{ ticketId: req.params.id }, { relatedTicketId: req.params.id }],
+    },
+  });
+  if (!relation) throw new ApiError(404, 'Relation not found', 'NOT_FOUND');
+  await relation.destroy();
+  await writeAudit(req, 'relation.delete', 'TicketRelation', relation.id, { ticketId: req.params.id });
+  res.json({ ok: true });
+});
+
 module.exports = {
   list,
   create,
@@ -379,4 +479,7 @@ module.exports = {
   listTime,
   createTime,
   removeTime,
+  listRelations,
+  createRelation,
+  removeRelation,
 };

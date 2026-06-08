@@ -29,7 +29,7 @@ module.exports = (sequelize) => {
         defaultValue: 'medium',
       },
       type: {
-        type: DataTypes.ENUM('incident', 'request', 'task', 'change'),
+        type: DataTypes.ENUM('incident', 'request', 'problem', 'task', 'change'),
         allowNull: false,
         defaultValue: 'request',
       },
@@ -55,6 +55,17 @@ module.exports = (sequelize) => {
       },
       resolvedAt: {
         type: DataTypes.DATE,
+        allowNull: true,
+      },
+      // The blueprint this ticket was created from (if any).
+      blueprintId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      // Filled-in custom field values from a blueprint:
+      //   [{ name, label, type, value }]
+      customFields: {
+        type: DataTypes.JSON,
         allowNull: true,
       },
     },
