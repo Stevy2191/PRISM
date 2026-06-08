@@ -9,5 +9,6 @@ router.use(requireRole('admin', 'technician'));
 
 router.get('/tickets', ctrl.tickets);
 router.get('/time', ctrl.time);
+router.get('/csat', ctrl.csat);
 
 module.exports = router;

@@ -18,11 +18,14 @@ export default {
           900: '#0f1b34',
           950: '#0a1226',
         },
+        // Primary + accent are driven by CSS variables so admin rebranding
+        // applies globally at runtime. The rgb-triplet form keeps Tailwind's
+        // opacity modifiers (e.g. bg-prism/10) working.
         prism: {
           light: '#5e7ce2',
-          DEFAULT: '#3a5da6',
+          DEFAULT: 'rgb(var(--brand-primary-rgb) / <alpha-value>)',
           dark: '#1b2c52',
-          accent: '#38bdf8',
+          accent: 'rgb(var(--brand-accent-rgb) / <alpha-value>)',
         },
       },
       fontFamily: {

@@ -37,6 +37,11 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      // Optional team assignment (in addition to or instead of an individual).
+      teamId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       requesterId: {
         type: DataTypes.INTEGER,
         allowNull: false,

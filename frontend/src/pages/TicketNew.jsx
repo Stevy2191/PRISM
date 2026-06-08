@@ -17,11 +17,13 @@ export default function TicketNew() {
     projectId: '',
     departmentId: '',
     assigneeId: '',
+    teamId: '',
     dueDate: '',
   });
   const [projects, setProjects] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [blueprints, setBlueprints] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -37,6 +39,7 @@ export default function TicketNew() {
     api.get('/blueprints').then(({ data }) => setBlueprints(data.blueprints)).catch(() => {});
     if (isStaff) {
       api.get('/users').then(({ data }) => setUsers(data.users)).catch(() => {});
+      api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
     }
   }, [isStaff]);
 
@@ -74,7 +77,7 @@ export default function TicketNew() {
     setSaving(true);
     try {
       const payload = { ...form };
-      ['projectId', 'departmentId', 'assigneeId', 'dueDate'].forEach((k) => {
+      ['projectId', 'departmentId', 'assigneeId', 'teamId', 'dueDate'].forEach((k) => {
         if (!payload[k]) payload[k] = null;
       });
       if (blueprint) {
@@ -170,8 +173,8 @@ export default function TicketNew() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {isStaff && (
+        {isStaff && (
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Assignee</label>
               <select className="input" value={form.assigneeId} onChange={set('assigneeId')}>
@@ -179,7 +182,17 @@ export default function TicketNew() {
                 {users.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
               </select>
             </div>
-          )}
+            <div>
+              <label className="label">Team</label>
+              <select className="input" value={form.teamId} onChange={set('teamId')}>
+                <option value="">No team</option>
+                {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label">Due date</label>
             <input type="date" className="input" value={form.dueDate} onChange={set('dueDate')} />

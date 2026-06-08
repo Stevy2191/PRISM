@@ -11,9 +11,10 @@ const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 export default function Tickets() {
   const { isStaff } = useAuth();
   const [tickets, setTickets] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState({ status: '', priority: '' });
+  const [filters, setFilters] = useState({ status: '', priority: '', team: '' });
   const [sort, setSort] = useState({ key: 'updatedAt', dir: 'desc' });
 
   const load = useCallback(() => {
@@ -21,6 +22,7 @@ export default function Tickets() {
     const params = {};
     if (filters.status) params.status = filters.status;
     if (filters.priority) params.priority = filters.priority;
+    if (filters.team) params.team = filters.team;
     api
       .get('/tickets', { params })
       .then(({ data }) => setTickets(data.tickets))
@@ -31,6 +33,10 @@ export default function Tickets() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
+  }, []);
 
   const updateStatus = async (ticket, status) => {
     try {
@@ -85,6 +91,16 @@ export default function Tickets() {
           <option value="">All priorities</option>
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+        <select
+          className="input max-w-[12rem]"
+          value={filters.team}
+          onChange={(e) => setFilters((f) => ({ ...f, team: e.target.value }))}
+        >
+          <option value="">All teams</option>
+          {teams.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
       </div>

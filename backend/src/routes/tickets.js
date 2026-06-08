@@ -36,4 +36,8 @@ router.get('/:id/relations', ctrl.listRelations);
 router.post('/:id/relations', staff, ctrl.createRelation);
 router.delete('/:id/relations/:relationId', staff, ctrl.removeRelation);
 
+// CSAT (requester submits; anyone who can view the ticket can read)
+router.get('/:id/csat', ctrl.getCsat);
+router.post('/:id/csat', ctrl.submitCsat);
+
 module.exports = router;

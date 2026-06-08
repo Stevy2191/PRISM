@@ -1,7 +1,8 @@
-// Mounts all API v1 routes. Auth route is public for login/logout;
-// everything else sits behind the `authenticate` middleware.
+// Mounts all API v1 routes. Auth + public settings are open; everything else
+// sits behind the `authenticate` (+ forced-password-change) guard.
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
+const { blockUntilPasswordChanged } = require('../middleware/role');
 
 const authRoutes = require('./auth');
 const usersRoutes = require('./users');
@@ -11,14 +12,20 @@ const ticketsRoutes = require('./tickets');
 const apikeysRoutes = require('./apikeys');
 const reportsRoutes = require('./reports');
 const blueprintsRoutes = require('./blueprints');
-const settingsController = require('../controllers/settingsController');
-const { requireRole, blockUntilPasswordChanged } = require('../middleware/role');
+const settingsRoutes = require('./settings');
+const teamsRoutes = require('./teams');
+const businessHoursRoutes = require('./businessHours');
+const holidaysRoutes = require('./holidays');
+const modulesRoutes = require('./modules');
 
 const router = express.Router();
 
 router.get('/health', (req, res) => res.json({ ok: true, service: 'prism-backend' }));
 
 router.use('/auth', authRoutes);
+
+// Settings has its own public (login branding) + admin endpoints inside it.
+router.use('/settings', settingsRoutes);
 
 // Protected routes. `guard` = authenticated AND (for local accounts) not pending a
 // forced password change.
@@ -30,6 +37,9 @@ router.use('/tickets', guard, ticketsRoutes);
 router.use('/apikeys', guard, apikeysRoutes);
 router.use('/reports', guard, reportsRoutes);
 router.use('/blueprints', guard, blueprintsRoutes);
-router.get('/settings', guard, requireRole('admin'), settingsController.get);
+router.use('/teams', guard, teamsRoutes);
+router.use('/business-hours', guard, businessHoursRoutes);
+router.use('/holiday-lists', guard, holidaysRoutes);
+router.use('/modules', guard, modulesRoutes);
 
 module.exports = router;

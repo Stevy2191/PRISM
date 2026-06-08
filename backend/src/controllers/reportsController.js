@@ -1,5 +1,5 @@
 const { Op, fn, col, literal } = require('sequelize');
-const { Ticket, TimeEntry, User, Project, Department, sequelize } = require('../models');
+const { Ticket, TimeEntry, User, Project, Department, CsatResponse, sequelize } = require('../models');
 const { asyncHandler } = require('../middleware/error');
 
 // Build a createdAt/loggedAt date-range filter from ?from & ?to query params.
@@ -169,4 +169,58 @@ function csvCell(value) {
   return s;
 }
 
-module.exports = { tickets, time };
+// GET /reports/csat — customer happiness: overall score + breakdown by technician
+// and department. Score = % of "happy" ratings (neutral counts as half).
+const csat = asyncHandler(async (req, res) => {
+  const where = dateRange('respondedAt', req.query);
+
+  const responses = await CsatResponse.findAll({
+    where,
+    include: [
+      {
+        model: Ticket,
+        as: 'ticket',
+        attributes: ['id', 'assigneeId', 'departmentId'],
+        include: [
+          { model: User, as: 'assignee', attributes: ['id', 'displayName'] },
+          { model: Department, as: 'department', attributes: ['id', 'name'] },
+        ],
+      },
+    ],
+  });
+
+  const blank = () => ({ happy: 0, neutral: 0, unhappy: 0, total: 0 });
+  const score = (b) => (b.total ? Math.round((100 * (b.happy + 0.5 * b.neutral)) / b.total) : null);
+
+  const overall = blank();
+  const byTech = new Map();
+  const byDept = new Map();
+
+  const add = (map, key, label, rating) => {
+    const cur = map.get(key) || { key, label, ...blank() };
+    cur[rating] += 1;
+    cur.total += 1;
+    map.set(key, cur);
+  };
+
+  for (const r of responses) {
+    overall[r.rating] += 1;
+    overall.total += 1;
+    const tech = r.ticket?.assignee;
+    add(byTech, tech ? tech.id : 'unassigned', tech ? tech.displayName : 'Unassigned', r.rating);
+    const dept = r.ticket?.department;
+    add(byDept, dept ? dept.id : 'none', dept ? dept.name : 'Unassigned', r.rating);
+  }
+
+  const withScore = (map) =>
+    [...map.values()].map((b) => ({ ...b, score: score(b) })).sort((a, b) => b.total - a.total);
+
+  res.json({
+    range: { from: req.query.from || null, to: req.query.to || null },
+    overall: { ...overall, score: score(overall) },
+    byTechnician: withScore(byTech),
+    byDepartment: withScore(byDept),
+  });
+});
+
+module.exports = { tickets, time, csat };

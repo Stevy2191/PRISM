@@ -276,13 +276,30 @@ Authentication: session cookie (browser) **or** `X-API-Key` header (clients).
 | Ticket attachments | `GET/POST /tickets/:id/attachments`, `GET …/:attachmentId/download`, `DELETE …/:attachmentId` |
 | Ticket time | `GET/POST /tickets/:id/time`, `DELETE …/:entryId` |
 | Ticket relations | `GET/POST /tickets/:id/relations`, `DELETE …/:relationId` |
+| Ticket CSAT | `GET /tickets/:id/csat`, `POST /tickets/:id/csat` (requester) |
 | Blueprints | `GET /blueprints`, `GET /blueprints/:id`, `POST/PATCH/DELETE` (staff) |
+| Teams | `GET /teams`, `GET /teams/:id`, `POST/PATCH/DELETE` (admin) |
+| Business hours | `GET /business-hours`, `POST/PATCH/DELETE` (admin) |
+| Holiday lists | `GET /holiday-lists`, `POST/PATCH/DELETE`, `…/:id/holidays[/:holidayId]` (admin) |
+| Modules | `GET /modules`, `PUT /modules` (admin) — sidebar visibility per role |
 | API keys | `GET/POST /apikeys`, `DELETE /apikeys/:id` |
-| Reports | `GET /reports/tickets`, `GET /reports/time` (date range `from`/`to`; `?format=csv` to export) |
-| Settings | `GET /settings` (admin, read-only) |
+| Reports | `GET /reports/tickets`, `GET /reports/time` (`?format=csv`), `GET /reports/csat` |
+| Settings | `GET /settings/public` (no auth), `GET/PUT /settings` (admin), `POST/DELETE /settings/logo`, `GET /settings/logo` |
 
 Ticket list filters (query params): `status`, `priority`, `type`, `assignee`,
-`project`, `department`, `requester`.
+`team`, `project`, `department`, `requester`.
+
+### Settings system
+
+A `/settings` hub (role-aware card grid) groups all configuration. Highlights:
+**Company** (name, logo, timezone/locale — stored in `SystemSettings`), **Rebranding**
+(primary/accent/login colors + welcome message applied at runtime via CSS variables,
+with live preview), **Business Hours** & **Holiday Lists** (per-department schedules),
+**Teams** (tickets can be assigned to a team; filterable), **Customer Happiness**
+(CSAT survey on resolved/closed tickets, scored in Reports), and **Modules & Tabs**
+(toggle sidebar items per role). Admins see everything; technicians see a subset;
+requesters see only their **Preferences**. Sections specified for later phases link
+to placeholder pages.
 
 ### Blueprints, related tickets &amp; time tracking
 

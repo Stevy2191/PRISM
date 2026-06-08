@@ -32,6 +32,8 @@ export default function TicketDetail() {
   const [relations, setRelations] = useState([]);
   const [allTickets, setAllTickets] = useState([]);
   const [relForm, setRelForm] = useState({ relatedTicketId: '', relationType: 'related' });
+  const [teams, setTeams] = useState([]);
+  const [csatForm, setCsatForm] = useState({ rating: '', comment: '' });
   const fileRef = useRef();
 
   const load = async () => {
@@ -51,6 +53,7 @@ export default function TicketDetail() {
       if (isStaff) {
         api.get('/users').then(({ data }) => setUsers(data.users)).catch(() => {});
         api.get('/tickets').then(({ data }) => setAllTickets(data.tickets)).catch(() => {});
+        api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
       }
     } catch (err) {
       setError(errMessage(err));
@@ -75,6 +78,15 @@ export default function TicketDetail() {
     try {
       await api.delete(`/tickets/${id}/relations/${relationId}`);
       setRelations((r) => r.filter((x) => x.id !== relationId));
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const submitCsat = async (rating) => {
+    try {
+      const { data } = await api.post(`/tickets/${id}/csat`, { rating, comment: csatForm.comment });
+      setTicket((t) => ({ ...t, csat: data.csat }));
     } catch (err) {
       alert(errMessage(err));
     }
@@ -231,6 +243,17 @@ export default function TicketDetail() {
               </dl>
             </div>
           )}
+
+          {/* Customer satisfaction (CSAT) */}
+          <CsatCard
+            ticket={ticket}
+            csat={ticket.csat}
+            isOwner={user.id === ticket.requesterId}
+            isAdmin={isAdmin}
+            csatForm={csatForm}
+            setCsatForm={setCsatForm}
+            onSubmit={submitCsat}
+          />
 
           {/* Related tickets */}
           <div className="card">
@@ -398,6 +421,20 @@ export default function TicketDetail() {
                 <span className="text-sm text-navy-800">{ticket.assignee?.displayName || 'Unassigned'}</span>
               )}
             </Field>
+            <Field label="Team">
+              {isStaff ? (
+                <select
+                  className="input"
+                  value={ticket.teamId || ''}
+                  onChange={(e) => patchTicket({ teamId: e.target.value || null })}
+                >
+                  <option value="">No team</option>
+                  {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              ) : (
+                <span className="text-sm text-navy-800">{ticket.team?.name || '—'}</span>
+              )}
+            </Field>
             <Field label="Project">
               {ticket.project ? (
                 <Link to={`/projects/${ticket.project.id}`} className="text-sm text-prism hover:underline">
@@ -470,5 +507,61 @@ function Field({ label, children }) {
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-navy-400">{label}</p>
       {children}
     </div>
+  );
+}
+
+const CSAT_EMOJI = { happy: '😀', neutral: '😐', unhappy: '☹️' };
+
+// Shows a CSAT result if rated; otherwise lets the requester rate a
+// resolved/closed ticket, or tells staff a rating is pending.
+function CsatCard({ ticket, csat, isOwner, isAdmin, csatForm, setCsatForm, onSubmit }) {
+  const closed = ticket.status === 'resolved' || ticket.status === 'closed';
+
+  if (csat) {
+    return (
+      <div className="card p-5">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy-500">Customer Satisfaction</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">{CSAT_EMOJI[csat.rating]}</span>
+          <div>
+            <p className="font-medium capitalize text-navy-800">{csat.rating}</p>
+            {csat.comment && <p className="text-sm text-navy-600">“{csat.comment}”</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!closed) return null;
+
+  if (isOwner || isAdmin) {
+    return (
+      <div className="card p-5">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy-500">How was your experience?</h2>
+        <div className="flex gap-3">
+          {['happy', 'neutral', 'unhappy'].map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => onSubmit(r)}
+              className="flex flex-col items-center rounded-md border border-navy-200 px-5 py-3 transition hover:border-prism hover:bg-navy-50"
+            >
+              <span className="text-3xl">{CSAT_EMOJI[r]}</span>
+              <span className="mt-1 text-xs capitalize text-navy-600">{r}</span>
+            </button>
+          ))}
+        </div>
+        <input
+          className="input mt-3"
+          placeholder="Optional comment"
+          value={csatForm.comment}
+          onChange={(e) => setCsatForm((f) => ({ ...f, comment: e.target.value }))}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="card p-5 text-sm text-navy-400">Awaiting customer satisfaction rating.</div>
   );
 }

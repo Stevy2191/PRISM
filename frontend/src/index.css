@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Branding defaults — overridden at runtime from system settings.
+     Stored as space-separated rgb triplets for Tailwind alpha support. */
+  --brand-primary-rgb: 58 93 166;   /* #3a5da6 */
+  --brand-accent-rgb: 56 189 248;   /* #38bdf8 */
+  --login-bg: #0f1b34;
+}
+
 @layer base {
   html,
   body,

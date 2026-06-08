@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { errMessage } from '../api/api';
 
 const TABS = [
@@ -10,6 +11,7 @@ const TABS = [
 
 export default function Login() {
   const { user, login, loading } = useAuth();
+  const { settings } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
   const [mode, setMode] = useState('ad');
@@ -44,25 +46,32 @@ export default function Login() {
 
   const isLocal = mode === 'local';
 
+  const company = settings.company || {};
+  const welcome = settings.branding?.welcomeMessage || 'Project & Request Integrated Service Manager';
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy-900 px-4">
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ backgroundColor: 'var(--login-bg)' }}>
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center">
-          <svg viewBox="0 0 64 64" className="h-16 w-16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Incoming white light beam */}
-            <path d="M3 25 L23 30" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" />
-            {/* Refracted rainbow spectrum exiting the right face */}
-            <path d="M42 31 L62 20" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
-            <path d="M42 31 L62 25" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
-            <path d="M42 31 L62 30" stroke="#eab308" strokeWidth="2" strokeLinecap="round" />
-            <path d="M42 31 L62 35" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" />
-            <path d="M42 31 L62 40" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
-            <path d="M42 31 L62 45" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
-            {/* Prism triangle */}
-            <path d="M32 11 L50 47 L14 47 Z" stroke="#93c5fd" strokeWidth="2.5" strokeLinejoin="round" fill="#1e3a5f" fillOpacity="0.6" />
-          </svg>
-          <h1 className="mt-3 text-3xl font-bold tracking-wide text-white">PRISM</h1>
-          <p className="text-sm text-navy-300">Project &amp; Request Integrated Service Manager</p>
+          {settings.logoUrl ? (
+            <img src={settings.logoUrl} alt="logo" className="h-16 w-16 rounded object-contain" />
+          ) : (
+            <svg viewBox="0 0 64 64" className="h-16 w-16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Incoming white light beam */}
+              <path d="M3 25 L23 30" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" />
+              {/* Refracted rainbow spectrum exiting the right face */}
+              <path d="M42 31 L62 20" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+              <path d="M42 31 L62 25" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+              <path d="M42 31 L62 30" stroke="#eab308" strokeWidth="2" strokeLinecap="round" />
+              <path d="M42 31 L62 35" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" />
+              <path d="M42 31 L62 40" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
+              <path d="M42 31 L62 45" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
+              {/* Prism triangle */}
+              <path d="M32 11 L50 47 L14 47 Z" stroke="#93c5fd" strokeWidth="2.5" strokeLinejoin="round" fill="#1e3a5f" fillOpacity="0.6" />
+            </svg>
+          )}
+          <h1 className="mt-3 text-3xl font-bold tracking-wide text-white">{company.name || 'PRISM'}</h1>
+          <p className="text-sm text-navy-300">{welcome}</p>
         </div>
 
         <div className="card overflow-hidden">

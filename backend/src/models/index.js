@@ -14,6 +14,14 @@ const ApiKey = require('./ApiKey')(sequelize);
 const AuditLog = require('./AuditLog')(sequelize);
 const Blueprint = require('./Blueprint')(sequelize);
 const TicketRelation = require('./TicketRelation')(sequelize);
+const SystemSettings = require('./SystemSettings')(sequelize);
+const BusinessHours = require('./BusinessHours')(sequelize);
+const HolidayList = require('./HolidayList')(sequelize);
+const Holiday = require('./Holiday')(sequelize);
+const CsatResponse = require('./CsatResponse')(sequelize);
+const Team = require('./Team')(sequelize);
+const TeamMember = require('./TeamMember')(sequelize);
+const ModuleVisibility = require('./ModuleVisibility')(sequelize);
 
 const db = {
   sequelize,
@@ -29,6 +37,14 @@ const db = {
   AuditLog,
   Blueprint,
   TicketRelation,
+  SystemSettings,
+  BusinessHours,
+  HolidayList,
+  Holiday,
+  CsatResponse,
+  Team,
+  TeamMember,
+  ModuleVisibility,
 };
 
 // ---- Associations ----
@@ -102,5 +118,30 @@ ApiKey.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 // User <-> AuditLog
 User.hasMany(AuditLog, { foreignKey: 'userId', as: 'auditLogs' });
 AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// Teams
+Department.hasMany(Team, { foreignKey: 'departmentId', as: 'teams' });
+Team.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+Team.belongsToMany(User, { through: TeamMember, foreignKey: 'teamId', otherKey: 'userId', as: 'members' });
+User.belongsToMany(Team, { through: TeamMember, foreignKey: 'userId', otherKey: 'teamId', as: 'teams' });
+Team.hasMany(TeamMember, { foreignKey: 'teamId', as: 'memberships', onDelete: 'CASCADE' });
+TeamMember.belongsTo(Team, { foreignKey: 'teamId', as: 'team' });
+TeamMember.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+Ticket.belongsTo(Team, { foreignKey: 'teamId', as: 'team' });
+Team.hasMany(Ticket, { foreignKey: 'teamId', as: 'tickets' });
+
+// Business hours / holidays
+BusinessHours.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+HolidayList.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+HolidayList.hasMany(Holiday, { foreignKey: 'holidayListId', as: 'holidays', onDelete: 'CASCADE' });
+Holiday.belongsTo(HolidayList, { foreignKey: 'holidayListId', as: 'holidayList' });
+
+// CSAT
+Ticket.hasOne(CsatResponse, { foreignKey: 'ticketId', as: 'csat', onDelete: 'CASCADE' });
+CsatResponse.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+CsatResponse.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// System settings
+SystemSettings.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });
 
 module.exports = db;

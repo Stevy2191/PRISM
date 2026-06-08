@@ -27,7 +27,7 @@ export default function AdminSettings() {
   useEffect(() => {
     api
       .get('/settings')
-      .then(({ data }) => setSettings(data.settings))
+      .then(({ data }) => setSettings(data.config))
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
   }, []);

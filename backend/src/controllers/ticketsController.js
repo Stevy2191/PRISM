@@ -6,6 +6,8 @@ const {
   Attachment,
   TimeEntry,
   TicketRelation,
+  CsatResponse,
+  Team,
   User,
   Project,
   Department,
@@ -20,8 +22,10 @@ const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
   { model: User, as: 'assignee', attributes: userAttrs },
   { model: User, as: 'requester', attributes: userAttrs },
+  { model: Team, as: 'team', attributes: ['id', 'name'] },
   { model: Project, as: 'project', attributes: ['id', 'name'] },
   { model: Department, as: 'department', attributes: ['id', 'name'] },
+  { model: CsatResponse, as: 'csat' },
 ];
 
 // Requesters may only touch their own tickets.
@@ -36,7 +40,7 @@ const isStaff = (user) => user.role === 'admin' || user.role === 'technician';
 // GET /tickets — with filters
 const list = asyncHandler(async (req, res) => {
   const where = {};
-  const { status, priority, assignee, project, department, requester, type } = req.query;
+  const { status, priority, assignee, project, department, requester, type, team } = req.query;
   if (status) where.status = status;
   if (priority) where.priority = priority;
   if (type) where.type = type;
@@ -44,6 +48,7 @@ const list = asyncHandler(async (req, res) => {
   if (project) where.projectId = project;
   if (department) where.departmentId = department;
   if (requester) where.requesterId = requester;
+  if (team) where.teamId = team;
 
   // Requesters are scoped to their own tickets regardless of filters.
   if (req.user.role === 'requester') {
@@ -63,7 +68,7 @@ const list = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const {
     title, description, priority, type, status, projectId, departmentId, dueDate,
-    blueprintId, customFields,
+    blueprintId, customFields, teamId,
   } = req.body || {};
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
@@ -84,6 +89,7 @@ const create = asyncHandler(async (req, res) => {
     priority: priority || 'medium',
     type: type || 'request',
     assigneeId: assigneeId || null,
+    teamId: req.user.role === 'requester' ? null : (teamId || null),
     requesterId,
     projectId: projectId || null,
     departmentId: departmentId || null,
@@ -121,6 +127,7 @@ const update = asyncHandler(async (req, res) => {
       'priority',
       'type',
       'assigneeId',
+      'teamId',
       'requesterId',
       'projectId',
       'departmentId',
@@ -462,6 +469,50 @@ const removeRelation = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- CSAT (customer happiness) ----
+
+// GET /tickets/:id/csat
+const getCsat = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+  const csat = await CsatResponse.findOne({
+    where: { ticketId: ticket.id },
+    include: [{ model: User, as: 'user', attributes: userAttrs }],
+  });
+  res.json({ csat });
+});
+
+// POST /tickets/:id/csat — the ticket's requester submits a satisfaction rating.
+// Available once the ticket is resolved or closed.
+const submitCsat = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+
+  // Only the requester (or an admin acting on their behalf) may rate.
+  if (req.user.role !== 'admin' && ticket.requesterId !== req.user.id) {
+    throw new ApiError(403, 'Only the ticket requester can submit a rating', 'FORBIDDEN');
+  }
+  if (!['resolved', 'closed'].includes(ticket.status)) {
+    throw new ApiError(400, 'You can rate a ticket once it is resolved or closed', 'NOT_RATEABLE');
+  }
+
+  const { rating, comment } = req.body || {};
+  if (!['happy', 'neutral', 'unhappy'].includes(rating)) {
+    throw new ApiError(400, 'rating must be happy, neutral, or unhappy', 'VALIDATION_ERROR');
+  }
+
+  const [csat] = await CsatResponse.upsert({
+    ticketId: ticket.id,
+    userId: req.user.id,
+    rating,
+    comment: comment || null,
+    respondedAt: new Date(),
+  });
+  await writeAudit(req, 'csat.submit', 'CsatResponse', ticket.id, { rating });
+  res.status(201).json({ csat });
+});
+
 module.exports = {
   list,
   create,
@@ -482,4 +533,6 @@ module.exports = {
   listRelations,
   createRelation,
   removeRelation,
+  getCsat,
+  submitCsat,
 };

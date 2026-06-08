@@ -11,34 +11,38 @@ import TicketDetail from './pages/TicketDetail';
 import Projects from './pages/Projects';
 import ProjectNew from './pages/ProjectNew';
 import ProjectDetail from './pages/ProjectDetail';
+import Reports from './pages/Reports';
+import Calendar from './pages/Calendar';
+import NotFound from './pages/NotFound';
+
+// Settings hub + sections
+import SettingsHub from './pages/SettingsHub';
+import SettingsCompany from './pages/settings/Company';
+import SettingsRebranding from './pages/settings/Rebranding';
+import SettingsBusinessHours from './pages/settings/BusinessHours';
+import SettingsHolidays from './pages/settings/Holidays';
+import SettingsTeams from './pages/settings/Teams';
+import SettingsModules from './pages/settings/Modules';
+import SettingsPreferences from './pages/settings/Preferences';
+import Placeholder from './pages/settings/Placeholder';
+
+// Existing admin pages (reached via the Settings hub)
 import AdminUsers from './pages/AdminUsers';
 import AdminDepartments from './pages/AdminDepartments';
 import AdminBlueprints from './pages/AdminBlueprints';
 import AdminApiKeys from './pages/AdminApiKeys';
 import AdminSettings from './pages/AdminSettings';
-import Reports from './pages/Reports';
-import NotFound from './pages/NotFound';
+
+const admin = (el) => <ProtectedRoute roles={['admin']}>{el}</ProtectedRoute>;
+const staff = (el) => <ProtectedRoute roles={['admin', 'technician']}>{el}</ProtectedRoute>;
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route
-        path="/change-password"
-        element={
-          <ProtectedRoute>
-            <ChangePassword />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 
-      <Route
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
+      <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
 
@@ -47,66 +51,48 @@ export default function App() {
         <Route path="/tickets/:id" element={<TicketDetail />} />
 
         <Route path="/projects" element={<Projects />} />
-        <Route
-          path="/projects/new"
-          element={
-            <ProtectedRoute roles={['admin', 'technician']}>
-              <ProjectNew />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/projects/new" element={staff(<ProjectNew />)} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
 
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute roles={['admin', 'technician']}>
-              <Reports />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/reports" element={staff(<Reports />)} />
+        <Route path="/calendar" element={<Calendar />} />
 
-        {/* Admin */}
-        <Route
-          path="/admin/users"
-          element={
-            <ProtectedRoute roles={['admin']}>
-              <AdminUsers />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/departments"
-          element={
-            <ProtectedRoute roles={['admin']}>
-              <AdminDepartments />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/blueprints"
-          element={
-            <ProtectedRoute roles={['admin']}>
-              <AdminBlueprints />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/apikeys"
-          element={
-            <ProtectedRoute>
-              <AdminApiKeys />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/settings"
-          element={
-            <ProtectedRoute roles={['admin']}>
-              <AdminSettings />
-            </ProtectedRoute>
-          }
-        />
+        {/* Settings hub + sections */}
+        <Route path="/settings" element={<SettingsHub />} />
+        <Route path="/settings/preferences" element={<SettingsPreferences />} />
+        <Route path="/settings/company" element={admin(<SettingsCompany />)} />
+        <Route path="/settings/rebranding" element={admin(<SettingsRebranding />)} />
+        <Route path="/settings/business-hours" element={admin(<SettingsBusinessHours />)} />
+        <Route path="/settings/holidays" element={admin(<SettingsHolidays />)} />
+        <Route path="/settings/teams" element={admin(<SettingsTeams />)} />
+        <Route path="/settings/modules" element={admin(<SettingsModules />)} />
+        <Route path="/settings/blueprints" element={staff(<AdminBlueprints />)} />
+
+        {/* Existing admin pages */}
+        <Route path="/admin/users" element={admin(<AdminUsers />)} />
+        <Route path="/admin/departments" element={admin(<AdminDepartments />)} />
+        <Route path="/admin/blueprints" element={staff(<AdminBlueprints />)} />
+        <Route path="/admin/apikeys" element={<AdminApiKeys />} />
+        <Route path="/admin/settings" element={admin(<AdminSettings />)} />
+
+        {/* Placeholders for sections specified later */}
+        <Route path="/settings/customer-happiness" element={staff(<Placeholder title="Customer Happiness" note="CSAT scores are available on the Reports page and on each ticket." />)} />
+        <Route path="/settings/layouts" element={admin(<Placeholder title="Layouts & Fields" />)} />
+        <Route path="/settings/email-templates" element={admin(<Placeholder title="Email Templates" />)} />
+        <Route path="/settings/notifications" element={staff(<Placeholder title="Notifications" />)} />
+        <Route path="/settings/general" element={admin(<Placeholder title="General Settings" note="System/LDAP configuration is shown read-only under Admin → General Settings." />)} />
+        <Route path="/settings/time-tracking" element={staff(<Placeholder title="Time Tracking" note="Time logging is available on tickets and projects; summaries are on Reports." />)} />
+        <Route path="/settings/assignment-rules" element={admin(<Placeholder title="Assignment Rules" />)} />
+        <Route path="/settings/workflows" element={admin(<Placeholder title="Workflows" />)} />
+        <Route path="/settings/macros" element={admin(<Placeholder title="Macros" />)} />
+        <Route path="/settings/slas" element={admin(<Placeholder title="SLAs" />)} />
+        <Route path="/settings/supervisor-rules" element={admin(<Placeholder title="Supervisor Rules" />)} />
+        <Route path="/settings/schedules" element={admin(<Placeholder title="Schedules" />)} />
+        <Route path="/settings/import" element={admin(<Placeholder title="Import" />)} />
+        <Route path="/settings/export" element={admin(<Placeholder title="Export" />)} />
+        <Route path="/settings/audit-log" element={admin(<Placeholder title="Audit Log" />)} />
+        <Route path="/settings/recycle-bin" element={admin(<Placeholder title="Recycle Bin" />)} />
+        <Route path="/settings/calendar-integration" element={admin(<Placeholder title="Calendar Integration" />)} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
