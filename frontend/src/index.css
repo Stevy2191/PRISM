@@ -8,6 +8,42 @@
   --brand-primary-rgb: 58 93 166;   /* #3a5da6 */
   --brand-accent-rgb: 56 189 248;   /* #38bdf8 */
   --login-bg: #0f1b34;
+
+  /* Light theme navy scale (rgb triplets). */
+  --navy-50: 238 242 249;
+  --navy-100: 219 228 243;
+  --navy-200: 184 201 231;
+  --navy-300: 139 166 214;
+  --navy-400: 91 125 192;
+  --navy-500: 58 93 166;
+  --navy-600: 44 71 131;
+  --navy-700: 36 58 107;
+  --navy-800: 27 44 82;
+  --navy-900: 15 27 52;
+  --navy-950: 10 18 38;
+  --surface: 255 255 255;            /* cards / inputs */
+
+  /* Sidebar stays dark in both themes (independent of the navy scale). */
+  --sidebar: 15 27 52;
+}
+
+/* Dark theme: remap the navy scale so low indices are dark (backgrounds) and
+   high indices are light (text). Driven by the `.dark` class on <html>. */
+.dark {
+  --navy-50: 15 23 42;     /* page background */
+  --navy-100: 51 65 85;    /* dividers / subtle borders / chips */
+  --navy-200: 71 85 105;   /* input borders */
+  --navy-300: 100 116 139; /* muted text / placeholders */
+  --navy-400: 148 163 184;
+  --navy-500: 148 163 184;
+  --navy-600: 203 213 225;
+  --navy-700: 203 213 225;
+  --navy-800: 226 232 240; /* body text */
+  --navy-900: 241 245 249; /* headings */
+  --navy-950: 248 250 252;
+  --surface: 30 41 59;     /* cards / inputs */
+  --sidebar: 8 13 26;
+  color-scheme: dark;
 }
 
 @layer base {
@@ -26,22 +62,22 @@
     @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-prism-accent disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply btn bg-prism text-white hover:bg-navy-700;
+    @apply btn bg-prism text-white hover:opacity-90;
   }
   .btn-secondary {
-    @apply btn bg-white text-navy-700 border border-navy-200 hover:bg-navy-50;
+    @apply btn bg-surface text-navy-700 border border-navy-200 hover:bg-navy-100;
   }
   .btn-danger {
     @apply btn bg-red-600 text-white hover:bg-red-700;
   }
   .input {
-    @apply w-full rounded-md border border-navy-200 bg-white px-3 py-2 text-sm text-navy-900 placeholder-navy-300 focus:border-prism focus:outline-none focus:ring-1 focus:ring-prism;
+    @apply w-full rounded-md border border-navy-200 bg-surface px-3 py-2 text-sm text-navy-900 placeholder-navy-300 focus:border-prism focus:outline-none focus:ring-1 focus:ring-prism;
   }
   .label {
     @apply mb-1 block text-sm font-medium text-navy-700;
   }
   .card {
-    @apply rounded-lg border border-navy-100 bg-white shadow-sm;
+    @apply rounded-lg border border-navy-100 bg-surface shadow-sm;
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
@@ -51,5 +87,9 @@
   }
   .table-td {
     @apply px-4 py-3 text-sm text-navy-800;
+  }
+  /* Sidebar surface — fixed dark in both themes. */
+  .sidebar-surface {
+    background-color: rgb(var(--sidebar));
   }
 }

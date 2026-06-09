@@ -143,7 +143,7 @@ export default function Tickets() {
                   <td className="table-td">
                     {isStaff ? (
                       <select
-                        className="rounded border border-navy-200 bg-white px-2 py-1 text-xs"
+                        className="rounded border border-navy-200 bg-surface px-2 py-1 text-xs text-navy-800"
                         value={t.status}
                         onChange={(e) => updateStatus(t, e.target.value)}
                       >

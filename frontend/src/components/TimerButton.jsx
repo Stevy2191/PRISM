@@ -21,7 +21,7 @@ export default function TimerButton({ type, id, label, className = '' }) {
       className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${
         running
           ? 'bg-red-600 text-white hover:bg-red-700'
-          : 'border border-navy-200 bg-white text-navy-700 hover:border-prism hover:text-prism'
+          : 'border border-navy-200 bg-surface text-navy-700 hover:border-prism hover:text-prism'
       } ${className}`}
     >
       {running ? (

@@ -170,7 +170,7 @@ export default function AdminUsers() {
                 <td className="table-td text-navy-500">{u.email || '—'}</td>
                 <td className="table-td">
                   <select
-                    className="rounded border border-navy-200 bg-white px-2 py-1 text-xs"
+                    className="rounded border border-navy-200 bg-surface px-2 py-1 text-xs text-navy-800"
                     value={u.role}
                     onChange={(e) => updateUser(u.id, { role: e.target.value })}
                   >
@@ -179,7 +179,7 @@ export default function AdminUsers() {
                 </td>
                 <td className="table-td">
                   <select
-                    className="rounded border border-navy-200 bg-white px-2 py-1 text-xs"
+                    className="rounded border border-navy-200 bg-surface px-2 py-1 text-xs text-navy-800"
                     value={u.departmentId || ''}
                     onChange={(e) => updateUser(u.id, { departmentId: e.target.value || null })}
                   >

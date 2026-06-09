@@ -59,7 +59,7 @@ export default function AdminApiKeys() {
           <p className="text-sm font-semibold text-amber-800">
             Copy this key now — it will not be shown again.
           </p>
-          <code className="mt-2 block break-all rounded bg-white px-3 py-2 font-mono text-sm text-navy-900">
+          <code className="mt-2 block break-all rounded bg-surface px-3 py-2 font-mono text-sm text-navy-900">
             {newKey}
           </code>
           <button onClick={() => setNewKey(null)} className="btn-secondary mt-3 text-xs">Dismiss</button>

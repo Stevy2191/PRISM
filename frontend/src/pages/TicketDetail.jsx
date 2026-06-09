@@ -9,6 +9,7 @@ import TimerButton from '../components/TimerButton';
 
 const STATUSES = ['open', 'in_progress', 'on_hold', 'resolved', 'closed'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
+const TYPES = ['incident', 'request', 'problem', 'task', 'change'];
 
 function formatMinutes(min) {
   const h = Math.floor(min / 60);
@@ -27,9 +28,12 @@ export default function TicketDetail() {
   const [attachments, setAttachments] = useState([]);
   const [time, setTime] = useState({ entries: [], totalMinutes: 0 });
   const [users, setUsers] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [editInfo, setEditInfo] = useState(null); // { title, description } when editing
   const [newComment, setNewComment] = useState('');
   const [timeForm, setTimeForm] = useState({ minutes: '', note: '', date: '' });
   const [relations, setRelations] = useState([]);
@@ -65,6 +69,8 @@ export default function TicketDetail() {
         api.get('/users').then(({ data }) => setUsers(data.users)).catch(() => {});
         api.get('/tickets').then(({ data }) => setAllTickets(data.tickets)).catch(() => {});
         api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
+        api.get('/projects').then(({ data }) => setProjects(data.projects)).catch(() => {});
+        api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
       }
     } catch (err) {
       setError(errMessage(err));
@@ -125,6 +131,21 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, changes);
       setTicket(data.ticket);
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const saveInfo = async (e) => {
+    e.preventDefault();
+    if (!editInfo.title.trim()) return;
+    try {
+      const { data } = await api.patch(`/tickets/${id}`, {
+        title: editInfo.title,
+        description: editInfo.description,
+      });
+      setTicket(data.ticket);
+      setEditInfo(null);
     } catch (err) {
       alert(errMessage(err));
     }
@@ -233,8 +254,8 @@ export default function TicketDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
           <Link to="/tickets" className="text-sm text-prism hover:underline">← Back to tickets</Link>
           <h1 className="mt-1 flex flex-wrap items-center gap-3 text-2xl font-bold text-navy-900">
             <span>
@@ -245,17 +266,57 @@ export default function TicketDetail() {
             </span>
           </h1>
         </div>
-        {isAdmin && (
-          <button onClick={deleteTicket} className="btn-danger">Delete</button>
-        )}
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {/* Prominent timer at the top so technicians actually start it. */}
+          {isStaff && (
+            <TimerButton type="ticket" id={ticket.id} label={`#${ticket.id} ${ticket.title}`} className="px-3 py-2 text-sm" />
+          )}
+          {isAdmin && <button onClick={deleteTicket} className="btn-danger">Delete</button>}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main column */}
         <div className="space-y-6 lg:col-span-2">
           <div className="card p-5">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy-500">Description</h2>
-            <p className="whitespace-pre-wrap text-navy-800">{ticket.description || 'No description provided.'}</p>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-navy-500">Description</h2>
+              {isStaff && editInfo === null && (
+                <button
+                  onClick={() => setEditInfo({ title: ticket.title, description: ticket.description || '' })}
+                  className="text-xs text-prism hover:underline"
+                >
+                  edit
+                </button>
+              )}
+            </div>
+            {editInfo ? (
+              <form onSubmit={saveInfo} className="space-y-3">
+                <div>
+                  <label className="label">Title</label>
+                  <input
+                    className="input"
+                    value={editInfo.title}
+                    onChange={(e) => setEditInfo((f) => ({ ...f, title: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label">Description</label>
+                  <textarea
+                    className="input min-h-[8rem]"
+                    value={editInfo.description}
+                    onChange={(e) => setEditInfo((f) => ({ ...f, description: e.target.value }))}
+                  />
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button type="button" className="btn-secondary" onClick={() => setEditInfo(null)}>Cancel</button>
+                  <button type="submit" className="btn-primary">Save</button>
+                </div>
+              </form>
+            ) : (
+              <p className="whitespace-pre-wrap text-navy-800">{ticket.description || 'No description provided.'}</p>
+            )}
           </div>
 
           {/* Custom fields (from blueprint) */}
@@ -447,7 +508,15 @@ export default function TicketDetail() {
                 <Badge value={ticket.priority} />
               )}
             </Field>
-            <Field label="Type"><Badge value={ticket.type} /></Field>
+            <Field label="Type">
+              {isStaff ? (
+                <select className="input" value={ticket.type} onChange={(e) => patchTicket({ type: e.target.value })}>
+                  {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              ) : (
+                <Badge value={ticket.type} />
+              )}
+            </Field>
             <Field label="Requester">
               <span className="text-sm text-navy-800">{ticket.requester?.displayName || '—'}</span>
             </Field>
@@ -480,7 +549,23 @@ export default function TicketDetail() {
               )}
             </Field>
             <Field label="Project">
-              {ticket.project ? (
+              {isStaff ? (
+                <>
+                  <select
+                    className="input"
+                    value={ticket.projectId || ''}
+                    onChange={(e) => patchTicket({ projectId: e.target.value || null })}
+                  >
+                    <option value="">No project</option>
+                    {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  {ticket.project && (
+                    <Link to={`/projects/${ticket.project.id}`} className="mt-1 inline-block text-xs text-prism hover:underline">
+                      open project →
+                    </Link>
+                  )}
+                </>
+              ) : ticket.project ? (
                 <Link to={`/projects/${ticket.project.id}`} className="text-sm text-prism hover:underline">
                   {ticket.project.name}
                 </Link>
@@ -489,10 +574,30 @@ export default function TicketDetail() {
               )}
             </Field>
             <Field label="Department">
-              <span className="text-sm text-navy-800">{ticket.department?.name || '—'}</span>
+              {isStaff ? (
+                <select
+                  className="input"
+                  value={ticket.departmentId || ''}
+                  onChange={(e) => patchTicket({ departmentId: e.target.value || null })}
+                >
+                  <option value="">None</option>
+                  {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              ) : (
+                <span className="text-sm text-navy-800">{ticket.department?.name || '—'}</span>
+              )}
             </Field>
             <Field label="Due date">
-              <span className="text-sm text-navy-800">{ticket.dueDate || '—'}</span>
+              {isStaff ? (
+                <input
+                  type="date"
+                  className="input"
+                  value={ticket.dueDate || ''}
+                  onChange={(e) => patchTicket({ dueDate: e.target.value || null })}
+                />
+              ) : (
+                <span className="text-sm text-navy-800">{ticket.dueDate || '—'}</span>
+              )}
             </Field>
           </div>
 

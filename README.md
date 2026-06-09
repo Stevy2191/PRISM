@@ -301,7 +301,8 @@ with live preview), **Business Hours** & **Holiday Lists** (per-department sched
 (CSAT survey on resolved/closed tickets, scored in Reports), and **Modules & Tabs**
 (toggle sidebar items per role). Admins see everything; technicians see a subset;
 requesters see only their **Preferences**. Sections specified for later phases link
-to placeholder pages.
+to placeholder pages. **Preferences** also offers a **theme switcher** (Light / Dark /
+System) — the whole UI flips via CSS variables, persisted per browser.
 
 **Layouts & Fields** (Phase 2): admins define `CustomField`s (text/textarea/number/
 select/checkbox/date/url), optionally scoped to a ticket type and/or department and
