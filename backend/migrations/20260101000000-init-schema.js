@@ -7,7 +7,9 @@
  */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    const { INTEGER, STRING, TEXT, DATE, DATEONLY, BOOLEAN, ENUM, JSON } = Sequelize;
+    // Do not destructure `JSON` from Sequelize — it shadows the global JSON.
+    // Use Sequelize.JSON for column types instead.
+    const { INTEGER, STRING, TEXT, DATE, DATEONLY, BOOLEAN, ENUM } = Sequelize;
     const now = { type: DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') };
 
     // Departments
@@ -235,7 +237,7 @@ module.exports = {
       action: { type: STRING(255), allowNull: false },
       entityType: { type: STRING(255), allowNull: true },
       entityId: { type: INTEGER, allowNull: true },
-      meta: { type: JSON, allowNull: true },
+      meta: { type: Sequelize.JSON, allowNull: true },
       createdAt: now,
     });
 

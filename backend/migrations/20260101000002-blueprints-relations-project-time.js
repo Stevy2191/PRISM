@@ -11,7 +11,9 @@
  */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    const { INTEGER, STRING, TEXT, JSON, ENUM, DATE } = Sequelize;
+    // Do not destructure `JSON` from Sequelize — it shadows the global JSON.
+    // Use Sequelize.JSON for column types instead.
+    const { INTEGER, STRING, TEXT, ENUM, DATE } = Sequelize;
     const now = { type: DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') };
 
     const tables = await queryInterface.showAllTables();
@@ -40,7 +42,7 @@ module.exports = {
           onUpdate: 'CASCADE',
           onDelete: 'SET NULL',
         },
-        customFields: { type: JSON, allowNull: true },
+        customFields: { type: Sequelize.JSON, allowNull: true },
         createdById: {
           type: INTEGER,
           allowNull: true,
@@ -98,7 +100,7 @@ module.exports = {
       });
     }
     if (!(await hasColumn('Tickets', 'customFields'))) {
-      await queryInterface.addColumn('Tickets', 'customFields', { type: JSON, allowNull: true });
+      await queryInterface.addColumn('Tickets', 'customFields', { type: Sequelize.JSON, allowNull: true });
     }
 
     // 4. TimeEntries: ticketId nullable + projectId
