@@ -22,6 +22,8 @@ const CsatResponse = require('./CsatResponse')(sequelize);
 const Team = require('./Team')(sequelize);
 const TeamMember = require('./TeamMember')(sequelize);
 const ModuleVisibility = require('./ModuleVisibility')(sequelize);
+const CustomField = require('./CustomField')(sequelize);
+const TicketFieldValue = require('./TicketFieldValue')(sequelize);
 
 const db = {
   sequelize,
@@ -45,6 +47,8 @@ const db = {
   Team,
   TeamMember,
   ModuleVisibility,
+  CustomField,
+  TicketFieldValue,
 };
 
 // ---- Associations ----
@@ -143,5 +147,12 @@ CsatResponse.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // System settings
 SystemSettings.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });
+
+// Custom fields (Layouts & Fields)
+CustomField.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+CustomField.hasMany(TicketFieldValue, { foreignKey: 'customFieldId', as: 'values', onDelete: 'CASCADE' });
+TicketFieldValue.belongsTo(CustomField, { foreignKey: 'customFieldId', as: 'field' });
+Ticket.hasMany(TicketFieldValue, { foreignKey: 'ticketId', as: 'fieldValues', onDelete: 'CASCADE' });
+TicketFieldValue.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 
 module.exports = db;

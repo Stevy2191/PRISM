@@ -24,6 +24,7 @@ import SettingsHolidays from './pages/settings/Holidays';
 import SettingsTeams from './pages/settings/Teams';
 import SettingsModules from './pages/settings/Modules';
 import SettingsPreferences from './pages/settings/Preferences';
+import SettingsLayouts from './pages/settings/Layouts';
 import Placeholder from './pages/settings/Placeholder';
 
 // Existing admin pages (reached via the Settings hub)
@@ -77,7 +78,7 @@ export default function App() {
 
         {/* Placeholders for sections specified later */}
         <Route path="/settings/customer-happiness" element={staff(<Placeholder title="Customer Happiness" note="CSAT scores are available on the Reports page and on each ticket." />)} />
-        <Route path="/settings/layouts" element={admin(<Placeholder title="Layouts & Fields" />)} />
+        <Route path="/settings/layouts" element={admin(<SettingsLayouts />)} />
         <Route path="/settings/email-templates" element={admin(<Placeholder title="Email Templates" />)} />
         <Route path="/settings/notifications" element={staff(<Placeholder title="Notifications" />)} />
         <Route path="/settings/general" element={admin(<Placeholder title="General Settings" note="System/LDAP configuration is shown read-only under Admin → General Settings." />)} />

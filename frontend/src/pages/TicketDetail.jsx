@@ -34,6 +34,9 @@ export default function TicketDetail() {
   const [relForm, setRelForm] = useState({ relatedTicketId: '', relationType: 'related' });
   const [teams, setTeams] = useState([]);
   const [csatForm, setCsatForm] = useState({ rating: '', comment: '' });
+  const [customFields, setCustomFields] = useState([]);
+  const [cfValues, setCfValues] = useState({}); // { customFieldId: value }
+  const [savingFields, setSavingFields] = useState(false);
   const fileRef = useRef();
 
   const load = async () => {
@@ -50,6 +53,11 @@ export default function TicketDetail() {
       setAttachments(a.data.attachments);
       setTime(tm.data);
       setRelations(rel.data.relations);
+      // Seed admin custom field values from the ticket.
+      const seeded = {};
+      (t.data.ticket.fieldValues || []).forEach((fv) => { seeded[fv.customFieldId] = fv.value; });
+      setCfValues(seeded);
+      api.get('/custom-fields').then(({ data }) => setCustomFields(data.customFields)).catch(() => {});
       if (isStaff) {
         api.get('/users').then(({ data }) => setUsers(data.users)).catch(() => {});
         api.get('/tickets').then(({ data }) => setAllTickets(data.tickets)).catch(() => {});
@@ -89,6 +97,19 @@ export default function TicketDetail() {
       setTicket((t) => ({ ...t, csat: data.csat }));
     } catch (err) {
       alert(errMessage(err));
+    }
+  };
+
+  const saveFields = async (applicable) => {
+    setSavingFields(true);
+    try {
+      const fieldValues = applicable.map((cf) => ({ customFieldId: cf.id, value: cfValues[cf.id] ?? '' }));
+      const { data } = await api.patch(`/tickets/${id}`, { fieldValues });
+      setTicket(data.ticket);
+    } catch (err) {
+      alert(errMessage(err));
+    } finally {
+      setSavingFields(false);
     }
   };
 
@@ -253,6 +274,17 @@ export default function TicketDetail() {
             csatForm={csatForm}
             setCsatForm={setCsatForm}
             onSubmit={submitCsat}
+          />
+
+          {/* Admin-defined custom fields (Layouts & Fields) */}
+          <AdditionalFieldsCard
+            ticket={ticket}
+            customFields={customFields}
+            values={cfValues}
+            setValues={setCfValues}
+            canEdit={isStaff}
+            saving={savingFields}
+            onSave={saveFields}
           />
 
           {/* Related tickets */}
@@ -506,6 +538,64 @@ function Field({ label, children }) {
     <div>
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-navy-400">{label}</p>
       {children}
+    </div>
+  );
+}
+
+// Admin-defined custom fields applicable to this ticket (by type + department).
+function AdditionalFieldsCard({ ticket, customFields, values, setValues, canEdit, saving, onSave }) {
+  const applicable = (customFields || []).filter(
+    (cf) =>
+      (!cf.ticketType || cf.ticketType === ticket.type) &&
+      (!cf.departmentId || cf.departmentId === ticket.departmentId)
+  );
+  if (applicable.length === 0) return null;
+
+  const set = (id, v) => setValues((prev) => ({ ...prev, [id]: v }));
+  const renderInput = (cf) => {
+    const v = values[cf.id] ?? '';
+    if (!canEdit) {
+      if (cf.fieldType === 'checkbox') return <span className="text-sm text-navy-800">{v === 'true' ? 'Yes' : 'No'}</span>;
+      if (cf.fieldType === 'url' && v) return <a href={v} className="text-sm text-prism hover:underline">{v}</a>;
+      return <span className="text-sm text-navy-800">{v || '—'}</span>;
+    }
+    switch (cf.fieldType) {
+      case 'textarea': return <textarea className="input min-h-[4rem]" value={v} onChange={(e) => set(cf.id, e.target.value)} />;
+      case 'number': return <input type="number" className="input" value={v} onChange={(e) => set(cf.id, e.target.value)} />;
+      case 'date': return <input type="date" className="input" value={v} onChange={(e) => set(cf.id, e.target.value)} />;
+      case 'url': return <input type="url" className="input" value={v} onChange={(e) => set(cf.id, e.target.value)} />;
+      case 'select': return (
+        <select className="input" value={v} onChange={(e) => set(cf.id, e.target.value)}>
+          <option value="">Select…</option>
+          {(cf.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      );
+      case 'checkbox': return (
+        <input type="checkbox" checked={v === 'true'} onChange={(e) => set(cf.id, e.target.checked ? 'true' : '')}
+          className="h-4 w-4 rounded border-navy-300 text-prism" />
+      );
+      default: return <input className="input" value={v} onChange={(e) => set(cf.id, e.target.value)} />;
+    }
+  };
+
+  return (
+    <div className="card p-5">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy-500">Additional Fields</h2>
+      <div className="space-y-3">
+        {applicable.map((cf) => (
+          <div key={cf.id}>
+            <p className="mb-1 text-xs font-medium text-navy-400">{cf.name}{cf.required && <span className="text-red-500"> *</span>}</p>
+            {renderInput(cf)}
+          </div>
+        ))}
+      </div>
+      {canEdit && (
+        <div className="mt-4 flex justify-end">
+          <button onClick={() => onSave(applicable)} className="btn-primary" disabled={saving}>
+            {saving ? 'Saving…' : 'Save fields'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

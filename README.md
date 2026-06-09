@@ -282,6 +282,7 @@ Authentication: session cookie (browser) **or** `X-API-Key` header (clients).
 | Business hours | `GET /business-hours`, `POST/PATCH/DELETE` (admin) |
 | Holiday lists | `GET /holiday-lists`, `POST/PATCH/DELETE`, `…/:id/holidays[/:holidayId]` (admin) |
 | Modules | `GET /modules`, `PUT /modules` (admin) — sidebar visibility per role |
+| Custom fields | `GET /custom-fields` (`?ticketType=&departmentId=`), `POST/PATCH/DELETE` (admin) |
 | API keys | `GET/POST /apikeys`, `DELETE /apikeys/:id` |
 | Reports | `GET /reports/tickets`, `GET /reports/time` (`?format=csv`), `GET /reports/csat` |
 | Settings | `GET /settings/public` (no auth), `GET/PUT /settings` (admin), `POST/DELETE /settings/logo`, `GET /settings/logo` |
@@ -300,6 +301,13 @@ with live preview), **Business Hours** & **Holiday Lists** (per-department sched
 (toggle sidebar items per role). Admins see everything; technicians see a subset;
 requesters see only their **Preferences**. Sections specified for later phases link
 to placeholder pages.
+
+**Layouts & Fields** (Phase 2): admins define `CustomField`s (text/textarea/number/
+select/checkbox/date/url), optionally scoped to a ticket type and/or department and
+ordered via `displayOrder`. Applicable fields render dynamically on the ticket
+create/edit forms; values are stored relationally in `TicketFieldValue` (one row per
+ticket × field). This is distinct from blueprint custom fields, which are template-
+driven and stored inline on the ticket.
 
 ### Blueprints, related tickets &amp; time tracking
 

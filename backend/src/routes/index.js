@@ -17,6 +17,7 @@ const teamsRoutes = require('./teams');
 const businessHoursRoutes = require('./businessHours');
 const holidaysRoutes = require('./holidays');
 const modulesRoutes = require('./modules');
+const customFieldsRoutes = require('./customFields');
 
 const router = express.Router();
 
@@ -41,5 +42,6 @@ router.use('/teams', guard, teamsRoutes);
 router.use('/business-hours', guard, businessHoursRoutes);
 router.use('/holiday-lists', guard, holidaysRoutes);
 router.use('/modules', guard, modulesRoutes);
+router.use('/custom-fields', guard, customFieldsRoutes);
 
 module.exports = router;

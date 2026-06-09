@@ -25,18 +25,21 @@ export default function TicketNew() {
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [blueprints, setBlueprints] = useState([]);
+  const [customFields, setCustomFields] = useState([]);
+  const [fieldValues, setFieldValues] = useState({}); // { customFieldId: value }
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Blueprint state
   const [showModal, setShowModal] = useState(false);
   const [blueprint, setBlueprint] = useState(null); // applied blueprint
-  const [fieldValues, setFieldValues] = useState({}); // { fieldName: value }
+  const [bpFieldValues, setBpFieldValues] = useState({}); // blueprint fields, keyed by name
 
   useEffect(() => {
     api.get('/projects').then(({ data }) => setProjects(data.projects)).catch(() => {});
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
     api.get('/blueprints').then(({ data }) => setBlueprints(data.blueprints)).catch(() => {});
+    api.get('/custom-fields').then(({ data }) => setCustomFields(data.customFields)).catch(() => {});
     if (isStaff) {
       api.get('/users').then(({ data }) => setUsers(data.users)).catch(() => {});
       api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
@@ -60,16 +63,24 @@ export default function TicketNew() {
     (b.customFields || []).forEach((cf) => {
       init[cf.name] = cf.type === 'checkbox' ? false : '';
     });
-    setFieldValues(init);
+    setBpFieldValues(init);
     setShowModal(false);
   };
 
   const clearBlueprint = () => {
     setBlueprint(null);
-    setFieldValues({});
+    setBpFieldValues({});
   };
 
-  const setFieldValue = (name, value) => setFieldValues((v) => ({ ...v, [name]: value }));
+  const setBpFieldValue = (name, value) => setBpFieldValues((v) => ({ ...v, [name]: value }));
+
+  // Admin-defined custom fields applicable to the current type/department.
+  const applicableFields = customFields.filter(
+    (cf) =>
+      (!cf.ticketType || cf.ticketType === form.type) &&
+      (!cf.departmentId || String(cf.departmentId) === String(form.departmentId))
+  );
+  const setFieldValue = (id, value) => setFieldValues((v) => ({ ...v, [id]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -86,9 +97,14 @@ export default function TicketNew() {
           name: cf.name,
           label: cf.label,
           type: cf.type,
-          value: fieldValues[cf.name] ?? '',
+          value: bpFieldValues[cf.name] ?? '',
         }));
       }
+      // Admin-defined custom fields applicable to this ticket.
+      payload.fieldValues = applicableFields.map((cf) => ({
+        customFieldId: cf.id,
+        value: fieldValues[cf.id] ?? '',
+      }));
       const { data } = await api.post('/tickets', payload);
       navigate(`/tickets/${data.ticket.id}`);
     } catch (err) {
@@ -207,8 +223,23 @@ export default function TicketNew() {
               <CustomField
                 key={cf.name}
                 field={cf}
-                value={fieldValues[cf.name]}
-                onChange={(v) => setFieldValue(cf.name, v)}
+                value={bpFieldValues[cf.name]}
+                onChange={(v) => setBpFieldValue(cf.name, v)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Admin-defined custom fields (Layouts & Fields) */}
+        {applicableFields.length > 0 && (
+          <div className="space-y-4 border-t border-navy-100 pt-4">
+            <h3 className="text-sm font-semibold text-navy-700">Additional fields</h3>
+            {applicableFields.map((cf) => (
+              <AdminField
+                key={cf.id}
+                field={cf}
+                value={fieldValues[cf.id]}
+                onChange={(v) => setFieldValue(cf.id, v)}
               />
             ))}
           </div>
@@ -320,4 +351,41 @@ function Wrap({ field, children }) {
       {children}
     </div>
   );
+}
+
+// Renders an admin-defined CustomField (Layouts & Fields). Uses `name` as label
+// and `fieldType`; supports the extra `url` type.
+function AdminField({ field, value, onChange }) {
+  const label = { label: field.name, required: field.required };
+  const common = { className: 'input', required: field.required, value: value ?? '' };
+  switch (field.fieldType) {
+    case 'textarea':
+      return <Wrap field={label}><textarea {...common} className="input min-h-[5rem]" onChange={(e) => onChange(e.target.value)} /></Wrap>;
+    case 'number':
+      return <Wrap field={label}><input {...common} type="number" onChange={(e) => onChange(e.target.value)} /></Wrap>;
+    case 'date':
+      return <Wrap field={label}><input {...common} type="date" onChange={(e) => onChange(e.target.value)} /></Wrap>;
+    case 'url':
+      return <Wrap field={label}><input {...common} type="url" placeholder="https://…" onChange={(e) => onChange(e.target.value)} /></Wrap>;
+    case 'select':
+      return (
+        <Wrap field={label}>
+          <select {...common} onChange={(e) => onChange(e.target.value)}>
+            <option value="">Select…</option>
+            {(field.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </Wrap>
+      );
+    case 'checkbox':
+      return (
+        <label className="flex items-center gap-2 text-sm text-navy-700">
+          <input type="checkbox" checked={value === 'true' || value === true}
+            onChange={(e) => onChange(e.target.checked ? 'true' : '')}
+            className="h-4 w-4 rounded border-navy-300 text-prism" />
+          {field.name}{field.required && <span className="text-red-500">*</span>}
+        </label>
+      );
+    default:
+      return <Wrap field={label}><input {...common} type="text" onChange={(e) => onChange(e.target.value)} /></Wrap>;
+  }
 }

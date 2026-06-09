@@ -8,6 +8,8 @@ const {
   TicketRelation,
   CsatResponse,
   Team,
+  CustomField,
+  TicketFieldValue,
   User,
   Project,
   Department,
@@ -26,7 +28,30 @@ const ticketInclude = [
   { model: Project, as: 'project', attributes: ['id', 'name'] },
   { model: Department, as: 'department', attributes: ['id', 'name'] },
   { model: CsatResponse, as: 'csat' },
+  {
+    model: TicketFieldValue,
+    as: 'fieldValues',
+    include: [{ model: CustomField, as: 'field' }],
+  },
 ];
+
+// Upsert/remove a ticket's admin-defined custom field values.
+// fieldValues: array of { customFieldId, value }.
+async function syncFieldValues(ticketId, fieldValues, t) {
+  if (!Array.isArray(fieldValues)) return;
+  for (const fv of fieldValues) {
+    const customFieldId = parseInt(fv.customFieldId, 10);
+    if (!customFieldId) continue;
+    const value = fv.value === undefined || fv.value === null ? '' : String(fv.value);
+    if (value === '') {
+      await TicketFieldValue.destroy({ where: { ticketId, customFieldId }, transaction: t });
+    } else {
+      const existing = await TicketFieldValue.findOne({ where: { ticketId, customFieldId }, transaction: t });
+      if (existing) await existing.update({ value }, { transaction: t });
+      else await TicketFieldValue.create({ ticketId, customFieldId, value }, { transaction: t });
+    }
+  }
+}
 
 // Requesters may only touch their own tickets.
 function assertCanViewTicket(req, ticket) {
@@ -97,6 +122,9 @@ const create = asyncHandler(async (req, res) => {
     blueprintId: blueprintId || null,
     customFields: Array.isArray(customFields) && customFields.length ? customFields : null,
   });
+  if (Array.isArray(req.body.fieldValues)) {
+    await syncFieldValues(ticket.id, req.body.fieldValues);
+  }
   await writeAudit(req, 'ticket.create', 'Ticket', ticket.id, { title: ticket.title });
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
@@ -143,6 +171,10 @@ const update = asyncHandler(async (req, res) => {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
   await ticket.update(changes);
+  // Staff may update admin-defined custom field values.
+  if (isStaff(req.user) && Array.isArray(req.body.fieldValues)) {
+    await syncFieldValues(ticket.id, req.body.fieldValues);
+  }
   await writeAudit(req, 'ticket.update', 'Ticket', ticket.id, changes);
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
