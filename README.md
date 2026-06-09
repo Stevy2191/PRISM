@@ -283,6 +283,7 @@ Authentication: session cookie (browser) **or** `X-API-Key` header (clients).
 | Holiday lists | `GET /holiday-lists`, `POST/PATCH/DELETE`, `…/:id/holidays[/:holidayId]` (admin) |
 | Modules | `GET /modules`, `PUT /modules` (admin) — sidebar visibility per role |
 | Custom fields | `GET /custom-fields` (`?ticketType=&departmentId=`), `POST/PATCH/DELETE` (admin) |
+| Timer | `GET /timer`, `POST /timer/start`, `POST /timer/stop`, `DELETE /timer` (staff) — per-user running timer |
 | API keys | `GET/POST /apikeys`, `DELETE /apikeys/:id` |
 | Reports | `GET /reports/tickets`, `GET /reports/time` (`?format=csv`), `GET /reports/csat` |
 | Settings | `GET /settings/public` (no auth), `GET/PUT /settings` (admin), `POST/DELETE /settings/logo`, `GET /settings/logo` |

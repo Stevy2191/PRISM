@@ -1,35 +1,47 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import api, { errMessage } from '../api/api';
+import { useAuth } from './AuthContext';
 
-// A single active timer, persisted to localStorage so it survives navigation and
-// page reloads. Starting a timer while another is running logs the previous one
-// first. On stop, the elapsed time is posted as a time entry on the ticket/project.
+// Server-backed single active timer per user, so a running timer resumes on any
+// device. Stopping or switching converts elapsed time into a TimeEntry server-side.
 const TimerContext = createContext(null);
-const STORAGE_KEY = 'prism.activeTimer';
-
-function loadStored() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
 
 export function TimerProvider({ children }) {
-  const [activeTimer, setActiveTimer] = useState(loadStored); // { type, id, label, startedAt }
+  const { user, isStaff } = useAuth();
+  const [activeTimer, setActiveTimer] = useState(null); // { type, id, label, startedAt }
   const [now, setNow] = useState(() => Date.now());
   // Increments after each successful log so pages can refresh their time data.
   const [logVersion, setLogVersion] = useState(0);
 
-  useEffect(() => {
-    try {
-      if (activeTimer) localStorage.setItem(STORAGE_KEY, JSON.stringify(activeTimer));
-      else localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore storage errors */
+  const refresh = useCallback(async () => {
+    if (!user || !isStaff) {
+      setActiveTimer(null);
+      return;
     }
-  }, [activeTimer]);
+    try {
+      const { data } = await api.get('/timer');
+      setActiveTimer(data.timer);
+    } catch {
+      /* leave current state on transient errors */
+    }
+  }, [user, isStaff]);
+
+  // Load on login / role change.
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  // Keep roughly in sync across devices: re-check when the tab regains focus.
+  useEffect(() => {
+    if (!user || !isStaff) return undefined;
+    const onFocus = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [user, isStaff, refresh]);
 
   // Tick every second while a timer is running.
   useEffect(() => {
@@ -39,46 +51,35 @@ export function TimerProvider({ children }) {
     return () => clearInterval(iv);
   }, [activeTimer]);
 
-  const postEntry = async (timer) => {
-    const seconds = Math.max(0, Math.floor((Date.now() - new Date(timer.startedAt).getTime()) / 1000));
-    const minutes = Math.max(1, Math.round(seconds / 60));
-    const url = timer.type === 'project' ? `/projects/${timer.id}/time` : `/tickets/${timer.id}/time`;
-    await api.post(url, { minutes, note: 'Timer', loggedAt: timer.startedAt });
-  };
+  const start = useCallback(async (type, id, label) => {
+    try {
+      const { data } = await api.post('/timer/start', { type, id, label });
+      setActiveTimer(data.timer);
+      if (data.logged) setLogVersion((v) => v + 1); // a previous timer was logged
+    } catch (err) {
+      alert(errMessage(err, 'Failed to start timer'));
+    }
+  }, []);
 
   const stop = useCallback(async () => {
-    if (!activeTimer) return;
     try {
-      await postEntry(activeTimer);
+      await api.post('/timer/stop');
       setActiveTimer(null);
       setLogVersion((v) => v + 1);
     } catch (err) {
-      // Keep the timer running so no time is lost.
-      alert(errMessage(err, 'Failed to log time'));
-      throw err;
+      alert(errMessage(err, 'Failed to stop timer'));
     }
-  }, [activeTimer]);
+  }, []);
 
-  const start = useCallback(
-    async (type, id, label) => {
-      if (activeTimer) {
-        if (activeTimer.type === type && Number(activeTimer.id) === Number(id)) return; // already timing this
-        try {
-          await postEntry(activeTimer); // log the one currently running
-          setLogVersion((v) => v + 1);
-        } catch (err) {
-          alert(errMessage(err, 'Failed to log the running timer'));
-          return;
-        }
-      }
-      setActiveTimer({ type, id: Number(id), label, startedAt: new Date().toISOString() });
-      setNow(Date.now());
-    },
-    [activeTimer]
-  );
-
-  // Discard the running timer without logging it.
-  const cancel = useCallback(() => setActiveTimer(null), []);
+  // Discard without logging.
+  const cancel = useCallback(async () => {
+    try {
+      await api.delete('/timer');
+    } catch {
+      /* ignore */
+    }
+    setActiveTimer(null);
+  }, []);
 
   const elapsedSeconds = activeTimer
     ? Math.max(0, Math.floor((now - new Date(activeTimer.startedAt).getTime()) / 1000))
@@ -87,7 +88,7 @@ export function TimerProvider({ children }) {
   const isRunning = (type, id) =>
     !!activeTimer && activeTimer.type === type && Number(activeTimer.id) === Number(id);
 
-  const value = { activeTimer, elapsedSeconds, logVersion, start, stop, cancel, isRunning };
+  const value = { activeTimer, elapsedSeconds, logVersion, start, stop, cancel, isRunning, refresh };
   return <TimerContext.Provider value={value}>{children}</TimerContext.Provider>;
 }
 
@@ -97,7 +98,7 @@ export function useTimer() {
   return ctx;
 }
 
-// Shared mm:ss formatter for elapsed seconds.
+// Shared mm:ss (or h:mm:ss) formatter for elapsed seconds.
 export function formatElapsed(totalSeconds) {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
