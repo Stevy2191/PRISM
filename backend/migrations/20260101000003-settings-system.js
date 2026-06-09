@@ -9,7 +9,9 @@
  */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    const { INTEGER, STRING, TEXT, JSON, BOOLEAN, ENUM, DATE, DATEONLY } = Sequelize;
+    // Note: do NOT destructure `JSON` from Sequelize — it would shadow the global
+    // JSON object and break JSON.stringify below. Use Sequelize.JSON for columns.
+    const { INTEGER, STRING, TEXT, BOOLEAN, ENUM, DATE, DATEONLY } = Sequelize;
     const now = { type: DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') };
 
     const tables = await queryInterface.showAllTables();
@@ -41,7 +43,7 @@ module.exports = {
           references: { model: 'Departments', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'SET NULL',
         },
         timezone: { type: STRING(64), allowNull: false, defaultValue: 'UTC' },
-        schedule: { type: JSON, allowNull: true },
+        schedule: { type: Sequelize.JSON, allowNull: true },
         createdAt: now,
       });
     }
@@ -120,7 +122,7 @@ module.exports = {
       await queryInterface.createTable('ModuleVisibility', {
         id: { type: INTEGER, primaryKey: true, autoIncrement: true },
         moduleName: { type: STRING(64), allowNull: false, unique: true },
-        visibleToRoles: { type: JSON, allowNull: false },
+        visibleToRoles: { type: Sequelize.JSON, allowNull: false },
       });
     }
 
