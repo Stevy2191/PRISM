@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
+import { useTimer, formatElapsed } from '../context/TimerContext';
 import api from '../api/api';
 
 // Sidebar modules. `key` matches a ModuleVisibility.moduleName row.
@@ -27,6 +28,7 @@ const DEFAULT_ROLES = {
 export default function Layout() {
   const { user, logout } = useAuth();
   const { settings } = useSettings();
+  const { activeTimer, elapsedSeconds, stop, cancel } = useTimer();
   const navigate = useNavigate();
   const [visibility, setVisibility] = useState(null);
 
@@ -103,6 +105,21 @@ export default function Layout() {
       </aside>
 
       <main className="flex-1 overflow-y-auto bg-navy-50">
+        {activeTimer && (
+          <div className="sticky top-0 z-20 flex items-center justify-between bg-prism px-6 py-2 text-sm text-white shadow">
+            <span className="truncate">
+              ⏱ Timing <span className="font-semibold">{activeTimer.label}</span> · {formatElapsed(elapsedSeconds)}
+            </span>
+            <div className="flex flex-shrink-0 gap-2">
+              <button onClick={() => stop()} className="rounded bg-white/20 px-3 py-1 text-xs font-medium hover:bg-white/30">
+                Stop &amp; log
+              </button>
+              <button onClick={() => { if (confirm('Discard this timer without logging?')) cancel(); }} className="rounded px-2 py-1 text-xs text-white/80 hover:text-white">
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
         <div className="mx-auto max-w-7xl px-6 py-8">
           <Outlet />
         </div>

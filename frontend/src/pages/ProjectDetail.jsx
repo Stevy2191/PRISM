@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { useTimer } from '../context/TimerContext';
 import Badge from '../components/Badge';
 import Spinner from '../components/Spinner';
+import TimerButton from '../components/TimerButton';
 
 const STATUSES = ['active', 'on_hold', 'completed', 'archived'];
 
@@ -16,6 +18,7 @@ function formatMinutes(min) {
 export default function ProjectDetail() {
   const { id } = useParams();
   const { isStaff, isAdmin, user } = useAuth();
+  const { logVersion } = useTimer();
   const navigate = useNavigate();
 
   const [project, setProject] = useState(null);
@@ -26,7 +29,7 @@ export default function ProjectDetail() {
   const [newMilestone, setNewMilestone] = useState({ title: '', dueDate: '' });
   const [tab, setTab] = useState('overview');
   const [time, setTime] = useState({ entries: [], totalMinutes: 0 });
-  const [timeForm, setTimeForm] = useState({ minutes: '', note: '' });
+  const [timeForm, setTimeForm] = useState({ minutes: '', note: '', date: '' });
 
   const load = async () => {
     try {
@@ -51,16 +54,25 @@ export default function ProjectDetail() {
     const minutes = parseInt(timeForm.minutes, 10);
     if (!minutes) return;
     try {
-      const { data } = await api.post(`/projects/${id}/time`, { minutes, note: timeForm.note });
+      const loggedAt = timeForm.date ? new Date(`${timeForm.date}T12:00:00`).toISOString() : undefined;
+      const { data } = await api.post(`/projects/${id}/time`, { minutes, note: timeForm.note, loggedAt });
       setTime((tm) => ({
         entries: [data.entry, ...tm.entries],
         totalMinutes: tm.totalMinutes + data.entry.minutes,
       }));
-      setTimeForm({ minutes: '', note: '' });
+      setTimeForm({ minutes: '', note: '', date: '' });
     } catch (err) {
       alert(errMessage(err));
     }
   };
+
+  // Refresh project time whenever the global timer logs an entry (ticket- or
+  // project-level — both can roll up into this project's total).
+  useEffect(() => {
+    if (logVersion === 0) return;
+    api.get(`/projects/${id}/time`).then(({ data }) => setTime(data)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logVersion]);
 
   const deleteProjectTime = async (entry) => {
     // Only project-level entries can be removed here (ticket entries live on the ticket).
@@ -269,7 +281,10 @@ export default function ProjectDetail() {
         <div className="card">
           <div className="flex items-center justify-between border-b border-navy-100 px-5 py-3">
             <h2 className="font-semibold text-navy-900">Time Log</h2>
-            <span className="text-sm font-medium text-prism">Total: {formatMinutes(time.totalMinutes)}</span>
+            <div className="flex items-center gap-3">
+              {isStaff && <TimerButton type="project" id={project.id} label={project.name} />}
+              <span className="text-sm font-medium text-prism">Total: {formatMinutes(time.totalMinutes)}</span>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-navy-100">
@@ -320,9 +335,15 @@ export default function ProjectDetail() {
                 onChange={(e) => setTimeForm((f) => ({ ...f, minutes: e.target.value }))}
               />
               <input
-                placeholder="note (project-level time)" className="input flex-1"
+                placeholder="note (project-level time)" className="input min-w-[8rem] flex-1"
                 value={timeForm.note}
                 onChange={(e) => setTimeForm((f) => ({ ...f, note: e.target.value }))}
+              />
+              <input
+                type="date" className="input w-40"
+                title="Date (optional — leave blank for today)"
+                value={timeForm.date}
+                onChange={(e) => setTimeForm((f) => ({ ...f, date: e.target.value }))}
               />
               <button type="submit" className="btn-primary">Log project time</button>
             </form>

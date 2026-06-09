@@ -4,6 +4,7 @@ import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Badge from '../components/Badge';
 import Spinner from '../components/Spinner';
+import TimerButton from '../components/TimerButton';
 
 const STATUSES = ['open', 'in_progress', 'on_hold', 'resolved', 'closed'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
@@ -121,12 +122,13 @@ export default function Tickets() {
                 <SortHeader label="Type" k="type" />
                 <SortHeader label="Due" k="dueDate" />
                 <th className="table-th">Assignee</th>
+                {isStaff && <th className="table-th">Timer</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-navy-100">
               {sorted.length === 0 && (
                 <tr>
-                  <td className="table-td text-navy-400" colSpan={7}>No tickets found.</td>
+                  <td className="table-td text-navy-400" colSpan={isStaff ? 8 : 7}>No tickets found.</td>
                 </tr>
               )}
               {sorted.map((t) => (
@@ -156,6 +158,11 @@ export default function Tickets() {
                   <td className="table-td"><Badge value={t.type} /></td>
                   <td className="table-td text-navy-500">{t.dueDate || '—'}</td>
                   <td className="table-td text-navy-600">{t.assignee?.displayName || '—'}</td>
+                  {isStaff && (
+                    <td className="table-td">
+                      <TimerButton type="ticket" id={t.id} label={`#${t.id} ${t.title}`} />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

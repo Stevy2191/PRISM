@@ -4,6 +4,7 @@ import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Badge from '../components/Badge';
 import Spinner from '../components/Spinner';
+import TimerButton from '../components/TimerButton';
 
 export default function Projects() {
   const { isStaff } = useAuth();
@@ -45,6 +46,11 @@ export default function Projects() {
                 <span>{p.department?.name || 'No department'}</span>
                 <span>{p.dueDate ? `Due ${p.dueDate}` : ''}</span>
               </div>
+              {isStaff && (
+                <div className="mt-3 border-t border-navy-100 pt-3">
+                  <TimerButton type="project" id={p.id} label={p.name} />
+                </div>
+              )}
             </Link>
           ))}
         </div>
