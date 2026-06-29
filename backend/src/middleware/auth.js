@@ -41,8 +41,9 @@ async function authenticate(req, res, next) {
 
 // Validate a plaintext API key against stored bcrypt hashes.
 async function resolveApiKey(plaintext) {
-  // Keys carry an 8-char prefix used to narrow the candidate set before bcrypt compare.
-  const prefix = plaintext.slice(0, 8);
+  // Keys carry an 8-char prefix of the secret hex (after "prism_") to narrow
+  // candidates before the expensive bcrypt compare.
+  const prefix = plaintext.slice(6, 14);
   const candidates = await ApiKey.findAll({
     where: {
       prefix,

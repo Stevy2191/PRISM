@@ -22,11 +22,12 @@ const create = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'API key name is required', 'VALIDATION_ERROR');
   }
 
-  // Plaintext key: prism_<32 random hex bytes>. The 8-char prefix (after the
-  // "prism_" tag) is stored to speed lookups; the full key is bcrypt-hashed.
+  // Plaintext key: prism_<32 random hex bytes>. An 8-char prefix of the secret
+  // (after the constant "prism_" tag) is stored to narrow bcrypt candidates on
+  // lookup; the full key is bcrypt-hashed and never stored.
   const secret = crypto.randomBytes(32).toString('hex');
   const plaintext = `prism_${secret}`;
-  const prefix = plaintext.slice(0, 8);
+  const prefix = plaintext.slice(6, 14); // 8 hex chars of entropy, skipping the "prism_" tag
   const keyHash = await bcrypt.hash(plaintext, 12);
 
   const apiKey = await ApiKey.create({

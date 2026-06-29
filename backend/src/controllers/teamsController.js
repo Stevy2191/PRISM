@@ -60,7 +60,10 @@ const update = asyncHandler(async (req, res) => {
   const { name, description, departmentId, members } = req.body || {};
   await sequelize.transaction(async (t) => {
     const changes = {};
-    if (name !== undefined) changes.name = name.trim();
+    if (name !== undefined) {
+      if (!name || !name.trim()) throw new ApiError(400, 'Team name is required', 'VALIDATION_ERROR');
+      changes.name = name.trim();
+    }
     if (description !== undefined) changes.description = description;
     if (departmentId !== undefined) changes.departmentId = departmentId || null;
     await team.update(changes, { transaction: t });

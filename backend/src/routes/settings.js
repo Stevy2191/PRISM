@@ -22,7 +22,13 @@ const logoStorage = multer.diskStorage({
 const logoUpload = multer({
   storage: logoStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => cb(null, /^image\//.test(file.mimetype)),
+  fileFilter: (req, file, cb) => {
+    if (/^image\//.test(file.mimetype)) return cb(null, true);
+    const err = new Error('Only image files are allowed');
+    err.status = 400;
+    err.code = 'INVALID_FILE_TYPE';
+    cb(err, false);
+  },
 });
 
 // Public endpoints (no auth) — needed by the login page and global theming.

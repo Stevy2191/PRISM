@@ -8,6 +8,13 @@ const multer = require('multer');
 const UPLOAD_ROOT = process.env.UPLOAD_DIR || '/uploads';
 const MAX_SIZE = 25 * 1024 * 1024; // 25MB
 
+// Extensions that could be executed server-side or auto-run on Windows/macOS.
+const BLOCKED_EXTENSIONS = new Set([
+  '.exe', '.sh', '.bash', '.bat', '.cmd', '.ps1', '.ps2', '.vbs', '.vbe',
+  '.js', '.jse', '.wsf', '.wsh', '.jar', '.msi', '.msp', '.scr', '.hta',
+  '.pif', '.com', '.cpl', '.dll', '.sys', '.drv', '.ocx', '.app', '.deb', '.rpm',
+]);
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const ticketId = req.params.id;
@@ -25,6 +32,16 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: MAX_SIZE },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (BLOCKED_EXTENSIONS.has(ext)) {
+      const err = new Error(`File type ${ext} is not allowed`);
+      err.status = 400;
+      err.code = 'INVALID_FILE_TYPE';
+      return cb(err, false);
+    }
+    cb(null, true);
+  },
 });
 
 module.exports = { upload, UPLOAD_ROOT, MAX_SIZE };

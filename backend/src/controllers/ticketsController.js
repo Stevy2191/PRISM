@@ -107,24 +107,27 @@ const create = asyncHandler(async (req, res) => {
     requesterId = requesterId || req.user.id;
   }
 
-  const ticket = await Ticket.create({
-    title: title.trim(),
-    description: description || null,
-    status: status || 'open',
-    priority: priority || 'medium',
-    type: type || 'request',
-    assigneeId: assigneeId || null,
-    teamId: req.user.role === 'requester' ? null : (teamId || null),
-    requesterId,
-    projectId: projectId || null,
-    departmentId: departmentId || null,
-    dueDate: dueDate || null,
-    blueprintId: blueprintId || null,
-    customFields: Array.isArray(customFields) && customFields.length ? customFields : null,
+  const ticket = await sequelize.transaction(async (t) => {
+    const created = await Ticket.create({
+      title: title.trim(),
+      description: description || null,
+      status: status || 'open',
+      priority: priority || 'medium',
+      type: type || 'request',
+      assigneeId: assigneeId || null,
+      teamId: req.user.role === 'requester' ? null : (teamId || null),
+      requesterId,
+      projectId: projectId || null,
+      departmentId: departmentId || null,
+      dueDate: dueDate || null,
+      blueprintId: blueprintId || null,
+      customFields: Array.isArray(customFields) && customFields.length ? customFields : null,
+    }, { transaction: t });
+    if (Array.isArray(req.body.fieldValues)) {
+      await syncFieldValues(created.id, req.body.fieldValues, t);
+    }
+    return created;
   });
-  if (Array.isArray(req.body.fieldValues)) {
-    await syncFieldValues(ticket.id, req.body.fieldValues);
-  }
   await writeAudit(req, 'ticket.create', 'Ticket', ticket.id, { title: ticket.title });
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
@@ -170,11 +173,12 @@ const update = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
-  await ticket.update(changes);
-  // Staff may update admin-defined custom field values.
-  if (isStaff(req.user) && Array.isArray(req.body.fieldValues)) {
-    await syncFieldValues(ticket.id, req.body.fieldValues);
-  }
+  await sequelize.transaction(async (t) => {
+    await ticket.update(changes, { transaction: t });
+    if (isStaff(req.user) && Array.isArray(req.body.fieldValues)) {
+      await syncFieldValues(ticket.id, req.body.fieldValues, t);
+    }
+  });
   await writeAudit(req, 'ticket.update', 'Ticket', ticket.id, changes);
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
@@ -534,12 +538,16 @@ const submitCsat = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'rating must be happy, neutral, or unhappy', 'VALIDATION_ERROR');
   }
 
-  const [csat] = await CsatResponse.upsert({
+  await CsatResponse.upsert({
     ticketId: ticket.id,
     userId: req.user.id,
     rating,
     comment: comment || null,
     respondedAt: new Date(),
+  });
+  const csat = await CsatResponse.findOne({
+    where: { ticketId: ticket.id },
+    include: [{ model: User, as: 'user', attributes: userAttrs }],
   });
   await writeAudit(req, 'csat.submit', 'CsatResponse', ticket.id, { rating });
   res.status(201).json({ csat });

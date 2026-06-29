@@ -5,11 +5,16 @@ const { asyncHandler } = require('../middleware/error');
 // Build a createdAt/loggedAt date-range filter from ?from & ?to query params.
 function dateRange(field, query) {
   const range = {};
-  if (query.from) range[Op.gte] = new Date(query.from);
+  if (query.from) {
+    const d = new Date(query.from);
+    if (!isNaN(d)) range[Op.gte] = d;
+  }
   if (query.to) {
-    const to = new Date(query.to);
-    to.setHours(23, 59, 59, 999);
-    range[Op.lte] = to;
+    const d = new Date(query.to);
+    if (!isNaN(d)) {
+      d.setHours(23, 59, 59, 999);
+      range[Op.lte] = d;
+    }
   }
   return Object.getOwnPropertySymbols(range).length ? { [field]: range } : {};
 }

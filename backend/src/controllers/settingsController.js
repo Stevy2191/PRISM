@@ -63,7 +63,9 @@ const getLogo = asyncHandler(async (req, res) => {
   const filename = values['company.logoFilename'];
   if (!filename) throw new ApiError(404, 'No logo set', 'NOT_FOUND');
   const filePath = path.join(BRANDING_DIR, filename);
-  if (!fs.existsSync(filePath)) throw new ApiError(404, 'Logo file missing', 'NOT_FOUND');
+  await fs.promises.access(filePath).catch(() => {
+    throw new ApiError(404, 'Logo file missing', 'NOT_FOUND');
+  });
   res.sendFile(filePath);
 });
 

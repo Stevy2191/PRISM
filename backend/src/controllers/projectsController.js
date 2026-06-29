@@ -12,11 +12,14 @@ const projectInclude = [
 // Admin/Technician see all; Requesters see projects in their own department (read-only).
 const list = asyncHandler(async (req, res) => {
   const where = {};
-  if (req.user.role === 'requester') {
-    where.departmentId = req.user.departmentId || -1;
-  }
   if (req.query.status) where.status = req.query.status;
-  if (req.query.department) where.departmentId = req.query.department;
+  // Requesters are scoped to their department — ignore any ?department query param they pass.
+  if (req.user.role === 'requester') {
+    if (!req.user.departmentId) return res.json({ projects: [] });
+    where.departmentId = req.user.departmentId;
+  } else if (req.query.department) {
+    where.departmentId = req.query.department;
+  }
 
   const projects = await Project.findAll({
     where,

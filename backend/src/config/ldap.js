@@ -133,7 +133,7 @@ async function authenticate(username, password) {
   } catch (err) {
     if (err.code === 'INVALID_CREDENTIALS') throw err;
     const e = new Error(err.message || 'LDAP authentication failed');
-    e.code = err.code === 'LDAP_ERROR' ? 'LDAP_ERROR' : 'LDAP_ERROR';
+    e.code = 'LDAP_ERROR';
     throw e;
   } finally {
     serviceClient.unbind(() => {});
