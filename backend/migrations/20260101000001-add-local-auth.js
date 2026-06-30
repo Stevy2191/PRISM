@@ -9,8 +9,9 @@ const bcrypt = require('bcryptjs');
  *   BOOTSTRAP_LOCAL_USERNAME (default: admin)
  *   BOOTSTRAP_LOCAL_PASSWORD (default: changeme)
  *
- * The bootstrap account is created with mustChangePassword=true so the password
- * must be changed on first login.
+ * The bootstrap account is created with mustChangePassword=false because the
+ * password was set intentionally by the operator during setup.
+ * Accounts created via Admin → Users still get mustChangePassword=true.
  */
 module.exports = {
   async up(queryInterface, Sequelize) {
@@ -61,14 +62,14 @@ module.exports = {
           departmentId: null,
           passwordHash,
           isLocalAccount: true,
-          mustChangePassword: true,
+          mustChangePassword: false,
           lastLogin: null,
           createdAt: now,
           updatedAt: now,
         },
       ]);
       // eslint-disable-next-line no-console
-      console.log(`[migration] created bootstrap local admin "${username}" (must change password on first login)`);
+      console.log(`[migration] created bootstrap local admin "${username}"`);
     }
 
     // Explicitly return nothing: the sequelize-cli runner errors if up() resolves

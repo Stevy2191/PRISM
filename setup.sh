@@ -159,7 +159,6 @@ DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
 
 # Bootstrap admin — created automatically on first startup if the username
 # does not already exist. Sign in on the "Local Account" tab.
-# You will be forced to change the password on first login.
 BOOTSTRAP_LOCAL_USERNAME=${BOOTSTRAP_USERNAME}
 BOOTSTRAP_LOCAL_PASSWORD=${BOOTSTRAP_PASSWORD}
 
@@ -266,8 +265,6 @@ if [[ "$SKIP_CONFIG" == false ]]; then
   fi
 fi
 
-echo ""
-echo -e "  ${BOLD}Note:${RESET} You will be forced to change your password on first login."
 echo ""
 echo -e "  Stop PRISM:   ${CYAN}${COMPOSE} down${RESET}"
 echo -e "  View logs:    ${CYAN}${COMPOSE} logs -f${RESET}"
