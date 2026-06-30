@@ -77,6 +77,7 @@ BOOTSTRAP_USERNAME="admin"
 BOOTSTRAP_PASSWORD=""
 GENERATED_PASSWORD=false
 CONFIGURE_LDAP=false
+APP_PORT="8080"
 
 if [[ "$SKIP_CONFIG" == false ]]; then
   info "Configuring PRISM..."
@@ -95,6 +96,11 @@ if [[ "$SKIP_CONFIG" == false ]]; then
     GENERATED_PASSWORD=true
     echo "    → Password will be auto-generated."
   fi
+
+  # Host port
+  echo ""
+  read -r -p "  Host port to serve PRISM on [8080]: " APP_PORT
+  APP_PORT="${APP_PORT:-8080}"
 
   # LDAP / Active Directory
   echo ""
@@ -158,10 +164,20 @@ BOOTSTRAP_LOCAL_USERNAME=${BOOTSTRAP_USERNAME}
 BOOTSTRAP_LOCAL_PASSWORD=${BOOTSTRAP_PASSWORD}
 
 UPLOAD_DIR=/uploads
+
+# Host port PRISM is served on. Change this if port 80 is already in use.
+APP_PORT=${APP_PORT}
 COOKIE_SECURE=true
 ENVEOF
 
   success ".env written."
+fi
+
+# When keeping an existing .env, read APP_PORT from it so the health check and
+# summary URL reflect the actual configured port.
+if [[ "$SKIP_CONFIG" == true ]]; then
+  APP_PORT="$(grep -E '^APP_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')"
+  APP_PORT="${APP_PORT:-80}"
 fi
 
 echo ""
@@ -194,7 +210,7 @@ echo ""
 info "Waiting for PRISM to be ready (up to 120 seconds)..."
 READY=false
 for i in $(seq 1 24); do
-  if curl -sf http://localhost/api/v1/health >/dev/null 2>&1; then
+  if curl -sf "http://localhost:${APP_PORT}/api/v1/health" >/dev/null 2>&1; then
     READY=true
     break
   fi
@@ -210,7 +226,7 @@ if [[ "$READY" == false ]]; then
   $COMPOSE logs --tail=20
   echo ""
   echo -e "  Continue watching: ${CYAN}${COMPOSE} logs -f${RESET}"
-  echo -e "  Health endpoint:   ${CYAN}curl http://localhost/api/v1/health${RESET}"
+  echo -e "  Health endpoint:   ${CYAN}curl http://localhost:${APP_PORT}/api/v1/health${RESET}"
   exit 1
 fi
 
@@ -231,7 +247,7 @@ echo -e "${GREEN}${BOLD}╔═════════════════�
 echo -e "${GREEN}${BOLD}║        PRISM is ready!               ║${RESET}"
 echo -e "${GREEN}${BOLD}╚══════════════════════════════════════╝${RESET}"
 echo ""
-echo -e "  ${BOLD}URL:${RESET}       http://localhost"
+echo -e "  ${BOLD}URL:${RESET}       http://localhost:${APP_PORT}"
 echo -e "  ${BOLD}Login tab:${RESET} Local Account"
 
 if [[ "$SKIP_CONFIG" == false ]]; then

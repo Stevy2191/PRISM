@@ -50,7 +50,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "3000:80"
+      - "${APP_PORT:-3000}:80"
 
 volumes:
   mariadb_data:

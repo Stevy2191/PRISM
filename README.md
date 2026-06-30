@@ -67,7 +67,8 @@ bash setup.sh
 8. Waits for the app to pass its health check.
 9. Prints a summary with the URL, login tab, username, and password.
 
-The app is served on **<http://localhost>** (port 80). On first start the backend
+The app is served on **<http://localhost:8080>** by default (controlled by `APP_PORT`
+in `.env` — change it if port 8080 is already in use). On first start the backend
 waits for the database to be ready and applies all migrations automatically.
 
 > **GHCR access:** images are published to `ghcr.io/stevy2191/prism-backend` and
@@ -95,7 +96,8 @@ If you prefer to configure things yourself instead of running `setup.sh`:
 ```bash
 cp .env.example .env
 # Edit .env — set DB_PASSWORD, SESSION_SECRET, BOOTSTRAP_LOCAL_PASSWORD,
-# and LDAP_* variables (or leave them as placeholder stubs if you don't use AD).
+# APP_PORT (host port, default 8080), and LDAP_* variables (or leave them as
+# placeholder stubs if you don't use AD).
 docker compose pull
 docker compose up -d
 ```
