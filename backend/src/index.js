@@ -21,7 +21,12 @@ app.set('trust proxy', 1);
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true,
+    // In the default Docker Compose setup all browser requests are same-origin
+    // (nginx reverse-proxy), so CORS headers are not required. Set CORS_ORIGIN
+    // when the frontend is served from a different origin than the backend.
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+      : false,
     credentials: true,
   })
 );
