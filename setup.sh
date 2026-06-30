@@ -142,9 +142,9 @@ DB_USER=prism
 DB_PASSWORD=${DB_PASSWORD}
 
 # LDAP / Active Directory
-# LDAP configured: ${CONFIGURE_LDAP}
-# If false, these are stubs — the AD login tab will not authenticate users.
-# Edit these values and restart to enable AD later.
+# Set LDAP_ENABLED=true and fill in the variables below to enable AD auth.
+# When false the backend only authenticates local accounts.
+LDAP_ENABLED=${CONFIGURE_LDAP}
 LDAP_URL=${LDAP_URL}
 LDAP_BASE_DN=${LDAP_BASE_DN}
 LDAP_BIND_DN=${LDAP_BIND_DN}
@@ -158,7 +158,7 @@ NODE_ENV=production
 DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
 
 # Bootstrap admin — created automatically on first startup if the username
-# does not already exist. Sign in on the "Local Account" tab.
+# does not already exist.
 BOOTSTRAP_LOCAL_USERNAME=${BOOTSTRAP_USERNAME}
 BOOTSTRAP_LOCAL_PASSWORD=${BOOTSTRAP_PASSWORD}
 

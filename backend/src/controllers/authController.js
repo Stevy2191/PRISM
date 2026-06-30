@@ -1,53 +1,61 @@
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const { User, sequelize } = require('../models');
-const { authenticate: ldapAuthenticate } = require('../config/ldap');
+const { authenticate: ldapAuthenticate, isConfigured: isLdapConfigured } = require('../config/ldap');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 
 const MIN_PASSWORD_LENGTH = 8;
 
 // POST /auth/login
-// Body: { mode: 'ad' | 'local', username, password }
-//   - 'ad' (default): authenticate against LDAP/AD, syncing the directory profile.
-//   - 'local': authenticate a manually-created local account by username OR email.
+// Body: { username, password }
+// Auth method is auto-detected: local accounts take priority; if no local
+// account matches and LDAP is configured, AD authentication is attempted.
 const login = asyncHandler(async (req, res) => {
-  const { username, password, mode } = req.body || {};
+  const { username, password } = req.body || {};
   if (!username || !password) {
     throw new ApiError(400, 'Username and password are required', 'MISSING_CREDENTIALS');
   }
 
-  const user = mode === 'local'
-    ? await loginLocal(username, password)
-    : await loginAd(username, password);
+  const { user, method } = await loginUnified(username, password);
 
-  // Establish session.
   req.session.userId = user.id;
   req.user = user;
   user.lastLogin = new Date();
   await user.save();
-  await writeAudit(req, 'auth.login', 'User', user.id, {
-    method: mode === 'local' ? 'local' : 'ldap',
-  });
+  await writeAudit(req, 'auth.login', 'User', user.id, { method });
 
   res.json({ user, mustChangePassword: user.mustChangePassword });
 });
 
-// Local account login: identifier may be a username or an email.
-async function loginLocal(identifier, password) {
-  const user = await User.findOne({
+// Try local first (by username or email), then fall back to AD if configured.
+// Always returns the same generic error so we don't reveal which methods exist.
+async function loginUnified(identifier, password) {
+  // 1. Local account — look up by username OR email.
+  const localUser = await User.findOne({
     where: {
       isLocalAccount: true,
       [Op.or]: [{ username: identifier }, { email: identifier }],
     },
   });
-  // Always run a bcrypt compare (even on miss) to reduce timing signal.
-  const hash = user?.passwordHash || '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinva';
-  const ok = await bcrypt.compare(password, hash);
-  if (!user || !ok) {
+
+  if (localUser) {
+    // Always run bcrypt (even when there is no hash) to avoid timing attacks.
+    const hash = localUser.passwordHash || '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinva';
+    const ok = await bcrypt.compare(password, hash);
+    if (!ok) {
+      throw new ApiError(401, 'Invalid username or password', 'INVALID_CREDENTIALS');
+    }
+    return { user: localUser, method: 'local' };
+  }
+
+  // 2. No local account — try AD if it is configured.
+  if (!isLdapConfigured()) {
     throw new ApiError(401, 'Invalid username or password', 'INVALID_CREDENTIALS');
   }
-  return user;
+
+  const user = await loginAd(identifier, password);
+  return { user, method: 'ldap' };
 }
 
 // Active Directory login via LDAP. Creates/updates the (non-local) user record.

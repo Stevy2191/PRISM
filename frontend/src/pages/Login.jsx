@@ -4,11 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { errMessage } from '../api/api';
 
-const TABS = [
-  { key: 'ad', label: 'Active Directory' },
-  { key: 'local', label: 'Local Account' },
-];
-
 const BULLETS = [
   { text: 'Ticket & project tracking', dot: '#3b82f6' },
   { text: 'Time logging & reports', dot: '#3b82f6' },
@@ -21,7 +16,6 @@ export default function Login() {
   const { settings } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mode, setMode] = useState('ad');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -37,7 +31,7 @@ export default function Login() {
     setError('');
     setSubmitting(true);
     try {
-      const loggedIn = await login(username, password, mode);
+      const loggedIn = await login(username, password);
       if (loggedIn.mustChangePassword) {
         navigate('/change-password', { replace: true });
         return;
@@ -52,7 +46,6 @@ export default function Login() {
     }
   };
 
-  const isLocal = mode === 'local';
   const wordmark = settings.company?.name || 'PRISM';
 
   const inputStyle = {
@@ -177,39 +170,9 @@ export default function Login() {
           <div style={{ width: '100%', maxWidth: 400 }}>
 
             {/* Heading */}
-            <h1 style={{ fontSize: 28, fontWeight: 500, color: '#f1f5f9', margin: '0 0 0.5rem 0' }}>
+            <h1 style={{ fontSize: 28, fontWeight: 500, color: '#f1f5f9', margin: '0 0 2.25rem 0' }}>
               Sign in
             </h1>
-            <p style={{ fontSize: 14, color: '#475569', margin: '0 0 2.25rem 0' }}>
-              Choose your login method below.
-            </p>
-
-            {/* Tab switcher */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #161c2d', marginBottom: '2rem' }}>
-              {TABS.map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => { setMode(t.key); setError(''); }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    borderBottom: mode === t.key ? '2px solid #3b82f6' : '2px solid transparent',
-                    padding: '11px 0',
-                    marginRight: 20,
-                    marginBottom: -1,
-                    fontSize: 13,
-                    letterSpacing: '0.03em',
-                    fontWeight: mode === t.key ? 500 : 400,
-                    color: mode === t.key ? '#3b82f6' : '#334155',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit}>
@@ -228,16 +191,14 @@ export default function Login() {
               )}
 
               <div style={{ marginBottom: '1.1rem' }}>
-                <label htmlFor="username" style={labelStyle}>
-                  {isLocal ? 'Email or username' : 'Username'}
-                </label>
+                <label htmlFor="username" style={labelStyle}>Username or Email</label>
                 <input
                   id="username"
                   className="prism-input"
                   autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder={isLocal ? 'you@example.com' : 'domain username'}
+                  placeholder="username or email address"
                   required
                   style={inputStyle}
                 />
@@ -279,9 +240,7 @@ export default function Login() {
               </button>
 
               <p style={{ textAlign: 'center', fontSize: 12, color: '#1e2d42', margin: '1.5rem 0 0 0' }}>
-                {isLocal
-                  ? 'Sign in with a local PRISM account.'
-                  : 'Authenticate with your Active Directory credentials.'}
+                Enter your PRISM credentials to continue.
               </p>
             </form>
           </div>

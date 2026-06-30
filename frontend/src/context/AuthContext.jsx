@@ -22,9 +22,8 @@ export function AuthProvider({ children }) {
     refresh();
   }, [refresh]);
 
-  // mode: 'ad' | 'local'. For local, `username` may be a username or email.
-  const login = async (username, password, mode = 'ad') => {
-    const { data } = await api.post('/auth/login', { username, password, mode });
+  const login = async (username, password) => {
+    const { data } = await api.post('/auth/login', { username, password });
     setUser(data.user);
     return data.user;
   };

@@ -140,4 +140,21 @@ async function authenticate(username, password) {
   }
 }
 
-module.exports = { ldapConfig, authenticate };
+// Returns true when LDAP is configured for real (not stubs).
+// New installs (setup.sh since the unified-login change) set LDAP_ENABLED
+// explicitly. Legacy .env files without it fall back to a heuristic that
+// excludes the placeholder URL setup.sh writes when AD is skipped.
+function isConfigured() {
+  if (process.env.LDAP_ENABLED !== undefined) {
+    return process.env.LDAP_ENABLED === 'true';
+  }
+  const url = process.env.LDAP_URL || '';
+  return !!(
+    url &&
+    url !== 'ldap://placeholder.example.local' &&
+    process.env.LDAP_BIND_DN &&
+    process.env.LDAP_BIND_PASSWORD
+  );
+}
+
+module.exports = { ldapConfig, authenticate, isConfigured };
