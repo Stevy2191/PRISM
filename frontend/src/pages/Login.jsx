@@ -118,23 +118,21 @@ export default function Login() {
             padding: '3rem 2.5rem',
           }}
         >
-          {/* Geometric mark + wordmark */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Branding block: mark → wordmark → subtitle */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2.5rem' }}>
+            <svg width="36" height="36" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="1"  y="1"  width="11" height="11" rx="2.5" fill="#1d3461" stroke="#3b82f6" strokeWidth="1.4" />
               <rect x="14" y="1"  width="11" height="11" rx="2.5" fill="#0d1120" stroke="#1e3a5f" strokeWidth="1.4" />
               <rect x="1"  y="14" width="11" height="11" rx="2.5" fill="#0d1120" stroke="#1e3a5f" strokeWidth="1.4" />
               <rect x="14" y="14" width="11" height="11" rx="2.5" fill="#0d1120" stroke="#161c2d" strokeWidth="1.4" />
             </svg>
-            <span style={{ fontSize: 13, letterSpacing: '0.35em', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 500 }}>
+            <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#e2e8f0', marginTop: 12 }}>
               {wordmark}
             </span>
+            <span style={{ fontSize: 10, color: '#334155', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 6 }}>
+              Project &amp; Request Integrated Service Manager
+            </span>
           </div>
-
-          {/* Acronym subtitle */}
-          <p style={{ fontSize: 10, color: '#334155', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'center', margin: '4px 0 2.25rem 0' }}>
-            Project &amp; Request Integrated Service Manager
-          </p>
 
           {/* Tagline */}
           <p
