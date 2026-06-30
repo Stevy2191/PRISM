@@ -47,58 +47,60 @@ New users default to **Requester** on first login. An Admin assigns roles afterw
 
 ## Quick start
 
-Requirements: Docker + Docker Compose. The default `docker-compose.yml` pulls
-prebuilt images from GitHub Container Registry — no build step needed — starts
-MariaDB, and runs database migrations automatically.
+Requirements: Docker + Docker Compose.
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/Stevy2191/PRISM.git
 cd PRISM
-
-# 2. Create your environment file and fill in your values
-cp .env.example .env
-#    Edit .env — set DB_PASSWORD, SESSION_SECRET, LDAP_*, and the
-#    BOOTSTRAP_LOCAL_* admin credentials.
-
-# 3. Pull the images and start everything (database, backend, frontend)
-docker compose up -d
+bash setup.sh
 ```
 
-That's it. On first start the backend waits for the database to be ready, applies
-all migrations, and then comes online. Watch progress with `docker compose logs -f`.
-The app is served on **<http://localhost>** (port 80).
+`setup.sh` handles everything automatically:
 
-To update to the latest published images later:
+1. Checks that Docker and Docker Compose are installed.
+2. Asks for your admin username and password (or auto-generates a strong password).
+3. Asks whether you use Active Directory / LDAP — you can skip this if you don't.
+4. Generates secure random values for all database credentials and the session secret.
+5. Writes the `.env` file.
+6. Pulls the latest images from GitHub Container Registry.
+7. Starts all containers (`docker compose up -d`).
+8. Waits for the app to pass its health check.
+9. Prints a summary with the URL, login tab, username, and password.
+
+The app is served on **<http://localhost>** (port 80). On first start the backend
+waits for the database to be ready and applies all migrations automatically.
+
+> **GHCR access:** images are published to `ghcr.io/stevy2191/prism-backend` and
+> `…/prism-frontend`. If they're private, run `docker login ghcr.io` first (Personal
+> Access Token with `read:packages` scope), or mark the packages public in GitHub.
+
+### First login
+
+Sign in at **<http://localhost>** on the **Local Account** tab using the username
+and password printed at the end of `setup.sh`. You will be **forced to change your
+password on first login**. Afterward, go to **Admin → Users** to promote your AD
+account to Admin or create additional local accounts. You can delete the bootstrap
+account once other admins exist.
+
+### Updating to the latest images
 
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-### First login (bootstrap local admin)
+### Manual setup (advanced)
 
-On the first migration, PRISM automatically creates a **bootstrap local admin**
-account from `.env`:
+If you prefer to configure things yourself instead of running `setup.sh`:
 
-| | |
-|---|---|
-| Username | `BOOTSTRAP_LOCAL_USERNAME` (default **`admin`**) |
-| Password | `BOOTSTRAP_LOCAL_PASSWORD` (default **`changeme`**) |
-
-Sign in on the **Local Account** tab of the login page with those credentials.
-You will be **forced to change the password immediately** on first login — do so
-right away, and never leave the default `changeme` in place. Then go to
-**Admin → Users** to promote your real AD account to Admin and create any other
-local accounts. You can delete the bootstrap account once other admins exist.
-
-> **GHCR access:** the images are published to `ghcr.io/stevy2191/prism-backend`
-> and `…/prism-frontend`. If they're private, run `docker login ghcr.io` on the
-> host first, or mark the packages public in your GitHub settings.
+```bash
+cp .env.example .env
+# Edit .env — set DB_PASSWORD, SESSION_SECRET, BOOTSTRAP_LOCAL_PASSWORD,
+# and LDAP_* variables (or leave them as placeholder stubs if you don't use AD).
+docker compose pull
+docker compose up -d
+```
 
 ### Building from source (development)
-
-If you're working on the code and want to build the images locally instead of
-pulling them, use the development compose file:
 
 ```bash
 cp .env.example .env
