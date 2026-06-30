@@ -166,7 +166,7 @@ UPLOAD_DIR=/uploads
 
 # Host port PRISM is served on. Change this if port 80 is already in use.
 APP_PORT=${APP_PORT}
-COOKIE_SECURE=true
+COOKIE_SECURE=false
 ENVEOF
 
   success ".env written."

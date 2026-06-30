@@ -42,8 +42,9 @@ export default function Login() {
         navigate('/change-password', { replace: true });
         return;
       }
-      const dest = location.state?.from?.pathname || '/dashboard';
-      navigate(dest, { replace: true });
+      // Rely on the declarative <Navigate> render guard above rather than
+      // calling navigate() here — avoids a race where ProtectedRoute renders
+      // before setUser() propagates and bounces the user back to /login.
     } catch (err) {
       setError(errMessage(err, 'Login failed'));
     } finally {

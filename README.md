@@ -78,10 +78,9 @@ On first start the backend waits for MariaDB and applies all migrations automati
 ### First login
 
 Sign in at the URL printed by `setup.sh` on the **Local Account** tab, using the
-username and password shown at the end of the script. You will be **forced to change
-your password on first login**. Afterward, go to **Admin → Users** to promote your
-AD account to Admin or create additional local accounts. You can delete the bootstrap
-account once other admins exist.
+username and password shown at the end of the script. Go to **Admin → Users** to
+promote your AD account to Admin or create additional local accounts. You can delete
+the bootstrap account once other admins exist.
 
 ### Changing the host port
 
@@ -184,8 +183,9 @@ PRISM supports two login methods, selectable via tabs on the login page:
 - **Local Account** — username **or** email + password, verified against a bcrypt
   hash stored in the `Users` table. Local accounts are created **manually by an
   Admin** (Admin → Users → *New Local Account*) and are never created or modified by
-  LDAP sync. New local accounts (including the bootstrap admin) must change their
-  password on first login.
+  LDAP sync. Admin-created local accounts must change their password on first login
+  (the bootstrap admin created by `setup.sh` is exempt — its password was set
+  intentionally by the operator).
 
 Sessions for both methods are stored in MariaDB. Programmatic clients can instead
 use an `X-API-Key` header (see *Generating an API key*).
