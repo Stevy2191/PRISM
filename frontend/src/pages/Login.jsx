@@ -9,6 +9,13 @@ const TABS = [
   { key: 'local', label: 'Local Account' },
 ];
 
+const BULLETS = [
+  { text: 'Ticket & project tracking', dot: '#3b82f6' },
+  { text: 'Time logging & reports', dot: '#3b82f6' },
+  { text: 'AD & local auth', dot: '#3b82f6' },
+  { text: 'API access', dot: '#1e3a5f' },
+];
+
 export default function Login() {
   const { user, login, loading } = useAuth();
   const { settings } = useSettings();
@@ -45,99 +52,199 @@ export default function Login() {
   };
 
   const isLocal = mode === 'local';
+  const wordmark = settings.company?.name || 'PRISM';
 
-  const company = settings.company || {};
-  const welcome = settings.branding?.welcomeMessage || 'Project & Request Integrated Service Manager';
+  const inputStyle = {
+    width: '100%',
+    boxSizing: 'border-box',
+    backgroundColor: '#0d1120',
+    border: '1px solid #1a2235',
+    borderRadius: 5,
+    padding: '9px 11px',
+    fontSize: 13,
+    color: '#e2e8f0',
+    outline: 'none',
+  };
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: 11,
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    marginBottom: 6,
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4" style={{ backgroundColor: 'var(--login-bg)' }}>
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center">
-          {settings.logoUrl ? (
-            <img src={settings.logoUrl} alt="logo" className="h-16 w-16 rounded object-contain" />
-          ) : (
-            <svg viewBox="0 0 64 64" className="h-16 w-16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Incoming white light beam */}
-              <path d="M3 25 L23 30" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" />
-              {/* Refracted rainbow spectrum exiting the right face */}
-              <path d="M42 31 L62 20" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 25" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 30" stroke="#eab308" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 35" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 40" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 45" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
-              {/* Prism triangle */}
-              <path d="M32 11 L50 47 L14 47 Z" stroke="#93c5fd" strokeWidth="2.5" strokeLinejoin="round" fill="#1e3a5f" fillOpacity="0.6" />
-            </svg>
-          )}
-          <h1 className="mt-3 text-3xl font-bold tracking-wide text-white">{company.name || 'PRISM'}</h1>
-          <p className="text-sm text-navy-300">{welcome}</p>
-        </div>
+    <>
+      <style>{`
+        .prism-input::placeholder { color: #1e2d42; }
+        .prism-input:focus { border-color: #3b82f6 !important; }
+        .prism-btn:hover:not(:disabled) { background-color: #1e40af !important; }
+      `}</style>
 
-        <div className="card overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-navy-100">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => { setMode(t.key); setError(''); }}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition ${
-                  mode === t.key
-                    ? 'border-b-2 border-prism bg-navy-50 text-prism'
-                    : 'text-navy-500 hover:bg-navy-50'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+
+        {/* ── Left panel ─────────────────────────────────────────────────── */}
+        <div style={{
+          width: '42%',
+          backgroundColor: '#0d1120',
+          borderRight: '1px solid #161c2d',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: '48px 40px',
+        }}>
+
+          {/* Top section */}
+          <div>
+            {/* Geometric mark + wordmark */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1"  y="1"  width="9" height="9" rx="2" fill="#1d3461" stroke="#3b82f6" strokeWidth="1.2" />
+                <rect x="12" y="1"  width="9" height="9" rx="2" fill="#0d1120" stroke="#1e3a5f" strokeWidth="1.2" />
+                <rect x="1"  y="12" width="9" height="9" rx="2" fill="#0d1120" stroke="#1e3a5f" strokeWidth="1.2" />
+                <rect x="12" y="12" width="9" height="9" rx="2" fill="#0d1120" stroke="#161c2d" strokeWidth="1.2" />
+              </svg>
+              <span style={{ fontSize: 12, letterSpacing: '0.35em', textTransform: 'uppercase', color: '#94a3b8' }}>
+                {wordmark}
+              </span>
+            </div>
+
+            {/* Tagline */}
+            <p style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 400, lineHeight: 1.5, margin: '0 0 32px 0' }}>
+              Your team&apos;s<br />
+              <em>work, organized.</em>
+            </p>
+
+            {/* Feature bullets */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {BULLETS.map(({ text, dot }) => (
+                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: dot, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: '#475569' }}>{text}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4 p-6">
-            {error && (
-              <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-            )}
+          {/* Bottom section */}
+          <span style={{ fontSize: 11, color: '#1e2d42' }}>Self-hosted · Open source</span>
+        </div>
 
-            <div>
-              <label className="label" htmlFor="username">
-                {isLocal ? 'Email or username' : 'Username'}
-              </label>
-              <input
-                id="username"
-                className="input"
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder={isLocal ? 'you@example.com' : 'domain username'}
-                required
-              />
+        {/* ── Right panel ────────────────────────────────────────────────── */}
+        <div style={{
+          flex: 1,
+          backgroundColor: '#080b12',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{ width: '100%', maxWidth: 280 }}>
+
+            {/* Heading */}
+            <h1 style={{ fontSize: 16, fontWeight: 500, color: '#f1f5f9', margin: '0 0 4px 0' }}>Sign in</h1>
+            <p style={{ fontSize: 12, color: '#475569', margin: '0 0 24px 0' }}>Choose your login method below.</p>
+
+            {/* Tab switcher */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #161c2d', marginBottom: 24 }}>
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => { setMode(t.key); setError(''); }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    borderBottom: mode === t.key ? '2px solid #3b82f6' : '2px solid transparent',
+                    padding: '0 0 8px 0',
+                    marginRight: 20,
+                    marginBottom: -1,
+                    fontSize: 13,
+                    fontWeight: mode === t.key ? 500 : 400,
+                    color: mode === t.key ? '#3b82f6' : '#334155',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
 
-            <div>
-              <label className="label" htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                className="input"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+            {/* Form */}
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {error && (
+                <div style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#1a0a0a',
+                  border: '1px solid #7f1d1d',
+                  borderRadius: 5,
+                  fontSize: 12,
+                  color: '#fca5a5',
+                }}>
+                  {error}
+                </div>
+              )}
 
-            <button type="submit" className="btn-primary w-full" disabled={submitting}>
-              {submitting ? 'Signing in…' : 'Sign in'}
-            </button>
+              <div>
+                <label htmlFor="username" style={labelStyle}>
+                  {isLocal ? 'Email or username' : 'Username'}
+                </label>
+                <input
+                  id="username"
+                  className="prism-input"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder={isLocal ? 'you@example.com' : 'domain username'}
+                  required
+                  style={inputStyle}
+                />
+              </div>
 
-            <p className="text-center text-xs text-navy-400">
-              {isLocal
-                ? 'Sign in with a local PRISM account.'
-                : 'Authenticate with your Active Directory credentials.'}
-            </p>
-          </form>
+              <div>
+                <label htmlFor="password" style={labelStyle}>Password</label>
+                <input
+                  id="password"
+                  type="password"
+                  className="prism-input"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  style={inputStyle}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="prism-btn"
+                disabled={submitting}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#1d4ed8',
+                  border: 'none',
+                  borderRadius: 5,
+                  color: 'white',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  padding: '9px 0',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.7 : 1,
+                }}
+              >
+                {submitting ? 'Signing in…' : 'Sign in'}
+              </button>
+
+              <p style={{ textAlign: 'center', fontSize: 11, color: '#1e2d42', margin: 0 }}>
+                {isLocal
+                  ? 'Sign in with a local PRISM account.'
+                  : 'Authenticate with your Active Directory credentials.'}
+              </p>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
