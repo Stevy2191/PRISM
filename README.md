@@ -52,24 +52,24 @@ Requirements: Docker + Docker Compose.
 ```bash
 git clone https://github.com/Stevy2191/PRISM.git
 cd PRISM
-bash setup.sh
+./setup.sh
 ```
 
-`setup.sh` handles everything automatically:
+`setup.sh` handles everything:
 
 1. Checks that Docker and Docker Compose are installed.
-2. Asks for your admin username and password (or auto-generates a strong password).
-3. Asks whether you use Active Directory / LDAP — you can skip this if you don't.
-4. Generates secure random values for all database credentials and the session secret.
-5. Writes the `.env` file.
-6. Pulls the latest images from GitHub Container Registry.
-7. Starts all containers (`docker compose up -d`).
-8. Waits for the app to pass its health check.
-9. Prints a summary with the URL, login tab, username, and password.
+2. Asks for your admin username and password (auto-generates a strong one if you press Enter).
+3. Asks what host port to serve PRISM on (default **8080** — change it if 8080 is in use).
+4. Asks whether you use Active Directory / LDAP — completely optional, safe to skip.
+5. Generates secure random values for all database credentials and the session secret.
+6. Writes the `.env` file automatically.
+7. Pulls the latest images from GitHub Container Registry.
+8. Starts all containers (`docker compose up -d`).
+9. Waits for the app to pass its health check.
+10. Prints a summary: URL, login tab, username, and password.
 
-The app is served on **<http://localhost:8080>** by default (controlled by `APP_PORT`
-in `.env` — change it if port 8080 is already in use). On first start the backend
-waits for the database to be ready and applies all migrations automatically.
+The app is served on **`http://localhost:<APP_PORT>`** (default `http://localhost:8080`).
+On first start the backend waits for MariaDB and applies all migrations automatically.
 
 > **GHCR access:** images are published to `ghcr.io/stevy2191/prism-backend` and
 > `…/prism-frontend`. If they're private, run `docker login ghcr.io` first (Personal
@@ -77,11 +77,21 @@ waits for the database to be ready and applies all migrations automatically.
 
 ### First login
 
-Sign in at **<http://localhost>** on the **Local Account** tab using the username
-and password printed at the end of `setup.sh`. You will be **forced to change your
-password on first login**. Afterward, go to **Admin → Users** to promote your AD
-account to Admin or create additional local accounts. You can delete the bootstrap
+Sign in at the URL printed by `setup.sh` on the **Local Account** tab, using the
+username and password shown at the end of the script. You will be **forced to change
+your password on first login**. Afterward, go to **Admin → Users** to promote your
+AD account to Admin or create additional local accounts. You can delete the bootstrap
 account once other admins exist.
+
+### Changing the host port
+
+`APP_PORT` in `.env` controls which port on your host the app listens on.
+To move PRISM to a different port after initial setup:
+
+```bash
+# Edit .env and change APP_PORT, then restart:
+docker compose up -d
+```
 
 ### Updating to the latest images
 
@@ -96,8 +106,8 @@ If you prefer to configure things yourself instead of running `setup.sh`:
 ```bash
 cp .env.example .env
 # Edit .env — set DB_PASSWORD, SESSION_SECRET, BOOTSTRAP_LOCAL_PASSWORD,
-# APP_PORT (host port, default 8080), and LDAP_* variables (or leave them as
-# placeholder stubs if you don't use AD).
+# APP_PORT (host port, default 8080), and LDAP_* variables (or leave them
+# as placeholder stubs if you don't use Active Directory).
 docker compose pull
 docker compose up -d
 ```
@@ -109,8 +119,26 @@ cp .env.example .env
 docker compose -f docker-compose.dev.yml up -d --build
 ```
 
-The dev stack exposes the frontend on <http://localhost:3000>, the backend on
-<http://localhost:3001>, and MariaDB on `3306` for direct access.
+The dev stack exposes the frontend on `http://localhost:<APP_PORT>` (default 3000),
+the backend on `http://localhost:3001`, and MariaDB on port `3306` for direct access.
+
+---
+
+## Uninstalling
+
+To completely remove PRISM — all containers, database data, uploaded attachments,
+Docker volumes, pulled images, and the `.env` file:
+
+```bash
+./uninstall.sh
+```
+
+The script will print a clear warning and ask you to type `yes` before doing
+anything. Once done, delete the directory:
+
+```bash
+rm -rf /path/to/PRISM
+```
 
 ---
 
@@ -141,7 +169,7 @@ npm start
 ```
 
 The Express session table (`Sessions`) is created automatically at startup by
-`connect-session-sequelize`; all application tables come from the migration in
+`connect-session-sequelize`; all application tables come from the migrations in
 `backend/migrations/`.
 
 ---
@@ -175,7 +203,11 @@ Admins can reset a local account's password from **Admin → Users** (which re-a
 
 ## Configuring LDAP / Active Directory
 
-LDAP settings are read from environment variables (see `.env`):
+LDAP is **optional**. If you don't use Active Directory, skip it during `setup.sh`
+and only the Local Account login tab will be available. To enable it later, edit the
+`LDAP_*` variables in `.env` and restart (`docker compose up -d`).
+
+LDAP settings are read from environment variables:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
@@ -195,7 +227,7 @@ You can review the effective (non-secret) LDAP configuration in the app under
 
 ---
 
-## Image publishing &amp; production notes
+## Image publishing & production notes
 
 On every push to `main`, GitHub Actions builds and publishes both images to GHCR,
 tagged with `latest` and the git SHA — this is what the default `docker-compose.yml`
@@ -204,9 +236,9 @@ pulls:
 - `ghcr.io/stevy2191/prism-backend:latest` (and `:<git-sha>`)
 - `ghcr.io/stevy2191/prism-frontend:latest` (and `:<git-sha>`)
 
-The frontend is exposed on port **80**. Put a TLS-terminating reverse proxy in
-front for HTTPS; if it forwards plain HTTP internally, set `COOKIE_SECURE=false`
-in `.env` so session cookies are still issued.
+The host port is controlled by `APP_PORT` in `.env` (default **8080**). Put a
+TLS-terminating reverse proxy in front for HTTPS; if it forwards plain HTTP
+internally, set `COOKIE_SECURE=false` in `.env` so session cookies are still issued.
 
 ### Pulling the images
 
@@ -304,9 +336,9 @@ with live preview), **Business Hours** & **Holiday Lists** (per-department sched
 **Teams** (tickets can be assigned to a team; filterable), **Customer Happiness**
 (CSAT survey on resolved/closed tickets, scored in Reports), and **Modules & Tabs**
 (toggle sidebar items per role). Admins see everything; technicians see a subset;
-requesters see only their **Preferences**. Sections specified for later phases link
-to placeholder pages. **Preferences** also offers a **theme switcher** (Light / Dark /
-System) — the whole UI flips via CSS variables, persisted per browser.
+requesters see only their **Preferences**. **Preferences** also offers a **theme
+switcher** (Light / Dark / System) — the whole UI flips via CSS variables, persisted
+per browser.
 
 **Layouts & Fields** (Phase 2): admins define `CustomField`s (text/textarea/number/
 select/checkbox/date/url), optionally scoped to a ticket type and/or department and
@@ -315,7 +347,7 @@ create/edit forms; values are stored relationally in `TicketFieldValue` (one row
 ticket × field). This is distinct from blueprint custom fields, which are template-
 driven and stored inline on the ticket.
 
-### Blueprints, related tickets &amp; time tracking
+### Blueprints, related tickets & time tracking
 
 - **Blueprints** are reusable ticket templates (name, category, default field values,
   and custom fields of type text/textarea/number/select/checkbox/date). Staff manage
@@ -338,7 +370,9 @@ driven and stored inline on the ticket.
 prism/
 ├── docker-compose.yml          # default: run from prebuilt ghcr.io images
 ├── docker-compose.dev.yml      # development: build everything from source
-├── .env.example
+├── setup.sh                    # interactive setup wizard (run this first)
+├── uninstall.sh                # complete teardown — containers, volumes, images, .env
+├── .env.example                # template for .env (generated by setup.sh or copy manually)
 ├── .github/workflows/docker-publish.yml
 ├── backend/
 │   ├── Dockerfile
