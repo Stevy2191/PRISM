@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const { Op } = require('sequelize');
 const { User, Department } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -10,6 +11,17 @@ const userInclude = [{ model: Department, as: 'department' }];
 const list = asyncHandler(async (req, res) => {
   const users = await User.findAll({
     include: userInclude,
+    order: [['displayName', 'ASC']],
+  });
+  res.json({ users });
+});
+
+// GET /users/assignable — any authenticated user. Minimal fields for
+// populating "assignee" pickers/filters; only staff can be assigned tickets.
+const listAssignable = asyncHandler(async (req, res) => {
+  const users = await User.findAll({
+    where: { role: { [Op.in]: ['admin', 'technician'] } },
+    attributes: ['id', 'displayName'],
     order: [['displayName', 'ASC']],
   });
   res.json({ users });
@@ -134,4 +146,4 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { list, create, get, update, remove };
+module.exports = { list, create, get, update, remove, listAssignable };

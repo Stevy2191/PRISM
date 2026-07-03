@@ -129,6 +129,7 @@ async function ticketsForUser(userId, scopeField) {
   });
   return tickets.map((t) => ({
     id: t.id,
+    ticketNumber: String(t.id).padStart(5, '0'),
     title: t.title,
     status: t.status,
     displayStatus: displayStatus(t),
@@ -214,6 +215,7 @@ async function activityFeed() {
       actorName: log.user?.displayName || 'System',
       action,
       ticketId: log.entityId,
+      ticketNumber: log.entityId ? String(log.entityId).padStart(5, '0') : null,
       ticketTitle: titleById.get(log.entityId) || log.meta?.title || null,
       occurredAt: log.createdAt,
     };
@@ -230,6 +232,7 @@ async function activityFeed() {
     actorName: null,
     action: 'overdue',
     ticketId: t.id,
+    ticketNumber: String(t.id).padStart(5, '0'),
     ticketTitle: t.title,
     occurredAt: t.dueDate,
   }));

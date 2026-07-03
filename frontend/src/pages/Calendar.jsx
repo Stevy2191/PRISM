@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import Badge from '../components/Badge';
 import Spinner from '../components/Spinner';
+import { formatTicketId } from '../utils/ticketId';
 
 // Lightweight agenda view of tickets with due dates, grouped by date.
 // (Full month calendar and external calendar sync come in a later phase.)
@@ -50,7 +51,7 @@ export default function Calendar() {
                 {groups[date].map((t) => (
                   <li key={t.id} className="flex items-center justify-between px-5 py-3">
                     <Link to={`/tickets/${t.id}`} className="font-medium text-navy-800 hover:text-prism">
-                      #{t.id} {t.title}
+                      {formatTicketId(t)} {t.title}
                     </Link>
                     <div className="flex gap-2">
                       <Badge value={t.priority} />

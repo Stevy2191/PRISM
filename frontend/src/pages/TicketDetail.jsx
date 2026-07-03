@@ -6,6 +6,7 @@ import { useTimer } from '../context/TimerContext';
 import Badge from '../components/Badge';
 import Spinner from '../components/Spinner';
 import TimerButton from '../components/TimerButton';
+import { formatTicketId } from '../utils/ticketId';
 
 const STATUSES = ['open', 'in_progress', 'on_hold', 'resolved', 'closed'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
@@ -66,7 +67,7 @@ export default function TicketDetail() {
       setCfValues(seeded);
       api.get('/custom-fields').then(({ data }) => setCustomFields(data.customFields)).catch(() => {});
       if (isStaff) {
-        api.get('/users').then(({ data }) => setUsers(data.users)).catch(() => {});
+        api.get('/users/assignable').then(({ data }) => setUsers(data.users)).catch(() => {});
         api.get('/tickets').then(({ data }) => setAllTickets(data.tickets)).catch(() => {});
         api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
         api.get('/projects').then(({ data }) => setProjects(data.projects)).catch(() => {});
@@ -259,7 +260,7 @@ export default function TicketDetail() {
           <Link to="/tickets" className="text-sm text-prism hover:underline">← Back to tickets</Link>
           <h1 className="mt-1 flex flex-wrap items-center gap-3 text-2xl font-bold text-navy-900">
             <span>
-              <span className="font-mono text-navy-400">#{ticket.id}</span> {ticket.title}
+              <span className="font-mono text-navy-400">{formatTicketId(ticket)}</span> {ticket.title}
             </span>
             <span className="badge bg-prism/10 text-prism" title="Total time logged">
               ⏱ {formatMinutes(time.totalMinutes)}
@@ -269,7 +270,7 @@ export default function TicketDetail() {
         <div className="flex flex-shrink-0 items-center gap-2">
           {/* Prominent timer at the top so technicians actually start it. */}
           {isStaff && (
-            <TimerButton type="ticket" id={ticket.id} label={`#${ticket.id} ${ticket.title}`} className="px-3 py-2 text-sm" />
+            <TimerButton type="ticket" id={ticket.id} label={`${formatTicketId(ticket)} ${ticket.title}`} className="px-3 py-2 text-sm" />
           )}
           {isAdmin && <button onClick={deleteTicket} className="btn-danger">Delete</button>}
         </div>
@@ -370,7 +371,7 @@ export default function TicketDetail() {
                 <li key={r.id} className="flex items-center justify-between px-5 py-3">
                   <div className="min-w-0">
                     <Link to={`/tickets/${r.ticket?.id}`} className="font-medium text-navy-800 hover:text-prism">
-                      #{r.ticket?.id} {r.ticket?.title}
+                      {r.ticket ? formatTicketId(r.ticket) : ''} {r.ticket?.title}
                     </Link>
                     <p className="text-xs text-navy-400">
                       {r.direction === 'incoming' ? 'inbound' : 'outbound'} · {r.relationType.replace(/_/g, ' ')}
@@ -399,7 +400,7 @@ export default function TicketDetail() {
                   {allTickets
                     .filter((t) => t.id !== ticket.id)
                     .map((t) => (
-                      <option key={t.id} value={t.id}>#{t.id} {t.title}</option>
+                      <option key={t.id} value={t.id}>{formatTicketId(t)} {t.title}</option>
                     ))}
                 </select>
                 <select
@@ -606,7 +607,7 @@ export default function TicketDetail() {
             <div className="flex items-center justify-between border-b border-navy-100 px-5 py-3">
               <h2 className="font-semibold text-navy-900">Time Log</h2>
               <div className="flex items-center gap-3">
-                {isStaff && <TimerButton type="ticket" id={ticket.id} label={`#${ticket.id} ${ticket.title}`} />}
+                {isStaff && <TimerButton type="ticket" id={ticket.id} label={`${formatTicketId(ticket)} ${ticket.title}`} />}
                 <span className="text-sm font-medium text-prism">{formatMinutes(time.totalMinutes)}</span>
               </div>
             </div>

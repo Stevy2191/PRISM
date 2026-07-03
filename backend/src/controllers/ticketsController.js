@@ -63,11 +63,20 @@ function assertCanViewTicket(req, ticket) {
 
 const isStaff = (user) => user.role === 'admin' || user.role === 'technician';
 
+const CLOSED_STATUSES = ['resolved', 'closed'];
+const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
+
 // GET /tickets — with filters
 const list = asyncHandler(async (req, res) => {
   const where = {};
-  const { status, priority, assignee, project, department, requester, type, team } = req.query;
-  if (status) where.status = status;
+  const {
+    status, priority, assignee, project, department, requester, type, team,
+    search, myTickets, overdue, unassigned, sortBy, sortDir,
+  } = req.query;
+
+  // "Closed" in the UI covers both terminal statuses; everything else maps
+  // to the matching column value directly.
+  if (status) where.status = status === 'closed' ? { [Op.in]: CLOSED_STATUSES } : status;
   if (priority) where.priority = priority;
   if (type) where.type = type;
   if (assignee) where.assigneeId = assignee;
@@ -76,17 +85,58 @@ const list = asyncHandler(async (req, res) => {
   if (requester) where.requesterId = requester;
   if (team) where.teamId = team;
 
+  if (search && search.trim()) {
+    const term = search.trim();
+    const or = [
+      { title: { [Op.like]: `%${term}%` } },
+      { description: { [Op.like]: `%${term}%` } },
+    ];
+    const numeric = term.replace(/^#/, '').replace(/^0+(?=\d)/, '');
+    if (/^\d+$/.test(numeric)) or.push({ id: Number(numeric) });
+    where[Op.or] = or;
+  }
+
+  if (overdue === 'true') {
+    where.dueDate = { [Op.lt]: new Date().toISOString().slice(0, 10) };
+    // Only imply "not closed" when the status dropdown isn't already set —
+    // this is an independent quick-filter toggle, not a status override.
+    if (!status) where.status = { [Op.notIn]: CLOSED_STATUSES };
+  }
+  if (unassigned === 'true') where.assigneeId = null;
+  // "My tickets" pins the view to the logged-in user regardless of any
+  // assignee filter that was also passed. Requesters are never assignees in
+  // this app's RBAC — their tickets are already scoped by requesterId below,
+  // so forcing assigneeId here would incorrectly return zero results.
+  if (myTickets === 'true' && req.user.role !== 'requester') where.assigneeId = req.user.id;
+
   // Requesters are scoped to their own tickets regardless of filters.
   if (req.user.role === 'requester') {
     where.requesterId = req.user.id;
   }
 
+  const orderColumn = SORTABLE_COLUMNS.includes(sortBy) ? sortBy : 'updatedAt';
+  const orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
+
   const tickets = await Ticket.findAll({
     where,
     include: ticketInclude,
-    order: [['updatedAt', 'DESC']],
+    order: [[orderColumn, orderDir]],
   });
-  res.json({ tickets });
+
+  const ticketIds = tickets.map((t) => t.id);
+  const timeTotals = ticketIds.length
+    ? await TimeEntry.findAll({
+        where: { ticketId: { [Op.in]: ticketIds } },
+        attributes: ['ticketId', [sequelize.fn('SUM', sequelize.col('minutes')), 'total']],
+        group: ['ticketId'],
+        raw: true,
+      })
+    : [];
+  const minutesByTicket = new Map(timeTotals.map((r) => [r.ticketId, Number(r.total) || 0]));
+
+  res.json({
+    tickets: tickets.map((t) => ({ ...t.toJSON(), timeLoggedMinutes: minutesByTicket.get(t.id) || 0 })),
+  });
 });
 
 // POST /tickets

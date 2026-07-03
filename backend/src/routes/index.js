@@ -21,6 +21,7 @@ const customFieldsRoutes = require('./customFields');
 const timerRoutes = require('./timer');
 const dashboardRoutes = require('./dashboard');
 const notificationsRoutes = require('./notifications');
+const savedFiltersRoutes = require('./savedFilters');
 
 const router = express.Router();
 
@@ -49,5 +50,6 @@ router.use('/custom-fields', guard, customFieldsRoutes);
 router.use('/timer', guard, timerRoutes);
 router.use('/dashboard', guard, dashboardRoutes);
 router.use('/notifications', guard, notificationsRoutes);
+router.use('/saved-filters', guard, savedFiltersRoutes);
 
 module.exports = router;

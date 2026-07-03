@@ -11,6 +11,7 @@ import {
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import { formatTicketId } from '../utils/ticketId';
 
 // This page always renders as a fixed dark control-panel surface (matching
 // Login), independent of the app-wide light/dark theme toggle.
@@ -172,7 +173,7 @@ function TicketsPanel({ tickets }) {
               <li key={t.id} className="flex items-center justify-between gap-3 px-5 py-3">
                 <div className="min-w-0">
                   <Link to={`/tickets/${t.id}`} className="truncate font-medium hover:underline" style={{ color: TEXT }}>
-                    #{t.id} {t.title}
+                    {formatTicketId(t)} {t.title}
                   </Link>
                   <p className="text-xs" style={{ color: MUTED }} title={new Date(t.updatedAt).toLocaleString()}>
                     Updated {timeAgo(t.updatedAt)}
@@ -323,7 +324,7 @@ function ActivityFeedPanel({ activity }) {
                 {ACTIVITY_VERB[a.action] || a.action}{' '}
                 {a.ticketId && (
                   <Link to={`/tickets/${a.ticketId}`} className="hover:underline" style={{ color: '#93c5fd' }}>
-                    #{a.ticketId} {a.ticketTitle}
+                    {formatTicketId({ id: a.ticketId, ticketNumber: a.ticketNumber })} {a.ticketTitle}
                   </Link>
                 )}
               </span>

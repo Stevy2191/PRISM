@@ -41,7 +41,7 @@ export default function TicketNew() {
     api.get('/blueprints').then(({ data }) => setBlueprints(data.blueprints)).catch(() => {});
     api.get('/custom-fields').then(({ data }) => setCustomFields(data.customFields)).catch(() => {});
     if (isStaff) {
-      api.get('/users').then(({ data }) => setUsers(data.users)).catch(() => {});
+      api.get('/users/assignable').then(({ data }) => setUsers(data.users)).catch(() => {});
       api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
     }
   }, [isStaff]);

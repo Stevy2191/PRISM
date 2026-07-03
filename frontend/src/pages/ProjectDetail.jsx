@@ -6,6 +6,7 @@ import { useTimer } from '../context/TimerContext';
 import Badge from '../components/Badge';
 import Spinner from '../components/Spinner';
 import TimerButton from '../components/TimerButton';
+import { formatTicketId } from '../utils/ticketId';
 
 const STATUSES = ['active', 'on_hold', 'completed', 'archived'];
 
@@ -200,7 +201,7 @@ export default function ProjectDetail() {
               {tickets.map((t) => (
                 <li key={t.id} className="flex items-center justify-between px-5 py-3">
                   <Link to={`/tickets/${t.id}`} className="font-medium text-navy-800 hover:text-prism">
-                    #{t.id} {t.title}
+                    {formatTicketId(t)} {t.title}
                   </Link>
                   <div className="flex gap-2">
                     <Badge value={t.priority} />

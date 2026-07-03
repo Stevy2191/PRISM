@@ -1,7 +1,15 @@
 const { DataTypes, Model } = require('sequelize');
 
 module.exports = (sequelize) => {
-  class Ticket extends Model {}
+  class Ticket extends Model {
+    // Zero-padded 5-digit display id (e.g. 114 -> "00114"), included in every
+    // API response that serializes a Ticket instance.
+    toJSON() {
+      const values = { ...this.get() };
+      values.ticketNumber = String(values.id).padStart(5, '0');
+      return values;
+    }
+  }
 
   Ticket.init(
     {
