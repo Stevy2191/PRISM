@@ -78,15 +78,11 @@ export default function Layout() {
           {settings.logoUrl ? (
             <img src={settings.logoUrl} alt="logo" className="h-8 w-8 rounded object-contain" />
           ) : (
-            <svg viewBox="0 0 64 64" className="h-8 w-8" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 25 L23 30" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" />
-              <path d="M42 31 L62 20" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 25" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 30" stroke="#eab308" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 35" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 40" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
-              <path d="M42 31 L62 45" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
-              <path d="M32 11 L50 47 L14 47 Z" stroke="#93c5fd" strokeWidth="2.5" strokeLinejoin="round" fill="#1e3a5f" fillOpacity="0.6" />
+            <svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="11" height="11" rx="2.5" fill="#1d3461" stroke="#3b82f6" strokeWidth="1.4" />
+              <rect x="14" y="1" width="11" height="11" rx="2.5" fill="#0d1120" stroke="#1e3a5f" strokeWidth="1.4" />
+              <rect x="1" y="14" width="11" height="11" rx="2.5" fill="#0d1120" stroke="#1e3a5f" strokeWidth="1.4" />
+              <rect x="14" y="14" width="11" height="11" rx="2.5" fill="#0d1120" stroke="#161c2d" strokeWidth="1.4" />
             </svg>
           )}
           <span className="truncate text-xl font-bold tracking-wide text-white">{settings.company?.name || 'PRISM'}</span>
