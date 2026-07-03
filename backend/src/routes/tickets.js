@@ -20,9 +20,9 @@ router.post('/:id/comments', ctrl.createComment);
 router.patch('/:id/comments/:commentId', ctrl.updateComment);
 router.delete('/:id/comments/:commentId', ctrl.removeComment);
 
-// Attachments
+// Attachments (requesters may attach files to their own tickets; enforced in controller)
 router.get('/:id/attachments', ctrl.listAttachments);
-router.post('/:id/attachments', staff, upload.single('file'), ctrl.createAttachment);
+router.post('/:id/attachments', upload.single('file'), ctrl.createAttachment);
 router.get('/:id/attachments/:attachmentId/download', ctrl.downloadAttachment);
 router.delete('/:id/attachments/:attachmentId', ctrl.removeAttachment);
 

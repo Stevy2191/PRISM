@@ -6,6 +6,7 @@ const {
   Attachment,
   TimeEntry,
   TicketRelation,
+  TicketWatcher,
   CsatResponse,
   Team,
   CustomField,
@@ -19,7 +20,12 @@ const { Op } = require('sequelize');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
-const { notifyAssigned, notifyComment, notifyStatusChange } = require('../services/notifications');
+const {
+  notifyAssigned,
+  notifyComment,
+  notifyStatusChange,
+  notifyWatchers,
+} = require('../services/notifications');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
@@ -144,7 +150,7 @@ const list = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const {
     title, description, priority, type, status, projectId, departmentId, dueDate,
-    blueprintId, customFields, teamId,
+    blueprintId, customFields, teamId, tags, watcherIds, parentTicketId, childTicketIds, relatedTicketIds,
   } = req.body || {};
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
@@ -157,6 +163,17 @@ const create = asyncHandler(async (req, res) => {
   } else {
     requesterId = requesterId || req.user.id;
   }
+
+  const watcherIdList = Array.isArray(watcherIds)
+    ? [...new Set(watcherIds.map((id) => parseInt(id, 10)).filter(Boolean))]
+    : [];
+  const childIdList = Array.isArray(childTicketIds)
+    ? [...new Set(childTicketIds.map((id) => parseInt(id, 10)).filter(Boolean))]
+    : [];
+  const relatedIdList = Array.isArray(relatedTicketIds)
+    ? [...new Set(relatedTicketIds.map((id) => parseInt(id, 10)).filter(Boolean))]
+    : [];
+  const parentId = parentTicketId ? parseInt(parentTicketId, 10) : null;
 
   const ticket = await sequelize.transaction(async (t) => {
     const created = await Ticket.create({
@@ -173,14 +190,45 @@ const create = asyncHandler(async (req, res) => {
       dueDate: dueDate || null,
       blueprintId: blueprintId || null,
       customFields: Array.isArray(customFields) && customFields.length ? customFields : null,
+      tags: Array.isArray(tags) && tags.length ? tags : null,
     }, { transaction: t });
+
     if (Array.isArray(req.body.fieldValues)) {
       await syncFieldValues(created.id, req.body.fieldValues, t);
     }
+
+    if (parentId) {
+      await TicketRelation.create(
+        { ticketId: created.id, relatedTicketId: parentId, relationType: 'parent' },
+        { transaction: t }
+      );
+    }
+    for (const childId of childIdList) {
+      // eslint-disable-next-line no-await-in-loop
+      await TicketRelation.create(
+        { ticketId: childId, relatedTicketId: created.id, relationType: 'parent' },
+        { transaction: t }
+      );
+    }
+    for (const relId of relatedIdList) {
+      // eslint-disable-next-line no-await-in-loop
+      await TicketRelation.create(
+        { ticketId: created.id, relatedTicketId: relId, relationType: 'related' },
+        { transaction: t }
+      );
+    }
+    for (const userId of watcherIdList) {
+      // eslint-disable-next-line no-await-in-loop
+      await TicketWatcher.create({ ticketId: created.id, userId }, { transaction: t });
+    }
+
     return created;
   });
   await writeAudit(req, 'ticket.create', 'Ticket', ticket.id, { title: ticket.title });
   await notifyAssigned(ticket, req.user.id);
+  if (watcherIdList.length) {
+    await notifyWatchers(ticket, `Ticket created: ${ticket.title}`, [req.user.id]);
+  }
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
   res.status(201).json({ ticket: fresh });
@@ -240,6 +288,11 @@ const update = asyncHandler(async (req, res) => {
   }
   if (changes.status !== undefined && ticket.status !== previousStatus && isStaff(req.user)) {
     await notifyStatusChange(ticket, req.user.id, ticket.status);
+    await notifyWatchers(
+      ticket,
+      `Status changed to "${ticket.status.replace(/_/g, ' ')}" on ticket: ${ticket.title}`,
+      [req.user.id, ticket.requesterId, ticket.assigneeId]
+    );
   }
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
@@ -296,6 +349,11 @@ const createComment = asyncHandler(async (req, res) => {
   });
   await writeAudit(req, 'comment.create', 'Comment', comment.id, { ticketId: ticket.id });
   await notifyComment(ticket, comment, req.user.id);
+  await notifyWatchers(
+    ticket,
+    `Someone commented on ticket you're watching: ${ticket.title}`,
+    [req.user.id, ticket.requesterId, ticket.assigneeId]
+  );
 
   const fresh = await Comment.findByPk(comment.id, {
     include: [{ model: User, as: 'author', attributes: userAttrs }],
@@ -370,6 +428,12 @@ const createAttachment = asyncHandler(async (req, res) => {
     // Clean up the orphaned upload if the ticket doesn't exist.
     if (req.file) fs.rm(req.file.path, { force: true }, () => {});
     throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  }
+  try {
+    assertCanViewTicket(req, ticket);
+  } catch (err) {
+    if (req.file) fs.rm(req.file.path, { force: true }, () => {});
+    throw err;
   }
   if (!req.file) {
     throw new ApiError(400, 'No file uploaded (field name must be "file")', 'NO_FILE');

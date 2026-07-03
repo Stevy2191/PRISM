@@ -6,7 +6,7 @@
 // user's notifications or dashboard are fetched, and idempotently inserts at
 // most one notification per ticket per type.
 const { Op } = require('sequelize');
-const { Notification, Ticket } = require('../models');
+const { Notification, Ticket, TicketWatcher } = require('../models');
 
 const DUE_SOON_DAYS = 2;
 const CLOSED_STATUSES = ['resolved', 'closed'];
@@ -78,6 +78,26 @@ async function notifyStatusChange(ticket, actorId, newStatus) {
   });
 }
 
+// Notifies a ticket's watchers (create/comment/status-change events), skipping
+// anyone in excludeUserIds (typically the actor, plus whoever already got a
+// more specific notification for this same event) so people aren't double-notified.
+async function notifyWatchers(ticket, message, excludeUserIds = []) {
+  const exclude = new Set(excludeUserIds.filter(Boolean));
+  const watchers = await TicketWatcher.findAll({ where: { ticketId: ticket.id } });
+
+  // eslint-disable-next-line no-restricted-syntax
+  for (const watcher of watchers) {
+    if (exclude.has(watcher.userId)) continue; // eslint-disable-line no-continue
+    // eslint-disable-next-line no-await-in-loop
+    await createNotification({
+      userId: watcher.userId,
+      type: 'watcher_update',
+      message,
+      ticketId: ticket.id,
+    });
+  }
+}
+
 // Derives overdue / due-soon notifications for a user's assigned tickets.
 // Idempotent — only inserts a notification the first time a ticket qualifies.
 async function syncDerivedNotifications(userId) {
@@ -123,5 +143,6 @@ module.exports = {
   notifyAssigned,
   notifyComment,
   notifyStatusChange,
+  notifyWatchers,
   syncDerivedNotifications,
 };

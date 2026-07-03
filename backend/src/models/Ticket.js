@@ -81,6 +81,11 @@ module.exports = (sequelize) => {
         type: DataTypes.JSON,
         allowNull: true,
       },
+      // Freeform labels, e.g. ["vpn", "escalated"].
+      tags: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
     },
     {
       sequelize,

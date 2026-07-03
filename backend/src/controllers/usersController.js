@@ -27,6 +27,16 @@ const listAssignable = asyncHandler(async (req, res) => {
   res.json({ users });
 });
 
+// GET /users/directory — any authenticated user. Every user (any role),
+// minimal fields, for the "customer"/watcher pickers on ticket creation.
+const listDirectory = asyncHandler(async (req, res) => {
+  const users = await User.findAll({
+    attributes: ['id', 'displayName', 'username', 'role', 'departmentId'],
+    order: [['displayName', 'ASC']],
+  });
+  res.json({ users });
+});
+
 // POST /users — Admin only. Creates a LOCAL account (username/password).
 // Directory (AD) users are never created here — they are provisioned on first
 // LDAP login. New local accounts must change their password on first login.
@@ -146,4 +156,4 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { list, create, get, update, remove, listAssignable };
+module.exports = { list, create, get, update, remove, listAssignable, listDirectory };

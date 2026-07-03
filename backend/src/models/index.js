@@ -27,6 +27,7 @@ const TicketFieldValue = require('./TicketFieldValue')(sequelize);
 const ActiveTimer = require('./ActiveTimer')(sequelize);
 const Notification = require('./Notification')(sequelize);
 const SavedFilter = require('./SavedFilter')(sequelize);
+const TicketWatcher = require('./TicketWatcher')(sequelize);
 
 const db = {
   sequelize,
@@ -55,6 +56,7 @@ const db = {
   ActiveTimer,
   Notification,
   SavedFilter,
+  TicketWatcher,
 };
 
 // ---- Associations ----
@@ -174,5 +176,11 @@ Notification.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 // Saved ticket filters
 User.hasMany(SavedFilter, { foreignKey: 'userId', as: 'savedFilters', onDelete: 'CASCADE' });
 SavedFilter.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// Ticket watchers
+Ticket.hasMany(TicketWatcher, { foreignKey: 'ticketId', as: 'watchers', onDelete: 'CASCADE' });
+TicketWatcher.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+TicketWatcher.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(TicketWatcher, { foreignKey: 'userId', as: 'watching', onDelete: 'CASCADE' });
 
 module.exports = db;

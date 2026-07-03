@@ -22,6 +22,7 @@ const timerRoutes = require('./timer');
 const dashboardRoutes = require('./dashboard');
 const notificationsRoutes = require('./notifications');
 const savedFiltersRoutes = require('./savedFilters');
+const customersRoutes = require('./customers');
 
 const router = express.Router();
 
@@ -51,5 +52,6 @@ router.use('/timer', guard, timerRoutes);
 router.use('/dashboard', guard, dashboardRoutes);
 router.use('/notifications', guard, notificationsRoutes);
 router.use('/saved-filters', guard, savedFiltersRoutes);
+router.use('/customers', guard, customersRoutes);
 
 module.exports = router;

@@ -22,8 +22,11 @@ module.exports = (sequelize) => {
       // caused_by      — this ticket is caused by the related ticket (e.g. an
       //                  incident caused_by a problem)
       // duplicates     — this ticket duplicates the related ticket
+      // parent         — stored from the child's side (ticketId=child,
+      //                  relatedTicketId=parent); viewed from the parent's
+      //                  side (incoming) it reads as "this is my child"
       relationType: {
-        type: DataTypes.ENUM('related', 'caused_by', 'duplicates'),
+        type: DataTypes.ENUM('related', 'caused_by', 'duplicates', 'parent'),
         allowNull: false,
         defaultValue: 'related',
       },
