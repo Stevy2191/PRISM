@@ -25,6 +25,7 @@ const ModuleVisibility = require('./ModuleVisibility')(sequelize);
 const CustomField = require('./CustomField')(sequelize);
 const TicketFieldValue = require('./TicketFieldValue')(sequelize);
 const ActiveTimer = require('./ActiveTimer')(sequelize);
+const Notification = require('./Notification')(sequelize);
 
 const db = {
   sequelize,
@@ -51,6 +52,7 @@ const db = {
   CustomField,
   TicketFieldValue,
   ActiveTimer,
+  Notification,
 };
 
 // ---- Associations ----
@@ -160,5 +162,11 @@ TicketFieldValue.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 // Active timer (one per user)
 User.hasOne(ActiveTimer, { foreignKey: 'userId', as: 'activeTimer', onDelete: 'CASCADE' });
 ActiveTimer.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// Notifications
+User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications', onDelete: 'CASCADE' });
+Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+Ticket.hasMany(Notification, { foreignKey: 'ticketId', as: 'notifications', onDelete: 'CASCADE' });
+Notification.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 
 module.exports = db;

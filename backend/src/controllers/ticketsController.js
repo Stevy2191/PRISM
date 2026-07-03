@@ -19,6 +19,7 @@ const { Op } = require('sequelize');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
+const { notifyAssigned, notifyComment, notifyStatusChange } = require('../services/notifications');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
@@ -129,6 +130,7 @@ const create = asyncHandler(async (req, res) => {
     return created;
   });
   await writeAudit(req, 'ticket.create', 'Ticket', ticket.id, { title: ticket.title });
+  await notifyAssigned(ticket, req.user.id);
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
   res.status(201).json({ ticket: fresh });
@@ -173,6 +175,8 @@ const update = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
+  const previousAssigneeId = ticket.assigneeId;
+  const previousStatus = ticket.status;
   await sequelize.transaction(async (t) => {
     await ticket.update(changes, { transaction: t });
     if (isStaff(req.user) && Array.isArray(req.body.fieldValues)) {
@@ -180,6 +184,13 @@ const update = asyncHandler(async (req, res) => {
     }
   });
   await writeAudit(req, 'ticket.update', 'Ticket', ticket.id, changes);
+
+  if (changes.assigneeId !== undefined && ticket.assigneeId && ticket.assigneeId !== previousAssigneeId) {
+    await notifyAssigned(ticket, req.user.id);
+  }
+  if (changes.status !== undefined && ticket.status !== previousStatus && isStaff(req.user)) {
+    await notifyStatusChange(ticket, req.user.id, ticket.status);
+  }
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
   res.json({ ticket: fresh });
@@ -234,6 +245,7 @@ const createComment = asyncHandler(async (req, res) => {
     ticketId: ticket.id,
   });
   await writeAudit(req, 'comment.create', 'Comment', comment.id, { ticketId: ticket.id });
+  await notifyComment(ticket, comment, req.user.id);
 
   const fresh = await Comment.findByPk(comment.id, {
     include: [{ model: User, as: 'author', attributes: userAttrs }],
