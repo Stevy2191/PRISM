@@ -17,7 +17,13 @@ const BLOCKED_EXTENSIONS = new Set([
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const ticketId = req.params.id;
+    // req.params.id reaches here before the controller validates the ticket
+    // exists, so it must be sanitized directly: an encoded path segment like
+    // "..%2F..%2Fbranding" would otherwise let path.join() escape UPLOAD_ROOT.
+    const ticketId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      return cb(new Error('Invalid ticket id'));
+    }
     const dir = path.join(UPLOAD_ROOT, String(ticketId));
     fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
   },

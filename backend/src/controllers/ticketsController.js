@@ -243,6 +243,10 @@ const createComment = asyncHandler(async (req, res) => {
 
 // PATCH /tickets/:id/comments/:commentId — author or staff
 const updateComment = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+
   const comment = await Comment.findOne({
     where: { id: req.params.commentId, ticketId: req.params.id },
   });
@@ -265,6 +269,10 @@ const updateComment = asyncHandler(async (req, res) => {
 
 // DELETE /tickets/:id/comments/:commentId — author or staff
 const removeComment = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+
   const comment = await Comment.findOne({
     where: { id: req.params.commentId, ticketId: req.params.id },
   });
@@ -348,6 +356,9 @@ const removeAttachment = asyncHandler(async (req, res) => {
     where: { id: req.params.attachmentId, ticketId: ticket.id },
   });
   if (!attachment) throw new ApiError(404, 'Attachment not found', 'NOT_FOUND');
+  if (attachment.uploadedById !== req.user.id && !isStaff(req.user)) {
+    throw new ApiError(403, 'You can only remove your own attachments', 'FORBIDDEN');
+  }
 
   const filePath = path.join(UPLOAD_ROOT, String(ticket.id), attachment.filename);
   await attachment.destroy();

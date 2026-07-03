@@ -8,6 +8,16 @@ const projectInclude = [
   { model: User, as: 'owner', attributes: ['id', 'displayName', 'username'] },
 ];
 
+// Requesters are read-only and scoped to their own department (matches `list`).
+function assertCanViewProject(req, project) {
+  if (
+    req.user.role === 'requester' &&
+    (!req.user.departmentId || project.departmentId !== req.user.departmentId)
+  ) {
+    throw new ApiError(403, 'You may only access projects in your department', 'FORBIDDEN');
+  }
+}
+
 // GET /projects
 // Admin/Technician see all; Requesters see projects in their own department (read-only).
 const list = asyncHandler(async (req, res) => {
@@ -58,6 +68,7 @@ const get = asyncHandler(async (req, res) => {
     ],
   });
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  assertCanViewProject(req, project);
   res.json({ project });
 });
 
@@ -92,6 +103,7 @@ const remove = asyncHandler(async (req, res) => {
 const listMilestones = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  assertCanViewProject(req, project);
   const milestones = await Milestone.findAll({
     where: { projectId: project.id },
     order: [['dueDate', 'ASC']],
@@ -154,6 +166,7 @@ const timeUserAttrs = ['id', 'displayName', 'username'];
 const listTime = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  assertCanViewProject(req, project);
 
   const ticketIds = (
     await Ticket.findAll({ where: { projectId: project.id }, attributes: ['id'], raw: true })

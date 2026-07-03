@@ -16,6 +16,19 @@ const { UPLOAD_ROOT } = require('./middleware/upload');
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 3001;
 
+// Refuse to start with a guessable session secret in production — it lets an
+// attacker forge session cookies for any user.
+if (
+  process.env.NODE_ENV === 'production' &&
+  (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'changeme')
+) {
+  console.error(
+    '[prism] SESSION_SECRET is unset or left as the "changeme" placeholder. ' +
+      'Set a strong random value in .env before starting in production.'
+  );
+  process.exit(1);
+}
+
 // Trust the reverse proxy (frontend nginx) so secure cookies work behind it.
 app.set('trust proxy', 1);
 
