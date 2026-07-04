@@ -27,6 +27,7 @@ const {
   notifyComment,
   notifyStatusChange,
   notifyWatchers,
+  createNotification,
 } = require('../services/notifications');
 const { logActivity, resolveDisplayValue } = require('../services/ticketActivity');
 
@@ -346,13 +347,19 @@ const remove = asyncHandler(async (req, res) => {
 // ---- Comments ----
 
 // GET /tickets/:id/comments
+const COMMENT_TYPES = ['reply', 'comment_private', 'comment_public'];
+
 const listComments = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   assertCanViewTicket(req, ticket);
 
+  const where = { ticketId: ticket.id };
+  // Customers never see internal-only comments, regardless of who posted them.
+  if (!isStaff(req.user)) where.type = { [Op.ne]: 'comment_private' };
+
   const comments = await Comment.findAll({
-    where: { ticketId: ticket.id },
+    where,
     include: [{ model: User, as: 'author', attributes: userAttrs }],
     order: [['createdAt', 'ASC']],
   });
@@ -365,23 +372,48 @@ const createComment = asyncHandler(async (req, res) => {
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   assertCanViewTicket(req, ticket);
 
-  const { body } = req.body || {};
+  const { body, type } = req.body || {};
   if (!body || !body.trim()) {
     throw new ApiError(400, 'Comment body is required', 'VALIDATION_ERROR');
+  }
+  let resolvedType = 'reply';
+  if (type && type !== 'reply') {
+    if (!isStaff(req.user)) {
+      throw new ApiError(403, 'Only staff can post internal comments', 'FORBIDDEN');
+    }
+    if (!COMMENT_TYPES.includes(type)) {
+      throw new ApiError(400, 'Invalid comment type', 'VALIDATION_ERROR');
+    }
+    resolvedType = type;
   }
   const comment = await Comment.create({
     body: body.trim(),
     authorId: req.user.id,
     ticketId: ticket.id,
+    type: resolvedType,
   });
-  await writeAudit(req, 'comment.create', 'Comment', comment.id, { ticketId: ticket.id });
+  await writeAudit(req, 'comment.create', 'Comment', comment.id, { ticketId: ticket.id, type: resolvedType });
   await logActivity(ticket.id, req.user.id, 'comment', null, null);
-  await notifyComment(ticket, comment, req.user.id);
-  await notifyWatchers(
-    ticket,
-    `Someone commented on ticket you're watching: ${ticket.title}`,
-    [req.user.id, ticket.requesterId, ticket.assigneeId]
-  );
+
+  if (resolvedType === 'comment_private') {
+    // Internal-only note: notify the assignee, never the requester or any
+    // watcher who might be a customer.
+    if (ticket.assigneeId && ticket.assigneeId !== req.user.id) {
+      await createNotification({
+        userId: ticket.assigneeId,
+        type: 'reply',
+        message: `Internal comment added to ticket: ${ticket.title}`,
+        ticketId: ticket.id,
+      });
+    }
+  } else {
+    await notifyComment(ticket, comment, req.user.id);
+    await notifyWatchers(
+      ticket,
+      `Someone commented on ticket you're watching: ${ticket.title}`,
+      [req.user.id, ticket.requesterId, ticket.assigneeId]
+    );
+  }
 
   const fresh = await Comment.findByPk(comment.id, {
     include: [{ model: User, as: 'author', attributes: userAttrs }],

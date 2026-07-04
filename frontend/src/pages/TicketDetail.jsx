@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   IconPaperclip, IconAt, IconArrowUp, IconArrowDown, IconX, IconUpload,
-  IconFile, IconTrash,
+  IconFile, IconTrash, IconPlayerPlayFilled, IconPlayerStopFilled, IconLock, IconWorld,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
@@ -172,44 +172,52 @@ function TimerWidget({ ticket, onLogged }) {
     setDescription('');
   };
 
+  const handleToggle = () => {
+    if (displayRunning) {
+      handleStopClick();
+    } else if (!held) {
+      handleStart();
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
-      <span
-        className="rounded-md px-3 py-1.5 font-mono text-sm font-semibold"
-        style={{ backgroundColor: BG, border: `1px solid ${BORDER}`, color: displayRunning ? '#4ade80' : TEXT }}
+      <div
+        className="flex items-center gap-2"
+        style={{
+          backgroundColor: CARD_BG,
+          border: `1px solid ${BORDER}`,
+          borderRadius: 8,
+          padding: '6px 14px',
+        }}
       >
-        {formatHMS(displaySeconds)}
-      </span>
-      {!displayRunning && !held && (
         <button
           type="button"
-          onClick={handleStart}
-          className="rounded-md px-3 py-1.5 text-sm font-semibold text-white"
-          style={{ backgroundColor: '#16a34a' }}
+          onClick={handleToggle}
+          disabled={held}
+          className="flex items-center justify-center disabled:opacity-40"
+          style={{ color: displayRunning ? '#4ade80' : TEXT }}
+          title={displayRunning ? 'Stop timer' : 'Start timer'}
         >
-          Start
+          {displayRunning ? <IconPlayerStopFilled size={15} /> : <IconPlayerPlayFilled size={15} />}
         </button>
-      )}
-      {displayRunning && (
-        <button
-          type="button"
-          onClick={handleStopClick}
-          className="rounded-md px-3 py-1.5 text-sm font-semibold text-white"
-          style={{ backgroundColor: '#dc2626' }}
+        <span
+          className="font-mono text-sm font-semibold"
+          style={{ color: displayRunning ? '#4ade80' : TEXT }}
         >
-          Stop
-        </button>
-      )}
-      {held && heldSeconds > 0 && (
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="rounded-md px-3 py-1.5 text-sm font-semibold text-white"
-          style={{ backgroundColor: BLUE }}
-        >
-          Log time
-        </button>
-      )}
+          {formatHMS(displaySeconds)}
+        </span>
+        {held && heldSeconds > 0 && (
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="text-xs font-semibold underline"
+            style={{ color: BLUE }}
+          >
+            Log
+          </button>
+        )}
+      </div>
 
       {modalOpen && (
         <Modal title="Log time" onClose={discardHeld}>
@@ -296,15 +304,23 @@ function Sidebar({
       <button
         type="button"
         onClick={onToggle}
-        className="absolute -right-3 top-4 z-10 flex h-6 w-6 items-center justify-center rounded-full border text-xs"
-        style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: TEXT }}
+        className="flex-shrink-0 flex items-center text-sm"
+        style={{
+          width: '100%',
+          height: 36,
+          padding: '0 12px',
+          justifyContent: collapsed ? 'center' : 'flex-end',
+          backgroundColor: '#141a2b',
+          borderBottom: `1px solid ${BORDER}`,
+          color: TEXT,
+        }}
         title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         {collapsed ? '›' : '‹'}
       </button>
 
       <div
-        className={collapsed ? 'flex flex-col items-center gap-4 pt-14' : 'space-y-5 p-4 pt-14'}
+        className={collapsed ? 'flex flex-col items-center gap-4 pt-4' : 'space-y-5 p-4'}
         style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}
       >
         <SidebarSection title="Contact Info" collapsed={collapsed}>
@@ -492,6 +508,8 @@ function ConversationTab({ ticket, comments }) {
       {comments.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No messages yet.</p>}
       {comments.map((c) => {
         const isCustomer = c.authorId === ticket.requesterId;
+        const isPrivate = c.type === 'comment_private';
+        const isPublicComment = c.type === 'comment_public';
         return (
           <div key={c.id} className="flex items-start gap-3">
             <span
@@ -509,9 +527,26 @@ function ConversationTab({ ticket, comments }) {
                 >
                   {isCustomer ? 'Customer' : 'Tech'}
                 </span>
+                {isPrivate && (
+                  <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: '#3a2a00', color: '#f59e0b' }}>
+                    <IconLock size={10} /> Private comment
+                  </span>
+                )}
+                {isPublicComment && (
+                  <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: '#0d2847', color: '#60a5fa' }}>
+                    <IconWorld size={10} /> Comment
+                  </span>
+                )}
                 <span className="text-xs" style={{ color: MUTED }}>{timeAgo(c.createdAt)}</span>
               </div>
-              <div className="mt-1 rounded-[10px] border p-3 text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: TEXT }}>
+              <div
+                className="mt-1 rounded-[10px] border p-3 text-sm"
+                style={{
+                  backgroundColor: isPrivate ? '#1a1200' : CARD_BG,
+                  borderColor: isPrivate ? '#f59e0b' : BORDER,
+                  color: TEXT,
+                }}
+              >
                 <p className="whitespace-pre-wrap">{c.body}</p>
               </div>
             </div>
@@ -522,11 +557,17 @@ function ConversationTab({ ticket, comments }) {
   );
 }
 
-function ReplyBox({ ticket, onSend, fileRef, onAttach }) {
+const AMBER = '#f59e0b';
+
+function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
   const draftKey = `prism.ticket.${ticket.id}.draft`;
   const [text, setText] = useState(() => { try { return localStorage.getItem(draftKey) || ''; } catch { return ''; } });
+  const [mode, setMode] = useState('reply'); // 'reply' | 'comment'
+  const [visibility, setVisibility] = useState('private'); // 'private' | 'public'
   const [sending, setSending] = useState(false);
   const textareaRef = useRef(null);
+
+  const isComment = isStaff && mode === 'comment';
 
   const saveDraft = () => { try { localStorage.setItem(draftKey, text); } catch { /* ignore */ } };
 
@@ -534,7 +575,8 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach }) {
     if (!text.trim()) return;
     setSending(true);
     try {
-      await onSend(text);
+      const type = isComment ? (visibility === 'public' ? 'comment_public' : 'comment_private') : 'reply';
+      await onSend(text, type);
       setText('');
       try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
     } finally {
@@ -549,16 +591,58 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach }) {
     setText(text.slice(0, pos) + '@' + text.slice(pos));
   };
 
+  const tabStyle = (active, activeColor) => ({
+    padding: '4px 12px',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    backgroundColor: active ? activeColor : 'transparent',
+    color: active ? '#0d1120' : MUTED,
+  });
+
   return (
     <div className="flex-shrink-0 border-t p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <textarea
         ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={`Reply to ${ticket.requester?.displayName || 'the customer'}...`}
+        placeholder={isComment ? 'Add an internal comment...' : `Reply to ${ticket.requester?.displayName || 'the customer'}...`}
         className="input resize-y"
-        style={{ ...fieldStyle, minHeight: '80px' }}
+        style={{ ...fieldStyle, minHeight: '80px', borderColor: isComment ? AMBER : BORDER }}
       />
+
+      {isStaff && (
+        <div className="mt-2 flex items-center justify-between">
+          <div className="flex overflow-hidden rounded-md border" style={{ borderColor: BORDER }}>
+            <button type="button" onClick={() => setMode('reply')} style={tabStyle(mode === 'reply', BLUE)}>
+              Reply
+            </button>
+            <button type="button" onClick={() => setMode('comment')} style={tabStyle(mode === 'comment', AMBER)}>
+              Comment
+            </button>
+          </div>
+          {isComment && (
+            <div className="flex overflow-hidden rounded-md border" style={{ borderColor: BORDER }}>
+              <button
+                type="button"
+                onClick={() => setVisibility('private')}
+                className="flex items-center gap-1"
+                style={tabStyle(visibility === 'private', AMBER)}
+              >
+                <IconLock size={12} /> Private
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibility('public')}
+                className="flex items-center gap-1"
+                style={tabStyle(visibility === 'public', '#60a5fa')}
+              >
+                <IconWorld size={12} /> Public
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mt-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => fileRef.current?.click()} title="Attach a file" className="rounded-md border p-2" style={{ borderColor: BORDER, color: MUTED }}>
@@ -578,9 +662,9 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach }) {
             onClick={send}
             disabled={sending || !text.trim()}
             className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ backgroundColor: BLUE }}
+            style={{ backgroundColor: isComment ? AMBER : BLUE, color: isComment ? '#0d1120' : '#fff' }}
           >
-            {sending ? 'Sending…' : 'Send Reply'}
+            {sending ? 'Sending…' : isComment ? 'Add Comment' : 'Send Reply'}
           </button>
         </div>
       </div>
@@ -1072,8 +1156,8 @@ export default function TicketDetail() {
     api.get(`/tickets/${id}/activity`).then(({ data }) => setActivity(data.activity)).catch(() => {});
   };
 
-  const sendReply = async (body) => {
-    const { data } = await api.post(`/tickets/${id}/comments`, { body });
+  const sendReply = async (body, type) => {
+    const { data } = await api.post(`/tickets/${id}/comments`, { body, type });
     setComments((prev) => [...prev, data.comment]);
     api.get(`/tickets/${id}/activity`).then(({ data: d }) => setActivity(d.activity)).catch(() => {});
   };
@@ -1256,7 +1340,7 @@ export default function TicketDetail() {
           {/* Sibling below the scrollable tab content, not inside it — stays
               pinned to the bottom of the main content column. */}
           {activeTab === 'conversation' && (
-            <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} />
+            <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} isStaff={isStaff} />
           )}
         </div>
       </div>

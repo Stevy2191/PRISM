@@ -22,6 +22,11 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      type: {
+        type: DataTypes.ENUM('reply', 'comment_private', 'comment_public'),
+        allowNull: false,
+        defaultValue: 'reply',
+      },
     },
     {
       sequelize,
