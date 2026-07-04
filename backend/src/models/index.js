@@ -154,6 +154,7 @@ Team.hasMany(Ticket, { foreignKey: 'teamId', as: 'tickets' });
 
 // Business hours / holidays
 BusinessHours.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+BusinessHours.belongsTo(HolidayList, { foreignKey: 'holidayListId', as: 'holidayList' });
 HolidayList.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 HolidayList.hasMany(Holiday, { foreignKey: 'holidayListId', as: 'holidays', onDelete: 'CASCADE' });
 Holiday.belongsTo(HolidayList, { foreignKey: 'holidayListId', as: 'holidayList' });

@@ -7,6 +7,7 @@ const admin = requireRole('admin');
 
 router.get('/', ctrl.list);
 router.post('/', admin, ctrl.create);
+router.post('/:id/clone', admin, ctrl.clone);
 router.patch('/:id', admin, ctrl.update);
 router.delete('/:id', admin, ctrl.remove);
 
