@@ -812,11 +812,21 @@ function ConversationTab({ ticket, comments }) {
               </div>
               <div
                 className="mt-1 rounded-[10px] border p-3 text-sm"
-                style={{
-                  backgroundColor: isPrivate ? 'color-mix(in srgb, var(--color-warning) 10%, var(--color-bg))' : CARD_BG,
-                  borderColor: isPrivate ? 'var(--color-warning)' : BORDER,
-                  color: TEXT,
-                }}
+                style={
+                  isPrivate
+                    ? {
+                        backgroundColor: 'color-mix(in srgb, var(--color-warning) 10%, var(--color-bg))',
+                        borderColor: 'var(--color-warning)',
+                        color: TEXT,
+                      }
+                    : isPublicComment
+                    ? { backgroundColor: CARD_BG, borderColor: BORDER, borderLeft: '3px solid var(--color-accent)', color: TEXT }
+                    : isCustomer
+                    ? { backgroundColor: CARD_BG, borderColor: BORDER, color: TEXT }
+                    // Tech reply — a subtle accent tint distinguishes it from a
+                    // customer message without needing a dedicated CSS variable.
+                    : { backgroundColor: 'color-mix(in srgb, var(--color-accent) 10%, var(--color-bg))', borderColor: BORDER, color: TEXT }
+                }
               >
                 <p className="whitespace-pre-wrap">{c.body}</p>
               </div>
@@ -1737,14 +1747,14 @@ export default function TicketDetail() {
           className="min-w-0"
           style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
-          <div className="flex-shrink-0 flex" style={{ borderBottom: `1px solid ${BORDER}` }}>
+          <div className="flex-shrink-0 flex" style={{ backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
             {TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setActiveTab(t.key)}
                 className="-mb-px border-b-2 px-4 py-3 text-sm font-medium"
-                style={{ borderColor: activeTab === t.key ? BLUE : 'transparent', color: activeTab === t.key ? TEXT : MUTED }}
+                style={{ borderColor: activeTab === t.key ? BLUE : 'transparent', color: activeTab === t.key ? BLUE : MUTED }}
               >
                 {t.label}
               </button>

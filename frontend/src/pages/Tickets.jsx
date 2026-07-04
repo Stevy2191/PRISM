@@ -355,38 +355,6 @@ function ColumnsMenu({ order, visible, onChange }) {
   );
 }
 
-function QuickActionMenu({ field, ticket, assignableUsers, ticketStatuses, onChange, onClose }) {
-  const ref = useRef(null);
-  useClickOutside(ref, onClose);
-
-  let options = [];
-  if (field === 'status') options = (ticketStatuses || []).map((s) => ({ value: s.name, label: s.name }));
-  else if (field === 'priority') options = PRIORITY_OPTIONS.filter((o) => o.value);
-  else if (field === 'assignee') {
-    options = [{ value: '', label: 'Unassigned' }, ...assignableUsers.map((u) => ({ value: String(u.id), label: u.displayName }))];
-  }
-
-  return (
-    <div
-      ref={ref}
-      className="absolute right-0 top-full z-20 mt-1 w-40 rounded-md border p-1 shadow-lg"
-      style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
-    >
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          className="block w-full rounded px-3 py-1.5 text-left text-sm hover:bg-white/5"
-          style={{ color: TEXT }}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // ---- Main page ----
 
 export default function Tickets() {
@@ -413,7 +381,6 @@ export default function Tickets() {
   const [view, setView] = useState('table');
   const [columnPrefs, setColumnPrefs] = useState(loadColumnPrefs);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
-  const [quickAction, setQuickAction] = useState(null); // { ticketId, field }
   const [bulkActionType, setBulkActionType] = useState('');
   const [bulkValue, setBulkValue] = useState('');
   const [bulkSaving, setBulkSaving] = useState(false);
@@ -505,15 +472,6 @@ export default function Tickets() {
   const toggleOverdue = () => { clearActiveSavedFilter(); setOverdue((v) => !v); };
   const toggleUnassigned = () => { clearActiveSavedFilter(); setUnassigned((v) => !v); };
 
-  const patchTicket = async (ticketId, changes) => {
-    try {
-      const { data } = await api.patch(`/tickets/${ticketId}`, changes);
-      setTickets((prev) => prev.map((t) => (t.id === ticketId ? data.ticket : t)));
-    } catch (err) {
-      alert(errMessage(err));
-    }
-  };
-
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -577,219 +535,245 @@ export default function Tickets() {
   const filterButtonCls = (active) =>
     `rounded-md border px-3 py-2 text-sm font-medium transition ${active ? 'text-white' : ''}`;
 
+  const allSelected = tickets.length > 0 && selectedIds.size === tickets.length;
+
   return (
-    <div style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: '2rem 1.5rem' }} className="min-h-full space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Tickets</h1>
-        <Link to="/tickets/new" className="btn-primary">+ New Ticket</Link>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          value={search}
-          onChange={(e) => setSearchTracked(e.target.value)}
-          placeholder="Search by ticket number, title, or keyword…"
-          className="input h-9 min-w-[220px] flex-1 text-sm"
-          style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-        />
-        <select
-          value={status}
-          onChange={(e) => setStatusTracked(e.target.value)}
-          className="input h-9 max-w-[10rem] text-sm"
-          style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-        >
-          {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select
-          value={priority}
-          onChange={(e) => setPriorityTracked(e.target.value)}
-          className="input h-9 max-w-[10rem] text-sm"
-          style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-        >
-          {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select
-          value={assignee}
-          onChange={(e) => setAssigneeTracked(e.target.value)}
-          className="input h-9 max-w-[11rem] text-sm"
-          style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-        >
-          <option value="">All assignees</option>
-          {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-        </select>
-
-        <button
-          type="button"
-          onClick={toggleMyTickets}
-          className={filterButtonCls(myTickets)}
-          style={{ borderColor: myTickets ? BLUE : BORDER, backgroundColor: myTickets ? BLUE : CARD_BG, color: myTickets ? 'white' : TEXT }}
-        >
-          My tickets
-        </button>
-        <button
-          type="button"
-          onClick={toggleOverdue}
-          className={filterButtonCls(overdue)}
-          style={{ borderColor: overdue ? 'var(--color-danger)' : BORDER, backgroundColor: overdue ? 'var(--color-danger)' : CARD_BG, color: overdue ? 'white' : TEXT }}
-        >
-          Overdue
-        </button>
-        <button
-          type="button"
-          onClick={toggleUnassigned}
-          className={filterButtonCls(unassigned)}
-          style={{ borderColor: unassigned ? BLUE : BORDER, backgroundColor: unassigned ? BLUE : CARD_BG, color: unassigned ? 'white' : TEXT }}
-        >
-          Unassigned
-        </button>
-
-        <SavedFiltersMenu
-          savedFilters={savedFilters}
-          activeId={activeSavedFilterId}
-          onApply={applySavedFilter}
-          onSave={saveCurrentFilter}
-          onDelete={deleteSavedFilter}
-        />
-        <ColumnsMenu order={columnPrefs.order} visible={columnPrefs.visible} onChange={setColumnPrefs} />
-
-        <div className="flex rounded-md border" style={{ borderColor: BORDER }}>
-          <button
-            type="button"
-            onClick={() => setView('table')}
-            className="rounded-l-md px-3 py-2 text-sm font-medium"
-            style={{ backgroundColor: view === 'table' ? BLUE : CARD_BG, color: view === 'table' ? 'white' : TEXT }}
-          >
-            Table
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('board')}
-            className="rounded-r-md px-3 py-2 text-sm font-medium"
-            style={{ backgroundColor: view === 'board' ? BLUE : CARD_BG, color: view === 'board' ? 'white' : TEXT }}
-          >
-            Board
-          </button>
+    <div style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: 0, height: '100vh' }} className="flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 space-y-3 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Tickets</h1>
+          <Link to="/tickets/new" className="btn-primary">+ New Ticket</Link>
         </div>
+
+        {/* Toolbar — single row on desktop (lg: 1024px+), wraps on tablet/mobile. */}
+        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
+          <input
+            value={search}
+            onChange={(e) => setSearchTracked(e.target.value)}
+            placeholder="Search by ticket number, title, or keyword…"
+            className="input h-9 min-w-[220px] flex-1 text-sm"
+            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+          />
+          <select
+            value={status}
+            onChange={(e) => setStatusTracked(e.target.value)}
+            className="input h-9 max-w-[10rem] flex-shrink-0 text-sm"
+            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+          >
+            {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select
+            value={priority}
+            onChange={(e) => setPriorityTracked(e.target.value)}
+            className="input h-9 max-w-[10rem] flex-shrink-0 text-sm"
+            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+          >
+            {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select
+            value={assignee}
+            onChange={(e) => setAssigneeTracked(e.target.value)}
+            className="input h-9 max-w-[11rem] flex-shrink-0 text-sm"
+            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+          >
+            <option value="">All assignees</option>
+            {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+          </select>
+
+          <button
+            type="button"
+            onClick={toggleMyTickets}
+            className={`${filterButtonCls(myTickets)} flex-shrink-0`}
+            style={{ borderColor: myTickets ? BLUE : BORDER, backgroundColor: myTickets ? BLUE : CARD_BG, color: myTickets ? 'white' : TEXT }}
+          >
+            My tickets
+          </button>
+          <button
+            type="button"
+            onClick={toggleOverdue}
+            className={`${filterButtonCls(overdue)} flex-shrink-0`}
+            style={{ borderColor: overdue ? 'var(--color-danger)' : BORDER, backgroundColor: overdue ? 'var(--color-danger)' : CARD_BG, color: overdue ? 'white' : TEXT }}
+          >
+            Overdue
+          </button>
+          <button
+            type="button"
+            onClick={toggleUnassigned}
+            className={`${filterButtonCls(unassigned)} flex-shrink-0`}
+            style={{ borderColor: unassigned ? BLUE : BORDER, backgroundColor: unassigned ? BLUE : CARD_BG, color: unassigned ? 'white' : TEXT }}
+          >
+            Unassigned
+          </button>
+
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <SavedFiltersMenu
+              savedFilters={savedFilters}
+              activeId={activeSavedFilterId}
+              onApply={applySavedFilter}
+              onSave={saveCurrentFilter}
+              onDelete={deleteSavedFilter}
+            />
+            <ColumnsMenu order={columnPrefs.order} visible={columnPrefs.visible} onChange={setColumnPrefs} />
+
+            <div className="flex rounded-md border" style={{ borderColor: BORDER }}>
+              <button
+                type="button"
+                onClick={() => setView('table')}
+                className="rounded-l-md px-3 py-2 text-sm font-medium"
+                style={{ backgroundColor: view === 'table' ? BLUE : CARD_BG, color: view === 'table' ? 'white' : TEXT }}
+              >
+                Table
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('board')}
+                className="rounded-r-md px-3 py-2 text-sm font-medium"
+                style={{ backgroundColor: view === 'board' ? BLUE : CARD_BG, color: view === 'board' ? 'white' : TEXT }}
+              >
+                Board
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="rounded-md p-4 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
+            {error}
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="rounded-md p-4 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
-          {error}
+      {/* Bulk action bar — sits between the toolbar and the table, only when
+          at least one row is checked. Tinted with the accent color at low
+          opacity so it reads as distinct from both the toolbar and the table. */}
+      {isStaff && view === 'table' && selectedIds.size > 0 && (
+        <div
+          className="mx-6 mb-3 flex flex-shrink-0 flex-wrap items-center justify-between gap-3 rounded-[10px] border p-3"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 10%, var(--color-bg))', borderColor: BLUE }}
+        >
+          <div className="flex items-center gap-3">
+            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="h-4 w-4 accent-blue-500" />
+            <span className="text-sm font-medium" style={{ color: TEXT }}>{selectedIds.size} selected</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium" style={{ color: MUTED }}>Action:</span>
+            <select
+              value={bulkActionType}
+              onChange={(e) => { setBulkActionType(e.target.value); setBulkValue(''); }}
+              className="input h-9 max-w-[11rem] text-sm"
+              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+            >
+              <option value="">Choose action…</option>
+              <option value="status">Change status</option>
+              <option value="priority">Change priority</option>
+              <option value="reassign">Reassign</option>
+              <option value="close">Close selected</option>
+            </select>
+            {bulkActionType === 'status' && (
+              <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
+                <option value="">Select status…</option>
+                {ticketStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+              </select>
+            )}
+            {bulkActionType === 'priority' && (
+              <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
+                <option value="">Select priority…</option>
+                {PRIORITY_OPTIONS.filter((o) => o.value).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            )}
+            {bulkActionType === 'reassign' && (
+              <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[11rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
+                <option value="">Select assignee…</option>
+                {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={applyBulkAction}
+              disabled={bulkSaving || !bulkActionType || (bulkActionType !== 'close' && !bulkValue)}
+              className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
+              style={{ backgroundColor: BLUE }}
+            >
+              Apply
+            </button>
+          </div>
+
+          <button type="button" onClick={clearSelection} className="text-sm hover:underline" style={{ color: MUTED }}>
+            Clear selection
+          </button>
         </div>
       )}
 
-      {loading ? (
-        <Spinner />
-      ) : view === 'board' ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          {boardColumns.map((col) => (
-            <div
-              key={col.id}
-              className="rounded-[10px] border"
-              style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
-            >
-              <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: BORDER }}>
-                <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: TEXT }}>
-                  <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: col.color }} />
-                  {col.name}
-                </h2>
-                <span
-                  className="rounded-full px-2 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: `color-mix(in srgb, ${col.color} 13%, transparent)`, color: col.color }}
-                >
-                  {col.tickets.length}
-                </span>
-              </div>
-              <div className="space-y-2 p-3">
-                {col.tickets.length === 0 && <p className="text-xs" style={{ color: MUTED }}>No tickets.</p>}
-                {col.tickets.map((t) => {
-                  // Overdue is shown as a highlight on the card, not a
-                  // separate column — a ticket keeps its real status column
-                  // and is flagged red only while that status is still open.
-                  const isOverdue = col.behaviorType === 'open' && t.dueDate && t.dueDate < todayStr();
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={() => navigate(`/tickets/${t.id}`)}
-                      className="cursor-pointer rounded-md border p-3 transition hover:opacity-90"
-                      style={{ backgroundColor: BG, borderColor: isOverdue ? 'var(--color-danger)' : BORDER }}
-                    >
-                      <p className="font-mono text-xs" style={{ color: isOverdue ? 'var(--color-danger)' : MUTED }}>{formatTicketId(t)}</p>
-                      <p className="mt-1 truncate text-sm font-medium" style={{ color: isOverdue ? 'var(--color-danger)' : TEXT }}>{t.title}</p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <PriorityCell priority={t.priority} />
-                        <Avatar name={t.assignee?.displayName} />
+      {/* Scrollable content — the page itself never scrolls; this region does.
+          overflow (both axes) lives on this single element, not a nested
+          wrapper — CSS computes overflow-x/overflow-y as a pair, so an inner
+          `overflow-x-auto` div would silently become its own scrolling
+          context and break the table header's `position: sticky`, which
+          resolves against the *nearest* scrolling ancestor. */}
+      <div className="px-6 pb-6" style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto' }}>
+        {loading ? (
+          <div className="flex h-full items-center justify-center"><Spinner /></div>
+        ) : view === 'board' ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            {boardColumns.map((col) => (
+              <div
+                key={col.id}
+                className="rounded-[10px] border"
+                style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
+              >
+                <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: BORDER }}>
+                  <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: TEXT }}>
+                    <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: col.color }} />
+                    {col.name}
+                  </h2>
+                  <span
+                    className="rounded-full px-2 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: `color-mix(in srgb, ${col.color} 13%, transparent)`, color: col.color }}
+                  >
+                    {col.tickets.length}
+                  </span>
+                </div>
+                <div className="space-y-2 p-3">
+                  {col.tickets.length === 0 && <p className="text-xs" style={{ color: MUTED }}>No tickets.</p>}
+                  {col.tickets.map((t) => {
+                    // Overdue is shown as a highlight on the card, not a
+                    // separate column — a ticket keeps its real status column
+                    // and is flagged red only while that status is still open.
+                    const isOverdue = col.behaviorType === 'open' && t.dueDate && t.dueDate < todayStr();
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => navigate(`/tickets/${t.id}`)}
+                        className="cursor-pointer rounded-md border p-3 transition hover:opacity-90"
+                        style={{ backgroundColor: BG, borderColor: isOverdue ? 'var(--color-danger)' : BORDER }}
+                      >
+                        <p className="font-mono text-xs" style={{ color: isOverdue ? 'var(--color-danger)' : MUTED }}>{formatTicketId(t)}</p>
+                        <p className="mt-1 truncate text-sm font-medium" style={{ color: isOverdue ? 'var(--color-danger)' : TEXT }}>{t.title}</p>
+                        <div className="mt-2 flex items-center justify-between">
+                          <PriorityCell priority={t.priority} />
+                          <Avatar name={t.assignee?.displayName} />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div>
-          {isStaff && selectedIds.size > 0 && (
-            <div
-              className="mb-3 flex flex-wrap items-center gap-3 rounded-[10px] border p-3"
-              style={{ backgroundColor: CARD_BG, borderColor: BLUE }}
-            >
-              <span className="text-sm font-medium" style={{ color: TEXT }}>{selectedIds.size} selected</span>
-              <select
-                value={bulkActionType}
-                onChange={(e) => { setBulkActionType(e.target.value); setBulkValue(''); }}
-                className="input h-9 max-w-[11rem] text-sm"
-                style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-              >
-                <option value="">Choose action…</option>
-                <option value="status">Change status</option>
-                <option value="priority">Change priority</option>
-                <option value="reassign">Reassign</option>
-                <option value="close">Close selected</option>
-              </select>
-              {bulkActionType === 'status' && (
-                <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
-                  <option value="">Select status…</option>
-                  {ticketStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-                </select>
-              )}
-              {bulkActionType === 'priority' && (
-                <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
-                  <option value="">Select priority…</option>
-                  {PRIORITY_OPTIONS.filter((o) => o.value).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              )}
-              {bulkActionType === 'reassign' && (
-                <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[11rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
-                  <option value="">Select assignee…</option>
-                  {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-                </select>
-              )}
-              <button
-                type="button"
-                onClick={applyBulkAction}
-                disabled={bulkSaving || !bulkActionType || (bulkActionType !== 'close' && !bulkValue)}
-                className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
-                style={{ backgroundColor: BLUE }}
-              >
-                Apply
-              </button>
-              <button type="button" onClick={clearSelection} className="text-sm hover:underline" style={{ color: MUTED }}>
-                Clear selection
-              </button>
-            </div>
-          )}
-
-          <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
             <table className="min-w-full">
               <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                <tr>
                   {isStaff && (
-                    <th className="w-10 px-4 py-3">
+                    <th
+                      className="w-10 px-4 py-3"
+                      style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}
+                    >
                       <input
                         type="checkbox"
-                        checked={tickets.length > 0 && selectedIds.size === tickets.length}
+                        checked={allSelected}
                         onChange={toggleSelectAll}
                         className="accent-blue-500"
                       />
@@ -800,7 +784,7 @@ export default function Tickets() {
                       key={key}
                       onClick={() => toggleSort(key)}
                       className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: MUTED }}
+                      style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}
                     >
                       {COLUMN_LABELS[key]}
                       <SortIcon active={sort.key === key} dir={sort.dir} />
@@ -811,7 +795,7 @@ export default function Tickets() {
                       key={key}
                       onClick={() => toggleSort(key)}
                       className={`whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide ${SORTABLE_COLUMNS[key] ? 'cursor-pointer' : ''}`}
-                      style={{ color: MUTED }}
+                      style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}
                     >
                       {COLUMN_LABELS[key]}
                       <SortIcon active={sort.key === key} dir={sort.dir} />
@@ -828,7 +812,7 @@ export default function Tickets() {
                   </tr>
                 )}
                 {tickets.map((t) => (
-                  <tr key={t.id} className="group relative" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  <tr key={t.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
                     {isStaff && (
                       <td className="px-4 py-3">
                         <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} className="accent-blue-500" />
@@ -840,7 +824,7 @@ export default function Tickets() {
                       <AgeLine ticket={t} behaviorByName={behaviorByName} />
                     </td>
                     {visibleColumns.map((key) => (
-                      <td key={key} className="relative whitespace-nowrap px-4 py-3">
+                      <td key={key} className="whitespace-nowrap px-4 py-3">
                         {key === 'priority' && <PriorityCell priority={t.priority} />}
                         {key === 'status' && <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />}
                         {key === 'dueDate' && <DueDateCell dueDate={t.dueDate} />}
@@ -852,74 +836,6 @@ export default function Tickets() {
                         {key === 'actions' && (
                           <Link to={`/tickets/${t.id}`} className="text-sm" style={{ color: 'var(--color-accent)' }}>Open →</Link>
                         )}
-
-                        {isStaff && key === 'status' && (
-                          <span className="relative ml-2 hidden group-hover:inline-block">
-                            <button
-                              type="button"
-                              onClick={() => setQuickAction((q) => (q?.ticketId === t.id && q.field === 'status' ? null : { ticketId: t.id, field: 'status' }))}
-                              className="rounded px-1 text-xs"
-                              style={{ color: MUTED }}
-                              title="Quick change status"
-                            >
-                              ▾
-                            </button>
-                            {quickAction?.ticketId === t.id && quickAction.field === 'status' && (
-                              <QuickActionMenu
-                                field="status"
-                                ticket={t}
-                                assignableUsers={assignableUsers}
-                                ticketStatuses={ticketStatuses}
-                                onClose={() => setQuickAction(null)}
-                                onChange={(v) => { patchTicket(t.id, { status: v }); setQuickAction(null); }}
-                              />
-                            )}
-                          </span>
-                        )}
-                        {isStaff && key === 'assignee' && (
-                          <span className="relative ml-2 hidden group-hover:inline-block">
-                            <button
-                              type="button"
-                              onClick={() => setQuickAction((q) => (q?.ticketId === t.id && q.field === 'assignee' ? null : { ticketId: t.id, field: 'assignee' }))}
-                              className="rounded px-1 text-xs"
-                              style={{ color: MUTED }}
-                              title="Quick reassign"
-                            >
-                              ▾
-                            </button>
-                            {quickAction?.ticketId === t.id && quickAction.field === 'assignee' && (
-                              <QuickActionMenu
-                                field="assignee"
-                                ticket={t}
-                                assignableUsers={assignableUsers}
-                                onClose={() => setQuickAction(null)}
-                                onChange={(v) => { patchTicket(t.id, { assigneeId: v || null }); setQuickAction(null); }}
-                              />
-                            )}
-                          </span>
-                        )}
-                        {key === 'priority' && (
-                          <span className="relative ml-2 hidden group-hover:inline-block">
-                            <button
-                              type="button"
-                              onClick={() => setQuickAction((q) => (q?.ticketId === t.id && q.field === 'priority' ? null : { ticketId: t.id, field: 'priority' }))}
-                              className="rounded px-1 text-xs"
-                              style={{ color: MUTED }}
-                              title="Quick change priority"
-                            >
-                              ▾
-                            </button>
-                            {quickAction?.ticketId === t.id && quickAction.field === 'priority' && (
-                              <QuickActionMenu
-                                field="priority"
-                                ticket={t}
-                                assignableUsers={assignableUsers}
-                                onClose={() => setQuickAction(null)}
-                                onChange={(v) => { patchTicket(t.id, { priority: v }); setQuickAction(null); }}
-                              />
-                            )}
-                          </span>
-                        )}
                       </td>
                     ))}
                   </tr>
@@ -927,8 +843,8 @@ export default function Tickets() {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
