@@ -261,7 +261,7 @@ function SidebarSection({ title, collapsed, children }) {
 }
 
 function Sidebar({
-  ticket, collapsed, onToggle, isStaff, patchTicket,
+  ticket, collapsed, onToggle, headerHeight, isStaff, patchTicket,
   assignableUsers, teams, directory,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
@@ -279,11 +279,27 @@ function Sidebar({
     : [];
 
   const width = collapsed ? 44 : 240;
+  // Stick just below the ticket header and cap our own box to the remaining
+  // viewport height, so the sidebar (and its toggle button) stay in view as
+  // the page scrolls, and the icon/field list scrolls internally instead of
+  // spilling past the sidebar's own bottom edge.
+  const top = headerHeight || 0;
 
   return (
     <aside
       className="relative flex-shrink-0 transition-all"
-      style={{ width, borderRight: `1px solid ${BORDER}`, backgroundColor: CARD_BG }}
+      style={{
+        width,
+        height: '100%',
+        alignSelf: 'stretch',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'sticky',
+        top,
+        maxHeight: `calc(100vh - ${top}px)`,
+        borderRight: `1px solid ${BORDER}`,
+        backgroundColor: CARD_BG,
+      }}
     >
       <button
         type="button"
@@ -295,7 +311,10 @@ function Sidebar({
         {collapsed ? '›' : '‹'}
       </button>
 
-      <div className={collapsed ? 'flex flex-col items-center gap-4 pt-14' : 'space-y-5 p-4 pt-14'}>
+      <div
+        className={collapsed ? 'flex flex-col items-center gap-4 pt-14' : 'space-y-5 p-4 pt-14'}
+        style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}
+      >
         <SidebarSection title="Contact Info" collapsed={collapsed}>
           {collapsed ? (
             <span title={`${ticket.requester?.displayName} · ${ticket.requester?.department?.name || 'No department'} · ${ticket.requester?.email || 'no email'}`} className="text-lg">👤</span>
@@ -920,7 +939,30 @@ export default function TicketDetail() {
   const { id } = useParams();
   const { user, isStaff } = useAuth();
   const fileRef = useRef(null);
+  const headerObserverRef = useRef(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
   const timer = useTimer();
+
+  // Measure the sticky header so the sidebar can stick just below it and cap
+  // its own height to the remaining viewport. A callback ref (rather than a
+  // plain ref + useEffect) is required here: the header div doesn't exist yet
+  // during the initial loading-spinner render, and a useEffect with an empty
+  // dependency array only runs once on that first mount — it would never see
+  // the real header once the ticket finishes loading. The callback ref fires
+  // again whenever the node itself changes.
+  const headerRef = useCallback((node) => {
+    if (headerObserverRef.current) {
+      headerObserverRef.current.disconnect();
+      headerObserverRef.current = null;
+    }
+    if (node) {
+      const update = () => setHeaderHeight(node.getBoundingClientRect().height);
+      update();
+      const observer = new ResizeObserver(update);
+      observer.observe(node);
+      headerObserverRef.current = observer;
+    }
+  }, []);
 
   const [ticket, setTicket] = useState(null);
   const [comments, setComments] = useState([]);
@@ -1153,7 +1195,7 @@ export default function TicketDetail() {
   return (
     <div style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: 0 }} className="min-h-full">
       {/* Header */}
-      <div className="sticky top-0 z-20 px-6 py-4" style={{ backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
+      <div ref={headerRef} className="sticky top-0 z-20 px-6 py-4" style={{ backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
         <Link to="/tickets" className="text-sm hover:underline" style={{ color: MUTED }}>← Back to tickets</Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -1187,12 +1229,14 @@ export default function TicketDetail() {
         </div>
       </div>
 
-      {/* Body: sidebar + main */}
-      <div className="flex">
+      {/* Body: sidebar + main. items-stretch (flex default, made explicit) so
+          the sidebar and main content column always match height. */}
+      <div className="flex items-stretch">
         <Sidebar
           ticket={ticket}
           collapsed={collapsed}
           onToggle={() => setCollapsed((c) => !c)}
+          headerHeight={headerHeight}
           isStaff={isStaff}
           patchTicket={patchTicket}
           assignableUsers={assignableUsers}
