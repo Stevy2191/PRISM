@@ -85,6 +85,14 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: true,
       },
+      // Personal color overrides — { "--color-accent": "#e11d48", ... }.
+      // null/empty means the user has no personal overrides and inherits
+      // the admin palette (or built-in theme defaults if the admin hasn't
+      // set one), see SettingsContext.jsx's tier-based color resolution.
+      userColors: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
     },
     {
       sequelize,

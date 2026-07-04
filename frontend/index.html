@@ -60,6 +60,38 @@
           set('--brand-primary-rgb', hexToTriplet(theme.accent));
         } catch (e) {}
       })();
+
+      // Layer the last-known user's personal color overrides (tier 1, the
+      // highest-priority tier) on top of everything above — cached per-user
+      // since these are individual, not org-wide. Written by
+      // SettingsContext.jsx's applyPersonalColors() only while the admin
+      // still allows overrides, so its mere presence here is enough to
+      // apply it; a stale cache (overrides since disabled, or a different
+      // user signed in on this device) self-corrects once React mounts and
+      // PersonalColorsSync re-resolves from the authoritative /auth/me +
+      // /settings/public data.
+      (function () {
+        try {
+          var lastUserId = localStorage.getItem('prism.lastUserId');
+          if (!lastUserId) return;
+          var cached = localStorage.getItem('prism_colors_' + lastUserId);
+          if (!cached) return;
+          var colors = JSON.parse(cached);
+          var root = document.documentElement;
+          var ALLOWED = [
+            '--color-bg', '--color-sidebar', '--color-card', '--color-border',
+            '--color-accent', '--color-text-primary', '--color-text-secondary',
+            '--color-success', '--color-warning', '--color-danger',
+          ];
+          Object.keys(colors).forEach(function (name) {
+            if (ALLOWED.indexOf(name) !== -1 && colors[name]) root.style.setProperty(name, colors[name]);
+          });
+          if (colors['--color-accent']) {
+            var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(colors['--color-accent']).trim());
+            if (m) root.style.setProperty('--brand-primary-rgb', parseInt(m[1], 16) + ' ' + parseInt(m[2], 16) + ' ' + parseInt(m[3], 16));
+          }
+        } catch (e) {}
+      })();
     </script>
   </head>
   <body class="bg-navy-50">

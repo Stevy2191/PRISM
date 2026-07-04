@@ -67,7 +67,7 @@ function Label({ children, required }) {
   );
 }
 
-const fieldStyle = { backgroundColor: BG, borderColor: BORDER, color: TEXT };
+const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };
 
 function initials(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);

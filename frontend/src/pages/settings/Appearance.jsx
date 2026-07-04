@@ -102,6 +102,7 @@ export default function Appearance() {
   const { settings, refresh } = useSettings();
   const [theme, setTheme] = useState(null);
   const [themeMode, setThemeMode] = useState('auto');
+  const [usersCanOverrideColors, setUsersCanOverrideColors] = useState(true);
   const [appName, setAppName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [tagline, setTagline] = useState('');
@@ -118,6 +119,7 @@ export default function Appearance() {
       .then(({ data }) => {
         const s = data.settings;
         setThemeMode(s['theme.mode'] || 'auto');
+        setUsersCanOverrideColors(s['theme.usersCanOverrideColors'] !== 'false');
         setTheme({
           bg: s['theme.bg'], sidebar: s['theme.sidebar'], card: s['theme.card'], border: s['theme.border'],
           accent: s['theme.accent'], accentHover: s['theme.accentHover'], textPrimary: s['theme.textPrimary'],
@@ -201,6 +203,17 @@ export default function Appearance() {
     }
   };
 
+  const toggleUsersCanOverride = async (checked) => {
+    setUsersCanOverrideColors(checked);
+    try {
+      await api.patch('/settings', { settings: { 'theme.usersCanOverrideColors': checked } });
+      await refresh();
+    } catch (err) {
+      setUsersCanOverrideColors(!checked);
+      alert(errMessage(err));
+    }
+  };
+
   const uploadFavicon = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -242,8 +255,28 @@ export default function Appearance() {
         {themeMode === 'custom'
           ? 'A custom color palette is active for everyone and overrides each user’s own light/dark preference below.'
           : 'No custom palette is active — everyone sees their own Light/Dark/System preference from Settings → Preferences. Saving here applies a palette for all users.'}
+        {' '}These colors apply to all users who haven’t set their own personal colors.
       </p>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
+
+      <div className="card flex items-center justify-between p-4">
+        <div>
+          <p className="font-medium text-navy-900">Allow users to override colors</p>
+          <p className="text-sm text-navy-500">
+            When off, personal color overrides (Settings → Preferences) are disabled and ignored — everyone sees this palette.
+          </p>
+        </div>
+        <label className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer items-center">
+          <input
+            type="checkbox"
+            checked={usersCanOverrideColors}
+            onChange={(e) => toggleUsersCanOverride(e.target.checked)}
+            className="peer sr-only"
+          />
+          <span className="absolute inset-0 rounded-full bg-navy-200 transition peer-checked:bg-prism" />
+          <span className="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
+        </label>
+      </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Left: settings form */}

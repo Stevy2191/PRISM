@@ -48,8 +48,8 @@ export default function Login() {
   const inputStyle = {
     width: '100%',
     boxSizing: 'border-box',
-    backgroundColor: 'var(--color-card)',
-    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-input-bg)',
+    border: '1px solid var(--color-input-border)',
     borderRadius: 7,
     padding: '13px 16px',
     fontSize: 15,

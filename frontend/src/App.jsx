@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import PersonalColorsSync from './components/PersonalColorsSync';
 
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
@@ -40,6 +41,8 @@ const staff = (el) => <ProtectedRoute roles={['admin', 'technician']}>{el}</Prot
 
 export default function App() {
   return (
+    <>
+    <PersonalColorsSync />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
@@ -100,5 +103,6 @@ export default function App() {
 
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </>
   );
 }

@@ -241,7 +241,7 @@ function SavedFiltersMenu({ savedFilters, activeId, onApply, onSave, onDelete })
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Filter name"
                   className="input h-8 flex-1 text-sm"
-                  style={{ backgroundColor: BG, borderColor: BORDER, color: TEXT }}
+                  style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && name.trim()) { onSave(name.trim()); setName(''); setShowSave(false); }
                   }}
@@ -591,13 +591,13 @@ export default function Tickets() {
           onChange={(e) => setSearchTracked(e.target.value)}
           placeholder="Search by ticket number, title, or keyword…"
           className="input h-9 min-w-[220px] flex-1 text-sm"
-          style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: TEXT }}
+          style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
         />
         <select
           value={status}
           onChange={(e) => setStatusTracked(e.target.value)}
           className="input h-9 max-w-[10rem] text-sm"
-          style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: TEXT }}
+          style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
         >
           {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -605,7 +605,7 @@ export default function Tickets() {
           value={priority}
           onChange={(e) => setPriorityTracked(e.target.value)}
           className="input h-9 max-w-[10rem] text-sm"
-          style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: TEXT }}
+          style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
         >
           {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -613,7 +613,7 @@ export default function Tickets() {
           value={assignee}
           onChange={(e) => setAssigneeTracked(e.target.value)}
           className="input h-9 max-w-[11rem] text-sm"
-          style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: TEXT }}
+          style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
         >
           <option value="">All assignees</option>
           {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
@@ -740,7 +740,7 @@ export default function Tickets() {
                 value={bulkActionType}
                 onChange={(e) => { setBulkActionType(e.target.value); setBulkValue(''); }}
                 className="input h-9 max-w-[11rem] text-sm"
-                style={{ backgroundColor: BG, borderColor: BORDER, color: TEXT }}
+                style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
               >
                 <option value="">Choose action…</option>
                 <option value="status">Change status</option>
@@ -749,19 +749,19 @@ export default function Tickets() {
                 <option value="close">Close selected</option>
               </select>
               {bulkActionType === 'status' && (
-                <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: BG, borderColor: BORDER, color: TEXT }}>
+                <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
                   <option value="">Select status…</option>
                   {ticketStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               )}
               {bulkActionType === 'priority' && (
-                <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: BG, borderColor: BORDER, color: TEXT }}>
+                <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
                   <option value="">Select priority…</option>
                   {PRIORITY_OPTIONS.filter((o) => o.value).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               )}
               {bulkActionType === 'reassign' && (
-                <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[11rem] text-sm" style={{ backgroundColor: BG, borderColor: BORDER, color: TEXT }}>
+                <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[11rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
                   <option value="">Select assignee…</option>
                   {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
                 </select>

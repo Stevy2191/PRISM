@@ -54,6 +54,10 @@ const DEFAULTS = {
   'theme.warning': '#f59e0b',
   'theme.danger': '#ef4444',
   'theme.timer': '#4ade80',
+  // Tier 1 of the color system (see SettingsContext.jsx): when false, every
+  // user's personal color overrides are ignored and everyone sees the
+  // admin palette (tier 3) / built-in theme (tier 4) instead.
+  'theme.usersCanOverrideColors': 'true',
 };
 
 // Settings that store JSON-encoded values rather than plain strings.
@@ -115,6 +119,7 @@ function publicShape(values) {
       warning: values['theme.warning'],
       danger: values['theme.danger'],
       timer: values['theme.timer'],
+      usersCanOverrideColors: values['theme.usersCanOverrideColors'] !== 'false',
     },
     logoUrl: hasLogo ? '/api/v1/settings/logo' : null,
     faviconUrl: hasFavicon ? '/api/v1/settings/favicon' : null,

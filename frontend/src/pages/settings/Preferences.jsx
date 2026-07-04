@@ -1,8 +1,29 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings, applyPersonalColors } from '../../context/SettingsContext';
 import { useTheme, THEME_OPTIONS } from '../../context/ThemeContext';
+
+// Tier 1 (personal) fields — a smaller set than the admin Appearance page,
+// keyed by literal CSS variable name so they can be applied/stored directly.
+const PERSONAL_COLOR_FIELDS = [
+  ['--color-bg', 'App background'],
+  ['--color-sidebar', 'Sidebar background'],
+  ['--color-card', 'Card / panel background'],
+  ['--color-border', 'Border color'],
+  ['--color-accent', 'Primary accent'],
+  ['--color-text-primary', 'Text primary'],
+  ['--color-text-secondary', 'Text secondary'],
+  ['--color-success', 'Success'],
+  ['--color-warning', 'Warning'],
+  ['--color-danger', 'Danger'],
+];
+
+function getResolvedColor(varName) {
+  const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  return val || '#000000';
+}
 
 const THRESHOLD_OPTIONS = [
   { value: 0, label: 'No minimum' },
@@ -46,7 +67,8 @@ function ThemeSwatch({ value }) {
 // this under Settings). Profile fields come from the directory / account and are
 // read-only here; local accounts can change their password.
 export default function Preferences() {
-  const { user, isStaff, refresh } = useAuth();
+  const { user, isStaff, isAdmin, refresh } = useAuth();
+  const { settings } = useSettings();
   const { theme, setTheme } = useTheme();
   const [timerMode, setTimerMode] = useState(user?.timerMode || 'manual');
   const [timerMinThreshold, setTimerMinThreshold] = useState(user?.timerMinThreshold ?? 0);
@@ -74,6 +96,57 @@ export default function Preferences() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ---- Personal colors (tier 1) ----
+  const overridesAllowed = settings.theme?.usersCanOverrideColors !== false;
+  const [useOwnColors, setUseOwnColors] = useState(!!(user?.userColors && Object.keys(user.userColors).length));
+  const [colors, setColors] = useState(() => {
+    const seed = {};
+    PERSONAL_COLOR_FIELDS.forEach(([varName]) => {
+      seed[varName] = user?.userColors?.[varName] || getResolvedColor(varName);
+    });
+    return seed;
+  });
+  const [colorsSaving, setColorsSaving] = useState(false);
+  const [colorsSaved, setColorsSaved] = useState(false);
+  const [colorsError, setColorsError] = useState('');
+  const saveTimer = useRef(null);
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
+
+  const persistColors = async (payload) => {
+    setColorsSaving(true);
+    setColorsError('');
+    try {
+      await api.patch(`/users/${user.id}/preferences`, { userColors: payload });
+      await refresh();
+      setColorsSaved(true);
+      setTimeout(() => setColorsSaved(false), 2000);
+    } catch (err) {
+      setColorsError(errMessage(err));
+    } finally {
+      setColorsSaving(false);
+    }
+  };
+
+  const handleColorChange = (varName, value) => {
+    const next = { ...colors, [varName]: value };
+    setColors(next);
+    applyPersonalColors(user.id, next); // instant live preview
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => persistColors(next), 500);
+  };
+
+  const handleToggleOwnColors = (checked) => {
+    setUseOwnColors(checked);
+    applyPersonalColors(user.id, checked ? colors : null);
+    persistColors(checked ? colors : null);
+  };
+
+  const resetPersonalColors = () => {
+    setUseOwnColors(false);
+    applyPersonalColors(user.id, null);
+    persistColors(null);
   };
 
   return (
@@ -108,6 +181,87 @@ export default function Preferences() {
           ))}
         </div>
         <p className="mt-2 text-xs text-navy-400">“System” follows your operating system’s light/dark setting. Your choice applies immediately and is saved on this device.</p>
+        <p className="mt-1 text-xs text-navy-400">
+          Your theme choice applies on top of the system palette. Enable personal colors below to fully customize your experience.
+        </p>
+        {isAdmin && (
+          <Link to="/settings/appearance" className="mt-2 inline-block text-xs text-prism hover:underline">
+            Customize system-wide colors →
+          </Link>
+        )}
+      </div>
+
+      <div className="card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold text-navy-900">Personal Colors</h2>
+          {colorsSaved && <span className="text-xs font-medium text-green-600">Saved</span>}
+        </div>
+        {colorsError && <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{colorsError}</div>}
+
+        {!overridesAllowed ? (
+          <p className="text-sm text-navy-500">
+            Your administrator has disabled personal color overrides. Everyone sees the system palette.
+          </p>
+        ) : (
+          <>
+            <label className="flex items-center justify-between">
+              <span>
+                <span className="block text-sm font-medium text-navy-800">Use my own colors</span>
+                <span className="block text-xs text-navy-400">Override the system palette with colors only you see.</span>
+              </span>
+              <span className="relative inline-flex h-6 w-11 flex-shrink-0 items-center">
+                <input
+                  type="checkbox"
+                  checked={useOwnColors}
+                  disabled={colorsSaving}
+                  onChange={(e) => handleToggleOwnColors(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <span className="absolute inset-0 rounded-full bg-navy-200 transition peer-checked:bg-prism" />
+                <span className="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
+              </span>
+            </label>
+
+            {!useOwnColors ? (
+              <div className="mt-4">
+                <p className="text-sm text-navy-500">
+                  You are using the {settings.theme?.mode === 'custom' ? 'system palette' : 'default theme'} colors.
+                </p>
+                <div className="mt-2 flex overflow-hidden rounded-md border border-navy-200" style={{ height: 28 }}>
+                  {PERSONAL_COLOR_FIELDS.map(([varName]) => (
+                    <span key={varName} className="flex-1" style={{ backgroundColor: getResolvedColor(varName) }} />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {PERSONAL_COLOR_FIELDS.map(([varName, label]) => (
+                    <div key={varName}>
+                      <label className="label">{label}</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          className="h-9 w-12 rounded border border-navy-200"
+                          value={colors[varName] || '#000000'}
+                          onChange={(e) => handleColorChange(varName, e.target.value)}
+                        />
+                        <input
+                          className="input font-mono text-sm"
+                          value={colors[varName] || ''}
+                          onChange={(e) => handleColorChange(varName, e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={resetPersonalColors} className="btn-secondary" disabled={colorsSaving}>
+                  Reset to system defaults
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {isStaff && (

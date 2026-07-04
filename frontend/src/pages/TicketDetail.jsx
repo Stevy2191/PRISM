@@ -207,7 +207,7 @@ function Modal({ title, children, onClose }) {
   );
 }
 
-const fieldStyle = { backgroundColor: BG, borderColor: BORDER, color: TEXT };
+const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };
 
 // Shared by the manual time entry modal and the timer's log modal — only
 // rendered at all when the caller has confirmed canLogTimeForOthers, so no

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import api from '../api/api';
+import { applyPersonalColors } from './SettingsContext';
 
 const AuthContext = createContext(null);
 
@@ -39,6 +40,8 @@ export function AuthProvider({ children }) {
       await api.post('/auth/logout');
     } finally {
       setUser(null);
+      try { localStorage.removeItem('prism.lastUserId'); } catch { /* ignore */ }
+      applyPersonalColors(null, null);
     }
   };
 
