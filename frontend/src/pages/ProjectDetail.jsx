@@ -30,6 +30,7 @@ export default function ProjectDetail() {
   const [time, setTime] = useState({ entries: [], totalMinutes: 0 });
   const [timeForm, setTimeForm] = useState({ minutes: '', note: '', date: '' });
   const [statuses, setStatuses] = useState([]);
+  const [ticketStatuses, setTicketStatuses] = useState([]);
 
   const load = async () => {
     try {
@@ -94,6 +95,7 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     api.get('/project-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
+    api.get('/ticket-statuses').then(({ data }) => setTicketStatuses(data.statuses)).catch(() => {});
   }, []);
 
   const patchProject = async (changes) => {
@@ -159,7 +161,7 @@ export default function ProjectDetail() {
           <Link to="/projects" className="text-sm text-prism hover:underline">← Back to projects</Link>
           <h1 className="mt-1 flex items-center gap-3 text-2xl font-bold text-navy-900">
             {project.name}
-            <Badge value={project.status} />
+            <Badge value={project.status} color={statuses.find((s) => s.name === project.status)?.color} />
           </h1>
           <p className="text-sm text-navy-500">
             {project.department?.name || 'No department'} · Owner: {project.owner?.displayName || '—'}
@@ -208,7 +210,7 @@ export default function ProjectDetail() {
                   </Link>
                   <div className="flex gap-2">
                     <Badge value={t.priority} />
-                    <Badge value={t.status} />
+                    <Badge value={t.status} color={ticketStatuses.find((s) => s.name === t.status)?.color} />
                   </div>
                 </li>
               ))}

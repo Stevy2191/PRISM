@@ -9,6 +9,7 @@ import { formatTicketId } from '../utils/ticketId';
 // (Full month calendar and external calendar sync come in a later phase.)
 export default function Calendar() {
   const [tickets, setTickets] = useState([]);
+  const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -17,7 +18,10 @@ export default function Calendar() {
       .then(({ data }) => setTickets(data.tickets))
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
+    api.get('/ticket-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
   }, []);
+
+  const colorFor = (name) => statuses.find((s) => s.name === name)?.color;
 
   if (loading) return <Spinner />;
   if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
@@ -55,7 +59,7 @@ export default function Calendar() {
                     </Link>
                     <div className="flex gap-2">
                       <Badge value={t.priority} />
-                      <Badge value={t.status} />
+                      <Badge value={t.status} color={colorFor(t.status)} />
                     </div>
                   </li>
                 ))}

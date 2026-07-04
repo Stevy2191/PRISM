@@ -7,11 +7,9 @@
 // most one notification per ticket per type.
 const { Op } = require('sequelize');
 const { Notification, Ticket, TicketWatcher } = require('../models');
+const { getTicketStatusBuckets } = require('./statusBehavior');
 
 const DUE_SOON_DAYS = 2;
-// Matches the default seeded TicketStatuses rows' names — see the matching
-// note in dashboardController.js.
-const CLOSED_STATUSES = ['Resolved', 'Closed'];
 
 function truncate(text, len) {
   const clean = String(text || '').trim();
@@ -108,10 +106,14 @@ async function syncDerivedNotifications(userId) {
   soon.setDate(soon.getDate() + DUE_SOON_DAYS);
   const soonStr = soon.toISOString().slice(0, 10);
 
+  // Only tickets whose status currently behaves as "open" are candidates —
+  // closed AND archived tickets are both excluded, rather than a hardcoded
+  // "not closed" name check that would incorrectly include archived ones.
+  const buckets = await getTicketStatusBuckets();
   const candidates = await Ticket.findAll({
     where: {
       assigneeId: userId,
-      status: { [Op.notIn]: CLOSED_STATUSES },
+      status: { [Op.in]: buckets.open },
       dueDate: { [Op.ne]: null },
     },
   });

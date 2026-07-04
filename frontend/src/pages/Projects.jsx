@@ -9,6 +9,7 @@ import TimerButton from '../components/TimerButton';
 export default function Projects() {
   const { isStaff } = useAuth();
   const [projects, setProjects] = useState([]);
+  const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -18,7 +19,10 @@ export default function Projects() {
       .then(({ data }) => setProjects(data.projects))
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
+    api.get('/project-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
   }, []);
+
+  const colorFor = (name) => statuses.find((s) => s.name === name)?.color;
 
   if (loading) return <Spinner />;
 
@@ -39,7 +43,7 @@ export default function Projects() {
             <Link key={p.id} to={`/projects/${p.id}`} className="card p-5 transition hover:shadow-md">
               <div className="flex items-start justify-between">
                 <h2 className="font-semibold text-navy-900">{p.name}</h2>
-                <Badge value={p.status} />
+                <Badge value={p.status} color={colorFor(p.status)} />
               </div>
               <p className="mt-2 line-clamp-3 text-sm text-navy-500">{p.description || 'No description.'}</p>
               <div className="mt-4 flex items-center justify-between text-xs text-navy-400">

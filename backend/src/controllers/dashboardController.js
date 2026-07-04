@@ -2,13 +2,8 @@ const { Op } = require('sequelize');
 const { Ticket, Project, User, TimeEntry, Notification, AuditLog } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
+const { getTicketStatusBuckets } = require('../services/statusBehavior');
 
-// Matches the default seeded TicketStatuses rows' names (behaviorType
-// open/closed). Covers the built-in statuses; a custom admin-added status
-// won't be bucketed correctly here without a dynamic behaviorType lookup —
-// a known, deliberately scoped-out limitation for this pass.
-const OPEN_STATUSES = ['Open', 'In Progress', 'On Hold', 'Pending'];
-const CLOSED_STATUSES = ['Resolved', 'Closed'];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 function todayStr() {
@@ -25,8 +20,11 @@ function startOfWeek(date) {
   return d;
 }
 
-function displayStatus(ticket) {
-  if (CLOSED_STATUSES.includes(ticket.status)) return 'closed';
+// `behaviorByName` is the Map<statusName, behaviorType> for the current
+// ticket_statuses table — passed in rather than a hardcoded list so a
+// custom/renamed status is classified correctly the moment it exists.
+function displayStatus(ticket, behaviorByName) {
+  if (behaviorByName.get(ticket.status) === 'closed') return 'closed';
   if (ticket.dueDate && ticket.dueDate < todayStr()) return 'overdue';
   if (ticket.status === 'In Progress') return 'in_progress';
   return 'open';
@@ -42,15 +40,17 @@ function dueDateBadge(dueDate) {
 }
 
 // Project completion is tracked project-wide (closed tasks / total tasks),
-// regardless of which user's view is requesting it.
-async function projectHealthFor(projectWhere) {
+// regardless of which user's view is requesting it. `buckets` is the
+// {open, closed, archived} status-name grouping from getTicketStatusBuckets().
+async function projectHealthFor(projectWhere, buckets) {
   const projects = await Project.findAll({ where: projectWhere, order: [['dueDate', 'ASC']] });
 
   return Promise.all(
     projects.map(async (project) => {
-      const [totalTasks, closedTasks] = await Promise.all([
+      const [totalTasks, closedTasks, openTasks] = await Promise.all([
         Ticket.count({ where: { projectId: project.id } }),
-        Ticket.count({ where: { projectId: project.id, status: { [Op.in]: CLOSED_STATUSES } } }),
+        Ticket.count({ where: { projectId: project.id, status: { [Op.in]: buckets.closed } } }),
+        Ticket.count({ where: { projectId: project.id, status: { [Op.in]: buckets.open } } }),
       ]);
       const percent = totalTasks ? Math.round((closedTasks / totalTasks) * 100) : 0;
       return {
@@ -60,28 +60,30 @@ async function projectHealthFor(projectWhere) {
         dueBadge: dueDateBadge(project.dueDate),
         totalTasks,
         closedTasks,
-        openTasks: totalTasks - closedTasks,
+        openTasks,
         percent,
       };
     })
   );
 }
 
-async function statsForUser(userId, scopeField) {
+async function statsForUser(userId, scopeField, buckets) {
   const today = todayStr();
   const thisWeekStart = startOfWeek(new Date());
   const lastWeekStart = new Date(thisWeekStart);
   lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
   const [openTickets, overdueTickets, highPriorityOpen, closedThisWeek, closedLastWeek] = await Promise.all([
-    Ticket.count({ where: { [scopeField]: userId, status: { [Op.in]: OPEN_STATUSES } } }),
+    Ticket.count({ where: { [scopeField]: userId, status: { [Op.in]: buckets.open } } }),
     Ticket.count({
-      where: { [scopeField]: userId, status: { [Op.notIn]: CLOSED_STATUSES }, dueDate: { [Op.lt]: today } },
+      // Only OPEN tickets can be "overdue" — archived/closed tickets are
+      // hidden from this count rather than lumped in via a NOT-closed check.
+      where: { [scopeField]: userId, status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } },
     }),
     Ticket.count({
       where: {
         [scopeField]: userId,
-        status: { [Op.in]: OPEN_STATUSES },
+        status: { [Op.in]: buckets.open },
         priority: { [Op.in]: ['high', 'critical'] },
       },
     }),
@@ -101,16 +103,16 @@ async function statsForUser(userId, scopeField) {
   };
 }
 
-async function systemStats() {
+async function systemStats(buckets) {
   const today = todayStr();
   const thisWeekStart = startOfWeek(new Date());
   const lastWeekStart = new Date(thisWeekStart);
   lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
   const [openTickets, overdueTickets, unassignedTickets, closedThisWeek, closedLastWeek] = await Promise.all([
-    Ticket.count({ where: { status: { [Op.in]: OPEN_STATUSES } } }),
-    Ticket.count({ where: { status: { [Op.notIn]: CLOSED_STATUSES }, dueDate: { [Op.lt]: today } } }),
-    Ticket.count({ where: { assigneeId: null, status: { [Op.notIn]: CLOSED_STATUSES } } }),
+    Ticket.count({ where: { status: { [Op.in]: buckets.open } } }),
+    Ticket.count({ where: { status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } } }),
+    Ticket.count({ where: { assigneeId: null, status: { [Op.in]: buckets.open } } }),
     Ticket.count({ where: { resolvedAt: { [Op.gte]: thisWeekStart } } }),
     Ticket.count({ where: { resolvedAt: { [Op.gte]: lastWeekStart, [Op.lt]: thisWeekStart } } }),
   ]);
@@ -125,7 +127,7 @@ async function systemStats() {
   };
 }
 
-async function ticketsForUser(userId, scopeField) {
+async function ticketsForUser(userId, scopeField, behaviorByName) {
   const tickets = await Ticket.findAll({
     where: { [scopeField]: userId },
     order: [['updatedAt', 'DESC']],
@@ -136,7 +138,7 @@ async function ticketsForUser(userId, scopeField) {
     ticketNumber: String(t.id).padStart(5, '0'),
     title: t.title,
     status: t.status,
-    displayStatus: displayStatus(t),
+    displayStatus: displayStatus(t, behaviorByName),
     priority: t.priority,
     dueDate: t.dueDate,
     updatedAt: t.updatedAt,
@@ -177,7 +179,7 @@ async function hoursForUser(userId) {
   return { total, byDay };
 }
 
-async function teamWorkload() {
+async function teamWorkload(buckets) {
   const staffUsers = await User.findAll({
     where: { role: { [Op.in]: ['admin', 'technician'] } },
     attributes: ['id', 'displayName'],
@@ -186,7 +188,7 @@ async function teamWorkload() {
     staffUsers.map(async (u) => ({
       userId: u.id,
       displayName: u.displayName,
-      openCount: await Ticket.count({ where: { assigneeId: u.id, status: { [Op.in]: OPEN_STATUSES } } }),
+      openCount: await Ticket.count({ where: { assigneeId: u.id, status: { [Op.in]: buckets.open } } }),
     }))
   );
   return rows.sort((a, b) => b.openCount - a.openCount);
@@ -194,7 +196,7 @@ async function teamWorkload() {
 
 // System-wide recent events: ticket opened/closed/assigned (from the audit
 // log) merged with tickets currently overdue, newest first.
-async function activityFeed() {
+async function activityFeed(buckets) {
   const logs = await AuditLog.findAll({
     where: { entityType: 'Ticket', action: { [Op.in]: ['ticket.create', 'ticket.update'] } },
     include: [{ model: User, as: 'user', attributes: ['id', 'displayName'] }],
@@ -211,7 +213,11 @@ async function activityFeed() {
   const fromLogs = logs.map((log) => {
     let action = 'updated';
     if (log.action === 'ticket.create') action = 'opened';
-    else if (log.meta?.status && CLOSED_STATUSES.includes(log.meta.status)) action = 'closed';
+    // Historical audit rows store whatever status name was current at the
+    // time — if that status has since been renamed or deleted, this simply
+    // won't match today's closed bucket, which is an acceptable limitation
+    // of comparing a point-in-time snapshot against the live status table.
+    else if (log.meta?.status && buckets.closed.includes(log.meta.status)) action = 'closed';
     else if (log.meta?.assigneeId !== undefined) action = 'assigned';
 
     return {
@@ -227,7 +233,7 @@ async function activityFeed() {
 
   const today = todayStr();
   const overdueTickets = await Ticket.findAll({
-    where: { status: { [Op.notIn]: CLOSED_STATUSES }, dueDate: { [Op.lt]: today } },
+    where: { status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } },
     order: [['dueDate', 'ASC']],
     limit: 5,
   });
@@ -257,14 +263,22 @@ const get = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Only admins may view another user's dashboard", 'FORBIDDEN');
   }
 
+  // Fetched once per request and threaded through every stat below, so a
+  // custom or renamed status is reflected immediately with no extra queries.
+  const buckets = await getTicketStatusBuckets();
+  const behaviorByName = new Map();
+  buckets.open.forEach((name) => behaviorByName.set(name, 'open'));
+  buckets.closed.forEach((name) => behaviorByName.set(name, 'closed'));
+  buckets.archived.forEach((name) => behaviorByName.set(name, 'archived'));
+
   const isSystemWide = req.user.role === 'admin' && !requestedUserId;
 
   if (isSystemWide) {
     const [stats, projectHealth, workload, activity] = await Promise.all([
-      systemStats(),
-      projectHealthFor({}),
-      teamWorkload(),
-      activityFeed(),
+      systemStats(buckets),
+      projectHealthFor({}, buckets),
+      teamWorkload(buckets),
+      activityFeed(buckets),
     ]);
     return res.json({
       mode: 'admin_system',
@@ -294,10 +308,10 @@ const get = asyncHandler(async (req, res) => {
   const taskProjectIds = taskProjectRows.map((r) => r.projectId);
 
   const [stats, tickets, notifications, projectHealth, hours] = await Promise.all([
-    statsForUser(targetId, scopeField),
-    ticketsForUser(targetId, scopeField),
+    statsForUser(targetId, scopeField, buckets),
+    ticketsForUser(targetId, scopeField, behaviorByName),
     notificationsForUser(targetId),
-    taskProjectIds.length ? projectHealthFor({ id: { [Op.in]: taskProjectIds } }) : [],
+    taskProjectIds.length ? projectHealthFor({ id: { [Op.in]: taskProjectIds } }, buckets) : [],
     hoursForUser(targetId),
   ]);
 

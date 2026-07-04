@@ -31,6 +31,7 @@ const {
   createNotification,
 } = require('../services/notifications');
 const { logActivity, resolveDisplayValue } = require('../services/ticketActivity');
+const { getTicketStatusBuckets } = require('../services/statusBehavior');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
@@ -87,11 +88,6 @@ async function canLogForOthers(user) {
   return !!lead;
 }
 
-// Matches the default seeded TicketStatuses rows' names (behaviorType
-// 'closed'). Covers the built-in statuses; a custom admin-added closed
-// status won't be picked up here without a dynamic behaviorType lookup —
-// a known, deliberately scoped-out limitation for this pass.
-const CLOSED_STATUSES = ['Resolved', 'Closed'];
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
 
 // GET /tickets — with filters
@@ -102,9 +98,10 @@ const list = asyncHandler(async (req, res) => {
     search, myTickets, overdue, unassigned, sortBy, sortDir,
   } = req.query;
 
-  // "Closed" in the UI covers both terminal statuses; everything else maps
-  // to the matching column value directly.
-  if (status) where.status = status === 'closed' ? { [Op.in]: CLOSED_STATUSES } : status;
+  // "Closed" in the UI covers every status whose behaviorType is 'closed';
+  // everything else maps to the matching column value directly.
+  const buckets = await getTicketStatusBuckets();
+  if (status) where.status = status === 'closed' ? { [Op.in]: buckets.closed } : status;
   if (priority) where.priority = priority;
   if (type) where.type = type;
   if (assignee) where.assigneeId = assignee;
@@ -126,9 +123,10 @@ const list = asyncHandler(async (req, res) => {
 
   if (overdue === 'true') {
     where.dueDate = { [Op.lt]: new Date().toISOString().slice(0, 10) };
-    // Only imply "not closed" when the status dropdown isn't already set —
-    // this is an independent quick-filter toggle, not a status override.
-    if (!status) where.status = { [Op.notIn]: CLOSED_STATUSES };
+    // Only imply "open" when the status dropdown isn't already set — this is
+    // an independent quick-filter toggle, not a status override. Archived
+    // tickets are excluded here too (an "open" check, not just "not closed").
+    if (!status) where.status = { [Op.in]: buckets.open };
   }
   if (unassigned === 'true') where.assigneeId = null;
   // "My tickets" pins the view to the logged-in user regardless of any
@@ -811,7 +809,8 @@ const submitCsat = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin' && ticket.requesterId !== req.user.id) {
     throw new ApiError(403, 'Only the ticket requester can submit a rating', 'FORBIDDEN');
   }
-  if (!CLOSED_STATUSES.includes(ticket.status)) {
+  const buckets = await getTicketStatusBuckets();
+  if (!buckets.closed.includes(ticket.status)) {
     throw new ApiError(400, 'You can rate a ticket once it is resolved or closed', 'NOT_RATEABLE');
   }
 

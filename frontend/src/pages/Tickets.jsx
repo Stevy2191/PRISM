@@ -40,15 +40,6 @@ const PRIORITY_META = {
   low: { label: 'Low', color: '#94a3b8' },
 };
 
-const DISPLAY_STATUS_META = {
-  open: { label: 'Open', cls: 'bg-[#0d2847] text-[#60a5fa]' },
-  in_progress: { label: 'In Progress', cls: 'bg-[#0c2a1a] text-[#4ade80]' },
-  pending: { label: 'Pending', cls: 'bg-[#2d1f00] text-[#fbbf24]' },
-  overdue: { label: 'Overdue', cls: 'bg-[#2d0f0f] text-[#f87171]' },
-  closed: { label: 'Closed', cls: 'bg-[#1a2235] text-[#94a3b8]' },
-};
-
-
 const FIXED_COLUMNS = ['id', 'title'];
 const DEFAULT_COLUMN_ORDER = [
   'priority', 'status', 'dueDate', 'assignee', 'type', 'team', 'timeLogged', 'createdDate', 'actions',
@@ -73,16 +64,12 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Matches the default seeded TicketStatuses rows' names — a custom
-// admin-added status falls through to 'open', a deliberately scoped-out
-// limitation for this pass (see the matching note in dashboardController.js).
-function computeDisplayStatus(t) {
-  if (t.status === 'Resolved' || t.status === 'Closed') return 'closed';
-  if (t.dueDate && t.dueDate < todayStr()) return 'overdue';
-  if (t.status === 'On Hold') return 'pending';
-  if (t.status === 'Pending') return 'pending';
-  if (t.status === 'In Progress') return 'in_progress';
-  return 'open';
+// `behaviorByName` is a Map<statusName, behaviorType> built from the
+// fetched ticket-statuses list — a custom or renamed status is classified
+// correctly immediately, since this reads live data rather than a fixed
+// list of status name strings.
+function isClosedStatus(status, behaviorByName) {
+  return behaviorByName.get(status) === 'closed';
 }
 
 function ageDays(createdAt) {
@@ -153,9 +140,20 @@ function PriorityCell({ priority }) {
   );
 }
 
-function StatusBadge({ ticket }) {
-  const meta = DISPLAY_STATUS_META[computeDisplayStatus(ticket)];
-  return <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>;
+// Colored from the status's own `color` field (set on Settings -> Statuses),
+// not a hardcoded name-to-color map — so a custom status renders correctly
+// with no code change.
+function StatusBadge({ ticket, ticketStatuses }) {
+  const meta = ticketStatuses.find((s) => s.name === ticket.status);
+  const color = meta?.color || MUTED;
+  return (
+    <span
+      className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+      style={{ backgroundColor: `${color}22`, color }}
+    >
+      {ticket.status}
+    </span>
+  );
 }
 
 function DueDateCell({ dueDate }) {
@@ -170,8 +168,8 @@ function DueDateCell({ dueDate }) {
   return <span className="text-sm" style={{ color }}>{dueDate}</span>;
 }
 
-function AgeLine({ ticket }) {
-  if (computeDisplayStatus(ticket) === 'closed') return null;
+function AgeLine({ ticket, behaviorByName }) {
+  if (isClosedStatus(ticket.status, behaviorByName)) return null;
   const days = ageDays(ticket.createdAt);
   let color = MUTED;
   if (days > 10) color = '#f87171';
@@ -554,14 +552,27 @@ export default function Tickets() {
     [columnPrefs]
   );
 
+  const behaviorByName = useMemo(
+    () => new Map(ticketStatuses.map((s) => [s.name, s.behaviorType])),
+    [ticketStatuses]
+  );
+
+  // One column per ticket status (ordered by its admin-configured position),
+  // grouped by the ticket's actual status — not a fixed set of derived
+  // buckets. Archived statuses are hidden from this default board view.
   const boardColumns = useMemo(() => {
-    const buckets = { open: [], in_progress: [], pending: [], overdue: [] };
+    const cols = ticketStatuses
+      .filter((s) => s.behaviorType !== 'archived')
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((s) => ({ ...s, tickets: [] }));
+    const byName = new Map(cols.map((c) => [c.name, c]));
     tickets.forEach((t) => {
-      const d = computeDisplayStatus(t);
-      if (buckets[d]) buckets[d].push(t);
+      const col = byName.get(t.status);
+      if (col) col.tickets.push(t);
     });
-    return buckets;
-  }, [tickets]);
+    return cols;
+  }, [tickets, ticketStatuses]);
 
   const filterButtonCls = (active) =>
     `rounded-md border px-3 py-2 text-sm font-medium transition ${active ? 'text-white' : ''}`;
@@ -672,43 +683,50 @@ export default function Tickets() {
         <Spinner />
       ) : view === 'board' ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          {['open', 'in_progress', 'pending', 'overdue'].map((key) => {
-            const meta = DISPLAY_STATUS_META[key];
-            const isOverdueCol = key === 'overdue';
-            return (
-              <div
-                key={key}
-                className="rounded-[10px] border"
-                style={{ backgroundColor: CARD_BG, borderColor: isOverdueCol ? '#7f1d1d' : BORDER }}
-              >
-                <div
-                  className="flex items-center justify-between border-b px-4 py-3"
-                  style={{ borderColor: isOverdueCol ? '#7f1d1d' : BORDER }}
+          {boardColumns.map((col) => (
+            <div
+              key={col.id}
+              className="rounded-[10px] border"
+              style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
+            >
+              <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: BORDER }}>
+                <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: TEXT }}>
+                  <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: col.color }} />
+                  {col.name}
+                </h2>
+                <span
+                  className="rounded-full px-2 py-0.5 text-xs font-medium"
+                  style={{ backgroundColor: `${col.color}22`, color: col.color }}
                 >
-                  <h2 className="text-sm font-semibold" style={{ color: isOverdueCol ? '#f87171' : TEXT }}>{meta.label}</h2>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>{boardColumns[key].length}</span>
-                </div>
-                <div className="space-y-2 p-3">
-                  {boardColumns[key].length === 0 && <p className="text-xs" style={{ color: MUTED }}>No tickets.</p>}
-                  {boardColumns[key].map((t) => (
+                  {col.tickets.length}
+                </span>
+              </div>
+              <div className="space-y-2 p-3">
+                {col.tickets.length === 0 && <p className="text-xs" style={{ color: MUTED }}>No tickets.</p>}
+                {col.tickets.map((t) => {
+                  // Overdue is shown as a highlight on the card, not a
+                  // separate column — a ticket keeps its real status column
+                  // and is flagged red only while that status is still open.
+                  const isOverdue = col.behaviorType === 'open' && t.dueDate && t.dueDate < todayStr();
+                  return (
                     <div
                       key={t.id}
                       onClick={() => navigate(`/tickets/${t.id}`)}
                       className="cursor-pointer rounded-md border p-3 transition hover:opacity-90"
-                      style={{ backgroundColor: BG, borderColor: isOverdueCol ? '#7f1d1d' : BORDER }}
+                      style={{ backgroundColor: BG, borderColor: isOverdue ? '#7f1d1d' : BORDER }}
                     >
-                      <p className="font-mono text-xs" style={{ color: isOverdueCol ? '#f87171' : MUTED }}>{formatTicketId(t)}</p>
-                      <p className="mt-1 truncate text-sm font-medium" style={{ color: isOverdueCol ? '#f87171' : TEXT }}>{t.title}</p>
+                      <p className="font-mono text-xs" style={{ color: isOverdue ? '#f87171' : MUTED }}>{formatTicketId(t)}</p>
+                      <p className="mt-1 truncate text-sm font-medium" style={{ color: isOverdue ? '#f87171' : TEXT }}>{t.title}</p>
                       <div className="mt-2 flex items-center justify-between">
                         <PriorityCell priority={t.priority} />
                         <Avatar name={t.assignee?.displayName} />
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       ) : (
         <div>
@@ -819,12 +837,12 @@ export default function Tickets() {
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-sm" style={{ color: MUTED }}>{formatTicketId(t)}</td>
                     <td className="px-4 py-3">
                       <Link to={`/tickets/${t.id}`} className="font-medium hover:underline" style={{ color: TEXT }}>{t.title}</Link>
-                      <AgeLine ticket={t} />
+                      <AgeLine ticket={t} behaviorByName={behaviorByName} />
                     </td>
                     {visibleColumns.map((key) => (
                       <td key={key} className="relative whitespace-nowrap px-4 py-3">
                         {key === 'priority' && <PriorityCell priority={t.priority} />}
-                        {key === 'status' && <StatusBadge ticket={t} />}
+                        {key === 'status' && <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />}
                         {key === 'dueDate' && <DueDateCell dueDate={t.dueDate} />}
                         {key === 'assignee' && <Avatar name={t.assignee?.displayName} />}
                         {key === 'type' && <span className="text-sm capitalize" style={{ color: TEXT }}>{t.type}</span>}
