@@ -7,6 +7,8 @@ const {
   TimeEntry,
   TicketRelation,
   TicketWatcher,
+  TicketTask,
+  TicketActivity,
   CsatResponse,
   Team,
   CustomField,
@@ -26,11 +28,17 @@ const {
   notifyStatusChange,
   notifyWatchers,
 } = require('../services/notifications');
+const { logActivity, resolveDisplayValue } = require('../services/ticketActivity');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
   { model: User, as: 'assignee', attributes: userAttrs },
-  { model: User, as: 'requester', attributes: userAttrs },
+  {
+    model: User,
+    as: 'requester',
+    attributes: userAttrs,
+    include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
+  },
   { model: Team, as: 'team', attributes: ['id', 'name'] },
   { model: Project, as: 'project', attributes: ['id', 'name'] },
   { model: Department, as: 'department', attributes: ['id', 'name'] },
@@ -225,6 +233,7 @@ const create = asyncHandler(async (req, res) => {
     return created;
   });
   await writeAudit(req, 'ticket.create', 'Ticket', ticket.id, { title: ticket.title });
+  await logActivity(ticket.id, req.user.id, 'created', null, null);
   await notifyAssigned(ticket, req.user.id);
   if (watcherIdList.length) {
     await notifyWatchers(ticket, `Ticket created: ${ticket.title}`, [req.user.id]);
@@ -264,15 +273,19 @@ const update = asyncHandler(async (req, res) => {
       'departmentId',
       'dueDate',
       'customFields',
+      'tags',
     ];
   } else {
-    allowed = ['title', 'description', 'priority'];
+    allowed = ['title', 'description', 'priority', 'tags'];
   }
 
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
+  const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate'];
+  const before = {};
+  TRACKED_ACTIVITY_FIELDS.forEach((f) => { before[f] = ticket[f]; });
   const previousAssigneeId = ticket.assigneeId;
   const previousStatus = ticket.status;
   await sequelize.transaction(async (t) => {
@@ -282,6 +295,20 @@ const update = asyncHandler(async (req, res) => {
     }
   });
   await writeAudit(req, 'ticket.update', 'Ticket', ticket.id, changes);
+
+  // eslint-disable-next-line no-restricted-syntax
+  for (const field of TRACKED_ACTIVITY_FIELDS) {
+    if (changes[field] === undefined) continue; // eslint-disable-line no-continue
+    const beforeVal = before[field];
+    const afterVal = ticket[field];
+    if (String(beforeVal ?? '') === String(afterVal ?? '')) continue; // eslint-disable-line no-continue
+    // eslint-disable-next-line no-await-in-loop
+    const fromDisplay = await resolveDisplayValue(field, beforeVal);
+    // eslint-disable-next-line no-await-in-loop
+    const toDisplay = await resolveDisplayValue(field, afterVal);
+    // eslint-disable-next-line no-await-in-loop
+    await logActivity(ticket.id, req.user.id, field, fromDisplay, toDisplay);
+  }
 
   if (changes.assigneeId !== undefined && ticket.assigneeId && ticket.assigneeId !== previousAssigneeId) {
     await notifyAssigned(ticket, req.user.id);
@@ -348,6 +375,7 @@ const createComment = asyncHandler(async (req, res) => {
     ticketId: ticket.id,
   });
   await writeAudit(req, 'comment.create', 'Comment', comment.id, { ticketId: ticket.id });
+  await logActivity(ticket.id, req.user.id, 'comment', null, null);
   await notifyComment(ticket, comment, req.user.id);
   await notifyWatchers(
     ticket,
@@ -451,6 +479,7 @@ const createAttachment = asyncHandler(async (req, res) => {
     ticketId: ticket.id,
     originalName: attachment.originalName,
   });
+  await logActivity(ticket.id, req.user.id, 'attachment_added', null, attachment.originalName);
   res.status(201).json({ attachment });
 });
 
@@ -528,6 +557,7 @@ const createTime = asyncHandler(async (req, res) => {
     loggedAt: loggedAt ? new Date(loggedAt) : new Date(),
   });
   await writeAudit(req, 'time.create', 'TimeEntry', entry.id, { ticketId: ticket.id, minutes: mins });
+  await logActivity(ticket.id, req.user.id, 'time_logged', null, `${mins}m`);
 
   const fresh = await TimeEntry.findByPk(entry.id, {
     include: [{ model: User, as: 'user', attributes: userAttrs }],
@@ -593,37 +623,42 @@ const createRelation = asyncHandler(async (req, res) => {
   if (relId === ticket.id) {
     throw new ApiError(400, 'A ticket cannot be related to itself', 'VALIDATION_ERROR');
   }
-  if (relationType && !['related', 'caused_by', 'duplicates'].includes(relationType)) {
+  // 'child' is a UI-only direction: the other ticket becomes a child of this
+  // one, which is stored as a 'parent' row from the other ticket's side.
+  if (relationType && !['related', 'caused_by', 'duplicates', 'parent', 'child'].includes(relationType)) {
     throw new ApiError(400, 'Invalid relation type', 'VALIDATION_ERROR');
   }
   const related = await Ticket.findByPk(relId);
   if (!related) throw new ApiError(404, 'Related ticket not found', 'NOT_FOUND');
 
+  const isChild = relationType === 'child';
+  const storedType = isChild ? 'parent' : (relationType || 'related');
+  const storedTicketId = isChild ? relId : ticket.id;
+  const storedRelatedId = isChild ? ticket.id : relId;
+
   const existing = await TicketRelation.findOne({
-    where: { ticketId: ticket.id, relatedTicketId: relId },
+    where: { ticketId: storedTicketId, relatedTicketId: storedRelatedId },
   });
   if (existing) throw new ApiError(409, 'These tickets are already linked', 'DUPLICATE_RELATION');
 
   const relation = await TicketRelation.create({
-    ticketId: ticket.id,
-    relatedTicketId: relId,
-    relationType: relationType || 'related',
+    ticketId: storedTicketId,
+    relatedTicketId: storedRelatedId,
+    relationType: storedType,
   });
   await writeAudit(req, 'relation.create', 'TicketRelation', relation.id, {
-    ticketId: ticket.id,
-    relatedTicketId: relId,
-    relationType: relation.relationType,
+    ticketId: storedTicketId,
+    relatedTicketId: storedRelatedId,
+    relationType: storedType,
   });
+  await logActivity(ticket.id, req.user.id, 'relation_added', null, `${storedType}: ${related.title}`);
 
-  const fresh = await TicketRelation.findByPk(relation.id, {
-    include: [{ model: Ticket, as: 'relatedTicket', attributes: relTicketAttrs }],
-  });
   res.status(201).json({
     relation: {
-      id: fresh.id,
-      relationType: fresh.relationType,
-      direction: 'outgoing',
-      ticket: fresh.relatedTicket,
+      id: relation.id,
+      relationType: relation.relationType,
+      direction: relation.ticketId === ticket.id ? 'outgoing' : 'incoming',
+      ticket: related,
     },
   });
 });
@@ -690,6 +725,124 @@ const submitCsat = asyncHandler(async (req, res) => {
   res.status(201).json({ csat });
 });
 
+// ---- Watchers ----
+
+// GET /tickets/:id/watchers
+const listWatchers = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+
+  const watchers = await TicketWatcher.findAll({
+    where: { ticketId: ticket.id },
+    include: [{ model: User, as: 'user', attributes: userAttrs }],
+    order: [['createdAt', 'ASC']],
+  });
+  res.json({ watchers });
+});
+
+// POST /tickets/:id/watchers { userId }
+const addWatcher = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+
+  const userId = parseInt(req.body?.userId, 10);
+  if (!userId) throw new ApiError(400, 'userId is required', 'VALIDATION_ERROR');
+
+  const [watcher] = await TicketWatcher.findOrCreate({
+    where: { ticketId: ticket.id, userId },
+  });
+  const fresh = await TicketWatcher.findByPk(watcher.id, {
+    include: [{ model: User, as: 'user', attributes: userAttrs }],
+  });
+  res.status(201).json({ watcher: fresh });
+});
+
+// DELETE /tickets/:id/watchers/:userId
+const removeWatcher = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+
+  await TicketWatcher.destroy({ where: { ticketId: ticket.id, userId: req.params.userId } });
+  res.json({ ok: true });
+});
+
+// ---- Tasks (per-ticket checklist) ----
+
+// GET /tickets/:id/tasks
+const listTasks = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+
+  const tasks = await TicketTask.findAll({
+    where: { ticketId: ticket.id },
+    include: [{ model: User, as: 'assignee', attributes: userAttrs }],
+    order: [['createdAt', 'ASC']],
+  });
+  res.json({ tasks });
+});
+
+// POST /tickets/:id/tasks { description, assigneeId? }
+const createTask = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+
+  const { description, assigneeId } = req.body || {};
+  if (!description || !description.trim()) {
+    throw new ApiError(400, 'Task description is required', 'VALIDATION_ERROR');
+  }
+  const task = await TicketTask.create({
+    ticketId: ticket.id,
+    description: description.trim(),
+    assigneeId: assigneeId || null,
+  });
+  const fresh = await TicketTask.findByPk(task.id, {
+    include: [{ model: User, as: 'assignee', attributes: userAttrs }],
+  });
+  res.status(201).json({ task: fresh });
+});
+
+// PATCH /tickets/:id/tasks/:taskId { completed?, assigneeId?, description? }
+const updateTask = asyncHandler(async (req, res) => {
+  const task = await TicketTask.findOne({ where: { id: req.params.taskId, ticketId: req.params.id } });
+  if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
+  const ticket = await Ticket.findByPk(req.params.id);
+  assertCanViewTicket(req, ticket);
+
+  const changes = {};
+  if (req.body?.completed !== undefined) changes.completed = !!req.body.completed;
+  if (req.body?.assigneeId !== undefined) changes.assigneeId = req.body.assigneeId || null;
+  if (req.body?.description !== undefined && req.body.description.trim()) {
+    changes.description = req.body.description.trim();
+  }
+  await task.update(changes);
+
+  const fresh = await TicketTask.findByPk(task.id, {
+    include: [{ model: User, as: 'assignee', attributes: userAttrs }],
+  });
+  res.json({ task: fresh });
+});
+
+// ---- Activity (per-ticket timeline) ----
+
+// GET /tickets/:id/activity
+const listActivity = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  assertCanViewTicket(req, ticket);
+
+  const activity = await TicketActivity.findAll({
+    where: { ticketId: ticket.id },
+    include: [{ model: User, as: 'user', attributes: userAttrs }],
+    order: [['createdAt', 'DESC']],
+  });
+  res.json({ activity });
+});
+
 module.exports = {
   list,
   create,
@@ -712,4 +865,11 @@ module.exports = {
   removeRelation,
   getCsat,
   submitCsat,
+  listWatchers,
+  addWatcher,
+  removeWatcher,
+  listTasks,
+  createTask,
+  updateTask,
+  listActivity,
 };

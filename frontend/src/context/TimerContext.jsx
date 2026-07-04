@@ -61,9 +61,9 @@ export function TimerProvider({ children }) {
     }
   }, []);
 
-  const stop = useCallback(async () => {
+  const stop = useCallback(async (note) => {
     try {
-      await api.post('/timer/stop');
+      await api.post('/timer/stop', note ? { note } : {});
       setActiveTimer(null);
       setLogVersion((v) => v + 1);
     } catch (err) {
@@ -106,4 +106,12 @@ export function formatElapsed(totalSeconds) {
   const mm = String(m).padStart(2, '0');
   const ss = String(s).padStart(2, '0');
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+// Always-HH:MM:SS formatter for the persistent ticket-detail timer widget.
+export function formatHMS(totalSeconds) {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
 }

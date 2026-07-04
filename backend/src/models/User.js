@@ -64,6 +64,27 @@ module.exports = (sequelize) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      // Manual: tech controls start/stop. Automatic: timer starts when a
+      // ticket is opened and stops (prompting to log, per the two prefs
+      // below) when the tech navigates away or closes the tab.
+      timerMode: {
+        type: DataTypes.ENUM('manual', 'automatic'),
+        allowNull: false,
+        defaultValue: 'manual',
+      },
+      // Seconds. Automatic-mode entries shorter than this are discarded silently.
+      timerMinThreshold: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      // When true, always show the log-time modal before saving; when false,
+      // automatic mode saves silently (still subject to timerMinThreshold).
+      timerPromptBeforeLog: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+      },
     },
     {
       sequelize,

@@ -1,16 +1,17 @@
 const { ActiveTimer, TimeEntry, Ticket, Project } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const { logActivity } = require('../services/ticketActivity');
 
 function shape(t) {
   return t ? { type: t.entityType, id: t.entityId, label: t.label, startedAt: t.startedAt } : null;
 }
 
 // Convert a running timer into a TimeEntry (logged against its start time).
-async function logTimer(req, timer) {
+async function logTimer(req, timer, note) {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(timer.startedAt).getTime()) / 1000));
   const minutes = Math.max(1, Math.round(seconds / 60));
-  const base = { userId: req.user.id, minutes, note: 'Timer', loggedAt: timer.startedAt };
+  const base = { userId: req.user.id, minutes, note: note || 'Timer', loggedAt: timer.startedAt };
   const entry = await TimeEntry.create(
     timer.entityType === 'project'
       ? { ...base, projectId: timer.entityId }
@@ -20,6 +21,9 @@ async function logTimer(req, timer) {
     [`${timer.entityType}Id`]: timer.entityId,
     minutes,
   });
+  if (timer.entityType === 'ticket') {
+    await logActivity(timer.entityId, req.user.id, 'time_logged', null, `${minutes}m`);
+  }
   return entry;
 }
 
@@ -65,11 +69,11 @@ const start = asyncHandler(async (req, res) => {
   res.status(201).json({ timer: shape(created), logged });
 });
 
-// POST /timer/stop — logs and clears the running timer.
+// POST /timer/stop { note? } — logs and clears the running timer.
 const stop = asyncHandler(async (req, res) => {
   const existing = await ActiveTimer.findOne({ where: { userId: req.user.id } });
   if (!existing) return res.json({ timer: null, entry: null });
-  const entry = await logTimer(req, existing);
+  const entry = await logTimer(req, existing, req.body?.note);
   await existing.destroy();
   res.json({ timer: null, entry });
 });

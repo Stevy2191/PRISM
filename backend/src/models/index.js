@@ -28,6 +28,8 @@ const ActiveTimer = require('./ActiveTimer')(sequelize);
 const Notification = require('./Notification')(sequelize);
 const SavedFilter = require('./SavedFilter')(sequelize);
 const TicketWatcher = require('./TicketWatcher')(sequelize);
+const TicketTask = require('./TicketTask')(sequelize);
+const TicketActivity = require('./TicketActivity')(sequelize);
 
 const db = {
   sequelize,
@@ -57,6 +59,8 @@ const db = {
   Notification,
   SavedFilter,
   TicketWatcher,
+  TicketTask,
+  TicketActivity,
 };
 
 // ---- Associations ----
@@ -166,6 +170,16 @@ TicketFieldValue.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 // Active timer (one per user)
 User.hasOne(ActiveTimer, { foreignKey: 'userId', as: 'activeTimer', onDelete: 'CASCADE' });
 ActiveTimer.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// Ticket tasks (checklist)
+Ticket.hasMany(TicketTask, { foreignKey: 'ticketId', as: 'tasks', onDelete: 'CASCADE' });
+TicketTask.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+TicketTask.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
+
+// Ticket activity (per-ticket timeline)
+Ticket.hasMany(TicketActivity, { foreignKey: 'ticketId', as: 'activity', onDelete: 'CASCADE' });
+TicketActivity.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+TicketActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // Notifications
 User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications', onDelete: 'CASCADE' });

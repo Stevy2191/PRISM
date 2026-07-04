@@ -142,6 +142,39 @@ const update = asyncHandler(async (req, res) => {
   res.json({ user: fresh });
 });
 
+// PATCH /users/:id/preferences — self or admin. Timer behavior settings.
+const updatePreferences = asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (req.user.role !== 'admin' && req.user.id !== id) {
+    throw new ApiError(403, 'You may only update your own preferences', 'FORBIDDEN');
+  }
+  const user = await User.findByPk(id);
+  if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
+
+  const { timerMode, timerMinThreshold, timerPromptBeforeLog } = req.body || {};
+  const changes = {};
+
+  if (timerMode !== undefined) {
+    if (!['manual', 'automatic'].includes(timerMode)) {
+      throw new ApiError(400, 'timerMode must be "manual" or "automatic"', 'VALIDATION_ERROR');
+    }
+    changes.timerMode = timerMode;
+  }
+  if (timerMinThreshold !== undefined) {
+    const val = parseInt(timerMinThreshold, 10);
+    if (Number.isNaN(val) || val < 0) {
+      throw new ApiError(400, 'timerMinThreshold must be a non-negative number of seconds', 'VALIDATION_ERROR');
+    }
+    changes.timerMinThreshold = val;
+  }
+  if (timerPromptBeforeLog !== undefined) {
+    changes.timerPromptBeforeLog = !!timerPromptBeforeLog;
+  }
+
+  await user.update(changes);
+  res.json({ user });
+});
+
 // DELETE /users/:id — Admin only
 const remove = asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -156,4 +189,4 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { list, create, get, update, remove, listAssignable, listDirectory };
+module.exports = { list, create, get, update, remove, listAssignable, listDirectory, updatePreferences };

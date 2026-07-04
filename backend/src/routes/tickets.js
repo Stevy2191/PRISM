@@ -40,4 +40,17 @@ router.delete('/:id/relations/:relationId', staff, ctrl.removeRelation);
 router.get('/:id/csat', ctrl.getCsat);
 router.post('/:id/csat', ctrl.submitCsat);
 
+// Watchers
+router.get('/:id/watchers', ctrl.listWatchers);
+router.post('/:id/watchers', ctrl.addWatcher);
+router.delete('/:id/watchers/:userId', ctrl.removeWatcher);
+
+// Tasks (per-ticket checklist)
+router.get('/:id/tasks', ctrl.listTasks);
+router.post('/:id/tasks', ctrl.createTask);
+router.patch('/:id/tasks/:taskId', ctrl.updateTask);
+
+// Activity (per-ticket timeline)
+router.get('/:id/activity', ctrl.listActivity);
+
 module.exports = router;
