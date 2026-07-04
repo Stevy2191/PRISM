@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   IconPaperclip, IconAt, IconArrowUp, IconArrowDown, IconX, IconUpload,
   IconFile, IconTrash, IconPlayerPlayFilled, IconPlayerStopFilled, IconPlayerPauseFilled,
-  IconLock, IconWorld,
+  IconLock, IconWorld, IconAlertTriangle,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
@@ -319,11 +319,27 @@ function useTicketTimer(ticket) {
   const stopToIdle = useCallback(() => { commit(null); }, []);
   const clearOther = useCallback(() => { commit(null); }, []);
 
-  return { timerState, elapsedSeconds, otherTicket, now, start, pause, resume, stopToIdle, clearOther };
+  // Reconstructs a running/paused timer at a specific accumulated duration —
+  // used by the Log Time modal's "Keep timing" option to undo a stop click,
+  // resuming exactly where the timer left off rather than restarting at 0.
+  const restore = useCallback((state, accumulatedSeconds) => {
+    if (ticketId == null) return;
+    commit({
+      ticketId,
+      ticketNumber: formatTicketId(ticket),
+      ticketTitle: ticket.title,
+      state,
+      accumulatedSeconds,
+      runStartedAt: state === 'running' ? Date.now() : null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketId, ticket?.title]);
+
+  return { timerState, elapsedSeconds, otherTicket, now, start, pause, resume, stopToIdle, clearOther, restore };
 }
 
 function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTimeForOthers, currentUser }) {
-  const { timerState, elapsedSeconds, start, pause, resume, stopToIdle } = ticketTimer;
+  const { timerState, elapsedSeconds, start, pause, resume, stopToIdle, restore } = ticketTimer;
   const [modalOpen, setModalOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -331,7 +347,15 @@ function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTim
   const [endMinutes, setEndMinutes] = useState(30);
   const [loggedForId, setLoggedForId] = useState(currentUser.id);
   const [saving, setSaving] = useState(false);
+  // Frozen at the moment Stop is clicked — elapsedSeconds itself resets to 0
+  // once stopToIdle() clears the timer, so the modal (and "Keep timing",
+  // which needs to know exactly where to resume from) reads these instead.
+  const [stoppedSeconds, setStoppedSeconds] = useState(0);
+  const [preStopState, setPreStopState] = useState('running');
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  const threshold = currentUser.timerMinThreshold || 0;
+  const belowThreshold = modalOpen && stoppedSeconds < threshold;
 
   const color = timerState === 'running' ? TIMER_COLOR : timerState === 'paused' ? 'var(--color-warning)' : TEXT;
   const iconColor = timerState === 'running' ? TIMER_COLOR : timerState === 'paused' ? 'var(--color-warning)' : MUTED;
@@ -339,6 +363,8 @@ function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTim
   const handleStop = () => {
     const stopAt = new Date();
     const startAt = new Date(stopAt.getTime() - elapsedSeconds * 1000);
+    setStoppedSeconds(elapsedSeconds);
+    setPreStopState(timerState);
     stopToIdle();
     // The 5-minute-increment pickers can't represent the timer's exact
     // wall-clock seconds, so both ends are rounded to the nearest grid line —
@@ -382,6 +408,15 @@ function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTim
     setDescription('');
   };
 
+  // Undoes the stop — the tech changed their mind. Resumes exactly where
+  // the timer was (running or paused) with the same accumulated duration,
+  // rather than restarting from zero.
+  const keepTiming = () => {
+    restore(preStopState, stoppedSeconds);
+    setModalOpen(false);
+    setDescription('');
+  };
+
   return (
     <div className="flex items-center gap-2">
       <div
@@ -420,6 +455,22 @@ function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTim
 
       {modalOpen && (
         <Modal title="Log time" onClose={discardEntry}>
+          {belowThreshold && (
+            <div
+              className="mb-4 flex items-start gap-2 rounded-md border p-3 text-sm"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--color-warning) 12%, var(--color-bg))',
+                borderColor: 'var(--color-warning)',
+                color: 'var(--color-warning)',
+              }}
+            >
+              <IconAlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+              <span>
+                This entry is {formatHMS(stoppedSeconds)} — below your minimum threshold of {formatHMS(threshold)}.
+                You can still log it or discard it.
+              </span>
+            </div>
+          )}
           <TimeEntryFields
             entryDate={entryDate}
             onEntryDateChange={setEntryDate}
@@ -450,12 +501,21 @@ function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTim
             </button>
             <button
               type="button"
+              onClick={keepTiming}
+              className="rounded-md border px-4 py-2 text-sm font-medium"
+              style={{ borderColor: BORDER, color: TEXT }}
+              title={preStopState === 'paused' ? 'Resume paused timer' : 'Resume timer'}
+            >
+              Keep timing
+            </button>
+            <button
+              type="button"
               onClick={saveEntry}
               disabled={saving || endMinutes <= startMinutes}
               className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ backgroundColor: BLUE }}
+              style={{ backgroundColor: belowThreshold ? 'var(--color-warning)' : BLUE }}
             >
-              {saving ? 'Saving…' : 'Save time entry'}
+              {saving ? 'Saving…' : belowThreshold ? 'Log anyway' : 'Save time entry'}
             </button>
           </div>
         </Modal>
@@ -1482,12 +1542,19 @@ export default function TicketDetail() {
       const t = ticketTimerRef.current;
       if (t.timerState === 'idle') return;
       const seconds = t.elapsedSeconds;
-      if (seconds < (user.timerMinThreshold || 0)) {
-        t.stopToIdle();
-        return;
-      }
       const minutes = Math.max(1, Math.round(seconds / 60));
-      if (user.timerPromptBeforeLog) {
+      // A rich modal isn't renderable from an unmounting component, so this
+      // uses window.confirm as the closest equivalent — but a below-minimum
+      // entry always gets asked about (never silently dropped), regardless
+      // of timerPromptBeforeLog, matching the interactive Log Time modal's
+      // "always show the warning" rule for below-threshold entries.
+      if (seconds < (user.timerMinThreshold || 0)) {
+        if (window.confirm(
+          `This entry is ${formatHMS(seconds)} — below your minimum threshold of ${formatHMS(user.timerMinThreshold)}. Log it anyway?`
+        )) {
+          api.post(`/tickets/${ticket.id}/time`, { minutes }).catch(() => {});
+        }
+      } else if (user.timerPromptBeforeLog) {
         if (window.confirm(`Log ${formatHMS(seconds)} of time to this ticket before leaving?`)) {
           api.post(`/tickets/${ticket.id}/time`, { minutes }).catch(() => {});
         }
