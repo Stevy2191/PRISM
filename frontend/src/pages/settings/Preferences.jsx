@@ -100,7 +100,8 @@ export default function Preferences() {
 
   // ---- Personal colors (tier 1) ----
   const overridesAllowed = settings.theme?.usersCanOverrideColors !== false;
-  const [useOwnColors, setUseOwnColors] = useState(!!(user?.userColors && Object.keys(user.userColors).length));
+  const hasSavedColors = !!(user?.userColors && Object.keys(user.userColors).length);
+  const [useOwnColors, setUseOwnColors] = useState(!!user?.userColorsEnabled);
   const [colors, setColors] = useState(() => {
     const seed = {};
     PERSONAL_COLOR_FIELDS.forEach(([varName]) => {
@@ -114,11 +115,14 @@ export default function Preferences() {
   const saveTimer = useRef(null);
   useEffect(() => () => clearTimeout(saveTimer.current), []);
 
+  // `payload` is a partial preferences body — e.g. { userColorsEnabled: false }
+  // on its own leaves userColors untouched server-side, which is what makes
+  // toggling off non-destructive.
   const persistColors = async (payload) => {
     setColorsSaving(true);
     setColorsError('');
     try {
-      await api.patch(`/users/${user.id}/preferences`, { userColors: payload });
+      await api.patch(`/users/${user.id}/preferences`, payload);
       await refresh();
       setColorsSaved(true);
       setTimeout(() => setColorsSaved(false), 2000);
@@ -132,21 +136,31 @@ export default function Preferences() {
   const handleColorChange = (varName, value) => {
     const next = { ...colors, [varName]: value };
     setColors(next);
-    applyPersonalColors(user.id, next); // instant live preview
+    applyPersonalColors(user.id, next, true); // instant live preview
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => persistColors(next), 500);
+    saveTimer.current = setTimeout(() => persistColors({ userColors: next, userColorsEnabled: true }), 500);
   };
 
   const handleToggleOwnColors = (checked) => {
     setUseOwnColors(checked);
-    applyPersonalColors(user.id, checked ? colors : null);
-    persistColors(checked ? colors : null);
+    applyPersonalColors(user.id, colors, checked);
+    if (checked) {
+      // Turning on re-applies + re-saves whatever's currently in `colors`
+      // (the previously saved values, or freshly seeded defaults the first
+      // time) — nothing was ever cleared while the toggle was off.
+      persistColors({ userColors: colors, userColorsEnabled: true });
+    } else {
+      // Flip the flag only — userColors is deliberately omitted so the
+      // saved values are left untouched on the server.
+      persistColors({ userColorsEnabled: false });
+    }
   };
 
   const resetPersonalColors = () => {
+    if (!confirm('This will permanently clear your personal colors. Are you sure?')) return;
     setUseOwnColors(false);
-    applyPersonalColors(user.id, null);
-    persistColors(null);
+    applyPersonalColors(user.id, null, false);
+    persistColors({ userColors: null, userColorsEnabled: false });
   };
 
   return (
@@ -232,6 +246,11 @@ export default function Preferences() {
                     <span key={varName} className="flex-1" style={{ backgroundColor: getResolvedColor(varName) }} />
                   ))}
                 </div>
+                <p className="mt-2 text-xs text-navy-400">
+                  {hasSavedColors
+                    ? 'Your personal colors are saved but not active. Toggle on to restore them.'
+                    : 'No personal colors saved.'}
+                </p>
               </div>
             ) : (
               <div className="mt-4 space-y-4">

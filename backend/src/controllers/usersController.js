@@ -151,7 +151,7 @@ const updatePreferences = asyncHandler(async (req, res) => {
   const user = await User.findByPk(id);
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
 
-  const { timerMode, timerMinThreshold, timerPromptBeforeLog, userColors } = req.body || {};
+  const { timerMode, timerMinThreshold, timerPromptBeforeLog, userColors, userColorsEnabled } = req.body || {};
   const changes = {};
 
   if (timerMode !== undefined) {
@@ -175,6 +175,9 @@ const updatePreferences = asyncHandler(async (req, res) => {
       throw new ApiError(400, 'userColors must be an object or null', 'VALIDATION_ERROR');
     }
     changes.userColors = userColors;
+  }
+  if (userColorsEnabled !== undefined) {
+    changes.userColorsEnabled = !!userColorsEnabled;
   }
 
   await user.update(changes);

@@ -41,7 +41,7 @@ export function AuthProvider({ children }) {
     } finally {
       setUser(null);
       try { localStorage.removeItem('prism.lastUserId'); } catch { /* ignore */ }
-      applyPersonalColors(null, null);
+      applyPersonalColors(null, null, false);
     }
   };
 

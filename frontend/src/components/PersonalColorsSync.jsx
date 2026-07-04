@@ -14,10 +14,10 @@ export default function PersonalColorsSync() {
   useEffect(() => {
     if (!user) return;
     try { localStorage.setItem('prism.lastUserId', String(user.id)); } catch { /* ignore */ }
-    applyPersonalColors(user.id, user.userColors || null);
+    applyPersonalColors(user.id, user.userColors || null, !!user.userColorsEnabled);
     // Re-run whenever the admin's "allow overrides" flag flips too.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, user?.userColors, settings.theme?.usersCanOverrideColors]);
+  }, [user, user?.userColors, user?.userColorsEnabled, settings.theme?.usersCanOverrideColors]);
 
   return null;
 }

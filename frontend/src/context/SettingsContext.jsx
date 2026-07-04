@@ -124,20 +124,24 @@ let lastAdminTheme = FALLBACK.theme;
 let lastPersonalColors = null;
 
 // Tier 1 — called by PersonalColorsSync once the logged-in user (and their
-// userColors) is known. Re-resolves both tiers together and caches the
-// result per-user so the next load can apply it before React even mounts
-// (see index.html's pre-mount script).
-export function applyPersonalColors(userId, userColors) {
-  lastPersonalColors = userColors && Object.keys(userColors).length ? userColors : null;
+// userColors/userColorsEnabled) is known. `enabled` is the user's own
+// "Use my own colors" toggle (userColorsEnabled) — kept separate from
+// userColors itself so turning the toggle off never destroys the saved
+// values, only stops applying them. Re-resolves both tiers together and
+// caches the result per-user so the next load can apply it before React
+// even mounts (see index.html's pre-mount script).
+export function applyPersonalColors(userId, userColors, enabled) {
+  const active = enabled && userColors && Object.keys(userColors).length ? userColors : null;
+  lastPersonalColors = active;
   resolveColors({
     adminTheme: lastAdminTheme,
-    userColors: lastPersonalColors,
+    userColors: active,
     usersCanOverrideColors: lastAdminTheme?.usersCanOverrideColors,
   });
   try {
     const cacheKey = `prism_colors_${userId}`;
-    if (lastPersonalColors && lastAdminTheme?.usersCanOverrideColors !== false) {
-      localStorage.setItem(cacheKey, JSON.stringify(lastPersonalColors));
+    if (active && lastAdminTheme?.usersCanOverrideColors !== false) {
+      localStorage.setItem(cacheKey, JSON.stringify(active));
       localStorage.setItem(LAST_USER_KEY, String(userId));
     } else {
       localStorage.removeItem(cacheKey);
