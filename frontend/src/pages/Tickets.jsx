@@ -385,6 +385,28 @@ export default function Tickets() {
   const [bulkValue, setBulkValue] = useState('');
   const [bulkSaving, setBulkSaving] = useState(false);
 
+  // Bulk bar mount/unmount is delayed slightly on the way out so the
+  // slide-out/fade-out CSS animation gets a chance to play before the
+  // element actually leaves the DOM.
+  const [showBulkBar, setShowBulkBar] = useState(false);
+  const [bulkBarClosing, setBulkBarClosing] = useState(false);
+  const bulkBarCloseTimer = useRef(null);
+  useEffect(() => {
+    if (selectedIds.size > 0) {
+      clearTimeout(bulkBarCloseTimer.current);
+      setBulkBarClosing(false);
+      setShowBulkBar(true);
+    } else if (showBulkBar) {
+      setBulkBarClosing(true);
+      bulkBarCloseTimer.current = setTimeout(() => {
+        setShowBulkBar(false);
+        setBulkBarClosing(false);
+      }, 180);
+    }
+    return () => clearTimeout(bulkBarCloseTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds.size]);
+
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnPrefs));
   }, [columnPrefs]);
@@ -643,63 +665,71 @@ export default function Tickets() {
         )}
       </div>
 
-      {/* Bulk action bar — sits between the toolbar and the table, only when
-          at least one row is checked. Tinted with the accent color at low
-          opacity so it reads as distinct from both the toolbar and the table. */}
-      {isStaff && view === 'table' && selectedIds.size > 0 && (
+      {/* Bulk action bar — a full-width strip flush between the toolbar and
+          the table (no rounded corners, no floating card). Tinted with the
+          accent color at low opacity so it reads as distinct from both. */}
+      {isStaff && view === 'table' && showBulkBar && (
         <div
-          className="mx-6 mb-3 flex flex-shrink-0 flex-wrap items-center justify-between gap-3 rounded-[10px] border p-3"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 10%, var(--color-bg))', borderColor: BLUE }}
+          className={`flex flex-shrink-0 items-center ${bulkBarClosing ? 'bulk-bar--closing' : 'bulk-bar--opening'}`}
+          style={{
+            gap: '12px',
+            padding: '8px 16px',
+            backgroundColor: 'color-mix(in srgb, var(--color-accent) 12%, transparent)',
+            borderBottom: '1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)',
+          }}
         >
-          <div className="flex items-center gap-3">
-            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="h-4 w-4 accent-blue-500" />
-            <span className="text-sm font-medium" style={{ color: TEXT }}>{selectedIds.size} selected</span>
-          </div>
+          <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="h-4 w-4 flex-shrink-0 accent-blue-500" />
+          <span className="flex-shrink-0 whitespace-nowrap font-medium" style={{ color: BLUE, fontSize: '13px' }}>
+            {selectedIds.size} selected
+          </span>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium" style={{ color: MUTED }}>Action:</span>
-            <select
-              value={bulkActionType}
-              onChange={(e) => { setBulkActionType(e.target.value); setBulkValue(''); }}
-              className="input h-9 max-w-[11rem] text-sm"
-              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-            >
-              <option value="">Choose action…</option>
-              <option value="status">Change status</option>
-              <option value="priority">Change priority</option>
-              <option value="reassign">Reassign</option>
-              <option value="close">Close selected</option>
+          <span className="flex-shrink-0 whitespace-nowrap" style={{ color: MUTED, fontSize: '12px' }}>Action:</span>
+          <select
+            value={bulkActionType}
+            onChange={(e) => { setBulkActionType(e.target.value); setBulkValue(''); }}
+            className="input h-9 max-w-[11rem] flex-shrink-0 text-sm"
+            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+          >
+            <option value="">Choose action…</option>
+            <option value="status">Change status</option>
+            <option value="priority">Change priority</option>
+            <option value="reassign">Reassign</option>
+            <option value="close">Close selected</option>
+          </select>
+          {bulkActionType === 'status' && (
+            <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
+              <option value="">Select status…</option>
+              {ticketStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
-            {bulkActionType === 'status' && (
-              <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
-                <option value="">Select status…</option>
-                {ticketStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-              </select>
-            )}
-            {bulkActionType === 'priority' && (
-              <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
-                <option value="">Select priority…</option>
-                {PRIORITY_OPTIONS.filter((o) => o.value).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            )}
-            {bulkActionType === 'reassign' && (
-              <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[11rem] text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
-                <option value="">Select assignee…</option>
-                {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-              </select>
-            )}
-            <button
-              type="button"
-              onClick={applyBulkAction}
-              disabled={bulkSaving || !bulkActionType || (bulkActionType !== 'close' && !bulkValue)}
-              className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
-              style={{ backgroundColor: BLUE }}
-            >
-              Apply
-            </button>
-          </div>
+          )}
+          {bulkActionType === 'priority' && (
+            <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
+              <option value="">Select priority…</option>
+              {PRIORITY_OPTIONS.filter((o) => o.value).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          )}
+          {bulkActionType === 'reassign' && (
+            <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[11rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
+              <option value="">Select assignee…</option>
+              {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+            </select>
+          )}
+          <button
+            type="button"
+            onClick={applyBulkAction}
+            disabled={bulkSaving || !bulkActionType || (bulkActionType !== 'close' && !bulkValue)}
+            className="flex-shrink-0 rounded-md px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ backgroundColor: BLUE }}
+          >
+            Apply
+          </button>
 
-          <button type="button" onClick={clearSelection} className="text-sm hover:underline" style={{ color: MUTED }}>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="flex-shrink-0 whitespace-nowrap text-sm hover:underline"
+            style={{ color: MUTED, marginLeft: 'auto' }}
+          >
             Clear selection
           </button>
         </div>

@@ -143,4 +143,63 @@
   .sidebar-surface {
     background-color: var(--color-sidebar);
   }
+
+  /* Tickets page bulk-action bar — enter/exit animation. The bar stays
+     mounted for a moment after selection drops to zero (see Tickets.jsx)
+     so this exit animation has time to play. */
+  .bulk-bar--opening {
+    animation: bulkBarSlideIn 0.2s ease-out;
+  }
+  .bulk-bar--closing {
+    animation: bulkBarSlideOut 0.18s ease-in forwards;
+  }
+
+  /* Conversation bubbles + ticket detail tab bar — deliberately hardcoded
+     per theme via [data-theme] rather than the --color-* variables, so they
+     stay readable no matter what custom background color an admin or user
+     has set (see TicketDetail.jsx). Every other surface in the app responds
+     to custom colors; these two are the intentional exception. */
+  .conv-bubble {
+    border-radius: 10px;
+    border-width: 1px;
+    border-style: solid;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+  }
+  [data-theme='dark'] .conv-bubble--customer { background-color: #1a1d2e; border-color: #2a2d3e; color: #e2e8f0; }
+  [data-theme='light'] .conv-bubble--customer { background-color: #ffffff; border-color: #e2e8f0; color: #0f172a; }
+  [data-theme='dark'] .conv-bubble--tech { background-color: #0d1f3c; border-color: #1e3a5f; color: #e2e8f0; }
+  [data-theme='light'] .conv-bubble--tech { background-color: #eff6ff; border-color: #bfdbfe; color: #0f172a; }
+  [data-theme='dark'] .conv-bubble--private { background-color: #1a1200; border-color: #3d2d00; color: #e2e8f0; }
+  [data-theme='light'] .conv-bubble--private { background-color: #fffbeb; border-color: #fde68a; color: #0f172a; }
+  [data-theme='dark'] .conv-bubble--public { background-color: #1a1d2e; border-color: #1a1d2e; border-left: 3px solid #f59e0b; color: #e2e8f0; }
+  [data-theme='light'] .conv-bubble--public { background-color: #ffffff; border-color: #ffffff; border-left: 3px solid #f59e0b; color: #0f172a; }
+
+  [data-theme='dark'] .conv-badge--private,
+  [data-theme='dark'] .conv-badge--public {
+    color: #f59e0b;
+    background-color: color-mix(in srgb, #f59e0b 20%, transparent);
+  }
+  [data-theme='light'] .conv-badge--private,
+  [data-theme='light'] .conv-badge--public {
+    color: #b45309;
+    background-color: color-mix(in srgb, #f59e0b 18%, transparent);
+  }
+
+  [data-theme='dark'] .ticket-tab-bar { background-color: #0d1120; border-bottom: 1px solid #1a2235; }
+  [data-theme='light'] .ticket-tab-bar { background-color: #ffffff; border-bottom: 1px solid #e2e8f0; }
+  .ticket-tab { border-color: transparent; }
+  [data-theme='dark'] .ticket-tab { color: #475569; }
+  [data-theme='light'] .ticket-tab { color: #64748b; }
+  [data-theme='dark'] .ticket-tab.ticket-tab--active { color: #3b82f6; border-color: #3b82f6; }
+  [data-theme='light'] .ticket-tab.ticket-tab--active { color: #2563eb; border-color: #2563eb; }
+}
+
+@keyframes bulkBarSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bulkBarSlideOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
 }

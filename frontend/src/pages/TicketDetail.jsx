@@ -793,40 +793,30 @@ function ConversationTab({ ticket, comments }) {
                   {isCustomer ? 'Customer' : 'Tech'}
                 </span>
                 {isPrivate && (
-                  <span
-                    className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                    style={{ backgroundColor: 'color-mix(in srgb, var(--color-warning) 20%, var(--color-bg))', color: 'var(--color-warning)' }}
-                  >
+                  <span className="conv-badge--private flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium">
                     <IconLock size={10} /> Private comment
                   </span>
                 )}
                 {isPublicComment && (
-                  <span
-                    className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                    style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 20%, var(--color-bg))', color: 'var(--color-accent)' }}
-                  >
+                  <span className="conv-badge--public flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium">
                     <IconWorld size={10} /> Comment
                   </span>
                 )}
                 <span className="text-xs" style={{ color: MUTED }}>{timeAgo(c.createdAt)}</span>
               </div>
+              {/* Bubble colors are hardcoded per theme via CSS classes (not
+                  --color-* variables) so they stay readable no matter what
+                  custom background color an admin or user has set. */}
               <div
-                className="mt-1 rounded-[10px] border p-3 text-sm"
-                style={
+                className={`conv-bubble mt-1 ${
                   isPrivate
-                    ? {
-                        backgroundColor: 'color-mix(in srgb, var(--color-warning) 10%, var(--color-bg))',
-                        borderColor: 'var(--color-warning)',
-                        color: TEXT,
-                      }
+                    ? 'conv-bubble--private'
                     : isPublicComment
-                    ? { backgroundColor: CARD_BG, borderColor: BORDER, borderLeft: '3px solid var(--color-accent)', color: TEXT }
+                    ? 'conv-bubble--public'
                     : isCustomer
-                    ? { backgroundColor: CARD_BG, borderColor: BORDER, color: TEXT }
-                    // Tech reply — a subtle accent tint distinguishes it from a
-                    // customer message without needing a dedicated CSS variable.
-                    : { backgroundColor: 'color-mix(in srgb, var(--color-accent) 10%, var(--color-bg))', borderColor: BORDER, color: TEXT }
-                }
+                    ? 'conv-bubble--customer'
+                    : 'conv-bubble--tech'
+                }`}
               >
                 <p className="whitespace-pre-wrap">{c.body}</p>
               </div>
@@ -1747,14 +1737,16 @@ export default function TicketDetail() {
           className="min-w-0"
           style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
-          <div className="flex-shrink-0 flex" style={{ backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
+          {/* Hardcoded per theme via CSS classes (not --color-* variables) so
+              the tab bar stays readable no matter what custom background
+              color an admin or user has set. */}
+          <div className="ticket-tab-bar flex-shrink-0 flex">
             {TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setActiveTab(t.key)}
-                className="-mb-px border-b-2 px-4 py-3 text-sm font-medium"
-                style={{ borderColor: activeTab === t.key ? BLUE : 'transparent', color: activeTab === t.key ? BLUE : MUTED }}
+                className={`ticket-tab -mb-px border-b-2 px-4 py-3 text-sm font-medium ${activeTab === t.key ? 'ticket-tab--active' : ''}`}
               >
                 {t.label}
               </button>
