@@ -6,23 +6,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PRISM</title>
     <script>
-      // Apply the saved light/dark mode before paint to avoid a flash of the wrong theme.
+      // Apply the saved light/dark/system preference before paint, via the
+      // data-theme attribute, to avoid a flash of the wrong base theme.
+      // Falls back to "light" — the app's default — if nothing is stored.
       (function () {
         try {
-          var t = localStorage.getItem('prism.theme') || 'system';
-          var dark = t === 'dark' || (t === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          if (dark) document.documentElement.classList.add('dark');
-        } catch (e) {}
+          var t = localStorage.getItem('prism.theme') || 'light';
+          var resolved = t === 'dark' || t === 'light'
+            ? t
+            : ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', resolved);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
       })();
 
-      // Apply the cached admin color theme before paint too — the real
-      // fetch (GET /settings/public) happens after React mounts, so without
-      // this the page would flash the hardcoded defaults first.
+      // Layer the cached admin custom theme (Settings -> Appearance) on top
+      // of whichever base theme was just applied above — but only when the
+      // admin has actually saved one (theme.mode === 'custom'); otherwise
+      // every page follows the viewer's own light/dark/system preference
+      // with no override. The real fetch (GET /settings/public) happens
+      // after React mounts, so without this the page would flash the base
+      // theme's defaults first. This only overrides the --color-* variables
+      // (and --brand-primary-rgb, which mirrors --color-accent for
+      // Tailwind's bg-prism/text-prism classes); it never touches
+      // --navy-*/--surface, which stay owned by the light/dark base theme
+      // above.
       (function () {
         try {
           var cached = localStorage.getItem('prism.theme.cache');
           if (!cached) return;
           var theme = JSON.parse(cached);
+          if (theme.mode !== 'custom') return;
           var root = document.documentElement;
           var hexToTriplet = function (hex) {
             var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || '').trim());
@@ -43,15 +58,6 @@
           set('--color-danger', theme.danger);
           set('--color-timer', theme.timer);
           set('--brand-primary-rgb', hexToTriplet(theme.accent));
-          set('--navy-50', hexToTriplet(theme.bg));
-          set('--surface', hexToTriplet(theme.card));
-          set('--sidebar', hexToTriplet(theme.sidebar));
-          set('--navy-100', hexToTriplet(theme.border));
-          set('--navy-200', hexToTriplet(theme.border));
-          set('--navy-900', hexToTriplet(theme.textPrimary));
-          set('--navy-800', hexToTriplet(theme.textSecondary));
-          set('--navy-700', hexToTriplet(theme.textSecondary));
-          set('--navy-300', hexToTriplet(theme.textMuted));
         } catch (e) {}
       })();
     </script>

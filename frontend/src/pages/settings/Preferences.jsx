@@ -12,6 +12,36 @@ const THRESHOLD_OPTIONS = [
   { value: 300, label: '5 minutes' },
 ];
 
+// Fixed preview colors — these swatches must show what each theme actually
+// looks like regardless of which theme is currently active, so they're
+// literal values rather than the live --color-* variables.
+const THEME_PREVIEWS = {
+  light: { bg: '#f8fafc', card: '#ffffff', accent: '#2563eb', border: '#e2e8f0' },
+  dark: { bg: '#080b12', card: '#0d1120', accent: '#3b82f6', border: '#161c2d' },
+};
+
+function ThemeSwatch({ value }) {
+  if (value === 'system') {
+    return (
+      <span className="flex h-9 w-16 overflow-hidden rounded border border-navy-200">
+        {['light', 'dark'].map((half) => (
+          <span key={half} className="flex-1" style={{ backgroundColor: THEME_PREVIEWS[half].bg }}>
+            <span className="block h-2.5 w-full" style={{ backgroundColor: THEME_PREVIEWS[half].accent }} />
+            <span className="m-1 block h-3 rounded-sm" style={{ backgroundColor: THEME_PREVIEWS[half].card, border: `1px solid ${THEME_PREVIEWS[half].border}` }} />
+          </span>
+        ))}
+      </span>
+    );
+  }
+  const p = THEME_PREVIEWS[value];
+  return (
+    <span className="block h-9 w-16 overflow-hidden rounded border border-navy-200" style={{ backgroundColor: p.bg }}>
+      <span className="block h-2.5 w-full" style={{ backgroundColor: p.accent }} />
+      <span className="m-1 block h-3 rounded-sm" style={{ backgroundColor: p.card, border: `1px solid ${p.border}` }} />
+    </span>
+  );
+}
+
 // Minimal personal preferences page. Visible to all roles (requesters see only
 // this under Settings). Profile fields come from the directory / account and are
 // read-only here; local accounts can change their password.
@@ -54,23 +84,30 @@ export default function Preferences() {
       <div className="card p-5">
         <h2 className="mb-3 font-semibold text-navy-900">Appearance</h2>
         <label className="label">Theme</label>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-3">
           {THEME_OPTIONS.map((opt) => (
-            <button
+            <label
               key={opt.value}
-              type="button"
-              onClick={() => setTheme(opt.value)}
-              className={`flex-1 rounded-md border px-4 py-2 text-sm font-medium transition ${
+              className={`flex cursor-pointer flex-col items-center gap-2 rounded-md border p-3 text-center transition ${
                 theme === opt.value
                   ? 'border-prism bg-prism/10 text-prism'
                   : 'border-navy-200 text-navy-700 hover:bg-navy-100'
               }`}
             >
-              {opt.label}
-            </button>
+              <input
+                type="radio"
+                name="theme"
+                value={opt.value}
+                checked={theme === opt.value}
+                onChange={() => setTheme(opt.value)}
+                className="sr-only"
+              />
+              <ThemeSwatch value={opt.value} />
+              <span className="text-sm font-medium">{opt.label}</span>
+            </label>
           ))}
         </div>
-        <p className="mt-2 text-xs text-navy-400">“System” follows your operating system’s light/dark setting.</p>
+        <p className="mt-2 text-xs text-navy-400">“System” follows your operating system’s light/dark setting. Your choice applies immediately and is saved on this device.</p>
       </div>
 
       {isStaff && (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
-import { useSettings, applyTheme } from '../../context/SettingsContext';
+import { useSettings } from '../../context/SettingsContext';
 import Spinner from '../../components/Spinner';
 
 const COLOR_FIELDS = [
@@ -101,6 +101,7 @@ function MiniPreview({ theme, appName, tagline }) {
 export default function Appearance() {
   const { settings, refresh } = useSettings();
   const [theme, setTheme] = useState(null);
+  const [themeMode, setThemeMode] = useState('auto');
   const [appName, setAppName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [tagline, setTagline] = useState('');
@@ -116,6 +117,7 @@ export default function Appearance() {
     api.get('/settings')
       .then(({ data }) => {
         const s = data.settings;
+        setThemeMode(s['theme.mode'] || 'auto');
         setTheme({
           bg: s['theme.bg'], sidebar: s['theme.sidebar'], card: s['theme.card'], border: s['theme.border'],
           accent: s['theme.accent'], accentHover: s['theme.accentHover'], textPrimary: s['theme.textPrimary'],
@@ -163,12 +165,33 @@ export default function Appearance() {
     try {
       const payload = { settings: {} };
       COLOR_FIELDS.forEach(([key]) => { payload.settings[`theme.${key}`] = theme[key]; });
+      payload.settings['theme.mode'] = 'custom';
       payload.settings['branding.appName'] = appName;
       payload.settings['company.name'] = companyName;
       payload.settings['branding.tagline'] = tagline;
       payload.settings['branding.loginBullets'] = JSON.stringify(bullets);
       await api.patch('/settings', payload);
       await refresh();
+      setThemeMode('custom');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Reverts to "no override" — every page then follows the viewer's own
+  // light/dark/system preference (Settings -> Preferences) instead of a
+  // fixed admin-chosen palette.
+  const resetToDefault = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await api.patch('/settings', { settings: { 'theme.mode': 'auto' } });
+      await refresh();
+      setThemeMode('auto');
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -189,8 +212,6 @@ export default function Appearance() {
       if (faviconRef.current) faviconRef.current.value = '';
     } catch (err) {
       alert(errMessage(err));
-    } finally {
-      applyTheme(theme);
     }
   };
   const removeFavicon = async () => {
@@ -211,9 +232,17 @@ export default function Appearance() {
         <h1 className="text-2xl font-bold text-navy-900">Appearance</h1>
         <div className="flex items-center gap-3">
           {saved && <span className="text-sm text-green-600">Saved</span>}
+          {themeMode === 'custom' && (
+            <button onClick={resetToDefault} className="btn-secondary" disabled={saving}>Reset to default</button>
+          )}
           <button onClick={save} className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
         </div>
       </div>
+      <p className="text-sm text-navy-500">
+        {themeMode === 'custom'
+          ? 'A custom color palette is active for everyone and overrides each user’s own light/dark preference below.'
+          : 'No custom palette is active — everyone sees their own Light/Dark/System preference from Settings → Preferences. Saving here applies a palette for all users.'}
+      </p>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

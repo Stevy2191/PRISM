@@ -103,10 +103,10 @@ export default function Reports() {
         <>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <ChartCard title={`Tickets by Status (${ticketReport?.total || 0} total)`}>
-              <Chart data={statusData} color="#3a5da6" />
+              <Chart data={statusData} color="var(--color-accent)" />
             </ChartCard>
             <ChartCard title="Tickets by Priority">
-              <Chart data={priorityData} color="#38bdf8" />
+              <Chart data={priorityData} color="var(--color-relation-accent)" />
             </ChartCard>
           </div>
 
@@ -228,9 +228,9 @@ function Chart({ data, color }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+        <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }} />
+        <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }} />
         <Tooltip />
         <Bar dataKey="count" fill={color} radius={[4, 4, 0, 0]} />
       </BarChart>

@@ -36,7 +36,7 @@ function label(value) {
 export default function Badge({ value, color, className = '' }) {
   if (color) {
     return (
-      <span className={`badge capitalize ${className}`} style={{ backgroundColor: `${color}22`, color }}>
+      <span className={`badge capitalize ${className}`} style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}>
         {label(value)}
       </span>
     );

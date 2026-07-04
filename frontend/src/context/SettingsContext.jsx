@@ -14,6 +14,7 @@ const FALLBACK = {
     loginBullets: ['Ticket & project tracking', 'Time logging & reports', 'AD & local auth', 'API access'],
   },
   theme: {
+    mode: 'auto',
     preset: 'dark',
     bg: '#080b12',
     sidebar: '#0a0d14',
@@ -40,17 +41,33 @@ function hexToTriplet(hex) {
   return `${parseInt(m[1], 16)} ${parseInt(m[2], 16)} ${parseInt(m[3], 16)}`;
 }
 
-// Apply a full theme object to the document root as CSS custom properties —
-// both the new named variables (--color-*, consumed directly via var(...) by
-// pages built with a fixed dark palette) and the legacy rgb-triplet
-// variables that the rest of the app's Tailwind classes (bg-navy-*,
-// bg-surface, sidebar-surface, bg-prism/text-prism) already read, so a
-// single call here repaints virtually the whole app.
-export function applyTheme(theme) {
-  if (!theme) return;
-  const root = document.documentElement;
-  const set = (name, val) => { if (val) root.style.setProperty(name, val); };
+const OVERRIDE_VARS = [
+  '--color-bg', '--color-sidebar', '--color-card', '--color-border',
+  '--color-accent', '--color-accent-hover', '--color-text-primary',
+  '--color-text-secondary', '--color-text-muted', '--color-success',
+  '--color-warning', '--color-danger', '--color-timer', '--brand-primary-rgb',
+];
 
+// Layer an admin custom theme (Settings -> Appearance) on top of whichever
+// base theme (light/dark, see ThemeContext.jsx) is currently active — but
+// ONLY when the admin has actually saved one (theme.mode === 'custom').
+// Otherwise every page is left to the viewer's own light/dark/system
+// preference with no override at all, which is what makes "custom colors
+// layer on top of the base theme, not replace it" true in practice: this
+// only ever touches the --color-* variables (plus --brand-primary-rgb,
+// which mirrors --color-accent for Tailwind's bg-prism/text-prism classes),
+// and deliberately never touches --navy-*/--surface, which stay owned by
+// the light/dark base theme so the two systems can't collide.
+export function applyTheme(theme) {
+  const root = document.documentElement;
+
+  if (!theme || theme.mode !== 'custom') {
+    OVERRIDE_VARS.forEach((name) => root.style.removeProperty(name));
+    try { localStorage.removeItem(THEME_CACHE_KEY); } catch { /* ignore */ }
+    return;
+  }
+
+  const set = (name, val) => { if (val) root.style.setProperty(name, val); };
   set('--color-bg', theme.bg);
   set('--color-sidebar', theme.sidebar);
   set('--color-card', theme.card);
@@ -64,17 +81,7 @@ export function applyTheme(theme) {
   set('--color-warning', theme.warning);
   set('--color-danger', theme.danger);
   set('--color-timer', theme.timer);
-
   set('--brand-primary-rgb', hexToTriplet(theme.accent));
-  set('--navy-50', hexToTriplet(theme.bg));
-  set('--surface', hexToTriplet(theme.card));
-  set('--sidebar', hexToTriplet(theme.sidebar));
-  set('--navy-100', hexToTriplet(theme.border));
-  set('--navy-200', hexToTriplet(theme.border));
-  set('--navy-900', hexToTriplet(theme.textPrimary));
-  set('--navy-800', hexToTriplet(theme.textSecondary));
-  set('--navy-700', hexToTriplet(theme.textSecondary));
-  set('--navy-300', hexToTriplet(theme.textMuted));
 
   try { localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(theme)); } catch { /* ignore */ }
 }

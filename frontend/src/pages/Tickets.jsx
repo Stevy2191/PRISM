@@ -34,10 +34,10 @@ const PRIORITY_OPTIONS = [
 ];
 
 const PRIORITY_META = {
-  critical: { label: 'Urgent', color: '#f87171' },
-  high: { label: 'High', color: '#fbbf24' },
-  medium: { label: 'Medium', color: '#3b82f6' },
-  low: { label: 'Low', color: '#94a3b8' },
+  critical: { label: 'Urgent', color: 'var(--color-danger)' },
+  high: { label: 'High', color: 'var(--color-warning)' },
+  medium: { label: 'Medium', color: 'var(--color-accent)' },
+  low: { label: 'Low', color: 'var(--color-text-muted)' },
 };
 
 const FIXED_COLUMNS = ['id', 'title'];
@@ -121,7 +121,7 @@ function Avatar({ name }) {
     <span className="flex items-center gap-2">
       <span
         className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
-        style={{ backgroundColor: BORDER, color: '#93c5fd' }}
+        style={{ backgroundColor: BORDER, color: 'var(--color-accent)' }}
       >
         {initials(name)}
       </span>
@@ -149,7 +149,7 @@ function StatusBadge({ ticket, ticketStatuses }) {
   return (
     <span
       className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
-      style={{ backgroundColor: `${color}22`, color }}
+      style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}
     >
       {ticket.status}
     </span>
@@ -163,8 +163,8 @@ function DueDateCell({ dueDate }) {
   soon.setDate(soon.getDate() + 3);
   const soonStr = soon.toISOString().slice(0, 10);
   let color = MUTED;
-  if (dueDate < today) color = '#f87171';
-  else if (dueDate <= soonStr) color = '#fbbf24';
+  if (dueDate < today) color = 'var(--color-danger)';
+  else if (dueDate <= soonStr) color = 'var(--color-warning)';
   return <span className="text-sm" style={{ color }}>{dueDate}</span>;
 }
 
@@ -172,8 +172,8 @@ function AgeLine({ ticket, behaviorByName }) {
   if (isClosedStatus(ticket.status, behaviorByName)) return null;
   const days = ageDays(ticket.createdAt);
   let color = MUTED;
-  if (days > 10) color = '#f87171';
-  else if (days > 5) color = '#fbbf24';
+  if (days > 10) color = 'var(--color-danger)';
+  else if (days > 5) color = 'var(--color-warning)';
   return <p className="text-xs" style={{ color }}>Open {days} day{days === 1 ? '' : 's'}</p>;
 }
 
@@ -250,7 +250,7 @@ function SavedFiltersMenu({ savedFilters, activeId, onApply, onSave, onDelete })
                   type="button"
                   onClick={() => { if (name.trim()) { onSave(name.trim()); setName(''); setShowSave(false); } }}
                   className="rounded px-2 py-1 text-xs font-medium"
-                  style={{ backgroundColor: BLUE, color: '#fff' }}
+                  style={{ backgroundColor: BLUE, color: 'white' }}
                 >
                   Save
                 </button>
@@ -623,7 +623,7 @@ export default function Tickets() {
           type="button"
           onClick={toggleMyTickets}
           className={filterButtonCls(myTickets)}
-          style={{ borderColor: myTickets ? BLUE : BORDER, backgroundColor: myTickets ? BLUE : CARD_BG, color: myTickets ? '#fff' : TEXT }}
+          style={{ borderColor: myTickets ? BLUE : BORDER, backgroundColor: myTickets ? BLUE : CARD_BG, color: myTickets ? 'white' : TEXT }}
         >
           My tickets
         </button>
@@ -631,7 +631,7 @@ export default function Tickets() {
           type="button"
           onClick={toggleOverdue}
           className={filterButtonCls(overdue)}
-          style={{ borderColor: overdue ? '#f87171' : BORDER, backgroundColor: overdue ? '#f87171' : CARD_BG, color: overdue ? '#fff' : TEXT }}
+          style={{ borderColor: overdue ? 'var(--color-danger)' : BORDER, backgroundColor: overdue ? 'var(--color-danger)' : CARD_BG, color: overdue ? 'white' : TEXT }}
         >
           Overdue
         </button>
@@ -639,7 +639,7 @@ export default function Tickets() {
           type="button"
           onClick={toggleUnassigned}
           className={filterButtonCls(unassigned)}
-          style={{ borderColor: unassigned ? BLUE : BORDER, backgroundColor: unassigned ? BLUE : CARD_BG, color: unassigned ? '#fff' : TEXT }}
+          style={{ borderColor: unassigned ? BLUE : BORDER, backgroundColor: unassigned ? BLUE : CARD_BG, color: unassigned ? 'white' : TEXT }}
         >
           Unassigned
         </button>
@@ -658,7 +658,7 @@ export default function Tickets() {
             type="button"
             onClick={() => setView('table')}
             className="rounded-l-md px-3 py-2 text-sm font-medium"
-            style={{ backgroundColor: view === 'table' ? BLUE : CARD_BG, color: view === 'table' ? '#fff' : TEXT }}
+            style={{ backgroundColor: view === 'table' ? BLUE : CARD_BG, color: view === 'table' ? 'white' : TEXT }}
           >
             Table
           </button>
@@ -666,7 +666,7 @@ export default function Tickets() {
             type="button"
             onClick={() => setView('board')}
             className="rounded-r-md px-3 py-2 text-sm font-medium"
-            style={{ backgroundColor: view === 'board' ? BLUE : CARD_BG, color: view === 'board' ? '#fff' : TEXT }}
+            style={{ backgroundColor: view === 'board' ? BLUE : CARD_BG, color: view === 'board' ? 'white' : TEXT }}
           >
             Board
           </button>
@@ -674,7 +674,7 @@ export default function Tickets() {
       </div>
 
       {error && (
-        <div className="rounded-md p-4 text-sm" style={{ backgroundColor: '#1a0a0a', color: '#fca5a5', border: '1px solid #7f1d1d' }}>
+        <div className="rounded-md p-4 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
           {error}
         </div>
       )}
@@ -696,7 +696,7 @@ export default function Tickets() {
                 </h2>
                 <span
                   className="rounded-full px-2 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: `${col.color}22`, color: col.color }}
+                  style={{ backgroundColor: `color-mix(in srgb, ${col.color} 13%, transparent)`, color: col.color }}
                 >
                   {col.tickets.length}
                 </span>
@@ -713,10 +713,10 @@ export default function Tickets() {
                       key={t.id}
                       onClick={() => navigate(`/tickets/${t.id}`)}
                       className="cursor-pointer rounded-md border p-3 transition hover:opacity-90"
-                      style={{ backgroundColor: BG, borderColor: isOverdue ? '#7f1d1d' : BORDER }}
+                      style={{ backgroundColor: BG, borderColor: isOverdue ? 'var(--color-danger)' : BORDER }}
                     >
-                      <p className="font-mono text-xs" style={{ color: isOverdue ? '#f87171' : MUTED }}>{formatTicketId(t)}</p>
-                      <p className="mt-1 truncate text-sm font-medium" style={{ color: isOverdue ? '#f87171' : TEXT }}>{t.title}</p>
+                      <p className="font-mono text-xs" style={{ color: isOverdue ? 'var(--color-danger)' : MUTED }}>{formatTicketId(t)}</p>
+                      <p className="mt-1 truncate text-sm font-medium" style={{ color: isOverdue ? 'var(--color-danger)' : TEXT }}>{t.title}</p>
                       <div className="mt-2 flex items-center justify-between">
                         <PriorityCell priority={t.priority} />
                         <Avatar name={t.assignee?.displayName} />
@@ -850,7 +850,7 @@ export default function Tickets() {
                         {key === 'timeLogged' && <span className="text-sm" style={{ color: TEXT }}>{formatMinutes(t.timeLoggedMinutes)}</span>}
                         {key === 'createdDate' && <span className="text-sm" style={{ color: MUTED }}>{new Date(t.createdAt).toLocaleDateString()}</span>}
                         {key === 'actions' && (
-                          <Link to={`/tickets/${t.id}`} className="text-sm" style={{ color: '#93c5fd' }}>Open →</Link>
+                          <Link to={`/tickets/${t.id}`} className="text-sm" style={{ color: 'var(--color-accent)' }}>Open →</Link>
                         )}
 
                         {isStaff && key === 'status' && (

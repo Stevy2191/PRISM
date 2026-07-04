@@ -2,52 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* Admin-customizable theme (Settings -> Appearance). Plain hex values,
-     consumed directly via var(--color-x) by pages built with a fixed dark
-     palette (Dashboard, Tickets, TicketDetail, TicketNew, Login). Overridden
-     at runtime — see SettingsContext.jsx's applyTheme(). */
+/* Base theme (light/dark) variables, keyed off the data-theme attribute set
+   on <html> by ThemeContext.jsx (and mirrored by index.html's pre-mount
+   script to avoid a flash of the wrong theme). :root holds the light set as
+   the fallback for any render that happens before data-theme is stamped.
+
+   Admin custom colors (Settings -> Appearance, SettingsContext.applyTheme)
+   layer ONLY on top of the --color-* variables below via inline styles on
+   <html> — they never touch the navy scale (--navy-*, --surface,
+   --brand-accent-rgb) that the light/dark toggle owns, so the two systems
+   no longer collide. */
+:root,
+[data-theme='light'] {
+  --color-bg: #f8fafc;
+  --color-sidebar: #f1f5f9;
+  --color-card: #ffffff;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-text-faint: #94a3b8;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-input-bg: #ffffff;
+  --color-input-border: #cbd5e1;
+  --color-hover: #f1f5f9;
+  --color-timer: #16a34a;
+  --color-relation-accent: #7c3aed;
+  --color-relation-accent-light: #ede9fe;
+
+  --brand-primary-rgb: 37 99 235;    /* #2563eb, mirrors --color-accent */
+  --brand-accent-rgb: 14 165 233;    /* #0ea5e9 */
+
+  --navy-50: 248 250 252;
+  --navy-100: 226 232 240;
+  --navy-200: 203 213 225;
+  --navy-300: 148 163 184;
+  --navy-400: 100 116 139;
+  --navy-500: 71 85 105;
+  --navy-600: 51 65 85;
+  --navy-700: 30 41 59;
+  --navy-800: 15 23 42;
+  --navy-900: 8 15 30;
+  --navy-950: 2 6 16;
+  --surface: 255 255 255;            /* cards / inputs */
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
   --color-bg: #080b12;
   --color-sidebar: #0a0d14;
   --color-card: #0d1120;
   --color-border: #161c2d;
+  --color-border-strong: #1a2235;
   --color-accent: #3b82f6;
   --color-accent-hover: #1d4ed8;
   --color-text-primary: #f1f5f9;
   --color-text-secondary: #94a3b8;
   --color-text-muted: #475569;
+  --color-text-faint: #334155;
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
+  --color-input-bg: #080b12;
+  --color-input-border: #1a2235;
+  --color-hover: #0d1120;
   --color-timer: #4ade80;
+  --color-relation-accent: #7c3aed;
+  --color-relation-accent-light: #a78bfa;
 
-  /* Branding defaults — overridden at runtime from system settings.
-     Stored as space-separated rgb triplets for Tailwind alpha support. */
-  --brand-primary-rgb: 59 130 246;   /* #3b82f6 */
-  --brand-accent-rgb: 56 189 248;   /* #38bdf8 */
-  --login-bg: #0f1b34;
+  --brand-primary-rgb: 59 130 246;   /* #3b82f6, mirrors --color-accent */
+  --brand-accent-rgb: 56 189 248;    /* #38bdf8 */
 
-  /* Light theme navy scale (rgb triplets). */
-  --navy-50: 238 242 249;
-  --navy-100: 219 228 243;
-  --navy-200: 184 201 231;
-  --navy-300: 139 166 214;
-  --navy-400: 91 125 192;
-  --navy-500: 58 93 166;
-  --navy-600: 44 71 131;
-  --navy-700: 36 58 107;
-  --navy-800: 27 44 82;
-  --navy-900: 15 27 52;
-  --navy-950: 10 18 38;
-  --surface: 255 255 255;            /* cards / inputs */
-
-  /* Sidebar stays dark in both themes (independent of the navy scale). */
-  --sidebar: 15 27 52;
-}
-
-/* Dark theme: remap the navy scale so low indices are dark (backgrounds) and
-   high indices are light (text). Driven by the `.dark` class on <html>. */
-.dark {
+  /* Navy scale remapped so low indices are dark (backgrounds) and high
+     indices are light (text). */
   --navy-50: 15 23 42;     /* page background */
   --navy-100: 51 65 85;    /* dividers / subtle borders / chips */
   --navy-200: 71 85 105;   /* input borders */
@@ -60,7 +92,6 @@
   --navy-900: 241 245 249; /* headings */
   --navy-950: 248 250 252;
   --surface: 30 41 59;     /* cards / inputs */
-  --sidebar: 8 13 26;
   color-scheme: dark;
 }
 
@@ -106,8 +137,10 @@
   .table-td {
     @apply px-4 py-3 text-sm text-navy-800;
   }
-  /* Sidebar surface — fixed dark in both themes. */
+  /* Sidebar surface — driven directly by --color-sidebar so both the base
+     light/dark theme AND an admin custom color (Settings -> Appearance)
+     repaint it consistently. */
   .sidebar-surface {
-    background-color: rgb(var(--sidebar));
+    background-color: var(--color-sidebar);
   }
 }

@@ -29,7 +29,17 @@ const DEFAULTS = {
   'branding.tagline': 'Project & Request Integrated Service Manager',
   'branding.loginBullets': DEFAULT_LOGIN_BULLETS,
 
-  // Full theme palette — defaults match PRISM's current dark scheme.
+  // 'auto' (default) means no admin override is active — the frontend's
+  // light/dark/system base theme (see index.css) has full, unimpeded
+  // control. Saving on Settings -> Appearance flips this to 'custom', which
+  // layers the color fields below on top of whichever base theme the user
+  // has personally selected. Without this distinction, an unconfigured
+  // install would still force every page onto the literal defaults below,
+  // and a user's light/dark preference could never take visible effect.
+  'theme.mode': 'auto',
+  // Full theme palette — only applied when theme.mode is 'custom'. Defaults
+  // match PRISM's dark preset so choosing "Dark" as a starting point in the
+  // Appearance editor keeps parity with the previous fixed dark scheme.
   'theme.preset': 'dark',
   'theme.bg': '#080b12',
   'theme.sidebar': '#0a0d14',
@@ -90,6 +100,7 @@ function publicShape(values) {
       loginBullets: parseJsonValue(values['branding.loginBullets'], JSON.parse(DEFAULT_LOGIN_BULLETS)),
     },
     theme: {
+      mode: values['theme.mode'],
       preset: values['theme.preset'],
       bg: values['theme.bg'],
       sidebar: values['theme.sidebar'],

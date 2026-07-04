@@ -19,8 +19,8 @@ const TEXT = 'var(--color-text-primary)';
 const MUTED = 'var(--color-text-muted)';
 const BLUE = 'var(--color-accent)';
 const TIMER_COLOR = 'var(--color-timer)';
-const PURPLE = '#7c3aed';
-const PURPLE_LIGHT = '#a78bfa';
+const PURPLE = 'var(--color-relation-accent)';
+const PURPLE_LIGHT = 'var(--color-relation-accent-light)';
 const SIDEBAR_STORAGE_KEY = 'prism.ticketDetail.sidebar';
 
 const PRIORITY_OPTIONS = [
@@ -37,10 +37,10 @@ const TYPE_OPTIONS = [
   { value: 'change', label: 'Change' },
 ];
 const PRIORITY_META = {
-  critical: { label: 'Urgent', color: '#f87171' },
-  high: { label: 'High', color: '#fbbf24' },
-  medium: { label: 'Medium', color: '#3b82f6' },
-  low: { label: 'Low', color: '#94a3b8' },
+  critical: { label: 'Urgent', color: 'var(--color-danger)' },
+  high: { label: 'High', color: 'var(--color-warning)' },
+  medium: { label: 'Medium', color: 'var(--color-accent)' },
+  low: { label: 'Low', color: 'var(--color-text-muted)' },
 };
 // Status name -> {color, behaviorType} lookup built from the fetched
 // ticket-statuses list (Settings -> Statuses), replacing what used to be a
@@ -89,8 +89,8 @@ function dueDateColor(dueDate) {
   const soon = new Date();
   soon.setDate(soon.getDate() + 3);
   const soonStr = soon.toISOString().slice(0, 10);
-  if (dueDate < today) return '#f87171';
-  if (dueDate <= soonStr) return '#fbbf24';
+  if (dueDate < today) return 'var(--color-danger)';
+  if (dueDate <= soonStr) return 'var(--color-warning)';
   return MUTED;
 }
 
@@ -181,8 +181,8 @@ function TimeEntryFields({ entryDate, onEntryDateChange, startMinutes, onStartMi
       <div
         className="mb-3 rounded-md border px-3 py-2 font-mono text-sm font-semibold"
         style={{
-          borderColor: valid ? '#16a34a' : '#dc2626',
-          color: valid ? '#4ade80' : '#f87171',
+          borderColor: valid ? 'var(--color-success)' : 'var(--color-danger)',
+          color: valid ? 'var(--color-success)' : 'var(--color-danger)',
           backgroundColor: BG,
         }}
       >
@@ -333,8 +333,8 @@ function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTim
   const [saving, setSaving] = useState(false);
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const color = timerState === 'running' ? TIMER_COLOR : timerState === 'paused' ? '#f59e0b' : TEXT;
-  const iconColor = timerState === 'running' ? TIMER_COLOR : timerState === 'paused' ? '#f59e0b' : MUTED;
+  const color = timerState === 'running' ? TIMER_COLOR : timerState === 'paused' ? 'var(--color-warning)' : TEXT;
+  const iconColor = timerState === 'running' ? TIMER_COLOR : timerState === 'paused' ? 'var(--color-warning)' : MUTED;
 
   const handleStop = () => {
     const stopAt = new Date();
@@ -484,7 +484,11 @@ function OtherTicketTimerBanner({ otherTicket, now, onCleared }) {
   return (
     <div
       className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 px-6 py-2 text-sm"
-      style={{ backgroundColor: '#2d1f00', borderBottom: '1px solid #f59e0b', color: '#fbbf24' }}
+      style={{
+        backgroundColor: 'color-mix(in srgb, var(--color-warning) 15%, var(--color-bg))',
+        borderBottom: '1px solid var(--color-warning)',
+        color: 'var(--color-warning)',
+      }}
     >
       <span>
         Timer is running on <span className="font-mono font-semibold">{otherTicket.ticketNumber}</span> ({formatHMS(seconds)}). Stop and log before starting a new one?
@@ -495,7 +499,7 @@ function OtherTicketTimerBanner({ otherTicket, now, onCleared }) {
           onClick={stopAndLog}
           disabled={busy}
           className="rounded-md px-3 py-1 text-xs font-semibold disabled:opacity-50"
-          style={{ backgroundColor: '#f59e0b', color: '#1a1200' }}
+          style={{ backgroundColor: 'var(--color-warning)', color: 'black' }}
         >
           {busy ? 'Logging…' : 'Stop & log'}
         </button>
@@ -504,7 +508,7 @@ function OtherTicketTimerBanner({ otherTicket, now, onCleared }) {
           onClick={onCleared}
           disabled={busy}
           className="rounded-md border px-3 py-1 text-xs font-medium disabled:opacity-50"
-          style={{ borderColor: '#f59e0b', color: '#fbbf24' }}
+          style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
         >
           Discard
         </button>
@@ -567,7 +571,7 @@ function Sidebar({
           height: 36,
           padding: '0 12px',
           justifyContent: collapsed ? 'center' : 'flex-end',
-          backgroundColor: '#141a2b',
+          backgroundColor: 'var(--color-hover)',
           borderBottom: `1px solid ${BORDER}`,
           color: TEXT,
         }}
@@ -716,7 +720,7 @@ function Sidebar({
               <div className="space-y-1.5">
                 {watchers.map((w) => (
                   <span key={w.id} className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 text-xs font-medium" style={{ backgroundColor: BORDER, color: TEXT }}>
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold" style={{ backgroundColor: CARD_BG, color: '#93c5fd' }}>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold" style={{ backgroundColor: CARD_BG, color: 'var(--color-accent)' }}>
                       {initials(w.user?.displayName)}
                     </span>
                     {w.user?.displayName}
@@ -771,7 +775,7 @@ function ConversationTab({ ticket, comments }) {
           <div key={c.id} className="flex items-start gap-3">
             <span
               className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-              style={{ backgroundColor: isCustomer ? '#3b82f6' : '#22c55e' }}
+              style={{ backgroundColor: isCustomer ? 'var(--color-accent)' : 'var(--color-success)' }}
             >
               {initials(c.author?.displayName)}
             </span>
@@ -780,17 +784,27 @@ function ConversationTab({ ticket, comments }) {
                 <span className="text-sm font-semibold" style={{ color: TEXT }}>{c.author?.displayName}</span>
                 <span
                   className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                  style={isCustomer ? { backgroundColor: '#0d2847', color: '#60a5fa' } : { backgroundColor: '#0c2a1a', color: '#4ade80' }}
+                  style={
+                    isCustomer
+                      ? { backgroundColor: 'color-mix(in srgb, var(--color-accent) 20%, var(--color-bg))', color: 'var(--color-accent)' }
+                      : { backgroundColor: 'color-mix(in srgb, var(--color-success) 20%, var(--color-bg))', color: 'var(--color-success)' }
+                  }
                 >
                   {isCustomer ? 'Customer' : 'Tech'}
                 </span>
                 {isPrivate && (
-                  <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: '#3a2a00', color: '#f59e0b' }}>
+                  <span
+                    className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    style={{ backgroundColor: 'color-mix(in srgb, var(--color-warning) 20%, var(--color-bg))', color: 'var(--color-warning)' }}
+                  >
                     <IconLock size={10} /> Private comment
                   </span>
                 )}
                 {isPublicComment && (
-                  <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: '#0d2847', color: '#60a5fa' }}>
+                  <span
+                    className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 20%, var(--color-bg))', color: 'var(--color-accent)' }}
+                  >
                     <IconWorld size={10} /> Comment
                   </span>
                 )}
@@ -799,8 +813,8 @@ function ConversationTab({ ticket, comments }) {
               <div
                 className="mt-1 rounded-[10px] border p-3 text-sm"
                 style={{
-                  backgroundColor: isPrivate ? '#1a1200' : CARD_BG,
-                  borderColor: isPrivate ? '#f59e0b' : BORDER,
+                  backgroundColor: isPrivate ? 'color-mix(in srgb, var(--color-warning) 10%, var(--color-bg))' : CARD_BG,
+                  borderColor: isPrivate ? 'var(--color-warning)' : BORDER,
                   color: TEXT,
                 }}
               >
@@ -814,7 +828,7 @@ function ConversationTab({ ticket, comments }) {
   );
 }
 
-const AMBER = '#f59e0b';
+const AMBER = 'var(--color-warning)';
 
 function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
   const draftKey = `prism.ticket.${ticket.id}.draft`;
@@ -853,7 +867,7 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
     fontSize: '0.75rem',
     fontWeight: 600,
     backgroundColor: active ? activeColor : 'transparent',
-    color: active ? '#0d1120' : MUTED,
+    color: active ? 'black' : MUTED,
   });
 
   return (
@@ -891,7 +905,7 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
                 type="button"
                 onClick={() => setVisibility('public')}
                 className="flex items-center gap-1"
-                style={tabStyle(visibility === 'public', '#60a5fa')}
+                style={tabStyle(visibility === 'public', BLUE)}
               >
                 <IconWorld size={12} /> Public
               </button>
@@ -919,7 +933,7 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
             onClick={send}
             disabled={sending || !text.trim()}
             className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ backgroundColor: isComment ? AMBER : BLUE, color: isComment ? '#0d1120' : '#fff' }}
+            style={{ backgroundColor: isComment ? AMBER : BLUE, color: isComment ? 'black' : 'white' }}
           >
             {sending ? 'Sending…' : isComment ? 'Add Comment' : 'Send Reply'}
           </button>
@@ -1050,7 +1064,7 @@ function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, canLogT
                     {' · '}{formatDate(e.entryDate || e.loggedAt)}
                   </p>
                 </div>
-                <span className="font-mono text-sm font-semibold" style={{ color: '#4ade80' }}>{formatMinutes(displayMinutes)}</span>
+                <span className="font-mono text-sm font-semibold" style={{ color: 'var(--color-success)' }}>{formatMinutes(displayMinutes)}</span>
               </li>
             );
           })}
@@ -1177,7 +1191,7 @@ function AttachmentsTab({ ticketId, attachments, onUpload, onRemove }) {
         onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
         onClick={() => inputRef.current?.click()}
         className="mt-4 cursor-pointer rounded-md border-2 border-dashed p-6 text-center"
-        style={{ borderColor: dragOver ? BLUE : BORDER, backgroundColor: dragOver ? '#0d1525' : BG }}
+        style={{ borderColor: dragOver ? BLUE : BORDER, backgroundColor: dragOver ? 'color-mix(in srgb, var(--color-accent) 8%, var(--color-bg))' : BG }}
       >
         <IconUpload size={22} style={{ color: MUTED, margin: '0 auto' }} />
         <p className="mt-2 text-sm" style={{ color: TEXT }}>Drag &amp; drop files here or browse</p>
@@ -1242,7 +1256,7 @@ function RelationLinker({ title, accent, accentLight, Icon, relationType, button
       {helperText && <p className="mt-1.5 text-xs" style={{ color: MUTED }}>{helperText}</p>}
       <div className="mt-2 flex flex-wrap gap-2">
         {selected.map((r) => (
-          <span key={r.id} className="flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-2 text-xs font-medium" style={{ backgroundColor: `${accent}22`, color: accentLight }}>
+          <span key={r.id} className="flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-2 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`, color: accentLight }}>
             <Icon size={12} />
             <Link to={`/tickets/${r.ticket.id}`} className="hover:underline">{formatTicketId(r.ticket)} {r.ticket.title}</Link>
             {isStaff && (
@@ -1282,7 +1296,7 @@ function RelationshipsTab({ ticketId, relations, isStaff, reload, closedStatusNa
       />
       <div className="border-t pt-5" style={{ borderColor: BORDER }}>
         <RelationLinker
-          title="Child tickets" accent={BLUE} accentLight="#93c5fd" Icon={IconArrowDown}
+          title="Child tickets" accent={BLUE} accentLight={BLUE} Icon={IconArrowDown}
           relationType="child" buttonLabel="Link child" multiple
           selected={children} ticketId={ticketId} isStaff={isStaff} onLinked={reload} onUnlink={unlink}
         />
@@ -1297,7 +1311,7 @@ function RelationshipsTab({ ticketId, relations, isStaff, reload, closedStatusNa
       </div>
       <div className="border-t pt-5" style={{ borderColor: BORDER }}>
         <RelationLinker
-          title="Related tickets" accent={MUTED} accentLight="#cbd5e1" Icon={() => null}
+          title="Related tickets" accent={MUTED} accentLight={MUTED} Icon={() => null}
           relationType="related" buttonLabel="Link" multiple
           selected={related} ticketId={ticketId} isStaff={isStaff} onLinked={reload} onUnlink={unlink}
         />
@@ -1309,18 +1323,18 @@ function RelationshipsTab({ ticketId, relations, isStaff, reload, closedStatusNa
 // ---- Activity tab ----
 
 const ACTIVITY_DOT = {
-  created: '#3b82f6',
-  status: '#fbbf24',
-  priority: '#f87171',
-  type: '#94a3b8',
-  assigneeId: '#3b82f6',
-  teamId: '#3b82f6',
-  departmentId: '#94a3b8',
-  dueDate: '#94a3b8',
-  comment: '#c084fc',
-  time_logged: '#4ade80',
-  attachment_added: '#94a3b8',
-  relation_added: '#a78bfa',
+  created: 'var(--color-accent)',
+  status: 'var(--color-warning)',
+  priority: 'var(--color-danger)',
+  type: 'var(--color-text-muted)',
+  assigneeId: 'var(--color-accent)',
+  teamId: 'var(--color-accent)',
+  departmentId: 'var(--color-text-muted)',
+  dueDate: 'var(--color-text-muted)',
+  comment: 'var(--color-relation-accent)',
+  time_logged: 'var(--color-success)',
+  attachment_added: 'var(--color-text-muted)',
+  relation_added: 'var(--color-relation-accent-light)',
 };
 const ACTIVITY_FIELD_LABEL = {
   status: 'status', priority: 'priority', type: 'type', assigneeId: 'assignee',
@@ -1656,7 +1670,7 @@ export default function TicketDetail() {
               return (
                 <span
                   className="rounded-full px-2.5 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: `${statusColor}22`, color: statusColor }}
+                  style={{ backgroundColor: `color-mix(in srgb, ${statusColor} 13%, transparent)`, color: statusColor }}
                 >
                   {ticket.status}
                 </span>
@@ -1790,7 +1804,7 @@ export default function TicketDetail() {
               type="button"
               onClick={() => { const status = noResolutionWarning; setNoResolutionWarning(null); applyStatusChange(status); }}
               className="rounded-md px-4 py-2 text-sm font-semibold text-white"
-              style={{ backgroundColor: '#dc2626' }}
+              style={{ backgroundColor: 'var(--color-danger)' }}
             >
               Close without resolution
             </button>
@@ -1816,7 +1830,7 @@ export default function TicketDetail() {
               type="button"
               onClick={() => { patchTicket({ status: noTimeWarning }); setNoTimeWarning(null); }}
               className="rounded-md px-4 py-2 text-sm font-semibold text-white"
-              style={{ backgroundColor: '#dc2626' }}
+              style={{ backgroundColor: 'var(--color-danger)' }}
             >
               Close anyway
             </button>

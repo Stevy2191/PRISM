@@ -12,8 +12,8 @@ const BORDER = 'var(--color-border)';
 const TEXT = 'var(--color-text-primary)';
 const MUTED = 'var(--color-text-muted)';
 const BLUE = 'var(--color-accent)';
-const PURPLE = '#7c3aed';
-const PURPLE_LIGHT = '#a78bfa';
+const PURPLE = 'var(--color-relation-accent)';
+const PURPLE_LIGHT = 'var(--color-relation-accent-light)';
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
@@ -32,7 +32,7 @@ const PRIORITY_OPTIONS = [
 ];
 
 function Required() {
-  return <span style={{ color: '#f87171' }}> *</span>;
+  return <span style={{ color: 'var(--color-danger)' }}> *</span>;
 }
 
 function OptionalPill() {
@@ -180,7 +180,7 @@ function WatchersField({ directory, watchers, onChange }) {
             >
               <span
                 className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold"
-                style={{ backgroundColor: CARD_BG, color: '#93c5fd' }}
+                style={{ backgroundColor: CARD_BG, color: 'var(--color-accent)' }}
               >
                 {initials(w.displayName)}
               </span>
@@ -275,7 +275,7 @@ function TicketLinker({ title, accent, accentLight, Icon, buttonLabel, helperTex
           <span
             key={t.id}
             className="flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-2 text-xs font-medium"
-            style={{ backgroundColor: `${accent}22`, color: accentLight }}
+            style={{ backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`, color: accentLight }}
           >
             <Icon size={12} />
             {formatTicketId(t)} {t.title}
@@ -313,7 +313,7 @@ function Dropzone({ files, onFiles, onRemove }) {
         onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
         onClick={() => inputRef.current?.click()}
         className="cursor-pointer rounded-md border-2 border-dashed p-8 text-center transition"
-        style={{ borderColor: dragOver ? BLUE : BORDER, backgroundColor: dragOver ? '#0d1525' : BG }}
+        style={{ borderColor: dragOver ? BLUE : BORDER, backgroundColor: dragOver ? 'color-mix(in srgb, var(--color-accent) 8%, var(--color-bg))' : BG }}
       >
         <IconUpload size={28} style={{ color: MUTED, margin: '0 auto' }} />
         <p className="mt-2 text-sm font-medium" style={{ color: TEXT }}>
@@ -488,7 +488,14 @@ export default function TicketNew() {
         </div>
 
         {error && (
-          <div className="rounded-md p-4 text-sm" style={{ backgroundColor: '#1a0a0a', color: '#fca5a5', border: '1px solid #7f1d1d' }}>
+          <div
+            className="rounded-md p-4 text-sm"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))',
+              color: 'var(--color-danger)',
+              border: '1px solid var(--color-danger)',
+            }}
+          >
             {error}
           </div>
         )}
@@ -550,7 +557,7 @@ export default function TicketNew() {
                 </select>
 
                 {assignPrompt.done && (
-                  <p className="mt-2 text-sm font-medium" style={{ color: '#4ade80' }}>{assignPrompt.doneText}</p>
+                  <p className="mt-2 text-sm font-medium" style={{ color: 'var(--color-success)' }}>{assignPrompt.doneText}</p>
                 )}
                 {assignPrompt.show && !assignPrompt.done && selectedCustomer && (
                   <div className="mt-2 rounded-md border p-3" style={{ borderColor: BORDER, backgroundColor: BG }}>
@@ -672,7 +679,7 @@ export default function TicketNew() {
             <TicketLinker
               title="Child tickets"
               accent={BLUE}
-              accentLight="#93c5fd"
+              accentLight={BLUE}
               Icon={IconArrowDown}
               buttonLabel="Link child"
               multiple
@@ -686,7 +693,7 @@ export default function TicketNew() {
             <TicketLinker
               title="Related tickets"
               accent={MUTED}
-              accentLight="#cbd5e1"
+              accentLight={MUTED}
               Icon={() => null}
               buttonLabel="Link"
               multiple

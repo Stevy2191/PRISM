@@ -124,7 +124,7 @@ export default function Login() {
             <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--color-text-primary)', marginTop: 12 }}>
               {wordmark}
             </span>
-            <span style={{ fontSize: 10, color: '#334155', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 6 }}>
+            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 6 }}>
               {tagline}
             </span>
           </div>
@@ -135,7 +135,7 @@ export default function Login() {
             style={{ fontSize: 32, color: 'var(--color-text-primary)', fontWeight: 400, lineHeight: 1.35, letterSpacing: '-0.02em', margin: '0 0 2.5rem 0' }}
           >
             Your team&apos;s<br />
-            <span style={{ display: 'block', fontWeight: 600, color: '#fff' }}>work, organized.</span>
+            <span style={{ display: 'block', fontWeight: 600, color: 'var(--color-text-primary)' }}>work, organized.</span>
           </p>
 
           {/* Feature bullets — inline-flex keeps them left-aligned inside the centered panel */}
@@ -146,13 +146,13 @@ export default function Login() {
             {bullets.map((text) => (
               <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: 'var(--color-accent)', flexShrink: 0 }} />
-                <span style={{ fontSize: 14, color: '#4b6080' }}>{text}</span>
+                <span style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>{text}</span>
               </div>
             ))}
           </div>
 
           {/* Footer */}
-          <span className="prism-footer" style={{ fontSize: 12, color: '#1e2d42', marginTop: '3rem' }}>
+          <span className="prism-footer" style={{ fontSize: 12, color: 'var(--color-text-faint)', marginTop: '3rem' }}>
             Self-hosted · Open source
           </span>
         </div>
@@ -181,11 +181,11 @@ export default function Login() {
                 <div style={{
                   marginBottom: '1.1rem',
                   padding: '10px 14px',
-                  backgroundColor: '#1a0a0a',
-                  border: '1px solid #7f1d1d',
+                  backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))',
+                  border: '1px solid var(--color-danger)',
                   borderRadius: 7,
                   fontSize: 14,
-                  color: '#fca5a5',
+                  color: 'var(--color-danger)',
                 }}>
                   {error}
                 </div>
@@ -240,7 +240,7 @@ export default function Login() {
                 {submitting ? 'Signing in…' : 'Sign in'}
               </button>
 
-              <p style={{ textAlign: 'center', fontSize: 12, color: '#1e2d42', margin: '1.5rem 0 0 0' }}>
+              <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--color-text-faint)', margin: '1.5rem 0 0 0' }}>
                 Enter your PRISM credentials to continue.
               </p>
             </form>

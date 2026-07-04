@@ -13,36 +13,41 @@ import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 
-// This page always renders as a fixed dark control-panel surface (matching
-// Login), independent of the app-wide light/dark theme toggle. Colors read
-// from the admin-customizable theme CSS variables (Settings -> Appearance).
+// Colors read from the admin-customizable theme CSS variables (Settings ->
+// Appearance), layered on top of the active light/dark base theme.
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
 const CARD_BORDER = 'var(--color-border)';
 const TEXT = 'var(--color-text-primary)';
 const MUTED = 'var(--color-text-muted)';
 
+// Tints a semantic color into a readable pill background against the
+// current theme's page background.
+function tint(color) {
+  return `color-mix(in srgb, ${color} 18%, var(--color-bg))`;
+}
+
 const DUE_BADGE = {
-  green: { pill: 'bg-[#0c2a1a] text-[#4ade80]', bar: '#4ade80' },
-  amber: { pill: 'bg-[#2d1f00] text-[#fbbf24]', bar: '#fbbf24' },
-  red: { pill: 'bg-[#2d0f0f] text-[#f87171]', bar: '#f87171' },
-  none: { pill: 'bg-[#161c2d] text-[#64748b]', bar: '#3b82f6' },
+  green: { color: 'var(--color-success)' },
+  amber: { color: 'var(--color-warning)' },
+  red: { color: 'var(--color-danger)' },
+  none: { color: 'var(--color-text-muted)', bar: 'var(--color-accent)' },
 };
 
 const TICKET_STATUS = {
-  open: { label: 'Open', cls: 'bg-[#0d2847] text-[#60a5fa]' },
-  in_progress: { label: 'In Progress', cls: 'bg-[#0c2a1a] text-[#4ade80]' },
-  overdue: { label: 'Overdue', cls: 'bg-[#2d0f0f] text-[#f87171]' },
-  closed: { label: 'Closed', cls: 'bg-[#161c2d] text-[#94a3b8]' },
+  open: { label: 'Open', color: 'var(--color-accent)' },
+  in_progress: { label: 'In Progress', color: 'var(--color-success)' },
+  overdue: { label: 'Overdue', color: 'var(--color-danger)' },
+  closed: { label: 'Closed', color: 'var(--color-text-muted)' },
 };
 
 const NOTIF_TYPE = {
-  reply: { Icon: IconMessageReply, bg: '#083344', fg: '#22d3ee' },
-  assigned: { Icon: IconUserCheck, bg: '#1d3461', fg: '#60a5fa' },
-  overdue: { Icon: IconAlertTriangle, bg: '#2d0f0f', fg: '#f87171' },
-  comment: { Icon: IconMessageCircle, bg: '#2a1f3d', fg: '#c084fc' },
-  due_soon: { Icon: IconHourglass, bg: '#2d1f00', fg: '#fbbf24' },
-  status_change: { Icon: IconRefresh, bg: '#0c2a1a', fg: '#4ade80' },
+  reply: { Icon: IconMessageReply, color: 'var(--color-accent)' },
+  assigned: { Icon: IconUserCheck, color: 'var(--color-relation-accent)' },
+  overdue: { Icon: IconAlertTriangle, color: 'var(--color-danger)' },
+  comment: { Icon: IconMessageCircle, color: 'var(--color-accent)' },
+  due_soon: { Icon: IconHourglass, color: 'var(--color-warning)' },
+  status_change: { Icon: IconRefresh, color: 'var(--color-success)' },
 };
 
 function timeGreeting() {
@@ -100,7 +105,7 @@ function StatCard({ label, value, color, delta }) {
       <p className="text-sm font-medium" style={{ color: MUTED }}>{label}</p>
       <p className="mt-2 text-3xl font-bold" style={{ color }}>{value}</p>
       {delta !== undefined && (
-        <p className="mt-1 text-xs" style={{ color: delta >= 0 ? '#4ade80' : '#f87171' }}>
+        <p className="mt-1 text-xs" style={{ color: delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
           {delta >= 0 ? '+' : ''}
           {delta} vs last week
         </p>
@@ -111,7 +116,7 @@ function StatCard({ label, value, color, delta }) {
 
 function ProgressBar({ percent, color }) {
   return (
-    <div className="h-[5px] w-full rounded-[3px]" style={{ backgroundColor: '#161c2d' }}>
+    <div className="h-[5px] w-full rounded-[3px]" style={{ backgroundColor: 'var(--color-border)' }}>
       <div
         className="h-full rounded-[3px]"
         style={{ width: `${Math.min(100, Math.max(0, percent))}%`, backgroundColor: color }}
@@ -138,7 +143,10 @@ function ProjectHealthPanel({ projects, title = 'Project Health', emptyText = 'N
                   <Link to={`/projects/${p.id}`} className="min-w-0 truncate font-medium hover:underline" style={{ color: TEXT }}>
                     {p.name}
                   </Link>
-                  <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.pill}`}>
+                  <span
+                    className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: tint(badge.color), color: badge.color }}
+                  >
                     {dueBadgeLabel(p.dueBadge, p.dueDate)}
                   </span>
                 </div>
@@ -146,7 +154,7 @@ function ProjectHealthPanel({ projects, title = 'Project Health', emptyText = 'N
                   {p.totalTasks} tasks · {p.closedTasks} closed · {p.openTasks} open
                 </p>
                 <div className="mt-2 flex items-center gap-3">
-                  <div className="flex-1"><ProgressBar percent={p.percent} color={badge.bar} /></div>
+                  <div className="flex-1"><ProgressBar percent={p.percent} color={badge.bar || badge.color} /></div>
                   <span className="w-10 text-right text-xs font-semibold" style={{ color: TEXT }}>{p.percent}%</span>
                 </div>
               </li>
@@ -180,7 +188,10 @@ function TicketsPanel({ tickets }) {
                     Updated {timeAgo(t.updatedAt)}
                   </p>
                 </div>
-                <span className={`flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${status.cls}`}>
+                <span
+                  className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium"
+                  style={{ backgroundColor: tint(status.color), color: status.color }}
+                >
                   {status.label}
                 </span>
               </li>
@@ -203,7 +214,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, marking }) {
           onClick={onMarkAllRead}
           disabled={!hasUnread || marking}
           className="rounded-md border px-3 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ borderColor: CARD_BORDER, color: '#93c5fd' }}
+          style={{ borderColor: CARD_BORDER, color: 'var(--color-accent)' }}
         >
           Mark all read
         </button>
@@ -222,13 +233,13 @@ function NotificationsPanel({ notifications, onMarkAllRead, marking }) {
                 className="flex items-start gap-3 px-5 py-3"
                 style={
                   unread
-                    ? { borderLeft: '2px solid #3b82f6', backgroundColor: '#0d1525' }
+                    ? { borderLeft: '2px solid var(--color-accent)', backgroundColor: 'color-mix(in srgb, var(--color-accent) 8%, var(--color-bg))' }
                     : { borderLeft: '2px solid transparent' }
                 }
               >
                 <span
                   className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px]"
-                  style={{ backgroundColor: type.bg, color: type.fg }}
+                  style={{ backgroundColor: tint(type.color), color: type.color }}
                 >
                   <Icon size={18} stroke={2} />
                 </span>
@@ -236,7 +247,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, marking }) {
                   <p className="text-sm" style={{ color: TEXT }}>{n.message}</p>
                   <p className="mt-0.5 text-xs" style={{ color: MUTED }}>{timeAgo(n.createdAt)}</p>
                 </div>
-                {unread && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: '#3b82f6' }} />}
+                {unread && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />}
               </li>
             );
           })}
@@ -256,10 +267,10 @@ function HoursPanel({ hours }) {
         {hours.byDay.map((d) => (
           <div key={d.day} className="flex items-center gap-3">
             <span className="w-8 text-xs font-medium" style={{ color: MUTED }}>{d.day}</span>
-            <div className="h-3 flex-1 rounded-[3px]" style={{ backgroundColor: '#161c2d' }}>
+            <div className="h-3 flex-1 rounded-[3px]" style={{ backgroundColor: 'var(--color-border)' }}>
               <div
                 className="h-full rounded-[3px]"
-                style={{ width: `${(d.hours / maxHours) * 100}%`, backgroundColor: '#3b82f6' }}
+                style={{ width: `${(d.hours / maxHours) * 100}%`, backgroundColor: 'var(--color-accent)' }}
               />
             </div>
             <span className="w-10 text-right text-xs" style={{ color: TEXT }}>{d.hours}h</span>
@@ -272,7 +283,7 @@ function HoursPanel({ hours }) {
 
 function TeamWorkloadPanel({ workload }) {
   const maxCount = Math.max(1, ...workload.map((w) => w.openCount));
-  const colorFor = (count) => (count > 25 ? '#f87171' : count > 15 ? '#fbbf24' : '#3b82f6');
+  const colorFor = (count) => (count > 25 ? 'var(--color-danger)' : count > 15 ? 'var(--color-warning)' : 'var(--color-accent)');
   return (
     <Card className="!p-0">
       <div className="border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
@@ -285,7 +296,7 @@ function TeamWorkloadPanel({ workload }) {
           {workload.map((w) => (
             <div key={w.userId} className="flex items-center gap-3">
               <span className="w-32 flex-shrink-0 truncate text-sm" style={{ color: TEXT }}>{w.displayName}</span>
-              <div className="h-3 flex-1 rounded-[3px]" style={{ backgroundColor: '#161c2d' }}>
+              <div className="h-3 flex-1 rounded-[3px]" style={{ backgroundColor: 'var(--color-border)' }}>
                 <div
                   className="h-full rounded-[3px]"
                   style={{ width: `${(w.openCount / maxCount) * 100}%`, backgroundColor: colorFor(w.openCount) }}
@@ -321,10 +332,10 @@ function ActivityFeedPanel({ activity }) {
           {activity.map((a) => (
             <li key={a.id} className="px-5 py-3 text-sm">
               <span style={{ color: TEXT }}>
-                {a.actorName ? <strong>{a.actorName}</strong> : <strong className="text-[#f87171]">Ticket</strong>}{' '}
+                {a.actorName ? <strong>{a.actorName}</strong> : <strong style={{ color: 'var(--color-danger)' }}>Ticket</strong>}{' '}
                 {ACTIVITY_VERB[a.action] || a.action}{' '}
                 {a.ticketId && (
-                  <Link to={`/tickets/${a.ticketId}`} className="hover:underline" style={{ color: '#93c5fd' }}>
+                  <Link to={`/tickets/${a.ticketId}`} className="hover:underline" style={{ color: 'var(--color-accent)' }}>
                     {formatTicketId({ id: a.ticketId, ticketNumber: a.ticketNumber })} {a.ticketTitle}
                   </Link>
                 )}
@@ -359,10 +370,10 @@ function TechDashboard({ data, greetingTitle, subtitleName, onMarkAllRead, marki
       <GreetingBar title={greetingTitle} subtitleName={subtitleName} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="My Open Tickets" value={stats.openTickets} color="#3b82f6" />
-        <StatCard label="Overdue Tickets" value={stats.overdueTickets} color="#f87171" />
-        <StatCard label="High Priority" value={stats.highPriorityOpen} color="#fbbf24" />
-        <StatCard label="Closed This Week" value={stats.closedThisWeek} color="#4ade80" delta={stats.closedDelta} />
+        <StatCard label="My Open Tickets" value={stats.openTickets} color="var(--color-accent)" />
+        <StatCard label="Overdue Tickets" value={stats.overdueTickets} color="var(--color-danger)" />
+        <StatCard label="High Priority" value={stats.highPriorityOpen} color="var(--color-warning)" />
+        <StatCard label="Closed This Week" value={stats.closedThisWeek} color="var(--color-success)" delta={stats.closedDelta} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -383,10 +394,10 @@ function SystemWideDashboard({ data }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Open Tickets" value={stats.openTickets} color="#3b82f6" />
-        <StatCard label="Overdue Tickets" value={stats.overdueTickets} color="#f87171" />
-        <StatCard label="Unassigned Tickets" value={stats.unassignedTickets} color="#fbbf24" />
-        <StatCard label="Closed This Week" value={stats.closedThisWeek} color="#4ade80" delta={stats.closedDelta} />
+        <StatCard label="Total Open Tickets" value={stats.openTickets} color="var(--color-accent)" />
+        <StatCard label="Overdue Tickets" value={stats.overdueTickets} color="var(--color-danger)" />
+        <StatCard label="Unassigned Tickets" value={stats.unassignedTickets} color="var(--color-warning)" />
+        <StatCard label="Closed This Week" value={stats.closedThisWeek} color="var(--color-success)" delta={stats.closedDelta} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -450,7 +461,7 @@ export default function Dashboard() {
       {loading && !data ? (
         <Spinner />
       ) : error ? (
-        <div className="rounded-md p-4 text-sm" style={{ backgroundColor: '#1a0a0a', color: '#fca5a5', border: '1px solid #7f1d1d' }}>
+        <div className="rounded-md p-4 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
           {error}
         </div>
       ) : (
@@ -465,7 +476,7 @@ export default function Dashboard() {
                     value={selectedUserId}
                     onChange={(e) => setSelectedUserId(e.target.value)}
                     className="rounded-md border px-3 py-1.5 text-sm focus:outline-none"
-                    style={{ backgroundColor: CARD_BG, borderColor: '#1a2235', color: TEXT }}
+                    style={{ backgroundColor: CARD_BG, borderColor: 'var(--color-border-strong)', color: TEXT }}
                   >
                     <option value="">All users (system wide)</option>
                     {users.map((u) => (
@@ -474,7 +485,7 @@ export default function Dashboard() {
                   </select>
                 </div>
                 {data?.mode === 'admin_filtered' && (
-                  <span className="text-xs font-medium" style={{ color: '#3b82f6' }}>
+                  <span className="text-xs font-medium" style={{ color: 'var(--color-accent)' }}>
                     Filtered to: {data.viewingUser.displayName}
                   </span>
                 )}

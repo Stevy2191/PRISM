@@ -1,13 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
-  // Class-based dark mode: a `.dark` class on <html> flips the theme.
-  darkMode: 'class',
+  // Attribute-based dark mode: data-theme="dark" on <html> flips the theme
+  // (set by ThemeContext.jsx). Enables `dark:` variants if ever needed,
+  // though today theming is done via the CSS-variable indirection below.
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
         // The navy scale is CSS-variable driven so the whole app can flip between
-        // light and dark themes at runtime (see index.css :root / .dark).
+        // light and dark themes at runtime (see index.css [data-theme] blocks).
         navy: {
           50: 'rgb(var(--navy-50) / <alpha-value>)',
           100: 'rgb(var(--navy-100) / <alpha-value>)',
