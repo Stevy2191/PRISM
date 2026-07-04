@@ -85,7 +85,7 @@ export default function Layout() {
               <rect x="14" y="14" width="11" height="11" rx="2.5" fill="#0d1120" stroke="#161c2d" strokeWidth="1.4" />
             </svg>
           )}
-          <span className="truncate text-xl font-bold tracking-wide text-white">{settings.company?.name || 'PRISM'}</span>
+          <span className="truncate text-xl font-bold tracking-wide text-white">{settings.appName || settings.branding?.appName || 'PRISM'}</span>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">

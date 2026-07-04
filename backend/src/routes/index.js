@@ -23,6 +23,8 @@ const dashboardRoutes = require('./dashboard');
 const notificationsRoutes = require('./notifications');
 const savedFiltersRoutes = require('./savedFilters');
 const customersRoutes = require('./customers');
+const ticketStatusesRoutes = require('./ticketStatuses');
+const projectStatusesRoutes = require('./projectStatuses');
 
 const router = express.Router();
 
@@ -53,5 +55,7 @@ router.use('/dashboard', guard, dashboardRoutes);
 router.use('/notifications', guard, notificationsRoutes);
 router.use('/saved-filters', guard, savedFiltersRoutes);
 router.use('/customers', guard, customersRoutes);
+router.use('/ticket-statuses', guard, ticketStatusesRoutes);
+router.use('/project-statuses', guard, projectStatusesRoutes);
 
 module.exports = router;

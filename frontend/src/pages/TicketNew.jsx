@@ -5,12 +5,13 @@ import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { formatTicketId } from '../utils/ticketId';
 
-const BG = '#080b12';
-const CARD_BG = '#0d1120';
-const BORDER = '#1a2235';
-const TEXT = '#e2e8f0';
-const MUTED = '#64748b';
-const BLUE = '#3b82f6';
+// Colors read from the admin-customizable theme CSS variables (Settings -> Appearance).
+const BG = 'var(--color-bg)';
+const CARD_BG = 'var(--color-card)';
+const BORDER = 'var(--color-border)';
+const TEXT = 'var(--color-text-primary)';
+const MUTED = 'var(--color-text-muted)';
+const BLUE = 'var(--color-accent)';
 const PURPLE = '#7c3aed';
 const PURPLE_LIGHT = '#a78bfa';
 

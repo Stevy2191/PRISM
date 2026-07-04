@@ -1,20 +1,24 @@
 // Color-coded badges for ticket status/priority/type and project status.
+// Ticket/project status values now match the admin-editable statuses table's
+// `name` (default seeded names shown below); a custom admin-added status
+// falls back to the neutral navy style unless a `color` prop is passed in.
 const STYLES = {
   // Ticket status
-  open: 'bg-blue-100 text-blue-800',
-  in_progress: 'bg-amber-100 text-amber-800',
-  on_hold: 'bg-gray-200 text-gray-700',
-  resolved: 'bg-green-100 text-green-800',
-  closed: 'bg-navy-100 text-navy-700',
+  Open: 'bg-blue-100 text-blue-800',
+  'In Progress': 'bg-amber-100 text-amber-800',
+  Pending: 'bg-amber-100 text-amber-800',
+  'On Hold': 'bg-gray-200 text-gray-700',
+  Resolved: 'bg-green-100 text-green-800',
+  Closed: 'bg-navy-100 text-navy-700',
   // Priority
   low: 'bg-gray-100 text-gray-600',
   medium: 'bg-sky-100 text-sky-800',
   high: 'bg-orange-100 text-orange-800',
   critical: 'bg-red-100 text-red-800',
   // Project status
-  active: 'bg-green-100 text-green-800',
-  completed: 'bg-blue-100 text-blue-800',
-  archived: 'bg-gray-200 text-gray-600',
+  Active: 'bg-green-100 text-green-800',
+  Completed: 'bg-blue-100 text-blue-800',
+  Archived: 'bg-gray-200 text-gray-600',
   // Ticket type
   incident: 'bg-red-50 text-red-700',
   request: 'bg-sky-50 text-sky-700',
@@ -27,7 +31,16 @@ function label(value) {
   return String(value || '').replace(/_/g, ' ');
 }
 
-export default function Badge({ value, className = '' }) {
+// `color` (a hex string) overrides the static STYLES lookup — pass the
+// status's own color from a fetched statuses list where available.
+export default function Badge({ value, color, className = '' }) {
+  if (color) {
+    return (
+      <span className={`badge capitalize ${className}`} style={{ backgroundColor: `${color}22`, color }}>
+        {label(value)}
+      </span>
+    );
+  }
   const style = STYLES[value] || 'bg-navy-100 text-navy-700';
   return <span className={`badge capitalize ${style} ${className}`}>{label(value)}</span>;
 }

@@ -14,7 +14,7 @@ const SECTIONS = [
     title: 'Organization',
     items: [
       { label: 'Company', to: '/settings/company', desc: 'Name, logo, timezone, locale' },
-      { label: 'Rebranding', to: '/settings/rebranding', desc: 'Colors and login page' },
+      { label: 'Appearance', to: '/settings/appearance', desc: 'Colors, theme presets, and login page branding' },
       { label: 'Business Hours', to: '/settings/business-hours', desc: 'Work schedules' },
       { label: 'Holiday Lists', to: '/settings/holidays', desc: 'Holidays that pause SLAs' },
       { label: 'Customer Happiness', to: '/settings/customer-happiness', desc: 'CSAT surveys & scores' },
@@ -32,6 +32,7 @@ const SECTIONS = [
     title: 'Customization',
     items: [
       { label: 'Modules & Tabs', to: '/settings/modules', desc: 'Show/hide sidebar items per role' },
+      { label: 'Statuses', to: '/settings/statuses', desc: 'Custom ticket & project statuses' },
       { label: 'Layouts & Fields', to: '/settings/layouts', desc: 'Custom ticket fields' },
       { label: 'Blueprints', to: '/admin/blueprints', desc: 'Ticket templates', roles: ['admin', 'technician'] },
       { label: 'Email Templates', to: '/settings/email-templates', desc: 'Outbound email content' },

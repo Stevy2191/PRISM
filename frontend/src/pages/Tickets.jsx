@@ -5,20 +5,25 @@ import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 
-const BG = '#080b12';
-const CARD_BG = '#0d1120';
-const BORDER = '#1a2235';
-const TEXT = '#e2e8f0';
-const MUTED = '#64748b';
-const BLUE = '#3b82f6';
+// Colors read from the admin-customizable theme CSS variables (Settings -> Appearance).
+const BG = 'var(--color-bg)';
+const CARD_BG = 'var(--color-card)';
+const BORDER = 'var(--color-border)';
+const TEXT = 'var(--color-text-primary)';
+const MUTED = 'var(--color-text-muted)';
+const BLUE = 'var(--color-accent)';
 
-const STATUS_OPTIONS = [
+// 'closed' is a special client-side aggregate keyword (the backend maps it
+// to every behaviorType:'closed' status), not a literal status name — the
+// real per-status options are appended dynamically from the fetched
+// ticket-statuses list (see buildStatusFilterOptions below).
+const BASE_STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
-  { value: 'open', label: 'Open' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'on_hold', label: 'Pending' },
-  { value: 'closed', label: 'Closed' },
 ];
+function buildStatusFilterOptions(ticketStatuses) {
+  const openOnes = ticketStatuses.filter((s) => s.behaviorType !== 'closed').map((s) => ({ value: s.name, label: s.name }));
+  return [...BASE_STATUS_OPTIONS, ...openOnes, { value: 'closed', label: 'Closed' }];
+}
 
 const PRIORITY_OPTIONS = [
   { value: '', label: 'All priorities' },
@@ -43,14 +48,6 @@ const DISPLAY_STATUS_META = {
   closed: { label: 'Closed', cls: 'bg-[#1a2235] text-[#94a3b8]' },
 };
 
-// Real backend status enum values, used by the quick-action status picker.
-const REAL_STATUSES = [
-  { value: 'open', label: 'Open' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'on_hold', label: 'Pending' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'closed', label: 'Closed' },
-];
 
 const FIXED_COLUMNS = ['id', 'title'];
 const DEFAULT_COLUMN_ORDER = [
@@ -76,11 +73,15 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Matches the default seeded TicketStatuses rows' names — a custom
+// admin-added status falls through to 'open', a deliberately scoped-out
+// limitation for this pass (see the matching note in dashboardController.js).
 function computeDisplayStatus(t) {
-  if (t.status === 'resolved' || t.status === 'closed') return 'closed';
+  if (t.status === 'Resolved' || t.status === 'Closed') return 'closed';
   if (t.dueDate && t.dueDate < todayStr()) return 'overdue';
-  if (t.status === 'on_hold') return 'pending';
-  if (t.status === 'in_progress') return 'in_progress';
+  if (t.status === 'On Hold') return 'pending';
+  if (t.status === 'Pending') return 'pending';
+  if (t.status === 'In Progress') return 'in_progress';
   return 'open';
 }
 
@@ -356,12 +357,12 @@ function ColumnsMenu({ order, visible, onChange }) {
   );
 }
 
-function QuickActionMenu({ field, ticket, assignableUsers, onChange, onClose }) {
+function QuickActionMenu({ field, ticket, assignableUsers, ticketStatuses, onChange, onClose }) {
   const ref = useRef(null);
   useClickOutside(ref, onClose);
 
   let options = [];
-  if (field === 'status') options = REAL_STATUSES;
+  if (field === 'status') options = (ticketStatuses || []).map((s) => ({ value: s.name, label: s.name }));
   else if (field === 'priority') options = PRIORITY_OPTIONS.filter((o) => o.value);
   else if (field === 'assignee') {
     options = [{ value: '', label: 'Unassigned' }, ...assignableUsers.map((u) => ({ value: String(u.id), label: u.displayName }))];
@@ -398,6 +399,7 @@ export default function Tickets() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [assignableUsers, setAssignableUsers] = useState([]);
+  const [ticketStatuses, setTicketStatuses] = useState([]);
   const [savedFilters, setSavedFilters] = useState([]);
   const [activeSavedFilterId, setActiveSavedFilterId] = useState(null);
 
@@ -425,6 +427,7 @@ export default function Tickets() {
   useEffect(() => {
     api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
     api.get('/saved-filters').then(({ data }) => setSavedFilters(data.savedFilters)).catch(() => {});
+    api.get('/ticket-statuses').then(({ data }) => setTicketStatuses(data.statuses)).catch(() => {});
   }, []);
 
   const clearActiveSavedFilter = () => setActiveSavedFilterId(null);
@@ -535,7 +538,7 @@ export default function Tickets() {
       if (bulkActionType === 'status') changes = { status: bulkValue };
       else if (bulkActionType === 'priority') changes = { priority: bulkValue };
       else if (bulkActionType === 'reassign') changes = { assigneeId: bulkValue || null };
-      else changes = { status: 'closed' };
+      else changes = { status: 'Closed' };
       await Promise.all(ids.map((id) => api.patch(`/tickets/${id}`, changes)));
       clearSelection();
       load();
@@ -585,7 +588,7 @@ export default function Tickets() {
           className="input h-9 max-w-[10rem] text-sm"
           style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: TEXT }}
         >
-          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select
           value={priority}
@@ -730,7 +733,7 @@ export default function Tickets() {
               {bulkActionType === 'status' && (
                 <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] text-sm" style={{ backgroundColor: BG, borderColor: BORDER, color: TEXT }}>
                   <option value="">Select status…</option>
-                  {REAL_STATUSES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {ticketStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               )}
               {bulkActionType === 'priority' && (
@@ -848,6 +851,7 @@ export default function Tickets() {
                                 field="status"
                                 ticket={t}
                                 assignableUsers={assignableUsers}
+                                ticketStatuses={ticketStatuses}
                                 onClose={() => setQuickAction(null)}
                                 onChange={(v) => { patchTicket(t.id, { status: v }); setQuickAction(null); }}
                               />

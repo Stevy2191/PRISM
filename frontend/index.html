@@ -6,12 +6,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PRISM</title>
     <script>
-      // Apply the saved theme before paint to avoid a flash of the wrong theme.
+      // Apply the saved light/dark mode before paint to avoid a flash of the wrong theme.
       (function () {
         try {
           var t = localStorage.getItem('prism.theme') || 'system';
           var dark = t === 'dark' || (t === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
           if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+
+      // Apply the cached admin color theme before paint too — the real
+      // fetch (GET /settings/public) happens after React mounts, so without
+      // this the page would flash the hardcoded defaults first.
+      (function () {
+        try {
+          var cached = localStorage.getItem('prism.theme.cache');
+          if (!cached) return;
+          var theme = JSON.parse(cached);
+          var root = document.documentElement;
+          var hexToTriplet = function (hex) {
+            var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || '').trim());
+            return m ? (parseInt(m[1], 16) + ' ' + parseInt(m[2], 16) + ' ' + parseInt(m[3], 16)) : null;
+          };
+          var set = function (name, val) { if (val) root.style.setProperty(name, val); };
+          set('--color-bg', theme.bg);
+          set('--color-sidebar', theme.sidebar);
+          set('--color-card', theme.card);
+          set('--color-border', theme.border);
+          set('--color-accent', theme.accent);
+          set('--color-accent-hover', theme.accentHover);
+          set('--color-text-primary', theme.textPrimary);
+          set('--color-text-secondary', theme.textSecondary);
+          set('--color-text-muted', theme.textMuted);
+          set('--color-success', theme.success);
+          set('--color-warning', theme.warning);
+          set('--color-danger', theme.danger);
+          set('--color-timer', theme.timer);
+          set('--brand-primary-rgb', hexToTriplet(theme.accent));
+          set('--navy-50', hexToTriplet(theme.bg));
+          set('--surface', hexToTriplet(theme.card));
+          set('--sidebar', hexToTriplet(theme.sidebar));
+          set('--navy-100', hexToTriplet(theme.border));
+          set('--navy-200', hexToTriplet(theme.border));
+          set('--navy-900', hexToTriplet(theme.textPrimary));
+          set('--navy-800', hexToTriplet(theme.textSecondary));
+          set('--navy-700', hexToTriplet(theme.textSecondary));
+          set('--navy-300', hexToTriplet(theme.textMuted));
         } catch (e) {}
       })();
     </script>

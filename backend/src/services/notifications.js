@@ -9,7 +9,9 @@ const { Op } = require('sequelize');
 const { Notification, Ticket, TicketWatcher } = require('../models');
 
 const DUE_SOON_DAYS = 2;
-const CLOSED_STATUSES = ['resolved', 'closed'];
+// Matches the default seeded TicketStatuses rows' names — see the matching
+// note in dashboardController.js.
+const CLOSED_STATUSES = ['Resolved', 'Closed'];
 
 function truncate(text, len) {
   const clean = String(text || '').trim();

@@ -2,23 +2,27 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 
-const STATUSES = ['active', 'on_hold', 'completed', 'archived'];
-
 export default function ProjectNew() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: '',
     description: '',
-    status: 'active',
+    status: '',
     departmentId: '',
     dueDate: '',
   });
   const [departments, setDepartments] = useState([]);
+  const [statuses, setStatuses] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
+    api.get('/project-statuses').then(({ data }) => {
+      setStatuses(data.statuses);
+      const def = data.statuses.find((s) => s.isDefault) || data.statuses[0];
+      if (def) setForm((f) => ({ ...f, status: def.name }));
+    }).catch(() => {});
   }, []);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -62,7 +66,7 @@ export default function ProjectNew() {
           <div>
             <label className="label">Status</label>
             <select className="input" value={form.status} onChange={set('status')}>
-              {STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+              {statuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </div>
           <div>

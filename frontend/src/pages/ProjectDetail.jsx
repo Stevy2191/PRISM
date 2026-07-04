@@ -8,8 +8,6 @@ import Spinner from '../components/Spinner';
 import TimerButton from '../components/TimerButton';
 import { formatTicketId } from '../utils/ticketId';
 
-const STATUSES = ['active', 'on_hold', 'completed', 'archived'];
-
 function formatMinutes(min) {
   const m = Number(min) || 0;
   const h = Math.floor(m / 60);
@@ -31,6 +29,7 @@ export default function ProjectDetail() {
   const [tab, setTab] = useState('overview');
   const [time, setTime] = useState({ entries: [], totalMinutes: 0 });
   const [timeForm, setTimeForm] = useState({ minutes: '', note: '', date: '' });
+  const [statuses, setStatuses] = useState([]);
 
   const load = async () => {
     try {
@@ -92,6 +91,10 @@ export default function ProjectDetail() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    api.get('/project-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
+  }, []);
 
   const patchProject = async (changes) => {
     try {
@@ -220,7 +223,7 @@ export default function ProjectDetail() {
             <div className="card p-5">
               <label className="label">Status</label>
               <select className="input" value={project.status} onChange={(e) => patchProject({ status: e.target.value })}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+                {statuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
               </select>
             </div>
           )}

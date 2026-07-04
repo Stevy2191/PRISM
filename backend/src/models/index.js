@@ -30,6 +30,8 @@ const SavedFilter = require('./SavedFilter')(sequelize);
 const TicketWatcher = require('./TicketWatcher')(sequelize);
 const TicketTask = require('./TicketTask')(sequelize);
 const TicketActivity = require('./TicketActivity')(sequelize);
+const TicketStatus = require('./TicketStatus')(sequelize);
+const ProjectStatus = require('./ProjectStatus')(sequelize);
 
 const db = {
   sequelize,
@@ -61,6 +63,8 @@ const db = {
   TicketWatcher,
   TicketTask,
   TicketActivity,
+  TicketStatus,
+  ProjectStatus,
 };
 
 // ---- Associations ----

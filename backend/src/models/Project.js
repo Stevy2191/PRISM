@@ -18,10 +18,12 @@ module.exports = (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      // Free-form string matching a ProjectStatus row's `name` (see the
+      // matching note on Ticket.status).
       status: {
-        type: DataTypes.ENUM('active', 'on_hold', 'completed', 'archived'),
+        type: DataTypes.STRING(100),
         allowNull: false,
-        defaultValue: 'active',
+        defaultValue: 'Active',
       },
       departmentId: {
         type: DataTypes.INTEGER,

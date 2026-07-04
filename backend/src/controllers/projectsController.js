@@ -48,7 +48,7 @@ const create = asyncHandler(async (req, res) => {
   const project = await Project.create({
     name: name.trim(),
     description: description || null,
-    status: status || 'active',
+    status: status || 'Active',
     departmentId: departmentId || null,
     ownerId: ownerId || req.user.id,
     dueDate: dueDate || null,

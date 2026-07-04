@@ -87,7 +87,11 @@ async function canLogForOthers(user) {
   return !!lead;
 }
 
-const CLOSED_STATUSES = ['resolved', 'closed'];
+// Matches the default seeded TicketStatuses rows' names (behaviorType
+// 'closed'). Covers the built-in statuses; a custom admin-added closed
+// status won't be picked up here without a dynamic behaviorType lookup —
+// a known, deliberately scoped-out limitation for this pass.
+const CLOSED_STATUSES = ['Resolved', 'Closed'];
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
 
 // GET /tickets — with filters
@@ -197,7 +201,7 @@ const create = asyncHandler(async (req, res) => {
     const created = await Ticket.create({
       title: title.trim(),
       description: description || null,
-      status: status || 'open',
+      status: status || 'Open',
       priority: priority || 'medium',
       type: type || 'request',
       assigneeId: assigneeId || null,
@@ -807,7 +811,7 @@ const submitCsat = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin' && ticket.requesterId !== req.user.id) {
     throw new ApiError(403, 'Only the ticket requester can submit a rating', 'FORBIDDEN');
   }
-  if (!['resolved', 'closed'].includes(ticket.status)) {
+  if (!CLOSED_STATUSES.includes(ticket.status)) {
     throw new ApiError(400, 'You can rate a ticket once it is resolved or closed', 'NOT_RATEABLE');
   }
 

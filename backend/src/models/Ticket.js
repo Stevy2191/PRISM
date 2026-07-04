@@ -26,10 +26,14 @@ module.exports = (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      // Free-form string matching a TicketStatus row's `name` — admins can
+      // add/rename/reorder statuses, so this is no longer a fixed ENUM.
+      // Renaming a status cascades to every ticket using the old name (see
+      // statusesController), so this always stays in sync.
       status: {
-        type: DataTypes.ENUM('open', 'in_progress', 'on_hold', 'resolved', 'closed'),
+        type: DataTypes.STRING(100),
         allowNull: false,
-        defaultValue: 'open',
+        defaultValue: 'Open',
       },
       priority: {
         type: DataTypes.ENUM('low', 'medium', 'high', 'critical'),
@@ -106,10 +110,16 @@ module.exports = (sequelize) => {
       tableName: 'Tickets',
       timestamps: true,
       hooks: {
-        // Keep resolvedAt in sync with status transitions.
-        beforeSave: (ticket) => {
+        // Keep resolvedAt in sync with status transitions. Status is now a
+        // free-form string matching a TicketStatus row's name, so "closed"
+        // is resolved dynamically via that row's behaviorType rather than a
+        // fixed set of literal strings. Required lazily to dodge the
+        // models/index.js <-> Ticket.js circular require.
+        beforeSave: async (ticket) => {
           if (ticket.changed('status')) {
-            const isClosed = ticket.status === 'resolved' || ticket.status === 'closed';
+            const { TicketStatus } = require('./index'); // eslint-disable-line global-require
+            const statusRow = await TicketStatus.findOne({ where: { name: ticket.status } });
+            const isClosed = statusRow?.behaviorType === 'closed';
             if (isClosed && !ticket.resolvedAt) {
               ticket.resolvedAt = new Date();
             } else if (!isClosed) {

@@ -11,23 +11,18 @@ import { formatHMS } from '../context/TimerContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 
-const BG = '#080b12';
-const CARD_BG = '#0d1120';
-const BORDER = '#1a2235';
-const TEXT = '#e2e8f0';
-const MUTED = '#64748b';
-const BLUE = '#3b82f6';
+// Colors read from the admin-customizable theme CSS variables (Settings -> Appearance).
+const BG = 'var(--color-bg)';
+const CARD_BG = 'var(--color-card)';
+const BORDER = 'var(--color-border)';
+const TEXT = 'var(--color-text-primary)';
+const MUTED = 'var(--color-text-muted)';
+const BLUE = 'var(--color-accent)';
+const TIMER_COLOR = 'var(--color-timer)';
 const PURPLE = '#7c3aed';
 const PURPLE_LIGHT = '#a78bfa';
 const SIDEBAR_STORAGE_KEY = 'prism.ticketDetail.sidebar';
 
-const STATUS_OPTIONS = [
-  { value: 'open', label: 'Open' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'on_hold', label: 'Pending' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'closed', label: 'Closed' },
-];
 const PRIORITY_OPTIONS = [
   { value: 'critical', label: 'Urgent' },
   { value: 'high', label: 'High' },
@@ -47,14 +42,12 @@ const PRIORITY_META = {
   medium: { label: 'Medium', color: '#3b82f6' },
   low: { label: 'Low', color: '#94a3b8' },
 };
-const STATUS_META = {
-  open: { label: 'Open', cls: 'bg-[#0d2847] text-[#60a5fa]' },
-  in_progress: { label: 'In Progress', cls: 'bg-[#0c2a1a] text-[#4ade80]' },
-  on_hold: { label: 'Pending', cls: 'bg-[#2d1f00] text-[#fbbf24]' },
-  resolved: { label: 'Resolved', cls: 'bg-[#0c2a1a] text-[#4ade80]' },
-  closed: { label: 'Closed', cls: 'bg-[#1a2235] text-[#94a3b8]' },
-};
-const CLOSED_STATUSES = ['resolved', 'closed'];
+// Status name -> {color, behaviorType} lookup built from the fetched
+// ticket-statuses list (Settings -> Statuses), replacing what used to be a
+// fixed label/class map — colors are now arbitrary admin-chosen hex values.
+function findStatus(ticketStatuses, name) {
+  return ticketStatuses.find((s) => s.name === name) || null;
+}
 const TABS = [
   { key: 'conversation', label: 'Conversation' },
   { key: 'resolution', label: 'Resolution' },
@@ -340,8 +333,8 @@ function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTim
   const [saving, setSaving] = useState(false);
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const color = timerState === 'running' ? '#4ade80' : timerState === 'paused' ? '#f59e0b' : TEXT;
-  const iconColor = timerState === 'running' ? '#4ade80' : timerState === 'paused' ? '#f59e0b' : MUTED;
+  const color = timerState === 'running' ? TIMER_COLOR : timerState === 'paused' ? '#f59e0b' : TEXT;
+  const iconColor = timerState === 'running' ? TIMER_COLOR : timerState === 'paused' ? '#f59e0b' : MUTED;
 
   const handleStop = () => {
     const stopAt = new Date();
@@ -534,7 +527,7 @@ function SidebarSection({ title, collapsed, children }) {
 
 function Sidebar({
   ticket, collapsed, onToggle, isStaff, onStatusChange, patchTicket,
-  assignableUsers, teams, directory,
+  assignableUsers, teams, directory, ticketStatuses,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
 }) {
@@ -602,7 +595,7 @@ function Sidebar({
         <SidebarSection title="Ticket Info" collapsed={collapsed}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-4">
-              <span title={`Status: ${STATUS_META[ticket.status]?.label}`}>●</span>
+              <span title={`Status: ${ticket.status}`}>●</span>
               <span title={`Priority: ${PRIORITY_META[ticket.priority]?.label}`} style={{ color: PRIORITY_META[ticket.priority]?.color }}>●</span>
               <span title={`Type: ${ticket.type}`}>▣</span>
               <span title={`Assignee: ${ticket.assignee?.displayName || 'Unassigned'}`}>🧑</span>
@@ -620,7 +613,7 @@ function Sidebar({
                   className="input h-9 text-sm"
                   style={fieldStyle}
                 >
-                  {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {ticketStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </div>
               <div>
@@ -1262,12 +1255,12 @@ function RelationLinker({ title, accent, accentLight, Icon, relationType, button
   );
 }
 
-function RelationshipsTab({ ticketId, relations, isStaff, reload }) {
+function RelationshipsTab({ ticketId, relations, isStaff, reload, closedStatusNames }) {
   const parent = relations.filter((r) => r.relationType === 'parent' && r.direction === 'outgoing');
   const children = relations.filter((r) => r.relationType === 'parent' && r.direction === 'incoming');
   const related = relations.filter((r) => r.relationType !== 'parent');
 
-  const closedChildren = children.filter((r) => CLOSED_STATUSES.includes(r.ticket.status)).length;
+  const closedChildren = children.filter((r) => closedStatusNames.includes(r.ticket.status)).length;
   const childPercent = children.length ? Math.round((closedChildren / children.length) * 100) : 0;
 
   const unlink = async (relationId) => {
@@ -1383,6 +1376,7 @@ export default function TicketDetail() {
   const [directory, setDirectory] = useState([]);
   const [assignableUsers, setAssignableUsers] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [ticketStatuses, setTicketStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -1430,6 +1424,7 @@ export default function TicketDetail() {
 
   useEffect(() => {
     api.get('/users/directory').then(({ data }) => setDirectory(data.users)).catch(() => {});
+    api.get('/ticket-statuses').then(({ data }) => setTicketStatuses(data.statuses)).catch(() => {});
     if (isStaff) {
       api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
       api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
@@ -1509,6 +1504,10 @@ export default function TicketDetail() {
     await patchTicket({ resolution: text });
   };
 
+  // Which status NAMES currently behave as "closed", per the admin-editable
+  // Settings -> Statuses table (behaviorType), rather than a fixed list.
+  const closedStatusNames = ticketStatuses.filter((s) => s.behaviorType === 'closed').map((s) => s.name);
+
   // Status changes now come from the sidebar's Status dropdown (the header's
   // dedicated Resolve/Close buttons were removed). Two independent warnings
   // can fire when moving into a closed state — missing resolution is checked
@@ -1517,7 +1516,7 @@ export default function TicketDetail() {
   // "Close without resolution" falls through into that second check rather
   // than skipping it.
   const applyStatusChange = (status) => {
-    if (CLOSED_STATUSES.includes(status) && time.totalMinutes === 0) {
+    if (closedStatusNames.includes(status) && time.totalMinutes === 0) {
       setNoTimeWarning(status);
     } else {
       patchTicket({ status });
@@ -1525,7 +1524,7 @@ export default function TicketDetail() {
   };
 
   const handleStatusChange = (status) => {
-    if (CLOSED_STATUSES.includes(status) && !ticket.resolution?.trim()) {
+    if (closedStatusNames.includes(status) && !ticket.resolution?.trim()) {
       setNoResolutionWarning(status);
     } else {
       applyStatusChange(status);
@@ -1651,7 +1650,18 @@ export default function TicketDetail() {
           <div className="flex flex-wrap items-center gap-3">
             <span className="font-mono text-lg" style={{ color: MUTED }}>{formatTicketId(ticket)}</span>
             <h1 className="text-xl font-bold" style={{ color: TEXT }}>{ticket.title}</h1>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_META[ticket.status].cls}`}>{STATUS_META[ticket.status].label}</span>
+            {(() => {
+              const statusMeta = findStatus(ticketStatuses, ticket.status);
+              const statusColor = statusMeta?.color || MUTED;
+              return (
+                <span
+                  className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                  style={{ backgroundColor: `${statusColor}22`, color: statusColor }}
+                >
+                  {ticket.status}
+                </span>
+              );
+            })()}
             <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: PRIORITY_META[ticket.priority].color }}>
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PRIORITY_META[ticket.priority].color }} />
               {PRIORITY_META[ticket.priority].label}
@@ -1700,6 +1710,7 @@ export default function TicketDetail() {
           assignableUsers={assignableUsers}
           teams={teams}
           directory={directory}
+          ticketStatuses={ticketStatuses}
           tags={ticket.tags || []}
           onAddTag={addTag}
           onRemoveTag={removeTag}
@@ -1748,7 +1759,7 @@ export default function TicketDetail() {
               <AttachmentsTab ticketId={id} attachments={attachments} onUpload={uploadFile} onRemove={removeAttachment} />
             )}
             {activeTab === 'relationships' && (
-              <RelationshipsTab ticketId={id} relations={relations} isStaff={isStaff} reload={reloadActivityAndRelations} />
+              <RelationshipsTab ticketId={id} relations={relations} isStaff={isStaff} reload={reloadActivityAndRelations} closedStatusNames={closedStatusNames} />
             )}
             {activeTab === 'activity' && <ActivityTab activity={activity} />}
           </div>

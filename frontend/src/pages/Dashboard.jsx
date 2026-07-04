@@ -14,12 +14,13 @@ import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 
 // This page always renders as a fixed dark control-panel surface (matching
-// Login), independent of the app-wide light/dark theme toggle.
-const BG = '#080b12';
-const CARD_BG = '#0d1120';
-const CARD_BORDER = '#161c2d';
-const TEXT = '#e2e8f0';
-const MUTED = '#64748b';
+// Login), independent of the app-wide light/dark theme toggle. Colors read
+// from the admin-customizable theme CSS variables (Settings -> Appearance).
+const BG = 'var(--color-bg)';
+const CARD_BG = 'var(--color-card)';
+const CARD_BORDER = 'var(--color-border)';
+const TEXT = 'var(--color-text-primary)';
+const MUTED = 'var(--color-text-muted)';
 
 const DUE_BADGE = {
   green: { pill: 'bg-[#0c2a1a] text-[#4ade80]', bar: '#4ade80' },

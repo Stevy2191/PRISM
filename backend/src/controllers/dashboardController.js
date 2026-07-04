@@ -3,8 +3,12 @@ const { Ticket, Project, User, TimeEntry, Notification, AuditLog } = require('..
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
 
-const OPEN_STATUSES = ['open', 'in_progress', 'on_hold'];
-const CLOSED_STATUSES = ['resolved', 'closed'];
+// Matches the default seeded TicketStatuses rows' names (behaviorType
+// open/closed). Covers the built-in statuses; a custom admin-added status
+// won't be bucketed correctly here without a dynamic behaviorType lookup —
+// a known, deliberately scoped-out limitation for this pass.
+const OPEN_STATUSES = ['Open', 'In Progress', 'On Hold', 'Pending'];
+const CLOSED_STATUSES = ['Resolved', 'Closed'];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 function todayStr() {
@@ -24,7 +28,7 @@ function startOfWeek(date) {
 function displayStatus(ticket) {
   if (CLOSED_STATUSES.includes(ticket.status)) return 'closed';
   if (ticket.dueDate && ticket.dueDate < todayStr()) return 'overdue';
-  if (ticket.status === 'in_progress') return 'in_progress';
+  if (ticket.status === 'In Progress') return 'in_progress';
   return 'open';
 }
 
