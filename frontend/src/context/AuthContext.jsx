@@ -52,6 +52,7 @@ export function AuthProvider({ children }) {
     mustChangePassword: !!user?.mustChangePassword,
     isAdmin: user?.role === 'admin',
     isStaff: user?.role === 'admin' || user?.role === 'technician',
+    canLogTimeForOthers: !!user?.canLogTimeForOthers,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

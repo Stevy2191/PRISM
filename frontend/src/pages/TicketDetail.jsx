@@ -117,6 +117,28 @@ function Modal({ title, children, onClose }) {
 
 const fieldStyle = { backgroundColor: BG, borderColor: BORDER, color: TEXT };
 
+// Shared by the manual time entry modal and the timer's log modal — only
+// rendered at all when the caller has confirmed canLogTimeForOthers, so no
+// permission check happens here.
+function LoggedForField({ assignableUsers, currentUser, value, onChange }) {
+  return (
+    <div className="mb-3">
+      <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Logged for</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="input h-9 text-sm"
+        style={fieldStyle}
+      >
+        <option value={currentUser.id}>Yourself ({currentUser.displayName})</option>
+        {assignableUsers
+          .filter((u) => u.id !== currentUser.id)
+          .map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+      </select>
+    </div>
+  );
+}
+
 // ---- Header timer widget: client-side state machine (idle/running/paused) ----
 //
 // Deliberately independent of the shared server-backed TimerContext (which
@@ -208,11 +230,12 @@ function useTicketTimer(ticket) {
   return { timerState, elapsedSeconds, otherTicket, now, start, pause, resume, stopToIdle, clearOther };
 }
 
-function TimerWidget({ ticket, ticketTimer, onLogged }) {
+function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTimeForOthers, currentUser }) {
   const { timerState, elapsedSeconds, start, pause, resume, stopToIdle } = ticketTimer;
   const [modalOpen, setModalOpen] = useState(false);
   const [loggedSeconds, setLoggedSeconds] = useState(0);
   const [description, setDescription] = useState('');
+  const [loggedForId, setLoggedForId] = useState(currentUser.id);
   const [saving, setSaving] = useState(false);
 
   const color = timerState === 'running' ? '#4ade80' : timerState === 'paused' ? '#f59e0b' : TEXT;
@@ -221,6 +244,7 @@ function TimerWidget({ ticket, ticketTimer, onLogged }) {
   const handleStop = () => {
     setLoggedSeconds(elapsedSeconds);
     stopToIdle();
+    setLoggedForId(currentUser.id);
     setModalOpen(true);
   };
 
@@ -228,7 +252,7 @@ function TimerWidget({ ticket, ticketTimer, onLogged }) {
     setSaving(true);
     try {
       const minutes = Math.max(1, Math.round(loggedSeconds / 60));
-      await api.post(`/tickets/${ticket.id}/time`, { minutes, note: description || undefined });
+      await api.post(`/tickets/${ticket.id}/time`, { minutes, note: description || undefined, userId: loggedForId });
       onLogged?.();
     } finally {
       setSaving(false);
@@ -285,6 +309,9 @@ function TimerWidget({ ticket, ticketTimer, onLogged }) {
           <p className="mb-3 text-sm" style={{ color: MUTED }}>
             Elapsed time: <span className="font-mono font-semibold" style={{ color: TEXT }}>{formatHMS(loggedSeconds)}</span>
           </p>
+          {canLogTimeForOthers && (
+            <LoggedForField assignableUsers={assignableUsers} currentUser={currentUser} value={loggedForId} onChange={setLoggedForId} />
+          )}
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Description (optional)</label>
           <textarea
             value={description}
@@ -784,20 +811,30 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
 
 // ---- Time entries tab ----
 
-function TimeEntriesTab({ entries, totalMinutes, onAdd }) {
+function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, canLogTimeForOthers, currentUser }) {
+  const todayStr = new Date().toISOString().slice(0, 10);
   const [modalOpen, setModalOpen] = useState(false);
   const [duration, setDuration] = useState('');
   const [description, setDescription] = useState('');
+  const [entryDate, setEntryDate] = useState(todayStr);
+  const [loggedForId, setLoggedForId] = useState(currentUser.id);
   const [saving, setSaving] = useState(false);
+
+  const openModal = () => {
+    setEntryDate(todayStr);
+    setLoggedForId(currentUser.id);
+    setModalOpen(true);
+  };
 
   const submit = async () => {
     const match = /^(\d{1,3}):([0-5]?\d)$/.exec(duration.trim());
     if (!match) { alert('Duration must be in HH:MM format'); return; }
     const minutes = Number(match[1]) * 60 + Number(match[2]);
     if (!minutes) { alert('Duration must be greater than zero'); return; }
+    if (entryDate > todayStr) { alert('Entry date cannot be in the future'); return; }
     setSaving(true);
     try {
-      await onAdd(minutes, description);
+      await onAdd(minutes, description, entryDate, loggedForId);
       setModalOpen(false);
       setDuration('');
       setDescription('');
@@ -813,7 +850,7 @@ function TimeEntriesTab({ entries, totalMinutes, onAdd }) {
       <div className="mb-4 flex justify-end">
         <button
           type="button"
-          onClick={() => setModalOpen(true)}
+          onClick={openModal}
           className="rounded-md px-3 py-2 text-sm font-semibold text-white"
           style={{ backgroundColor: BLUE }}
         >
@@ -823,15 +860,23 @@ function TimeEntriesTab({ entries, totalMinutes, onAdd }) {
       <div className="overflow-hidden rounded-[10px] border" style={{ borderColor: BORDER, backgroundColor: CARD_BG }}>
         {entries.length === 0 && <p className="p-4 text-sm" style={{ color: MUTED }}>No time logged.</p>}
         <ul className="divide-y" style={{ borderColor: BORDER }}>
-          {entries.map((e) => (
-            <li key={e.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <p className="text-sm" style={{ color: TEXT }}>{e.note || 'Time entry'}</p>
-                <p className="text-xs" style={{ color: MUTED }}>{e.user?.displayName} · {formatDate(e.loggedAt)}</p>
-              </div>
-              <span className="font-mono text-sm font-semibold" style={{ color: '#4ade80' }}>{formatMinutes(e.minutes)}</span>
-            </li>
-          ))}
+          {entries.map((e) => {
+            const loggedByOther = e.loggedById && e.userId != null && e.loggedById !== e.userId;
+            return (
+              <li key={e.id} className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="text-sm" style={{ color: TEXT }}>{e.note || 'Time entry'}</p>
+                  <p className="text-xs" style={{ color: MUTED }}>
+                    {loggedByOther
+                      ? `Logged by ${e.loggedBy?.displayName || 'someone'} for ${e.user?.displayName}`
+                      : e.user?.displayName}
+                    {' · '}{formatDate(e.entryDate || e.loggedAt)}
+                  </p>
+                </div>
+                <span className="font-mono text-sm font-semibold" style={{ color: '#4ade80' }}>{formatMinutes(e.minutes)}</span>
+              </li>
+            );
+          })}
         </ul>
       </div>
       <div className="mt-3 text-right text-sm font-semibold" style={{ color: TEXT }}>
@@ -842,6 +887,18 @@ function TimeEntriesTab({ entries, totalMinutes, onAdd }) {
         <Modal title="Add manual time entry" onClose={() => setModalOpen(false)}>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Duration (HH:MM)</label>
           <input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="01:30" className="input mb-3" style={fieldStyle} />
+          <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Date</label>
+          <input
+            type="date"
+            value={entryDate}
+            max={todayStr}
+            onChange={(e) => setEntryDate(e.target.value)}
+            className="input mb-3"
+            style={fieldStyle}
+          />
+          {canLogTimeForOthers && (
+            <LoggedForField assignableUsers={assignableUsers} currentUser={currentUser} value={loggedForId} onChange={setLoggedForId} />
+          )}
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Description</label>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="input mb-4 resize-y" style={{ ...fieldStyle, minHeight: '70px' }} />
           <div className="flex justify-end gap-2">
@@ -1123,7 +1180,7 @@ function ActivityTab({ activity }) {
 
 export default function TicketDetail() {
   const { id } = useParams();
-  const { user, isStaff } = useAuth();
+  const { user, isStaff, canLogTimeForOthers } = useAuth();
   const fileRef = useRef(null);
 
   const [ticket, setTicket] = useState(null);
@@ -1359,8 +1416,13 @@ export default function TicketDetail() {
     }
   };
 
-  const addManualTime = async (minutes, description) => {
-    const { data } = await api.post(`/tickets/${id}/time`, { minutes, note: description || undefined });
+  const addManualTime = async (minutes, description, entryDate, loggedForId) => {
+    const { data } = await api.post(`/tickets/${id}/time`, {
+      minutes,
+      note: description || undefined,
+      entryDate,
+      userId: loggedForId,
+    });
     setTime((t) => ({ entries: [data.entry, ...t.entries], totalMinutes: t.totalMinutes + data.entry.minutes }));
     api.get(`/tickets/${id}/activity`).then(({ data: d }) => setActivity(d.activity)).catch(() => {});
   };
@@ -1391,7 +1453,16 @@ export default function TicketDetail() {
             </span>
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">
-            {isStaff && <TimerWidget ticket={ticket} ticketTimer={ticketTimer} onLogged={reloadTime} />}
+            {isStaff && (
+              <TimerWidget
+                ticket={ticket}
+                ticketTimer={ticketTimer}
+                onLogged={reloadTime}
+                assignableUsers={assignableUsers}
+                canLogTimeForOthers={canLogTimeForOthers}
+                currentUser={user}
+              />
+            )}
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm" style={{ color: MUTED }}>
@@ -1452,7 +1523,16 @@ export default function TicketDetail() {
 
           <div className="p-6" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
             {activeTab === 'conversation' && <ConversationTab ticket={ticket} comments={comments} />}
-            {activeTab === 'time' && <TimeEntriesTab entries={time.entries} totalMinutes={time.totalMinutes} onAdd={addManualTime} />}
+            {activeTab === 'time' && (
+              <TimeEntriesTab
+                entries={time.entries}
+                totalMinutes={time.totalMinutes}
+                onAdd={addManualTime}
+                assignableUsers={assignableUsers}
+                canLogTimeForOthers={canLogTimeForOthers}
+                currentUser={user}
+              />
+            )}
             {activeTab === 'tasks' && (
               <TasksTab tasks={tasks} assignableUsers={assignableUsers} onToggle={toggleTask} onReassign={reassignTask} onAdd={addTask} />
             )}

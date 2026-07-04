@@ -1,11 +1,18 @@
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
-const { User, sequelize } = require('../models');
+const { User, TeamMember, sequelize } = require('../models');
 const { authenticate: ldapAuthenticate, isConfigured: isLdapConfigured } = require('../config/ldap');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 
 const MIN_PASSWORD_LENGTH = 8;
+
+// Admins and team leads may log time on tickets against another tech's name.
+async function serializeUserWithFlags(user) {
+  const canLogTimeForOthers =
+    user.role === 'admin' || !!(await TeamMember.findOne({ where: { userId: user.id, isLead: true } }));
+  return { ...user.toJSON(), canLogTimeForOthers };
+}
 
 // POST /auth/login
 // Body: { username, password }
@@ -25,7 +32,7 @@ const login = asyncHandler(async (req, res) => {
   await user.save();
   await writeAudit(req, 'auth.login', 'User', user.id, { method });
 
-  res.json({ user, mustChangePassword: user.mustChangePassword });
+  res.json({ user: await serializeUserWithFlags(user), mustChangePassword: user.mustChangePassword });
 });
 
 // Try local first (by username or email), then fall back to AD if configured.
@@ -119,7 +126,7 @@ const logout = asyncHandler(async (req, res) => {
 
 // GET /auth/me
 const me = asyncHandler(async (req, res) => {
-  res.json({ user: req.user, mustChangePassword: req.user.mustChangePassword });
+  res.json({ user: await serializeUserWithFlags(req.user), mustChangePassword: req.user.mustChangePassword });
 });
 
 // POST /auth/change-password
@@ -158,7 +165,7 @@ const changePassword = asyncHandler(async (req, res) => {
   await user.save();
   await writeAudit(req, 'auth.change_password', 'User', user.id, null);
 
-  res.json({ ok: true, user });
+  res.json({ ok: true, user: await serializeUserWithFlags(user) });
 });
 
 module.exports = { login, logout, me, changePassword };

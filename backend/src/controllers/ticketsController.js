@@ -11,6 +11,7 @@ const {
   TicketActivity,
   CsatResponse,
   Team,
+  TeamMember,
   CustomField,
   TicketFieldValue,
   User,
@@ -77,6 +78,13 @@ function assertCanViewTicket(req, ticket) {
 }
 
 const isStaff = (user) => user.role === 'admin' || user.role === 'technician';
+
+// Admins and team leads may log time attributed to another tech.
+async function canLogForOthers(user) {
+  if (user.role === 'admin') return true;
+  const lead = await TeamMember.findOne({ where: { userId: user.id, isLead: true } });
+  return !!lead;
+}
 
 const CLOSED_STATUSES = ['resolved', 'closed'];
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
@@ -564,7 +572,10 @@ const listTime = asyncHandler(async (req, res) => {
 
   const entries = await TimeEntry.findAll({
     where: { ticketId: ticket.id },
-    include: [{ model: User, as: 'user', attributes: userAttrs }],
+    include: [
+      { model: User, as: 'user', attributes: userAttrs },
+      { model: User, as: 'loggedBy', attributes: userAttrs },
+    ],
     order: [['loggedAt', 'DESC']],
   });
   const totalMinutes = entries.reduce((sum, e) => sum + e.minutes, 0);
@@ -576,23 +587,53 @@ const createTime = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
 
-  const { minutes, note, loggedAt } = req.body || {};
+  const { minutes, note, entryDate, userId } = req.body || {};
   const mins = parseInt(minutes, 10);
   if (!mins || mins < 1) {
     throw new ApiError(400, 'minutes must be a positive integer', 'VALIDATION_ERROR');
   }
+
+  // Attribute the entry to another tech — admins/team leads only.
+  let targetUserId = req.user.id;
+  if (userId !== undefined && userId !== null && Number(userId) !== req.user.id) {
+    if (!(await canLogForOthers(req.user))) {
+      throw new ApiError(403, 'Only admins and team leads can log time for other users', 'FORBIDDEN');
+    }
+    const targetUser = await User.findByPk(userId);
+    if (!targetUser || !isStaff(targetUser)) {
+      throw new ApiError(400, 'Invalid user to log time for', 'VALIDATION_ERROR');
+    }
+    targetUserId = targetUser.id;
+  }
+
+  // The work date is user-editable but never in the future.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  let resolvedEntryDate = todayStr;
+  if (entryDate) {
+    const d = String(entryDate).slice(0, 10);
+    if (d > todayStr) {
+      throw new ApiError(400, 'Entry date cannot be in the future', 'VALIDATION_ERROR');
+    }
+    resolvedEntryDate = d;
+  }
+
   const entry = await TimeEntry.create({
     ticketId: ticket.id,
-    userId: req.user.id,
+    userId: targetUserId,
+    loggedById: req.user.id,
     minutes: mins,
     note: note || null,
-    loggedAt: loggedAt ? new Date(loggedAt) : new Date(),
+    entryDate: resolvedEntryDate,
+    loggedAt: new Date(),
   });
   await writeAudit(req, 'time.create', 'TimeEntry', entry.id, { ticketId: ticket.id, minutes: mins });
   await logActivity(ticket.id, req.user.id, 'time_logged', null, `${mins}m`);
 
   const fresh = await TimeEntry.findByPk(entry.id, {
-    include: [{ model: User, as: 'user', attributes: userAttrs }],
+    include: [
+      { model: User, as: 'user', attributes: userAttrs },
+      { model: User, as: 'loggedBy', attributes: userAttrs },
+    ],
   });
   res.status(201).json({ entry: fresh });
 });

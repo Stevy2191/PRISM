@@ -24,6 +24,12 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      // Who actually created the record — usually the same as userId, but an
+      // admin/team lead can log time attributed to a different tech.
+      loggedById: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       minutes: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -32,6 +38,13 @@ module.exports = (sequelize) => {
       note: {
         type: DataTypes.TEXT,
         allowNull: true,
+      },
+      // The date the work was actually done — editable by the tech,
+      // independent of loggedAt (when the record itself was created).
+      entryDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: false,
+        defaultValue: () => new Date().toISOString().slice(0, 10),
       },
       loggedAt: {
         type: DataTypes.DATE,

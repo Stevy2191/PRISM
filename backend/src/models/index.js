@@ -110,6 +110,7 @@ Attachment.belongsTo(User, { foreignKey: 'uploadedById', as: 'uploadedBy' });
 Ticket.hasMany(TimeEntry, { foreignKey: 'ticketId', as: 'timeEntries', onDelete: 'CASCADE' });
 TimeEntry.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 TimeEntry.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+TimeEntry.belongsTo(User, { foreignKey: 'loggedById', as: 'loggedBy' });
 User.hasMany(TimeEntry, { foreignKey: 'userId', as: 'timeEntries' });
 
 // Project <-> TimeEntry (project-level time)
