@@ -261,7 +261,7 @@ function SidebarSection({ title, collapsed, children }) {
 }
 
 function Sidebar({
-  ticket, collapsed, onToggle, headerHeight, isStaff, patchTicket,
+  ticket, collapsed, onToggle, isStaff, onStatusChange, patchTicket,
   assignableUsers, teams, directory,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
@@ -279,11 +279,6 @@ function Sidebar({
     : [];
 
   const width = collapsed ? 44 : 240;
-  // Stick just below the ticket header and cap our own box to the remaining
-  // viewport height, so the sidebar (and its toggle button) stay in view as
-  // the page scrolls, and the icon/field list scrolls internally instead of
-  // spilling past the sidebar's own bottom edge.
-  const top = headerHeight || 0;
 
   return (
     <aside
@@ -291,12 +286,9 @@ function Sidebar({
       style={{
         width,
         height: '100%',
-        alignSelf: 'stretch',
         display: 'flex',
         flexDirection: 'column',
-        position: 'sticky',
-        top,
-        maxHeight: `calc(100vh - ${top}px)`,
+        overflow: 'hidden',
         borderRight: `1px solid ${BORDER}`,
         backgroundColor: CARD_BG,
       }}
@@ -344,7 +336,7 @@ function Sidebar({
                 <select
                   disabled={!isStaff}
                   value={ticket.status}
-                  onChange={(e) => patchTicket({ status: e.target.value })}
+                  onChange={(e) => onStatusChange(e.target.value)}
                   className="input h-9 text-sm"
                   style={fieldStyle}
                 >
@@ -558,7 +550,7 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach }) {
   };
 
   return (
-    <div className="sticky bottom-0 border-t p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+    <div className="flex-shrink-0 border-t p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <textarea
         ref={textareaRef}
         value={text}
@@ -939,30 +931,7 @@ export default function TicketDetail() {
   const { id } = useParams();
   const { user, isStaff } = useAuth();
   const fileRef = useRef(null);
-  const headerObserverRef = useRef(null);
-  const [headerHeight, setHeaderHeight] = useState(0);
   const timer = useTimer();
-
-  // Measure the sticky header so the sidebar can stick just below it and cap
-  // its own height to the remaining viewport. A callback ref (rather than a
-  // plain ref + useEffect) is required here: the header div doesn't exist yet
-  // during the initial loading-spinner render, and a useEffect with an empty
-  // dependency array only runs once on that first mount — it would never see
-  // the real header once the ticket finishes loading. The callback ref fires
-  // again whenever the node itself changes.
-  const headerRef = useCallback((node) => {
-    if (headerObserverRef.current) {
-      headerObserverRef.current.disconnect();
-      headerObserverRef.current = null;
-    }
-    if (node) {
-      const update = () => setHeaderHeight(node.getBoundingClientRect().height);
-      update();
-      const observer = new ResizeObserver(update);
-      observer.observe(node);
-      headerObserverRef.current = observer;
-    }
-  }, []);
 
   const [ticket, setTicket] = useState(null);
   const [comments, setComments] = useState([]);
@@ -1086,8 +1055,12 @@ export default function TicketDetail() {
     }
   };
 
-  const handleResolveOrClose = (status) => {
-    if (time.totalMinutes === 0) {
+  // Status changes now come from the sidebar's Status dropdown (the header's
+  // dedicated Resolve/Close buttons were removed), so the no-time-logged
+  // warning is only relevant when the dropdown moves the ticket into a closed
+  // state — any other status change (open/in_progress/on_hold) applies immediately.
+  const handleStatusChange = (status) => {
+    if (CLOSED_STATUSES.includes(status) && time.totalMinutes === 0) {
       setNoTimeWarning(status);
     } else {
       patchTicket({ status });
@@ -1193,9 +1166,15 @@ export default function TicketDetail() {
   if (!ticket) return null;
 
   return (
-    <div style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: 0 }} className="min-h-full">
-      {/* Header */}
-      <div ref={headerRef} className="sticky top-0 z-20 px-6 py-4" style={{ backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
+    <div
+      style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: 0, height: '100vh' }}
+      className="flex flex-col overflow-hidden"
+    >
+      {/* Header — auto height, does not grow */}
+      <div
+        className="flex-shrink-0 px-6 py-4"
+        style={{ backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}
+      >
         <Link to="/tickets" className="text-sm hover:underline" style={{ color: MUTED }}>← Back to tickets</Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -1209,16 +1188,6 @@ export default function TicketDetail() {
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">
             {isStaff && <TimerWidget ticket={ticket} onLogged={reloadTime} />}
-            {isStaff && (
-              <button type="button" onClick={() => handleResolveOrClose('resolved')} className="rounded-md px-3 py-1.5 text-sm font-semibold text-white" style={{ backgroundColor: '#16a34a' }}>
-                Resolve
-              </button>
-            )}
-            {isStaff && (
-              <button type="button" onClick={() => handleResolveOrClose('closed')} className="rounded-md px-3 py-1.5 text-sm font-semibold" style={{ backgroundColor: BORDER, color: TEXT }}>
-                Close
-              </button>
-            )}
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm" style={{ color: MUTED }}>
@@ -1229,15 +1198,16 @@ export default function TicketDetail() {
         </div>
       </div>
 
-      {/* Body: sidebar + main. items-stretch (flex default, made explicit) so
-          the sidebar and main content column always match height. */}
-      <div className="flex items-stretch">
+      {/* Body: sidebar + main. flex:1 + min-height:0 + overflow:hidden so this
+          row takes exactly the remaining viewport height and its children
+          (which scroll internally) never push the page taller than 100vh. */}
+      <div className="flex items-stretch" style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
         <Sidebar
           ticket={ticket}
           collapsed={collapsed}
           onToggle={() => setCollapsed((c) => !c)}
-          headerHeight={headerHeight}
           isStaff={isStaff}
+          onStatusChange={handleStatusChange}
           patchTicket={patchTicket}
           assignableUsers={assignableUsers}
           teams={teams}
@@ -1250,8 +1220,11 @@ export default function TicketDetail() {
           onRemoveWatcher={removeWatcher}
         />
 
-        <div className="min-w-0 flex-1">
-          <div className="flex" style={{ borderBottom: `1px solid ${BORDER}` }}>
+        <div
+          className="min-w-0"
+          style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+        >
+          <div className="flex-shrink-0 flex" style={{ borderBottom: `1px solid ${BORDER}` }}>
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -1265,7 +1238,7 @@ export default function TicketDetail() {
             ))}
           </div>
 
-          <div className="p-6">
+          <div className="p-6" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
             {activeTab === 'conversation' && <ConversationTab ticket={ticket} comments={comments} />}
             {activeTab === 'time' && <TimeEntriesTab entries={time.entries} totalMinutes={time.totalMinutes} onAdd={addManualTime} />}
             {activeTab === 'tasks' && (
@@ -1280,6 +1253,8 @@ export default function TicketDetail() {
             {activeTab === 'activity' && <ActivityTab activity={activity} />}
           </div>
 
+          {/* Sibling below the scrollable tab content, not inside it — stays
+              pinned to the bottom of the main content column. */}
           {activeTab === 'conversation' && (
             <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} />
           )}
