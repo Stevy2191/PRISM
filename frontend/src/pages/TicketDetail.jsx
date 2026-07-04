@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   IconPaperclip, IconAt, IconArrowUp, IconArrowDown, IconX, IconUpload,
-  IconFile, IconTrash, IconPlayerPlayFilled, IconPlayerStopFilled, IconLock, IconWorld,
+  IconFile, IconTrash, IconPlayerPlayFilled, IconPlayerStopFilled, IconPlayerPauseFilled,
+  IconLock, IconWorld,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import { useTimer, formatHMS } from '../context/TimerContext';
+import { formatHMS } from '../context/TimerContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 
@@ -116,68 +117,131 @@ function Modal({ title, children, onClose }) {
 
 const fieldStyle = { backgroundColor: BG, borderColor: BORDER, color: TEXT };
 
-// ---- Header timer widget ----
+// ---- Header timer widget: client-side state machine (idle/running/paused) ----
+//
+// Deliberately independent of the shared server-backed TimerContext (which
+// still drives the simpler start/stop-only Project timer elsewhere in the
+// app) — the pause state below has no equivalent in that schema, and
+// persisting to localStorage is the simplest way to survive an accidental
+// navigation away and back without a server round trip.
 
-function TimerWidget({ ticket, onLogged }) {
-  const timer = useTimer();
-  const running = timer.isRunning('ticket', ticket.id);
-  const [held, setHeld] = useState(false);
-  const [heldSeconds, setHeldSeconds] = useState(0);
+const TICKET_TIMER_KEY = 'prism.ticketTimer.v1';
+
+function readTicketTimerEntry() {
+  try {
+    const raw = localStorage.getItem(TICKET_TIMER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function writeTicketTimerEntry(entry) {
+  try {
+    if (entry) localStorage.setItem(TICKET_TIMER_KEY, JSON.stringify(entry));
+    else localStorage.removeItem(TICKET_TIMER_KEY);
+  } catch {
+    /* ignore (private browsing / storage full) */
+  }
+}
+function computeElapsedSeconds(entry, nowMs) {
+  if (!entry) return 0;
+  const running = entry.state === 'running' ? Math.max(0, Math.floor((nowMs - entry.runStartedAt) / 1000)) : 0;
+  return entry.accumulatedSeconds + running;
+}
+
+function useTicketTimer(ticket) {
+  const ticketId = ticket?.id ?? null;
+  const [entry, setEntry] = useState(() => readTicketTimerEntry());
+  const [now, setNow] = useState(() => Date.now());
+
+  // Tick once a second whenever ANY ticket's timer is running (so a banner
+  // about a different ticket's timer can show a live count too).
+  useEffect(() => {
+    if (!entry || entry.state !== 'running') return undefined;
+    setNow(Date.now());
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [entry?.state, entry?.runStartedAt]);
+
+  // Pick up changes made in another tab for the same browser.
+  useEffect(() => {
+    const onStorage = (e) => { if (e.key === TICKET_TIMER_KEY) setEntry(readTicketTimerEntry()); };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  const commit = (next) => { writeTicketTimerEntry(next); setEntry(next); };
+
+  const isForThisTicket = !!(entry && ticketId != null && entry.ticketId === ticketId);
+  const timerState = isForThisTicket ? entry.state : 'idle';
+  const elapsedSeconds = isForThisTicket ? computeElapsedSeconds(entry, now) : 0;
+  const otherTicket = entry && !isForThisTicket ? entry : null;
+
+  const start = useCallback(() => {
+    if (ticketId == null) return;
+    commit({
+      ticketId,
+      ticketNumber: formatTicketId(ticket),
+      ticketTitle: ticket.title,
+      state: 'running',
+      accumulatedSeconds: 0,
+      runStartedAt: Date.now(),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketId, ticket?.title]);
+
+  const pause = useCallback(() => {
+    if (!entry || entry.ticketId !== ticketId || entry.state !== 'running') return;
+    commit({ ...entry, state: 'paused', accumulatedSeconds: computeElapsedSeconds(entry, Date.now()), runStartedAt: null });
+  }, [entry, ticketId]);
+
+  const resume = useCallback(() => {
+    if (!entry || entry.ticketId !== ticketId || entry.state !== 'paused') return;
+    commit({ ...entry, state: 'running', runStartedAt: Date.now() });
+  }, [entry, ticketId]);
+
+  // Snapshot-then-clear: used right before opening the Log time modal, and
+  // by the automatic-timer-mode unmount path — always resets to idle.
+  const stopToIdle = useCallback(() => { commit(null); }, []);
+  const clearOther = useCallback(() => { commit(null); }, []);
+
+  return { timerState, elapsedSeconds, otherTicket, now, start, pause, resume, stopToIdle, clearOther };
+}
+
+function TimerWidget({ ticket, ticketTimer, onLogged }) {
+  const { timerState, elapsedSeconds, start, pause, resume, stopToIdle } = ticketTimer;
   const [modalOpen, setModalOpen] = useState(false);
+  const [loggedSeconds, setLoggedSeconds] = useState(0);
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Once "held", the visible clock freezes at the captured snapshot and the
-  // server timer is treated as stopped even though the ActiveTimer row (whose
-  // startedAt never moves) isn't torn down until Confirm/Cancel resolves.
-  const displayRunning = running && !held;
-  const displaySeconds = displayRunning ? timer.elapsedSeconds : held ? heldSeconds : 0;
+  const color = timerState === 'running' ? '#4ade80' : timerState === 'paused' ? '#f59e0b' : TEXT;
+  const iconColor = timerState === 'running' ? '#4ade80' : timerState === 'paused' ? '#f59e0b' : MUTED;
 
-  const handleStart = () => timer.start('ticket', ticket.id, `${formatTicketId(ticket)} ${ticket.title}`);
-
-  const handleStopClick = async () => {
-    const secs = timer.elapsedSeconds;
-    if (secs <= 0) {
-      await timer.cancel();
-      return;
-    }
-    setHeldSeconds(secs);
-    setHeld(true);
+  const handleStop = () => {
+    setLoggedSeconds(elapsedSeconds);
+    stopToIdle();
+    setModalOpen(true);
   };
 
-  const confirmLog = async () => {
+  const saveEntry = async () => {
     setSaving(true);
     try {
-      // Log the exact duration captured at Stop time, not whatever the
-      // server's clock reads now — the user may have spent a while filling
-      // in the modal, and that time shouldn't be attributed to the entry.
-      const minutes = Math.max(1, Math.round(heldSeconds / 60));
+      const minutes = Math.max(1, Math.round(loggedSeconds / 60));
       await api.post(`/tickets/${ticket.id}/time`, { minutes, note: description || undefined });
-      await timer.cancel();
       onLogged?.();
     } finally {
       setSaving(false);
       setModalOpen(false);
-      setHeld(false);
-      setHeldSeconds(0);
       setDescription('');
+      setLoggedSeconds(0);
     }
   };
 
-  const discardHeld = async () => {
+  const discardEntry = () => {
     setModalOpen(false);
-    await timer.cancel();
-    setHeld(false);
-    setHeldSeconds(0);
     setDescription('');
-  };
-
-  const handleToggle = () => {
-    if (displayRunning) {
-      handleStopClick();
-    } else if (!held) {
-      handleStart();
-    }
+    setLoggedSeconds(0);
   };
 
   return (
@@ -191,38 +255,35 @@ function TimerWidget({ ticket, onLogged }) {
           padding: '6px 14px',
         }}
       >
-        <button
-          type="button"
-          onClick={handleToggle}
-          disabled={held}
-          className="flex items-center justify-center disabled:opacity-40"
-          style={{ color: displayRunning ? '#4ade80' : TEXT }}
-          title={displayRunning ? 'Stop timer' : 'Start timer'}
-        >
-          {displayRunning ? <IconPlayerStopFilled size={15} /> : <IconPlayerPlayFilled size={15} />}
-        </button>
-        <span
-          className="font-mono text-sm font-semibold"
-          style={{ color: displayRunning ? '#4ade80' : TEXT }}
-        >
-          {formatHMS(displaySeconds)}
+        {timerState === 'idle' && (
+          <button type="button" onClick={start} className="flex items-center justify-center" style={{ color: iconColor }} title="Start timer">
+            <IconPlayerPlayFilled size={15} />
+          </button>
+        )}
+        {timerState === 'running' && (
+          <button type="button" onClick={pause} className="flex items-center justify-center" style={{ color: iconColor }} title="Pause timer">
+            <IconPlayerPauseFilled size={15} />
+          </button>
+        )}
+        {timerState === 'paused' && (
+          <button type="button" onClick={resume} className="flex items-center justify-center" style={{ color: iconColor }} title="Resume timer">
+            <IconPlayerPlayFilled size={15} />
+          </button>
+        )}
+        <span className="font-mono text-sm font-semibold" style={{ color }}>
+          {formatHMS(elapsedSeconds)}
         </span>
-        {held && heldSeconds > 0 && (
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            className="text-xs font-semibold underline"
-            style={{ color: BLUE }}
-          >
-            Log
+        {timerState !== 'idle' && (
+          <button type="button" onClick={handleStop} className="flex items-center justify-center" style={{ color }} title="Stop and log time">
+            <IconPlayerStopFilled size={15} />
           </button>
         )}
       </div>
 
       {modalOpen && (
-        <Modal title="Log time" onClose={discardHeld}>
+        <Modal title="Log time" onClose={discardEntry}>
           <p className="mb-3 text-sm" style={{ color: MUTED }}>
-            Duration logged: <span className="font-mono font-semibold" style={{ color: TEXT }}>{formatHMS(heldSeconds)}</span>
+            Elapsed time: <span className="font-mono font-semibold" style={{ color: TEXT }}>{formatHMS(loggedSeconds)}</span>
           </p>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Description (optional)</label>
           <textarea
@@ -234,24 +295,73 @@ function TimerWidget({ ticket, onLogged }) {
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={discardHeld}
+              onClick={discardEntry}
               className="rounded-md border px-4 py-2 text-sm font-medium"
               style={{ borderColor: BORDER, color: TEXT }}
             >
-              Cancel
+              Discard
             </button>
             <button
               type="button"
-              onClick={confirmLog}
+              onClick={saveEntry}
               disabled={saving}
               className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               style={{ backgroundColor: BLUE }}
             >
-              {saving ? 'Saving…' : 'Confirm'}
+              {saving ? 'Saving…' : 'Save time entry'}
             </button>
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+function OtherTicketTimerBanner({ otherTicket, now, onCleared }) {
+  const [busy, setBusy] = useState(false);
+  const seconds = computeElapsedSeconds(otherTicket, now);
+
+  const stopAndLog = async () => {
+    setBusy(true);
+    try {
+      const minutes = Math.max(1, Math.round(seconds / 60));
+      await api.post(`/tickets/${otherTicket.ticketId}/time`, { minutes });
+      onCleared();
+    } catch (err) {
+      alert(errMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 px-6 py-2 text-sm"
+      style={{ backgroundColor: '#2d1f00', borderBottom: '1px solid #f59e0b', color: '#fbbf24' }}
+    >
+      <span>
+        Timer is running on <span className="font-mono font-semibold">{otherTicket.ticketNumber}</span> ({formatHMS(seconds)}). Stop and log before starting a new one?
+      </span>
+      <div className="flex flex-shrink-0 gap-2">
+        <button
+          type="button"
+          onClick={stopAndLog}
+          disabled={busy}
+          className="rounded-md px-3 py-1 text-xs font-semibold disabled:opacity-50"
+          style={{ backgroundColor: '#f59e0b', color: '#1a1200' }}
+        >
+          {busy ? 'Logging…' : 'Stop & log'}
+        </button>
+        <button
+          type="button"
+          onClick={onCleared}
+          disabled={busy}
+          className="rounded-md border px-3 py-1 text-xs font-medium disabled:opacity-50"
+          style={{ borderColor: '#f59e0b', color: '#fbbf24' }}
+        >
+          Discard
+        </button>
+      </div>
     </div>
   );
 }
@@ -1015,9 +1125,9 @@ export default function TicketDetail() {
   const { id } = useParams();
   const { user, isStaff } = useAuth();
   const fileRef = useRef(null);
-  const timer = useTimer();
 
   const [ticket, setTicket] = useState(null);
+  const ticketTimer = useTicketTimer(ticket);
   const [comments, setComments] = useState([]);
   const [attachments, setAttachments] = useState([]);
   const [time, setTime] = useState({ entries: [], totalMinutes: 0 });
@@ -1080,46 +1190,56 @@ export default function TicketDetail() {
     }
   }, [isStaff]);
 
-  // Keep a ref to the latest timer snapshot so the mount/unmount effect below
-  // (which only re-runs when the ticket changes) always acts on live data
-  // instead of the stale closure from when it first ran.
-  const timerRef = useRef(timer);
-  useEffect(() => { timerRef.current = timer; }, [timer]);
+  // Keep a ref to the latest ticket-timer snapshot so the mount/unmount
+  // effect below (which only re-runs when the ticket changes) always acts on
+  // live data instead of the stale closure from when it first ran.
+  const ticketTimerRef = useRef(ticketTimer);
+  useEffect(() => { ticketTimerRef.current = ticketTimer; }, [ticketTimer]);
 
-  // Automatic timer mode: start on open, stop (and log/discard/prompt per the
-  // user's preferences) on navigating away; best-effort log via sendBeacon on
-  // tab close (manual-mode timers deliberately persist across tab closes —
-  // that's the point of the server-backed cross-device timer).
+  // Automatic timer mode: start on open (unless another ticket's timer is
+  // already running/paused — the warning banner handles that conflict
+  // instead), stop (and log/discard/prompt per the user's preferences) on
+  // navigating away; best-effort log via sendBeacon on tab close. Manual-mode
+  // and paused timers deliberately persist in localStorage across tab
+  // close/reopen — that's the point of the client-side persistence.
   useEffect(() => {
     if (!isStaff || !ticket || !user || user.timerMode !== 'automatic') return undefined;
 
-    if (!timerRef.current.isRunning('ticket', ticket.id)) {
-      timerRef.current.start('ticket', ticket.id, `${formatTicketId(ticket)} ${ticket.title}`);
+    if (ticketTimerRef.current.timerState === 'idle' && !ticketTimerRef.current.otherTicket) {
+      ticketTimerRef.current.start();
     }
 
     const handleBeforeUnload = () => {
-      if (timerRef.current.isRunning('ticket', ticket.id)) {
-        navigator.sendBeacon('/api/v1/timer/stop', new Blob([JSON.stringify({})], { type: 'application/json' }));
-      }
+      const t = ticketTimerRef.current;
+      if (t.timerState === 'idle') return;
+      const seconds = t.elapsedSeconds;
+      if (seconds < (user.timerMinThreshold || 0)) return;
+      const minutes = Math.max(1, Math.round(seconds / 60));
+      navigator.sendBeacon(
+        `/api/v1/tickets/${ticket.id}/time`,
+        new Blob([JSON.stringify({ minutes })], { type: 'application/json' })
+      );
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      const t = timerRef.current;
-      if (!t.isRunning('ticket', ticket.id)) return;
+      const t = ticketTimerRef.current;
+      if (t.timerState === 'idle') return;
       const seconds = t.elapsedSeconds;
       if (seconds < (user.timerMinThreshold || 0)) {
-        t.cancel();
-      } else if (user.timerPromptBeforeLog) {
+        t.stopToIdle();
+        return;
+      }
+      const minutes = Math.max(1, Math.round(seconds / 60));
+      if (user.timerPromptBeforeLog) {
         if (window.confirm(`Log ${formatHMS(seconds)} of time to this ticket before leaving?`)) {
-          t.stop();
-        } else {
-          t.cancel();
+          api.post(`/tickets/${ticket.id}/time`, { minutes }).catch(() => {});
         }
       } else {
-        t.stop();
+        api.post(`/tickets/${ticket.id}/time`, { minutes }).catch(() => {});
       }
+      t.stopToIdle();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticket?.id, isStaff, user?.id, user?.timerMode]);
@@ -1271,7 +1391,7 @@ export default function TicketDetail() {
             </span>
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">
-            {isStaff && <TimerWidget ticket={ticket} onLogged={reloadTime} />}
+            {isStaff && <TimerWidget ticket={ticket} ticketTimer={ticketTimer} onLogged={reloadTime} />}
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm" style={{ color: MUTED }}>
@@ -1281,6 +1401,14 @@ export default function TicketDetail() {
           <span>Created: <span style={{ color: TEXT }}>{formatDate(ticket.createdAt)}</span></span>
         </div>
       </div>
+
+      {isStaff && ticketTimer.otherTicket && (
+        <OtherTicketTimerBanner
+          otherTicket={ticketTimer.otherTicket}
+          now={ticketTimer.now}
+          onCleared={ticketTimer.clearOther}
+        />
+      )}
 
       {/* Body: sidebar + main. flex:1 + min-height:0 + overflow:hidden so this
           row takes exactly the remaining viewport height and its children
