@@ -92,6 +92,7 @@ Ticket.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 // Ticket assignee / requester
 Ticket.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
 Ticket.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
+Ticket.belongsTo(User, { foreignKey: 'resolutionUpdatedBy', as: 'resolutionUpdatedByUser' });
 User.hasMany(Ticket, { foreignKey: 'assigneeId', as: 'assignedTickets' });
 User.hasMany(Ticket, { foreignKey: 'requesterId', as: 'requestedTickets' });
 

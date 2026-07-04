@@ -86,6 +86,19 @@ module.exports = (sequelize) => {
         type: DataTypes.JSON,
         allowNull: true,
       },
+      // What fixed the issue — customer-visible, staff-editable.
+      resolution: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      resolutionUpdatedBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      resolutionUpdatedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       sequelize,

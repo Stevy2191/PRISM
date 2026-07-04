@@ -44,6 +44,7 @@ const ticketInclude = [
   { model: Team, as: 'team', attributes: ['id', 'name'] },
   { model: Project, as: 'project', attributes: ['id', 'name'] },
   { model: Department, as: 'department', attributes: ['id', 'name'] },
+  { model: User, as: 'resolutionUpdatedByUser', attributes: userAttrs },
   { model: CsatResponse, as: 'csat' },
   {
     model: TicketFieldValue,
@@ -267,6 +268,7 @@ const update = asyncHandler(async (req, res) => {
   assertCanViewTicket(req, ticket);
 
   // Requesters can only edit a narrow set of fields on their own tickets.
+  // resolution is staff-only to edit (customers only ever see it read-only).
   let allowed;
   if (isStaff(req.user)) {
     allowed = [
@@ -283,6 +285,7 @@ const update = asyncHandler(async (req, res) => {
       'dueDate',
       'customFields',
       'tags',
+      'resolution',
     ];
   } else {
     allowed = ['title', 'description', 'priority', 'tags'];
@@ -291,6 +294,10 @@ const update = asyncHandler(async (req, res) => {
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
+  }
+  if (changes.resolution !== undefined) {
+    changes.resolutionUpdatedBy = req.user.id;
+    changes.resolutionUpdatedAt = new Date();
   }
   const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate'];
   const before = {};
@@ -587,10 +594,33 @@ const createTime = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
 
-  const { minutes, note, entryDate, userId } = req.body || {};
-  const mins = parseInt(minutes, 10);
-  if (!mins || mins < 1) {
-    throw new ApiError(400, 'minutes must be a positive integer', 'VALIDATION_ERROR');
+  const { minutes, note, entryDate, userId, startTime, endTime } = req.body || {};
+
+  // Preferred path: explicit start/end timestamps, from which duration is
+  // derived server-side (never trust a client-computed duration). Falls back
+  // to a raw minutes value for callers that don't have start/end (e.g. older
+  // clients, or a future non-ticket-detail caller).
+  let mins;
+  let durationSeconds;
+  let startDt = null;
+  let endDt = null;
+  if (startTime && endTime) {
+    startDt = new Date(startTime);
+    endDt = new Date(endTime);
+    if (Number.isNaN(startDt.getTime()) || Number.isNaN(endDt.getTime())) {
+      throw new ApiError(400, 'Invalid start/end time', 'VALIDATION_ERROR');
+    }
+    durationSeconds = Math.round((endDt.getTime() - startDt.getTime()) / 1000);
+    if (durationSeconds <= 0) {
+      throw new ApiError(400, 'End time must be after start time', 'VALIDATION_ERROR');
+    }
+    mins = Math.max(1, Math.round(durationSeconds / 60));
+  } else {
+    mins = parseInt(minutes, 10);
+    if (!mins || mins < 1) {
+      throw new ApiError(400, 'minutes must be a positive integer', 'VALIDATION_ERROR');
+    }
+    durationSeconds = mins * 60;
   }
 
   // Attribute the entry to another tech — admins/team leads only.
@@ -622,6 +652,9 @@ const createTime = asyncHandler(async (req, res) => {
     userId: targetUserId,
     loggedById: req.user.id,
     minutes: mins,
+    durationSeconds,
+    startTime: startDt,
+    endTime: endDt,
     note: note || null,
     entryDate: resolvedEntryDate,
     loggedAt: new Date(),

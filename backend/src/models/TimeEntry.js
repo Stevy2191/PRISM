@@ -46,6 +46,24 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: () => new Date().toISOString().slice(0, 10),
       },
+      // Set when the entry was created via the start/end time picker; left
+      // null for legacy duration-only entries, which keep displaying from
+      // `minutes` instead.
+      startTime: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      endTime: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      // Precise duration in seconds (endTime - startTime) when available;
+      // `minutes` stays populated too (rounded) so existing reports/dashboard
+      // aggregation elsewhere in the app keeps working unchanged.
+      durationSeconds: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       loggedAt: {
         type: DataTypes.DATE,
         allowNull: false,

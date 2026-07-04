@@ -57,6 +57,7 @@ const STATUS_META = {
 const CLOSED_STATUSES = ['resolved', 'closed'];
 const TABS = [
   { key: 'conversation', label: 'Conversation' },
+  { key: 'resolution', label: 'Resolution' },
   { key: 'time', label: 'Time Entries' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'attachments', label: 'Attachments' },
@@ -98,6 +99,104 @@ function dueDateColor(dueDate) {
   if (dueDate < today) return '#f87171';
   if (dueDate <= soonStr) return '#fbbf24';
   return MUTED;
+}
+
+// ---- Start/End time picker helpers (5-minute increments, 12h + AM/PM) ----
+
+const PICKER_HOURS_12 = Array.from({ length: 12 }, (_, i) => i + 1);
+const PICKER_MINUTES_5 = Array.from({ length: 12 }, (_, i) => i * 5);
+
+function minutesOfDayToParts(totalMinutes) {
+  const norm = ((totalMinutes % 1440) + 1440) % 1440;
+  const h24 = Math.floor(norm / 60);
+  const m = norm % 60;
+  const meridiem = h24 >= 12 ? 'PM' : 'AM';
+  let h12 = h24 % 12;
+  if (h12 === 0) h12 = 12;
+  return { h12, m, meridiem };
+}
+function partsToMinutesOfDay(h12, m, meridiem) {
+  let h24 = h12 % 12;
+  if (meridiem === 'PM') h24 += 12;
+  return h24 * 60 + m;
+}
+function roundDownTo5(date) {
+  const mins = date.getHours() * 60 + date.getMinutes();
+  return mins - (mins % 5);
+}
+function roundToNearest5(date) {
+  const mins = date.getHours() * 60 + date.getMinutes();
+  return Math.round(mins / 5) * 5;
+}
+// Combines a YYYY-MM-DD date with minutes-since-midnight into a local
+// datetime string suitable for `new Date(...)` on either side of the wire —
+// only the DIFFERENCE between two such values is ever used, so timezone
+// offset doesn't matter as long as both are constructed the same way.
+function buildLocalDateTime(dateStr, minutesOfDay) {
+  const h = Math.floor(minutesOfDay / 60);
+  const m = minutesOfDay % 60;
+  return `${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+}
+
+function TimePicker({ minutesOfDay, onChange }) {
+  const { h12, m, meridiem } = minutesOfDayToParts(minutesOfDay);
+  const update = (nh12, nm, nMeridiem) => onChange(partsToMinutesOfDay(nh12, nm, nMeridiem));
+  return (
+    <div className="flex gap-2">
+      <select value={h12} onChange={(e) => update(Number(e.target.value), m, meridiem)} className="input h-9 text-sm" style={fieldStyle}>
+        {PICKER_HOURS_12.map((h) => <option key={h} value={h}>{h}</option>)}
+      </select>
+      <select value={m} onChange={(e) => update(h12, Number(e.target.value), meridiem)} className="input h-9 text-sm" style={fieldStyle}>
+        {PICKER_MINUTES_5.map((mm) => <option key={mm} value={mm}>{String(mm).padStart(2, '0')}</option>)}
+      </select>
+      <select value={meridiem} onChange={(e) => update(h12, m, e.target.value)} className="input h-9 text-sm" style={fieldStyle}>
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+}
+
+// Shared Date + Start Time + End Time + auto-calculated Duration block, used
+// by both the manual time entry modal and the timer's log modal.
+function TimeEntryFields({ entryDate, onEntryDateChange, startMinutes, onStartMinutesChange, endMinutes, onEndMinutesChange, todayStr }) {
+  const durationMin = endMinutes - startMinutes;
+  const valid = durationMin > 0;
+  return (
+    <>
+      <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Date</label>
+      <input
+        type="date"
+        value={entryDate}
+        max={todayStr}
+        onChange={(e) => onEntryDateChange(e.target.value)}
+        className="input mb-3"
+        style={fieldStyle}
+      />
+
+      <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Start Time</label>
+      <div className="mb-3">
+        <TimePicker minutesOfDay={startMinutes} onChange={onStartMinutesChange} />
+      </div>
+
+      <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>End Time</label>
+      <div className="mb-3">
+        <TimePicker minutesOfDay={endMinutes} onChange={onEndMinutesChange} />
+      </div>
+
+      <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Duration</label>
+      <div
+        className="mb-3 rounded-md border px-3 py-2 font-mono text-sm font-semibold"
+        style={{
+          borderColor: valid ? '#16a34a' : '#dc2626',
+          color: valid ? '#4ade80' : '#f87171',
+          backgroundColor: BG,
+        }}
+      >
+        {valid ? formatMinutes(durationMin) : 'End time must be after start time'}
+      </div>
+    </>
+  );
 }
 
 function Modal({ title, children, onClose }) {
@@ -233,39 +332,61 @@ function useTicketTimer(ticket) {
 function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTimeForOthers, currentUser }) {
   const { timerState, elapsedSeconds, start, pause, resume, stopToIdle } = ticketTimer;
   const [modalOpen, setModalOpen] = useState(false);
-  const [loggedSeconds, setLoggedSeconds] = useState(0);
   const [description, setDescription] = useState('');
+  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [startMinutes, setStartMinutes] = useState(0);
+  const [endMinutes, setEndMinutes] = useState(30);
   const [loggedForId, setLoggedForId] = useState(currentUser.id);
   const [saving, setSaving] = useState(false);
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   const color = timerState === 'running' ? '#4ade80' : timerState === 'paused' ? '#f59e0b' : TEXT;
   const iconColor = timerState === 'running' ? '#4ade80' : timerState === 'paused' ? '#f59e0b' : MUTED;
 
   const handleStop = () => {
-    setLoggedSeconds(elapsedSeconds);
+    const stopAt = new Date();
+    const startAt = new Date(stopAt.getTime() - elapsedSeconds * 1000);
     stopToIdle();
+    // The 5-minute-increment pickers can't represent the timer's exact
+    // wall-clock seconds, so both ends are rounded to the nearest grid line —
+    // the tech can nudge either side before saving if that shifts things off.
+    // A short session can round both ends into the same 5-minute bucket, so
+    // guarantee at least one increment of daylight between them.
+    const roundedStart = roundToNearest5(startAt);
+    let roundedEnd = roundToNearest5(stopAt);
+    if (roundedEnd <= roundedStart) roundedEnd = roundedStart + 5;
+    setEntryDate(todayStr);
+    setStartMinutes(roundedStart);
+    setEndMinutes(roundedEnd);
     setLoggedForId(currentUser.id);
+    setDescription('');
     setModalOpen(true);
   };
 
   const saveEntry = async () => {
+    if (endMinutes <= startMinutes) return;
     setSaving(true);
     try {
-      const minutes = Math.max(1, Math.round(loggedSeconds / 60));
-      await api.post(`/tickets/${ticket.id}/time`, { minutes, note: description || undefined, userId: loggedForId });
+      const startTime = buildLocalDateTime(entryDate, startMinutes);
+      const endTime = buildLocalDateTime(entryDate, endMinutes);
+      await api.post(`/tickets/${ticket.id}/time`, {
+        startTime,
+        endTime,
+        note: description || undefined,
+        entryDate,
+        userId: loggedForId,
+      });
       onLogged?.();
     } finally {
       setSaving(false);
       setModalOpen(false);
       setDescription('');
-      setLoggedSeconds(0);
     }
   };
 
   const discardEntry = () => {
     setModalOpen(false);
     setDescription('');
-    setLoggedSeconds(0);
   };
 
   return (
@@ -306,9 +427,15 @@ function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTim
 
       {modalOpen && (
         <Modal title="Log time" onClose={discardEntry}>
-          <p className="mb-3 text-sm" style={{ color: MUTED }}>
-            Elapsed time: <span className="font-mono font-semibold" style={{ color: TEXT }}>{formatHMS(loggedSeconds)}</span>
-          </p>
+          <TimeEntryFields
+            entryDate={entryDate}
+            onEntryDateChange={setEntryDate}
+            startMinutes={startMinutes}
+            onStartMinutesChange={setStartMinutes}
+            endMinutes={endMinutes}
+            onEndMinutesChange={setEndMinutes}
+            todayStr={todayStr}
+          />
           {canLogTimeForOthers && (
             <LoggedForField assignableUsers={assignableUsers} currentUser={currentUser} value={loggedForId} onChange={setLoggedForId} />
           )}
@@ -331,7 +458,7 @@ function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, canLogTim
             <button
               type="button"
               onClick={saveEntry}
-              disabled={saving}
+              disabled={saving || endMinutes <= startMinutes}
               className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               style={{ backgroundColor: BLUE }}
             >
@@ -809,35 +936,91 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
   );
 }
 
+// ---- Resolution tab ----
+
+function ResolutionTab({ ticket, onSave, isStaff }) {
+  const [text, setText] = useState(ticket.resolution || '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setText(ticket.resolution || ''); }, [ticket.resolution]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave(text);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold" style={{ color: TEXT }}>Resolution</h3>
+      <p className="mb-3 text-xs" style={{ color: MUTED }}>
+        Document what resolved this ticket. This may be used for future reference and knowledge base articles.
+      </p>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        disabled={!isStaff}
+        placeholder="Describe what resolved this issue..."
+        className="input resize-y disabled:opacity-70"
+        style={{ ...fieldStyle, minHeight: '220px' }}
+      />
+      {ticket.resolutionUpdatedByUser && ticket.resolutionUpdatedAt && (
+        <p className="mt-2 text-xs" style={{ color: MUTED }}>
+          Last updated by {ticket.resolutionUpdatedByUser.displayName} on {formatDate(ticket.resolutionUpdatedAt)}
+        </p>
+      )}
+      {isStaff && (
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ backgroundColor: BLUE }}
+          >
+            {saving ? 'Saving…' : 'Save Resolution'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- Time entries tab ----
 
 function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, canLogTimeForOthers, currentUser }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const [modalOpen, setModalOpen] = useState(false);
-  const [duration, setDuration] = useState('');
   const [description, setDescription] = useState('');
   const [entryDate, setEntryDate] = useState(todayStr);
+  const [startMinutes, setStartMinutes] = useState(0);
+  const [endMinutes, setEndMinutes] = useState(30);
   const [loggedForId, setLoggedForId] = useState(currentUser.id);
   const [saving, setSaving] = useState(false);
 
   const openModal = () => {
+    const now = new Date();
+    const start = roundDownTo5(now);
     setEntryDate(todayStr);
+    setStartMinutes(start);
+    setEndMinutes(start + 30);
     setLoggedForId(currentUser.id);
+    setDescription('');
     setModalOpen(true);
   };
 
   const submit = async () => {
-    const match = /^(\d{1,3}):([0-5]?\d)$/.exec(duration.trim());
-    if (!match) { alert('Duration must be in HH:MM format'); return; }
-    const minutes = Number(match[1]) * 60 + Number(match[2]);
-    if (!minutes) { alert('Duration must be greater than zero'); return; }
     if (entryDate > todayStr) { alert('Entry date cannot be in the future'); return; }
+    if (endMinutes <= startMinutes) { alert('End time must be after start time'); return; }
     setSaving(true);
     try {
-      await onAdd(minutes, description, entryDate, loggedForId);
+      const startTime = buildLocalDateTime(entryDate, startMinutes);
+      const endTime = buildLocalDateTime(entryDate, endMinutes);
+      await onAdd({ startTime, endTime, description, entryDate, loggedForId });
       setModalOpen(false);
-      setDuration('');
-      setDescription('');
     } catch (err) {
       alert(errMessage(err));
     } finally {
@@ -862,6 +1045,7 @@ function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, canLogT
         <ul className="divide-y" style={{ borderColor: BORDER }}>
           {entries.map((e) => {
             const loggedByOther = e.loggedById && e.userId != null && e.loggedById !== e.userId;
+            const displayMinutes = e.durationSeconds != null ? Math.round(e.durationSeconds / 60) : e.minutes;
             return (
               <li key={e.id} className="flex items-center justify-between px-4 py-3">
                 <div>
@@ -873,7 +1057,7 @@ function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, canLogT
                     {' · '}{formatDate(e.entryDate || e.loggedAt)}
                   </p>
                 </div>
-                <span className="font-mono text-sm font-semibold" style={{ color: '#4ade80' }}>{formatMinutes(e.minutes)}</span>
+                <span className="font-mono text-sm font-semibold" style={{ color: '#4ade80' }}>{formatMinutes(displayMinutes)}</span>
               </li>
             );
           })}
@@ -885,16 +1069,14 @@ function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, canLogT
 
       {modalOpen && (
         <Modal title="Add manual time entry" onClose={() => setModalOpen(false)}>
-          <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Duration (HH:MM)</label>
-          <input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="01:30" className="input mb-3" style={fieldStyle} />
-          <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Date</label>
-          <input
-            type="date"
-            value={entryDate}
-            max={todayStr}
-            onChange={(e) => setEntryDate(e.target.value)}
-            className="input mb-3"
-            style={fieldStyle}
+          <TimeEntryFields
+            entryDate={entryDate}
+            onEntryDateChange={setEntryDate}
+            startMinutes={startMinutes}
+            onStartMinutesChange={setStartMinutes}
+            endMinutes={endMinutes}
+            onEndMinutesChange={setEndMinutes}
+            todayStr={todayStr}
           />
           {canLogTimeForOthers && (
             <LoggedForField assignableUsers={assignableUsers} currentUser={currentUser} value={loggedForId} onChange={setLoggedForId} />
@@ -903,7 +1085,13 @@ function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, canLogT
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="input mb-4 resize-y" style={{ ...fieldStyle, minHeight: '70px' }} />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setModalOpen(false)} className="rounded-md border px-4 py-2 text-sm font-medium" style={{ borderColor: BORDER, color: TEXT }}>Cancel</button>
-            <button type="button" onClick={submit} disabled={saving} className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: BLUE }}>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving || endMinutes <= startMinutes}
+              className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              style={{ backgroundColor: BLUE }}
+            >
               {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
@@ -1203,6 +1391,7 @@ export default function TicketDetail() {
     try { return localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'collapsed'; } catch { return false; }
   });
   const [noTimeWarning, setNoTimeWarning] = useState(null);
+  const [noResolutionWarning, setNoResolutionWarning] = useState(null);
 
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? 'collapsed' : 'expanded'); } catch { /* ignore */ }
@@ -1316,15 +1505,30 @@ export default function TicketDetail() {
     }
   };
 
+  const saveResolution = async (text) => {
+    await patchTicket({ resolution: text });
+  };
+
   // Status changes now come from the sidebar's Status dropdown (the header's
-  // dedicated Resolve/Close buttons were removed), so the no-time-logged
-  // warning is only relevant when the dropdown moves the ticket into a closed
-  // state — any other status change (open/in_progress/on_hold) applies immediately.
-  const handleStatusChange = (status) => {
+  // dedicated Resolve/Close buttons were removed). Two independent warnings
+  // can fire when moving into a closed state — missing resolution is checked
+  // first (arguably the more important gap, since it's customer-visible
+  // knowledge-base material), then the pre-existing no-time-logged check;
+  // "Close without resolution" falls through into that second check rather
+  // than skipping it.
+  const applyStatusChange = (status) => {
     if (CLOSED_STATUSES.includes(status) && time.totalMinutes === 0) {
       setNoTimeWarning(status);
     } else {
       patchTicket({ status });
+    }
+  };
+
+  const handleStatusChange = (status) => {
+    if (CLOSED_STATUSES.includes(status) && !ticket.resolution?.trim()) {
+      setNoResolutionWarning(status);
+    } else {
+      applyStatusChange(status);
     }
   };
 
@@ -1416,9 +1620,10 @@ export default function TicketDetail() {
     }
   };
 
-  const addManualTime = async (minutes, description, entryDate, loggedForId) => {
+  const addManualTime = async ({ startTime, endTime, description, entryDate, loggedForId }) => {
     const { data } = await api.post(`/tickets/${id}/time`, {
-      minutes,
+      startTime,
+      endTime,
       note: description || undefined,
       entryDate,
       userId: loggedForId,
@@ -1523,6 +1728,9 @@ export default function TicketDetail() {
 
           <div className="p-6" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
             {activeTab === 'conversation' && <ConversationTab ticket={ticket} comments={comments} />}
+            {activeTab === 'resolution' && (
+              <ResolutionTab ticket={ticket} onSave={saveResolution} isStaff={isStaff} />
+            )}
             {activeTab === 'time' && (
               <TimeEntriesTab
                 entries={time.entries}
@@ -1552,6 +1760,32 @@ export default function TicketDetail() {
           )}
         </div>
       </div>
+
+      {noResolutionWarning && (
+        <Modal title="No resolution has been documented." onClose={() => setNoResolutionWarning(null)}>
+          <p className="mb-4 text-sm" style={{ color: MUTED }}>
+            Would you like to add one before closing?
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => { setNoResolutionWarning(null); setActiveTab('resolution'); }}
+              className="rounded-md border px-4 py-2 text-sm font-medium"
+              style={{ borderColor: BORDER, color: TEXT }}
+            >
+              Add resolution
+            </button>
+            <button
+              type="button"
+              onClick={() => { const status = noResolutionWarning; setNoResolutionWarning(null); applyStatusChange(status); }}
+              className="rounded-md px-4 py-2 text-sm font-semibold text-white"
+              style={{ backgroundColor: '#dc2626' }}
+            >
+              Close without resolution
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {noTimeWarning && (
         <Modal title="No time has been logged on this ticket." onClose={() => setNoTimeWarning(null)}>
