@@ -35,19 +35,37 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: MAX_SIZE },
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (BLOCKED_EXTENSIONS.has(ext)) {
-      const err = new Error(`File type ${ext} is not allowed`);
-      err.status = 400;
-      err.code = 'INVALID_FILE_TYPE';
-      return cb(err, false);
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (BLOCKED_EXTENSIONS.has(ext)) {
+    const err = new Error(`File type ${ext} is not allowed`);
+    err.status = 400;
+    err.code = 'INVALID_FILE_TYPE';
+    return cb(err, false);
+  }
+  cb(null, true);
+};
+
+const upload = multer({ storage, limits: { fileSize: MAX_SIZE }, fileFilter });
+
+// Project attachments — stored under a "projects/" subdirectory (rather than
+// bare /uploads/{id}/, which ticket attachments already own) so a project and
+// a ticket that happen to share the same numeric id never collide on disk.
+const projectStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const projectId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(projectId) || projectId <= 0) {
+      return cb(new Error('Invalid project id'));
     }
-    cb(null, true);
+    const dir = path.join(UPLOAD_ROOT, 'projects', String(projectId));
+    fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const unique = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+    cb(null, unique);
   },
 });
+const projectUpload = multer({ storage: projectStorage, limits: { fileSize: MAX_SIZE }, fileFilter });
 
-module.exports = { upload, UPLOAD_ROOT, MAX_SIZE };
+module.exports = { upload, projectUpload, UPLOAD_ROOT, MAX_SIZE };

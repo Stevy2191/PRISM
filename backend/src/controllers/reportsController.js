@@ -1,5 +1,5 @@
 const { Op, fn, col, literal } = require('sequelize');
-const { Ticket, TimeEntry, User, Project, Department, CsatResponse, sequelize } = require('../models');
+const { Ticket, TimeEntry, ProjectTimeEntry, User, Project, Department, CsatResponse, sequelize } = require('../models');
 const { asyncHandler } = require('../middleware/error');
 
 // Build a createdAt/loggedAt date-range filter from ?from & ?to query params.
@@ -76,33 +76,68 @@ const tickets = asyncHandler(async (req, res) => {
 
 // GET /reports/time — time logged by user, by project, by department.
 // Supports date range (from/to) and CSV export (?format=csv).
-// Aggregated in JS so it correctly handles both ticket-level and project-level
-// (ticketId null) time entries.
+// Aggregated in JS so it correctly handles both ticket time entries and
+// project time entries — two separate tables (ProjectTimeEntry has its own
+// dedicated table now; see migration 19) unioned into one shape here.
 const time = asyncHandler(async (req, res) => {
-  const where = dateRange('loggedAt', req.query);
+  const ticketWhere = dateRange('loggedAt', req.query);
+  const projectWhere = dateRange('createdAt', req.query);
 
-  const entries = await TimeEntry.findAll({
-    where,
-    include: [
-      { model: User, as: 'user', attributes: ['id', 'displayName', 'username'] },
-      {
-        model: Ticket,
-        as: 'ticket',
-        attributes: ['id', 'title', 'projectId', 'departmentId'],
-        include: [
-          { model: Project, as: 'project', attributes: ['id', 'name'] },
-          { model: Department, as: 'department', attributes: ['id', 'name'] },
-        ],
-      },
-      {
-        model: Project,
-        as: 'project',
-        attributes: ['id', 'name', 'departmentId'],
-        include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
-      },
-    ],
-    order: [['loggedAt', 'DESC']],
-  });
+  const [ticketEntries, projectEntries] = await Promise.all([
+    TimeEntry.findAll({
+      where: ticketWhere,
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'displayName', 'username'] },
+        {
+          model: Ticket,
+          as: 'ticket',
+          attributes: ['id', 'title', 'projectId', 'departmentId'],
+          include: [
+            { model: Project, as: 'project', attributes: ['id', 'name'] },
+            { model: Department, as: 'department', attributes: ['id', 'name'] },
+          ],
+        },
+      ],
+      order: [['loggedAt', 'DESC']],
+    }),
+    ProjectTimeEntry.findAll({
+      where: projectWhere,
+      include: [
+        { model: User, as: 'loggedFor', attributes: ['id', 'displayName', 'username'] },
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['id', 'name'],
+          include: [{ model: Department, as: 'ownerDepartment', attributes: ['id', 'name'] }],
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+    }),
+  ]);
+
+  // Normalize both entry types to one shape: { date, user, minutes, ticket, project, department, note }
+  const normalized = [
+    ...ticketEntries.map((e) => ({
+      date: e.loggedAt,
+      user: e.user,
+      minutes: e.minutes,
+      isProject: false,
+      ticket: e.ticket,
+      project: e.ticket?.project || null,
+      department: e.ticket?.department || null,
+      note: e.note,
+    })),
+    ...projectEntries.map((e) => ({
+      date: e.createdAt,
+      user: e.loggedFor,
+      minutes: Math.max(1, Math.round((e.durationSeconds || 0) / 60)),
+      isProject: true,
+      ticket: null,
+      project: e.project,
+      department: e.project?.ownerDepartment || null,
+      note: e.description,
+    })),
+  ];
 
   const byUser = new Map();
   const byProject = new Map();
@@ -115,19 +150,13 @@ const time = asyncHandler(async (req, res) => {
     map.set(key, cur);
   };
 
-  for (const e of entries) {
+  for (const e of normalized) {
     totalMinutes += e.minutes;
 
     const u = e.user;
     bump(byUser, u ? u.id : 'unknown', u ? u.displayName : 'Unknown', e.minutes);
-
-    // Resolve the project (direct project entry, or via the ticket).
-    const project = e.project || e.ticket?.project || null;
-    bump(byProject, project ? project.id : 'none', project ? project.name : 'No project', e.minutes);
-
-    // Resolve the department (ticket's dept, else project's dept).
-    const dept = e.ticket?.department || e.project?.department || null;
-    bump(byDepartment, dept ? dept.id : 'none', dept ? dept.name : 'Unassigned', e.minutes);
+    bump(byProject, e.project ? e.project.id : 'none', e.project ? e.project.name : 'No project', e.minutes);
+    bump(byDepartment, e.department ? e.department.id : 'none', e.department ? e.department.name : 'Unassigned', e.minutes);
   }
 
   const toSorted = (map) => [...map.values()].sort((a, b) => b.minutes - a.minutes);
@@ -135,18 +164,15 @@ const time = asyncHandler(async (req, res) => {
   // CSV export: flat per-entry detail so the data can be pivoted downstream.
   if ((req.query.format || '').toLowerCase() === 'csv') {
     const rows = [['Date', 'User', 'Minutes', 'Hours', 'Type', 'Reference', 'Department', 'Note']];
-    for (const e of entries) {
-      const project = e.project || e.ticket?.project || null;
-      const dept = e.ticket?.department || e.project?.department || null;
-      const isProject = !e.ticketId;
+    for (const e of normalized) {
       rows.push([
-        e.loggedAt ? new Date(e.loggedAt).toISOString().slice(0, 10) : '',
+        e.date ? new Date(e.date).toISOString().slice(0, 10) : '',
         e.user ? e.user.displayName : '',
         e.minutes,
         (e.minutes / 60).toFixed(2),
-        isProject ? 'project' : 'ticket',
-        isProject ? (project ? `Project: ${project.name}` : 'Project') : `#${e.ticketId} ${e.ticket?.title || ''}`,
-        dept ? dept.name : 'Unassigned',
+        e.isProject ? 'project' : 'ticket',
+        e.isProject ? (e.project ? `Project: ${e.project.name}` : 'Project') : `#${e.ticket?.id} ${e.ticket?.title || ''}`,
+        e.department ? e.department.name : 'Unassigned',
         e.note || '',
       ]);
     }

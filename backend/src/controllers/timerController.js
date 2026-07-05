@@ -1,4 +1,8 @@
-const { ActiveTimer, TimeEntry, Ticket, Project } = require('../models');
+// Ticket-only — project time logging now goes through the dedicated
+// Time Entries tab (POST /projects/:id/time-entries), which supports task
+// links and logging-for-another-user; this single-active-timer system
+// predates that and no longer has a project-side counterpart.
+const { ActiveTimer, TimeEntry, Ticket } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { logActivity } = require('../services/ticketActivity');
@@ -11,19 +15,15 @@ function shape(t) {
 async function logTimer(req, timer, note) {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(timer.startedAt).getTime()) / 1000));
   const minutes = Math.max(1, Math.round(seconds / 60));
-  const base = { userId: req.user.id, minutes, note: note || 'Timer', loggedAt: timer.startedAt };
-  const entry = await TimeEntry.create(
-    timer.entityType === 'project'
-      ? { ...base, projectId: timer.entityId }
-      : { ...base, ticketId: timer.entityId }
-  );
-  await writeAudit(req, 'timer.log', 'TimeEntry', entry.id, {
-    [`${timer.entityType}Id`]: timer.entityId,
+  const entry = await TimeEntry.create({
+    userId: req.user.id,
     minutes,
+    note: note || 'Timer',
+    loggedAt: timer.startedAt,
+    ticketId: timer.entityId,
   });
-  if (timer.entityType === 'ticket') {
-    await logActivity(timer.entityId, req.user.id, 'time_logged', null, `${minutes}m`);
-  }
+  await writeAudit(req, 'timer.log', 'TimeEntry', entry.id, { ticketId: timer.entityId, minutes });
+  await logActivity(timer.entityId, req.user.id, 'time_logged', null, `${minutes}m`);
   return entry;
 }
 
@@ -37,17 +37,12 @@ const get = asyncHandler(async (req, res) => {
 // Starting while another timer runs logs that one first.
 const start = asyncHandler(async (req, res) => {
   const { type, id, label } = req.body || {};
-  if (!['ticket', 'project'].includes(type)) {
+  if (type !== 'ticket') {
     throw new ApiError(400, 'Invalid timer type', 'VALIDATION_ERROR');
   }
   const targetId = parseInt(id, 10);
   if (!targetId) throw new ApiError(400, 'A target id is required', 'VALIDATION_ERROR');
-
-  if (type === 'ticket') {
-    if (!(await Ticket.findByPk(targetId))) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  } else if (!(await Project.findByPk(targetId))) {
-    throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  }
+  if (!(await Ticket.findByPk(targetId))) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
 
   const existing = await ActiveTimer.findOne({ where: { userId: req.user.id } });
   let logged = null;

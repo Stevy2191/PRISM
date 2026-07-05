@@ -1,7 +1,7 @@
 const { DataTypes, Model } = require('sequelize');
 
 // A lightweight per-ticket checklist item (distinct from the "task" ticket
-// type and from project Milestones).
+// type and from ProjectTask, the richer per-project task system).
 module.exports = (sequelize) => {
   class TicketTask extends Model {}
 

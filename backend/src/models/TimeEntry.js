@@ -10,15 +10,11 @@ module.exports = (sequelize) => {
         primaryKey: true,
         autoIncrement: true,
       },
-      // Time may be logged against a ticket OR directly against a project.
-      // Exactly one of ticketId / projectId is set (enforced by validation).
+      // Ticket-scoped time only — project time entries live in their own
+      // ProjectTimeEntry table (see migration 19 / ProjectTimeEntry.js).
       ticketId: {
         type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      projectId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
+        allowNull: false,
       },
       userId: {
         type: DataTypes.INTEGER,
@@ -75,16 +71,6 @@ module.exports = (sequelize) => {
       modelName: 'TimeEntry',
       tableName: 'TimeEntries',
       timestamps: false,
-      validate: {
-        eitherTicketOrProject() {
-          if (!this.ticketId && !this.projectId) {
-            throw new Error('A time entry must reference either a ticket or a project');
-          }
-          if (this.ticketId && this.projectId) {
-            throw new Error('A time entry cannot reference both a ticket and a project');
-          }
-        },
-      },
     }
   );
 

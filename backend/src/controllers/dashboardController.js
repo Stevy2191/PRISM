@@ -3,6 +3,7 @@ const { Ticket, Project, User, TimeEntry, Notification, AuditLog } = require('..
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
+const { computeProjectCompletion } = require('../services/projectCompletion');
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -39,20 +40,15 @@ function dueDateBadge(dueDate) {
   return 'green';
 }
 
-// Project completion is tracked project-wide (closed tasks / total tasks),
-// regardless of which user's view is requesting it. `buckets` is the
-// {open, closed, archived} status-name grouping from getTicketStatusBuckets().
-async function projectHealthFor(projectWhere, buckets) {
+// Project completion is tracked project-wide (closed ProjectTasks / total
+// ProjectTasks — see services/projectCompletion.js), regardless of which
+// user's view is requesting it.
+async function projectHealthFor(projectWhere) {
   const projects = await Project.findAll({ where: projectWhere, order: [['dueDate', 'ASC']] });
 
   return Promise.all(
     projects.map(async (project) => {
-      const [totalTasks, closedTasks, openTasks] = await Promise.all([
-        Ticket.count({ where: { projectId: project.id } }),
-        Ticket.count({ where: { projectId: project.id, status: { [Op.in]: buckets.closed } } }),
-        Ticket.count({ where: { projectId: project.id, status: { [Op.in]: buckets.open } } }),
-      ]);
-      const percent = totalTasks ? Math.round((closedTasks / totalTasks) * 100) : 0;
+      const { percent, totalTasks, closedTasks } = await computeProjectCompletion(project.id);
       return {
         id: project.id,
         name: project.name,
@@ -60,7 +56,7 @@ async function projectHealthFor(projectWhere, buckets) {
         dueBadge: dueDateBadge(project.dueDate),
         totalTasks,
         closedTasks,
-        openTasks,
+        openTasks: totalTasks - closedTasks,
         percent,
       };
     })
@@ -276,7 +272,7 @@ const get = asyncHandler(async (req, res) => {
   if (isSystemWide) {
     const [stats, projectHealth, workload, activity] = await Promise.all([
       systemStats(buckets),
-      projectHealthFor({}, buckets),
+      projectHealthFor({}),
       teamWorkload(buckets),
       activityFeed(buckets),
     ]);
@@ -311,7 +307,7 @@ const get = asyncHandler(async (req, res) => {
     statsForUser(targetId, scopeField, buckets),
     ticketsForUser(targetId, scopeField, behaviorByName),
     notificationsForUser(targetId),
-    taskProjectIds.length ? projectHealthFor({ id: { [Op.in]: taskProjectIds } }, buckets) : [],
+    taskProjectIds.length ? projectHealthFor({ id: { [Op.in]: taskProjectIds } }) : [],
     hoursForUser(targetId),
   ]);
 

@@ -25,16 +25,36 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: 'Active',
       },
-      departmentId: {
+      // Department doing the work.
+      ownerDepartmentId: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
-      ownerId: {
+      // Department the project is for/benefits — defaults to
+      // ownerDepartmentId when not explicitly set (see controller).
+      forDepartmentId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      // Project lead.
+      assignedToUserId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      teamId: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
       dueDate: {
         type: DataTypes.DATEONLY,
+        allowNull: true,
+      },
+      closedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      createdBy: {
+        type: DataTypes.INTEGER,
         allowNull: true,
       },
     },
@@ -43,6 +63,23 @@ module.exports = (sequelize) => {
       modelName: 'Project',
       tableName: 'Projects',
       timestamps: true,
+      hooks: {
+        // Keep closedAt in sync with status transitions, exactly mirroring
+        // Ticket.resolvedAt — driven by ProjectStatuses.behaviorType, never
+        // a hardcoded status name.
+        beforeSave: async (project) => {
+          if (project.changed('status')) {
+            const { ProjectStatus } = require('./index'); // eslint-disable-line global-require
+            const statusRow = await ProjectStatus.findOne({ where: { name: project.status } });
+            const isClosed = statusRow?.behaviorType === 'closed';
+            if (isClosed && !project.closedAt) {
+              project.closedAt = new Date();
+            } else if (!isClosed) {
+              project.closedAt = null;
+            }
+          }
+        },
+      },
     }
   );
 
