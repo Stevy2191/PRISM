@@ -2,10 +2,11 @@
 //   { error: true, message: "...", code: "..." }
 
 class ApiError extends Error {
-  constructor(status, message, code) {
+  constructor(status, message, code, details) {
     super(message);
     this.status = status;
     this.code = code || 'ERROR';
+    this.details = details || null;
   }
 }
 
@@ -48,7 +49,7 @@ function errorHandler(err, req, res, next) {
     }
   }
 
-  res.status(status).json({ error: true, message, code });
+  res.status(status).json({ error: true, message, code, ...(err.details || {}) });
 }
 
 module.exports = { ApiError, asyncHandler, notFound, errorHandler };

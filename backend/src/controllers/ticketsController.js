@@ -32,6 +32,7 @@ const {
 } = require('../services/notifications');
 const { logActivity, resolveDisplayValue } = require('../services/ticketActivity');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
+const { getUserTicketScope, hasPermission } = require('../services/permissionService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
@@ -129,15 +130,22 @@ const list = asyncHandler(async (req, res) => {
     if (!status) where.status = { [Op.in]: buckets.open };
   }
   if (unassigned === 'true') where.assigneeId = null;
-  // "My tickets" pins the view to the logged-in user regardless of any
-  // assignee filter that was also passed. Requesters are never assignees in
-  // this app's RBAC — their tickets are already scoped by requesterId below,
-  // so forcing assigneeId here would incorrectly return zero results.
-  if (myTickets === 'true' && req.user.role !== 'requester') where.assigneeId = req.user.id;
 
-  // Requesters are scoped to their own tickets regardless of filters.
-  if (req.user.role === 'requester') {
-    where.requesterId = req.user.id;
+  // Scope filtering from the resolved permission set (tickets.view_all >
+  // tickets.view_department > tickets.view_own — see permissionService).
+  const scope = await getUserTicketScope(req.user.id);
+
+  // "My tickets" pins the view to the logged-in user regardless of any
+  // assignee filter that was also passed. Scope 'own' already restricts to
+  // the user's own tickets below, so forcing assigneeId here would
+  // incorrectly return zero results for accounts that are never assignees
+  // (e.g. requesters).
+  if (myTickets === 'true' && scope !== 'own') where.assigneeId = req.user.id;
+
+  if (scope === 'department') {
+    where[Op.and] = [{ [Op.or]: [{ departmentId: req.user.departmentId }, { assigneeId: req.user.id }] }];
+  } else if (scope === 'own') {
+    where[Op.and] = [{ [Op.or]: [{ assigneeId: req.user.id }, { requesterId: req.user.id }] }];
   }
 
   const orderColumn = SORTABLE_COLUMNS.includes(sortBy) ? sortBy : 'updatedAt';
@@ -373,7 +381,8 @@ const listComments = asyncHandler(async (req, res) => {
 
   const where = { ticketId: ticket.id };
   // Customers never see internal-only comments, regardless of who posted them.
-  if (!isStaff(req.user)) where.type = { [Op.ne]: 'comment_private' };
+  const canViewPrivate = await hasPermission(req.user.id, 'tickets.view_private_comments');
+  if (!canViewPrivate) where.type = { [Op.ne]: 'comment_private' };
 
   const comments = await Comment.findAll({
     where,

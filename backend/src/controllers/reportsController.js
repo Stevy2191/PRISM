@@ -1,6 +1,18 @@
 const { Op, fn, col, literal } = require('sequelize');
 const { Ticket, TimeEntry, ProjectTimeEntry, User, Project, Department, CsatResponse, sequelize } = require('../models');
 const { asyncHandler } = require('../middleware/error');
+const { getUserTicketScope } = require('../services/permissionService');
+
+// Narrows a report's base `where` to the caller's ticket scope. 'all' (the
+// reports.view_all tier) applies no filter; 'department'/'own' mirror the
+// same scoping rules used for the ticket list endpoint.
+function applyTicketScope(where, scope, user) {
+  if (scope === 'all') return where;
+  if (scope === 'department') {
+    return { ...where, [Op.and]: [{ [Op.or]: [{ departmentId: user.departmentId }, { assigneeId: user.id }] }] };
+  }
+  return { ...where, [Op.and]: [{ [Op.or]: [{ assigneeId: user.id }, { requesterId: user.id }] }] };
+}
 
 // Build a createdAt/loggedAt date-range filter from ?from & ?to query params.
 function dateRange(field, query) {
@@ -21,7 +33,8 @@ function dateRange(field, query) {
 
 // GET /reports/tickets — counts by status, priority, assignee, department
 const tickets = asyncHandler(async (req, res) => {
-  const where = dateRange('createdAt', req.query);
+  const scope = await getUserTicketScope(req.user.id);
+  const where = applyTicketScope(dateRange('createdAt', req.query), scope, req.user);
 
   const groupCount = async (column) =>
     Ticket.findAll({
@@ -80,8 +93,16 @@ const tickets = asyncHandler(async (req, res) => {
 // project time entries — two separate tables (ProjectTimeEntry has its own
 // dedicated table now; see migration 19) unioned into one shape here.
 const time = asyncHandler(async (req, res) => {
-  const ticketWhere = dateRange('loggedAt', req.query);
-  const projectWhere = dateRange('createdAt', req.query);
+  const scope = await getUserTicketScope(req.user.id);
+  let ticketWhere = dateRange('loggedAt', req.query);
+  let projectWhere = dateRange('createdAt', req.query);
+  if (scope === 'department') {
+    ticketWhere = { ...ticketWhere, '$ticket.departmentId$': req.user.departmentId };
+    projectWhere = { ...projectWhere, '$project.ownerDepartmentId$': req.user.departmentId };
+  } else if (scope === 'own') {
+    ticketWhere = { ...ticketWhere, userId: req.user.id };
+    projectWhere = { ...projectWhere, loggedForUserId: req.user.id };
+  }
 
   const [ticketEntries, projectEntries] = await Promise.all([
     TimeEntry.findAll({
@@ -203,7 +224,13 @@ function csvCell(value) {
 // GET /reports/csat — customer happiness: overall score + breakdown by technician
 // and department. Score = % of "happy" ratings (neutral counts as half).
 const csat = asyncHandler(async (req, res) => {
-  const where = dateRange('respondedAt', req.query);
+  const scope = await getUserTicketScope(req.user.id);
+  let where = dateRange('respondedAt', req.query);
+  if (scope === 'department') {
+    where = { ...where, '$ticket.departmentId$': req.user.departmentId };
+  } else if (scope === 'own') {
+    where = { ...where, '$ticket.assigneeId$': req.user.id };
+  }
 
   const responses = await CsatResponse.findAll({
     where,

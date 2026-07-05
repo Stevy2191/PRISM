@@ -44,6 +44,13 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      // Primary role under the granular permissions system (see Role/
+      // permissionService). Additive to the `role` enum above — a user may
+      // also hold further roles via UserRoles.
+      roleId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       // Local-account fields. AD/LDAP users have isLocalAccount=false and a null
       // passwordHash; they authenticate against the directory instead.
       passwordHash: {

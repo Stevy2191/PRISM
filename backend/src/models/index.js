@@ -39,6 +39,11 @@ const TicketTask = require('./TicketTask')(sequelize);
 const TicketActivity = require('./TicketActivity')(sequelize);
 const TicketStatus = require('./TicketStatus')(sequelize);
 const ProjectStatus = require('./ProjectStatus')(sequelize);
+const Role = require('./Role')(sequelize);
+const Permission = require('./Permission')(sequelize);
+const RolePermission = require('./RolePermission')(sequelize);
+const UserRole = require('./UserRole')(sequelize);
+const UserPermissionOverride = require('./UserPermissionOverride')(sequelize);
 
 const db = {
   sequelize,
@@ -79,6 +84,11 @@ const db = {
   TicketActivity,
   TicketStatus,
   ProjectStatus,
+  Role,
+  Permission,
+  RolePermission,
+  UserRole,
+  UserPermissionOverride,
 };
 
 // ---- Associations ----
@@ -258,5 +268,28 @@ Ticket.hasMany(TicketWatcher, { foreignKey: 'ticketId', as: 'watchers', onDelete
 TicketWatcher.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 TicketWatcher.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(TicketWatcher, { foreignKey: 'userId', as: 'watching', onDelete: 'CASCADE' });
+
+// Roles & permissions
+Department.hasMany(Role, { foreignKey: 'departmentId', as: 'roles' });
+Role.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+
+Role.belongsToMany(Permission, { through: RolePermission, foreignKey: 'roleId', otherKey: 'permissionId', as: 'permissions' });
+Permission.belongsToMany(Role, { through: RolePermission, foreignKey: 'permissionId', otherKey: 'roleId', as: 'roles' });
+Role.hasMany(RolePermission, { foreignKey: 'roleId', as: 'rolePermissions', onDelete: 'CASCADE' });
+RolePermission.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
+RolePermission.belongsTo(Permission, { foreignKey: 'permissionId', as: 'permission' });
+
+User.belongsToMany(Role, { through: UserRole, foreignKey: 'userId', otherKey: 'roleId', as: 'roles' });
+Role.belongsToMany(User, { through: UserRole, foreignKey: 'roleId', otherKey: 'userId', as: 'users' });
+User.hasMany(UserRole, { foreignKey: 'userId', as: 'userRoles', onDelete: 'CASCADE' });
+UserRole.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+UserRole.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
+UserRole.belongsTo(User, { foreignKey: 'assignedBy', as: 'assignedByUser' });
+
+User.belongsTo(Role, { foreignKey: 'roleId', as: 'primaryRole' });
+
+User.hasMany(UserPermissionOverride, { foreignKey: 'userId', as: 'permissionOverrides', onDelete: 'CASCADE' });
+UserPermissionOverride.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+UserPermissionOverride.belongsTo(User, { foreignKey: 'grantedBy', as: 'grantedByUser' });
 
 module.exports = db;

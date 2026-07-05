@@ -1,22 +1,25 @@
 const express = require('express');
 const ctrl = require('../controllers/ticketsController');
 const { requireRole } = require('../middleware/role');
+const { requirePermission } = require('../middleware/requirePermission');
 const { upload } = require('../middleware/upload');
 
 const router = express.Router();
 
 const staff = requireRole('admin', 'technician');
+const viewMin = requirePermission('tickets.view_own', 'tickets.view_department', 'tickets.view_all');
+const editMin = requirePermission('tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all');
 
 // Tickets
-router.get('/', ctrl.list);
-router.post('/', ctrl.create); // requesters allowed (scoped in controller)
-router.get('/:id', ctrl.get);
-router.patch('/:id', ctrl.update);
-router.delete('/:id', requireRole('admin'), ctrl.remove);
+router.get('/', viewMin, ctrl.list);
+router.post('/', requirePermission('tickets.create'), ctrl.create); // requesters allowed (scoped in controller)
+router.get('/:id', viewMin, ctrl.get);
+router.patch('/:id', editMin, ctrl.update);
+router.delete('/:id', requirePermission('tickets.delete'), ctrl.remove);
 
 // Comments
-router.get('/:id/comments', ctrl.listComments);
-router.post('/:id/comments', ctrl.createComment);
+router.get('/:id/comments', viewMin, ctrl.listComments);
+router.post('/:id/comments', requirePermission('tickets.create'), ctrl.createComment);
 router.patch('/:id/comments/:commentId', ctrl.updateComment);
 router.delete('/:id/comments/:commentId', ctrl.removeComment);
 

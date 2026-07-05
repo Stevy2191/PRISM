@@ -6,6 +6,7 @@ const { blockUntilPasswordChanged } = require('../middleware/role');
 
 const authRoutes = require('./auth');
 const usersRoutes = require('./users');
+const rolesRoutes = require('./roles');
 const departmentsRoutes = require('./departments');
 const projectsRoutes = require('./projects');
 const ticketsRoutes = require('./tickets');
@@ -39,6 +40,7 @@ router.use('/settings', settingsRoutes);
 // forced password change.
 const guard = [authenticate, blockUntilPasswordChanged];
 router.use('/users', guard, usersRoutes);
+router.use('/roles', guard, rolesRoutes);
 router.use('/departments', guard, departmentsRoutes);
 router.use('/projects', guard, projectsRoutes);
 router.use('/tickets', guard, ticketsRoutes);

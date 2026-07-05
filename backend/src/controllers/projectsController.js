@@ -17,6 +17,7 @@ const {
 } = require('../services/statusBehavior');
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { UPLOAD_ROOT } = require('../middleware/upload');
+const { getUserProjectScope } = require('../services/permissionService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 
@@ -90,9 +91,23 @@ const list = asyncHandler(async (req, res) => {
   const where = {};
   const { status, ownerDept, forDept, assignee, myProjects, overdue, search } = req.query;
 
-  if (req.user.role === 'requester') {
-    if (!req.user.departmentId) return res.json({ projects: [] });
-    where.forDepartmentId = req.user.departmentId;
+  // Scope filtering from the resolved permission set (projects.view_all >
+  // projects.view_department > projects.view_own — see permissionService).
+  const scope = await getUserProjectScope(req.user.id);
+
+  if (scope === 'own') {
+    const memberships = await ProjectMember.findAll({ where: { userId: req.user.id }, attributes: ['projectId'], raw: true });
+    const memberProjectIds = memberships.map((m) => m.projectId);
+    if (memberProjectIds.length === 0) return res.json({ projects: [] });
+    where.id = { [Op.in]: memberProjectIds };
+  } else if (scope === 'department') {
+    const memberships = await ProjectMember.findAll({ where: { userId: req.user.id }, attributes: ['projectId'], raw: true });
+    const memberProjectIds = memberships.map((m) => m.projectId);
+    const or = [{ ownerDepartmentId: req.user.departmentId }, { forDepartmentId: req.user.departmentId }];
+    if (memberProjectIds.length) or.push({ id: { [Op.in]: memberProjectIds } });
+    where[Op.and] = [{ [Op.or]: or }];
+    if (ownerDept) where.ownerDepartmentId = ownerDept;
+    if (forDept) where.forDepartmentId = forDept;
   } else {
     if (ownerDept) where.ownerDepartmentId = ownerDept;
     if (forDept) where.forDepartmentId = forDept;

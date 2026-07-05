@@ -1,11 +1,32 @@
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
-const { User, Department } = require('../models');
+const { User, Department, Role, UserRole } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const { invalidateUserPermissions } = require('../services/permissionService');
 
 const MIN_PASSWORD_LENGTH = 8;
 const userInclude = [{ model: Department, as: 'department' }];
+
+// The legacy role enum still drives this endpoint; keep the new roles/
+// permissions system's primary role assignment in sync so the two don't
+// diverge until role assignment fully moves onto UserRoles (see people.js /
+// Prompt 3).
+const LEGACY_ROLE_TO_SEED_ROLE = {
+  admin: 'System Administrator',
+  technician: 'System Technician',
+  requester: 'Requester',
+};
+
+async function syncSeedRoleAssignment(user, legacyRole, assignedBy) {
+  const seedRoleName = LEGACY_ROLE_TO_SEED_ROLE[legacyRole];
+  const seedRole = seedRoleName ? await Role.findOne({ where: { name: seedRoleName, isSystemRole: true } }) : null;
+  if (!seedRole) return;
+  await UserRole.destroy({ where: { userId: user.id } });
+  await UserRole.create({ userId: user.id, roleId: seedRole.id, assignedAt: new Date(), assignedBy: assignedBy || null });
+  await user.update({ roleId: seedRole.id });
+  invalidateUserPermissions(user.id);
+}
 
 // GET /users — Admin only
 const list = asyncHandler(async (req, res) => {
@@ -78,6 +99,7 @@ const create = asyncHandler(async (req, res) => {
     isLocalAccount: true,
     mustChangePassword: true,
   });
+  await syncSeedRoleAssignment(user, user.role, req.user.id);
   await writeAudit(req, 'user.create_local', 'User', user.id, { username: user.username, role: user.role });
 
   const fresh = await User.findByPk(user.id, { include: userInclude });
@@ -131,6 +153,9 @@ const update = asyncHandler(async (req, res) => {
   }
 
   await user.update(changes);
+  if (changes.role !== undefined) {
+    await syncSeedRoleAssignment(user, changes.role, req.user.id);
+  }
   const audited = { ...changes };
   if (audited.passwordHash) {
     delete audited.passwordHash;

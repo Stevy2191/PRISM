@@ -4,6 +4,7 @@ const { User, TeamMember, sequelize } = require('../models');
 const { authenticate: ldapAuthenticate, isConfigured: isLdapConfigured } = require('../config/ldap');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const { resolveUserPermissions } = require('../services/permissionService');
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -168,4 +169,12 @@ const changePassword = asyncHandler(async (req, res) => {
   res.json({ ok: true, user: await serializeUserWithFlags(user) });
 });
 
-module.exports = { login, logout, me, changePassword };
+// GET /auth/me/permissions — the logged-in user's fully resolved permission
+// map, e.g. { "tickets.view_all": true, "projects.create": false, ... }.
+// Consumed by the frontend to show/hide UI (buttons, menu items, tabs).
+const myPermissions = asyncHandler(async (req, res) => {
+  const permissions = await resolveUserPermissions(req.user.id);
+  res.json({ permissions });
+});
+
+module.exports = { login, logout, me, changePassword, myPermissions };

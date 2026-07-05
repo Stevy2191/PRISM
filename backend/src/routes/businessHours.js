@@ -1,9 +1,9 @@
 const express = require('express');
 const ctrl = require('../controllers/businessHoursController');
-const { requireRole } = require('../middleware/role');
+const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
-const admin = requireRole('admin');
+const admin = requirePermission('settings.manage_business_hours');
 
 router.get('/', ctrl.list);
 router.post('/', admin, ctrl.create);

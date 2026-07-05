@@ -5,7 +5,8 @@ const express = require('express');
 const multer = require('multer');
 const ctrl = require('../controllers/settingsController');
 const { authenticate } = require('../middleware/auth');
-const { requireRole, blockUntilPasswordChanged } = require('../middleware/role');
+const { blockUntilPasswordChanged } = require('../middleware/role');
+const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
 
@@ -43,13 +44,14 @@ router.get('/logo', ctrl.getLogo);
 router.get('/favicon', ctrl.getFavicon);
 
 // Admin endpoints.
-const admin = [authenticate, blockUntilPasswordChanged, requireRole('admin')];
-router.get('/', admin, ctrl.get);
-router.put('/', admin, ctrl.update);
-router.patch('/', admin, ctrl.patch);
-router.post('/logo', admin, logoUpload.single('file'), ctrl.uploadLogo);
-router.delete('/logo', admin, ctrl.removeLogo);
-router.post('/favicon', admin, faviconUpload.single('file'), ctrl.uploadFavicon);
-router.delete('/favicon', admin, ctrl.removeFavicon);
+const manageSystem = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_system')];
+const manageBranding = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_branding')];
+router.get('/', manageSystem, ctrl.get);
+router.put('/', manageSystem, ctrl.update);
+router.patch('/', manageSystem, ctrl.patch);
+router.post('/logo', manageBranding, logoUpload.single('file'), ctrl.uploadLogo);
+router.delete('/logo', manageBranding, ctrl.removeLogo);
+router.post('/favicon', manageBranding, faviconUpload.single('file'), ctrl.uploadFavicon);
+router.delete('/favicon', manageBranding, ctrl.removeFavicon);
 
 module.exports = router;

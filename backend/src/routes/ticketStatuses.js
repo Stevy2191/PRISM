@@ -1,13 +1,14 @@
 const express = require('express');
 const { ticketStatuses: ctrl } = require('../controllers/statusesController');
-const { requireRole } = require('../middleware/role');
+const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
+const manageStatuses = requirePermission('settings.manage_statuses');
 
 router.get('/', ctrl.list);
-router.post('/', requireRole('admin'), ctrl.create);
-router.put('/reorder', requireRole('admin'), ctrl.reorder);
-router.patch('/:id', requireRole('admin'), ctrl.update);
-router.delete('/:id', requireRole('admin'), ctrl.remove);
+router.post('/', manageStatuses, ctrl.create);
+router.put('/reorder', manageStatuses, ctrl.reorder);
+router.patch('/:id', manageStatuses, ctrl.update);
+router.delete('/:id', manageStatuses, ctrl.remove);
 
 module.exports = router;
