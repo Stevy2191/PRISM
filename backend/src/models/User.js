@@ -85,24 +85,6 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: true,
       },
-      // Personal color overrides — { "--color-accent": "#e11d48", ... }.
-      // Stored independently of whether they're currently active (see
-      // userColorsEnabled below) so toggling personal colors off doesn't
-      // destroy them; only an explicit "Reset to system defaults" clears
-      // this. null/empty means the user has never saved any.
-      userColors: {
-        type: DataTypes.JSON,
-        allowNull: true,
-      },
-      // Whether userColors should currently be applied. Kept separate from
-      // userColors itself so the "Use my own colors" toggle can be flipped
-      // off and back on non-destructively — see SettingsContext.jsx's
-      // tier-based color resolution.
-      userColorsEnabled: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
     },
     {
       sequelize,

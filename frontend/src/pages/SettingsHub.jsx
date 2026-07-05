@@ -14,7 +14,7 @@ const SECTIONS = [
     title: 'Organization',
     items: [
       { label: 'Company', to: '/settings/company', desc: 'Name, logo, timezone, locale' },
-      { label: 'Appearance', to: '/settings/appearance', desc: 'Colors, theme presets, and login page branding' },
+      { label: 'Branding', to: '/settings/branding', desc: 'App name, logo, and login page' },
       { label: 'Business Hours', to: '/settings/business-hours', desc: 'Work schedules' },
       { label: 'Holiday Lists', to: '/settings/holidays', desc: 'Holidays that pause SLAs' },
       { label: 'Customer Happiness', to: '/settings/customer-happiness', desc: 'CSAT surveys & scores' },

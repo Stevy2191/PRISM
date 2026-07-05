@@ -28,36 +28,6 @@ const DEFAULTS = {
   'branding.appName': 'PRISM',
   'branding.tagline': 'Project & Request Integrated Service Manager',
   'branding.loginBullets': DEFAULT_LOGIN_BULLETS,
-
-  // 'auto' (default) means no admin override is active — the frontend's
-  // light/dark/system base theme (see index.css) has full, unimpeded
-  // control. Saving on Settings -> Appearance flips this to 'custom', which
-  // layers the color fields below on top of whichever base theme the user
-  // has personally selected. Without this distinction, an unconfigured
-  // install would still force every page onto the literal defaults below,
-  // and a user's light/dark preference could never take visible effect.
-  'theme.mode': 'auto',
-  // Full theme palette — only applied when theme.mode is 'custom'. Defaults
-  // match PRISM's dark preset so choosing "Dark" as a starting point in the
-  // Appearance editor keeps parity with the previous fixed dark scheme.
-  'theme.preset': 'dark',
-  'theme.bg': '#080b12',
-  'theme.sidebar': '#0a0d14',
-  'theme.card': '#0d1120',
-  'theme.border': '#161c2d',
-  'theme.accent': '#3b82f6',
-  'theme.accentHover': '#1d4ed8',
-  'theme.textPrimary': '#f1f5f9',
-  'theme.textSecondary': '#94a3b8',
-  'theme.textMuted': '#475569',
-  'theme.success': '#22c55e',
-  'theme.warning': '#f59e0b',
-  'theme.danger': '#ef4444',
-  'theme.timer': '#4ade80',
-  // Tier 1 of the color system (see SettingsContext.jsx): when false, every
-  // user's personal color overrides are ignored and everyone sees the
-  // admin palette (tier 3) / built-in theme (tier 4) instead.
-  'theme.usersCanOverrideColors': 'true',
 };
 
 // Settings that store JSON-encoded values rather than plain strings.
@@ -102,24 +72,6 @@ function publicShape(values) {
       appName: values['branding.appName'],
       tagline: values['branding.tagline'],
       loginBullets: parseJsonValue(values['branding.loginBullets'], JSON.parse(DEFAULT_LOGIN_BULLETS)),
-    },
-    theme: {
-      mode: values['theme.mode'],
-      preset: values['theme.preset'],
-      bg: values['theme.bg'],
-      sidebar: values['theme.sidebar'],
-      card: values['theme.card'],
-      border: values['theme.border'],
-      accent: values['theme.accent'],
-      accentHover: values['theme.accentHover'],
-      textPrimary: values['theme.textPrimary'],
-      textSecondary: values['theme.textSecondary'],
-      textMuted: values['theme.textMuted'],
-      success: values['theme.success'],
-      warning: values['theme.warning'],
-      danger: values['theme.danger'],
-      timer: values['theme.timer'],
-      usersCanOverrideColors: values['theme.usersCanOverrideColors'] !== 'false',
     },
     logoUrl: hasLogo ? '/api/v1/settings/logo' : null,
     faviconUrl: hasFavicon ? '/api/v1/settings/favicon' : null,

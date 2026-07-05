@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import PersonalColorsSync from './components/PersonalColorsSync';
 
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
@@ -19,7 +18,7 @@ import NotFound from './pages/NotFound';
 // Settings hub + sections
 import SettingsHub from './pages/SettingsHub';
 import SettingsCompany from './pages/settings/Company';
-import SettingsAppearance from './pages/settings/Appearance';
+import SettingsBranding from './pages/settings/Branding';
 import SettingsStatuses from './pages/settings/Statuses';
 import SettingsBusinessHours from './pages/settings/BusinessHours';
 import SettingsHolidays from './pages/settings/Holidays';
@@ -41,8 +40,6 @@ const staff = (el) => <ProtectedRoute roles={['admin', 'technician']}>{el}</Prot
 
 export default function App() {
   return (
-    <>
-    <PersonalColorsSync />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
@@ -66,7 +63,7 @@ export default function App() {
         <Route path="/settings" element={<SettingsHub />} />
         <Route path="/settings/preferences" element={<SettingsPreferences />} />
         <Route path="/settings/company" element={admin(<SettingsCompany />)} />
-        <Route path="/settings/appearance" element={admin(<SettingsAppearance />)} />
+        <Route path="/settings/branding" element={admin(<SettingsBranding />)} />
         <Route path="/settings/statuses" element={admin(<SettingsStatuses />)} />
         <Route path="/settings/business-hours" element={admin(<SettingsBusinessHours />)} />
         <Route path="/settings/holidays" element={admin(<SettingsHolidays />)} />
@@ -103,6 +100,5 @@ export default function App() {
 
       <Route path="*" element={<NotFound />} />
     </Routes>
-    </>
   );
 }
