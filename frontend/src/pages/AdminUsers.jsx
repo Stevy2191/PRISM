@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
 
@@ -156,7 +157,9 @@ export default function AdminUsers() {
           <tbody className="divide-y divide-navy-100">
             {users.map((u) => (
               <tr key={u.id} className="hover:bg-navy-50">
-                <td className="table-td font-medium">{u.displayName}</td>
+                <td className="table-td font-medium">
+                  <Link to={`/admin/users/${u.id}`} className="text-prism hover:underline">{u.displayName}</Link>
+                </td>
                 <td className="table-td text-navy-500">{u.username}</td>
                 <td className="table-td">
                   {u.isLocalAccount ? (
@@ -192,6 +195,9 @@ export default function AdminUsers() {
                 </td>
                 <td className="table-td">
                   <div className="flex gap-3">
+                    <Link to={`/admin/users/${u.id}`} className="text-xs text-prism hover:underline">
+                      roles &amp; permissions
+                    </Link>
                     {u.isLocalAccount && (
                       <button onClick={() => resetPassword(u)} className="text-xs text-prism hover:underline">
                         reset pw

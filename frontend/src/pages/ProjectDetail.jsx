@@ -5,7 +5,7 @@ import {
   IconChevronDown, IconChevronRight, IconLink,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 
@@ -154,6 +154,8 @@ function Avatar({ name, size = 24 }) {
 export default function ProjectDetail() {
   const { id } = useParams();
   const { isAdmin, isStaff, user } = useAuth();
+  const canDeleteProjects = usePermission('projects.delete');
+  const canManageMembers = usePermission('projects.manage_members');
   const navigate = useNavigate();
 
   const [project, setProject] = useState(null);
@@ -387,7 +389,7 @@ export default function ProjectDetail() {
         </div>
         {isStaff && (
           <div className="flex flex-shrink-0 items-center gap-2">
-            {isAdmin && <button onClick={deleteProject} className="btn-danger">Delete</button>}
+            {canDeleteProjects && <button onClick={deleteProject} className="btn-danger">Delete</button>}
           </div>
         )}
       </div>
@@ -484,7 +486,7 @@ export default function ProjectDetail() {
         <PeopleTab
           members={members}
           project={project}
-          isStaff={isStaff}
+          canManageMembers={canManageMembers}
           onAdd={() => setShowAddPerson(true)}
           onRemove={async (userId) => {
             await api.delete(`/projects/${id}/members/${userId}`);
@@ -1187,11 +1189,11 @@ function AddMaterialModal({ tasks, onClose, onSave }) {
 }
 
 // ==================== People tab ====================
-function PeopleTab({ members, project, isStaff, onAdd, onRemove }) {
+function PeopleTab({ members, project, canManageMembers, onAdd, onRemove }) {
   const sorted = [...members].sort((a, b) => (a.userId === project.assignedToUserId ? -1 : b.userId === project.assignedToUserId ? 1 : 0));
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">{isStaff && <button onClick={onAdd} className="btn-primary">+ Add person</button>}</div>
+      <div className="flex justify-end">{canManageMembers && <button onClick={onAdd} className="btn-primary">+ Add person</button>}</div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sorted.map((m) => {
           const isLead = m.userId === project.assignedToUserId;
@@ -1202,7 +1204,7 @@ function PeopleTab({ members, project, isStaff, onAdd, onRemove }) {
                 <p className="truncate font-medium" style={{ color: TEXT }}>{m.user?.displayName}</p>
                 <span className="text-xs font-medium" style={{ color: isLead ? BLUE : MUTED }}>{isLead ? 'Lead' : 'Member'}</span>
               </div>
-              {isStaff && !isLead && (
+              {canManageMembers && !isLead && (
                 <button onClick={() => onRemove(m.userId)} className="absolute right-2 top-2" style={{ color: MUTED }}><IconX size={16} /></button>
               )}
             </div>

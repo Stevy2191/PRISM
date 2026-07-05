@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 
 const BORDER = 'var(--color-border)';
@@ -97,6 +97,8 @@ function ProgressBar({ percent, label }) {
 
 export default function Projects() {
   const { isStaff } = useAuth();
+  const canCreateProjects = usePermission('projects.create');
+  const canDeleteProjects = usePermission('projects.delete');
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [statuses, setStatuses] = useState([]);
@@ -214,7 +216,7 @@ export default function Projects() {
       <div className="flex-shrink-0 space-y-3 px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Projects</h1>
-          {isStaff && <Link to="/projects/new" className="btn-primary">+ New Project</Link>}
+          {canCreateProjects && <Link to="/projects/new" className="btn-primary">+ New Project</Link>}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
@@ -375,7 +377,9 @@ export default function Projects() {
                   {isStaff && (
                     <div className="absolute right-3 top-3 hidden items-center gap-2 group-hover:flex">
                       <button type="button" onClick={() => navigate(`/projects/${p.id}`)} title="Edit" style={{ color: MUTED }}>✎</button>
-                      <button type="button" onClick={() => deleteProject(p.id, p.name)} title="Delete" style={{ color: 'var(--color-danger)' }}>🗑</button>
+                      {canDeleteProjects && (
+                        <button type="button" onClick={() => deleteProject(p.id, p.name)} title="Delete" style={{ color: 'var(--color-danger)' }}>🗑</button>
+                      )}
                     </div>
                   )}
                   <Link to={`/projects/${p.id}`} className="block">

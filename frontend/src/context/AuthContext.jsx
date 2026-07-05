@@ -3,16 +3,31 @@ import api from '../api/api';
 
 const AuthContext = createContext(null);
 
+// Best-effort fetch of the resolved permissions map — never throws, since a
+// failure here (e.g. a brand-new session mid-password-change) shouldn't
+// block login/refresh; permission-gated UI just falls back to hidden.
+async function fetchPermissions() {
+  try {
+    const { data } = await api.get('/auth/me/permissions');
+    return data.permissions || {};
+  } catch {
+    return {};
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [permissions, setPermissions] = useState({});
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
       const { data } = await api.get('/auth/me');
       setUser(data.user);
+      setPermissions(await fetchPermissions());
     } catch {
       setUser(null);
+      setPermissions({});
     } finally {
       setLoading(false);
     }
@@ -25,6 +40,7 @@ export function AuthProvider({ children }) {
   const login = async (username, password) => {
     const { data } = await api.post('/auth/login', { username, password });
     setUser(data.user);
+    setPermissions(await fetchPermissions());
     return data.user;
   };
 
@@ -39,12 +55,19 @@ export function AuthProvider({ children }) {
       await api.post('/auth/logout');
     } finally {
       setUser(null);
+      setPermissions({});
     }
   };
+
+  const hasPermission = (key) => !!permissions[key];
+  const hasAnyPermission = (keys) => keys.some((key) => !!permissions[key]);
 
   const value = {
     user,
     loading,
+    permissions,
+    hasPermission,
+    hasAnyPermission,
     login,
     logout,
     changePassword,
@@ -62,4 +85,17 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
+}
+
+// usePermission('tickets.create') -> boolean. Cosmetic only — hides/shows UI;
+// the backend (requirePermission middleware) is the actual enforcement.
+export function usePermission(key) {
+  const { hasPermission } = useAuth();
+  return hasPermission(key);
+}
+
+// useAnyPermission(['settings.manage_system', ...]) -> true if ANY are granted.
+export function useAnyPermission(keys) {
+  const { hasAnyPermission } = useAuth();
+  return hasAnyPermission(keys);
 }

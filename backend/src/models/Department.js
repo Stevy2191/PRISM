@@ -19,6 +19,16 @@ module.exports = (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      // Short code used in project IDs (e.g. "IT", "HR", "MNT").
+      shortCode: {
+        type: DataTypes.STRING(10),
+        allowNull: true,
+      },
+      // Role auto-assigned to new users added to this department.
+      defaultRoleId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
     },
     {
       sequelize,

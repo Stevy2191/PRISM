@@ -28,6 +28,21 @@ async function syncSeedRoleAssignment(user, legacyRole, assignedBy) {
   invalidateUserPermissions(user.id);
 }
 
+// New users get their department's configured default role (Settings →
+// Departments) when one is set; otherwise fall back to the legacy role enum
+// mapping above.
+async function assignInitialRole(user, legacyRole, departmentId, assignedBy) {
+  const department = departmentId ? await Department.findByPk(departmentId) : null;
+  if (department && department.defaultRoleId) {
+    await UserRole.destroy({ where: { userId: user.id } });
+    await UserRole.create({ userId: user.id, roleId: department.defaultRoleId, assignedAt: new Date(), assignedBy: assignedBy || null });
+    await user.update({ roleId: department.defaultRoleId });
+    invalidateUserPermissions(user.id);
+    return;
+  }
+  await syncSeedRoleAssignment(user, legacyRole, assignedBy);
+}
+
 // GET /users — Admin only
 const list = asyncHandler(async (req, res) => {
   const users = await User.findAll({
@@ -99,7 +114,7 @@ const create = asyncHandler(async (req, res) => {
     isLocalAccount: true,
     mustChangePassword: true,
   });
-  await syncSeedRoleAssignment(user, user.role, req.user.id);
+  await assignInitialRole(user, user.role, user.departmentId, req.user.id);
   await writeAudit(req, 'user.create_local', 'User', user.id, { username: user.username, role: user.role });
 
   const fresh = await User.findByPk(user.id, { include: userInclude });

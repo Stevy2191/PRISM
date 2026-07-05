@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 
@@ -359,6 +359,7 @@ function ColumnsMenu({ order, visible, onChange }) {
 
 export default function Tickets() {
   const { isStaff } = useAuth();
+  const canCreateTickets = usePermission('tickets.create');
   const navigate = useNavigate();
 
   const [tickets, setTickets] = useState([]);
@@ -564,7 +565,7 @@ export default function Tickets() {
       <div className="flex-shrink-0 space-y-3 px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Tickets</h1>
-          <Link to="/tickets/new" className="btn-primary">+ New Ticket</Link>
+          {canCreateTickets && <Link to="/tickets/new" className="btn-primary">+ New Ticket</Link>}
         </div>
 
         {/* Toolbar — single row on desktop (lg: 1024px+), wraps on tablet/mobile. */}

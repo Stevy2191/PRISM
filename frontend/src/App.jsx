@@ -30,6 +30,9 @@ import Placeholder from './pages/settings/Placeholder';
 
 // Existing admin pages (reached via the Settings hub)
 import AdminUsers from './pages/AdminUsers';
+import UserDetail from './pages/UserDetail';
+import AdminRoles from './pages/AdminRoles';
+import RoleEditor from './pages/RoleEditor';
 import AdminDepartments from './pages/AdminDepartments';
 import AdminBlueprints from './pages/AdminBlueprints';
 import AdminApiKeys from './pages/AdminApiKeys';
@@ -37,6 +40,10 @@ import AdminSettings from './pages/AdminSettings';
 
 const admin = (el) => <ProtectedRoute roles={['admin']}>{el}</ProtectedRoute>;
 const staff = (el) => <ProtectedRoute roles={['admin', 'technician']}>{el}</ProtectedRoute>;
+const perm = (el, keys) => <ProtectedRoute permission={keys}>{el}</ProtectedRoute>;
+
+// Matches the Settings-hub visibility rule for the Users/Teams/Departments cards.
+const PEOPLE_KEYS = ['people.view_all', 'people.manage_departments'];
 
 export default function App() {
   return (
@@ -67,13 +74,17 @@ export default function App() {
         <Route path="/settings/statuses" element={admin(<SettingsStatuses />)} />
         <Route path="/settings/business-hours" element={admin(<SettingsBusinessHours />)} />
         <Route path="/settings/holidays" element={admin(<SettingsHolidays />)} />
-        <Route path="/settings/teams" element={admin(<SettingsTeams />)} />
+        <Route path="/settings/teams" element={perm(<SettingsTeams />, PEOPLE_KEYS)} />
         <Route path="/settings/modules" element={admin(<SettingsModules />)} />
         <Route path="/settings/blueprints" element={staff(<AdminBlueprints />)} />
 
         {/* Existing admin pages */}
-        <Route path="/admin/users" element={admin(<AdminUsers />)} />
-        <Route path="/admin/departments" element={admin(<AdminDepartments />)} />
+        <Route path="/admin/users" element={perm(<AdminUsers />, PEOPLE_KEYS)} />
+        <Route path="/admin/users/:id" element={perm(<UserDetail />, PEOPLE_KEYS)} />
+        <Route path="/admin/roles" element={perm(<AdminRoles />, ['people.manage_roles'])} />
+        <Route path="/admin/roles/new" element={perm(<RoleEditor />, ['people.manage_roles'])} />
+        <Route path="/admin/roles/:id" element={perm(<RoleEditor />, ['people.manage_roles'])} />
+        <Route path="/admin/departments" element={perm(<AdminDepartments />, PEOPLE_KEYS)} />
         <Route path="/admin/blueprints" element={staff(<AdminBlueprints />)} />
         <Route path="/admin/apikeys" element={<AdminApiKeys />} />
         <Route path="/admin/settings" element={admin(<AdminSettings />)} />

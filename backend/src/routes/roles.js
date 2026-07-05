@@ -8,5 +8,10 @@ const manageRoles = requirePermission('people.manage_roles');
 
 router.get('/', manageRoles, ctrl.list);
 router.post('/', manageRoles, ctrl.create);
+router.get('/:id', manageRoles, ctrl.get);
+router.patch('/:id', manageRoles, ctrl.update);
+router.delete('/:id', manageRoles, ctrl.remove);
+router.post('/:id/permissions', manageRoles, ctrl.setPermissions);
+router.patch('/:id/permissions/:permissionKey', manageRoles, ctrl.togglePermission);
 
 module.exports = router;

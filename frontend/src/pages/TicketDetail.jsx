@@ -6,7 +6,7 @@ import {
   IconLock, IconWorld, IconAlertTriangle,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, usePermission } from '../context/AuthContext';
 import { formatHMS } from '../context/TimerContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
@@ -590,7 +590,7 @@ function SidebarSection({ title, collapsed, children }) {
 }
 
 function Sidebar({
-  ticket, collapsed, onToggle, isStaff, onStatusChange, patchTicket,
+  ticket, collapsed, onToggle, isStaff, canAssign, onStatusChange, patchTicket,
   assignableUsers, teams, directory, ticketStatuses,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
@@ -704,19 +704,20 @@ function Sidebar({
                   {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="mb-1 block text-xs" style={{ color: MUTED }}>Assignee</label>
-                <select
-                  disabled={!isStaff}
-                  value={ticket.assigneeId || ''}
-                  onChange={(e) => patchTicket({ assigneeId: e.target.value || null })}
-                  className="input h-9 text-sm"
-                  style={fieldStyle}
-                >
-                  <option value="">Unassigned</option>
-                  {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-                </select>
-              </div>
+              {canAssign && (
+                <div>
+                  <label className="mb-1 block text-xs" style={{ color: MUTED }}>Assignee</label>
+                  <select
+                    value={ticket.assigneeId || ''}
+                    onChange={(e) => patchTicket({ assigneeId: e.target.value || null })}
+                    className="input h-9 text-sm"
+                    style={fieldStyle}
+                  >
+                    <option value="">Unassigned</option>
+                    {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="mb-1 block text-xs" style={{ color: MUTED }}>Team</label>
                 <select
@@ -890,7 +891,7 @@ function ConversationTab({ ticket, comments }) {
 
 const AMBER = 'var(--color-warning)';
 
-function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
+function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPrivateComments }) {
   const draftKey = `prism.ticket.${ticket.id}.draft`;
   const [text, setText] = useState(() => { try { return localStorage.getItem(draftKey) || ''; } catch { return ''; } });
   const [mode, setMode] = useState('reply'); // 'reply' | 'comment'
@@ -899,6 +900,9 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
   const textareaRef = useRef(null);
 
   const isComment = isStaff && mode === 'comment';
+  // Without tickets.view_private_comments, the private/public choice is
+  // hidden — comments this user posts are always public.
+  const effectiveVisibility = canViewPrivateComments ? visibility : 'public';
 
   const saveDraft = () => { try { localStorage.setItem(draftKey, text); } catch { /* ignore */ } };
 
@@ -906,7 +910,7 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
     if (!text.trim()) return;
     setSending(true);
     try {
-      const type = isComment ? (visibility === 'public' ? 'comment_public' : 'comment_private') : 'reply';
+      const type = isComment ? (effectiveVisibility === 'public' ? 'comment_public' : 'comment_private') : 'reply';
       await onSend(text, type);
       setText('');
       try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
@@ -951,7 +955,7 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff }) {
               Comment
             </button>
           </div>
-          {isComment && (
+          {isComment && canViewPrivateComments && (
             <div className="flex overflow-hidden rounded-md border" style={{ borderColor: BORDER }}>
               <button
                 type="button"
@@ -1436,6 +1440,8 @@ function ActivityTab({ activity }) {
 export default function TicketDetail() {
   const { id } = useParams();
   const { user, isStaff, canLogTimeForOthers } = useAuth();
+  const canAssign = usePermission('tickets.assign');
+  const canViewPrivateComments = usePermission('tickets.view_private_comments');
   const fileRef = useRef(null);
 
   const [ticket, setTicket] = useState(null);
@@ -1786,6 +1792,7 @@ export default function TicketDetail() {
           collapsed={collapsed}
           onToggle={() => setCollapsed((c) => !c)}
           isStaff={isStaff}
+          canAssign={canAssign}
           onStatusChange={handleStatusChange}
           patchTicket={patchTicket}
           assignableUsers={assignableUsers}
@@ -1850,7 +1857,7 @@ export default function TicketDetail() {
           {/* Sibling below the scrollable tab content, not inside it — stays
               pinned to the bottom of the main content column. */}
           {activeTab === 'conversation' && (
-            <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} isStaff={isStaff} />
+            <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} isStaff={isStaff} canViewPrivateComments={canViewPrivateComments} />
           )}
         </div>
       </div>

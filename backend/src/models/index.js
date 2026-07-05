@@ -273,6 +273,9 @@ User.hasMany(TicketWatcher, { foreignKey: 'userId', as: 'watching', onDelete: 'C
 Department.hasMany(Role, { foreignKey: 'departmentId', as: 'roles' });
 Role.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 
+// Department's default role for newly added users.
+Department.belongsTo(Role, { foreignKey: 'defaultRoleId', as: 'defaultRole' });
+
 Role.belongsToMany(Permission, { through: RolePermission, foreignKey: 'roleId', otherKey: 'permissionId', as: 'permissions' });
 Permission.belongsToMany(Role, { through: RolePermission, foreignKey: 'permissionId', otherKey: 'roleId', as: 'roles' });
 Role.hasMany(RolePermission, { foreignKey: 'roleId', as: 'rolePermissions', onDelete: 'CASCADE' });

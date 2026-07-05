@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+// Shared by Users/Teams/Departments cards (and their routes in App.jsx).
+const PEOPLE_KEYS = ['people.view_all', 'people.manage_departments'];
+
 // roles default to admin-only; list roles explicitly to widen visibility.
 const ALL = ['admin', 'technician', 'requester'];
 const SECTIONS = [
@@ -23,9 +26,10 @@ const SECTIONS = [
   {
     title: 'User Management',
     items: [
-      { label: 'Users', to: '/admin/users', desc: 'Accounts and roles' },
-      { label: 'Teams', to: '/settings/teams', desc: 'Group technicians into teams' },
-      { label: 'Departments', to: '/admin/departments', desc: 'Organizational departments' },
+      { label: 'Users', to: '/admin/users', desc: 'Accounts and roles', permission: PEOPLE_KEYS },
+      { label: 'Teams', to: '/settings/teams', desc: 'Group technicians into teams', permission: PEOPLE_KEYS },
+      { label: 'Departments', to: '/admin/departments', desc: 'Organizational departments', permission: PEOPLE_KEYS },
+      { label: 'Roles & Permissions', to: '/admin/roles', desc: 'Manage roles and permission sets', permission: ['people.manage_roles'] },
     ],
   },
   {
@@ -71,12 +75,17 @@ const SECTIONS = [
 ];
 
 export default function SettingsHub() {
-  const { user } = useAuth();
+  const { user, hasAnyPermission } = useAuth();
   const role = user?.role;
 
+  // Items with a `permission` array are gated purely on the resolved
+  // permissions map (Prompt 3 roles/permissions system); everything else
+  // keeps the original role-string gate.
   const visibleSections = SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((it) => (it.roles || ['admin']).includes(role)),
+    items: section.items.filter((it) => (
+      it.permission ? hasAnyPermission(it.permission) : (it.roles || ['admin']).includes(role)
+    )),
   })).filter((section) => section.items.length > 0);
 
   return (
