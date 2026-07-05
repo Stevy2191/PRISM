@@ -560,7 +560,7 @@ export default function Tickets() {
   const allSelected = tickets.length > 0 && selectedIds.size === tickets.length;
 
   return (
-    <div style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: 0, height: '100vh' }} className="flex flex-col overflow-hidden">
+    <div style={{ margin: '-2rem -1.5rem', padding: 0, height: '100vh' }} className="flex flex-col overflow-hidden bg-navy-50">
       <div className="flex-shrink-0 space-y-3 px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Tickets</h1>

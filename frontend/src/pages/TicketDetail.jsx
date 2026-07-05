@@ -1718,8 +1718,8 @@ export default function TicketDetail() {
 
   return (
     <div
-      style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: 0, height: '100vh' }}
-      className="flex flex-col overflow-hidden"
+      style={{ margin: '-2rem -1.5rem', padding: 0, height: '100vh' }}
+      className="flex flex-col overflow-hidden bg-navy-50"
     >
       {/* Header — auto height, does not grow */}
       <div

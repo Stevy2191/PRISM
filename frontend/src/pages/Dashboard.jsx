@@ -13,9 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 
-// Colors read from the admin-customizable theme CSS variables (Settings ->
-// Appearance), layered on top of the active light/dark base theme.
-const BG = 'var(--color-bg)';
+// Colors read from the light/dark theme's CSS variables (see index.css).
 const CARD_BG = 'var(--color-card)';
 const CARD_BORDER = 'var(--color-border)';
 const TEXT = 'var(--color-text-primary)';
@@ -455,8 +453,8 @@ export default function Dashboard() {
 
   return (
     <div
-      style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: '2rem 1.5rem' }}
-      className="min-h-full"
+      style={{ margin: '-2rem -1.5rem', padding: '2rem 1.5rem' }}
+      className="min-h-full bg-navy-50"
     >
       {loading && !data ? (
         <Spinner />
