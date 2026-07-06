@@ -2,8 +2,12 @@
 // Accepts either a session cookie (browser clients) or an X-API-Key header.
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
-const { User, ApiKey } = require('../models');
+const { User, ApiKey, Role } = require('../models');
 const { ApiError } = require('./error');
+
+// Included on every req.user so the frontend can show the new roles system's
+// primary role name instead of the legacy `role` enum (see Role model).
+const primaryRoleInclude = [{ model: Role, as: 'primaryRole' }];
 
 // Resolve the acting user from the session or API key and attach to req.user.
 async function authenticate(req, res, next) {
@@ -24,6 +28,7 @@ async function authenticate(req, res, next) {
     if (req.session && req.session.userId) {
       const user = await User.findByPk(req.session.userId, {
         attributes: { exclude: [] },
+        include: primaryRoleInclude,
       });
       if (!user) {
         return next(new ApiError(401, 'Session user no longer exists', 'UNAUTHENTICATED'));
@@ -49,7 +54,7 @@ async function resolveApiKey(plaintext) {
       prefix,
       [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
     },
-    include: [{ model: User, as: 'user' }],
+    include: [{ model: User, as: 'user', include: primaryRoleInclude }],
   });
 
   for (const candidate of candidates) {

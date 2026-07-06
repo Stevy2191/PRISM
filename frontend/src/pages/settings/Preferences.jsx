@@ -185,7 +185,7 @@ export default function Preferences() {
           <Field label="Name" value={user?.displayName} />
           <Field label="Username" value={user?.username} />
           <Field label="Email" value={user?.email || '—'} />
-          <Field label="Role" value={user?.role} />
+          <Field label="Role" value={user?.primaryRole?.name || 'No role assigned'} />
           <Field label="Account type" value={user?.isLocalAccount ? 'Local' : 'Active Directory'} />
         </dl>
       </div>

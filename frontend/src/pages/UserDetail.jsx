@@ -7,40 +7,90 @@ import Modal from '../components/Modal';
 import Collapsible from '../components/Collapsible';
 import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 
-const LEGACY_ROLES = ['admin', 'technician', 'requester'];
-
 function formatDate(value) {
   return value ? new Date(value).toLocaleString() : 'Never';
 }
 
 // ---- Assign role modal ----
 
+// Left-edge accent color per seed role, so admins can eyeball access level
+// at a glance in the assign-role list. Custom (non-system) roles fall back
+// to the neutral accent color.
+const ROLE_ACCENT_BY_NAME = {
+  'System Administrator': 'var(--color-danger)',
+  'System Technician': 'var(--color-accent)',
+  'Department Manager': 'var(--color-relation-accent)',
+  'Department Staff': 'var(--color-success)',
+  'Read Only': 'var(--color-text-muted)',
+};
+function roleAccentColor(role) {
+  return ROLE_ACCENT_BY_NAME[role.name] || 'var(--color-accent)';
+}
+
+function AssignRoleOption({ role, onAssign }) {
+  const count = role.permissionCount ?? (role.permissions?.length || 0);
+  return (
+    <div className="relative flex items-stretch gap-2 overflow-hidden rounded-md border border-transparent hover:border-navy-100 hover:bg-navy-50">
+      <div className="w-1 flex-shrink-0" style={{ backgroundColor: roleAccentColor(role) }} />
+      <button
+        type="button"
+        onClick={() => onAssign(role.id)}
+        className="min-w-0 flex-1 py-2 pr-2 text-left"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-sm font-medium text-navy-800">{role.name}</span>
+          <span className="flex-shrink-0 whitespace-nowrap rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-600">
+            {count} permission{count === 1 ? '' : 's'}
+          </span>
+        </div>
+        {role.description && <p className="mt-0.5 line-clamp-2 text-xs text-navy-500">{role.description}</p>}
+        <p className="mt-0.5 text-xs text-navy-400">{role.department?.name || 'System-wide'}</p>
+      </button>
+      <a
+        href={`/admin/roles/${role.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex-shrink-0 self-center whitespace-nowrap pr-3 text-xs text-prism hover:underline"
+      >
+        View details
+      </a>
+    </div>
+  );
+}
+
 function AssignRoleModal({ roles, assignedRoleIds, onAssign, onClose }) {
   const [search, setSearch] = useState('');
+  const q = search.toLowerCase();
   const available = roles.filter(
-    (r) => !assignedRoleIds.has(r.id) && r.name.toLowerCase().includes(search.toLowerCase())
+    (r) =>
+      !assignedRoleIds.has(r.id) &&
+      (r.name.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q))
   );
+  const systemRoles = available.filter((r) => r.isSystemRole);
+  const customRoles = available.filter((r) => !r.isSystemRole);
 
   return (
-    <Modal title="Assign a role" onClose={onClose}>
+    <Modal title="Assign a role" onClose={onClose} wide>
       <input
         className="input mb-3"
-        placeholder="Search roles…"
+        placeholder="Search by name or description…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         autoFocus
       />
-      <div className="max-h-72 space-y-1 overflow-y-auto">
-        {available.map((r) => (
-          <button
-            key={r.id}
-            onClick={() => onAssign(r.id)}
-            className="flex w-full flex-col items-start rounded px-3 py-2 text-left hover:bg-navy-50"
-          >
-            <span className="text-sm font-medium text-navy-800">{r.name}</span>
-            <span className="text-xs text-navy-400">{r.department?.name || 'System-wide'}</span>
-          </button>
-        ))}
+      <div className="max-h-96 space-y-1 overflow-y-auto">
+        {systemRoles.length > 0 && (
+          <>
+            <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-navy-400">System roles</p>
+            {systemRoles.map((r) => <AssignRoleOption key={r.id} role={r} onAssign={onAssign} />)}
+          </>
+        )}
+        {customRoles.length > 0 && (
+          <>
+            <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-navy-400">Custom roles</p>
+            {customRoles.map((r) => <AssignRoleOption key={r.id} role={r} onAssign={onAssign} />)}
+          </>
+        )}
         {available.length === 0 && <p className="px-3 py-4 text-sm text-navy-400">No matching roles.</p>}
       </div>
     </Modal>
@@ -372,14 +422,14 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
 // ---- Profile tab ----
 
 function ProfileTab({ user, departments, onUpdate }) {
-  const [form, setForm] = useState({ role: user.role, departmentId: user.departmentId || '' });
+  const [form, setForm] = useState({ departmentId: user.departmentId || '' });
   const [saving, setSaving] = useState(false);
 
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await onUpdate({ role: form.role, departmentId: form.departmentId || null });
+      await onUpdate({ departmentId: form.departmentId || null });
     } finally {
       setSaving(false);
     }
@@ -411,14 +461,13 @@ function ProfileTab({ user, departments, onUpdate }) {
           <label className="label">Account type</label>
           <p className="text-sm text-navy-700">{user.isLocalAccount ? 'Local' : 'Active Directory'}</p>
         </div>
+        <div>
+          <label className="label">Primary role</label>
+          <p className="text-sm text-navy-700">{user.primaryRole?.name || 'None assigned'}</p>
+          <p className="text-xs text-navy-400">Manage in the Roles &amp; Permissions tab.</p>
+        </div>
       </div>
       <form onSubmit={save} className="grid grid-cols-1 gap-4 border-t border-navy-100 pt-4 sm:grid-cols-2">
-        <div>
-          <label className="label">Legacy role</label>
-          <select className="input" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
-            {LEGACY_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
-        </div>
         <div>
           <label className="label">Department</label>
           <select className="input" value={form.departmentId} onChange={(e) => setForm((f) => ({ ...f, departmentId: e.target.value }))}>

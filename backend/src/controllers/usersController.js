@@ -6,7 +6,7 @@ const { writeAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, hasPermission } = require('../services/permissionService');
 
 const MIN_PASSWORD_LENGTH = 8;
-const userInclude = [{ model: Department, as: 'department' }];
+const userInclude = [{ model: Department, as: 'department' }, { model: Role, as: 'primaryRole' }];
 
 // The legacy role enum still drives this endpoint; keep the new roles/
 // permissions system's primary role assignment in sync so the two don't

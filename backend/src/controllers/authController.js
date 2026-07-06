@@ -1,12 +1,13 @@
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
-const { User, TeamMember, sequelize } = require('../models');
+const { User, TeamMember, Role, sequelize } = require('../models');
 const { authenticate: ldapAuthenticate, isConfigured: isLdapConfigured } = require('../config/ldap');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { resolveUserPermissions } = require('../services/permissionService');
 
 const MIN_PASSWORD_LENGTH = 8;
+const primaryRoleInclude = [{ model: Role, as: 'primaryRole' }];
 
 // Admins and team leads may log time on tickets against another tech's name.
 async function serializeUserWithFlags(user) {
@@ -45,6 +46,7 @@ async function loginUnified(identifier, password) {
       isLocalAccount: true,
       [Op.or]: [{ username: identifier }, { email: identifier }],
     },
+    include: primaryRoleInclude,
   });
 
   if (localUser) {
@@ -81,6 +83,7 @@ async function loginAd(username, password) {
   return sequelize.transaction(async (t) => {
     const existing = await User.findOne({
       where: { username: profile.username },
+      include: primaryRoleInclude,
       transaction: t,
     });
 

@@ -100,7 +100,7 @@ export default function Teams() {
                   <label className="flex items-center gap-2 text-sm text-navy-700">
                     <input type="checkbox" checked={isMember(u.id)} onChange={() => toggleMember(u.id)}
                       className="h-4 w-4 rounded border-navy-300 text-prism" />
-                    {u.displayName} <span className="text-xs text-navy-400">({u.role})</span>
+                    {u.displayName} <span className="text-xs text-navy-400">({u.primaryRole?.name || 'no role'})</span>
                   </label>
                   {isMember(u.id) && (
                     <label className="flex items-center gap-1 text-xs text-navy-500">

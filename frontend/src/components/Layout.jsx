@@ -113,7 +113,7 @@ export default function Layout() {
 
         <div className="p-4" style={{ borderTop: '1px solid var(--color-border)' }}>
           <p className="truncate text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{user?.displayName}</p>
-          <p className="mb-3 truncate text-xs capitalize" style={{ color: 'var(--color-text-muted)' }}>{user?.role}</p>
+          <p className="mb-3 truncate text-xs" style={{ color: 'var(--color-text-muted)' }}>{user?.primaryRole?.name || 'No role assigned'}</p>
           {user?.isLocalAccount && (
             <Link to="/change-password" className="mb-2 block text-center text-xs hover:underline" style={{ color: 'var(--color-text-muted)' }}>
               Change password

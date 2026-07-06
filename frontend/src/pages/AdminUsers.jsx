@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
 
-const ROLES = ['admin', 'technician', 'requester'];
-const EMPTY_FORM = { username: '', displayName: '', email: '', role: 'requester', departmentId: '', password: '' };
+const EMPTY_FORM = { username: '', displayName: '', email: '', departmentId: '', password: '' };
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -118,12 +117,6 @@ export default function AdminUsers() {
               <input type="password" className="input" value={form.password} onChange={set('password')} required minLength={8} />
             </div>
             <div>
-              <label className="label">Role</label>
-              <select className="input" value={form.role} onChange={set('role')}>
-                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            <div>
               <label className="label">Department</label>
               <select className="input" value={form.departmentId} onChange={set('departmentId')}>
                 <option value="">None</option>
@@ -131,6 +124,9 @@ export default function AdminUsers() {
               </select>
             </div>
           </div>
+          <p className="text-xs text-navy-400">
+            Assign a role from the Roles &amp; Permissions tab after the account is created.
+          </p>
           <div className="flex justify-end gap-3">
             <button type="button" className="btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
             <button type="submit" className="btn-primary" disabled={creating}>
@@ -172,13 +168,11 @@ export default function AdminUsers() {
                 </td>
                 <td className="table-td text-navy-500">{u.email || '—'}</td>
                 <td className="table-td">
-                  <select
-                    className="rounded border border-navy-200 bg-surface px-2 py-1 text-xs text-navy-800"
-                    value={u.role}
-                    onChange={(e) => updateUser(u.id, { role: e.target.value })}
-                  >
-                    {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
+                  {u.primaryRole ? (
+                    <span className="badge bg-navy-100 text-navy-700">{u.primaryRole.name}</span>
+                  ) : (
+                    <span className="text-xs text-navy-400">No role assigned</span>
+                  )}
                 </td>
                 <td className="table-td">
                   <select
