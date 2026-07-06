@@ -12,6 +12,7 @@ require('./models'); // register models + associations
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/error');
 const { UPLOAD_ROOT } = require('./middleware/upload');
+const { startWorkflowScheduler } = require('./services/workflowScheduler');
 
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 3001;
@@ -91,6 +92,8 @@ async function start() {
     app.listen(PORT, () => {
       console.log(`[prism] backend listening on port ${PORT}`);
     });
+
+    startWorkflowScheduler();
   } catch (err) {
     console.error('[prism] failed to start:', err);
     process.exit(1);

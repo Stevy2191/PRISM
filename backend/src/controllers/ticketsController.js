@@ -31,8 +31,9 @@ const {
   createNotification,
 } = require('../services/notifications');
 const { logActivity, resolveDisplayValue } = require('../services/ticketActivity');
-const { getTicketStatusBuckets } = require('../services/statusBehavior');
+const { getTicketStatusBuckets, getTicketStatusBehaviorMap } = require('../services/statusBehavior');
 const { getUserTicketScope, hasPermission } = require('../services/permissionService');
+const { evaluateRules } = require('../services/workflowEngine');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
@@ -245,6 +246,7 @@ const create = asyncHandler(async (req, res) => {
       blueprintId: blueprintId || null,
       customFields: Array.isArray(customFields) && customFields.length ? customFields : null,
       tags: Array.isArray(tags) && tags.length ? tags : null,
+      createdBy: req.user.id,
     }, { transaction: t });
 
     if (req.body.customFieldValues) {
@@ -284,6 +286,7 @@ const create = asyncHandler(async (req, res) => {
   if (watcherIdList.length) {
     await notifyWatchers(ticket, `Ticket created: ${ticket.title}`, [req.user.id]);
   }
+  await evaluateRules(ticket.id, 'ticket_created');
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
   res.status(201).json({ ticket: withCustomFields(fresh) });
@@ -365,6 +368,23 @@ const update = asyncHandler(async (req, res) => {
       `Status changed to "${ticket.status.replace(/_/g, ' ')}" on ticket: ${ticket.title}`,
       [req.user.id, ticket.assigneeId]
     );
+  }
+
+  if (Object.keys(changes).length) {
+    await evaluateRules(ticket.id, 'ticket_updated', Object.keys(changes));
+  }
+  if (changes.status !== undefined && ticket.status !== previousStatus) {
+    await evaluateRules(ticket.id, 'ticket_status_changed');
+    const behaviorByName = await getTicketStatusBehaviorMap();
+    const wasClosed = behaviorByName.get(previousStatus) === 'closed';
+    const isClosed = behaviorByName.get(ticket.status) === 'closed';
+    if (isClosed && !wasClosed) await evaluateRules(ticket.id, 'ticket_closed');
+  }
+  if (changes.priority !== undefined && ticket.priority !== before.priority) {
+    await evaluateRules(ticket.id, 'ticket_priority_changed');
+  }
+  if (changes.assigneeId !== undefined && ticket.assigneeId !== previousAssigneeId) {
+    await evaluateRules(ticket.id, 'ticket_assigned');
   }
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
@@ -457,6 +477,8 @@ const createComment = asyncHandler(async (req, res) => {
       [req.user.id, ticket.assigneeId]
     );
   }
+
+  await evaluateRules(ticket.id, 'ticket_comment_added');
 
   const fresh = await Comment.findByPk(comment.id, {
     include: [{ model: User, as: 'author', attributes: userAttrs }],

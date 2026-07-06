@@ -66,6 +66,13 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      // The staff member who filed the ticket (never tracked before this
+      // field was added) — used by the workflow engine's created_by_role
+      // condition.
+      createdBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       projectId: {
         type: DataTypes.INTEGER,
         allowNull: true,

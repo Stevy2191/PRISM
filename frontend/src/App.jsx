@@ -28,6 +28,8 @@ import SettingsTeams from './pages/settings/Teams';
 import SettingsModules from './pages/settings/Modules';
 import SettingsPreferences from './pages/settings/Preferences';
 import SettingsLayouts from './pages/settings/Layouts';
+import WorkflowRules from './pages/settings/WorkflowRules';
+import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
 import Placeholder from './pages/settings/Placeholder';
 
 // Existing admin pages (reached via the Settings hub)
@@ -121,7 +123,9 @@ export default function App() {
         <Route path="/settings/general" element={admin(<Placeholder title="General Settings" note="System/LDAP configuration is shown read-only under Admin → General Settings." />)} />
         <Route path="/settings/time-tracking" element={staff(<Placeholder title="Time Tracking" note="Time logging is available on tickets and projects; summaries are on Reports." />)} />
         <Route path="/settings/assignment-rules" element={admin(<Placeholder title="Assignment Rules" />)} />
-        <Route path="/settings/workflows" element={admin(<Placeholder title="Workflows" />)} />
+        <Route path="/settings/workflow-rules" element={perm(<WorkflowRules />, SYSTEM_KEYS)} />
+        <Route path="/settings/workflow-rules/new" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
+        <Route path="/settings/workflow-rules/:id" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
         <Route path="/settings/macros" element={admin(<Placeholder title="Macros" />)} />
         <Route path="/settings/slas" element={admin(<Placeholder title="SLAs" />)} />
         <Route path="/settings/supervisor-rules" element={admin(<Placeholder title="Supervisor Rules" />)} />

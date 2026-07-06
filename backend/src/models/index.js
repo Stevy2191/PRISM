@@ -48,6 +48,10 @@ const SystemAuditLog = require('./SystemAuditLog')(sequelize);
 const ProjectIdSequence = require('./ProjectIdSequence')(sequelize);
 const Contact = require('./Contact')(sequelize);
 const ContactActivity = require('./ContactActivity')(sequelize);
+const WorkflowRule = require('./WorkflowRule')(sequelize);
+const WorkflowCondition = require('./WorkflowCondition')(sequelize);
+const WorkflowAction = require('./WorkflowAction')(sequelize);
+const WorkflowRuleLog = require('./WorkflowRuleLog')(sequelize);
 
 const db = {
   sequelize,
@@ -55,6 +59,10 @@ const db = {
   Department,
   Contact,
   ContactActivity,
+  WorkflowRule,
+  WorkflowCondition,
+  WorkflowAction,
+  WorkflowRuleLog,
   Project,
   ProjectMember,
   ProjectTask,
@@ -190,6 +198,17 @@ Contact.belongsTo(User, { foreignKey: 'createdBy', as: 'createdByUser' });
 Contact.hasMany(ContactActivity, { foreignKey: 'contactId', as: 'activity', onDelete: 'CASCADE' });
 ContactActivity.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 ContactActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// Workflow rules
+WorkflowRule.hasMany(WorkflowCondition, { foreignKey: 'ruleId', as: 'conditions', onDelete: 'CASCADE' });
+WorkflowCondition.belongsTo(WorkflowRule, { foreignKey: 'ruleId', as: 'rule' });
+WorkflowRule.hasMany(WorkflowAction, { foreignKey: 'ruleId', as: 'actions', onDelete: 'CASCADE' });
+WorkflowAction.belongsTo(WorkflowRule, { foreignKey: 'ruleId', as: 'rule' });
+WorkflowRule.hasMany(WorkflowRuleLog, { foreignKey: 'ruleId', as: 'logs', onDelete: 'CASCADE' });
+WorkflowRuleLog.belongsTo(WorkflowRule, { foreignKey: 'ruleId', as: 'rule' });
+WorkflowRuleLog.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+WorkflowRule.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+Ticket.belongsTo(User, { foreignKey: 'createdBy', as: 'createdByUser' });
 
 // Ticket <-> Comment
 Ticket.hasMany(Comment, { foreignKey: 'ticketId', as: 'comments', onDelete: 'CASCADE' });

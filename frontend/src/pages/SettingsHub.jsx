@@ -58,7 +58,7 @@ const SECTIONS = [
     title: 'Automation',
     items: [
       { label: 'Assignment Rules', to: '/settings/assignment-rules', desc: 'Auto-assign tickets' },
-      { label: 'Workflows', to: '/settings/workflows', desc: 'Trigger-based actions' },
+      { label: 'Workflow Rules', to: '/settings/workflow-rules', desc: 'Trigger-based conditions & actions', permission: SYSTEM_KEYS },
       { label: 'Macros', to: '/settings/macros', desc: 'One-click action sets' },
       { label: 'SLAs', to: '/settings/slas', desc: 'Service level targets' },
       { label: 'Supervisor Rules', to: '/settings/supervisor-rules', desc: 'Escalations' },

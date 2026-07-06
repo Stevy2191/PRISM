@@ -28,6 +28,7 @@ const contactsRoutes = require('./contacts');
 const ticketStatusesRoutes = require('./ticketStatuses');
 const projectStatusesRoutes = require('./projectStatuses');
 const auditLogRoutes = require('./auditLog');
+const workflowRulesRoutes = require('./workflowRules');
 
 const router = express.Router();
 
@@ -63,5 +64,6 @@ router.use('/contacts', guard, contactsRoutes);
 router.use('/ticket-statuses', guard, ticketStatusesRoutes);
 router.use('/project-statuses', guard, projectStatusesRoutes);
 router.use('/audit-log', guard, auditLogRoutes);
+router.use('/workflow-rules', guard, workflowRulesRoutes);
 
 module.exports = router;
