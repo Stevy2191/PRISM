@@ -589,12 +589,115 @@ function SidebarSection({ title, collapsed, children }) {
   );
 }
 
+// Inline-editable custom field value in the sidebar — mirrors the always-
+// visible status/priority selects for choice-like types (dropdown,
+// multiselect, checkbox), and a click-to-edit text field (with a "—" /
+// "click to add" empty state) for freeform types.
+function CustomFieldValue({ field, value, disabled, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? '');
+
+  useEffect(() => { setDraft(value ?? ''); }, [value]);
+
+  const commit = (v) => {
+    setEditing(false);
+    if (v !== (value ?? '')) onSave(v);
+  };
+
+  if (field.fieldType === 'dropdown') {
+    return (
+      <select disabled={disabled} value={value || ''} onChange={(e) => onSave(e.target.value)} className="input h-9 text-sm" style={fieldStyle}>
+        <option value="">—</option>
+        {(field.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
+
+  if (field.fieldType === 'checkbox') {
+    return (
+      <input
+        type="checkbox"
+        disabled={disabled}
+        checked={value === 'true'}
+        onChange={(e) => onSave(e.target.checked ? 'true' : 'false')}
+        className="h-4 w-4 rounded"
+      />
+    );
+  }
+
+  if (field.fieldType === 'multiselect') {
+    const selected = Array.isArray(value) ? value : [];
+    const toggle = (opt) => {
+      const next = selected.includes(opt) ? selected.filter((o) => o !== opt) : [...selected, opt];
+      onSave(next);
+    };
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {(field.options || []).map((o) => (
+          <label
+            key={o}
+            className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+            style={{ backgroundColor: selected.includes(o) ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : BORDER, color: selected.includes(o) ? BLUE : MUTED }}
+          >
+            <input type="checkbox" disabled={disabled} checked={selected.includes(o)} onChange={() => toggle(o)} className="h-3 w-3" />
+            {o}
+          </label>
+        ))}
+      </div>
+    );
+  }
+
+  // Freeform types: text, textarea, number, date, datetime, url, email, phone.
+  if (disabled) {
+    return <span style={{ color: value ? TEXT : MUTED }}>{value || '—'}</span>;
+  }
+  if (editing) {
+    const typeAttr = { number: 'number', date: 'date', datetime: 'datetime-local', url: 'url', email: 'email', phone: 'tel' }[field.fieldType] || 'text';
+    return field.fieldType === 'textarea' ? (
+      <textarea
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => commit(draft)}
+        className="input resize-y text-sm"
+        style={{ ...fieldStyle, minHeight: '60px' }}
+      />
+    ) : (
+      <input
+        autoFocus
+        type={typeAttr}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => commit(draft)}
+        onKeyDown={(e) => { if (e.key === 'Enter') commit(draft); if (e.key === 'Escape') setEditing(false); }}
+        className="input h-9 text-sm"
+        style={fieldStyle}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="group flex w-full items-center justify-between rounded px-1.5 py-1 text-left text-sm hover:bg-[var(--color-hover)]"
+    >
+      <span style={{ color: value ? TEXT : MUTED }}>{value || '—'}</span>
+      {!value && (
+        <span className="text-xs opacity-0 transition-opacity group-hover:opacity-100" style={{ color: MUTED }}>
+          click to add
+        </span>
+      )}
+    </button>
+  );
+}
+
 function Sidebar({
   ticket, collapsed, onToggle, isStaff, canAssign, onStatusChange, patchTicket,
   assignableUsers, teams, directory, ticketStatuses,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
   departments, contactDeptAssign, onContactDeptChange, onAssignContactDepartment,
+  customFieldDefs, onSaveCustomField,
 }) {
   const [tagInput, setTagInput] = useState('');
   const [watcherQuery, setWatcherQuery] = useState('');
@@ -782,6 +885,30 @@ function Sidebar({
             </div>
           )}
         </SidebarSection>
+
+        {customFieldDefs.length > 0 && (
+          <SidebarSection title="Custom Fields" collapsed={collapsed}>
+            {collapsed ? (
+              <span title={customFieldDefs.map((f) => `${f.label}: ${ticket.customFields?.[f.fieldKey] || '—'}`).join(' · ')}>▤</span>
+            ) : (
+              <div className="space-y-3">
+                {customFieldDefs.map((f) => (
+                  <div key={f.id}>
+                    <label className="mb-1 block text-xs" style={{ color: MUTED }}>
+                      {f.label}{f.isRequired && <span style={{ color: 'var(--color-danger)' }}> *</span>}
+                    </label>
+                    <CustomFieldValue
+                      field={f}
+                      value={ticket.customFields?.[f.fieldKey]}
+                      disabled={!isStaff}
+                      onSave={(v) => onSaveCustomField(f.fieldKey, v)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </SidebarSection>
+        )}
 
         <SidebarSection title="Tags" collapsed={collapsed}>
           {collapsed ? (
@@ -1449,6 +1576,7 @@ function activityDescription(a) {
   if (a.action === 'time_logged') return `${actor} logged ${a.toValue} of time`;
   if (a.action === 'attachment_added') return `${actor} added attachment "${a.toValue}"`;
   if (a.action === 'relation_added') return `${actor} linked ${a.toValue}`;
+  if (a.action === 'custom_fields') return `${actor} updated a custom field`;
   if (ACTIVITY_FIELD_LABEL[a.action]) {
     return `${actor} changed ${ACTIVITY_FIELD_LABEL[a.action]} from ${a.fromValue || 'none'} to ${a.toValue || 'none'}`;
   }
@@ -1496,6 +1624,7 @@ export default function TicketDetail() {
   const [ticketStatuses, setTicketStatuses] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [contactDeptAssign, setContactDeptAssign] = useState({ deptId: '', saving: false });
+  const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -1634,6 +1763,24 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, changes);
       setTicket(data.ticket);
+      api.get(`/tickets/${id}/activity`).then(({ data: d }) => setActivity(d.activity)).catch(() => {});
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  // Active custom fields for this ticket's type (Settings -> Layouts & Fields).
+  useEffect(() => {
+    if (!ticket?.type) return;
+    api.get('/custom-fields', { params: { ticketType: ticket.type } })
+      .then(({ data }) => setCustomFieldDefs(data.customFields))
+      .catch(() => setCustomFieldDefs([]));
+  }, [ticket?.type]);
+
+  const saveCustomFieldValue = async (fieldKey, value) => {
+    try {
+      const { data } = await api.patch(`/tickets/${id}/custom-field-values`, { values: { [fieldKey]: value } });
+      setTicket((prev) => (prev ? { ...prev, customFields: data.customFields } : prev));
       api.get(`/tickets/${id}/activity`).then(({ data: d }) => setActivity(d.activity)).catch(() => {});
     } catch (err) {
       alert(errMessage(err));
@@ -1869,6 +2016,8 @@ export default function TicketDetail() {
           contactDeptAssign={contactDeptAssign}
           onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
           onAssignContactDepartment={assignContactDepartment}
+          customFieldDefs={customFieldDefs}
+          onSaveCustomField={saveCustomFieldValue}
         />
 
         <div

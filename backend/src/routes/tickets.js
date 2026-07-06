@@ -53,6 +53,10 @@ router.get('/:id/tasks', ctrl.listTasks);
 router.post('/:id/tasks', ctrl.createTask);
 router.patch('/:id/tasks/:taskId', ctrl.updateTask);
 
+// Custom field values (Settings -> Layouts & Fields)
+router.get('/:id/custom-field-values', viewMin, ctrl.getCustomFieldValues);
+router.patch('/:id/custom-field-values', editMin, ctrl.updateCustomFieldValues);
+
 // Activity (per-ticket timeline)
 router.get('/:id/activity', ctrl.listActivity);
 

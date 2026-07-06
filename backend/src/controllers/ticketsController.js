@@ -56,21 +56,58 @@ const ticketInclude = [
 ];
 
 // Upsert/remove a ticket's admin-defined custom field values.
-// fieldValues: array of { customFieldId, value }.
-async function syncFieldValues(ticketId, fieldValues, t) {
-  if (!Array.isArray(fieldValues)) return;
-  for (const fv of fieldValues) {
-    const customFieldId = parseInt(fv.customFieldId, 10);
-    if (!customFieldId) continue;
-    const value = fv.value === undefined || fv.value === null ? '' : String(fv.value);
+// values: { fieldKey: value, ... } — an empty/null value deletes the row.
+async function syncCustomFieldValues(ticketId, values, t) {
+  if (!values || typeof values !== 'object') return;
+  const keys = Object.keys(values);
+  if (!keys.length) return;
+
+  const fields = await CustomField.findAll({ where: { fieldKey: keys }, transaction: t });
+  const fieldByKey = new Map(fields.map((f) => [f.fieldKey, f]));
+
+  for (const key of keys) {
+    const field = fieldByKey.get(key);
+    if (!field) continue; // eslint-disable-line no-continue
+    const raw = values[key];
+    const value = raw === undefined || raw === null ? '' : (Array.isArray(raw) ? JSON.stringify(raw) : String(raw));
     if (value === '') {
-      await TicketFieldValue.destroy({ where: { ticketId, customFieldId }, transaction: t });
+      // eslint-disable-next-line no-await-in-loop
+      await TicketFieldValue.destroy({ where: { ticketId, fieldId: field.id }, transaction: t });
     } else {
-      const existing = await TicketFieldValue.findOne({ where: { ticketId, customFieldId }, transaction: t });
+      // eslint-disable-next-line no-await-in-loop
+      const existing = await TicketFieldValue.findOne({ where: { ticketId, fieldId: field.id }, transaction: t });
+      // eslint-disable-next-line no-await-in-loop
       if (existing) await existing.update({ value }, { transaction: t });
-      else await TicketFieldValue.create({ ticketId, customFieldId, value }, { transaction: t });
+      // eslint-disable-next-line no-await-in-loop
+      else await TicketFieldValue.create({ ticketId, fieldId: field.id, value }, { transaction: t });
     }
   }
+}
+
+// { fieldKey: value } from a ticket's loaded `fieldValues` association
+// (each row's nested `field` gives the key). Multiselect values are stored
+// as a JSON string and parsed back into an array here.
+function buildCustomFieldsObject(fieldValues) {
+  const out = {};
+  for (const fv of fieldValues || []) {
+    if (!fv.field) continue; // eslint-disable-line no-continue
+    if (fv.field.fieldType === 'multiselect') {
+      try {
+        out[fv.field.fieldKey] = JSON.parse(fv.value);
+      } catch {
+        out[fv.field.fieldKey] = fv.value;
+      }
+    } else {
+      out[fv.field.fieldKey] = fv.value;
+    }
+  }
+  return out;
+}
+
+function withCustomFields(ticket) {
+  const json = ticket.toJSON();
+  json.customFields = buildCustomFieldsObject(ticket.fieldValues);
+  return json;
 }
 
 const isStaff = (user) => user.role === 'admin' || user.role === 'technician';
@@ -163,7 +200,7 @@ const list = asyncHandler(async (req, res) => {
   const minutesByTicket = new Map(timeTotals.map((r) => [r.ticketId, Number(r.total) || 0]));
 
   res.json({
-    tickets: tickets.map((t) => ({ ...t.toJSON(), timeLoggedMinutes: minutesByTicket.get(t.id) || 0 })),
+    tickets: tickets.map((t) => ({ ...withCustomFields(t), timeLoggedMinutes: minutesByTicket.get(t.id) || 0 })),
   });
 });
 
@@ -210,8 +247,8 @@ const create = asyncHandler(async (req, res) => {
       tags: Array.isArray(tags) && tags.length ? tags : null,
     }, { transaction: t });
 
-    if (Array.isArray(req.body.fieldValues)) {
-      await syncFieldValues(created.id, req.body.fieldValues, t);
+    if (req.body.customFieldValues) {
+      await syncCustomFieldValues(created.id, req.body.customFieldValues, t);
     }
 
     if (parentId) {
@@ -249,14 +286,14 @@ const create = asyncHandler(async (req, res) => {
   }
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
-  res.status(201).json({ ticket: fresh });
+  res.status(201).json({ ticket: withCustomFields(fresh) });
 });
 
 // GET /tickets/:id
 const get = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id, { include: ticketInclude });
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  res.json({ ticket });
+  res.json({ ticket: withCustomFields(ticket) });
 });
 
 // PATCH /tickets/:id
@@ -299,8 +336,8 @@ const update = asyncHandler(async (req, res) => {
   const previousStatus = ticket.status;
   await sequelize.transaction(async (t) => {
     await ticket.update(changes, { transaction: t });
-    if (isStaff(req.user) && Array.isArray(req.body.fieldValues)) {
-      await syncFieldValues(ticket.id, req.body.fieldValues, t);
+    if (req.body.customFieldValues) {
+      await syncCustomFieldValues(ticket.id, req.body.customFieldValues, t);
     }
   });
   await writeAudit(req, 'ticket.update', 'Ticket', ticket.id, changes);
@@ -331,7 +368,7 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
-  res.json({ ticket: fresh });
+  res.json({ ticket: withCustomFields(fresh) });
 });
 
 // DELETE /tickets/:id — Admin only
@@ -908,6 +945,36 @@ const updateTask = asyncHandler(async (req, res) => {
   res.json({ task: fresh });
 });
 
+// ---- Custom field values (admin-defined, Settings -> Layouts & Fields) ----
+
+// GET /tickets/:id/custom-field-values
+const getCustomFieldValues = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id, {
+    include: [{ model: TicketFieldValue, as: 'fieldValues', include: [{ model: CustomField, as: 'field' }] }],
+  });
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  res.json({ customFields: buildCustomFieldsObject(ticket.fieldValues) });
+});
+
+// PATCH /tickets/:id/custom-field-values — Body: { values: { fieldKey: value, ... } }
+const updateCustomFieldValues = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+
+  const values = req.body?.values;
+  if (!values || typeof values !== 'object' || Array.isArray(values)) {
+    throw new ApiError(400, 'values must be an object of { fieldKey: value }', 'VALIDATION_ERROR');
+  }
+
+  await sequelize.transaction((t) => syncCustomFieldValues(ticket.id, values, t));
+  await logActivity(ticket.id, req.user.id, 'custom_fields', null, null);
+
+  const fresh = await Ticket.findByPk(ticket.id, {
+    include: [{ model: TicketFieldValue, as: 'fieldValues', include: [{ model: CustomField, as: 'field' }] }],
+  });
+  res.json({ customFields: buildCustomFieldsObject(fresh.fieldValues) });
+});
+
 // ---- Activity (per-ticket timeline) ----
 
 // GET /tickets/:id/activity
@@ -951,5 +1018,7 @@ module.exports = {
   listTasks,
   createTask,
   updateTask,
+  getCustomFieldValues,
+  updateCustomFieldValues,
   listActivity,
 };

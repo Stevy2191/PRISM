@@ -227,6 +227,50 @@ function QuickCreateContact({ initialName, error, creating, onCancel, onCreate }
   );
 }
 
+// Renders the appropriate input for a custom field's fieldType. `value` is
+// always a string except for multiselect, where it's an array.
+function CustomFieldInput({ field, value, onChange }) {
+  const commonProps = { className: 'input', style: fieldStyle, placeholder: field.placeholder || '' };
+
+  if (field.fieldType === 'textarea') {
+    return <textarea {...commonProps} value={value || ''} onChange={(e) => onChange(e.target.value)} className="input resize-y" style={{ ...fieldStyle, minHeight: '80px' }} />;
+  }
+  if (field.fieldType === 'dropdown') {
+    return (
+      <select {...commonProps} value={value || ''} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{field.placeholder || 'Select…'}</option>
+        {(field.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
+  if (field.fieldType === 'multiselect') {
+    const selected = Array.isArray(value) ? value : [];
+    const toggle = (opt) => onChange(selected.includes(opt) ? selected.filter((o) => o !== opt) : [...selected, opt]);
+    return (
+      <div className="flex flex-wrap gap-2">
+        {(field.options || []).map((o) => (
+          <label key={o} className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm" style={{ borderColor: BORDER, color: TEXT }}>
+            <input type="checkbox" checked={selected.includes(o)} onChange={() => toggle(o)} className="h-3.5 w-3.5" />
+            {o}
+          </label>
+        ))}
+      </div>
+    );
+  }
+  if (field.fieldType === 'checkbox') {
+    return (
+      <input
+        type="checkbox"
+        checked={value === 'true' || value === true}
+        onChange={(e) => onChange(e.target.checked ? 'true' : 'false')}
+        className="h-4 w-4 rounded"
+      />
+    );
+  }
+  const typeAttr = { number: 'number', date: 'date', datetime: 'datetime-local', url: 'url', email: 'email', phone: 'tel' }[field.fieldType] || 'text';
+  return <input type={typeAttr} {...commonProps} value={value || ''} onChange={(e) => onChange(e.target.value)} />;
+}
+
 function WatchersField({ directory, watchers, onChange }) {
   const [query, setQuery] = useState('');
   const results = query.trim()
@@ -494,6 +538,9 @@ export default function TicketNew() {
 
   const [files, setFiles] = useState([]);
 
+  const [customFields, setCustomFields] = useState([]);
+  const [customFieldValues, setCustomFieldValues] = useState({});
+
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -505,6 +552,29 @@ export default function TicketNew() {
       api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
     }
   }, [isStaff]);
+
+  // Additional Details section — active custom fields scoped to the
+  // currently-selected ticket type. Re-fetched whenever type changes; values
+  // for fields no longer shown are dropped so a stale hidden value can't be
+  // submitted.
+  useEffect(() => {
+    api.get('/custom-fields', { params: { ticketType: type } })
+      .then(({ data }) => {
+        setCustomFields(data.customFields);
+        setCustomFieldValues((prev) => {
+          const keys = new Set(data.customFields.map((f) => f.fieldKey));
+          const next = {};
+          Object.keys(prev).forEach((k) => { if (keys.has(k)) next[k] = prev[k]; });
+          data.customFields.forEach((f) => {
+            if (next[f.fieldKey] === undefined && f.defaultValue) next[f.fieldKey] = f.defaultValue;
+          });
+          return next;
+        });
+      })
+      .catch(() => setCustomFields([]));
+  }, [type]);
+
+  const setCustomFieldValue = (key, value) => setCustomFieldValues((prev) => ({ ...prev, [key]: value }));
 
   // Pre-fills the contact when arriving from a contact's "Create ticket" button.
   useEffect(() => {
@@ -564,6 +634,16 @@ export default function TicketNew() {
       setError('Customer is required');
       return;
     }
+    const isCustomFieldMissing = (f) => {
+      const v = customFieldValues[f.fieldKey];
+      if (f.fieldType === 'checkbox') return v !== 'true';
+      return !String(v || '').trim();
+    };
+    const missingField = customFields.find((f) => f.isRequired && isCustomFieldMissing(f));
+    if (missingField) {
+      setError(`"${missingField.label}" is required`);
+      return;
+    }
     setError('');
     setSaving(true);
     try {
@@ -579,6 +659,7 @@ export default function TicketNew() {
         parentTicketId: parentTicket ? parentTicket.id : undefined,
         childTicketIds: childTickets.map((t) => t.id),
         relatedTicketIds: relatedTickets.map((t) => t.id),
+        customFieldValues: Object.keys(customFieldValues).length ? customFieldValues : undefined,
       };
       if (isStaff) {
         payload.contactId = contactId;
@@ -662,6 +743,21 @@ export default function TicketNew() {
             <TagInput tags={tags} onChange={setTags} />
           </div>
         </Card>
+
+        {customFields.length > 0 && (
+          <Card title="Additional Details">
+            {customFields.map((f) => (
+              <div key={f.id}>
+                <Label required={f.isRequired}>{f.label}</Label>
+                <CustomFieldInput
+                  field={f}
+                  value={customFieldValues[f.fieldKey]}
+                  onChange={(v) => setCustomFieldValue(f.fieldKey, v)}
+                />
+              </div>
+            ))}
+          </Card>
+        )}
 
         <Card title="People">
           {isStaff && (

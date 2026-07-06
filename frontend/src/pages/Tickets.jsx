@@ -60,6 +60,17 @@ const COLUMN_LABELS = {
 };
 const SORTABLE_COLUMNS = { id: 'id', title: 'title', priority: 'priority', status: 'status', dueDate: 'dueDate', createdDate: 'createdAt' };
 const COLUMN_STORAGE_KEY = 'prism.tickets.columns.v1';
+// Custom field columns (prefixed "cf:") are only sortable when the
+// underlying value is a simple, comparable scalar.
+const SORTABLE_CUSTOM_FIELD_TYPES = ['text', 'number', 'date', 'dropdown'];
+
+function formatCustomFieldValue(field, value) {
+  if (value === undefined || value === null || value === '') return '—';
+  if (field.fieldType === 'checkbox') return value === 'true' ? 'Yes' : 'No';
+  if (field.fieldType === 'multiselect') return Array.isArray(value) ? value.join(', ') : String(value);
+  if (field.fieldType === 'datetime') return new Date(value).toLocaleString();
+  return String(value);
+}
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -277,7 +288,7 @@ function SavedFiltersMenu({ savedFilters, activeId, onApply, onSave, onDelete })
   );
 }
 
-function ColumnsMenu({ order, visible, onChange }) {
+function ColumnsMenu({ order, visible, customFields, onChange }) {
   const [open, setOpen] = useState(false);
   const dragIndex = useRef(null);
   const ref = useRef(null);
@@ -344,6 +355,33 @@ function ColumnsMenu({ order, visible, onChange }) {
               <span className="flex-1">{COLUMN_LABELS[key]}</span>
             </div>
           ))}
+          {customFields.length > 0 && (
+            <>
+              <p className="mt-1 border-t px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide" style={{ borderColor: BORDER, color: MUTED }}>
+                Custom fields
+              </p>
+              {customFields.map((f) => {
+                const key = `cf:${f.fieldKey}`;
+                return (
+                  <div
+                    key={key}
+                    onClick={() => toggle(key)}
+                    className="flex cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-sm hover:bg-white/5"
+                    style={{ color: TEXT }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!visible[key]}
+                      onChange={() => toggle(key)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="accent-blue-500"
+                    />
+                    <span className="flex-1">{f.label}</span>
+                  </div>
+                );
+              })}
+            </>
+          )}
           <div className="mt-1 border-t pt-1" style={{ borderColor: BORDER }}>
             <button
               type="button"
@@ -389,6 +427,7 @@ export default function Tickets() {
 
   const [view, setView] = useState('table');
   const [columnPrefs, setColumnPrefs] = useState(loadColumnPrefs);
+  const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkActionType, setBulkActionType] = useState('');
   const [bulkValue, setBulkValue] = useState('');
@@ -419,6 +458,18 @@ export default function Tickets() {
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnPrefs));
   }, [columnPrefs]);
+
+  // Active custom fields, offered as optional table columns (Columns menu ->
+  // "Custom fields" section) regardless of the viewer's own admin status —
+  // GET /custom-fields returns inactive fields too for admins, so filter
+  // client-side to active-only here.
+  useEffect(() => {
+    api.get('/custom-fields').then(({ data }) => setCustomFieldDefs(data.customFields.filter((f) => f.isActive))).catch(() => {});
+  }, []);
+  const sortableCustomFieldKeys = useMemo(
+    () => new Set(customFieldDefs.filter((f) => SORTABLE_CUSTOM_FIELD_TYPES.includes(f.fieldType)).map((f) => `cf:${f.fieldKey}`)),
+    [customFieldDefs]
+  );
 
   useEffect(() => {
     api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
@@ -455,7 +506,7 @@ export default function Tickets() {
   }, [load, search]);
 
   const toggleSort = (colKey) => {
-    if (!SORTABLE_COLUMNS[colKey]) return;
+    if (!SORTABLE_COLUMNS[colKey] && !sortableCustomFieldKeys.has(colKey)) return;
     setSort((s) => ({ key: colKey, dir: s.key === colKey && s.dir === 'asc' ? 'desc' : 'asc' }));
   };
 
@@ -540,6 +591,26 @@ export default function Tickets() {
     () => columnPrefs.order.filter((key) => columnPrefs.visible[key] !== false),
     [columnPrefs]
   );
+  const visibleCustomFieldColumns = useMemo(
+    () => customFieldDefs.filter((f) => columnPrefs.visible[`cf:${f.fieldKey}`]),
+    [customFieldDefs, columnPrefs]
+  );
+
+  // The backend only understands built-in sort columns, so a custom-field
+  // sort is applied client-side to the already-fetched list instead of
+  // round-tripping with a ?sortBy it wouldn't recognize.
+  const sortedTickets = useMemo(() => {
+    if (!sort.key.startsWith('cf:')) return tickets;
+    const fieldKey = sort.key.slice(3);
+    const field = customFieldDefs.find((f) => f.fieldKey === fieldKey);
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...tickets].sort((a, b) => {
+      const av = a.customFields?.[fieldKey];
+      const bv = b.customFields?.[fieldKey];
+      if (field?.fieldType === 'number') return ((Number(av) || 0) - (Number(bv) || 0)) * dir;
+      return String(av || '').localeCompare(String(bv || '')) * dir;
+    });
+  }, [tickets, sort, customFieldDefs]);
 
   const behaviorByName = useMemo(
     () => new Map(ticketStatuses.map((s) => [s.name, s.behaviorType])),
@@ -644,7 +715,7 @@ export default function Tickets() {
               onSave={saveCurrentFilter}
               onDelete={deleteSavedFilter}
             />
-            <ColumnsMenu order={columnPrefs.order} visible={columnPrefs.visible} onChange={setColumnPrefs} />
+            <ColumnsMenu order={columnPrefs.order} visible={columnPrefs.visible} customFields={customFieldDefs} onChange={setColumnPrefs} />
 
             <div className="flex rounded-md border" style={{ borderColor: BORDER }}>
               <button
@@ -841,17 +912,32 @@ export default function Tickets() {
                       <SortIcon active={sort.key === key} dir={sort.dir} />
                     </th>
                   ))}
+                  {visibleCustomFieldColumns.map((f) => {
+                    const key = `cf:${f.fieldKey}`;
+                    const sortable = sortableCustomFieldKeys.has(key);
+                    return (
+                      <th
+                        key={key}
+                        onClick={() => toggleSort(key)}
+                        className={`whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide ${sortable ? 'cursor-pointer' : ''}`}
+                        style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}
+                      >
+                        {f.label}
+                        {sortable && <SortIcon active={sort.key === key} dir={sort.dir} />}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {tickets.length === 0 && (
                   <tr>
-                    <td className="px-4 py-6 text-sm" style={{ color: MUTED }} colSpan={(isStaff ? 1 : 0) + 2 + visibleColumns.length}>
+                    <td className="px-4 py-6 text-sm" style={{ color: MUTED }} colSpan={(isStaff ? 1 : 0) + 2 + visibleColumns.length + visibleCustomFieldColumns.length}>
                       No tickets found.
                     </td>
                   </tr>
                 )}
-                {tickets.map((t) => (
+                {sortedTickets.map((t) => (
                   <tr key={t.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
                     {isStaff && (
                       <td className="px-4 py-3">
@@ -877,6 +963,11 @@ export default function Tickets() {
                         {key === 'actions' && (
                           <Link to={`/tickets/${t.id}`} className="text-sm" style={{ color: 'var(--color-accent)' }}>Open →</Link>
                         )}
+                      </td>
+                    ))}
+                    {visibleCustomFieldColumns.map((f) => (
+                      <td key={f.fieldKey} className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: TEXT }}>
+                        {formatCustomFieldValue(f, t.customFields?.[f.fieldKey])}
                       </td>
                     ))}
                   </tr>

@@ -255,9 +255,9 @@ CsatResponse.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 SystemSettings.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });
 
 // Custom fields (Layouts & Fields)
-CustomField.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
-CustomField.hasMany(TicketFieldValue, { foreignKey: 'customFieldId', as: 'values', onDelete: 'CASCADE' });
-TicketFieldValue.belongsTo(CustomField, { foreignKey: 'customFieldId', as: 'field' });
+CustomField.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+CustomField.hasMany(TicketFieldValue, { foreignKey: 'fieldId', as: 'values', onDelete: 'CASCADE' });
+TicketFieldValue.belongsTo(CustomField, { foreignKey: 'fieldId', as: 'field' });
 Ticket.hasMany(TicketFieldValue, { foreignKey: 'ticketId', as: 'fieldValues', onDelete: 'CASCADE' });
 TicketFieldValue.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 

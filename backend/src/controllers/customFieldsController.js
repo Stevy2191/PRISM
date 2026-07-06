@@ -1,62 +1,127 @@
 const { Op } = require('sequelize');
-const { CustomField, Department } = require('../models');
+const { CustomField, TicketFieldValue, User } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const { hasPermission } = require('../services/permissionService');
 
-const FIELD_TYPES = ['text', 'textarea', 'number', 'select', 'checkbox', 'date', 'url'];
-const TICKET_TYPES = ['incident', 'request', 'problem', 'task', 'change'];
-const include = [{ model: Department, as: 'department', attributes: ['id', 'name'] }];
+const FIELD_TYPES = [
+  'text', 'textarea', 'number', 'date', 'datetime',
+  'dropdown', 'multiselect', 'checkbox', 'url', 'email', 'phone',
+];
+const TICKET_TYPES = ['incident', 'request', 'problem', 'change'];
+const OPTION_TYPES = ['dropdown', 'multiselect'];
+const FIELD_KEY_RE = /^[a-z0-9_]+$/;
 
-function validate(body, partial = false) {
+const include = [{ model: User, as: 'creator', attributes: ['id', 'displayName'] }];
+
+function slugify(text) {
+  const base = String(text || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return base || 'field';
+}
+
+async function uniqueFieldKey(base, excludeId) {
+  let key = base;
+  let n = 2;
+  // eslint-disable-next-line no-await-in-loop
+  while (await CustomField.findOne({ where: { fieldKey: key, ...(excludeId ? { id: { [Op.ne]: excludeId } } : {}) } })) {
+    key = `${base}_${n}`;
+    n += 1;
+  }
+  return key;
+}
+
+// Validates and normalizes the request body. `existing` is the current row
+// for partial updates (so e.g. changing only `label` doesn't require
+// re-supplying `fieldType` to validate `options`).
+async function validate(body, existing) {
   const out = {};
-  if (body.name !== undefined || !partial) {
-    if (!body.name || !body.name.trim()) throw new ApiError(400, 'Field name is required', 'VALIDATION_ERROR');
-    out.name = body.name.trim();
+
+  const label = body.label !== undefined ? body.label : existing?.label;
+  if (!label || !String(label).trim()) {
+    throw new ApiError(400, 'Field label is required', 'VALIDATION_ERROR');
   }
-  if (body.fieldType !== undefined || !partial) {
-    const ft = body.fieldType || 'text';
-    if (!FIELD_TYPES.includes(ft)) throw new ApiError(400, 'Invalid field type', 'VALIDATION_ERROR');
-    out.fieldType = ft;
+  if (body.label !== undefined) out.label = label.trim();
+
+  const fieldType = body.fieldType !== undefined ? body.fieldType : (existing?.fieldType || 'text');
+  if (!FIELD_TYPES.includes(fieldType)) {
+    throw new ApiError(400, 'Invalid field type', 'VALIDATION_ERROR');
   }
-  const effectiveType = out.fieldType || body.fieldType;
-  if (effectiveType === 'select') {
-    const options = Array.isArray(body.options)
-      ? body.options.map((o) => String(o).trim()).filter(Boolean)
-      : [];
-    if (!partial || body.options !== undefined) {
-      if (options.length === 0) throw new ApiError(400, 'Select fields need at least one option', 'VALIDATION_ERROR');
+  if (body.fieldType !== undefined || !existing) out.fieldType = fieldType;
+
+  // Field key: explicit value is validated/uniqueness-checked; otherwise
+  // (create only) auto-generate from the label.
+  if (body.fieldKey !== undefined) {
+    const key = String(body.fieldKey).trim().toLowerCase();
+    if (!FIELD_KEY_RE.test(key)) {
+      throw new ApiError(400, 'Field key may only contain lowercase letters, numbers, and underscores', 'VALIDATION_ERROR');
+    }
+    const conflict = await CustomField.findOne({
+      where: { fieldKey: key, ...(existing ? { id: { [Op.ne]: existing.id } } : {}) },
+    });
+    if (conflict) throw new ApiError(409, 'A field with this key already exists', 'FIELD_KEY_TAKEN');
+    out.fieldKey = key;
+  } else if (!existing) {
+    out.fieldKey = await uniqueFieldKey(slugify(label));
+  }
+
+  if (body.ticketTypes !== undefined) {
+    const types = Array.isArray(body.ticketTypes) ? body.ticketTypes.filter(Boolean) : [];
+    if (types.some((t) => !TICKET_TYPES.includes(t))) {
+      throw new ApiError(400, 'Invalid ticket type in ticketTypes', 'VALIDATION_ERROR');
+    }
+    out.ticketTypes = types.length ? types : null;
+  }
+
+  if (OPTION_TYPES.includes(fieldType)) {
+    if (body.options !== undefined || !existing) {
+      const options = Array.isArray(body.options)
+        ? body.options.map((o) => String(o).trim()).filter(Boolean)
+        : [];
+      if (options.length < 2) {
+        throw new ApiError(400, 'Dropdown/multiselect fields need at least 2 options', 'VALIDATION_ERROR');
+      }
       out.options = options;
     }
   } else if (body.fieldType !== undefined) {
     out.options = null;
   }
-  if (body.required !== undefined) out.required = !!body.required;
-  if (body.ticketType !== undefined) {
-    if (body.ticketType && !TICKET_TYPES.includes(body.ticketType)) {
-      throw new ApiError(400, 'Invalid ticket type', 'VALIDATION_ERROR');
-    }
-    out.ticketType = body.ticketType || null;
-  }
-  if (body.departmentId !== undefined) out.departmentId = body.departmentId || null;
-  if (body.displayOrder !== undefined) out.displayOrder = parseInt(body.displayOrder, 10) || 0;
+
+  if (body.isRequired !== undefined) out.isRequired = !!body.isRequired;
+  if (body.isActive !== undefined) out.isActive = !!body.isActive;
+  if (body.placeholder !== undefined) out.placeholder = body.placeholder || null;
+  if (body.defaultValue !== undefined) out.defaultValue = body.defaultValue || null;
+
   return out;
 }
 
-// GET /custom-fields — any authenticated user (forms read this).
-// Optional ?ticketType=&departmentId= returns only the fields that apply
-// (matching type/department or unscoped).
+// GET /custom-fields — admins see every field; everyone else sees active
+// fields only. ?ticketType=incident narrows to active fields that apply to
+// that type (unscoped or explicitly listing it) — used to populate forms.
 const list = asyncHandler(async (req, res) => {
+  const { ticketType } = req.query;
   const where = {};
-  const { ticketType, departmentId } = req.query;
-  if (ticketType) where.ticketType = { [Op.or]: [null, ticketType] };
-  if (departmentId) where.departmentId = { [Op.or]: [null, parseInt(departmentId, 10)] };
+
+  if (ticketType) {
+    where.isActive = true;
+  } else if (!(await hasPermission(req.user.id, 'settings.manage_system'))) {
+    where.isActive = true;
+  }
 
   const fields = await CustomField.findAll({
     where,
     include,
-    order: [['displayOrder', 'ASC'], ['id', 'ASC']],
+    order: [['position', 'ASC'], ['id', 'ASC']],
   });
-  res.json({ customFields: fields });
+
+  const filtered = ticketType
+    ? fields.filter((f) => !f.ticketTypes || f.ticketTypes.length === 0 || f.ticketTypes.includes(ticketType))
+    : fields;
+
+  res.json({ customFields: filtered });
 });
 
 const get = asyncHandler(async (req, res) => {
@@ -65,33 +130,61 @@ const get = asyncHandler(async (req, res) => {
   res.json({ customField: field });
 });
 
-// POST /custom-fields — Admin
+// POST /custom-fields — requires settings.manage_system
 const create = asyncHandler(async (req, res) => {
-  const data = validate(req.body || {});
-  const field = await CustomField.create(data);
-  await writeAudit(req, 'customField.create', 'CustomField', field.id, { name: field.name });
+  const data = await validate(req.body || {});
+  const maxPosition = await CustomField.max('position');
+  const field = await CustomField.create({ ...data, position: (maxPosition || 0) + 1, createdBy: req.user.id });
+  await writeAudit(req, 'customField.create', 'CustomField', field.id, { label: field.label });
   const fresh = await CustomField.findByPk(field.id, { include });
   res.status(201).json({ customField: fresh });
 });
 
-// PATCH /custom-fields/:id — Admin
+// PATCH /custom-fields/:id — requires settings.manage_system
 const update = asyncHandler(async (req, res) => {
   const field = await CustomField.findByPk(req.params.id);
   if (!field) throw new ApiError(404, 'Custom field not found', 'NOT_FOUND');
-  const data = validate({ fieldType: field.fieldType, ...req.body }, true);
+  const data = await validate(req.body || {}, field);
   await field.update(data);
-  await writeAudit(req, 'customField.update', 'CustomField', field.id, { name: field.name });
+  await writeAudit(req, 'customField.update', 'CustomField', field.id, { label: field.label });
   const fresh = await CustomField.findByPk(field.id, { include });
   res.json({ customField: fresh });
 });
 
-// DELETE /custom-fields/:id — Admin
+// DELETE /custom-fields/:id — warns (409) if any ticket has a value for it,
+// unless ?force=true is passed.
 const remove = asyncHandler(async (req, res) => {
   const field = await CustomField.findByPk(req.params.id);
   if (!field) throw new ApiError(404, 'Custom field not found', 'NOT_FOUND');
+
+  if (req.query.force !== 'true') {
+    const valueCount = await TicketFieldValue.count({ where: { fieldId: field.id } });
+    if (valueCount > 0) {
+      throw new ApiError(
+        409,
+        `${valueCount} ticket${valueCount === 1 ? ' has a value' : 's have values'} for "${field.label}". Delete anyway?`,
+        'HAS_VALUES'
+      );
+    }
+  }
+
   await field.destroy();
-  await writeAudit(req, 'customField.delete', 'CustomField', field.id, { name: field.name });
+  await writeAudit(req, 'customField.delete', 'CustomField', field.id, { label: field.label });
   res.json({ ok: true });
 });
 
-module.exports = { list, get, create, update, remove };
+// PATCH /custom-fields/reorder — Body: { order: [id, id, ...] }
+const reorder = asyncHandler(async (req, res) => {
+  const order = Array.isArray(req.body?.order) ? req.body.order.map((v) => parseInt(v, 10)).filter(Boolean) : [];
+  if (!order.length) throw new ApiError(400, 'order must be a non-empty array of field ids', 'VALIDATION_ERROR');
+
+  const fields = await CustomField.findAll({ where: { id: order } });
+  if (fields.length !== order.length) {
+    throw new ApiError(400, 'One or more fields do not exist', 'VALIDATION_ERROR');
+  }
+
+  await Promise.all(order.map((id, idx) => CustomField.update({ position: idx + 1 }, { where: { id } })));
+  res.json({ ok: true });
+});
+
+module.exports = { list, get, create, update, remove, reorder };
