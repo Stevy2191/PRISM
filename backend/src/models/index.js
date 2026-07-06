@@ -52,6 +52,7 @@ const WorkflowRule = require('./WorkflowRule')(sequelize);
 const WorkflowCondition = require('./WorkflowCondition')(sequelize);
 const WorkflowAction = require('./WorkflowAction')(sequelize);
 const WorkflowRuleLog = require('./WorkflowRuleLog')(sequelize);
+const SavedReportView = require('./SavedReportView')(sequelize);
 
 const db = {
   sequelize,
@@ -63,6 +64,7 @@ const db = {
   WorkflowCondition,
   WorkflowAction,
   WorkflowRuleLog,
+  SavedReportView,
   Project,
   ProjectMember,
   ProjectTask,
@@ -303,6 +305,8 @@ Notification.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 // Saved ticket filters
 User.hasMany(SavedFilter, { foreignKey: 'userId', as: 'savedFilters', onDelete: 'CASCADE' });
 SavedFilter.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(SavedReportView, { foreignKey: 'userId', as: 'savedReportViews', onDelete: 'CASCADE' });
+SavedReportView.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // Ticket watchers
 Ticket.hasMany(TicketWatcher, { foreignKey: 'ticketId', as: 'watchers', onDelete: 'CASCADE' });

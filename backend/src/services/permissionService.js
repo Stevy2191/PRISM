@@ -104,6 +104,16 @@ async function getUserProjectScope(userId) {
   return 'own';
 }
 
+// Scope for the Reports module specifically — reports.view_own/department/all
+// are their own permission family (distinct from tickets.*/projects.*),
+// since a report can span both domains at once.
+async function getUserReportScope(userId) {
+  const permissions = await resolveUserPermissions(userId);
+  if (permissions['reports.view_all']) return 'all';
+  if (permissions['reports.view_department']) return 'department';
+  return 'own';
+}
+
 // Same resolution as resolveUserPermissions, but returns the *why* behind
 // each key too — used to power the read-only "effective permissions" view
 // on a user's detail page. Not cached (admin-only, low-traffic view).
@@ -176,6 +186,7 @@ module.exports = {
   hasAnyPermission,
   getUserTicketScope,
   getUserProjectScope,
+  getUserReportScope,
   invalidateUserPermissions,
   invalidateAllPermissions,
   explainUserPermissions,
