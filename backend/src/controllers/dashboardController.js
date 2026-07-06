@@ -4,6 +4,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { computeProjectCompletion } = require('../services/projectCompletion');
+const { hasPermission } = require('../services/permissionService');
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -99,18 +100,20 @@ async function statsForUser(userId, scopeField, buckets) {
   };
 }
 
-async function systemStats(buckets) {
+// `extraWhere` narrows every count to a department (or any other Ticket
+// column filter) — an empty object (the default) means system-wide, as before.
+async function systemStats(buckets, extraWhere = {}) {
   const today = todayStr();
   const thisWeekStart = startOfWeek(new Date());
   const lastWeekStart = new Date(thisWeekStart);
   lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
   const [openTickets, overdueTickets, unassignedTickets, closedThisWeek, closedLastWeek] = await Promise.all([
-    Ticket.count({ where: { status: { [Op.in]: buckets.open } } }),
-    Ticket.count({ where: { status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } } }),
-    Ticket.count({ where: { assigneeId: null, status: { [Op.in]: buckets.open } } }),
-    Ticket.count({ where: { resolvedAt: { [Op.gte]: thisWeekStart } } }),
-    Ticket.count({ where: { resolvedAt: { [Op.gte]: lastWeekStart, [Op.lt]: thisWeekStart } } }),
+    Ticket.count({ where: { ...extraWhere, status: { [Op.in]: buckets.open } } }),
+    Ticket.count({ where: { ...extraWhere, status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } } }),
+    Ticket.count({ where: { ...extraWhere, assigneeId: null, status: { [Op.in]: buckets.open } } }),
+    Ticket.count({ where: { ...extraWhere, resolvedAt: { [Op.gte]: thisWeekStart } } }),
+    Ticket.count({ where: { ...extraWhere, resolvedAt: { [Op.gte]: lastWeekStart, [Op.lt]: thisWeekStart } } }),
   ]);
 
   return {
@@ -175,9 +178,9 @@ async function hoursForUser(userId) {
   return { total, byDay };
 }
 
-async function teamWorkload(buckets) {
+async function teamWorkload(buckets, extraUserWhere = {}) {
   const staffUsers = await User.findAll({
-    where: { role: { [Op.in]: ['admin', 'technician'] } },
+    where: { role: { [Op.in]: ['admin', 'technician'] }, ...extraUserWhere },
     attributes: ['id', 'displayName'],
   });
   const rows = await Promise.all(
@@ -190,11 +193,22 @@ async function teamWorkload(buckets) {
   return rows.sort((a, b) => b.openCount - a.openCount);
 }
 
-// System-wide recent events: ticket opened/closed/assigned (from the audit
-// log) merged with tickets currently overdue, newest first.
-async function activityFeed(buckets) {
+// Recent events: ticket opened/closed/assigned (from the audit log) merged
+// with tickets currently overdue, newest first. `ticketWhere` (default: no
+// filter) narrows both to a department for the department-manager dashboard.
+async function activityFeed(buckets, ticketWhere = {}) {
+  const scoped = Object.keys(ticketWhere).length > 0;
+  let scopedTicketIds = null;
+  if (scoped) {
+    const rows = await Ticket.findAll({ where: ticketWhere, attributes: ['id'], raw: true });
+    scopedTicketIds = new Set(rows.map((r) => r.id));
+  }
+
+  const logWhere = { entityType: 'Ticket', action: { [Op.in]: ['ticket.create', 'ticket.update'] } };
+  if (scopedTicketIds) logWhere.entityId = { [Op.in]: [...scopedTicketIds] };
+
   const logs = await AuditLog.findAll({
-    where: { entityType: 'Ticket', action: { [Op.in]: ['ticket.create', 'ticket.update'] } },
+    where: logWhere,
     include: [{ model: User, as: 'user', attributes: ['id', 'displayName'] }],
     order: [['createdAt', 'DESC']],
     limit: 15,
@@ -229,7 +243,7 @@ async function activityFeed(buckets) {
 
   const today = todayStr();
   const overdueTickets = await Ticket.findAll({
-    where: { status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } },
+    where: { ...ticketWhere, status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } },
     order: [['dueDate', 'ASC']],
     limit: 5,
   });
@@ -248,15 +262,31 @@ async function activityFeed(buckets) {
     .slice(0, 20);
 }
 
-// GET /dashboard?userId= (admin only) — everything the dashboard page needs
-// in one round trip. Modes:
-//   admin_system   — admin, no userId: system-wide stats/workload/activity
-//   admin_filtered — admin, userId given: another user's tech-mode dashboard
-//   tech           — non-admin: the logged-in user's own dashboard
+// GET /dashboard?userId= — everything the dashboard page needs in one round
+// trip. Modes:
+//   admin_system     — tickets.view_all or projects.view_all, no userId:
+//                      system-wide stats/workload/activity
+//   admin_department — tickets.view_department or projects.view_department
+//                      (but not view_all), no userId: same shape as
+//                      admin_system but narrowed to the caller's department
+//   admin_filtered   — either of the above, userId given: that user's
+//                      tech-mode dashboard (department viewers may only
+//                      target users in their own department)
+//   tech             — neither: the logged-in user's own dashboard
 const get = asyncHandler(async (req, res) => {
   const requestedUserId = req.query.userId ? parseInt(req.query.userId, 10) : null;
-  if (requestedUserId && req.user.role !== 'admin') {
-    throw new ApiError(403, "Only admins may view another user's dashboard", 'FORBIDDEN');
+
+  const [canViewAllTickets, canViewAllProjects, canViewDeptTickets, canViewDeptProjects] = await Promise.all([
+    hasPermission(req.user.id, 'tickets.view_all'),
+    hasPermission(req.user.id, 'projects.view_all'),
+    hasPermission(req.user.id, 'tickets.view_department'),
+    hasPermission(req.user.id, 'projects.view_department'),
+  ]);
+  const isSystemView = canViewAllTickets || canViewAllProjects;
+  const isDepartmentView = !isSystemView && (canViewDeptTickets || canViewDeptProjects);
+
+  if (requestedUserId && !isSystemView && !isDepartmentView) {
+    throw new ApiError(403, "You don't have permission to view another user's dashboard", 'FORBIDDEN');
   }
 
   // Fetched once per request and threaded through every stat below, so a
@@ -267,9 +297,14 @@ const get = asyncHandler(async (req, res) => {
   buckets.closed.forEach((name) => behaviorByName.set(name, 'closed'));
   buckets.archived.forEach((name) => behaviorByName.set(name, 'archived'));
 
-  const isSystemWide = req.user.role === 'admin' && !requestedUserId;
+  if (requestedUserId && isDepartmentView) {
+    const targetCheck = await User.findByPk(requestedUserId, { attributes: ['id', 'departmentId'] });
+    if (!targetCheck || targetCheck.departmentId !== req.user.departmentId) {
+      throw new ApiError(403, 'You can only view dashboards for users in your department', 'FORBIDDEN');
+    }
+  }
 
-  if (isSystemWide) {
+  if (isSystemView && !requestedUserId) {
     const [stats, projectHealth, workload, activity] = await Promise.all([
       systemStats(buckets),
       projectHealthFor({}),
@@ -278,6 +313,25 @@ const get = asyncHandler(async (req, res) => {
     ]);
     return res.json({
       mode: 'admin_system',
+      viewingUser: null,
+      stats,
+      projectHealth,
+      teamWorkload: workload,
+      activity,
+    });
+  }
+
+  if (isDepartmentView && !requestedUserId) {
+    const deptId = req.user.departmentId;
+    const deptProjectWhere = { [Op.or]: [{ ownerDepartmentId: deptId }, { forDepartmentId: deptId }] };
+    const [stats, projectHealth, workload, activity] = await Promise.all([
+      systemStats(buckets, { departmentId: deptId }),
+      projectHealthFor(deptProjectWhere),
+      teamWorkload(buckets, { departmentId: deptId }),
+      activityFeed(buckets, { departmentId: deptId }),
+    ]);
+    return res.json({
+      mode: 'admin_department',
       viewingUser: null,
       stats,
       projectHealth,

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import Collapsible from '../components/Collapsible';
+import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 
 const LEGACY_ROLES = ['admin', 'technician', 'requester'];
 
@@ -163,7 +165,7 @@ function AddOverrideModal({ permissions, onSave, onClose }) {
 
 // ---- Roles & Permissions tab ----
 
-function RolesPermissionsTab({ userId }) {
+function RolesPermissionsTab({ userId, onPermissionsChanged }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [allRoles, setAllRoles] = useState([]);
@@ -204,6 +206,7 @@ function RolesPermissionsTab({ userId }) {
       await api.post(`/users/${userId}/roles`, { roleId });
       setShowAssignRole(false);
       load();
+      onPermissionsChanged();
     } catch (err) {
       alert(errMessage(err));
     }
@@ -214,6 +217,7 @@ function RolesPermissionsTab({ userId }) {
     try {
       await api.delete(`/users/${userId}/roles/${roleId}`);
       load();
+      onPermissionsChanged();
     } catch (err) {
       alert(errMessage(err));
     }
@@ -223,6 +227,7 @@ function RolesPermissionsTab({ userId }) {
     await api.post(`/users/${userId}/overrides`, payload);
     setShowAddOverride(false);
     load();
+    onPermissionsChanged();
   };
 
   const revokeOverride = async (overrideId) => {
@@ -230,6 +235,7 @@ function RolesPermissionsTab({ userId }) {
     try {
       await api.delete(`/users/${userId}/overrides/${overrideId}`);
       load();
+      onPermissionsChanged();
     } catch (err) {
       alert(errMessage(err));
     }
@@ -435,16 +441,21 @@ function ProfileTab({ user, departments, onUpdate }) {
 
 export default function UserDetail() {
   const { id } = useParams();
+  const { refreshPermissions } = useAuth();
   const [user, setUser] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [forbidden, setForbidden] = useState(false);
   const [tab, setTab] = useState('profile');
 
   const load = () => {
     Promise.all([api.get(`/users/${id}`), api.get('/departments')])
       .then(([u, d]) => { setUser(u.data.user); setDepartments(d.data.departments); })
-      .catch((err) => setError(errMessage(err)))
+      .catch((err) => {
+        if (isForbidden(err)) setForbidden(true);
+        else setError(errMessage(err));
+      })
       .finally(() => setLoading(false));
   };
   useEffect(load, [id]);
@@ -459,6 +470,7 @@ export default function UserDetail() {
   };
 
   if (loading) return <Spinner />;
+  if (forbidden) return <AccessRestricted />;
   if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
   if (!user) return null;
 
@@ -487,7 +499,7 @@ export default function UserDetail() {
       </div>
 
       {tab === 'profile' && <ProfileTab user={user} departments={departments} onUpdate={updateUser} />}
-      {tab === 'access' && <RolesPermissionsTab userId={id} />}
+      {tab === 'access' && <RolesPermissionsTab userId={id} onPermissionsChanged={refreshPermissions} />}
     </div>
   );
 }

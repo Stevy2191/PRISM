@@ -1,8 +1,17 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-// Shared by Users/Teams/Departments cards (and their routes in App.jsx).
-const PEOPLE_KEYS = ['people.view_all', 'people.manage_departments'];
+// Sub-item permission gates, per the roles/permissions build spec (Prompt 4).
+// Each is deliberately its own array — the rules aren't all the same set.
+const USERS_KEYS = ['people.view_all', 'people.create_users'];
+const TEAMS_KEYS = ['people.view_all', 'people.manage_departments'];
+const DEPARTMENTS_KEYS = ['people.manage_departments'];
+const ROLES_KEYS = ['people.manage_roles'];
+const BRANDING_KEYS = ['settings.manage_branding', 'settings.manage_system'];
+const BUSINESS_HOURS_KEYS = ['settings.manage_business_hours'];
+const STATUSES_KEYS = ['settings.manage_statuses'];
+const SYSTEM_KEYS = ['settings.manage_system'];
+const AUDIT_LOG_KEYS = ['settings.view_audit_log'];
 
 // roles default to admin-only; list roles explicitly to widen visibility.
 const ALL = ['admin', 'technician', 'requester'];
@@ -16,32 +25,32 @@ const SECTIONS = [
   {
     title: 'Organization',
     items: [
-      { label: 'Company', to: '/settings/company', desc: 'Name, logo, timezone, locale' },
-      { label: 'Branding', to: '/settings/branding', desc: 'App name, logo, and login page' },
-      { label: 'Business Hours', to: '/settings/business-hours', desc: 'Work schedules' },
-      { label: 'Holiday Lists', to: '/settings/holidays', desc: 'Holidays that pause SLAs' },
-      { label: 'Customer Happiness', to: '/settings/customer-happiness', desc: 'CSAT surveys & scores' },
+      { label: 'Company', to: '/settings/company', desc: 'Name, logo, timezone, locale', permission: BRANDING_KEYS },
+      { label: 'Branding', to: '/settings/branding', desc: 'App name, logo, and login page', permission: BRANDING_KEYS },
+      { label: 'Business Hours', to: '/settings/business-hours', desc: 'Work schedules', permission: BUSINESS_HOURS_KEYS },
+      { label: 'Holiday Lists', to: '/settings/holidays', desc: 'Holidays that pause SLAs', permission: BUSINESS_HOURS_KEYS },
+      { label: 'Customer Happiness', to: '/settings/customer-happiness', desc: 'CSAT surveys & scores', permission: SYSTEM_KEYS },
     ],
   },
   {
     title: 'User Management',
     items: [
-      { label: 'Users', to: '/admin/users', desc: 'Accounts and roles', permission: PEOPLE_KEYS },
-      { label: 'Teams', to: '/settings/teams', desc: 'Group technicians into teams', permission: PEOPLE_KEYS },
-      { label: 'Departments', to: '/admin/departments', desc: 'Organizational departments', permission: PEOPLE_KEYS },
-      { label: 'Roles & Permissions', to: '/admin/roles', desc: 'Manage roles and permission sets', permission: ['people.manage_roles'] },
+      { label: 'Users', to: '/admin/users', desc: 'Accounts and roles', permission: USERS_KEYS },
+      { label: 'Teams', to: '/settings/teams', desc: 'Group technicians into teams', permission: TEAMS_KEYS },
+      { label: 'Departments', to: '/admin/departments', desc: 'Organizational departments', permission: DEPARTMENTS_KEYS },
+      { label: 'Roles & Permissions', to: '/admin/roles', desc: 'Manage roles and permission sets', permission: ROLES_KEYS },
     ],
   },
   {
     title: 'Customization',
     items: [
-      { label: 'Modules & Tabs', to: '/settings/modules', desc: 'Show/hide sidebar items per role' },
-      { label: 'Statuses', to: '/settings/statuses', desc: 'Custom ticket & project statuses' },
-      { label: 'Layouts & Fields', to: '/settings/layouts', desc: 'Custom ticket fields' },
+      { label: 'Modules & Tabs', to: '/settings/modules', desc: 'Show/hide sidebar items per role', permission: SYSTEM_KEYS },
+      { label: 'Statuses', to: '/settings/statuses', desc: 'Custom ticket & project statuses', permission: STATUSES_KEYS },
+      { label: 'Layouts & Fields', to: '/settings/layouts', desc: 'Custom ticket fields', permission: SYSTEM_KEYS },
       { label: 'Blueprints', to: '/admin/blueprints', desc: 'Ticket templates', roles: ['admin', 'technician'] },
       { label: 'Email Templates', to: '/settings/email-templates', desc: 'Outbound email content' },
       { label: 'Notifications', to: '/settings/notifications', desc: 'Notification rules', roles: ['admin', 'technician'] },
-      { label: 'General Settings', to: '/admin/settings', desc: 'System / LDAP config' },
+      { label: 'General Settings', to: '/admin/settings', desc: 'System / LDAP config', permission: SYSTEM_KEYS },
       { label: 'Time Tracking', to: '/settings/time-tracking', desc: 'Time logging options', roles: ['admin', 'technician'] },
     ],
   },
@@ -61,7 +70,7 @@ const SECTIONS = [
     items: [
       { label: 'Import', to: '/settings/import', desc: 'Import records' },
       { label: 'Export', to: '/settings/export', desc: 'Export records' },
-      { label: 'Audit Log', to: '/settings/audit-log', desc: 'Activity history' },
+      { label: 'Audit Log', to: '/settings/audit-log', desc: 'Activity history', permission: AUDIT_LOG_KEYS },
       { label: 'Recycle Bin', to: '/settings/recycle-bin', desc: 'Recover deleted records' },
     ],
   },

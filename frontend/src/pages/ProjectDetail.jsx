@@ -153,9 +153,12 @@ function Avatar({ name, size = 24 }) {
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const { isAdmin, isStaff, user } = useAuth();
+  const { isAdmin, isStaff, user, hasAnyPermission } = useAuth();
   const canDeleteProjects = usePermission('projects.delete');
   const canManageMembers = usePermission('projects.manage_members');
+  const canManageExpenses = usePermission('projects.manage_expenses');
+  const canLogTime = usePermission('projects.log_time');
+  const canEditProjectContent = hasAnyPermission(['projects.edit_own', 'projects.edit_department', 'projects.edit_all']);
   const navigate = useNavigate();
 
   const [project, setProject] = useState(null);
@@ -440,6 +443,7 @@ export default function ProjectDetail() {
         <TasksTab
           tasks={tasks}
           isStaff={isStaff}
+          canEdit={canEditProjectContent}
           statuses={statuses}
           assignableUsers={assignableUsers}
           onOpenTask={setOpenTask}
@@ -454,6 +458,7 @@ export default function ProjectDetail() {
         <TimeTab
           data={timeEntries}
           isStaff={isStaff}
+          canLogTime={canLogTime}
           user={user}
           isAdmin={isAdmin}
           tasks={tasks}
@@ -467,7 +472,7 @@ export default function ProjectDetail() {
         />
       )}
       {tab === 'expenses' && (
-        <ExpensesTab data={expenses} isStaff={isStaff} onAdd={() => setShowAddExpense(true)} onDelete={async (expId) => {
+        <ExpensesTab data={expenses} canManageExpenses={canManageExpenses} onAdd={() => setShowAddExpense(true)} onDelete={async (expId) => {
           await api.delete(`/projects/${id}/expenses/${expId}`);
           const { data } = await api.get(`/projects/${id}/expenses`);
           setExpenses(data);
@@ -475,7 +480,7 @@ export default function ProjectDetail() {
         }} />
       )}
       {tab === 'materials' && (
-        <MaterialsTab data={materials} isStaff={isStaff} onAdd={() => setShowAddMaterial(true)} onDelete={async (matId) => {
+        <MaterialsTab data={materials} canManageExpenses={canManageExpenses} onAdd={() => setShowAddMaterial(true)} onDelete={async (matId) => {
           await api.delete(`/projects/${id}/materials/${matId}`);
           const { data } = await api.get(`/projects/${id}/materials`);
           setMaterials(data);
@@ -612,7 +617,7 @@ function StatCard({ label, value, color }) {
 }
 
 // ==================== Tasks tab ====================
-function TasksTab({ tasks, isStaff, statuses, assignableUsers, onOpenTask, onAdd, onToggleTask, onToggleSubtask, dragTaskId, onDrop }) {
+function TasksTab({ tasks, isStaff, canEdit, statuses, assignableUsers, onOpenTask, onAdd, onToggleTask, onToggleSubtask, dragTaskId, onDrop }) {
   const [expanded, setExpanded] = useState(() => new Set(tasks.filter((t) => (t.subtasks || []).length > 0).map((t) => t.id)));
   const toggleExpand = (id) => setExpanded((prev) => {
     const next = new Set(prev);
@@ -623,7 +628,7 @@ function TasksTab({ tasks, isStaff, statuses, assignableUsers, onOpenTask, onAdd
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        {isStaff && <button onClick={onAdd} className="btn-primary">+ Add task</button>}
+        {canEdit && <button onClick={onAdd} className="btn-primary">+ Add task</button>}
       </div>
       {tasks.length === 0 && (
         <div className="rounded-[10px] border p-8 text-center" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>No tasks yet.</div>
@@ -635,7 +640,7 @@ function TasksTab({ tasks, isStaff, statuses, assignableUsers, onOpenTask, onAdd
         return (
           <div
             key={task.id}
-            draggable={isStaff}
+            draggable={canEdit}
             onDragStart={() => { dragTaskId.current = task.id; }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => onDrop(task.id)}
@@ -643,7 +648,7 @@ function TasksTab({ tasks, isStaff, statuses, assignableUsers, onOpenTask, onAdd
             style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
           >
             <div className="flex items-start gap-3">
-              {isStaff && <IconGripVertical size={16} className="mt-1 flex-shrink-0 cursor-grab" style={{ color: MUTED }} />}
+              {canEdit && <IconGripVertical size={16} className="mt-1 flex-shrink-0 cursor-grab" style={{ color: MUTED }} />}
               <input type="checkbox" checked={task.isComplete} onChange={() => onToggleTask(task)} className="mt-1 h-4 w-4 flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -881,12 +886,12 @@ function TaskDetailModal({ projectId, task, statuses, assignableUsers, onClose, 
 }
 
 // ==================== Time entries tab ====================
-function TimeTab({ data, isStaff, user, isAdmin, onAdd, onDelete }) {
+function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete }) {
   return (
     <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
         <h2 className="font-semibold" style={{ color: TEXT }}>Time Entries</h2>
-        {isStaff && <button onClick={onAdd} className="btn-primary">+ Log time</button>}
+        {canLogTime && <button onClick={onAdd} className="btn-primary">+ Log time</button>}
       </div>
       <table className="min-w-full">
         <thead>
@@ -978,12 +983,12 @@ function AddTimeModal({ tasks, isAdmin, assignableUsers, onClose, onSave }) {
 
 // ==================== Expenses tab ====================
 const EXPENSE_CATEGORIES = ['materials', 'labor', 'travel', 'equipment', 'other'];
-function ExpensesTab({ data, isStaff, onAdd, onDelete }) {
+function ExpensesTab({ data, canManageExpenses, onAdd, onDelete }) {
   return (
     <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
         <h2 className="font-semibold" style={{ color: TEXT }}>Expenses</h2>
-        {isStaff && <button onClick={onAdd} className="btn-primary">+ Add expense</button>}
+        {canManageExpenses && <button onClick={onAdd} className="btn-primary">+ Add expense</button>}
       </div>
       <table className="min-w-full">
         <thead>
@@ -998,7 +1003,7 @@ function ExpensesTab({ data, isStaff, onAdd, onDelete }) {
               <td className="table-td" style={{ color: MUTED }}>{e.loggedByUser?.displayName || '—'}</td>
               <td className="table-td" style={{ color: MUTED }}>{e.entryDate}</td>
               <td className="table-td font-medium" style={{ color: TEXT }}>{formatCost(e.amount)}</td>
-              <td className="table-td">{isStaff && <button onClick={() => onDelete(e.id)} className="text-xs" style={{ color: 'var(--color-danger)' }}>delete</button>}</td>
+              <td className="table-td">{canManageExpenses && <button onClick={() => onDelete(e.id)} className="text-xs" style={{ color: 'var(--color-danger)' }}>delete</button>}</td>
             </tr>
           ))}
           {data.expenses.length === 0 && <tr><td colSpan={7} className="table-td" style={{ color: MUTED }}>No expenses yet.</td></tr>}
@@ -1069,12 +1074,12 @@ function AddExpenseModal({ tasks, onClose, onSave }) {
 }
 
 // ==================== Materials tab ====================
-function MaterialsTab({ data, isStaff, onAdd, onDelete }) {
+function MaterialsTab({ data, canManageExpenses, onAdd, onDelete }) {
   return (
     <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
         <h2 className="font-semibold" style={{ color: TEXT }}>Materials</h2>
-        {isStaff && <button onClick={onAdd} className="btn-primary">+ Add item</button>}
+        {canManageExpenses && <button onClick={onAdd} className="btn-primary">+ Add item</button>}
       </div>
       <table className="min-w-full">
         <thead>
@@ -1089,7 +1094,7 @@ function MaterialsTab({ data, isStaff, onAdd, onDelete }) {
               <td className="table-td" style={{ color: MUTED }}>{m.quantity}</td>
               <td className="table-td" style={{ color: MUTED }}>{(m.serialNumber || []).join(', ') || '—'}</td>
               <td className="table-td font-medium" style={{ color: TEXT }}>{formatCost(m.totalCost)}</td>
-              <td className="table-td">{isStaff && <button onClick={() => onDelete(m.id)} className="text-xs" style={{ color: 'var(--color-danger)' }}>delete</button>}</td>
+              <td className="table-td">{canManageExpenses && <button onClick={() => onDelete(m.id)} className="text-xs" style={{ color: 'var(--color-danger)' }}>delete</button>}</td>
             </tr>
           ))}
           {data.materials.length === 0 && <tr><td colSpan={7} className="table-td" style={{ color: MUTED }}>No materials logged yet.</td></tr>}

@@ -9,7 +9,9 @@ import {
   CartesianGrid,
 } from 'recharts';
 import api, { errMessage } from '../api/api';
+import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 
 function formatMinutes(min) {
   const m = Number(min) || 0;
@@ -18,18 +20,37 @@ function formatMinutes(min) {
 }
 
 export default function Reports() {
+  const canViewDepartment = usePermission('reports.view_department');
+  const canViewAll = usePermission('reports.view_all');
+  const canExport = usePermission('reports.export');
+  // "By user/technician" comparisons only make sense once you can see more
+  // than just your own data; "by department" only once you can see more
+  // than one department.
+  const canCompareUsers = canViewDepartment || canViewAll;
+  const canCompareDepartments = canViewAll;
+
   const [range, setRange] = useState({ from: '', to: '' });
+  const [departmentId, setDepartmentId] = useState('');
+  const [departments, setDepartments] = useState([]);
   const [ticketReport, setTicketReport] = useState(null);
   const [timeReport, setTimeReport] = useState(null);
   const [csatReport, setCsatReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [forbidden, setForbidden] = useState(false);
+
+  useEffect(() => {
+    if (!canViewAll) return;
+    api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
+  }, [canViewAll]);
 
   const load = useCallback(() => {
     setLoading(true);
+    setForbidden(false);
     const params = {};
     if (range.from) params.from = range.from;
     if (range.to) params.to = range.to;
+    if (canViewAll && departmentId) params.departmentId = departmentId;
     Promise.all([
       api.get('/reports/tickets', { params }),
       api.get('/reports/time', { params }),
@@ -40,9 +61,12 @@ export default function Reports() {
         setTimeReport(tm.data);
         setCsatReport(cs.data);
       })
-      .catch((err) => setError(errMessage(err)))
+      .catch((err) => {
+        if (isForbidden(err)) setForbidden(true);
+        else setError(errMessage(err));
+      })
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [range, departmentId, canViewAll]);
 
   useEffect(() => {
     load();
@@ -53,6 +77,7 @@ export default function Reports() {
       const params = { format: 'csv' };
       if (range.from) params.from = range.from;
       if (range.to) params.to = range.to;
+      if (canViewAll && departmentId) params.departmentId = departmentId;
       const res = await api.get('/reports/time', { params, responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
@@ -76,6 +101,8 @@ export default function Reports() {
     count: Number(r.count),
   }));
 
+  if (forbidden) return <AccessRestricted />;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-navy-900">Reports</h1>
@@ -89,9 +116,18 @@ export default function Reports() {
           <label className="label">To</label>
           <input type="date" className="input" value={range.to} onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} />
         </div>
+        {canViewAll && (
+          <div>
+            <label className="label">Department</label>
+            <select className="input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+              <option value="">All departments</option>
+              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+        )}
         <button onClick={load} className="btn-primary">Apply</button>
-        {(range.from || range.to) && (
-          <button onClick={() => setRange({ from: '', to: '' })} className="btn-secondary">Clear</button>
+        {(range.from || range.to || departmentId) && (
+          <button onClick={() => { setRange({ from: '', to: '' }); setDepartmentId(''); }} className="btn-secondary">Clear</button>
         )}
       </div>
 
@@ -115,13 +151,13 @@ export default function Reports() {
             <h2 className="text-lg font-semibold text-navy-900">
               Time Logged · Total {formatMinutes(timeReport?.totalMinutes)}
             </h2>
-            <button onClick={exportCsv} className="btn-secondary">Export CSV</button>
+            {canExport && <button onClick={exportCsv} className="btn-secondary">Export CSV</button>}
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <TimeTable title="By User" rows={timeReport?.byUser} label="User" />
+            {canCompareUsers && <TimeTable title="By User" rows={timeReport?.byUser} label="User" />}
             <TimeTable title="By Project" rows={timeReport?.byProject} label="Project" />
-            <TimeTable title="By Department" rows={timeReport?.byDepartment} label="Department" />
+            {canCompareDepartments && <TimeTable title="By Department" rows={timeReport?.byDepartment} label="Department" />}
           </div>
 
           {/* Customer satisfaction */}
@@ -129,10 +165,12 @@ export default function Reports() {
             <h2 className="text-lg font-semibold text-navy-900">Customer Satisfaction</h2>
             <CsatScore overall={csatReport?.overall} />
           </div>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <CsatTable title="By Technician" rows={csatReport?.byTechnician} label="Technician" />
-            <CsatTable title="By Department" rows={csatReport?.byDepartment} label="Department" />
-          </div>
+          {(canCompareUsers || canCompareDepartments) && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {canCompareUsers && <CsatTable title="By Technician" rows={csatReport?.byTechnician} label="Technician" />}
+              {canCompareDepartments && <CsatTable title="By Department" rows={csatReport?.byDepartment} label="Department" />}
+            </div>
+          )}
         </>
       )}
     </div>

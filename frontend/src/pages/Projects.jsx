@@ -99,6 +99,7 @@ export default function Projects() {
   const { isStaff } = useAuth();
   const canCreateProjects = usePermission('projects.create');
   const canDeleteProjects = usePermission('projects.delete');
+  const canViewDepartment = usePermission('projects.view_department');
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [statuses, setStatuses] = useState([]);
@@ -113,6 +114,7 @@ export default function Projects() {
   const [forDeptFilter, setForDeptFilter] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [myProjects, setMyProjects] = useState(false);
+  const [myDepartment, setMyDepartment] = useState(false);
   const [overdue, setOverdue] = useState(false);
   const [view, setView] = useState('card');
 
@@ -132,6 +134,7 @@ export default function Projects() {
     if (forDeptFilter) params.forDept = forDeptFilter;
     if (assigneeFilter) params.assignee = assigneeFilter;
     if (myProjects) params.myProjects = 'true';
+    if (myDepartment) params.myDepartment = 'true';
     if (overdue) params.overdue = 'true';
     api.get('/projects', { params })
       .then(({ data }) => setProjects(data.projects))
@@ -150,7 +153,7 @@ export default function Projects() {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusFilter, ownerDeptFilter, forDeptFilter, assigneeFilter, myProjects, overdue]);
+  }, [search, statusFilter, ownerDeptFilter, forDeptFilter, assigneeFilter, myProjects, myDepartment, overdue]);
 
   useEffect(() => {
     if (selectedIds.size > 0) {
@@ -273,6 +276,16 @@ export default function Projects() {
           >
             My projects
           </button>
+          {canViewDepartment && (
+            <button
+              type="button"
+              onClick={() => setMyDepartment((v) => !v)}
+              className="h-9 flex-shrink-0 rounded-md border px-3 text-sm font-medium"
+              style={{ borderColor: myDepartment ? BLUE : BORDER, backgroundColor: myDepartment ? BLUE : CARD_BG, color: myDepartment ? 'white' : TEXT }}
+            >
+              My department
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setOverdue((v) => !v)}

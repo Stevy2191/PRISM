@@ -3,7 +3,7 @@ const { Op } = require('sequelize');
 const { User, Department, Role, UserRole } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
-const { invalidateUserPermissions } = require('../services/permissionService');
+const { invalidateUserPermissions, hasPermission } = require('../services/permissionService');
 
 const MIN_PASSWORD_LENGTH = 8;
 const userInclude = [{ model: Department, as: 'department' }];
@@ -43,9 +43,13 @@ async function assignInitialRole(user, legacyRole, departmentId, assignedBy) {
   await syncSeedRoleAssignment(user, legacyRole, assignedBy);
 }
 
-// GET /users — Admin only
+// GET /users — scoped to the caller's department unless they hold
+// people.view_all (route guard already requires view_own_department minimum).
 const list = asyncHandler(async (req, res) => {
+  const canViewAll = await hasPermission(req.user.id, 'people.view_all');
+  const where = canViewAll ? {} : { departmentId: req.user.departmentId };
   const users = await User.findAll({
+    where,
     include: userInclude,
     order: [['displayName', 'ASC']],
   });
@@ -121,10 +125,10 @@ const create = asyncHandler(async (req, res) => {
   res.status(201).json({ user: fresh });
 });
 
-// GET /users/:id — self or admin
+// GET /users/:id — self, or people.edit_users
 const get = asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  if (req.user.role !== 'admin' && req.user.id !== id) {
+  if (req.user.id !== id && !(await hasPermission(req.user.id, 'people.edit_users'))) {
     throw new ApiError(403, 'You may only view your own profile', 'FORBIDDEN');
   }
   const user = await User.findByPk(id, { include: userInclude });

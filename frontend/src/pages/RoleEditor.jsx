@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Switch from '../components/Switch';
 import Collapsible from '../components/Collapsible';
@@ -33,6 +34,7 @@ function hasScopeConflict(grantedSet, category) {
 
 export default function RoleEditor() {
   const { id } = useParams();
+  const { refreshPermissions } = useAuth();
   const isNew = !id;
   const navigate = useNavigate();
 
@@ -87,6 +89,9 @@ export default function RoleEditor() {
     if (isNew) return; // staged locally; persisted when the role is created
     try {
       await api.patch(`/roles/${id}/permissions/${key}`, { granted });
+      // Editing a role's grants can change the current user's own effective
+      // permissions if they hold this role — cheap to always refetch.
+      refreshPermissions();
     } catch (err) {
       setPermissions((ps) => ps.map((p) => (p.key === key ? { ...p, granted: !granted } : p)));
       alert(errMessage(err));

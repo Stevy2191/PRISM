@@ -37,6 +37,21 @@ export function AuthProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  // Re-fetches just the permissions map (cheaper than a full refresh()).
+  // Call this immediately after a role/override change is made to the
+  // current user, so temporary grants/revocations apply without a
+  // logout/login. Also polled passively every 5 minutes below so a change
+  // made in another session/tab still takes effect reasonably promptly.
+  const refreshPermissions = useCallback(async () => {
+    setPermissions(await fetchPermissions());
+  }, []);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    const interval = setInterval(refreshPermissions, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user, refreshPermissions]);
+
   const login = async (username, password) => {
     const { data } = await api.post('/auth/login', { username, password });
     setUser(data.user);
@@ -72,6 +87,7 @@ export function AuthProvider({ children }) {
     logout,
     changePassword,
     refresh,
+    refreshPermissions,
     mustChangePassword: !!user?.mustChangePassword,
     isAdmin: user?.role === 'admin',
     isStaff: user?.role === 'admin' || user?.role === 'technician',

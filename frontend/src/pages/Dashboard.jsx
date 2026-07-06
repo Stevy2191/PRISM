@@ -11,6 +11,7 @@ import {
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 import { formatTicketId } from '../utils/ticketId';
 
 // Colors read from the light/dark theme's CSS variables (see index.css).
@@ -387,12 +388,12 @@ function TechDashboard({ data, greetingTitle, subtitleName, onMarkAllRead, marki
   );
 }
 
-function SystemWideDashboard({ data }) {
+function SystemWideDashboard({ data, title }) {
   const { stats, teamWorkload, projectHealth, activity } = data;
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Open Tickets" value={stats.openTickets} color="var(--color-accent)" />
+        <StatCard label={title ? `${title} Open Tickets` : 'Total Open Tickets'} value={stats.openTickets} color="var(--color-accent)" />
         <StatCard label="Overdue Tickets" value={stats.overdueTickets} color="var(--color-danger)" />
         <StatCard label="Unassigned Tickets" value={stats.unassignedTickets} color="var(--color-warning)" />
         <StatCard label="Closed This Week" value={stats.closedThisWeek} color="var(--color-success)" delta={stats.closedDelta} />
@@ -403,35 +404,46 @@ function SystemWideDashboard({ data }) {
         <ActivityFeedPanel activity={activity} />
       </div>
 
-      <ProjectHealthPanel projects={projectHealth} title="Project Health (All Projects)" />
+      <ProjectHealthPanel projects={projectHealth} title={title ? `Project Health (${title})` : 'Project Health (All Projects)'} />
     </div>
   );
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { user, hasAnyPermission } = useAuth();
+  // System-wide viewers (tickets.view_all or projects.view_all) see every
+  // user/dept; department viewers (view_department but not view_all) get the
+  // same admin-style layout narrowed to their own department (see
+  // dashboardController's admin_department mode).
+  const isSystemViewer = hasAnyPermission(['tickets.view_all', 'projects.view_all']);
+  const isDepartmentViewer = !isSystemViewer && hasAnyPermission(['tickets.view_department', 'projects.view_department']);
+  const canFilterByUser = isSystemViewer || isDepartmentViewer;
 
   const [selectedUserId, setSelectedUserId] = useState('');
   const [users, setUsers] = useState([]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [forbidden, setForbidden] = useState(false);
   const [marking, setMarking] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canFilterByUser) return;
     api.get('/users').then(({ data: d }) => setUsers(d.users)).catch(() => {});
-  }, [isAdmin]);
+  }, [canFilterByUser]);
 
   const load = useCallback(() => {
     setLoading(true);
     setError('');
+    setForbidden(false);
     const params = selectedUserId ? { userId: selectedUserId } : {};
     api
       .get('/dashboard', { params })
       .then(({ data: d }) => setData(d))
-      .catch((err) => setError(errMessage(err)))
+      .catch((err) => {
+        if (isForbidden(err)) setForbidden(true);
+        else setError(errMessage(err));
+      })
       .finally(() => setLoading(false));
   }, [selectedUserId]);
 
@@ -458,13 +470,15 @@ export default function Dashboard() {
     >
       {loading && !data ? (
         <Spinner />
+      ) : forbidden ? (
+        <AccessRestricted />
       ) : error ? (
         <div className="rounded-md p-4 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
           {error}
         </div>
       ) : (
         <div className="space-y-6">
-          {isAdmin && (
+          {canFilterByUser && (
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h1 className="text-xl font-semibold" style={{ color: TEXT }}>Dashboard</h1>
               <div className="flex flex-col items-end gap-1">
@@ -476,7 +490,7 @@ export default function Dashboard() {
                     className="rounded-md border px-3 py-1.5 text-sm focus:outline-none"
                     style={{ backgroundColor: CARD_BG, borderColor: 'var(--color-border-strong)', color: TEXT }}
                   >
-                    <option value="">All users (system wide)</option>
+                    <option value="">{isSystemViewer ? 'All users (system wide)' : 'All users in my department'}</option>
                     {users.map((u) => (
                       <option key={u.id} value={u.id}>{u.displayName}</option>
                     ))}
@@ -492,6 +506,7 @@ export default function Dashboard() {
           )}
 
           {data && data.mode === 'admin_system' && <SystemWideDashboard data={data} />}
+          {data && data.mode === 'admin_department' && <SystemWideDashboard data={data} title="My Department" />}
           {data && data.mode === 'tech' && (
             <TechDashboard
               data={data}

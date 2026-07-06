@@ -4,14 +4,23 @@ const { asyncHandler } = require('../middleware/error');
 const { getUserTicketScope } = require('../services/permissionService');
 
 // Narrows a report's base `where` to the caller's ticket scope. 'all' (the
-// reports.view_all tier) applies no filter; 'department'/'own' mirror the
-// same scoping rules used for the ticket list endpoint.
-function applyTicketScope(where, scope, user) {
-  if (scope === 'all') return where;
+// reports.view_all tier) applies no filter — except an explicit
+// `?departmentId=` drill-down, which only a view_all caller may use;
+// 'department'/'own' mirror the same scoping rules used for the ticket list
+// endpoint and ignore any requested departmentId (they're already scoped).
+function applyTicketScope(where, scope, user, requestedDepartmentId) {
+  if (scope === 'all') {
+    return requestedDepartmentId ? { ...where, departmentId: requestedDepartmentId } : where;
+  }
   if (scope === 'department') {
     return { ...where, [Op.and]: [{ [Op.or]: [{ departmentId: user.departmentId }, { assigneeId: user.id }] }] };
   }
   return { ...where, [Op.and]: [{ [Op.or]: [{ assigneeId: user.id }, { requesterId: user.id }] }] };
+}
+
+function parseDepartmentId(query) {
+  const id = parseInt(query.departmentId, 10);
+  return Number.isFinite(id) ? id : null;
 }
 
 // Build a createdAt/loggedAt date-range filter from ?from & ?to query params.
@@ -34,7 +43,7 @@ function dateRange(field, query) {
 // GET /reports/tickets — counts by status, priority, assignee, department
 const tickets = asyncHandler(async (req, res) => {
   const scope = await getUserTicketScope(req.user.id);
-  const where = applyTicketScope(dateRange('createdAt', req.query), scope, req.user);
+  const where = applyTicketScope(dateRange('createdAt', req.query), scope, req.user, parseDepartmentId(req.query));
 
   const groupCount = async (column) =>
     Ticket.findAll({
@@ -94,6 +103,7 @@ const tickets = asyncHandler(async (req, res) => {
 // dedicated table now; see migration 19) unioned into one shape here.
 const time = asyncHandler(async (req, res) => {
   const scope = await getUserTicketScope(req.user.id);
+  const requestedDepartmentId = parseDepartmentId(req.query);
   let ticketWhere = dateRange('loggedAt', req.query);
   let projectWhere = dateRange('createdAt', req.query);
   if (scope === 'department') {
@@ -102,6 +112,9 @@ const time = asyncHandler(async (req, res) => {
   } else if (scope === 'own') {
     ticketWhere = { ...ticketWhere, userId: req.user.id };
     projectWhere = { ...projectWhere, loggedForUserId: req.user.id };
+  } else if (scope === 'all' && requestedDepartmentId) {
+    ticketWhere = { ...ticketWhere, '$ticket.departmentId$': requestedDepartmentId };
+    projectWhere = { ...projectWhere, '$project.ownerDepartmentId$': requestedDepartmentId };
   }
 
   const [ticketEntries, projectEntries] = await Promise.all([
@@ -225,11 +238,14 @@ function csvCell(value) {
 // and department. Score = % of "happy" ratings (neutral counts as half).
 const csat = asyncHandler(async (req, res) => {
   const scope = await getUserTicketScope(req.user.id);
+  const requestedDepartmentId = parseDepartmentId(req.query);
   let where = dateRange('respondedAt', req.query);
   if (scope === 'department') {
     where = { ...where, '$ticket.departmentId$': req.user.departmentId };
   } else if (scope === 'own') {
     where = { ...where, '$ticket.assigneeId$': req.user.id };
+  } else if (scope === 'all' && requestedDepartmentId) {
+    where = { ...where, '$ticket.departmentId$': requestedDepartmentId };
   }
 
   const responses = await CsatResponse.findAll({

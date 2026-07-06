@@ -44,6 +44,7 @@ const Permission = require('./Permission')(sequelize);
 const RolePermission = require('./RolePermission')(sequelize);
 const UserRole = require('./UserRole')(sequelize);
 const UserPermissionOverride = require('./UserPermissionOverride')(sequelize);
+const SystemAuditLog = require('./SystemAuditLog')(sequelize);
 
 const db = {
   sequelize,
@@ -89,6 +90,7 @@ const db = {
   RolePermission,
   UserRole,
   UserPermissionOverride,
+  SystemAuditLog,
 };
 
 // ---- Associations ----
@@ -294,5 +296,9 @@ User.belongsTo(Role, { foreignKey: 'roleId', as: 'primaryRole' });
 User.hasMany(UserPermissionOverride, { foreignKey: 'userId', as: 'permissionOverrides', onDelete: 'CASCADE' });
 UserPermissionOverride.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 UserPermissionOverride.belongsTo(User, { foreignKey: 'grantedBy', as: 'grantedByUser' });
+
+// System audit log (permission-change trail)
+SystemAuditLog.belongsTo(User, { foreignKey: 'actorUserId', as: 'actor' });
+SystemAuditLog.belongsTo(User, { foreignKey: 'targetUserId', as: 'target' });
 
 module.exports = db;

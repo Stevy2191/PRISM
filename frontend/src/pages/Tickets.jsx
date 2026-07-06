@@ -177,6 +177,21 @@ function AgeLine({ ticket, behaviorByName }) {
   return <p className="text-xs" style={{ color }}>Open {days} day{days === 1 ? '' : 's'}</p>;
 }
 
+// Small colored pill showing which department a ticket belongs to — only
+// rendered for tickets.view_all users (dept-scoped users already know
+// they're only seeing their own department's tickets).
+function DeptPill({ name }) {
+  if (!name) return null;
+  return (
+    <span
+      className="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+      style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)' }}
+    >
+      {name}
+    </span>
+  );
+}
+
 function SortIcon({ active, dir }) {
   if (!active) return null;
   return <span className="ml-1">{dir === 'asc' ? '▲' : '▼'}</span>;
@@ -360,6 +375,9 @@ function ColumnsMenu({ order, visible, onChange }) {
 export default function Tickets() {
   const { isStaff } = useAuth();
   const canCreateTickets = usePermission('tickets.create');
+  const canViewAllTickets = usePermission('tickets.view_all');
+  const canAssignTickets = usePermission('tickets.assign');
+  const canCloseTickets = usePermission('tickets.close');
   const navigate = useNavigate();
 
   const [tickets, setTickets] = useState([]);
@@ -694,8 +712,8 @@ export default function Tickets() {
             <option value="">Choose action…</option>
             <option value="status">Change status</option>
             <option value="priority">Change priority</option>
-            <option value="reassign">Reassign</option>
-            <option value="close">Close selected</option>
+            {canAssignTickets && <option value="reassign">Reassign</option>}
+            {canCloseTickets && <option value="close">Close selected</option>}
           </select>
           {bulkActionType === 'status' && (
             <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
@@ -781,6 +799,7 @@ export default function Tickets() {
                       >
                         <p className="font-mono text-xs" style={{ color: isOverdue ? 'var(--color-danger)' : MUTED }}>{formatTicketId(t)}</p>
                         <p className="mt-1 truncate text-sm font-medium" style={{ color: isOverdue ? 'var(--color-danger)' : TEXT }}>{t.title}</p>
+                        {canViewAllTickets && t.department?.name && <DeptPill name={t.department.name} />}
                         <div className="mt-2 flex items-center justify-between">
                           <PriorityCell priority={t.priority} />
                           <Avatar name={t.assignee?.displayName} />
@@ -852,6 +871,7 @@ export default function Tickets() {
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-sm" style={{ color: MUTED }}>{formatTicketId(t)}</td>
                     <td className="px-4 py-3">
                       <Link to={`/tickets/${t.id}`} className="font-medium hover:underline" style={{ color: TEXT }}>{t.title}</Link>
+                      {canViewAllTickets && <DeptPill name={t.department?.name} />}
                       <AgeLine ticket={t} behaviorByName={behaviorByName} />
                     </td>
                     {visibleColumns.map((key) => (

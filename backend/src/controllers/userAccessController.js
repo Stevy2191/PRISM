@@ -2,7 +2,7 @@
 // explain view — powers the "Roles & Permissions" tab on the user detail page.
 const { User, Role, UserRole, Department, Permission, UserPermissionOverride } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
-const { writeAudit } = require('../middleware/audit');
+const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, explainUserPermissions } = require('../services/permissionService');
 
 const userAttrs = ['id', 'displayName', 'username'];
@@ -49,6 +49,7 @@ const assignRole = asyncHandler(async (req, res) => {
 
   invalidateUserPermissions(user.id);
   await writeAudit(req, 'user.assign_role', 'User', user.id, { roleId, roleName: role.name });
+  await writeSystemAudit(req, 'role_assigned', user.id, { roleId, roleName: role.name });
 
   const fresh = await UserRole.findByPk(userRole.id, {
     include: [{ model: Role, as: 'role' }, { model: User, as: 'assignedByUser', attributes: userAttrs }],
@@ -61,8 +62,9 @@ const removeRole = asyncHandler(async (req, res) => {
   const user = await loadUser(req.params.id);
   const roleId = parseInt(req.params.roleId, 10);
 
-  const userRole = await UserRole.findOne({ where: { userId: user.id, roleId } });
+  const userRole = await UserRole.findOne({ where: { userId: user.id, roleId }, include: [{ model: Role, as: 'role' }] });
   if (!userRole) throw new ApiError(404, 'Role assignment not found', 'NOT_FOUND');
+  const roleName = userRole.role?.name;
   await userRole.destroy();
 
   // Removing the primary role falls back to the user's department default,
@@ -80,6 +82,7 @@ const removeRole = asyncHandler(async (req, res) => {
 
   invalidateUserPermissions(user.id);
   await writeAudit(req, 'user.remove_role', 'User', user.id, { roleId });
+  await writeSystemAudit(req, 'role_removed', user.id, { roleId, roleName });
   res.json({ ok: true, primaryRoleId: user.roleId });
 });
 
@@ -133,6 +136,9 @@ const createOverride = asyncHandler(async (req, res) => {
 
   invalidateUserPermissions(user.id);
   await writeAudit(req, 'user.create_override', 'User', user.id, { permissionKey, granted, expiresAt: resolvedExpiresAt });
+  await writeSystemAudit(req, 'override_granted', user.id, {
+    permissionKey, granted, reason: reason || null, expiresAt: resolvedExpiresAt,
+  });
 
   const fresh = await UserPermissionOverride.findByPk(override.id, {
     include: [{ model: User, as: 'grantedByUser', attributes: userAttrs }],
@@ -149,6 +155,9 @@ const revokeOverride = asyncHandler(async (req, res) => {
   await override.destroy();
   invalidateUserPermissions(user.id);
   await writeAudit(req, 'user.revoke_override', 'User', user.id, { permissionKey: override.permissionKey });
+  await writeSystemAudit(req, 'override_revoked', user.id, {
+    permissionKey: override.permissionKey, granted: override.granted, reason: override.reason,
+  });
   res.json({ ok: true });
 });
 

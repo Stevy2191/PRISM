@@ -86,10 +86,10 @@ async function getProjectWithDetail(id) {
 // ==================== Projects ====================
 
 // GET /projects — filters: status, ownerDept, forDept, assignee, myProjects,
-// overdue, search. Requesters see only projects FOR their own department.
+// myDepartment, overdue, search. Requesters see only projects FOR their own department.
 const list = asyncHandler(async (req, res) => {
   const where = {};
-  const { status, ownerDept, forDept, assignee, myProjects, overdue, search } = req.query;
+  const { status, ownerDept, forDept, assignee, myProjects, myDepartment, overdue, search } = req.query;
 
   // Scope filtering from the resolved permission set (projects.view_all >
   // projects.view_department > projects.view_own — see permissionService).
@@ -111,6 +111,15 @@ const list = asyncHandler(async (req, res) => {
   } else {
     if (ownerDept) where.ownerDepartmentId = ownerDept;
     if (forDept) where.forDepartmentId = forDept;
+  }
+
+  // "My department" quick filter — narrows to the caller's own department
+  // regardless of scope tier (meaningful for 'all'/'department' scopes; a
+  // 'department'-scope caller may otherwise also see cross-department
+  // projects they're personally a member of via the scope OR above).
+  if (myDepartment === 'true' && req.user.departmentId) {
+    const deptClause = { [Op.or]: [{ ownerDepartmentId: req.user.departmentId }, { forDepartmentId: req.user.departmentId }] };
+    where[Op.and] = where[Op.and] ? [...where[Op.and], deptClause] : [deptClause];
   }
 
   const buckets = (status === 'closed' || overdue === 'true') ? await getProjectStatusBuckets() : null;

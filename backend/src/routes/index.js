@@ -27,6 +27,7 @@ const savedFiltersRoutes = require('./savedFilters');
 const customersRoutes = require('./customers');
 const ticketStatusesRoutes = require('./ticketStatuses');
 const projectStatusesRoutes = require('./projectStatuses');
+const auditLogRoutes = require('./auditLog');
 
 const router = express.Router();
 
@@ -61,5 +62,6 @@ router.use('/saved-filters', guard, savedFiltersRoutes);
 router.use('/customers', guard, customersRoutes);
 router.use('/ticket-statuses', guard, ticketStatusesRoutes);
 router.use('/project-statuses', guard, projectStatusesRoutes);
+router.use('/audit-log', guard, auditLogRoutes);
 
 module.exports = router;

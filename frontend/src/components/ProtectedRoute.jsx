@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import Spinner from './Spinner';
 
 // Guards routes. `roles` (optional) restricts to specific legacy roles.
@@ -9,7 +11,19 @@ import Spinner from './Spinner';
 // card that then redirects them away.
 export default function ProtectedRoute({ children, roles, permission }) {
   const { user, loading, hasAnyPermission } = useAuth();
+  const { showToast } = useToast();
   const location = useLocation();
+
+  const deniedByRole = !!user && roles && !roles.includes(user.role);
+  const deniedByPermission = !!user && permission && !hasAnyPermission(permission);
+  const denied = deniedByRole || deniedByPermission;
+
+  // Fire the toast as a side effect (not during render), keyed on the path
+  // so it only shows once per denied navigation, not on every re-render.
+  useEffect(() => {
+    if (denied) showToast("You don't have permission to access that page.", 'error');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [denied, location.pathname]);
 
   if (loading) {
     return (
@@ -28,11 +42,7 @@ export default function ProtectedRoute({ children, roles, permission }) {
     return <Navigate to="/change-password" replace />;
   }
 
-  if (roles && !roles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  if (permission && !hasAnyPermission(permission)) {
+  if (denied) {
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -1,21 +1,21 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
+import api from '../api/api';
 
-// "Any settings permission" per spec, broadened to include the People
-// permissions that unlock the Settings hub's User Management cards (Users /
-// Teams / Departments / Roles) — otherwise a Department Manager (who has
-// people.manage_departments etc. but zero settings.* grants) would have no
-// nav link into a hub section built for exactly that role.
+// Nav visibility gates, per the roles/permissions build spec (Prompt 4).
+const TICKETS_PERMISSION_KEYS = ['tickets.view_own', 'tickets.view_department', 'tickets.view_all'];
+const PROJECTS_PERMISSION_KEYS = ['projects.view_own', 'projects.view_department', 'projects.view_all'];
+const REPORTS_PERMISSION_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
+// "Any permission starting with settings." plus the three People permissions
+// that specifically unlock a Settings-hub card (manage_roles, manage_departments,
+// view_all) — deliberately narrower than the full People permission set.
 const SETTINGS_PERMISSION_KEYS = [
   'settings.manage_statuses', 'settings.manage_business_hours', 'settings.manage_branding',
   'settings.manage_system', 'settings.view_audit_log',
-  'people.view_all', 'people.view_own_department', 'people.create_users', 'people.edit_users',
-  'people.manage_roles', 'people.manage_departments', 'people.manage_permission_overrides',
+  'people.manage_roles', 'people.manage_departments', 'people.view_all',
 ];
-const REPORTS_PERMISSION_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
-import { useSettings } from '../context/SettingsContext';
-import api from '../api/api';
 
 // Sidebar modules. `key` matches a ModuleVisibility.moduleName row.
 const NAV = [
@@ -75,8 +75,10 @@ export default function Layout() {
   // Permission-gated on top of the existing role-based visibility — cosmetic
   // only, the backend is the real enforcement (see requirePermission middleware).
   const permissionGate = (key) => {
-    if (key === 'settings') return hasAnyPermission(SETTINGS_PERMISSION_KEYS);
+    if (key === 'tickets' || key === 'calendar') return hasAnyPermission(TICKETS_PERMISSION_KEYS);
+    if (key === 'projects') return hasAnyPermission(PROJECTS_PERMISSION_KEYS);
     if (key === 'reports') return hasAnyPermission(REPORTS_PERMISSION_KEYS);
+    if (key === 'settings') return hasAnyPermission(SETTINGS_PERMISSION_KEYS);
     return true;
   };
   const items = NAV.filter((n) => rolesFor(n.key).includes(user?.role) && permissionGate(n.key));
