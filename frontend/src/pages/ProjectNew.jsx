@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import TagInput from '../components/TagInput';
 
 export default function ProjectNew() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function ProjectNew() {
     teamId: '',
     dueDate: '',
   });
+  const [tags, setTags] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [assignableUsers, setAssignableUsers] = useState([]);
@@ -58,6 +60,7 @@ export default function ProjectNew() {
         assignedToUserId: form.assignedToUserId || null,
         teamId: form.teamId || null,
         dueDate: form.dueDate || null,
+        tags: tags.length ? tags : undefined,
         memberIds,
       };
       const { data } = await api.post('/projects', payload);
@@ -70,6 +73,7 @@ export default function ProjectNew() {
   };
 
   const memberCandidates = directory.filter((u) => u.displayName.toLowerCase().includes(memberSearch.toLowerCase()));
+  const ownerDepartment = departments.find((d) => String(d.id) === String(form.ownerDepartmentId));
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -88,6 +92,10 @@ export default function ProjectNew() {
         <div>
           <label className="label">Description</label>
           <textarea className="input min-h-[8rem]" value={form.description} onChange={set('description')} />
+        </div>
+        <div>
+          <label className="label">Tags</label>
+          <TagInput tags={tags} onChange={setTags} />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -119,6 +127,11 @@ export default function ProjectNew() {
             <p className="mt-1 text-xs text-navy-400">Which department benefits.</p>
           </div>
         </div>
+        {ownerDepartment && !ownerDepartment.shortCode && (
+          <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            This department has no short code configured. Project ID will use &quot;DEPT&quot; prefix. Configure it in Settings → Departments.
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label">Project lead</label>

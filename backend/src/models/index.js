@@ -45,6 +45,7 @@ const RolePermission = require('./RolePermission')(sequelize);
 const UserRole = require('./UserRole')(sequelize);
 const UserPermissionOverride = require('./UserPermissionOverride')(sequelize);
 const SystemAuditLog = require('./SystemAuditLog')(sequelize);
+const ProjectIdSequence = require('./ProjectIdSequence')(sequelize);
 
 const db = {
   sequelize,
@@ -91,6 +92,7 @@ const db = {
   UserRole,
   UserPermissionOverride,
   SystemAuditLog,
+  ProjectIdSequence,
 };
 
 // ---- Associations ----
@@ -300,5 +302,9 @@ UserPermissionOverride.belongsTo(User, { foreignKey: 'grantedBy', as: 'grantedBy
 // System audit log (permission-change trail)
 SystemAuditLog.belongsTo(User, { foreignKey: 'actorUserId', as: 'actor' });
 SystemAuditLog.belongsTo(User, { foreignKey: 'targetUserId', as: 'target' });
+
+// Per-department project-ID sequence
+Department.hasOne(ProjectIdSequence, { foreignKey: 'departmentId', as: 'projectIdSequence' });
+ProjectIdSequence.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 
 module.exports = db;

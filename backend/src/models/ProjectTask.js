@@ -7,6 +7,9 @@ module.exports = (sequelize) => {
     {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       projectId: { type: DataTypes.INTEGER, allowNull: false },
+      // Sub-ID tied to the project's code, e.g. "IT-P00001-T04". The number
+      // portion is user-renumberable (see projectCodeService.renumberTask).
+      taskCode: { type: DataTypes.STRING(40), allowNull: true, unique: true },
       title: { type: DataTypes.STRING(255), allowNull: false },
       description: { type: DataTypes.TEXT, allowNull: true },
       // FK to ProjectStatuses.id (unlike Project.status, which matches by

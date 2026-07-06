@@ -4,6 +4,7 @@ import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 // Colors read from the admin-customizable theme CSS variables (Settings -> Appearance).
 const BG = 'var(--color-bg)';
@@ -100,17 +101,6 @@ function loadColumnPrefs() {
   } catch {
     return defaults;
   }
-}
-
-// Closes an open popover/menu when the user clicks outside of it.
-function useClickOutside(ref, onOutside) {
-  useEffect(() => {
-    function handle(e) {
-      if (ref.current && !ref.current.contains(e.target)) onOutside();
-    }
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, [ref, onOutside]);
 }
 
 function Avatar({ name }) {

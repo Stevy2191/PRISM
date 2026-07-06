@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -54,6 +55,84 @@ function DeptLine({ project }) {
   return <span>{owner || forDept}</span>;
 }
 
+function TagChips({ tags, onTagClick }) {
+  if (!tags || tags.length === 0) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          onClick={onTagClick ? (e) => { e.preventDefault(); e.stopPropagation(); onTagClick(tag); } : undefined}
+          className={`rounded-full px-2 py-0.5 text-xs font-medium ${onTagClick ? 'cursor-pointer hover:opacity-75' : ''}`}
+          style={{ backgroundColor: BORDER, color: TEXT }}
+        >
+          {tag}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Searchable single-select dropdown listing every unique tag among the
+// currently visible projects.
+function TagsFilterMenu({ allTags, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef(null);
+  useClickOutside(ref, () => setOpen(false));
+
+  const filtered = allTags.filter((t) => t.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="h-9 flex-shrink-0 rounded-md border px-3 text-sm font-medium"
+        style={{ borderColor: value ? BLUE : BORDER, backgroundColor: value ? BLUE : CARD_BG, color: value ? 'white' : TEXT, maxWidth: '11rem' }}
+      >
+        {value ? `Tag: ${value}` : 'Tags'}
+      </button>
+      {open && (
+        <div className="absolute left-0 z-20 mt-1 w-56 rounded-md border p-1 shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+          <input
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tags…"
+            className="input mb-1 h-8 w-full text-sm"
+            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+          />
+          <div className="max-h-56 overflow-y-auto">
+            {value && (
+              <button
+                type="button"
+                onClick={() => { onChange(''); setOpen(false); }}
+                className="block w-full rounded px-3 py-1.5 text-left text-sm hover:bg-navy-50"
+                style={{ color: MUTED }}
+              >
+                Clear filter
+              </button>
+            )}
+            {filtered.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => { onChange(t); setOpen(false); }}
+                className="block w-full rounded px-3 py-1.5 text-left text-sm hover:bg-navy-50"
+                style={{ color: t === value ? BLUE : TEXT }}
+              >
+                {t}
+              </button>
+            ))}
+            {filtered.length === 0 && <p className="px-3 py-2 text-sm" style={{ color: MUTED }}>No tags.</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AvatarStack({ members }) {
   const shown = members.slice(0, 4);
   const extra = members.length - shown.length;
@@ -101,6 +180,7 @@ export default function Projects() {
   const canDeleteProjects = usePermission('projects.delete');
   const canViewDepartment = usePermission('projects.view_department');
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -113,6 +193,7 @@ export default function Projects() {
   const [ownerDeptFilter, setOwnerDeptFilter] = useState('');
   const [forDeptFilter, setForDeptFilter] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState(() => searchParams.get('tag') || '');
   const [myProjects, setMyProjects] = useState(false);
   const [myDepartment, setMyDepartment] = useState(false);
   const [overdue, setOverdue] = useState(false);
@@ -125,6 +206,11 @@ export default function Projects() {
   const [showBulkBar, setShowBulkBar] = useState(false);
   const [bulkBarClosing, setBulkBarClosing] = useState(false);
 
+  const allTags = useMemo(
+    () => [...new Set(projects.flatMap((p) => p.tags || []))].sort((a, b) => a.localeCompare(b)),
+    [projects]
+  );
+
   const load = () => {
     setLoading(true);
     const params = {};
@@ -133,6 +219,7 @@ export default function Projects() {
     if (ownerDeptFilter) params.ownerDept = ownerDeptFilter;
     if (forDeptFilter) params.forDept = forDeptFilter;
     if (assigneeFilter) params.assignee = assigneeFilter;
+    if (tagFilter) params.tag = tagFilter;
     if (myProjects) params.myProjects = 'true';
     if (myDepartment) params.myDepartment = 'true';
     if (overdue) params.overdue = 'true';
@@ -140,6 +227,12 @@ export default function Projects() {
       .then(({ data }) => setProjects(data.projects))
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
+  };
+
+  // Clicking a tag chip on the project detail page lands here with ?tag=X.
+  const setTagFilterAndUrl = (tag) => {
+    setTagFilter(tag);
+    setSearchParams(tag ? { tag } : {});
   };
 
   useEffect(() => {
@@ -153,7 +246,7 @@ export default function Projects() {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusFilter, ownerDeptFilter, forDeptFilter, assigneeFilter, myProjects, myDepartment, overdue]);
+  }, [search, statusFilter, ownerDeptFilter, forDeptFilter, assigneeFilter, tagFilter, myProjects, myDepartment, overdue]);
 
   useEffect(() => {
     if (selectedIds.size > 0) {
@@ -226,10 +319,11 @@ export default function Projects() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or description…"
+            placeholder="Search by name, description, code, or tag…"
             className="input h-9 flex-1 text-sm"
             style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
           />
+          <TagsFilterMenu allTags={allTags} value={tagFilter} onChange={setTagFilterAndUrl} />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -397,10 +491,14 @@ export default function Projects() {
                   )}
                   <Link to={`/projects/${p.id}`} className="block">
                     <div className="flex items-start justify-between gap-2 pr-10">
-                      <h2 className="font-semibold" style={{ color: TEXT }}>{p.name}</h2>
+                      <div className="min-w-0">
+                        <p className="font-mono text-xs" style={{ color: MUTED }}>{p.projectCode}</p>
+                        <h2 className="font-semibold" style={{ color: TEXT }}>{p.name}</h2>
+                      </div>
                       <StatusBadge status={p.status} color={p.statusColor || colorFor(p.status)} />
                     </div>
                     <p className="mt-2 line-clamp-2 text-sm" style={{ color: MUTED }}>{p.description || 'No description.'}</p>
+                    <TagChips tags={p.tags} onTagClick={setTagFilterAndUrl} />
                     <p className="mt-3 text-xs" style={{ color: MUTED }}><DeptLine project={p} /></p>
                     <p className="mt-1 text-xs font-medium" style={{ color: dueDateColor(p.dueDate, closed) }}>
                       {p.dueDate ? `Due ${p.dueDate}` : 'No due date'}
@@ -427,7 +525,7 @@ export default function Projects() {
                       <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="h-4 w-4" />
                     </th>
                   )}
-                  {['Name', 'Status', 'Owner dept', 'For dept', 'Lead', 'Due date', 'Progress', 'Tasks', 'Cost', 'Created'].map((h) => (
+                  {['Code', 'Name', 'Status', 'Owner dept', 'For dept', 'Lead', 'Due date', 'Progress', 'Tasks', 'Cost', 'Created'].map((h) => (
                     <th key={h} className="table-th" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>{h}</th>
                   ))}
                 </tr>
@@ -440,7 +538,11 @@ export default function Projects() {
                         <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleOne(p.id)} className="h-4 w-4" />
                       </td>
                     )}
-                    <td className="table-td font-medium" style={{ color: TEXT }}>{p.name}</td>
+                    <td className="table-td font-mono text-xs" style={{ color: MUTED }}>{p.projectCode}</td>
+                    <td className="table-td font-medium" style={{ color: TEXT }}>
+                      {p.name}
+                      <TagChips tags={p.tags} onTagClick={setTagFilterAndUrl} />
+                    </td>
                     <td className="table-td"><StatusBadge status={p.status} color={p.statusColor || colorFor(p.status)} /></td>
                     <td className="table-td" style={{ color: MUTED }}>{p.ownerDepartment?.name || '—'}</td>
                     <td className="table-td" style={{ color: MUTED }}>{p.forDepartment?.name || '—'}</td>

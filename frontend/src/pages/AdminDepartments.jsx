@@ -83,14 +83,16 @@ export default function AdminDepartments() {
               <input className="input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
             </div>
             <div>
-              <label className="label">Short code</label>
+              <label className="label">Short code <span className="text-red-500">*</span></label>
               <input
                 className="input uppercase"
                 value={form.shortCode}
                 maxLength={10}
                 placeholder="e.g. IT, HR, MNT"
                 onChange={(e) => setForm((f) => ({ ...f, shortCode: e.target.value.toUpperCase() }))}
+                required={editing === 'new'}
               />
+              <p className="mt-1 text-xs text-navy-400">Used to prefix this department's project IDs (e.g. IT-P00001).</p>
             </div>
           </div>
           <div>
@@ -122,7 +124,13 @@ export default function AdminDepartments() {
             <div>
               <div className="flex items-center gap-2">
                 <p className="font-medium text-navy-900">{d.name}</p>
-                {d.shortCode && <span className="badge bg-navy-100 text-navy-700">{d.shortCode}</span>}
+                {d.shortCode ? (
+                  <span className="badge bg-navy-100 text-navy-700">{d.shortCode}</span>
+                ) : (
+                  <span className="badge bg-amber-100 text-amber-800" title="Configure a short code so this department's project IDs use it instead of the generic fallback">
+                    No short code — project IDs will use &quot;DEPT&quot; prefix
+                  </span>
+                )}
               </div>
               {d.description && <p className="text-sm text-navy-500">{d.description}</p>}
               <p className="mt-0.5 text-xs text-navy-400">

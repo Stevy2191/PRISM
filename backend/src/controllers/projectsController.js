@@ -1,10 +1,10 @@
-const { Op } = require('sequelize');
+const { Op, cast, col: sqlCol, where: sqlWhere } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 const {
   Project, ProjectMember, ProjectTask, ProjectSubtask, ProjectTimeEntry,
   ProjectExpense, ProjectMaterial, ProjectFile, ProjectActivity, ProjectStatus,
-  Department, User, Ticket, Team, TeamMember,
+  Department, User, Ticket, Team, TeamMember, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -18,6 +18,7 @@ const {
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const { getUserProjectScope } = require('../services/permissionService');
+const { generateProjectCode, generateTaskCode, generateSubtaskCode, formatTaskCode, formatSubtaskCode } = require('../services/projectCodeService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 
@@ -86,10 +87,10 @@ async function getProjectWithDetail(id) {
 // ==================== Projects ====================
 
 // GET /projects — filters: status, ownerDept, forDept, assignee, myProjects,
-// myDepartment, overdue, search. Requesters see only projects FOR their own department.
+// myDepartment, overdue, search, tag. Requesters see only projects FOR their own department.
 const list = asyncHandler(async (req, res) => {
   const where = {};
-  const { status, ownerDept, forDept, assignee, myProjects, myDepartment, overdue, search } = req.query;
+  const { status, ownerDept, forDept, assignee, myProjects, myDepartment, overdue, search, tag } = req.query;
 
   // Scope filtering from the resolved permission set (projects.view_all >
   // projects.view_department > projects.view_own — see permissionService).
@@ -129,11 +130,27 @@ const list = asyncHandler(async (req, res) => {
     where.dueDate = { [Op.lt]: new Date().toISOString().slice(0, 10) };
     if (!status) where.status = { [Op.in]: buckets.open };
   }
+  // `tags` is a JSON-typed column — Sequelize JSON-serializes the RHS of a
+  // plain `{ tags: { [Op.like]: ... } }` comparison (turning `%foo%` into the
+  // literal string `"%foo%"`), which breaks LIKE wildcard matching. Casting
+  // the column to CHAR via sequelize.where/cast bypasses that serialization
+  // so LIKE matches the raw JSON text, e.g. `["migration","urgent"]`.
+  const tagsLike = (pattern) => sqlWhere(cast(sqlCol('Project.tags'), 'CHAR'), { [Op.like]: pattern });
+
   if (search) {
     where[Op.or] = [
       { name: { [Op.like]: `%${search}%` } },
       { description: { [Op.like]: `%${search}%` } },
+      { projectCode: { [Op.like]: `%${search}%` } },
+      tagsLike(`%${search}%`),
     ];
+  }
+  // Tag filter dropdown — exact tag match. Matching the quoted element is
+  // precise enough for this app's simple freeform tags (mirrors the
+  // LIKE-based `search` above).
+  if (tag) {
+    const tagClause = tagsLike(`%"${tag}"%`);
+    where[Op.and] = where[Op.and] ? [...where[Op.and], tagClause] : [tagClause];
   }
 
   if (myProjects === 'true') {
@@ -181,7 +198,7 @@ const list = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const {
     name, description, status, ownerDepartmentId, forDepartmentId,
-    assignedToUserId, teamId, dueDate, memberIds,
+    assignedToUserId, teamId, dueDate, memberIds, tags,
   } = req.body || {};
 
   if (!name || !name.trim()) throw new ApiError(400, 'Project name is required', 'VALIDATION_ERROR');
@@ -200,16 +217,23 @@ const create = asyncHandler(async (req, res) => {
     resolvedStatus = firstOpen ? firstOpen.name : 'Active';
   }
 
-  const project = await Project.create({
-    name: name.trim(),
-    description: description || null,
-    status: resolvedStatus,
-    ownerDepartmentId,
-    forDepartmentId: forDepartmentId || ownerDepartmentId,
-    assignedToUserId: assignedToUserId || null,
-    teamId: teamId || null,
-    dueDate: dueDate || null,
-    createdBy: req.user.id,
+  const project = await sequelize.transaction(async (t) => {
+    // Generated inside the transaction — nextProjectSequence row-locks the
+    // department's counter so two concurrent creates never collide.
+    const projectCode = await generateProjectCode(ownerDepartmentId, t);
+    return Project.create({
+      name: name.trim(),
+      projectCode,
+      description: description || null,
+      tags: Array.isArray(tags) && tags.length ? tags : null,
+      status: resolvedStatus,
+      ownerDepartmentId,
+      forDepartmentId: forDepartmentId || ownerDepartmentId,
+      assignedToUserId: assignedToUserId || null,
+      teamId: teamId || null,
+      dueDate: dueDate || null,
+      createdBy: req.user.id,
+    }, { transaction: t });
   });
 
   const memberSet = new Set((Array.isArray(memberIds) ? memberIds : []).map(Number));
@@ -224,8 +248,8 @@ const create = asyncHandler(async (req, res) => {
     )
   );
 
-  await writeAudit(req, 'project.create', 'Project', project.id, { name: project.name });
-  await logProjectActivity(project.id, req.user.id, 'project_created', { name: project.name });
+  await writeAudit(req, 'project.create', 'Project', project.id, { name: project.name, projectCode: project.projectCode });
+  await logProjectActivity(project.id, req.user.id, 'project_created', { name: project.name, projectCode: project.projectCode });
 
   res.status(201).json({ project: await getProjectWithDetail(project.id) });
 });
@@ -245,11 +269,14 @@ const update = asyncHandler(async (req, res) => {
 
   const allowed = [
     'name', 'description', 'status', 'ownerDepartmentId', 'forDepartmentId',
-    'assignedToUserId', 'teamId', 'dueDate',
+    'assignedToUserId', 'teamId', 'dueDate', 'tags',
   ];
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
+  }
+  if (changes.tags !== undefined) {
+    changes.tags = Array.isArray(changes.tags) && changes.tags.length ? changes.tags : null;
   }
   const statusChanged = changes.status !== undefined && changes.status !== project.status;
   const previousStatus = project.status;
@@ -332,8 +359,10 @@ const createTask = asyncHandler(async (req, res) => {
   }
 
   const maxPos = await ProjectTask.max('position', { where: { projectId: project.id } });
+  const taskCode = await generateTaskCode(project.id, project.projectCode);
   const task = await ProjectTask.create({
     projectId: project.id,
+    taskCode,
     title: title.trim(),
     description: description || null,
     statusId: resolvedStatusId,
@@ -344,7 +373,7 @@ const createTask = asyncHandler(async (req, res) => {
     position: (Number.isFinite(maxPos) ? maxPos : 0) + 1,
     createdBy: req.user.id,
   });
-  await logProjectActivity(project.id, req.user.id, 'task_created', { taskId: task.id, title: task.title });
+  await logProjectActivity(project.id, req.user.id, 'task_created', { taskId: task.id, title: task.title, taskCode: task.taskCode });
 
   const fresh = await ProjectTask.findByPk(task.id, { include: taskInclude });
   res.status(201).json({ task: fresh });
@@ -371,7 +400,7 @@ const updateTask = asyncHandler(async (req, res) => {
   if (changes.statusId !== undefined) {
     const behaviorMap = await getProjectStatusIdBehaviorMap();
     if (behaviorMap.get(Number(changes.statusId)) === 'closed') {
-      await logProjectActivity(req.params.id, req.user.id, 'task_closed', { taskId: task.id, title: task.title });
+      await logProjectActivity(req.params.id, req.user.id, 'task_closed', { taskId: task.id, title: task.title, taskCode: task.taskCode });
     }
   }
 
@@ -384,8 +413,63 @@ const removeTask = asyncHandler(async (req, res) => {
   const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
   if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
   await task.destroy();
-  await logProjectActivity(req.params.id, req.user.id, 'task_deleted', { taskId: task.id, title: task.title });
+  await logProjectActivity(req.params.id, req.user.id, 'task_deleted', { taskId: task.id, title: task.title, taskCode: task.taskCode });
   res.json({ ok: true });
+});
+
+// PATCH /projects/:id/tasks/reorder — Body: { order: [taskId, taskId, ...] }
+// Updates every affected task's position in one request (drag-and-drop and
+// the up/down reorder buttons both call this instead of one PATCH per task).
+const reorderTasks = asyncHandler(async (req, res) => {
+  const project = await Project.findByPk(req.params.id);
+  if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+
+  const order = Array.isArray(req.body?.order) ? req.body.order.map((v) => parseInt(v, 10)).filter(Boolean) : [];
+  if (!order.length) throw new ApiError(400, 'order must be a non-empty array of task IDs', 'VALIDATION_ERROR');
+
+  const tasks = await ProjectTask.findAll({ where: { id: order, projectId: project.id } });
+  if (tasks.length !== order.length) {
+    throw new ApiError(400, 'One or more tasks do not belong to this project', 'VALIDATION_ERROR');
+  }
+
+  await sequelize.transaction(async (t) => {
+    await Promise.all(
+      order.map((taskId, idx) => ProjectTask.update({ position: idx + 1 }, { where: { id: taskId }, transaction: t }))
+    );
+  });
+
+  res.json({ ok: true });
+});
+
+// PATCH /projects/:id/tasks/:taskId/code — Body: { number } — renumbers just
+// the -T## suffix; does not change position (see reorderTasks for that).
+const renumberTask = asyncHandler(async (req, res) => {
+  const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
+  if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+
+  const number = parseInt(req.body?.number, 10);
+  if (!Number.isFinite(number) || number < 1 || number > 99) {
+    throw new ApiError(400, 'Task number must be between 1 and 99', 'VALIDATION_ERROR');
+  }
+
+  const newCode = formatTaskCode(project.projectCode, number);
+  if (newCode !== task.taskCode) {
+    const conflict = await ProjectTask.findOne({
+      where: { projectId: req.params.id, taskCode: newCode, id: { [Op.ne]: task.id } },
+    });
+    if (conflict) {
+      throw new ApiError(
+        409,
+        `Task T${String(number).padStart(2, '0')} already exists in this project. Choose a different number.`,
+        'TASK_CODE_CONFLICT'
+      );
+    }
+  }
+
+  await task.update({ taskCode: newCode });
+  const fresh = await ProjectTask.findByPk(task.id, { include: taskInclude });
+  res.json({ task: fresh });
 });
 
 // ==================== Subtasks ====================
@@ -406,8 +490,10 @@ const createSubtask = asyncHandler(async (req, res) => {
   }
 
   const maxPos = await ProjectSubtask.max('position', { where: { taskId: task.id } });
+  const subtaskCode = await generateSubtaskCode(task.id, task.taskCode);
   const subtask = await ProjectSubtask.create({
     taskId: task.id,
+    subtaskCode,
     title: title.trim(),
     statusId: resolvedStatusId,
     assignedToUserId: assignedToUserId || null,
@@ -442,9 +528,42 @@ const updateSubtask = asyncHandler(async (req, res) => {
 
   await subtask.update(changes);
   if (justClosed) {
-    await logProjectActivity(req.params.id, req.user.id, 'subtask_closed', { subtaskId: subtask.id, title: subtask.title });
+    await logProjectActivity(req.params.id, req.user.id, 'subtask_closed', { subtaskId: subtask.id, title: subtask.title, subtaskCode: subtask.subtaskCode });
   }
 
+  const fresh = await ProjectSubtask.findByPk(subtask.id, {
+    include: [{ model: User, as: 'assignee', attributes: userAttrs }, { model: ProjectStatus, as: 'status' }],
+  });
+  res.json({ subtask: fresh });
+});
+
+// PATCH /projects/:id/tasks/:taskId/subtasks/:subtaskId/code — Body: { number }
+const renumberSubtask = asyncHandler(async (req, res) => {
+  const subtask = await ProjectSubtask.findOne({ where: { id: req.params.subtaskId, taskId: req.params.taskId } });
+  if (!subtask) throw new ApiError(404, 'Subtask not found', 'NOT_FOUND');
+  const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
+  if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
+
+  const number = parseInt(req.body?.number, 10);
+  if (!Number.isFinite(number) || number < 1 || number > 99) {
+    throw new ApiError(400, 'Subtask number must be between 1 and 99', 'VALIDATION_ERROR');
+  }
+
+  const newCode = formatSubtaskCode(task.taskCode, number);
+  if (newCode !== subtask.subtaskCode) {
+    const conflict = await ProjectSubtask.findOne({
+      where: { taskId: req.params.taskId, subtaskCode: newCode, id: { [Op.ne]: subtask.id } },
+    });
+    if (conflict) {
+      throw new ApiError(
+        409,
+        `Subtask S${String(number).padStart(2, '0')} already exists in this task. Choose a different number.`,
+        'SUBTASK_CODE_CONFLICT'
+      );
+    }
+  }
+
+  await subtask.update({ subtaskCode: newCode });
   const fresh = await ProjectSubtask.findByPk(subtask.id, {
     include: [{ model: User, as: 'assignee', attributes: userAttrs }, { model: ProjectStatus, as: 'status' }],
   });
@@ -862,8 +981,8 @@ const listActivity = asyncHandler(async (req, res) => {
 
 module.exports = {
   list, create, get, update, remove, getStats,
-  listTasks, createTask, updateTask, removeTask,
-  createSubtask, updateSubtask, removeSubtask,
+  listTasks, createTask, updateTask, removeTask, reorderTasks, renumberTask,
+  createSubtask, updateSubtask, removeSubtask, renumberSubtask,
   listTimeEntries, createTimeEntry, updateTimeEntry, removeTimeEntry,
   listExpenses, createExpense, updateExpense, removeExpense,
   listMaterials, createMaterial, updateMaterial, removeMaterial,

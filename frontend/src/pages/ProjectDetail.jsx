@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   IconUpload, IconFile, IconTrash, IconPlus, IconX, IconGripVertical,
-  IconChevronDown, IconChevronRight, IconLink,
+  IconChevronDown, IconChevronRight, IconLink, IconChevronUp, IconPencil,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 
@@ -160,6 +161,7 @@ export default function ProjectDetail() {
   const canLogTime = usePermission('projects.log_time');
   const canEditProjectContent = hasAnyPermission(['projects.edit_own', 'projects.edit_department', 'projects.edit_all']);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [project, setProject] = useState(null);
   const [statuses, setStatuses] = useState([]);
@@ -280,19 +282,19 @@ export default function ProjectDetail() {
     setEditingName(false);
   };
 
-  // ---- Task drag reorder ----
-  const dragTaskId = useRef(null);
-  const handleTaskDrop = async (targetId) => {
-    const dragId = dragTaskId.current;
-    dragTaskId.current = null;
-    if (!dragId || dragId === targetId) return;
-    const order = tasks.map((t) => t.id);
-    const from = order.indexOf(dragId);
-    const to = order.indexOf(targetId);
-    order.splice(to, 0, order.splice(from, 1)[0]);
-    setTasks(order.map((tid) => tasks.find((t) => t.id === tid)));
-    await Promise.all(order.map((tid, idx) => api.patch(`/projects/${id}/tasks/${tid}`, { position: idx + 1 })));
-    reloadTasks();
+  // ---- Task reorder (drag-and-drop or the up/down buttons) ----
+  // `order` is the full array of task IDs in their new order; a single
+  // bulk PATCH updates every affected position in one request.
+  const handleReorderTasks = async (order) => {
+    setTasks((prev) => order.map((tid) => prev.find((t) => t.id === tid)).filter(Boolean));
+    try {
+      await api.patch(`/projects/${id}/tasks/reorder`, { order });
+      showToast('Order saved.');
+    } catch (err) {
+      alert(errMessage(err));
+    } finally {
+      reloadTasks();
+    }
   };
 
   const toggleTaskComplete = async (task) => {
@@ -341,6 +343,9 @@ export default function ProjectDetail() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
+          {project.projectCode && (
+            <p className="font-mono text-xs" style={{ color: MUTED }}>{project.projectCode}</p>
+          )}
           <div className="flex items-center gap-3">
             {editingName ? (
               <input
@@ -384,6 +389,21 @@ export default function ProjectDetail() {
               </>
             )}
           </p>
+          {project.tags && project.tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {project.tags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => navigate(`/projects?tag=${encodeURIComponent(tag)}`)}
+                  className="rounded-full px-2 py-0.5 text-xs font-medium hover:opacity-75"
+                  style={{ backgroundColor: BORDER, color: TEXT }}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap items-center gap-4 text-sm" style={{ color: MUTED }}>
             <span className="flex items-center gap-2"><Avatar name={project.lead?.displayName} size={20} /> {project.lead?.displayName || 'No lead'}</span>
             <span>{project.dueDate ? `Due ${project.dueDate}` : 'No due date'}</span>
@@ -450,8 +470,9 @@ export default function ProjectDetail() {
           onAdd={() => setShowAddTask(true)}
           onToggleTask={toggleTaskComplete}
           onToggleSubtask={toggleSubtaskComplete}
-          dragTaskId={dragTaskId}
-          onDrop={handleTaskDrop}
+          onReorder={handleReorderTasks}
+          projectId={id}
+          onRenumbered={reloadTasks}
         />
       )}
       {tab === 'time' && (
@@ -616,89 +637,273 @@ function StatCard({ label, value, color }) {
   );
 }
 
+// Small inline-editable chip for a taskCode/subtaskCode's trailing number
+// (e.g. the "04" in "IT-P00001-T04"). Click to edit, Enter/blur to save,
+// Escape to cancel. Conflicts surface the backend's inline error message.
+function EditableCode({ code, letter, onRename, disabled }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const match = new RegExp(`-${letter}(\\d+)$`).exec(code || '');
+  const currentNumber = match ? match[1] : '';
+  const prefix = match ? code.slice(0, match.index) : code;
+
+  const startEdit = (e) => {
+    e.stopPropagation();
+    if (disabled) return;
+    setValue(currentNumber);
+    setError('');
+    setEditing(true);
+  };
+
+  const save = async () => {
+    const num = parseInt(value, 10);
+    if (!Number.isFinite(num) || num < 1 || num > 99) {
+      setError('Enter a number between 1 and 99');
+      return;
+    }
+    if (num === parseInt(currentNumber, 10)) { setEditing(false); return; }
+    setSaving(true);
+    setError('');
+    try {
+      await onRename(num);
+      setEditing(false);
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <span className="inline-flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>
+        <span className="inline-flex items-center gap-1">
+          <span className="font-mono text-xs" style={{ color: MUTED }}>{prefix}-{letter}</span>
+          <input
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value.replace(/\D/g, '').slice(0, 2))}
+            onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+            onBlur={save}
+            disabled={saving}
+            className="w-9 rounded border px-1 py-0.5 font-mono text-xs"
+            style={{ borderColor: BLUE, color: TEXT, backgroundColor: 'var(--color-input-bg)' }}
+          />
+        </span>
+        {error && <span className="text-xs" style={{ color: 'var(--color-danger)' }}>{error}</span>}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startEdit}
+      disabled={disabled}
+      className="group/code inline-flex items-center gap-1 font-mono text-xs hover:opacity-75 disabled:cursor-default"
+      style={{ color: MUTED }}
+      title={disabled ? undefined : 'Click to renumber'}
+    >
+      {code}
+      {!disabled && <IconPencil size={11} className="opacity-0 transition-opacity group-hover/code:opacity-100" />}
+    </button>
+  );
+}
+
+// Thin animated line marking exactly where a dragged task will land.
+function DropLine() {
+  return <div className="drop-line my-1 h-0.5 rounded-full" style={{ backgroundColor: BLUE }} />;
+}
+
 // ==================== Tasks tab ====================
-function TasksTab({ tasks, isStaff, canEdit, statuses, assignableUsers, onOpenTask, onAdd, onToggleTask, onToggleSubtask, dragTaskId, onDrop }) {
+function TasksTab({ tasks, isStaff, canEdit, statuses, assignableUsers, onOpenTask, onAdd, onToggleTask, onToggleSubtask, onReorder, projectId, onRenumbered }) {
   const [expanded, setExpanded] = useState(() => new Set(tasks.filter((t) => (t.subtasks || []).length > 0).map((t) => t.id)));
+  const [draggedId, setDraggedId] = useState(null);
+  const [overGap, setOverGap] = useState(null);
   const toggleExpand = (id) => setExpanded((prev) => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
 
+  const handleDragOverTask = (e, index) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    setOverGap(e.clientY < midpoint ? index : index + 1);
+  };
+
+  const endDrag = () => { setDraggedId(null); setOverGap(null); };
+
+  const dropAtGap = (gapIndex) => {
+    const currentIndex = tasks.findIndex((t) => t.id === draggedId);
+    if (currentIndex === -1) { endDrag(); return; }
+    let targetIndex = gapIndex;
+    if (currentIndex < targetIndex) targetIndex -= 1;
+    if (targetIndex === currentIndex) { endDrag(); return; }
+    const order = tasks.map((t) => t.id);
+    order.splice(currentIndex, 1);
+    order.splice(targetIndex, 0, draggedId);
+    endDrag();
+    onReorder(order);
+  };
+
+  const moveTask = (task, direction) => {
+    const idx = tasks.findIndex((t) => t.id === task.id);
+    const swapIdx = idx + direction;
+    if (swapIdx < 0 || swapIdx >= tasks.length) return;
+    const order = tasks.map((t) => t.id);
+    const [moved] = order.splice(idx, 1);
+    order.splice(swapIdx, 0, moved);
+    onReorder(order);
+  };
+
+  const renumberTask = async (task, number) => {
+    await api.patch(`/projects/${projectId}/tasks/${task.id}/code`, { number });
+    onRenumbered();
+  };
+  const renumberSubtask = async (task, subtask, number) => {
+    await api.patch(`/projects/${projectId}/tasks/${task.id}/subtasks/${subtask.id}/code`, { number });
+    onRenumbered();
+  };
+
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
+    <div className="space-y-1">
+      <div className="mb-2 flex justify-end">
         {canEdit && <button onClick={onAdd} className="btn-primary">+ Add task</button>}
       </div>
       {tasks.length === 0 && (
         <div className="rounded-[10px] border p-8 text-center" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>No tasks yet.</div>
       )}
-      {tasks.map((task) => {
+      {tasks.map((task, index) => {
         const subtasks = task.subtasks || [];
         const isOpen = expanded.has(task.id);
         const priorityMeta = PRIORITY_META[task.priority] || PRIORITY_META.medium;
+        const isDragging = draggedId === task.id;
         return (
-          <div
-            key={task.id}
-            draggable={canEdit}
-            onDragStart={() => { dragTaskId.current = task.id; }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => onDrop(task.id)}
-            className="rounded-[10px] border p-4"
-            style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
-          >
-            <div className="flex items-start gap-3">
-              {canEdit && <IconGripVertical size={16} className="mt-1 flex-shrink-0 cursor-grab" style={{ color: MUTED }} />}
-              <input type="checkbox" checked={task.isComplete} onChange={() => onToggleTask(task)} className="mt-1 h-4 w-4 flex-shrink-0" />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button className="text-left font-medium hover:underline" style={{ color: task.isComplete ? MUTED : TEXT, textDecoration: task.isComplete ? 'line-through' : 'none' }} onClick={() => onOpenTask(task)}>
-                    {task.title}
-                  </button>
-                  <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${task.status?.color || MUTED} 13%, transparent)`, color: task.status?.color || MUTED }}>
-                    {task.status?.name}
+          <div key={task.id}>
+            {canEdit && draggedId != null && overGap === index && <DropLine />}
+            <div
+              onDragOver={canEdit ? (e) => handleDragOverTask(e, index) : undefined}
+              onDrop={canEdit ? (e) => { e.preventDefault(); dropAtGap(overGap ?? index); } : undefined}
+              className="group my-2 rounded-[10px] border p-4 transition-all"
+              style={{
+                backgroundColor: CARD_BG,
+                borderColor: isDragging ? BLUE : BORDER,
+                borderStyle: isDragging ? 'dashed' : 'solid',
+                opacity: isDragging ? 0.5 : 1,
+                transform: isDragging ? 'scale(0.97)' : 'scale(1)',
+              }}
+            >
+              <div className="flex items-start gap-3">
+                {canEdit && (
+                  <span
+                    draggable
+                    onDragStart={() => setDraggedId(task.id)}
+                    onDragEnd={endDrag}
+                    className="mt-1 flex-shrink-0 cursor-grab active:cursor-grabbing"
+                    style={{ color: MUTED }}
+                    title="Drag to reorder"
+                  >
+                    <IconGripVertical size={16} />
                   </span>
-                  <span className="flex items-center gap-1 text-xs" style={{ color: MUTED }}>
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: priorityMeta.color }} /> {priorityMeta.label}
-                  </span>
-                  {task.linkedTicket && (
-                    <Link to={`/tickets/${task.linkedTicket.id}`} className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
-                      <IconLink size={11} /> {formatTicketId(task.linkedTicket)} {task.linkedTicket.title}
-                    </Link>
-                  )}
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs" style={{ color: MUTED }}>
-                  <Avatar name={task.assignee?.displayName} size={18} />
-                  <span>{task.dueDate || 'No due date'}</span>
-                  {subtasks.length > 0 && (
-                    <button onClick={() => toggleExpand(task.id)} className="flex items-center gap-1 hover:underline">
-                      {isOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-                      {subtasks.filter((s) => s.completedAt).length}/{subtasks.length} subtasks
-                    </button>
-                  )}
-                </div>
-                {subtasks.length > 0 && (
-                  <div className="mt-2 h-1 w-full max-w-xs overflow-hidden rounded-full" style={{ backgroundColor: BORDER }}>
-                    <div className="h-full rounded-full" style={{ width: `${task.subtaskPercent || 0}%`, backgroundColor: BLUE }} />
-                  </div>
                 )}
-                {isOpen && subtasks.length > 0 && (
-                  <ul className="mt-3 space-y-1.5 border-l-2 pl-3" style={{ borderColor: BORDER }}>
-                    {subtasks.map((st) => (
-                      <li key={st.id} className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={!!st.completedAt} onChange={() => onToggleSubtask(task, st)} className="h-3.5 w-3.5" />
-                        <span style={{ color: st.completedAt ? MUTED : TEXT, textDecoration: st.completedAt ? 'line-through' : 'none' }}>{st.title}</span>
-                        <Avatar name={st.assignee?.displayName} size={16} />
-                        {st.dueDate && <span className="text-xs" style={{ color: MUTED }}>{st.dueDate}</span>}
-                      </li>
-                    ))}
-                  </ul>
+                <input
+                  type="checkbox"
+                  checked={task.isComplete}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => onToggleTask(task)}
+                  className="mt-1 h-4 w-4 flex-shrink-0"
+                />
+                <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onOpenTask(task)}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {task.taskCode && (
+                      <EditableCode code={task.taskCode} letter="T" disabled={!canEdit} onRename={(n) => renumberTask(task, n)} />
+                    )}
+                    <span className="font-medium" style={{ color: task.isComplete ? MUTED : TEXT, textDecoration: task.isComplete ? 'line-through' : 'none' }}>
+                      {task.title}
+                    </span>
+                    <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${task.status?.color || MUTED} 13%, transparent)`, color: task.status?.color || MUTED }}>
+                      {task.status?.name}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs" style={{ color: MUTED }}>
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: priorityMeta.color }} /> {priorityMeta.label}
+                    </span>
+                    {task.linkedTicket && (
+                      <Link
+                        to={`/tickets/${task.linkedTicket.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                        style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}
+                      >
+                        <IconLink size={11} /> {formatTicketId(task.linkedTicket)} {task.linkedTicket.title}
+                      </Link>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs" style={{ color: MUTED }}>
+                    <Avatar name={task.assignee?.displayName} size={18} />
+                    <span>{task.dueDate || 'No due date'}</span>
+                    {subtasks.length > 0 && (
+                      <button onClick={(e) => { e.stopPropagation(); toggleExpand(task.id); }} className="flex items-center gap-1 hover:underline">
+                        {isOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                        {subtasks.filter((s) => s.completedAt).length}/{subtasks.length} subtasks
+                      </button>
+                    )}
+                  </div>
+                  {subtasks.length > 0 && (
+                    <div className="mt-2 h-1 w-full max-w-xs overflow-hidden rounded-full" style={{ backgroundColor: BORDER }}>
+                      <div className="h-full rounded-full" style={{ width: `${task.subtaskPercent || 0}%`, backgroundColor: BLUE }} />
+                    </div>
+                  )}
+                  {isOpen && subtasks.length > 0 && (
+                    <ul className="mt-3 space-y-1.5 border-l-2 pl-3" style={{ borderColor: BORDER }} onClick={(e) => e.stopPropagation()}>
+                      {subtasks.map((st) => (
+                        <li key={st.id} className="flex flex-wrap items-center gap-2 text-sm">
+                          <input type="checkbox" checked={!!st.completedAt} onChange={() => onToggleSubtask(task, st)} className="h-3.5 w-3.5" />
+                          {st.subtaskCode && (
+                            <EditableCode code={st.subtaskCode} letter="S" disabled={!canEdit} onRename={(n) => renumberSubtask(task, st, n)} />
+                          )}
+                          <span style={{ color: st.completedAt ? MUTED : TEXT, textDecoration: st.completedAt ? 'line-through' : 'none' }}>{st.title}</span>
+                          <Avatar name={st.assignee?.displayName} size={16} />
+                          {st.dueDate && <span className="text-xs" style={{ color: MUTED }}>{st.dueDate}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                {canEdit && (
+                  <div className="flex flex-shrink-0 flex-col gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); moveTask(task, -1); }}
+                      disabled={index === 0}
+                      title="Move up"
+                      className="rounded disabled:cursor-not-allowed disabled:opacity-30"
+                      style={{ color: MUTED }}
+                    >
+                      <IconChevronUp size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); moveTask(task, 1); }}
+                      disabled={index === tasks.length - 1}
+                      title="Move down"
+                      className="rounded disabled:cursor-not-allowed disabled:opacity-30"
+                      style={{ color: MUTED }}
+                    >
+                      <IconChevronDown size={16} />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
           </div>
         );
       })}
+      {canEdit && draggedId != null && overGap === tasks.length && <DropLine />}
     </div>
   );
 }
@@ -813,8 +1018,23 @@ function TaskDetailModal({ projectId, task, statuses, assignableUsers, onClose, 
     onChanged();
   };
 
+  const renumberTask = async (number) => {
+    await api.patch(`/projects/${projectId}/tasks/${task.id}/code`, { number });
+    await onChanged();
+  };
+  const renumberSubtask = async (st, number) => {
+    const { data } = await api.patch(`/projects/${projectId}/tasks/${task.id}/subtasks/${st.id}/code`, { number });
+    setSubtasks((s) => s.map((x) => (x.id === st.id ? data.subtask : x)));
+    onChanged();
+  };
+
   return (
     <Modal title="Task details" onClose={onClose} wide>
+      {task.taskCode && (
+        <div className="mb-3">
+          <EditableCode code={task.taskCode} letter="T" onRename={renumberTask} />
+        </div>
+      )}
       <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Title</label>
       <input className="input mb-3" style={fieldStyle} value={title} onChange={(e) => setTitle(e.target.value)} />
       <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Description</label>
@@ -851,8 +1071,9 @@ function TaskDetailModal({ projectId, task, statuses, assignableUsers, onClose, 
         <p className="mb-2 text-sm font-semibold" style={{ color: TEXT }}>Subtasks</p>
         <ul className="mb-2 space-y-1.5">
           {subtasks.map((st) => (
-            <li key={st.id} className="flex items-center gap-2 text-sm">
+            <li key={st.id} className="flex flex-wrap items-center gap-2 text-sm">
               <input type="checkbox" checked={!!st.completedAt} onChange={() => toggleSubtask(st)} className="h-4 w-4" />
+              {st.subtaskCode && <EditableCode code={st.subtaskCode} letter="S" onRename={(n) => renumberSubtask(st, n)} />}
               <span className="flex-1" style={{ color: st.completedAt ? MUTED : TEXT, textDecoration: st.completedAt ? 'line-through' : 'none' }}>{st.title}</span>
               <button onClick={() => removeSubtask(st.id)} style={{ color: 'var(--color-danger)' }}><IconX size={14} /></button>
             </li>
@@ -1325,16 +1546,20 @@ function ActivityTab({ activity }) {
   return (
     <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <ul className="divide-y" style={{ borderColor: BORDER }}>
-        {activity.map((a) => (
-          <li key={a.id} className="flex items-center justify-between px-4 py-3 text-sm">
-            <span style={{ color: TEXT }}>
-              <strong>{a.user?.displayName || 'System'}</strong> {ACTIVITY_LABELS[a.action] || a.action}
-              {a.detail?.title && <> — {a.detail.title}</>}
-              {a.detail?.name && <> — {a.detail.name}</>}
-            </span>
-            <span style={{ color: MUTED }}>{new Date(a.createdAt).toLocaleString()}</span>
-          </li>
-        ))}
+        {activity.map((a) => {
+          const code = a.detail?.projectCode || a.detail?.taskCode || a.detail?.subtaskCode;
+          return (
+            <li key={a.id} className="flex items-center justify-between px-4 py-3 text-sm">
+              <span style={{ color: TEXT }}>
+                <strong>{a.user?.displayName || 'System'}</strong> {ACTIVITY_LABELS[a.action] || a.action}
+                {code && <> — <code className="font-mono text-xs" style={{ color: MUTED }}>{code}</code></>}
+                {a.detail?.title && <> {a.detail.title}</>}
+                {a.detail?.name && <> {a.detail.name}</>}
+              </span>
+              <span style={{ color: MUTED }}>{new Date(a.createdAt).toLocaleString()}</span>
+            </li>
+          );
+        })}
         {activity.length === 0 && <li className="px-4 py-6 text-center text-sm" style={{ color: MUTED }}>No activity yet.</li>}
       </ul>
     </div>

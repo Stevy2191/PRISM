@@ -14,8 +14,20 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(255),
         allowNull: false,
       },
+      // Department-prefixed display ID, e.g. "IT-P00001" — assigned once at
+      // creation (see services/projectCodeService.js), never regenerated.
+      projectCode: {
+        type: DataTypes.STRING(30),
+        allowNull: true,
+        unique: true,
+      },
       description: {
         type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      // Freeform labels, e.g. ["migration", "q3"] — same pattern as Ticket.tags.
+      tags: {
+        type: DataTypes.JSON,
         allowNull: true,
       },
       // Free-form string matching a ProjectStatus row's `name` (see the

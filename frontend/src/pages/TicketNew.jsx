@@ -4,6 +4,7 @@ import { IconArrowUp, IconArrowDown, IconX, IconUpload } from '@tabler/icons-rea
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { formatTicketId } from '../utils/ticketId';
+import TagInput from '../components/TagInput';
 
 // Colors read from the admin-customizable theme CSS variables (Settings -> Appearance).
 const BG = 'var(--color-bg)';
@@ -73,47 +74,6 @@ function initials(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '?';
   return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
-}
-
-function TagInput({ tags, onChange }) {
-  const [value, setValue] = useState('');
-
-  const addTag = () => {
-    const v = value.trim();
-    if (v && !tags.includes(v)) onChange([...tags, v]);
-    setValue('');
-  };
-  const removeTag = (tag) => onChange(tags.filter((t) => t !== tag));
-
-  return (
-    <div
-      className="input flex min-h-[2.75rem] flex-wrap items-center gap-1.5 py-1.5"
-      style={fieldStyle}
-    >
-      {tags.map((tag) => (
-        <span
-          key={tag}
-          className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
-          style={{ backgroundColor: BORDER, color: TEXT }}
-        >
-          {tag}
-          <button type="button" onClick={() => removeTag(tag)} style={{ color: MUTED }}>
-            <IconX size={12} />
-          </button>
-        </span>
-      ))}
-      <input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); addTag(); }
-        }}
-        placeholder={tags.length ? '' : 'Type a tag and press Enter'}
-        className="min-w-[120px] flex-1 bg-transparent text-sm outline-none"
-        style={{ color: TEXT }}
-      />
-    </div>
-  );
 }
 
 function WatchersField({ directory, watchers, onChange }) {

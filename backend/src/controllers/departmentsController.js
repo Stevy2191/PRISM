@@ -35,6 +35,9 @@ const create = asyncHandler(async (req, res) => {
   if (!name || !name.trim()) {
     throw new ApiError(400, 'Department name is required', 'VALIDATION_ERROR');
   }
+  if (!shortCode || !shortCode.trim()) {
+    throw new ApiError(400, 'Short code is required (used to prefix this department\'s project IDs)', 'VALIDATION_ERROR');
+  }
   if (defaultRoleId) {
     const role = await Role.findByPk(defaultRoleId);
     if (!role) throw new ApiError(400, 'Default role does not exist', 'VALIDATION_ERROR');

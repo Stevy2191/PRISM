@@ -21,11 +21,14 @@ router.get('/:id/stats', viewMin, ctrl.getStats);
 // Tasks + subtasks
 router.get('/:id/tasks', ctrl.listTasks);
 router.post('/:id/tasks', staff, ctrl.createTask);
+router.patch('/:id/tasks/reorder', staff, ctrl.reorderTasks); // must precede /:taskId
 router.patch('/:id/tasks/:taskId', staff, ctrl.updateTask);
 router.delete('/:id/tasks/:taskId', staff, ctrl.removeTask);
+router.patch('/:id/tasks/:taskId/code', staff, ctrl.renumberTask);
 router.post('/:id/tasks/:taskId/subtasks', staff, ctrl.createSubtask);
 router.patch('/:id/tasks/:taskId/subtasks/:subtaskId', staff, ctrl.updateSubtask);
 router.delete('/:id/tasks/:taskId/subtasks/:subtaskId', staff, ctrl.removeSubtask);
+router.patch('/:id/tasks/:taskId/subtasks/:subtaskId/code', staff, ctrl.renumberSubtask);
 
 // Time entries (logging is staff-only, matching tickets)
 router.get('/:id/time-entries', ctrl.listTimeEntries);
