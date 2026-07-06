@@ -56,6 +56,9 @@ async function loginUnified(identifier, password) {
     if (!ok) {
       throw new ApiError(401, 'Invalid username or password', 'INVALID_CREDENTIALS');
     }
+    if (!localUser.isActive) {
+      throw new ApiError(401, 'This account has been deactivated', 'ACCOUNT_DEACTIVATED');
+    }
     return { user: localUser, method: 'local' };
   }
 
@@ -65,6 +68,9 @@ async function loginUnified(identifier, password) {
   }
 
   const user = await loginAd(identifier, password);
+  if (!user.isActive) {
+    throw new ApiError(401, 'This account has been deactivated', 'ACCOUNT_DEACTIVATED');
+  }
   return { user, method: 'ldap' };
 }
 
@@ -102,13 +108,15 @@ async function loginAd(username, password) {
       return existing;
     }
 
-    // New AD users default to requester and are not local accounts.
+    // Every PRISM user is staff — customers/end-users are Contacts, who
+    // don't have (or need) a directory login. New AD users default to the
+    // baseline technician role.
     return User.create(
       {
         username: profile.username,
         displayName: profile.displayName,
         email: profile.email,
-        role: 'requester',
+        role: 'technician',
         isLocalAccount: false,
         passwordHash: null,
         mustChangePassword: false,

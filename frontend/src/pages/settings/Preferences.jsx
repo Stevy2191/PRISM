@@ -42,9 +42,8 @@ function ThemeSwatch({ value }) {
   );
 }
 
-// Minimal personal preferences page. Visible to all roles (requesters see only
-// this under Settings). Profile fields come from the directory / account and are
-// read-only here; local accounts can change their password.
+// Minimal personal preferences page. Profile fields come from the directory /
+// account and are read-only here; local accounts can change their password.
 export default function Preferences() {
   const { user, isStaff, refresh } = useAuth();
   const { theme, setTheme } = useTheme();

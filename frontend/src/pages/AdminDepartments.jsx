@@ -107,7 +107,7 @@ export default function AdminDepartments() {
               onChange={(e) => setForm((f) => ({ ...f, defaultRoleId: e.target.value }))}
             >
               <option value="">None</option>
-              {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {roles.filter((r) => r.name !== 'Requester').map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
             <p className="mt-1 text-xs text-navy-400">New users added to this department get this role automatically.</p>
           </div>

@@ -11,6 +11,8 @@ import TicketDetail from './pages/TicketDetail';
 import Projects from './pages/Projects';
 import ProjectNew from './pages/ProjectNew';
 import ProjectDetail from './pages/ProjectDetail';
+import Contacts from './pages/Contacts';
+import ContactDetail from './pages/ContactDetail';
 import Reports from './pages/Reports';
 import Calendar from './pages/Calendar';
 import NotFound from './pages/NotFound';
@@ -48,6 +50,7 @@ const perm = (el, keys) => <ProtectedRoute permission={keys}>{el}</ProtectedRout
 // reachable when it isn't.
 const TICKETS_KEYS = ['tickets.view_own', 'tickets.view_department', 'tickets.view_all'];
 const PROJECTS_KEYS = ['projects.view_own', 'projects.view_department', 'projects.view_all'];
+const CONTACTS_KEYS = ['people.view_own_department', 'people.view_all'];
 const REPORTS_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
 const USERS_KEYS = ['people.view_all', 'people.create_users'];
 const TEAMS_KEYS = ['people.view_all', 'people.manage_departments'];
@@ -72,6 +75,9 @@ export default function App() {
         <Route path="/tickets" element={perm(<Tickets />, TICKETS_KEYS)} />
         <Route path="/tickets/new" element={perm(<TicketNew />, TICKETS_KEYS)} />
         <Route path="/tickets/:id" element={perm(<TicketDetail />, TICKETS_KEYS)} />
+
+        <Route path="/contacts" element={perm(<Contacts />, CONTACTS_KEYS)} />
+        <Route path="/contacts/:id" element={perm(<ContactDetail />, CONTACTS_KEYS)} />
 
         <Route path="/projects" element={perm(<Projects />, PROJECTS_KEYS)} />
         <Route path="/projects/new" element={staff(<ProjectNew />)} />

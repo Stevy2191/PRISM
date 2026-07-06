@@ -15,7 +15,6 @@ const userInclude = [{ model: Department, as: 'department' }, { model: Role, as:
 const LEGACY_ROLE_TO_SEED_ROLE = {
   admin: 'System Administrator',
   technician: 'System Technician',
-  requester: 'Requester',
 };
 
 async function syncSeedRoleAssignment(user, legacyRole, assignedBy) {
@@ -60,17 +59,18 @@ const list = asyncHandler(async (req, res) => {
 // populating "assignee" pickers/filters; only staff can be assigned tickets.
 const listAssignable = asyncHandler(async (req, res) => {
   const users = await User.findAll({
-    where: { role: { [Op.in]: ['admin', 'technician'] } },
+    where: { role: { [Op.in]: ['admin', 'technician'] }, isActive: true },
     attributes: ['id', 'displayName'],
     order: [['displayName', 'ASC']],
   });
   res.json({ users });
 });
 
-// GET /users/directory — any authenticated user. Every user (any role),
-// minimal fields, for the "customer"/watcher pickers on ticket creation.
+// GET /users/directory — any authenticated user. Every active user, minimal
+// fields, for the watcher picker on ticket creation.
 const listDirectory = asyncHandler(async (req, res) => {
   const users = await User.findAll({
+    where: { isActive: true },
     attributes: ['id', 'displayName', 'username', 'role', 'departmentId'],
     order: [['displayName', 'ASC']],
   });
@@ -95,7 +95,7 @@ const create = asyncHandler(async (req, res) => {
       'WEAK_PASSWORD'
     );
   }
-  if (role && !['admin', 'technician', 'requester'].includes(role)) {
+  if (role && !['admin', 'technician'].includes(role)) {
     throw new ApiError(400, 'Invalid role', 'VALIDATION_ERROR');
   }
   const existing = await User.findOne({ where: { username: username.trim() } });
@@ -112,7 +112,7 @@ const create = asyncHandler(async (req, res) => {
     username: username.trim(),
     displayName: displayName.trim(),
     email: email || null,
-    role: role || 'requester',
+    role: role || 'technician',
     departmentId: departmentId || null,
     passwordHash,
     isLocalAccount: true,
@@ -146,7 +146,7 @@ const update = asyncHandler(async (req, res) => {
   const changes = {};
 
   if (role !== undefined) {
-    if (!['admin', 'technician', 'requester'].includes(role)) {
+    if (!['admin', 'technician'].includes(role)) {
       throw new ApiError(400, 'Invalid role', 'VALIDATION_ERROR');
     }
     changes.role = role;

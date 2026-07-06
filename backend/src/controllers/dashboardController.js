@@ -344,10 +344,8 @@ const get = asyncHandler(async (req, res) => {
   const targetUser = requestedUserId ? await User.findByPk(targetId) : req.user;
   if (!targetUser) throw new ApiError(404, 'User not found', 'NOT_FOUND');
 
-  // Requesters never hold ticket assignments in this app's RBAC — their "my
-  // work" is the tickets they filed. Staff (admin/technician) are scoped by
-  // assignment instead.
-  const scopeField = targetUser.role === 'requester' ? 'requesterId' : 'assigneeId';
+  // Every PRISM user is staff now — "my work" is always what's assigned to me.
+  const scopeField = 'assigneeId';
 
   const taskProjectRows = await Ticket.findAll({
     where: { [scopeField]: targetId, projectId: { [Op.ne]: null } },

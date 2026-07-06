@@ -14,7 +14,7 @@ const SYSTEM_KEYS = ['settings.manage_system'];
 const AUDIT_LOG_KEYS = ['settings.view_audit_log'];
 
 // roles default to admin-only; list roles explicitly to widen visibility.
-const ALL = ['admin', 'technician', 'requester'];
+const ALL = ['admin', 'technician'];
 const SECTIONS = [
   {
     title: 'My Account',

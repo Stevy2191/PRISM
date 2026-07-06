@@ -33,49 +33,18 @@ async function notifyAssigned(ticket, actorId) {
   });
 }
 
-// A comment was added. The requester's own comment on their ticket is a
-// "reply" to the assignee; anyone else's comment is a generic "comment"
-// notification to the other parties. The author is never notified of their
-// own comment.
+// A comment was added — notify the assignee (the contact who owns the
+// ticket has no PRISM login/notification inbox to reach). The author is
+// never notified of their own comment.
 async function notifyComment(ticket, comment, authorId) {
-  if (authorId === ticket.requesterId) {
-    if (ticket.assigneeId && ticket.assigneeId !== authorId) {
-      await createNotification({
-        userId: ticket.assigneeId,
-        type: 'reply',
-        message: `Customer replied to your ticket: ${truncate(comment.body, 80)}`,
-        ticketId: ticket.id,
-      });
-    }
-    return;
-  }
-
-  const recipients = new Set();
-  if (ticket.requesterId && ticket.requesterId !== authorId) recipients.add(ticket.requesterId);
-  if (ticket.assigneeId && ticket.assigneeId !== authorId) recipients.add(ticket.assigneeId);
-
-  // eslint-disable-next-line no-restricted-syntax
-  for (const userId of recipients) {
-    // eslint-disable-next-line no-await-in-loop
+  if (ticket.assigneeId && ticket.assigneeId !== authorId) {
     await createNotification({
-      userId,
+      userId: ticket.assigneeId,
       type: 'comment',
-      message: `Someone commented on ticket: ${ticket.title}`,
+      message: `Someone commented on ticket: ${truncate(comment.body, 80)}`,
       ticketId: ticket.id,
     });
   }
-}
-
-// Staff changed a ticket's status — notify the requester (the ticket's
-// implicit "watcher"). Not sent when the requester made the change themselves.
-async function notifyStatusChange(ticket, actorId, newStatus) {
-  if (!ticket.requesterId || ticket.requesterId === actorId) return;
-  await createNotification({
-    userId: ticket.requesterId,
-    type: 'status_change',
-    message: `Status changed to "${String(newStatus).replace(/_/g, ' ')}" on ticket: ${ticket.title}`,
-    ticketId: ticket.id,
-  });
 }
 
 // Notifies a ticket's watchers (create/comment/status-change events), skipping
@@ -146,7 +115,6 @@ module.exports = {
   createNotification,
   notifyAssigned,
   notifyComment,
-  notifyStatusChange,
   notifyWatchers,
   syncDerivedNotifications,
 };

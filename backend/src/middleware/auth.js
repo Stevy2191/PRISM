@@ -33,6 +33,9 @@ async function authenticate(req, res, next) {
       if (!user) {
         return next(new ApiError(401, 'Session user no longer exists', 'UNAUTHENTICATED'));
       }
+      if (!user.isActive) {
+        return next(new ApiError(401, 'This account has been deactivated', 'ACCOUNT_DEACTIVATED'));
+      }
       req.user = user;
       req.authMethod = 'session';
       return next();
@@ -60,7 +63,7 @@ async function resolveApiKey(plaintext) {
   for (const candidate of candidates) {
     // eslint-disable-next-line no-await-in-loop
     const match = await bcrypt.compare(plaintext, candidate.keyHash);
-    if (match && candidate.user) {
+    if (match && candidate.user && candidate.user.isActive) {
       candidate.lastUsed = new Date();
       await candidate.save();
       return candidate.user;

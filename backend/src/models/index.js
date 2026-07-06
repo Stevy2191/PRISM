@@ -46,11 +46,15 @@ const UserRole = require('./UserRole')(sequelize);
 const UserPermissionOverride = require('./UserPermissionOverride')(sequelize);
 const SystemAuditLog = require('./SystemAuditLog')(sequelize);
 const ProjectIdSequence = require('./ProjectIdSequence')(sequelize);
+const Contact = require('./Contact')(sequelize);
+const ContactActivity = require('./ContactActivity')(sequelize);
 
 const db = {
   sequelize,
   User,
   Department,
+  Contact,
+  ContactActivity,
   Project,
   ProjectMember,
   ProjectTask,
@@ -166,12 +170,26 @@ Ticket.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 Department.hasMany(Ticket, { foreignKey: 'departmentId', as: 'tickets' });
 Ticket.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 
-// Ticket assignee / requester
+// Ticket assignee / contact (customer). requesterId/requester is kept as a
+// legacy association for historical rows only — new code uses contactId.
 Ticket.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
 Ticket.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
 Ticket.belongsTo(User, { foreignKey: 'resolutionUpdatedBy', as: 'resolutionUpdatedByUser' });
+Ticket.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 User.hasMany(Ticket, { foreignKey: 'assigneeId', as: 'assignedTickets' });
 User.hasMany(Ticket, { foreignKey: 'requesterId', as: 'requestedTickets' });
+Contact.hasMany(Ticket, { foreignKey: 'contactId', as: 'tickets' });
+
+// Contact <-> Department / User (assignedTo, createdBy)
+Contact.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+Department.hasMany(Contact, { foreignKey: 'departmentId', as: 'contacts' });
+Contact.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignedToUser' });
+Contact.belongsTo(User, { foreignKey: 'createdBy', as: 'createdByUser' });
+
+// Contact <-> ContactActivity
+Contact.hasMany(ContactActivity, { foreignKey: 'contactId', as: 'activity', onDelete: 'CASCADE' });
+ContactActivity.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+ContactActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // Ticket <-> Comment
 Ticket.hasMany(Comment, { foreignKey: 'ticketId', as: 'comments', onDelete: 'CASCADE' });

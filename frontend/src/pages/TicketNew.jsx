@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { IconArrowUp, IconArrowDown, IconX, IconUpload } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
@@ -74,6 +74,157 @@ function initials(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '?';
   return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+// Search-as-you-type contact picker for the Customer field. Falls back to a
+// quick inline "create new contact" form when no existing contact matches.
+function ContactPicker({ selectedContact, onSelect }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const boxRef = useRef(null);
+
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); return; }
+    const t = setTimeout(() => {
+      api.get('/contacts', { params: { search: query.trim() } })
+        .then(({ data }) => setResults(data.contacts.slice(0, 8)))
+        .catch(() => setResults([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  useEffect(() => {
+    function handleOutside(e) {
+      if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  const pick = (contact) => {
+    onSelect(contact);
+    setQuery('');
+    setOpen(false);
+  };
+
+  const startCreate = () => {
+    setShowCreate(true);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={boxRef}>
+      {selectedContact ? (
+        <div className="flex items-center justify-between rounded-md border p-2.5" style={{ borderColor: BORDER, backgroundColor: BG }}>
+          <div>
+            <p className="text-sm font-medium" style={{ color: TEXT }}>{selectedContact.displayName}</p>
+            <p className="text-xs" style={{ color: MUTED }}>
+              {selectedContact.department?.name || 'No department'}{selectedContact.email ? ` · ${selectedContact.email}` : ''}
+            </p>
+          </div>
+          <button type="button" onClick={() => onSelect(null)} style={{ color: MUTED }}>
+            <IconX size={14} />
+          </button>
+        </div>
+      ) : (
+        <>
+          <input
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            placeholder="Search contacts by name or email…"
+            className="input"
+            style={fieldStyle}
+          />
+          {open && query.trim() && (
+            <div className="absolute z-20 mt-1 w-full rounded-md border shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+              {results.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => pick(c)}
+                  className="block w-full px-3 py-2 text-left hover:bg-[var(--color-hover)]"
+                >
+                  <p className="text-sm font-medium" style={{ color: TEXT }}>{c.displayName}</p>
+                  <p className="text-xs" style={{ color: MUTED }}>{c.department?.name || 'No department'}{c.email ? ` · ${c.email}` : ''}</p>
+                </button>
+              ))}
+              {results.length === 0 && (
+                <p className="px-3 py-2 text-sm" style={{ color: MUTED }}>No contact found for "{query.trim()}".</p>
+              )}
+              <button
+                type="button"
+                onClick={startCreate}
+                className="block w-full border-t px-3 py-2 text-left text-sm font-medium"
+                style={{ borderColor: BORDER, color: BLUE }}
+              >
+                + Create new contact "{query.trim()}"
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {showCreate && (
+        <QuickCreateContact
+          initialName={query}
+          error={createError}
+          creating={creating}
+          onCancel={() => { setShowCreate(false); setCreateError(''); }}
+          onCreate={async (form) => {
+            setCreating(true);
+            setCreateError('');
+            try {
+              const { data } = await api.post('/contacts', form);
+              setShowCreate(false);
+              pick(data.contact);
+            } catch (err) {
+              setCreateError(errMessage(err));
+            } finally {
+              setCreating(false);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function QuickCreateContact({ initialName, error, creating, onCancel, onCreate }) {
+  const parts = String(initialName || '').trim().split(/\s+/).filter(Boolean);
+  const [firstName, setFirstName] = useState(parts[0] || '');
+  const [lastName, setLastName] = useState(parts.slice(1).join(' '));
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!firstName.trim() || !lastName.trim()) return;
+    onCreate({ firstName: firstName.trim(), lastName: lastName.trim(), email: email || null, phone: phone || null });
+  };
+
+  return (
+    <form onSubmit={submit} className="mt-2 space-y-2 rounded-md border p-3" style={{ borderColor: BORDER, backgroundColor: BG }}>
+      <p className="text-sm font-medium" style={{ color: TEXT }}>New contact</p>
+      {error && <p className="text-xs" style={{ color: 'var(--color-danger)' }}>{error}</p>}
+      <div className="grid grid-cols-2 gap-2">
+        <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required className="input h-9 text-sm" style={fieldStyle} />
+        <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" required className="input h-9 text-sm" style={fieldStyle} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" className="input h-9 text-sm" style={fieldStyle} />
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="input h-9 text-sm" style={fieldStyle} />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onCancel} className="btn-secondary h-8 px-3 text-xs">Cancel</button>
+        <button type="submit" disabled={creating} className="btn-primary h-8 px-3 text-xs">{creating ? 'Creating…' : 'Create contact'}</button>
+      </div>
+    </form>
+  );
 }
 
 function WatchersField({ directory, watchers, onChange }) {
@@ -314,6 +465,7 @@ function Dropzone({ files, onFiles, onRemove }) {
 export default function TicketNew() {
   const { isStaff } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -323,7 +475,8 @@ export default function TicketNew() {
 
   const [directory, setDirectory] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [customerId, setCustomerId] = useState('');
+  const [contactId, setContactId] = useState('');
+  const [selectedContact, setSelectedContact] = useState(null);
   const [customerDeptId, setCustomerDeptId] = useState('');
   const [assignPrompt, setAssignPrompt] = useState({ show: false, deptId: '', saving: false, done: false, doneText: '' });
   const [watchers, setWatchers] = useState([]);
@@ -353,14 +506,26 @@ export default function TicketNew() {
     }
   }, [isStaff]);
 
-  const selectedCustomer = directory.find((u) => u.id === Number(customerId));
+  // Pre-fills the contact when arriving from a contact's "Create ticket" button.
+  useEffect(() => {
+    const preselect = searchParams.get('contactId');
+    if (!preselect) return;
+    api.get(`/contacts/${preselect}`).then(({ data }) => selectContact(data.contact)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleCustomerChange = (id) => {
-    setCustomerId(id);
-    const customer = directory.find((u) => u.id === Number(id));
-    if (!customer) return;
-    if (customer.departmentId) {
-      setCustomerDeptId(String(customer.departmentId));
+  const selectContact = (contact) => {
+    if (!contact) {
+      setContactId('');
+      setSelectedContact(null);
+      setCustomerDeptId('');
+      setAssignPrompt({ show: false, deptId: '', saving: false, done: false, doneText: '' });
+      return;
+    }
+    setContactId(contact.id);
+    setSelectedContact(contact);
+    if (contact.departmentId) {
+      setCustomerDeptId(String(contact.departmentId));
       setAssignPrompt({ show: false, deptId: '', saving: false, done: false, doneText: '' });
     } else {
       setCustomerDeptId('');
@@ -372,17 +537,15 @@ export default function TicketNew() {
     if (!assignPrompt.deptId) return;
     setAssignPrompt((p) => ({ ...p, saving: true }));
     try {
-      await api.patch(`/customers/${customerId}/department`, { departmentId: assignPrompt.deptId });
+      await api.patch(`/contacts/${contactId}/department`, { departmentId: assignPrompt.deptId });
       const deptName = departments.find((d) => d.id === Number(assignPrompt.deptId))?.name || 'the department';
-      setDirectory((prev) =>
-        prev.map((u) => (u.id === Number(customerId) ? { ...u, departmentId: Number(assignPrompt.deptId) } : u))
-      );
+      setSelectedContact((prev) => (prev ? { ...prev, departmentId: Number(assignPrompt.deptId) } : prev));
       setCustomerDeptId(assignPrompt.deptId);
       setAssignPrompt((p) => ({
         ...p,
         saving: false,
         done: true,
-        doneText: `${selectedCustomer?.displayName} assigned to ${deptName} — all tickets updated`,
+        doneText: `${selectedContact?.displayName} assigned to ${deptName} — all tickets updated`,
       }));
     } catch (err) {
       setAssignPrompt((p) => ({ ...p, saving: false }));
@@ -397,7 +560,7 @@ export default function TicketNew() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isStaff && !customerId) {
+    if (isStaff && !contactId) {
       setError('Customer is required');
       return;
     }
@@ -418,7 +581,7 @@ export default function TicketNew() {
         relatedTicketIds: relatedTickets.map((t) => t.id),
       };
       if (isStaff) {
-        payload.requesterId = customerId;
+        payload.contactId = contactId;
         payload.assigneeId = assigneeId || undefined;
         payload.teamId = teamId || undefined;
       }
@@ -505,24 +668,15 @@ export default function TicketNew() {
             <>
               <div>
                 <Label required>Customer</Label>
-                <select
-                  value={customerId}
-                  onChange={(e) => handleCustomerChange(e.target.value)}
-                  required
-                  className="input"
-                  style={fieldStyle}
-                >
-                  <option value="">Select a customer…</option>
-                  {directory.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-                </select>
+                <ContactPicker selectedContact={selectedContact} onSelect={selectContact} />
 
                 {assignPrompt.done && (
                   <p className="mt-2 text-sm font-medium" style={{ color: 'var(--color-success)' }}>{assignPrompt.doneText}</p>
                 )}
-                {assignPrompt.show && !assignPrompt.done && selectedCustomer && (
+                {assignPrompt.show && !assignPrompt.done && selectedContact && (
                   <div className="mt-2 rounded-md border p-3" style={{ borderColor: BORDER, backgroundColor: BG }}>
                     <p className="text-sm" style={{ color: TEXT }}>
-                      {selectedCustomer.displayName} has no department assigned
+                      {selectedContact.displayName} has no department assigned
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <select

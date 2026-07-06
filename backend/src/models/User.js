@@ -35,14 +35,23 @@ module.exports = (sequelize) => {
           }
         } },
       },
+      // The "requester" tier was retired in favor of the Contacts module —
+      // PRISM users are always staff now.
       role: {
-        type: DataTypes.ENUM('admin', 'technician', 'requester'),
+        type: DataTypes.ENUM('admin', 'technician'),
         allowNull: false,
-        defaultValue: 'requester',
+        defaultValue: 'technician',
       },
       departmentId: {
         type: DataTypes.INTEGER,
         allowNull: true,
+      },
+      // False for deactivated accounts (e.g. legacy requester-role users
+      // migrated to Contacts) — kept for history, blocked from logging in.
+      isActive: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
       },
       // Primary role under the granular permissions system (see Role/
       // permissionService). Additive to the `role` enum above — a user may

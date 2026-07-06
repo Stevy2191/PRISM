@@ -15,6 +15,7 @@ const {
   CustomField,
   TicketFieldValue,
   User,
+  Contact,
   Project,
   Department,
   sequelize,
@@ -26,7 +27,6 @@ const { UPLOAD_ROOT } = require('../middleware/upload');
 const {
   notifyAssigned,
   notifyComment,
-  notifyStatusChange,
   notifyWatchers,
   createNotification,
 } = require('../services/notifications');
@@ -38,9 +38,9 @@ const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
   { model: User, as: 'assignee', attributes: userAttrs },
   {
-    model: User,
-    as: 'requester',
-    attributes: userAttrs,
+    model: Contact,
+    as: 'contact',
+    attributes: ['id', 'firstName', 'lastName', 'displayName', 'email', 'phone', 'departmentId'],
     include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
   },
   { model: Team, as: 'team', attributes: ['id', 'name'] },
@@ -73,13 +73,6 @@ async function syncFieldValues(ticketId, fieldValues, t) {
   }
 }
 
-// Requesters may only touch their own tickets.
-function assertCanViewTicket(req, ticket) {
-  if (req.user.role === 'requester' && ticket.requesterId !== req.user.id) {
-    throw new ApiError(403, 'You may only access your own tickets', 'FORBIDDEN');
-  }
-}
-
 const isStaff = (user) => user.role === 'admin' || user.role === 'technician';
 
 // Admins and team leads may log time attributed to another tech.
@@ -95,7 +88,7 @@ const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'creat
 const list = asyncHandler(async (req, res) => {
   const where = {};
   const {
-    status, priority, assignee, project, department, requester, type, team,
+    status, priority, assignee, project, department, contactId, type, team,
     search, myTickets, overdue, unassigned, sortBy, sortDir,
   } = req.query;
 
@@ -108,7 +101,7 @@ const list = asyncHandler(async (req, res) => {
   if (assignee) where.assigneeId = assignee;
   if (project) where.projectId = project;
   if (department) where.departmentId = department;
-  if (requester) where.requesterId = requester;
+  if (contactId) where.contactId = contactId;
   if (team) where.teamId = team;
 
   if (search && search.trim()) {
@@ -136,16 +129,17 @@ const list = asyncHandler(async (req, res) => {
   const scope = await getUserTicketScope(req.user.id);
 
   // "My tickets" pins the view to the logged-in user regardless of any
-  // assignee filter that was also passed. Scope 'own' already restricts to
-  // the user's own tickets below, so forcing assigneeId here would
-  // incorrectly return zero results for accounts that are never assignees
-  // (e.g. requesters).
+  // assignee filter that was also passed.
   if (myTickets === 'true' && scope !== 'own') where.assigneeId = req.user.id;
 
   if (scope === 'department') {
     where[Op.and] = [{ [Op.or]: [{ departmentId: req.user.departmentId }, { assigneeId: req.user.id }] }];
   } else if (scope === 'own') {
-    where[Op.and] = [{ [Op.or]: [{ assigneeId: req.user.id }, { requesterId: req.user.id }] }];
+    // Own tickets = tickets assigned to me. (Not "requested by me" — that
+    // concept belonged to the retired requester role; contacts, who now
+    // hold that place, aren't PRISM users and can't be compared to
+    // req.user.id.)
+    where.assigneeId = req.user.id;
   }
 
   const orderColumn = SORTABLE_COLUMNS.includes(sortBy) ? sortBy : 'updatedAt';
@@ -174,22 +168,17 @@ const list = asyncHandler(async (req, res) => {
 });
 
 // POST /tickets
-// Requesters can create tickets for themselves only.
 const create = asyncHandler(async (req, res) => {
   const {
     title, description, priority, type, status, projectId, departmentId, dueDate,
     blueprintId, customFields, teamId, tags, watcherIds, parentTicketId, childTicketIds, relatedTicketIds,
+    assigneeId, contactId,
   } = req.body || {};
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
   }
-
-  let { assigneeId, requesterId } = req.body || {};
-  if (req.user.role === 'requester') {
-    requesterId = req.user.id;
-    assigneeId = null;
-  } else {
-    requesterId = requesterId || req.user.id;
+  if (!contactId) {
+    throw new ApiError(400, 'A contact is required', 'VALIDATION_ERROR');
   }
 
   const watcherIdList = Array.isArray(watcherIds)
@@ -211,8 +200,8 @@ const create = asyncHandler(async (req, res) => {
       priority: priority || 'medium',
       type: type || 'request',
       assigneeId: assigneeId || null,
-      teamId: req.user.role === 'requester' ? null : (teamId || null),
-      requesterId,
+      teamId: teamId || null,
+      contactId,
       projectId: projectId || null,
       departmentId: departmentId || null,
       dueDate: dueDate || null,
@@ -267,7 +256,6 @@ const create = asyncHandler(async (req, res) => {
 const get = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id, { include: ticketInclude });
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
   res.json({ ticket });
 });
 
@@ -275,31 +263,26 @@ const get = asyncHandler(async (req, res) => {
 const update = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
-  // Requesters can only edit a narrow set of fields on their own tickets.
-  // resolution is staff-only to edit (customers only ever see it read-only).
-  let allowed;
-  if (isStaff(req.user)) {
-    allowed = [
-      'title',
-      'description',
-      'status',
-      'priority',
-      'type',
-      'assigneeId',
-      'teamId',
-      'requesterId',
-      'projectId',
-      'departmentId',
-      'dueDate',
-      'customFields',
-      'tags',
-      'resolution',
-    ];
-  } else {
-    allowed = ['title', 'description', 'priority', 'tags'];
-  }
+  // Every PRISM user is staff now (the requester tier moved to Contacts,
+  // who don't call this API), so there's one edit surface — resolution
+  // stays customer-visible read-only, editable here by staff only.
+  const allowed = [
+    'title',
+    'description',
+    'status',
+    'priority',
+    'type',
+    'assigneeId',
+    'teamId',
+    'contactId',
+    'projectId',
+    'departmentId',
+    'dueDate',
+    'customFields',
+    'tags',
+    'resolution',
+  ];
 
   const changes = {};
   for (const key of allowed) {
@@ -340,11 +323,10 @@ const update = asyncHandler(async (req, res) => {
     await notifyAssigned(ticket, req.user.id);
   }
   if (changes.status !== undefined && ticket.status !== previousStatus && isStaff(req.user)) {
-    await notifyStatusChange(ticket, req.user.id, ticket.status);
     await notifyWatchers(
       ticket,
       `Status changed to "${ticket.status.replace(/_/g, ' ')}" on ticket: ${ticket.title}`,
-      [req.user.id, ticket.requesterId, ticket.assigneeId]
+      [req.user.id, ticket.assigneeId]
     );
   }
 
@@ -377,7 +359,6 @@ const COMMENT_TYPES = ['reply', 'comment_private', 'comment_public'];
 const listComments = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const where = { ticketId: ticket.id };
   // Customers never see internal-only comments, regardless of who posted them.
@@ -396,7 +377,6 @@ const listComments = asyncHandler(async (req, res) => {
 const createComment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const { body, type } = req.body || {};
   if (!body || !body.trim()) {
@@ -422,8 +402,8 @@ const createComment = asyncHandler(async (req, res) => {
   await logActivity(ticket.id, req.user.id, 'comment', null, null);
 
   if (resolvedType === 'comment_private') {
-    // Internal-only note: notify the assignee, never the requester or any
-    // watcher who might be a customer.
+    // Internal-only note: notify the assignee, never any watcher who might
+    // be a customer-facing contact.
     if (ticket.assigneeId && ticket.assigneeId !== req.user.id) {
       await createNotification({
         userId: ticket.assigneeId,
@@ -437,7 +417,7 @@ const createComment = asyncHandler(async (req, res) => {
     await notifyWatchers(
       ticket,
       `Someone commented on ticket you're watching: ${ticket.title}`,
-      [req.user.id, ticket.requesterId, ticket.assigneeId]
+      [req.user.id, ticket.assigneeId]
     );
   }
 
@@ -451,7 +431,6 @@ const createComment = asyncHandler(async (req, res) => {
 const updateComment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const comment = await Comment.findOne({
     where: { id: req.params.commentId, ticketId: req.params.id },
@@ -477,7 +456,6 @@ const updateComment = asyncHandler(async (req, res) => {
 const removeComment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const comment = await Comment.findOne({
     where: { id: req.params.commentId, ticketId: req.params.id },
@@ -497,7 +475,6 @@ const removeComment = asyncHandler(async (req, res) => {
 const listAttachments = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const attachments = await Attachment.findAll({
     where: { ticketId: ticket.id },
@@ -516,7 +493,6 @@ const createAttachment = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   }
   try {
-    assertCanViewTicket(req, ticket);
   } catch (err) {
     if (req.file) fs.rm(req.file.path, { force: true }, () => {});
     throw err;
@@ -545,7 +521,6 @@ const createAttachment = asyncHandler(async (req, res) => {
 const downloadAttachment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const attachment = await Attachment.findOne({
     where: { id: req.params.attachmentId, ticketId: ticket.id },
@@ -563,7 +538,6 @@ const downloadAttachment = asyncHandler(async (req, res) => {
 const removeAttachment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const attachment = await Attachment.findOne({
     where: { id: req.params.attachmentId, ticketId: ticket.id },
@@ -586,7 +560,6 @@ const removeAttachment = asyncHandler(async (req, res) => {
 const listTime = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const entries = await TimeEntry.findAll({
     where: { ticketId: ticket.id },
@@ -706,7 +679,6 @@ const relTicketAttrs = ['id', 'title', 'status', 'priority', 'type'];
 const listRelations = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const rows = await TicketRelation.findAll({
     where: { [Op.or]: [{ ticketId: ticket.id }, { relatedTicketId: ticket.id }] },
@@ -800,7 +772,6 @@ const removeRelation = asyncHandler(async (req, res) => {
 const getCsat = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
   const csat = await CsatResponse.findOne({
     where: { ticketId: ticket.id },
     include: [{ model: User, as: 'user', attributes: userAttrs }],
@@ -808,16 +779,14 @@ const getCsat = asyncHandler(async (req, res) => {
   res.json({ csat });
 });
 
-// POST /tickets/:id/csat — the ticket's requester submits a satisfaction rating.
+// POST /tickets/:id/csat — records the contact's satisfaction rating.
+// Contacts have no PRISM login (until the customer portal exists), so staff
+// enter this on their behalf — e.g. from a phone call or a reply-by-email.
 // Available once the ticket is resolved or closed.
 const submitCsat = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
 
-  // Only the requester (or an admin acting on their behalf) may rate.
-  if (req.user.role !== 'admin' && ticket.requesterId !== req.user.id) {
-    throw new ApiError(403, 'Only the ticket requester can submit a rating', 'FORBIDDEN');
-  }
   const buckets = await getTicketStatusBuckets();
   if (!buckets.closed.includes(ticket.status)) {
     throw new ApiError(400, 'You can rate a ticket once it is resolved or closed', 'NOT_RATEABLE');
@@ -849,7 +818,6 @@ const submitCsat = asyncHandler(async (req, res) => {
 const listWatchers = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const watchers = await TicketWatcher.findAll({
     where: { ticketId: ticket.id },
@@ -863,7 +831,6 @@ const listWatchers = asyncHandler(async (req, res) => {
 const addWatcher = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const userId = parseInt(req.body?.userId, 10);
   if (!userId) throw new ApiError(400, 'userId is required', 'VALIDATION_ERROR');
@@ -881,7 +848,6 @@ const addWatcher = asyncHandler(async (req, res) => {
 const removeWatcher = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   await TicketWatcher.destroy({ where: { ticketId: ticket.id, userId: req.params.userId } });
   res.json({ ok: true });
@@ -893,7 +859,6 @@ const removeWatcher = asyncHandler(async (req, res) => {
 const listTasks = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const tasks = await TicketTask.findAll({
     where: { ticketId: ticket.id },
@@ -907,7 +872,6 @@ const listTasks = asyncHandler(async (req, res) => {
 const createTask = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const { description, assigneeId } = req.body || {};
   if (!description || !description.trim()) {
@@ -929,7 +893,6 @@ const updateTask = asyncHandler(async (req, res) => {
   const task = await TicketTask.findOne({ where: { id: req.params.taskId, ticketId: req.params.id } });
   if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
   const ticket = await Ticket.findByPk(req.params.id);
-  assertCanViewTicket(req, ticket);
 
   const changes = {};
   if (req.body?.completed !== undefined) changes.completed = !!req.body.completed;
@@ -951,7 +914,6 @@ const updateTask = asyncHandler(async (req, res) => {
 const listActivity = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  assertCanViewTicket(req, ticket);
 
   const activity = await TicketActivity.findAll({
     where: { ticketId: ticket.id },

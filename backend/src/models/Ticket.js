@@ -54,9 +54,17 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      // Legacy FK to Users, kept for historical rows only — no longer
+      // populated on new tickets. See contactId, which replaces it.
       requesterId: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
+      },
+      // The contact (customer/end-user) this ticket was filed for. Contacts
+      // are a separate directory from Users — they have no PRISM login.
+      contactId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
       },
       projectId: {
         type: DataTypes.INTEGER,

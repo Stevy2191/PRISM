@@ -15,7 +15,7 @@ function applyTicketScope(where, scope, user, requestedDepartmentId) {
   if (scope === 'department') {
     return { ...where, [Op.and]: [{ [Op.or]: [{ departmentId: user.departmentId }, { assigneeId: user.id }] }] };
   }
-  return { ...where, [Op.and]: [{ [Op.or]: [{ assigneeId: user.id }, { requesterId: user.id }] }] };
+  return { ...where, assigneeId: user.id };
 }
 
 function parseDepartmentId(query) {

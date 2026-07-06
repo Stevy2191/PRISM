@@ -7,6 +7,7 @@ import api from '../api/api';
 // Nav visibility gates, per the roles/permissions build spec (Prompt 4).
 const TICKETS_PERMISSION_KEYS = ['tickets.view_own', 'tickets.view_department', 'tickets.view_all'];
 const PROJECTS_PERMISSION_KEYS = ['projects.view_own', 'projects.view_department', 'projects.view_all'];
+const CONTACTS_PERMISSION_KEYS = ['people.view_own_department', 'people.view_all'];
 const REPORTS_PERMISSION_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
 // "Any permission starting with settings." plus the three People permissions
 // that specifically unlock a Settings-hub card (manage_roles, manage_departments,
@@ -21,6 +22,7 @@ const SETTINGS_PERMISSION_KEYS = [
 const NAV = [
   { key: 'dashboard', to: '/dashboard', label: 'Dashboard', icon: '◧' },
   { key: 'tickets', to: '/tickets', label: 'Tickets', icon: '🎫' },
+  { key: 'contacts', to: '/contacts', label: 'Contacts', icon: '👤' },
   { key: 'projects', to: '/projects', label: 'Projects', icon: '🗂' },
   { key: 'reports', to: '/reports', label: 'Reports', icon: '📊' },
   { key: 'calendar', to: '/calendar', label: 'Calendar', icon: '📅' },
@@ -29,12 +31,13 @@ const NAV = [
 
 // Sensible defaults if module visibility hasn't loaded yet.
 const DEFAULT_ROLES = {
-  dashboard: ['admin', 'technician', 'requester'],
-  tickets: ['admin', 'technician', 'requester'],
-  projects: ['admin', 'technician', 'requester'],
+  dashboard: ['admin', 'technician'],
+  tickets: ['admin', 'technician'],
+  contacts: ['admin', 'technician'],
+  projects: ['admin', 'technician'],
   reports: ['admin', 'technician'],
-  calendar: ['admin', 'technician', 'requester'],
-  settings: ['admin', 'technician', 'requester'],
+  calendar: ['admin', 'technician'],
+  settings: ['admin', 'technician'],
 };
 
 export default function Layout() {
@@ -76,6 +79,7 @@ export default function Layout() {
   // only, the backend is the real enforcement (see requirePermission middleware).
   const permissionGate = (key) => {
     if (key === 'tickets' || key === 'calendar') return hasAnyPermission(TICKETS_PERMISSION_KEYS);
+    if (key === 'contacts') return hasAnyPermission(CONTACTS_PERMISSION_KEYS);
     if (key === 'projects') return hasAnyPermission(PROJECTS_PERMISSION_KEYS);
     if (key === 'reports') return hasAnyPermission(REPORTS_PERMISSION_KEYS);
     if (key === 'settings') return hasAnyPermission(SETTINGS_PERMISSION_KEYS);

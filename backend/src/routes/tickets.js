@@ -12,7 +12,7 @@ const editMin = requirePermission('tickets.edit_own', 'tickets.edit_department',
 
 // Tickets
 router.get('/', viewMin, ctrl.list);
-router.post('/', requirePermission('tickets.create'), ctrl.create); // requesters allowed (scoped in controller)
+router.post('/', requirePermission('tickets.create'), ctrl.create);
 router.get('/:id', viewMin, ctrl.get);
 router.patch('/:id', editMin, ctrl.update);
 router.delete('/:id', requirePermission('tickets.delete'), ctrl.remove);
@@ -23,7 +23,7 @@ router.post('/:id/comments', requirePermission('tickets.create'), ctrl.createCom
 router.patch('/:id/comments/:commentId', ctrl.updateComment);
 router.delete('/:id/comments/:commentId', ctrl.removeComment);
 
-// Attachments (requesters may attach files to their own tickets; enforced in controller)
+// Attachments
 router.get('/:id/attachments', ctrl.listAttachments);
 router.post('/:id/attachments', upload.single('file'), ctrl.createAttachment);
 router.get('/:id/attachments/:attachmentId/download', ctrl.downloadAttachment);
@@ -39,7 +39,7 @@ router.get('/:id/relations', ctrl.listRelations);
 router.post('/:id/relations', staff, ctrl.createRelation);
 router.delete('/:id/relations/:relationId', staff, ctrl.removeRelation);
 
-// CSAT (requester submits; anyone who can view the ticket can read)
+// CSAT (staff enters on the contact's behalf; anyone who can view the ticket can read)
 router.get('/:id/csat', ctrl.getCsat);
 router.post('/:id/csat', ctrl.submitCsat);
 

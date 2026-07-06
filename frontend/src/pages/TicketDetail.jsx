@@ -594,6 +594,7 @@ function Sidebar({
   assignableUsers, teams, directory, ticketStatuses,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
+  departments, contactDeptAssign, onContactDeptChange, onAssignContactDepartment,
 }) {
   const [tagInput, setTagInput] = useState('');
   const [watcherQuery, setWatcherQuery] = useState('');
@@ -646,13 +647,49 @@ function Sidebar({
       >
         <SidebarSection title="Contact Info" collapsed={collapsed}>
           {collapsed ? (
-            <span title={`${ticket.requester?.displayName} · ${ticket.requester?.department?.name || 'No department'} · ${ticket.requester?.email || 'no email'}`} className="text-lg">👤</span>
+            <span title={`${ticket.contact?.displayName} · ${ticket.contact?.department?.name || 'No department'} · ${ticket.contact?.email || 'no email'}`} className="text-lg">👤</span>
           ) : (
-            <dl className="space-y-1.5 text-sm">
-              <div><dt className="text-xs" style={{ color: MUTED }}>Name</dt><dd style={{ color: TEXT }}>{ticket.requester?.displayName || '—'}</dd></div>
-              <div><dt className="text-xs" style={{ color: MUTED }}>Department</dt><dd style={{ color: TEXT }}>{ticket.requester?.department?.name || '—'}</dd></div>
-              <div><dt className="text-xs" style={{ color: MUTED }}>Email</dt><dd style={{ color: TEXT }}>{ticket.requester?.email || '—'}</dd></div>
-            </dl>
+            <>
+              <dl className="space-y-1.5 text-sm">
+                <div>
+                  <dt className="text-xs" style={{ color: MUTED }}>Name</dt>
+                  <dd>
+                    {ticket.contact ? (
+                      <Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link>
+                    ) : (
+                      <span style={{ color: TEXT }}>—</span>
+                    )}
+                  </dd>
+                </div>
+                <div><dt className="text-xs" style={{ color: MUTED }}>Department</dt><dd style={{ color: TEXT }}>{ticket.contact?.department?.name || '—'}</dd></div>
+                <div><dt className="text-xs" style={{ color: MUTED }}>Email</dt><dd style={{ color: TEXT }}>{ticket.contact?.email || '—'}</dd></div>
+              </dl>
+              {ticket.contact && !ticket.contact.departmentId && (
+                <div className="mt-2 rounded-md border p-2.5" style={{ borderColor: BORDER, backgroundColor: BG }}>
+                  <p className="text-xs" style={{ color: TEXT }}>{ticket.contact.displayName} has no department assigned</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <select
+                      value={contactDeptAssign.deptId}
+                      onChange={(e) => onContactDeptChange(e.target.value)}
+                      className="input h-8 max-w-[8rem] text-xs"
+                      style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+                    >
+                      <option value="">Select…</option>
+                      {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={onAssignContactDepartment}
+                      disabled={!contactDeptAssign.deptId || contactDeptAssign.saving}
+                      className="rounded-md px-2 py-1 text-xs font-medium text-white disabled:opacity-40"
+                      style={{ backgroundColor: BLUE }}
+                    >
+                      {contactDeptAssign.saving ? 'Assigning…' : 'Assign'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </SidebarSection>
 
@@ -940,7 +977,7 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPrivateCo
         ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={isComment ? 'Add an internal comment...' : `Reply to ${ticket.requester?.displayName || 'the customer'}...`}
+        placeholder={isComment ? 'Add an internal comment...' : `Reply to ${ticket.contact?.displayName || 'the customer'}...`}
         className="input resize-y"
         style={{ ...fieldStyle, minHeight: '80px', borderColor: isComment ? AMBER : BORDER }}
       />
@@ -1457,6 +1494,8 @@ export default function TicketDetail() {
   const [assignableUsers, setAssignableUsers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [ticketStatuses, setTicketStatuses] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [contactDeptAssign, setContactDeptAssign] = useState({ deptId: '', saving: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -1505,11 +1544,25 @@ export default function TicketDetail() {
   useEffect(() => {
     api.get('/users/directory').then(({ data }) => setDirectory(data.users)).catch(() => {});
     api.get('/ticket-statuses').then(({ data }) => setTicketStatuses(data.statuses)).catch(() => {});
+    api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
     if (isStaff) {
       api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
       api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
     }
   }, [isStaff]);
+
+  const assignContactDepartment = async () => {
+    if (!contactDeptAssign.deptId || !ticket?.contact) return;
+    setContactDeptAssign((p) => ({ ...p, saving: true }));
+    try {
+      await api.patch(`/contacts/${ticket.contact.id}/department`, { departmentId: contactDeptAssign.deptId });
+      await load();
+      setContactDeptAssign({ deptId: '', saving: false });
+    } catch (err) {
+      setContactDeptAssign((p) => ({ ...p, saving: false }));
+      alert(errMessage(err));
+    }
+  };
 
   // Keep a ref to the latest ticket-timer snapshot so the mount/unmount
   // effect below (which only re-runs when the ticket changes) always acts on
@@ -1768,7 +1821,14 @@ export default function TicketDetail() {
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm" style={{ color: MUTED }}>
-          <span>Customer: <span style={{ color: TEXT }}>{ticket.requester?.displayName || '—'}</span></span>
+          <span>
+            Customer:{' '}
+            {ticket.contact ? (
+              <Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link>
+            ) : (
+              <span style={{ color: TEXT }}>—</span>
+            )}
+          </span>
           <span>Assignee: <span style={{ color: TEXT }}>{ticket.assignee?.displayName || 'Unassigned'}</span></span>
           <span>Due: <span style={{ color: dueDateColor(ticket.dueDate) }}>{ticket.dueDate || '—'}</span></span>
           <span>Created: <span style={{ color: TEXT }}>{formatDate(ticket.createdAt)}</span></span>
@@ -1805,6 +1865,10 @@ export default function TicketDetail() {
           watchers={watchers}
           onAddWatcher={addWatcher}
           onRemoveWatcher={removeWatcher}
+          departments={departments}
+          contactDeptAssign={contactDeptAssign}
+          onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
+          onAssignContactDepartment={assignContactDepartment}
         />
 
         <div

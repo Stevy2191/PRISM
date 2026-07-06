@@ -2,7 +2,7 @@ const { ModuleVisibility } = require('../models');
 const { asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 
-const ROLES = ['admin', 'technician', 'requester'];
+const ROLES = ['admin', 'technician'];
 
 // GET /modules — any authenticated user (sidebar reads this).
 const list = asyncHandler(async (req, res) => {

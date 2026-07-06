@@ -63,6 +63,10 @@ function AssignRoleModal({ roles, assignedRoleIds, onAssign, onClose }) {
   const q = search.toLowerCase();
   const available = roles.filter(
     (r) =>
+      // "Requester" is retired — contacts replace it, and no PRISM user
+      // should be newly assigned it. Kept in the DB (not deleted) so
+      // historical UserRoles rows stay valid; just hidden here.
+      r.name !== 'Requester' &&
       !assignedRoleIds.has(r.id) &&
       (r.name.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q))
   );

@@ -8,7 +8,7 @@ module.exports = (sequelize) => {
     {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       moduleName: { type: DataTypes.STRING(64), allowNull: false, unique: true },
-      // JSON array of roles, e.g. ["admin","technician","requester"]
+      // JSON array of roles, e.g. ["admin","technician"]
       visibleToRoles: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
     },
     {

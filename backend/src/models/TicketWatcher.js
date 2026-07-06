@@ -1,7 +1,7 @@
 const { DataTypes, Model } = require('sequelize');
 
 // Users who get notified on ticket create/comment/status-change without
-// necessarily being the requester or assignee.
+// necessarily being the assignee.
 module.exports = (sequelize) => {
   class TicketWatcher extends Model {}
 

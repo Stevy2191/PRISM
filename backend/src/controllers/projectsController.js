@@ -36,17 +36,6 @@ async function canLogForOthers(user) {
 }
 const isStaff = (user) => user.role === 'admin' || user.role === 'technician';
 
-// Requesters are read-only, scoped to projects that are FOR their own
-// department (the "who benefits" side, not "who does the work").
-function assertCanViewProject(req, project) {
-  if (
-    req.user.role === 'requester' &&
-    (!req.user.departmentId || project.forDepartmentId !== req.user.departmentId)
-  ) {
-    throw new ApiError(403, 'You may only access projects for your department', 'FORBIDDEN');
-  }
-}
-
 async function buildProjectStats(projectId) {
   const [completion, timeSum, expenseSum, materialSum, ticketBuckets] = await Promise.all([
     computeProjectCompletion(projectId),
@@ -87,7 +76,7 @@ async function getProjectWithDetail(id) {
 // ==================== Projects ====================
 
 // GET /projects — filters: status, ownerDept, forDept, assignee, myProjects,
-// myDepartment, overdue, search, tag. Requesters see only projects FOR their own department.
+// myDepartment, overdue, search, tag.
 const list = asyncHandler(async (req, res) => {
   const where = {};
   const { status, ownerDept, forDept, assignee, myProjects, myDepartment, overdue, search, tag } = req.query;
@@ -258,7 +247,6 @@ const create = asyncHandler(async (req, res) => {
 const get = asyncHandler(async (req, res) => {
   const project = await getProjectWithDetail(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  assertCanViewProject(req, project);
   res.json({ project });
 });
 
@@ -306,7 +294,6 @@ const remove = asyncHandler(async (req, res) => {
 const getStats = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  assertCanViewProject(req, project);
   res.json({ stats: await buildProjectStats(project.id) });
 });
 
@@ -323,7 +310,6 @@ const taskInclude = [
 const listTasks = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  assertCanViewProject(req, project);
 
   const statusIdBehavior = await getProjectStatusIdBehaviorMap();
   const tasks = await ProjectTask.findAll({
@@ -590,7 +576,6 @@ const timeEntryInclude = [
 const listTimeEntries = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  assertCanViewProject(req, project);
 
   const entries = await ProjectTimeEntry.findAll({
     where: { projectId: project.id },
@@ -711,7 +696,6 @@ const expenseInclude = [
 const listExpenses = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  assertCanViewProject(req, project);
 
   const expenses = await ProjectExpense.findAll({
     where: { projectId: project.id },
@@ -781,7 +765,6 @@ const materialInclude = [
 const listMaterials = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  assertCanViewProject(req, project);
 
   const materials = await ProjectMaterial.findAll({
     where: { projectId: project.id },
@@ -865,7 +848,6 @@ const removeMaterial = asyncHandler(async (req, res) => {
 const listMembers = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  assertCanViewProject(req, project);
 
   const members = await ProjectMember.findAll({
     where: { projectId: project.id },
@@ -913,7 +895,6 @@ const removeMember = asyncHandler(async (req, res) => {
 const listFiles = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  assertCanViewProject(req, project);
 
   const files = await ProjectFile.findAll({
     where: { projectId: project.id },
@@ -969,7 +950,6 @@ const removeFile = asyncHandler(async (req, res) => {
 const listActivity = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  assertCanViewProject(req, project);
 
   const activity = await ProjectActivity.findAll({
     where: { projectId: project.id },

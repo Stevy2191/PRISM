@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 
-const ROLES = ['admin', 'technician', 'requester'];
+const ROLES = ['admin', 'technician'];
 const LABELS = {
-  dashboard: 'Dashboard', tickets: 'Tickets', projects: 'Projects',
+  dashboard: 'Dashboard', tickets: 'Tickets', contacts: 'Contacts', projects: 'Projects',
   reports: 'Reports', calendar: 'Calendar', settings: 'Settings',
 };
 
