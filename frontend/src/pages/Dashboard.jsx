@@ -585,7 +585,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!canFilterByUser) return;
-    api.get('/users').then(({ data: d }) => setUsers(d.users)).catch(() => {});
+    // scope=department: dept managers should only filter within their own
+    // department; system admins (people.view_all) still see everyone — see
+    // usersController.list.
+    api.get('/users', { params: { scope: 'department' } }).then(({ data: d }) => setUsers(d.users)).catch(() => {});
   }, [canFilterByUser]);
 
   const load = useCallback(() => {

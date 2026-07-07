@@ -42,11 +42,21 @@ async function assignInitialRole(user, legacyRole, departmentId, assignedBy) {
   await syncSeedRoleAssignment(user, legacyRole, assignedBy);
 }
 
-// GET /users — scoped to the caller's department unless they hold
-// people.view_all (route guard already requires view_own_department minimum).
+// GET /users?scope=department|assignment — department scoping is opt-in via
+// ?scope=department (used by pages that manage/filter people BY department,
+// e.g. the User Management list and the dashboard's admin "Viewing" filter)
+// and is scoped to the caller's department unless they hold people.view_all.
+// The default (no scope param, or scope=assignment) always returns every
+// user regardless of department — department affects what tickets/projects
+// someone can SEE, never who can be assigned work, so any assignment-context
+// picker must never filter by department. (Route guard already requires
+// view_own_department minimum just to call this endpoint at all.)
 const list = asyncHandler(async (req, res) => {
-  const canViewAll = await hasPermission(req.user.id, 'people.view_all');
-  const where = canViewAll ? {} : { departmentId: req.user.departmentId };
+  let where = {};
+  if (req.query.scope === 'department') {
+    const canViewAll = await hasPermission(req.user.id, 'people.view_all');
+    where = canViewAll ? {} : { departmentId: req.user.departmentId };
+  }
   const users = await User.findAll({
     where,
     include: userInclude,

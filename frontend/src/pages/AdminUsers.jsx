@@ -16,7 +16,7 @@ export default function AdminUsers() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    Promise.all([api.get('/users'), api.get('/departments')])
+    Promise.all([api.get('/users', { params: { scope: 'department' } }), api.get('/departments')])
       .then(([u, d]) => {
         setUsers(u.data.users);
         setDepartments(d.data.departments);
