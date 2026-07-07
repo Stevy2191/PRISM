@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IconArrowUp, IconArrowDown, IconX, IconUpload } from '@tabler/icons-react';
+import { IconX, IconUpload } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import { formatTicketId } from '../utils/ticketId';
 import TagInput from '../components/TagInput';
 
 // Colors read from the admin-customizable theme CSS variables (Settings -> Appearance).
@@ -13,8 +12,6 @@ const BORDER = 'var(--color-border)';
 const TEXT = 'var(--color-text-primary)';
 const MUTED = 'var(--color-text-muted)';
 const BLUE = 'var(--color-accent)';
-const PURPLE = 'var(--color-relation-accent)';
-const PURPLE_LIGHT = 'var(--color-relation-accent-light)';
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
@@ -354,96 +351,6 @@ function WatchersField({ directory, watchers, onChange }) {
   );
 }
 
-function TicketLinker({ title, accent, accentLight, Icon, buttonLabel, helperText, multiple, selected, onAdd, onRemove }) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-
-  useEffect(() => {
-    if (!query.trim()) { setResults([]); return undefined; }
-    const t = setTimeout(() => {
-      api
-        .get('/tickets', { params: { search: query.trim() } })
-        .then(({ data }) => setResults(data.tickets.slice(0, 8)))
-        .catch(() => setResults([]));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  const pick = (ticket) => {
-    onAdd(ticket);
-    setQuery('');
-    setResults([]);
-  };
-
-  const hideInput = !multiple && selected;
-
-  return (
-    <div>
-      <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: accent }}>
-        <Icon size={16} />
-        {title}
-      </div>
-
-      {!hideInput && (
-        <div className="relative mt-2 flex gap-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by ticket number or title…"
-            className="input flex-1"
-            style={fieldStyle}
-          />
-          <button
-            type="button"
-            onClick={() => results.length && pick(results[0])}
-            disabled={!results.length}
-            className="whitespace-nowrap rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-40"
-            style={{ borderColor: accent, color: accentLight }}
-          >
-            {buttonLabel}
-          </button>
-          {results.length > 0 && (
-            <div
-              className="absolute left-0 top-full z-10 mt-1 w-full rounded-md border p-1 shadow-lg"
-              style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
-            >
-              {results.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => pick(t)}
-                  className="block w-full rounded px-3 py-1.5 text-left text-sm hover:bg-white/5"
-                  style={{ color: TEXT }}
-                >
-                  {formatTicketId(t)} {t.title}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {helperText && <p className="mt-1.5 text-xs" style={{ color: MUTED }}>{helperText}</p>}
-
-      <div className="mt-2 flex flex-wrap gap-2">
-        {(multiple ? selected : selected ? [selected] : []).map((t) => (
-          <span
-            key={t.id}
-            className="flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-2 text-xs font-medium"
-            style={{ backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`, color: accentLight }}
-          >
-            <Icon size={12} />
-            {formatTicketId(t)} {t.title}
-            <button type="button" onClick={() => onRemove(t)} style={{ color: accentLight }}>
-              <IconX size={12} />
-            </button>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function Dropzone({ files, onFiles, onRemove }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
@@ -531,10 +438,6 @@ export default function TicketNew() {
   const [teamId, setTeamId] = useState('');
 
   const [dueDate, setDueDate] = useState('');
-
-  const [parentTicket, setParentTicket] = useState(null);
-  const [childTickets, setChildTickets] = useState([]);
-  const [relatedTickets, setRelatedTickets] = useState([]);
 
   const [files, setFiles] = useState([]);
 
@@ -656,9 +559,6 @@ export default function TicketNew() {
         departmentId: customerDeptId || undefined,
         dueDate: dueDate || undefined,
         watcherIds: watchers.map((w) => w.id),
-        parentTicketId: parentTicket ? parentTicket.id : undefined,
-        childTicketIds: childTickets.map((t) => t.id),
-        relatedTicketIds: relatedTickets.map((t) => t.id),
         customFieldValues: Object.keys(customFieldValues).length ? customFieldValues : undefined,
       };
       if (isStaff) {
@@ -864,52 +764,6 @@ export default function TicketNew() {
               onChange={(e) => setDueDate(e.target.value)}
               className="input max-w-[12rem]"
               style={fieldStyle}
-            />
-          </div>
-        </Card>
-
-        <Card title="Ticket Relationships" optional>
-          <TicketLinker
-            title="Parent ticket"
-            accent={PURPLE}
-            accentLight={PURPLE_LIGHT}
-            Icon={IconArrowUp}
-            buttonLabel="Link parent"
-            multiple={false}
-            selected={parentTicket}
-            onAdd={setParentTicket}
-            onRemove={() => setParentTicket(null)}
-            helperText={
-              parentTicket
-                ? `This ticket will roll up to ${formatTicketId(parentTicket)}. The parent stays open until all children are resolved.`
-                : null
-            }
-          />
-          <div className="border-t pt-4" style={{ borderColor: BORDER }}>
-            <TicketLinker
-              title="Child tickets"
-              accent={BLUE}
-              accentLight={BLUE}
-              Icon={IconArrowDown}
-              buttonLabel="Link child"
-              multiple
-              selected={childTickets}
-              onAdd={(t) => setChildTickets((prev) => (prev.some((c) => c.id === t.id) ? prev : [...prev, t]))}
-              onRemove={(t) => setChildTickets((prev) => prev.filter((c) => c.id !== t.id))}
-              helperText="Child tickets are tracked under this ticket. Progress shown as closed children vs total."
-            />
-          </div>
-          <div className="border-t pt-4" style={{ borderColor: BORDER }}>
-            <TicketLinker
-              title="Related tickets"
-              accent={MUTED}
-              accentLight={MUTED}
-              Icon={() => null}
-              buttonLabel="Link"
-              multiple
-              selected={relatedTickets}
-              onAdd={(t) => setRelatedTickets((prev) => (prev.some((r) => r.id === t.id) ? prev : [...prev, t]))}
-              onRemove={(t) => setRelatedTickets((prev) => prev.filter((r) => r.id !== t.id))}
             />
           </div>
         </Card>
