@@ -31,6 +31,13 @@ module.exports = (sequelize) => {
       createdBy: { type: DataTypes.INTEGER, allowNull: true },
       // The tech who "owns" this contact.
       assignedTo: { type: DataTypes.INTEGER, allowNull: true },
+      status: { type: DataTypes.ENUM('active', 'inactive'), allowNull: false, defaultValue: 'active' },
+      // Set once this contact has ever been created/updated by AD sync —
+      // controls whether future syncs manage it and whether it can be
+      // deactivated (not deleted) when the AD account disappears/disables.
+      adSynced: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      adObjectGUID: { type: DataTypes.STRING(64), allowNull: true },
+      adLastSynced: { type: DataTypes.DATE, allowNull: true },
     },
     {
       sequelize,

@@ -25,7 +25,7 @@ const SORTABLE_COLUMNS = ['firstName', 'lastName', 'displayName', 'email', 'crea
 // GET /contacts
 const list = asyncHandler(async (req, res) => {
   const {
-    search, departmentId, assignedTo, myContacts, noDept, sortBy, sortDir,
+    search, departmentId, assignedTo, myContacts, noDept, sortBy, sortDir, status,
   } = req.query;
 
   const where = await scopeWhere(req);
@@ -33,6 +33,7 @@ const list = asyncHandler(async (req, res) => {
   if (noDept === 'true') where.departmentId = null;
   if (assignedTo) where.assignedTo = assignedTo;
   if (myContacts === 'true') where.assignedTo = req.user.id;
+  if (status === 'active' || status === 'inactive') where.status = status;
 
   if (search && search.trim()) {
     const term = search.trim();

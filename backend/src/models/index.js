@@ -54,6 +54,8 @@ const WorkflowAction = require('./WorkflowAction')(sequelize);
 const WorkflowRuleLog = require('./WorkflowRuleLog')(sequelize);
 const SavedReportView = require('./SavedReportView')(sequelize);
 const DashboardLayout = require('./DashboardLayout')(sequelize);
+const AdSyncLog = require('./AdSyncLog')(sequelize);
+const AdGroupMapping = require('./AdGroupMapping')(sequelize);
 
 const db = {
   sequelize,
@@ -64,6 +66,8 @@ const db = {
   WorkflowRule,
   WorkflowCondition,
   DashboardLayout,
+  AdSyncLog,
+  AdGroupMapping,
   WorkflowAction,
   WorkflowRuleLog,
   SavedReportView,
@@ -197,6 +201,10 @@ Contact.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 Department.hasMany(Contact, { foreignKey: 'departmentId', as: 'contacts' });
 Contact.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignedToUser' });
 Contact.belongsTo(User, { foreignKey: 'createdBy', as: 'createdByUser' });
+
+// AD group -> department mapping (contacts sync)
+AdGroupMapping.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+Department.hasMany(AdGroupMapping, { foreignKey: 'departmentId', as: 'adGroupMappings' });
 
 // Contact <-> ContactActivity
 Contact.hasMany(ContactActivity, { foreignKey: 'contactId', as: 'activity', onDelete: 'CASCADE' });

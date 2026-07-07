@@ -79,6 +79,77 @@ function attr(entry, name) {
   return null;
 }
 
+// All values of a multi-valued attribute (e.g. memberOf) — `attr()` only
+// returns the first.
+function attrAll(entry, name) {
+  if (!entry || !entry.attributes || !Array.isArray(entry.attributes)) return [];
+  const found = entry.attributes.find((a) => a.type === name);
+  if (!found) return [];
+  return Array.isArray(found.values) ? found.values : [found.values].filter(Boolean);
+}
+
+// objectGUID is a binary attribute — ldapjs's string-decoded `.values` mangle
+// it, so this reads the raw bytes (`.buffers`, only present on the
+// un-pojo'd SearchEntry) and hex-encodes them into a stable, storable id.
+function attrGuidHex(entry) {
+  if (!entry || !entry.attributes || !Array.isArray(entry.attributes)) return null;
+  const found = entry.attributes.find((a) => a.type === 'objectGUID');
+  const buf = found?.buffers?.[0];
+  return buf ? Buffer.from(buf).toString('hex') : null;
+}
+
+// Extracts the CN out of a group DN, e.g. "CN=IT-Staff,OU=Groups,DC=x,DC=y" -> "IT-Staff".
+function cnFromDn(dn) {
+  const m = /^CN=([^,]+)/i.exec(String(dn || ''));
+  return m ? m[1] : null;
+}
+
+// Bit 2 (0x0002) of userAccountControl = ACCOUNTDISABLE.
+function isAccountDisabled(userAccountControl) {
+  const n = parseInt(userAccountControl, 10);
+  return Number.isFinite(n) && (n & 0x2) !== 0;
+}
+
+// Lists every person/user entry under baseDN — used for AD contact sync
+// (distinct from `authenticate`, which looks up and verifies exactly one
+// user). Reuses the same service-bind connection as authenticate().
+// AD limits unpaged searches to ~1000 results by default, so this pages.
+async function searchAllUsers() {
+  if (!isConfigured()) {
+    const e = new Error('LDAP is not configured');
+    e.code = 'LDAP_NOT_CONFIGURED';
+    throw e;
+  }
+  const client = createClient();
+  try {
+    await bind(client, ldapConfig.bindDN, ldapConfig.bindPassword);
+    return await new Promise((resolve, reject) => {
+      const entries = [];
+      client.search(
+        ldapConfig.baseDN,
+        {
+          scope: 'sub',
+          filter: '(|(objectClass=person)(objectClass=user))',
+          attributes: [
+            'dn', 'givenName', 'sn', 'displayName', 'mail', 'sAMAccountName',
+            'telephoneNumber', 'title', 'department', 'userAccountControl',
+            'objectGUID', 'memberOf',
+          ],
+          paged: { pageSize: 500 },
+        },
+        (err, res) => {
+          if (err) return reject(err);
+          res.on('searchEntry', (entry) => entries.push(entry));
+          res.on('error', (searchErr) => reject(searchErr));
+          res.on('end', () => resolve(entries));
+        }
+      );
+    });
+  } finally {
+    client.unbind(() => {});
+  }
+}
+
 /**
  * Authenticate a user against LDAP/AD.
  * @returns {Promise<{username, displayName, email, dn}>}
@@ -157,4 +228,7 @@ function isConfigured() {
   );
 }
 
-module.exports = { ldapConfig, authenticate, isConfigured };
+module.exports = {
+  ldapConfig, authenticate, isConfigured, searchAllUsers,
+  attr, attrAll, attrGuidHex, cnFromDn, isAccountDisabled,
+};

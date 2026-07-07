@@ -79,6 +79,7 @@ const SECTIONS = [
     items: [
       { label: 'API Keys', to: '/admin/apikeys', desc: 'Programmatic access', roles: ALL },
       { label: 'Calendar Integration', to: '/settings/calendar-integration', desc: 'Sync with calendars' },
+      { label: 'Directory Sync', to: '/settings/directory-sync', desc: 'AD contact sync & group mapping', permission: SYSTEM_KEYS },
     ],
   },
 ];

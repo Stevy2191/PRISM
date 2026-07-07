@@ -68,4 +68,23 @@ const projectStorage = multer.diskStorage({
 });
 const projectUpload = multer({ storage: projectStorage, limits: { fileSize: MAX_SIZE }, fileFilter });
 
-module.exports = { upload, projectUpload, UPLOAD_ROOT, MAX_SIZE };
+// Contact CSV import — parsed in-memory and discarded, never written to
+// disk (the wizard re-sends the parsed rows on later steps instead of the
+// raw file, so there's nothing to persist here).
+const CSV_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: CSV_MAX_SIZE },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext !== '.csv') {
+      const err = new Error('Only .csv files are supported');
+      err.status = 400;
+      err.code = 'INVALID_FILE_TYPE';
+      return cb(err, false);
+    }
+    cb(null, true);
+  },
+});
+
+module.exports = { upload, projectUpload, csvUpload, UPLOAD_ROOT, MAX_SIZE, CSV_MAX_SIZE };

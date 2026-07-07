@@ -30,6 +30,7 @@ import SettingsPreferences from './pages/settings/Preferences';
 import SettingsLayouts from './pages/settings/Layouts';
 import WorkflowRules from './pages/settings/WorkflowRules';
 import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
+import DirectorySync from './pages/settings/DirectorySync';
 import Placeholder from './pages/settings/Placeholder';
 
 // Existing admin pages (reached via the Settings hub)
@@ -126,6 +127,7 @@ export default function App() {
         <Route path="/settings/workflow-rules" element={perm(<WorkflowRules />, SYSTEM_KEYS)} />
         <Route path="/settings/workflow-rules/new" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
         <Route path="/settings/workflow-rules/:id" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
+        <Route path="/settings/directory-sync" element={perm(<DirectorySync />, SYSTEM_KEYS)} />
         <Route path="/settings/macros" element={admin(<Placeholder title="Macros" />)} />
         <Route path="/settings/slas" element={admin(<Placeholder title="SLAs" />)} />
         <Route path="/settings/supervisor-rules" element={admin(<Placeholder title="Supervisor Rules" />)} />

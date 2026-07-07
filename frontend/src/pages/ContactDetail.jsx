@@ -197,6 +197,14 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
             {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
+        {contact.status === 'inactive' && (
+          <span
+            className="mt-2 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide"
+            style={{ backgroundColor: BORDER, color: MUTED }}
+          >
+            Inactive
+          </span>
+        )}
       </div>
 
       <div>
@@ -250,6 +258,11 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
       <div className="space-y-1 border-t pt-4 text-xs" style={{ borderColor: BORDER, color: MUTED }}>
         <p>Created {contact.createdAt ? contact.createdAt.slice(0, 10) : '—'}</p>
         <p>Last updated {contact.updatedAt ? contact.updatedAt.slice(0, 10) : '—'}</p>
+        {contact.adSynced && (
+          <p style={{ color: BLUE }}>
+            Synced from Active Directory{contact.adLastSynced ? ` — last sync ${new Date(contact.adLastSynced).toLocaleString()}` : ''}
+          </p>
+        )}
       </div>
 
       <button type="button" onClick={onCreateTicket} className="btn-primary w-full">

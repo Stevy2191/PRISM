@@ -4,6 +4,7 @@ import api, { errMessage } from '../api/api';
 import { useAuth, useAnyPermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
+import ImportContactsModal from '../components/ImportContactsModal';
 
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
@@ -171,10 +172,12 @@ export default function Contacts() {
   const [assignedTo, setAssignedTo] = useState('');
   const [myContacts, setMyContacts] = useState(false);
   const [noDept, setNoDept] = useState(false);
+  const [status, setStatus] = useState('');
   const [sortBy, setSortBy] = useState('lastName');
   const [sortDir, setSortDir] = useState('asc');
 
   const [showNew, setShowNew] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const rowRefs = useRef(new Map());
 
@@ -186,6 +189,7 @@ export default function Contacts() {
     if (assignedTo) params.assignedTo = assignedTo;
     if (myContacts) params.myContacts = 'true';
     if (noDept) params.noDept = 'true';
+    if (status) params.status = status;
     api.get('/contacts', { params })
       .then(({ data }) => setContacts(data.contacts))
       .catch((err) => setError(errMessage(err)))
@@ -202,7 +206,7 @@ export default function Contacts() {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, departmentId, assignedTo, myContacts, noDept, sortBy, sortDir]);
+  }, [search, departmentId, assignedTo, myContacts, noDept, status, sortBy, sortDir]);
 
   const toggleSort = (col) => {
     if (sortBy === col) {
@@ -246,7 +250,12 @@ export default function Contacts() {
               <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Contacts</h1>
               <p className="text-sm" style={{ color: MUTED }}>{contacts.length} contact{contacts.length === 1 ? '' : 's'}</p>
             </div>
-            {canEdit && <button onClick={() => setShowNew(true)} className="btn-primary">+ New contact</button>}
+            {canEdit && (
+              <div className="flex gap-2">
+                <button onClick={() => setShowImport(true)} className="btn-secondary">Import</button>
+                <button onClick={() => setShowNew(true)} className="btn-primary">+ New contact</button>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -291,6 +300,16 @@ export default function Contacts() {
             >
               No department
             </button>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="input h-9 flex-shrink-0 text-sm"
+              style={{ ...fieldStyle, maxWidth: '9rem' }}
+            >
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
           </div>
         </div>
 
@@ -329,7 +348,7 @@ export default function Contacts() {
                       key={c.id}
                       ref={(el) => { if (el) rowRefs.current.set(c.id, el); }}
                       className="border-t hover:bg-[var(--color-hover)]"
-                      style={{ borderColor: BORDER }}
+                      style={{ borderColor: BORDER, opacity: c.status === 'inactive' ? 0.6 : 1 }}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -337,6 +356,14 @@ export default function Contacts() {
                           <Link to={`/contacts/${c.id}`} className="font-semibold hover:underline" style={{ color: TEXT }}>
                             {c.displayName}
                           </Link>
+                          {c.status === 'inactive' && (
+                            <span
+                              className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                              style={{ backgroundColor: BORDER, color: MUTED }}
+                            >
+                              Inactive
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.email || '—'}</td>
@@ -398,6 +425,14 @@ export default function Contacts() {
           currentUserId={user?.id}
           onClose={() => setShowNew(false)}
           onCreated={handleCreated}
+        />
+      )}
+
+      {showImport && (
+        <ImportContactsModal
+          departments={departments}
+          onClose={() => setShowImport(false)}
+          onImported={load}
         />
       )}
     </div>
