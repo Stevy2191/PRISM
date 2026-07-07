@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, THEME_OPTIONS } from '../../context/ThemeContext';
+import { useNavStyle, NAV_STYLE_OPTIONS } from '../../context/NavStyleContext';
 
 const THRESHOLD_OPTIONS = [
   { value: 0, label: 'No minimum' },
@@ -42,11 +43,32 @@ function ThemeSwatch({ value }) {
   );
 }
 
+// Miniature top-bar vs. compact-sidebar previews, using the same fixed
+// light-mode swatch colors as ThemeSwatch.
+function NavStyleSwatch({ value }) {
+  const p = THEME_PREVIEWS.light;
+  if (value === 'sidebar') {
+    return (
+      <span className="flex h-9 w-16 overflow-hidden rounded border border-navy-200" style={{ backgroundColor: p.bg }}>
+        <span className="h-full w-3" style={{ backgroundColor: p.card, borderRight: `1px solid ${p.border}` }} />
+        <span className="m-1 flex-1 rounded-sm" style={{ backgroundColor: p.card, border: `1px solid ${p.border}` }} />
+      </span>
+    );
+  }
+  return (
+    <span className="block h-9 w-16 overflow-hidden rounded border border-navy-200" style={{ backgroundColor: p.bg }}>
+      <span className="block h-2.5 w-full" style={{ backgroundColor: p.card, borderBottom: `1px solid ${p.border}` }} />
+      <span className="m-1 block h-3 rounded-sm" style={{ backgroundColor: p.card, border: `1px solid ${p.border}` }} />
+    </span>
+  );
+}
+
 // Minimal personal preferences page. Profile fields come from the directory /
 // account and are read-only here; local accounts can change their password.
 export default function Preferences() {
   const { user, isStaff, refresh } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { navStyle, setNavStyle } = useNavStyle();
   const [timerMode, setTimerMode] = useState(user?.timerMode || 'manual');
   const [timerMinThreshold, setTimerMinThreshold] = useState(user?.timerMinThreshold ?? 0);
   const [timerPromptBeforeLog, setTimerPromptBeforeLog] = useState(user?.timerPromptBeforeLog ?? true);
@@ -107,6 +129,32 @@ export default function Preferences() {
           ))}
         </div>
         <p className="mt-2 text-xs text-navy-400">“System” follows your operating system’s light/dark setting. Your choice applies immediately and is saved on this device.</p>
+
+        <label className="label mt-5">Navigation style</label>
+        <div className="grid grid-cols-2 gap-3">
+          {NAV_STYLE_OPTIONS.map((opt) => (
+            <label
+              key={opt.value}
+              className={`flex cursor-pointer flex-col items-center gap-2 rounded-md border p-3 text-center transition ${
+                navStyle === opt.value
+                  ? 'border-prism bg-prism/10 text-prism'
+                  : 'border-navy-200 text-navy-700 hover:bg-navy-100'
+              }`}
+            >
+              <input
+                type="radio"
+                name="navStyle"
+                value={opt.value}
+                checked={navStyle === opt.value}
+                onChange={() => setNavStyle(opt.value)}
+                className="sr-only"
+              />
+              <NavStyleSwatch value={opt.value} />
+              <span className="text-sm font-medium">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-navy-400">Top bar gives pages full width. Side bar shows a compact icon-only rail with tooltips. Saved on this device.</p>
       </div>
 
       {isStaff && (
