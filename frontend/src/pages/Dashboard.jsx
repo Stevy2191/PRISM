@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   IconMessageReply,
   IconUserCheck,
@@ -7,6 +7,11 @@ import {
   IconMessageCircle,
   IconHourglass,
   IconRefresh,
+  IconPlus,
+  IconTicket,
+  IconFolder,
+  IconChartBar,
+  IconUsers,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
@@ -47,6 +52,16 @@ const NOTIF_TYPE = {
   comment: { Icon: IconMessageCircle, color: 'var(--color-accent)' },
   due_soon: { Icon: IconHourglass, color: 'var(--color-warning)' },
   status_change: { Icon: IconRefresh, color: 'var(--color-success)' },
+};
+
+// Activity feed action-type colors (see ACTIVITY CLEANUP spec).
+const ACTIVITY_COLOR = {
+  created: 'var(--color-accent)',
+  status: 'var(--color-success)',
+  assigned: 'var(--color-relation-accent)',
+  priority: 'var(--color-warning)',
+  closed: 'var(--color-text-muted)',
+  comment: '#0d9488',
 };
 
 function timeGreeting() {
@@ -90,7 +105,7 @@ function dueBadgeLabel(dueBadge, dueDate) {
 function Card({ children, className = '' }) {
   return (
     <div
-      className={`rounded-[10px] border p-5 ${className}`}
+      className={`h-full rounded-[10px] border p-5 ${className}`}
       style={{ backgroundColor: CARD_BG, borderColor: CARD_BORDER }}
     >
       {children}
@@ -310,15 +325,45 @@ function TeamWorkloadPanel({ workload }) {
   );
 }
 
-const ACTIVITY_VERB = {
-  opened: 'opened',
-  closed: 'closed',
-  assigned: 'assigned',
-  updated: 'updated',
-  overdue: 'is now overdue on',
-};
+function QuickActionsPanel() {
+  const navigate = useNavigate();
+  const shortcuts = [
+    { label: 'My Tickets', to: '/tickets', Icon: IconTicket },
+    { label: 'Projects', to: '/projects', Icon: IconFolder },
+    { label: 'Reports', to: '/reports', Icon: IconChartBar },
+    { label: 'Contacts', to: '/contacts', Icon: IconUsers },
+  ];
+  return (
+    <Card>
+      <h2 className="mb-4 font-semibold" style={{ color: TEXT }}>Quick Actions</h2>
+      <button
+        type="button"
+        onClick={() => navigate('/tickets/new')}
+        className="mb-4 flex w-full items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white"
+        style={{ backgroundColor: 'var(--color-accent)' }}
+      >
+        <IconPlus size={16} stroke={2.5} /> New Ticket
+      </button>
+      <div className="grid grid-cols-2 gap-2">
+        {shortcuts.map((s) => (
+          <Link
+            key={s.to}
+            to={s.to}
+            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-[var(--color-hover)]"
+            style={{ borderColor: CARD_BORDER, color: TEXT }}
+          >
+            <s.Icon size={16} stroke={1.8} style={{ color: MUTED }} />
+            {s.label}
+          </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}
 
-function ActivityFeedPanel({ activity }) {
+// ==================== Activity feed (cleaned up) ====================
+
+function ActivityFeedPanel({ activity, hasMore, onLoadMore, loadingMore }) {
   return (
     <Card className="!p-0">
       <div className="border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
@@ -328,23 +373,165 @@ function ActivityFeedPanel({ activity }) {
         <p className="p-5 text-sm" style={{ color: MUTED }}>No recent activity.</p>
       ) : (
         <ul className="divide-y" style={{ borderColor: CARD_BORDER }}>
-          {activity.map((a) => (
-            <li key={a.id} className="px-5 py-3 text-sm">
-              <span style={{ color: TEXT }}>
-                {a.actorName ? <strong>{a.actorName}</strong> : <strong style={{ color: 'var(--color-danger)' }}>Ticket</strong>}{' '}
-                {ACTIVITY_VERB[a.action] || a.action}{' '}
-                {a.ticketId && (
-                  <Link to={`/tickets/${a.ticketId}`} className="hover:underline" style={{ color: 'var(--color-accent)' }}>
-                    {formatTicketId({ id: a.ticketId, ticketNumber: a.ticketNumber })} {a.ticketTitle}
-                  </Link>
-                )}
-              </span>
-              <p className="mt-0.5 text-xs" style={{ color: MUTED }}>{timeAgo(a.occurredAt)}</p>
-            </li>
-          ))}
+          {activity.map((a) => {
+            const color = ACTIVITY_COLOR[a.colorKey] || 'var(--color-accent)';
+            const to = a.targetType === 'project' ? `/projects/${a.targetId}` : `/tickets/${a.targetId}`;
+            return (
+              <li key={a.id} className="flex items-start gap-3 px-5 py-3 text-sm">
+                <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                <div className="min-w-0 flex-1">
+                  <span style={{ color: TEXT }}>
+                    <strong>{a.actorName}</strong> {a.verb}{' '}
+                    <Link to={to} className="hover:underline" style={{ color: 'var(--color-accent)' }}>
+                      {a.targetLabel}
+                    </Link>
+                    {a.suffix && <> {a.suffix}</>}
+                    {a.count > 1 && <span style={{ color: MUTED }}> ({a.count} times)</span>}
+                  </span>
+                  <p className="mt-0.5 text-xs" style={{ color: MUTED }}>{timeAgo(a.occurredAt)}</p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
+      {hasMore && (
+        <div className="border-t px-5 py-3 text-center" style={{ borderColor: CARD_BORDER }}>
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="text-xs font-medium hover:underline disabled:opacity-50"
+            style={{ color: 'var(--color-accent)' }}
+          >
+            {loadingMore ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
+      )}
     </Card>
+  );
+}
+
+// ==================== Customizable panel grid ====================
+
+// Panel catalogs per dashboard mode. `full`/`half` here is only the
+// *default* size — the saved layout's per-panel size always wins once one exists.
+const TECH_CATALOG = {
+  tickets: { label: 'My Tickets', defaultSize: 'half' },
+  notifications: { label: 'Notifications', defaultSize: 'half' },
+  projectHealth: { label: 'Project Health', defaultSize: 'half' },
+  hours: { label: 'Hours This Week', defaultSize: 'half' },
+  quickActions: { label: 'Quick Actions', defaultSize: 'half' },
+};
+const ADMIN_CATALOG = {
+  teamWorkload: { label: 'Team Workload', defaultSize: 'half' },
+  activityFeed: { label: 'Activity Feed', defaultSize: 'half' },
+  projectHealth: { label: 'Project Health', defaultSize: 'full' },
+  quickActions: { label: 'Quick Actions', defaultSize: 'half' },
+};
+
+const TECH_DEFAULT_PANELS = [
+  { key: 'tickets', size: 'half', hidden: false },
+  { key: 'notifications', size: 'half', hidden: false },
+  { key: 'projectHealth', size: 'half', hidden: false },
+  { key: 'hours', size: 'half', hidden: false },
+  { key: 'quickActions', size: 'half', hidden: true },
+];
+const ADMIN_DEFAULT_PANELS = [
+  { key: 'teamWorkload', size: 'half', hidden: false },
+  { key: 'activityFeed', size: 'half', hidden: false },
+  { key: 'projectHealth', size: 'full', hidden: false },
+  { key: 'quickActions', size: 'half', hidden: true },
+];
+
+// Reconciles a saved layout (which may be null, or may only cover the OTHER
+// dashboard mode's panels — see the module-level note in Dashboard()) against
+// the current mode's catalog: preserves saved order/size/hidden for known
+// keys, appends any catalog keys the saved layout doesn't know about yet
+// (hidden by default) so a newly introduced panel type doesn't just vanish.
+function reconcilePanels(savedPanels, catalog, defaults) {
+  const catalogKeys = Object.keys(catalog);
+  const savedByKey = new Map((savedPanels || []).map((p) => [p.key, p]));
+  const orderedKnown = (savedPanels || []).map((p) => p.key).filter((k) => catalogKeys.includes(k));
+  const missing = catalogKeys.filter((k) => !orderedKnown.includes(k));
+  return [...orderedKnown, ...missing].map((key) => {
+    const saved = savedByKey.get(key);
+    if (saved) return { key, size: saved.size === 'full' ? 'full' : 'half', hidden: !!saved.hidden };
+    const def = defaults.find((d) => d.key === key);
+    return def ? { ...def } : { key, size: catalog[key].defaultSize, hidden: true };
+  });
+}
+
+function PanelSlot({ label, size, editMode, dragging, onDragStart, onDragOver, onDrop, onDragEnd, onHide, onToggleSize, children }) {
+  const spanClass = size === 'full' ? 'md:col-span-2' : 'md:col-span-1';
+
+  if (!editMode) {
+    return <div className={spanClass}>{children}</div>;
+  }
+
+  return (
+    <div
+      className={`${spanClass} rounded-[12px] border-2 border-dashed p-2`}
+      style={{ borderColor: 'var(--color-border-strong)', opacity: dragging ? 0.4 : 1 }}
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
+      <div className="mb-2 flex items-center justify-between px-1">
+        <span className="flex cursor-grab items-center gap-1.5 text-xs font-medium select-none" style={{ color: MUTED }}>
+          <span aria-hidden="true">⠿</span> {label}
+        </span>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={onToggleSize} className="text-xs font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>
+            {size === 'full' ? 'Make half-width' : 'Make full-width'}
+          </button>
+          <button type="button" onClick={onHide} className="flex h-5 w-5 items-center justify-center rounded-full text-xs" style={{ color: 'var(--color-danger)', backgroundColor: tint('var(--color-danger)') }} title="Hide panel">
+            ✕
+          </button>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function AddPanelMenu({ hiddenPanels, onAdd }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  if (hiddenPanels.length === 0) return null;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} className="btn-secondary text-sm">+ Add panel</button>
+      {open && (
+        <div
+          className="absolute left-0 z-20 mt-1 w-52 overflow-hidden rounded-md border shadow-lg"
+          style={{ backgroundColor: CARD_BG, borderColor: CARD_BORDER }}
+        >
+          {hiddenPanels.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => { onAdd(p.key); setOpen(false); }}
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-hover)]"
+              style={{ color: TEXT }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -362,55 +549,8 @@ function GreetingBar({ title, subtitleName }) {
   );
 }
 
-function TechDashboard({ data, greetingTitle, subtitleName, onMarkAllRead, marking }) {
-  const { stats, tickets, notifications, projectHealth, hours } = data;
-  return (
-    <div className="space-y-6">
-      <GreetingBar title={greetingTitle} subtitleName={subtitleName} />
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="My Open Tickets" value={stats.openTickets} color="var(--color-accent)" />
-        <StatCard label="Overdue Tickets" value={stats.overdueTickets} color="var(--color-danger)" />
-        <StatCard label="High Priority" value={stats.highPriorityOpen} color="var(--color-warning)" />
-        <StatCard label="Closed This Week" value={stats.closedThisWeek} color="var(--color-success)" delta={stats.closedDelta} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <TicketsPanel tickets={tickets} />
-        <NotificationsPanel notifications={notifications} onMarkAllRead={onMarkAllRead} marking={marking} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ProjectHealthPanel projects={projectHealth} emptyText="No projects with your tasks yet." />
-        <HoursPanel hours={hours} />
-      </div>
-    </div>
-  );
-}
-
-function SystemWideDashboard({ data, title }) {
-  const { stats, teamWorkload, projectHealth, activity } = data;
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={title ? `${title} Open Tickets` : 'Total Open Tickets'} value={stats.openTickets} color="var(--color-accent)" />
-        <StatCard label="Overdue Tickets" value={stats.overdueTickets} color="var(--color-danger)" />
-        <StatCard label="Unassigned Tickets" value={stats.unassignedTickets} color="var(--color-warning)" />
-        <StatCard label="Closed This Week" value={stats.closedThisWeek} color="var(--color-success)" delta={stats.closedDelta} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <TeamWorkloadPanel workload={teamWorkload} />
-        <ActivityFeedPanel activity={activity} />
-      </div>
-
-      <ProjectHealthPanel projects={projectHealth} title={title ? `Project Health (${title})` : 'Project Health (All Projects)'} />
-    </div>
-  );
-}
-
 export default function Dashboard() {
-  const { user, hasAnyPermission } = useAuth();
+  const { hasAnyPermission } = useAuth();
   // System-wide viewers (tickets.view_all or projects.view_all) see every
   // user/dept; department viewers (view_department but not view_all) get the
   // same admin-style layout narrowed to their own department (see
@@ -427,6 +567,22 @@ export default function Dashboard() {
   const [forbidden, setForbidden] = useState(false);
   const [marking, setMarking] = useState(false);
 
+  const [activityMore, setActivityMore] = useState([]);
+  const [activityHasMore, setActivityHasMore] = useState(false);
+  const [loadingMoreActivity, setLoadingMoreActivity] = useState(false);
+
+  // Full raw saved layout (both modes' entries, if any) + this mode's
+  // reconciled, editable panel list. See reconcilePanels' note on why the
+  // raw blob is kept around: an admin/department viewer can see BOTH an
+  // admin-mode layout ("viewing all") and a tech-mode layout (filtered to a
+  // specific user) from the same account, and saving one shouldn't clobber
+  // the other's customization within the single DB row.
+  const [rawLayout, setRawLayout] = useState(null);
+  const [panels, setPanels] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const dragIndex = useRef(null);
+  const [draggingIndex, setDraggingIndex] = useState(null);
+
   useEffect(() => {
     if (!canFilterByUser) return;
     api.get('/users').then(({ data: d }) => setUsers(d.users)).catch(() => {});
@@ -439,7 +595,11 @@ export default function Dashboard() {
     const params = selectedUserId ? { userId: selectedUserId } : {};
     api
       .get('/dashboard', { params })
-      .then(({ data: d }) => setData(d))
+      .then(({ data: d }) => {
+        setData(d);
+        setActivityMore([]);
+        setActivityHasMore(!!d.activityHasMore);
+      })
       .catch((err) => {
         if (isForbidden(err)) setForbidden(true);
         else setError(errMessage(err));
@@ -450,6 +610,35 @@ export default function Dashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Auto-refresh the activity feed every 60s (system/department modes only).
+  useEffect(() => {
+    if (!data || (data.mode !== 'admin_system' && data.mode !== 'admin_department')) return undefined;
+    const interval = setInterval(() => {
+      const params = selectedUserId ? { userId: selectedUserId } : {};
+      api.get('/dashboard', { params }).then(({ data: d }) => {
+        setData((prev) => (prev ? { ...prev, activity: d.activity } : d));
+        setActivityHasMore(!!d.activityHasMore);
+        setActivityMore([]);
+      }).catch(() => {});
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [data, selectedUserId]);
+
+  const isTechMode = data && (data.mode === 'tech' || data.mode === 'admin_filtered');
+  const catalog = isTechMode ? TECH_CATALOG : ADMIN_CATALOG;
+  const defaultPanels = isTechMode ? TECH_DEFAULT_PANELS : ADMIN_DEFAULT_PANELS;
+
+  useEffect(() => {
+    if (!data) return;
+    api.get('/dashboard/layout')
+      .then(({ data: d }) => {
+        setRawLayout(d.layout);
+        setPanels(reconcilePanels(d.layout?.panels, catalog, defaultPanels));
+      })
+      .catch(() => setPanels(reconcilePanels(null, catalog, defaultPanels)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.mode]);
 
   const handleMarkAllRead = async () => {
     setMarking(true);
@@ -462,6 +651,93 @@ export default function Dashboard() {
       setMarking(false);
     }
   };
+
+  const handleLoadMoreActivity = async () => {
+    setLoadingMoreActivity(true);
+    try {
+      const offset = (data.activity?.length || 0) + activityMore.length;
+      const { data: d } = await api.get('/dashboard/activity', { params: { offset } });
+      setActivityMore((prev) => [...prev, ...d.activity]);
+      setActivityHasMore(d.activityHasMore);
+    } catch {
+      /* ignore — non-critical */
+    } finally {
+      setLoadingMoreActivity(false);
+    }
+  };
+
+  const saveLayout = async (nextPanels) => {
+    const catalogKeys = Object.keys(catalog);
+    const otherModeEntries = (rawLayout?.panels || []).filter((p) => !catalogKeys.includes(p.key));
+    const merged = { panels: [...nextPanels, ...otherModeEntries] };
+    setRawLayout(merged);
+    try {
+      await api.put('/dashboard/layout', { layout: merged });
+    } catch {
+      /* non-critical — local state already reflects the change */
+    }
+  };
+
+  const handleDone = () => {
+    setEditMode(false);
+    saveLayout(panels);
+  };
+
+  const handleResetToDefault = async () => {
+    setPanels(defaultPanels.map((p) => ({ ...p })));
+    try {
+      await api.delete('/dashboard/layout');
+      const catalogKeys = Object.keys(catalog);
+      const otherModeEntries = (rawLayout?.panels || []).filter((p) => !catalogKeys.includes(p.key));
+      setRawLayout(otherModeEntries.length ? { panels: otherModeEntries } : null);
+    } catch {
+      /* non-critical */
+    }
+  };
+
+  const hidePanel = (key) => setPanels((prev) => prev.map((p) => (p.key === key ? { ...p, hidden: true } : p)));
+  const addPanel = (key) => setPanels((prev) => prev.map((p) => (p.key === key ? { ...p, hidden: false } : p)));
+  const toggleSize = (key) => setPanels((prev) => prev.map((p) => (p.key === key ? { ...p, size: p.size === 'full' ? 'half' : 'full' } : p)));
+
+  const reorder = (fromIdx, toIdx) => {
+    setPanels((prev) => {
+      const visible = prev.filter((p) => !p.hidden);
+      const hidden = prev.filter((p) => p.hidden);
+      const next = [...visible];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return [...next, ...hidden];
+    });
+  };
+
+  const renderPanelContent = (key) => {
+    switch (key) {
+      case 'tickets': return <TicketsPanel tickets={data.tickets} />;
+      case 'notifications': return <NotificationsPanel notifications={data.notifications} onMarkAllRead={handleMarkAllRead} marking={marking} />;
+      case 'projectHealth': return (
+        <ProjectHealthPanel
+          projects={data.projectHealth}
+          title={isTechMode ? 'Project Health' : (data.mode === 'admin_department' ? 'Project Health (My Department)' : 'Project Health (All Projects)')}
+          emptyText={isTechMode ? 'No projects with your tasks yet.' : 'No projects to show.'}
+        />
+      );
+      case 'hours': return <HoursPanel hours={data.hours} />;
+      case 'teamWorkload': return <TeamWorkloadPanel workload={data.teamWorkload} />;
+      case 'activityFeed': return (
+        <ActivityFeedPanel
+          activity={[...data.activity, ...activityMore]}
+          hasMore={activityHasMore}
+          onLoadMore={handleLoadMoreActivity}
+          loadingMore={loadingMoreActivity}
+        />
+      );
+      case 'quickActions': return <QuickActionsPanel />;
+      default: return null;
+    }
+  };
+
+  const visiblePanels = (panels || []).filter((p) => !p.hidden);
+  const hiddenPanelDefs = (panels || []).filter((p) => p.hidden).map((p) => ({ key: p.key, label: catalog[p.key]?.label || p.key }));
 
   return (
     <div
@@ -478,12 +754,20 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="space-y-6">
-          {canFilterByUser && (
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <h1 className="text-xl font-semibold" style={{ color: TEXT }}>Dashboard</h1>
-              <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Viewing:</span>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              {isTechMode && data.mode === 'tech' && (
+                <GreetingBar title={`${timeGreeting()}, ${firstName(data.viewingUser.displayName)}`} />
+              )}
+              {isTechMode && data.mode === 'admin_filtered' && (
+                <GreetingBar title={`Viewing ${data.viewingUser.displayName}'s dashboard`} subtitleName={data.viewingUser.displayName} />
+              )}
+              {!isTechMode && <h1 className="text-xl font-semibold" style={{ color: TEXT }}>Dashboard</h1>}
+            </div>
+
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2">
+                {canFilterByUser && (
                   <select
                     value={selectedUserId}
                     onChange={(e) => setSelectedUserId(e.target.value)}
@@ -495,34 +779,59 @@ export default function Dashboard() {
                       <option key={u.id} value={u.id}>{u.displayName}</option>
                     ))}
                   </select>
-                </div>
-                {data?.mode === 'admin_filtered' && (
-                  <span className="text-xs font-medium" style={{ color: 'var(--color-accent)' }}>
-                    Filtered to: {data.viewingUser.displayName}
-                  </span>
+                )}
+                {editMode ? (
+                  <>
+                    <AddPanelMenu hiddenPanels={hiddenPanelDefs} onAdd={addPanel} />
+                    <button type="button" onClick={handleDone} className="btn-primary text-sm">Done</button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => setEditMode(true)} className="btn-secondary text-sm">Customize</button>
                 )}
               </div>
+              {editMode && (
+                <button type="button" onClick={handleResetToDefault} className="text-xs hover:underline" style={{ color: MUTED }}>
+                  Reset to default
+                </button>
+              )}
             </div>
-          )}
+          </div>
 
-          {data && data.mode === 'admin_system' && <SystemWideDashboard data={data} />}
-          {data && data.mode === 'admin_department' && <SystemWideDashboard data={data} title="My Department" />}
-          {data && data.mode === 'tech' && (
-            <TechDashboard
-              data={data}
-              greetingTitle={`${timeGreeting()}, ${firstName(data.viewingUser.displayName)}`}
-              onMarkAllRead={handleMarkAllRead}
-              marking={marking}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label={isTechMode ? 'My Open Tickets' : (data.mode === 'admin_department' ? 'My Department Open Tickets' : 'Total Open Tickets')}
+              value={data.stats.openTickets}
+              color="var(--color-accent)"
             />
-          )}
-          {data && data.mode === 'admin_filtered' && (
-            <TechDashboard
-              data={data}
-              greetingTitle={`Viewing ${data.viewingUser.displayName}'s dashboard`}
-              subtitleName={data.viewingUser.displayName}
-              onMarkAllRead={handleMarkAllRead}
-              marking={marking}
-            />
+            <StatCard label="Overdue Tickets" value={data.stats.overdueTickets} color="var(--color-danger)" />
+            {isTechMode ? (
+              <StatCard label="High Priority" value={data.stats.highPriorityOpen} color="var(--color-warning)" />
+            ) : (
+              <StatCard label="Unassigned Tickets" value={data.stats.unassignedTickets} color="var(--color-warning)" />
+            )}
+            <StatCard label="Closed This Week" value={data.stats.closedThisWeek} color="var(--color-success)" delta={data.stats.closedDelta} />
+          </div>
+
+          {panels && (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {visiblePanels.map((p, idx) => (
+                <PanelSlot
+                  key={p.key}
+                  label={catalog[p.key]?.label || p.key}
+                  size={p.size}
+                  editMode={editMode}
+                  dragging={draggingIndex === idx}
+                  onDragStart={() => { dragIndex.current = idx; setDraggingIndex(idx); }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => { if (dragIndex.current !== null) reorder(dragIndex.current, idx); dragIndex.current = null; setDraggingIndex(null); }}
+                  onDragEnd={() => { dragIndex.current = null; setDraggingIndex(null); }}
+                  onHide={() => hidePanel(p.key)}
+                  onToggleSize={() => toggleSize(p.key)}
+                >
+                  {renderPanelContent(p.key)}
+                </PanelSlot>
+              ))}
+            </div>
           )}
         </div>
       )}

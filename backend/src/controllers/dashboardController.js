@@ -1,5 +1,7 @@
 const { Op } = require('sequelize');
-const { Ticket, Project, User, TimeEntry, Notification, AuditLog } = require('../models');
+const {
+  Ticket, Project, User, TimeEntry, Notification, TicketActivity, ProjectActivity, DashboardLayout,
+} = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
@@ -193,73 +195,166 @@ async function teamWorkload(buckets, extraUserWhere = {}) {
   return rows.sort((a, b) => b.openCount - a.openCount);
 }
 
-// Recent events: ticket opened/closed/assigned (from the audit log) merged
-// with tickets currently overdue, newest first. `ticketWhere` (default: no
-// filter) narrows both to a department for the department-manager dashboard.
-async function activityFeed(buckets, ticketWhere = {}) {
-  const scoped = Object.keys(ticketWhere).length > 0;
-  let scopedTicketIds = null;
-  if (scoped) {
+// Only these TicketActivity/ProjectActivity `action` values are meaningful
+// enough to show on the dashboard feed — everything else (type/team/dept/
+// dueDate changes, attachments, time logged, relations, custom fields, task
+// created/deleted, expenses, materials, members, files) is real activity but
+// too granular/low-value for an at-a-glance feed. The per-ticket/per-project
+// Activity tabs (unaffected by this) remain the complete record.
+const MEANINGFUL_TICKET_ACTIONS = ['created', 'status', 'assigneeId', 'priority', 'comment'];
+const MEANINGFUL_PROJECT_ACTIONS = ['project_created', 'status_changed', 'task_closed'];
+const GROUP_WINDOW_MS = 5 * 60 * 1000;
+
+function isClosedStatusName(name, buckets) {
+  if (!name) return false;
+  return buckets.closed.some((n) => n.toLowerCase() === String(name).toLowerCase());
+}
+
+// Ticket-side event -> { colorKey, verb, suffix }. `toValue`/`fromValue` are
+// already resolved, human-readable display strings (see services/ticketActivity.js).
+function describeTicketAction(action, fromValue, toValue, buckets) {
+  if (action === 'created') return { colorKey: 'created', verb: 'opened' };
+  if (action === 'comment') return { colorKey: 'comment', verb: 'replied on' };
+  if (action === 'priority') return { colorKey: 'priority', verb: 'changed priority of', suffix: toValue ? `to ${toValue}` : null };
+  if (action === 'assigneeId') {
+    return toValue
+      ? { colorKey: 'assigned', verb: 'assigned', suffix: `to ${toValue}` }
+      : { colorKey: 'assigned', verb: 'unassigned' };
+  }
+  if (action === 'status') {
+    if (isClosedStatusName(toValue, buckets)) return { colorKey: 'closed', verb: 'closed' };
+    return { colorKey: 'status', verb: 'changed', suffix: toValue ? `to ${toValue}` : null };
+  }
+  return { colorKey: 'status', verb: 'updated' };
+}
+
+function describeProjectAction(action, detail) {
+  if (action === 'project_created') return { colorKey: 'created', verb: 'created project' };
+  if (action === 'status_changed') return { colorKey: 'status', verb: 'changed', suffix: detail?.to ? `to ${detail.to}` : null };
+  if (action === 'task_closed') return { colorKey: 'closed', verb: `completed task "${detail?.title || 'task'}" on` };
+  return { colorKey: 'status', verb: 'updated' };
+}
+
+// Collapses consecutive events (already sorted newest-first) by the same
+// user, on the same target, of the same action, when each is within 5
+// minutes of the previous one kept in the run — a chain of rapid edits (each
+// gap <=5min) collapses into a single entry even if the first-to-last span
+// exceeds 5 minutes, matching "duplicate consecutive events... within 5
+// minutes" rather than a fixed rolling window anchored to the first event.
+function groupEvents(events) {
+  const groups = [];
+  for (const ev of events) {
+    const last = groups[groups.length - 1];
+    const sameBucket = last
+      && last.userId === ev.userId
+      && last.targetType === ev.targetType
+      && last.targetId === ev.targetId
+      && last.action === ev.action
+      && Math.abs(new Date(last.chainAt) - new Date(ev.occurredAt)) <= GROUP_WINDOW_MS;
+    if (sameBucket) {
+      last.count += 1;
+      last.chainAt = ev.occurredAt;
+    } else {
+      groups.push({ ...ev, count: 1, chainAt: ev.occurredAt });
+    }
+  }
+  return groups.map(({ chainAt, ...rest }) => rest);
+}
+
+// Recent, meaningful events across tickets and projects, newest first, with
+// rapid repeated actions collapsed (see groupEvents). `ticketWhere`/
+// `projectWhere` (default: no filter) narrow both to a department for the
+// department-manager dashboard. Fetches a wider window than `limit` since
+// grouping only shrinks the result, then paginates over the grouped list.
+async function activityFeed(buckets, ticketWhere = {}, projectWhere = {}, { limit = 20, offset = 0 } = {}) {
+  const fetchLimit = (limit + offset) * 3 + 30;
+
+  let ticketIdSet = null;
+  if (Object.keys(ticketWhere).length > 0) {
     const rows = await Ticket.findAll({ where: ticketWhere, attributes: ['id'], raw: true });
-    scopedTicketIds = new Set(rows.map((r) => r.id));
+    ticketIdSet = new Set(rows.map((r) => r.id));
+  }
+  let projectIdSet = null;
+  if (Object.keys(projectWhere).length > 0) {
+    const rows = await Project.findAll({ where: projectWhere, attributes: ['id'], raw: true });
+    projectIdSet = new Set(rows.map((r) => r.id));
   }
 
-  const logWhere = { entityType: 'Ticket', action: { [Op.in]: ['ticket.create', 'ticket.update'] } };
-  if (scopedTicketIds) logWhere.entityId = { [Op.in]: [...scopedTicketIds] };
+  const ticketActWhere = { action: { [Op.in]: MEANINGFUL_TICKET_ACTIONS } };
+  if (ticketIdSet) ticketActWhere.ticketId = { [Op.in]: [...ticketIdSet] };
+  const projectActWhere = { action: { [Op.in]: MEANINGFUL_PROJECT_ACTIONS } };
+  if (projectIdSet) projectActWhere.projectId = { [Op.in]: [...projectIdSet] };
 
-  const logs = await AuditLog.findAll({
-    where: logWhere,
-    include: [{ model: User, as: 'user', attributes: ['id', 'displayName'] }],
-    order: [['createdAt', 'DESC']],
-    limit: 15,
-  });
+  const [ticketActs, projectActs] = await Promise.all([
+    TicketActivity.findAll({
+      where: ticketActWhere,
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'displayName'] },
+        { model: Ticket, as: 'ticket', attributes: ['id', 'title'] },
+      ],
+      // `id DESC` breaks ties deterministically — MariaDB's DATETIME here has
+      // only second precision, so several activity rows from a rapid burst
+      // of edits (e.g. two PATCHes in the same request-handling second) can
+      // share an identical createdAt, making createdAt-only DESC ordering
+      // (and therefore the grouping logic that walks this order) unstable.
+      order: [['createdAt', 'DESC'], ['id', 'DESC']],
+      limit: fetchLimit,
+    }),
+    ProjectActivity.findAll({
+      where: projectActWhere,
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'displayName'] },
+        { model: Project, as: 'project', attributes: ['id', 'name', 'projectCode'] },
+      ],
+      order: [['createdAt', 'DESC'], ['id', 'DESC']],
+      limit: fetchLimit,
+    }),
+  ]);
 
-  const ticketIds = [...new Set(logs.map((l) => l.entityId).filter(Boolean))];
-  const tickets = ticketIds.length
-    ? await Ticket.findAll({ where: { id: { [Op.in]: ticketIds } }, attributes: ['id', 'title'] })
-    : [];
-  const titleById = new Map(tickets.map((t) => [t.id, t.title]));
+  const fromTickets = ticketActs
+    .filter((a) => a.ticket)
+    .map((a) => {
+      const { colorKey, verb, suffix } = describeTicketAction(a.action, a.fromValue, a.toValue, buckets);
+      return {
+        id: `ticket-${a.id}`,
+        userId: a.userId,
+        actorName: a.user?.displayName || 'System',
+        colorKey,
+        verb,
+        suffix: suffix || null,
+        targetType: 'ticket',
+        targetId: a.ticket.id,
+        targetLabel: `#${String(a.ticket.id).padStart(5, '0')} ${a.ticket.title}`,
+        action: a.action,
+        occurredAt: a.createdAt,
+      };
+    });
 
-  const fromLogs = logs.map((log) => {
-    let action = 'updated';
-    if (log.action === 'ticket.create') action = 'opened';
-    // Historical audit rows store whatever status name was current at the
-    // time — if that status has since been renamed or deleted, this simply
-    // won't match today's closed bucket, which is an acceptable limitation
-    // of comparing a point-in-time snapshot against the live status table.
-    else if (log.meta?.status && buckets.closed.includes(log.meta.status)) action = 'closed';
-    else if (log.meta?.assigneeId !== undefined) action = 'assigned';
+  const fromProjects = projectActs
+    .filter((a) => a.project)
+    .map((a) => {
+      const { colorKey, verb, suffix } = describeProjectAction(a.action, a.detail);
+      return {
+        id: `project-${a.id}`,
+        userId: a.userId,
+        actorName: a.user?.displayName || 'System',
+        colorKey,
+        verb,
+        suffix: suffix || null,
+        targetType: 'project',
+        targetId: a.project.id,
+        targetLabel: `${a.project.projectCode} ${a.project.name}`,
+        action: a.action,
+        occurredAt: a.createdAt,
+      };
+    });
 
-    return {
-      id: `log-${log.id}`,
-      actorName: log.user?.displayName || 'System',
-      action,
-      ticketId: log.entityId,
-      ticketNumber: log.entityId ? String(log.entityId).padStart(5, '0') : null,
-      ticketTitle: titleById.get(log.entityId) || log.meta?.title || null,
-      occurredAt: log.createdAt,
-    };
-  });
-
-  const today = todayStr();
-  const overdueTickets = await Ticket.findAll({
-    where: { ...ticketWhere, status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } },
-    order: [['dueDate', 'ASC']],
-    limit: 5,
-  });
-  const fromOverdue = overdueTickets.map((t) => ({
-    id: `overdue-${t.id}`,
-    actorName: null,
-    action: 'overdue',
-    ticketId: t.id,
-    ticketNumber: String(t.id).padStart(5, '0'),
-    ticketTitle: t.title,
-    occurredAt: t.dueDate,
-  }));
-
-  return [...fromLogs, ...fromOverdue]
-    .sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt))
-    .slice(0, 20);
+  const merged = [...fromTickets, ...fromProjects].sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt));
+  const grouped = groupEvents(merged);
+  return {
+    events: grouped.slice(offset, offset + limit),
+    hasMore: grouped.length > offset + limit,
+  };
 }
 
 // GET /dashboard?userId= — everything the dashboard page needs in one round
@@ -309,7 +404,7 @@ const get = asyncHandler(async (req, res) => {
       systemStats(buckets),
       projectHealthFor({}),
       teamWorkload(buckets),
-      activityFeed(buckets),
+      activityFeed(buckets, {}, {}),
     ]);
     return res.json({
       mode: 'admin_system',
@@ -317,7 +412,8 @@ const get = asyncHandler(async (req, res) => {
       stats,
       projectHealth,
       teamWorkload: workload,
-      activity,
+      activity: activity.events,
+      activityHasMore: activity.hasMore,
     });
   }
 
@@ -328,7 +424,7 @@ const get = asyncHandler(async (req, res) => {
       systemStats(buckets, { departmentId: deptId }),
       projectHealthFor(deptProjectWhere),
       teamWorkload(buckets, { departmentId: deptId }),
-      activityFeed(buckets, { departmentId: deptId }),
+      activityFeed(buckets, { departmentId: deptId }, deptProjectWhere),
     ]);
     return res.json({
       mode: 'admin_department',
@@ -336,7 +432,8 @@ const get = asyncHandler(async (req, res) => {
       stats,
       projectHealth,
       teamWorkload: workload,
-      activity,
+      activity: activity.events,
+      activityHasMore: activity.hasMore,
     });
   }
 
@@ -374,4 +471,62 @@ const get = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { get };
+// GET /dashboard/activity?offset= — "Load more" pagination for the activity
+// feed panel, reusing the same system/department scope rules as GET /dashboard.
+const activityMore = asyncHandler(async (req, res) => {
+  const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+  const [canViewAllTickets, canViewAllProjects, canViewDeptTickets, canViewDeptProjects] = await Promise.all([
+    hasPermission(req.user.id, 'tickets.view_all'),
+    hasPermission(req.user.id, 'projects.view_all'),
+    hasPermission(req.user.id, 'tickets.view_department'),
+    hasPermission(req.user.id, 'projects.view_department'),
+  ]);
+  const isSystemView = canViewAllTickets || canViewAllProjects;
+  const isDepartmentView = !isSystemView && (canViewDeptTickets || canViewDeptProjects);
+  if (!isSystemView && !isDepartmentView) {
+    throw new ApiError(403, "You don't have permission to view the activity feed", 'FORBIDDEN');
+  }
+
+  const buckets = await getTicketStatusBuckets();
+  let activity;
+  if (isSystemView) {
+    activity = await activityFeed(buckets, {}, {}, { offset });
+  } else {
+    const deptId = req.user.departmentId;
+    const deptProjectWhere = { [Op.or]: [{ ownerDepartmentId: deptId }, { forDepartmentId: deptId }] };
+    activity = await activityFeed(buckets, { departmentId: deptId }, deptProjectWhere, { offset });
+  }
+  res.json({ activity: activity.events, activityHasMore: activity.hasMore });
+});
+
+// GET /dashboard/layout — the caller's saved dashboard panel layout, or null
+// if they haven't customized it (frontend falls back to the default layout).
+const getLayout = asyncHandler(async (req, res) => {
+  const row = await DashboardLayout.findOne({ where: { userId: req.user.id } });
+  res.json({ layout: row ? row.layout : null });
+});
+
+// PUT /dashboard/layout { layout } — upserts the caller's layout. `layout` is
+// an opaque JSON blob owned entirely by the frontend (panel order/sizes/hidden).
+const saveLayout = asyncHandler(async (req, res) => {
+  const { layout } = req.body || {};
+  if (!layout || typeof layout !== 'object' || Array.isArray(layout)) {
+    throw new ApiError(400, 'layout must be an object', 'VALIDATION_ERROR');
+  }
+  const [row, created] = await DashboardLayout.findOrCreate({ where: { userId: req.user.id }, defaults: { layout } });
+  if (!created) {
+    row.layout = layout;
+    await row.save();
+  }
+  res.json({ layout: row.layout });
+});
+
+// DELETE /dashboard/layout — "Reset to default": removes the saved
+// customization so the frontend's built-in default layout applies again.
+const resetLayout = asyncHandler(async (req, res) => {
+  await DashboardLayout.destroy({ where: { userId: req.user.id } });
+  res.json({ ok: true });
+});
+
+module.exports = { get, activityMore, getLayout, saveLayout, resetLayout };
