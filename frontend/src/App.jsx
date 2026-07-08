@@ -53,6 +53,10 @@ const perm = (el, keys) => <ProtectedRoute permission={keys}>{el}</ProtectedRout
 // reachable when it isn't.
 const TICKETS_KEYS = ['tickets.view_own', 'tickets.view_department', 'tickets.view_all'];
 const PROJECTS_KEYS = ['projects.view_own', 'projects.view_department', 'projects.view_all'];
+// Calendar aggregates both tickets and projects/tasks — reachable by anyone
+// who can view either, not just ticket viewers (mirrors the backend's
+// /calendar/events route gate).
+const CALENDAR_KEYS = [...TICKETS_KEYS, ...PROJECTS_KEYS];
 const CONTACTS_KEYS = ['people.view_own_department', 'people.view_all'];
 const REPORTS_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
 const USERS_KEYS = ['people.view_all', 'people.create_users'];
@@ -87,7 +91,7 @@ export default function App() {
         <Route path="/projects/:id" element={perm(<ProjectDetail />, PROJECTS_KEYS)} />
 
         <Route path="/reports" element={perm(<Reports />, REPORTS_KEYS)} />
-        <Route path="/calendar" element={perm(<Calendar />, TICKETS_KEYS)} />
+        <Route path="/calendar" element={perm(<Calendar />, CALENDAR_KEYS)} />
 
         {/* Settings hub + sections */}
         <Route path="/settings" element={<SettingsHub />} />

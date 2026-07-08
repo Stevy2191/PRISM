@@ -43,7 +43,10 @@ export const DEFAULT_ROLES = {
 // Permission-gated on top of the role-based module visibility — cosmetic
 // only, the backend is the real enforcement (see requirePermission middleware).
 export function permissionGate(key, hasAnyPermission) {
-  if (key === 'tickets' || key === 'calendar') return hasAnyPermission(TICKETS_PERMISSION_KEYS);
+  if (key === 'tickets') return hasAnyPermission(TICKETS_PERMISSION_KEYS);
+  // Calendar aggregates both tickets and projects/tasks — visible to anyone
+  // who can view either, not just ticket viewers.
+  if (key === 'calendar') return hasAnyPermission([...TICKETS_PERMISSION_KEYS, ...PROJECTS_PERMISSION_KEYS]);
   if (key === 'contacts') return hasAnyPermission(CONTACTS_PERMISSION_KEYS);
   if (key === 'projects') return hasAnyPermission(PROJECTS_PERMISSION_KEYS);
   if (key === 'reports') return hasAnyPermission(REPORTS_PERMISSION_KEYS);

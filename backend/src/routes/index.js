@@ -31,6 +31,7 @@ const auditLogRoutes = require('./auditLog');
 const workflowRulesRoutes = require('./workflowRules');
 const searchRoutes = require('./search');
 const adSyncRoutes = require('./adSync');
+const calendarRoutes = require('./calendar');
 
 const router = express.Router();
 
@@ -69,5 +70,6 @@ router.use('/audit-log', guard, auditLogRoutes);
 router.use('/workflow-rules', guard, workflowRulesRoutes);
 router.use('/search', guard, searchRoutes);
 router.use('/ad-sync', guard, adSyncRoutes);
+router.use('/calendar', guard, calendarRoutes);
 
 module.exports = router;
