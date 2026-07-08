@@ -4,6 +4,7 @@ import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, THEME_OPTIONS } from '../../context/ThemeContext';
 import { useNavStyle, NAV_STYLE_OPTIONS } from '../../context/NavStyleContext';
+import { formatPhone } from '../../utils/formatPhone';
 
 const THRESHOLD_OPTIONS = [
   { value: 0, label: 'No minimum' },
@@ -249,13 +250,14 @@ function ProfileSection({ user, onSaved }) {
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    phone: user?.phone || '',
+    phone: formatPhone(user?.phone || ''),
     jobTitle: user?.jobTitle || '',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setPhone = (e) => setForm((f) => ({ ...f, phone: formatPhone(e.target.value) }));
 
   const save = async (e) => {
     e.preventDefault();
@@ -302,7 +304,7 @@ function ProfileSection({ user, onSaved }) {
         </div>
         <div>
           <label className="label">Phone</label>
-          <input className="input" value={form.phone} onChange={set('phone')} />
+          <input className="input" value={form.phone} onChange={setPhone} placeholder="(555) 123-4567" inputMode="tel" />
         </div>
         <div>
           <label className="label">Job title</label>

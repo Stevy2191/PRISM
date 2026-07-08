@@ -5,6 +5,7 @@ const { Contact, Department } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { logContactActivity } = require('../services/contactActivity');
+const { normalizePhoneLenient } = require('../utils/phone');
 
 const IMPORT_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'mobile', 'department', 'jobTitle'];
 
@@ -166,8 +167,8 @@ const commit = asyncHandler(async (req, res) => {
         lastName: rec.lastName || '',
         displayName: `${rec.firstName || ''} ${rec.lastName || ''}`.trim() || rec.email,
         email: rec.email || null,
-        phone: rec.phone || null,
-        mobile: rec.mobile || null,
+        phone: normalizePhoneLenient(rec.phone),
+        mobile: normalizePhoneLenient(rec.mobile),
         departmentId: deptId,
         jobTitle: rec.jobTitle || null,
         assignedTo: req.user.id,

@@ -5,6 +5,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, hasPermission } = require('../services/permissionService');
 const { computeDisplayName } = require('../utils/userDisplay');
+const { normalizePhone } = require('../utils/phone');
 
 const MIN_PASSWORD_LENGTH = 8;
 const userInclude = [{ model: Department, as: 'department' }, { model: Role, as: 'primaryRole' }];
@@ -128,7 +129,7 @@ const create = asyncHandler(async (req, res) => {
     displayName: resolvedDisplayName,
     firstName: firstName ? firstName.trim() : null,
     lastName: lastName ? lastName.trim() : null,
-    phone: phone ? phone.trim() : null,
+    phone: normalizePhone(phone),
     jobTitle: jobTitle ? jobTitle.trim() : null,
     email: email || null,
     role: role || 'technician',
@@ -209,7 +210,7 @@ const update = asyncHandler(async (req, res) => {
 
   if (firstName !== undefined) changes.firstName = firstName ? firstName.trim() : null;
   if (lastName !== undefined) changes.lastName = lastName ? lastName.trim() : null;
-  if (phone !== undefined) changes.phone = phone ? phone.trim() : null;
+  if (phone !== undefined) changes.phone = normalizePhone(phone);
   if (jobTitle !== undefined) changes.jobTitle = jobTitle ? jobTitle.trim() : null;
   if (email !== undefined) changes.email = email ? email.trim() : null;
 

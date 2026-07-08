@@ -7,6 +7,7 @@ const {
 } = require('../config/ldap');
 const { Contact, AdSyncLog, AdGroupMapping } = require('../models');
 const { logContactActivity } = require('../services/contactActivity');
+const { normalizePhoneLenient } = require('../utils/phone');
 
 // Resolves the department for an AD user from their group memberships —
 // the first `memberOf` group (in the order AD returns them) that has a
@@ -26,7 +27,7 @@ function attributesFromEntry(entry) {
     firstName: attr(entry, 'givenName') || attr(entry, 'displayName') || attr(entry, 'sAMAccountName') || null,
     lastName: attr(entry, 'sn') || '',
     email: attr(entry, 'mail') || null,
-    phone: attr(entry, 'telephoneNumber') || null,
+    phone: normalizePhoneLenient(attr(entry, 'telephoneNumber')),
     // title first; AD's `department` attribute is a fallback source for job
     // title only (per spec) — it does not drive PRISM's departmentId, which
     // comes exclusively from group mapping.

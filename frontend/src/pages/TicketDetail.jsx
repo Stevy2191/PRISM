@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
+import { formatPhone } from '../utils/formatPhone';
 import { useAuth, usePermission } from '../context/AuthContext';
 import { formatHMS } from '../context/TimerContext';
 import Spinner from '../components/Spinner';
@@ -762,6 +763,7 @@ function Sidebar({
                 </div>
                 <div><dt className="text-xs" style={{ color: MUTED }}>Department</dt><dd style={{ color: TEXT }}>{ticket.contact?.department?.name || '—'}</dd></div>
                 <div><dt className="text-xs" style={{ color: MUTED }}>Email</dt><dd style={{ color: TEXT }}>{ticket.contact?.email || '—'}</dd></div>
+                <div><dt className="text-xs" style={{ color: MUTED }}>Phone</dt><dd style={{ color: TEXT }}>{ticket.contact?.phone ? formatPhone(ticket.contact.phone) : '—'}</dd></div>
               </dl>
               {ticket.contact && !ticket.contact.departmentId && (
                 <div className="mt-2 rounded-md border p-2.5" style={{ borderColor: BORDER, backgroundColor: BG }}>

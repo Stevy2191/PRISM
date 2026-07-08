@@ -5,6 +5,7 @@ const { writeAudit } = require('../middleware/audit');
 const { hasPermission } = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { logContactActivity } = require('../services/contactActivity');
+const { normalizePhone } = require('../utils/phone');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const contactInclude = [
@@ -95,8 +96,8 @@ const create = asyncHandler(async (req, res) => {
     lastName: lastName.trim(),
     displayName: (displayName && displayName.trim()) || `${firstName.trim()} ${lastName.trim()}`.trim(),
     email: email || null,
-    phone: phone || null,
-    mobile: mobile || null,
+    phone: normalizePhone(phone),
+    mobile: normalizePhone(mobile),
     departmentId: departmentId || null,
     jobTitle: jobTitle || null,
     notes: notes || null,
@@ -166,6 +167,8 @@ const update = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key] === '' ? null : req.body[key];
   }
+  if (changes.phone !== undefined) changes.phone = normalizePhone(changes.phone);
+  if (changes.mobile !== undefined) changes.mobile = normalizePhone(changes.mobile);
   if (changes.email) {
     const existing = await Contact.findOne({ where: { email: changes.email, id: { [Op.ne]: contact.id } } });
     if (existing) throw new ApiError(409, 'A contact with this email already exists', 'EMAIL_TAKEN');

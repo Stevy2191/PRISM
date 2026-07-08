@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
+import { formatPhone } from '../utils/formatPhone';
 import { useAuth, useAnyPermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
@@ -47,6 +48,7 @@ const SORT_COLUMNS = [
 
 function ContactFormFields({ form, setForm, departments, assignableUsers }) {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const setPhoneField = (k) => (e) => setForm((f) => ({ ...f, [k]: formatPhone(e.target.value) }));
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -72,11 +74,11 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Phone</label>
-          <input className="input" style={fieldStyle} value={form.phone} onChange={set('phone')} />
+          <input className="input" style={fieldStyle} value={form.phone} onChange={setPhoneField('phone')} placeholder="(555) 123-4567" inputMode="tel" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Mobile</label>
-          <input className="input" style={fieldStyle} value={form.mobile} onChange={set('mobile')} />
+          <input className="input" style={fieldStyle} value={form.mobile} onChange={setPhoneField('mobile')} placeholder="(555) 123-4567" inputMode="tel" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -373,7 +375,7 @@ export default function Contacts() {
                           <span className="text-xs" style={{ color: MUTED }}>No department</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.phone || '—'}</td>
+                      <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.phone ? formatPhone(c.phone) : '—'}</td>
                       <td className="px-4 py-3">
                         {c.assignedToUser ? (
                           <span className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
+import { formatPhone } from '../utils/formatPhone';
 import { useAnyPermission, usePermission } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
@@ -126,7 +127,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
   const [name, setName] = useState(contact.displayName);
   const [editingName, setEditingName] = useState(false);
   const [fields, setFields] = useState({
-    email: contact.email || '', phone: contact.phone || '', mobile: contact.mobile || '', jobTitle: contact.jobTitle || '',
+    email: contact.email || '', phone: formatPhone(contact.phone || ''), mobile: formatPhone(contact.mobile || ''), jobTitle: contact.jobTitle || '',
   });
   const [notes, setNotes] = useState(contact.notes || '');
   const [notesSaved, setNotesSaved] = useState(true);
@@ -134,7 +135,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
 
   useEffect(() => {
     setName(contact.displayName);
-    setFields({ email: contact.email || '', phone: contact.phone || '', mobile: contact.mobile || '', jobTitle: contact.jobTitle || '' });
+    setFields({ email: contact.email || '', phone: formatPhone(contact.phone || ''), mobile: formatPhone(contact.mobile || ''), jobTitle: contact.jobTitle || '' });
     setNotes(contact.notes || '');
   }, [contact.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -225,11 +226,11 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
         </div>
         <div>
           <label className="mb-1 block text-xs" style={{ color: MUTED }}>Phone</label>
-          <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.phone} onChange={(e) => setFields((f) => ({ ...f, phone: e.target.value }))} onBlur={() => saveField('phone')} />
+          <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.phone} onChange={(e) => setFields((f) => ({ ...f, phone: formatPhone(e.target.value) }))} onBlur={() => saveField('phone')} placeholder="(555) 123-4567" inputMode="tel" />
         </div>
         <div>
           <label className="mb-1 block text-xs" style={{ color: MUTED }}>Mobile</label>
-          <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.mobile} onChange={(e) => setFields((f) => ({ ...f, mobile: e.target.value }))} onBlur={() => saveField('mobile')} />
+          <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.mobile} onChange={(e) => setFields((f) => ({ ...f, mobile: formatPhone(e.target.value) }))} onBlur={() => saveField('mobile')} placeholder="(555) 123-4567" inputMode="tel" />
         </div>
         <div>
           <label className="mb-1 block text-xs" style={{ color: MUTED }}>Job title</label>

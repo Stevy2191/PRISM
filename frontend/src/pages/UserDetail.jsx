@@ -6,6 +6,7 @@ import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import Collapsible from '../components/Collapsible';
 import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
+import { formatPhone } from '../utils/formatPhone';
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString() : 'Never';
@@ -589,12 +590,13 @@ function ProfileTab({ user, departments, onUpdate }) {
     firstName: user.firstName || '',
     lastName: user.lastName || '',
     email: user.email || '',
-    phone: user.phone || '',
+    phone: formatPhone(user.phone || ''),
     jobTitle: user.jobTitle || '',
     departmentId: user.departmentId || '',
   });
   const [saving, setSaving] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setPhone = (e) => setForm((f) => ({ ...f, phone: formatPhone(e.target.value) }));
 
   const save = async (e) => {
     e.preventDefault();
@@ -656,7 +658,7 @@ function ProfileTab({ user, departments, onUpdate }) {
         </div>
         <div>
           <label className="label">Phone</label>
-          <input className="input" value={form.phone} onChange={set('phone')} />
+          <input className="input" value={form.phone} onChange={setPhone} placeholder="(555) 123-4567" inputMode="tel" />
         </div>
         <div>
           <label className="label">Job title</label>
