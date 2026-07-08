@@ -172,13 +172,14 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const {
-    role, departmentId, password, firstName, lastName, phone, jobTitle, email,
+    role, departmentId, password, firstName, lastName, phone, jobTitle, email, userType, hourlyRate,
   } = req.body || {};
   const changes = {};
 
-  if (role !== undefined || departmentId !== undefined || password !== undefined) {
+  if (role !== undefined || departmentId !== undefined || password !== undefined
+    || userType !== undefined || hourlyRate !== undefined) {
     if (!canEditUsers) {
-      throw new ApiError(403, 'You do not have permission to change role, department, or password', 'FORBIDDEN');
+      throw new ApiError(403, 'You do not have permission to change role, department, password, or contractor status', 'FORBIDDEN');
     }
   }
 
@@ -208,6 +209,26 @@ const update = asyncHandler(async (req, res) => {
     changes.mustChangePassword = true;
   }
 
+  if (userType !== undefined) {
+    if (!['internal', 'contractor'].includes(userType)) {
+      throw new ApiError(400, 'userType must be "internal" or "contractor"', 'VALIDATION_ERROR');
+    }
+    changes.userType = userType;
+    // Switching back to internal clears any stale rate rather than leaving
+    // an orphaned hourlyRate that would silently resurrect if re-flipped.
+    if (userType === 'internal' && hourlyRate === undefined) changes.hourlyRate = null;
+  }
+  if (hourlyRate !== undefined) {
+    if (hourlyRate !== null) {
+      const rate = Number(hourlyRate);
+      if (Number.isNaN(rate) || rate < 0) {
+        throw new ApiError(400, 'hourlyRate must be a non-negative number', 'VALIDATION_ERROR');
+      }
+      changes.hourlyRate = rate;
+    } else {
+      changes.hourlyRate = null;
+    }
+  }
   if (firstName !== undefined) changes.firstName = firstName ? firstName.trim() : null;
   if (lastName !== undefined) changes.lastName = lastName ? lastName.trim() : null;
   if (phone !== undefined) changes.phone = normalizePhone(phone);

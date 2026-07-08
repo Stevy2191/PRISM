@@ -1,6 +1,7 @@
 const express = require('express');
 const ctrl = require('../controllers/reportsController');
 const savedViewsCtrl = require('../controllers/savedReportViewsController');
+const customCtrl = require('../controllers/customReportsController');
 const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
@@ -38,5 +39,18 @@ router.get('/contacts/export', canExport, ctrl.contactsReportExport);
 
 // Pre-existing customer happiness report (see Settings -> Customer Happiness).
 router.get('/csat', ctrl.csat);
+
+// Custom report builder
+router.get('/custom/metadata', customCtrl.metadata);
+router.post('/custom', customCtrl.run);
+router.post('/custom/export-csv', canExport, customCtrl.exportCsv);
+router.post('/custom/export-pdf', canExport, customCtrl.exportPdf);
+
+// Saved custom report configurations
+router.get('/saved', customCtrl.listSaved);
+router.post('/saved', customCtrl.createSaved);
+router.patch('/saved/:id', customCtrl.updateSaved);
+router.post('/saved/:id/run', customCtrl.runSaved);
+router.delete('/saved/:id', customCtrl.removeSaved);
 
 module.exports = router;

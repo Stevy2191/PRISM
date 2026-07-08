@@ -58,7 +58,20 @@ export default function TimeBillingReport({ filters, onForbidden }) {
 
       <div className="card p-5">
         <h3 className="font-semibold text-navy-900">Billing summary</h3>
-        <p className="mt-2 text-sm text-navy-400">Billable tracking coming soon.</p>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-xs text-navy-400">Internal hours</p>
+            <p className="text-lg font-semibold text-navy-900">{data.summary.internalHours}h</p>
+          </div>
+          <div>
+            <p className="text-xs text-navy-400">Contractor hours</p>
+            <p className="text-lg font-semibold text-navy-900">{data.summary.contractorHours}h</p>
+          </div>
+          <div>
+            <p className="text-xs text-navy-400">Total labor cost (contractors)</p>
+            <p className="text-lg font-semibold text-navy-900">${data.summary.totalLaborCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+        </div>
       </div>
 
       <SortableTable
@@ -68,6 +81,7 @@ export default function TimeBillingReport({ filters, onForbidden }) {
           { key: 'note', label: 'Description' },
           { key: 'date', label: 'Date' },
           { key: 'hours', label: 'Hours' },
+          { key: 'laborCost', label: 'Labor cost', render: (row) => (row.laborCost === '' || row.laborCost === null || row.laborCost === undefined ? '—' : `$${Number(row.laborCost).toFixed(2)}`) },
         ]}
         rows={data.tableData.rows}
       />

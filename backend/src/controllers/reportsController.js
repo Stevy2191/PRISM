@@ -588,12 +588,12 @@ async function buildTimeBillingReport(req) {
     ...ticketEntries.map((e) => ({
       date: e.loggedAt, user: e.user, minutes: e.minutes, isProject: false, ticketType: e.ticket?.type || null,
       reference: e.ticket ? `#${String(e.ticket.id).padStart(5, '0')} ${e.ticket.title}` : '',
-      department: e.ticket?.department || null, note: e.note,
+      department: e.ticket?.department || null, note: e.note, laborCost: e.laborCost,
     })),
     ...projectEntries.map((e) => ({
       date: e.createdAt, user: e.loggedFor, minutes: Math.max(1, Math.round((e.durationSeconds || 0) / 60)), isProject: true, ticketType: null,
       reference: e.project ? `Project: ${e.project.name}` : 'Project',
-      department: e.project?.ownerDepartment || null, note: e.description,
+      department: e.project?.ownerDepartment || null, note: e.description, laborCost: e.laborCost,
     })),
   ];
 
@@ -604,6 +604,8 @@ async function buildTimeBillingReport(req) {
   const byBucket = new Map();
   let totalMinutes = 0;
   let ticketMinutes = 0;
+  let contractorMinutes = 0;
+  let totalLaborCost = 0;
   const ticketRefSet = new Set();
 
   const bumpMinutes = (map, key, label, minutes) => {
@@ -625,6 +627,10 @@ async function buildTimeBillingReport(req) {
       ticketMinutes += e.minutes;
       ticketRefSet.add(e.reference);
     }
+    if (e.laborCost != null) {
+      contractorMinutes += e.minutes;
+      totalLaborCost += Number(e.laborCost);
+    }
   });
 
   const toHours = (m) => Math.round((m / 60) * 10) / 10;
@@ -634,6 +640,9 @@ async function buildTimeBillingReport(req) {
       totalHours: toHours(totalMinutes),
       avgHoursPerTicket: ticketRefSet.size ? Math.round((toHours(ticketMinutes) / ticketRefSet.size) * 10) / 10 : 0,
       entryCount: normalized.length,
+      internalHours: toHours(totalMinutes - contractorMinutes),
+      contractorHours: toHours(contractorMinutes),
+      totalLaborCost: Math.round(totalLaborCost * 100) / 100,
     },
     chartData: {
       granularity,
@@ -649,6 +658,7 @@ async function buildTimeBillingReport(req) {
         { key: 'note', label: 'Description' },
         { key: 'date', label: 'Date' },
         { key: 'hours', label: 'Hours' },
+        { key: 'laborCost', label: 'Labor cost' },
       ],
       rows: normalized.map((e, i) => ({
         id: i,
@@ -657,6 +667,7 @@ async function buildTimeBillingReport(req) {
         note: e.note || '',
         date: e.date ? new Date(e.date).toISOString().slice(0, 10) : '',
         hours: toHours(e.minutes),
+        laborCost: e.laborCost != null ? Number(e.laborCost) : '',
       })),
     },
   };

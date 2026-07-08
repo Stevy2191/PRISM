@@ -24,6 +24,9 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: () => new Date().toISOString().slice(0, 10),
       },
+      // Set at creation time from loggedForUserId (the contractor doing the
+      // work) — see utils/laborCost.js. Null for internal staff, not 0.
+      laborCost: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
     },
     {
       sequelize,

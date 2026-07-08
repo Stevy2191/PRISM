@@ -252,4 +252,5 @@ module.exports = {
   uploadFavicon,
   removeFavicon,
   BRANDING_DIR,
+  getAllSettings,
 };

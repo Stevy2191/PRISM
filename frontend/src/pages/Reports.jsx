@@ -10,6 +10,7 @@ import SlaComplianceReport from './reports/SlaComplianceReport';
 import TimeBillingReport from './reports/TimeBillingReport';
 import ProjectsReport from './reports/ProjectsReport';
 import ContactsReport from './reports/ContactsReport';
+import CustomReportBuilder from './reports/CustomReportBuilder';
 
 const CATEGORIES = [
   {
@@ -73,6 +74,8 @@ export default function Reports() {
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   const [saveViewName, setSaveViewName] = useState('');
   const [forbidden, setForbidden] = useState(false);
+  const [customReports, setCustomReports] = useState([]);
+  const [editingSavedId, setEditingSavedId] = useState(null);
 
   const activeReport = ALL_REPORTS.find((r) => r.key === activeKey);
   const ActiveComponent = REPORT_COMPONENTS[activeKey];
@@ -92,6 +95,26 @@ export default function Reports() {
       .catch(() => setSavedViews([]));
   };
   useEffect(loadSavedViews, [activeKey]);
+
+  const loadCustomReports = () => {
+    api.get('/reports/saved').then(({ data }) => setCustomReports(data.reports)).catch(() => setCustomReports([]));
+  };
+  useEffect(loadCustomReports, []);
+
+  const openCustomBuilder = (savedId) => {
+    setEditingSavedId(savedId || null);
+    setActiveKey('custom');
+  };
+  const deleteCustomReport = async (id) => {
+    if (!confirm('Delete this saved report?')) return;
+    try {
+      await api.delete(`/reports/saved/${id}`);
+      loadCustomReports();
+      if (editingSavedId === id) { setEditingSavedId(null); setActiveKey('ticket-volume'); }
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
 
   const range = useMemo(() => (preset === 'custom' ? customRange : presetRange(preset) || { startDate: '', endDate: '' }), [preset, customRange]);
 
@@ -194,9 +217,57 @@ export default function Reports() {
             </div>
           </div>
         )}
+
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-navy-400">Custom Reports</p>
+          <div className="space-y-0.5">
+            <button
+              onClick={() => openCustomBuilder(null)}
+              className={`block w-full rounded-md px-3 py-1.5 text-left text-sm font-medium ${
+                activeKey === 'custom' && !editingSavedId ? 'bg-prism text-white' : 'text-prism hover:bg-navy-50'
+              }`}
+            >
+              + New custom report
+            </button>
+            {customReports.map((r) => (
+              <div
+                key={r.id}
+                className={`group flex items-center justify-between rounded-md px-3 py-1.5 text-sm ${
+                  activeKey === 'custom' && editingSavedId === r.id ? 'bg-prism text-white' : 'text-navy-600 hover:bg-navy-50'
+                }`}
+              >
+                <button type="button" onClick={() => openCustomBuilder(r.id)} className="min-w-0 flex-1 text-left">
+                  <span className="block truncate">{r.name}</span>
+                  <span className={`block text-xs ${activeKey === 'custom' && editingSavedId === r.id ? 'text-white/70' : 'text-navy-400'}`}>
+                    {r.dataSource} · {r.lastRunAt ? new Date(r.lastRunAt).toLocaleDateString() : 'never run'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteCustomReport(r.id)}
+                  className={`ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 ${activeKey === 'custom' && editingSavedId === r.id ? 'text-white/70 hover:text-white' : 'text-navy-400 hover:text-red-500'}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </nav>
 
       <div className="min-w-0 flex-1 space-y-5">
+        {activeKey === 'custom' ? (
+          <>
+            <h1 className="text-xl font-bold text-navy-900">{editingSavedId ? 'Edit custom report' : 'Custom report builder'}</h1>
+            <CustomReportBuilder
+              key={editingSavedId || 'new'}
+              loadSavedId={editingSavedId}
+              onSaved={loadCustomReports}
+              onDeleted={() => { loadCustomReports(); setEditingSavedId(null); }}
+            />
+          </>
+        ) : (
+        <>
         <div className="card flex flex-wrap items-end gap-3 p-4">
           <div className="flex flex-wrap gap-1.5">
             {PRESETS.map((p) => (
@@ -270,6 +341,8 @@ export default function Reports() {
             filters={filters}
             onForbidden={() => setForbidden(true)}
           />
+        )}
+        </>
         )}
       </div>
     </div>

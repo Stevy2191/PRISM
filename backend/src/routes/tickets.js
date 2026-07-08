@@ -60,4 +60,7 @@ router.patch('/:id/custom-field-values', editMin, ctrl.updateCustomFieldValues);
 // Activity (per-ticket timeline)
 router.get('/:id/activity', ctrl.listActivity);
 
+// PDF report
+router.get('/:id/report', viewMin, ctrl.generateReport);
+
 module.exports = router;

@@ -65,6 +65,13 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: DataTypes.NOW,
       },
+      // Set at creation time from the entry's userId (the contractor doing
+      // the work, not loggedById) — see utils/laborCost.js. Null for
+      // internal staff, not 0.
+      laborCost: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+      },
     },
     {
       sequelize,

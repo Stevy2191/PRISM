@@ -62,4 +62,7 @@ router.delete('/:id/files/:fileId', staff, ctrl.removeFile);
 // Activity
 router.get('/:id/activity', ctrl.listActivity);
 
+// PDF report
+router.get('/:id/report', viewMin, ctrl.generateReport);
+
 module.exports = router;

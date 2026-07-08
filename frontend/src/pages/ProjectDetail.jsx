@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   IconUpload, IconFile, IconTrash, IconPlus, IconX, IconGripVertical,
-  IconChevronDown, IconChevronRight, IconLink, IconChevronUp, IconPencil,
+  IconChevronDown, IconChevronRight, IconLink, IconChevronUp, IconPencil, IconFileText,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
@@ -135,6 +135,60 @@ function Modal({ title, children, onClose, wide }) {
   );
 }
 
+// Fixed set of sections (no configurable filters), so this modal is mainly
+// a preview + loading state while the PDF streams down.
+function GenerateProjectReportModal({ projectId, projectCode, onClose }) {
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+
+  const generate = async () => {
+    setGenerating(true);
+    setError('');
+    try {
+      const res = await api.get(`/projects/${projectId}/report`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `project-[${projectCode}]-report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      onClose();
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <Modal title="Generate report" onClose={onClose}>
+      <p className="mb-4 text-sm" style={{ color: MUTED }}>
+        Generates a PDF summarizing this project — team, tasks and subtasks, time entries grouped
+        by tech with internal/contractor cost breakdown, expenses, materials, and an overall cost
+        summary.
+      </p>
+      {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onClose} className="rounded-md border px-4 py-2 text-sm font-medium" style={{ borderColor: BORDER, color: TEXT }}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={generate}
+          disabled={generating}
+          className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          style={{ backgroundColor: BLUE }}
+        >
+          <IconFileText size={15} />
+          {generating ? 'Generating…' : 'Generate PDF'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function Avatar({ name, size = 24 }) {
   if (!name) return <span className="text-sm" style={{ color: MUTED }}>Unassigned</span>;
   return (
@@ -170,6 +224,7 @@ export default function ProjectDetail() {
   const [tab, setTab] = useState('tasks');
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   const [tasks, setTasks] = useState([]);
   const [timeEntries, setTimeEntries] = useState({ entries: [], totalSeconds: 0 });
@@ -408,10 +463,27 @@ export default function ProjectDetail() {
         </div>
         {isStaff && (
           <div className="flex flex-shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setReportModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+              style={{ borderColor: BORDER, color: MUTED }}
+            >
+              <IconFileText size={13} />
+              Generate report
+            </button>
             {canDeleteProjects && <button onClick={deleteProject} className="btn-danger">Delete</button>}
           </div>
         )}
       </div>
+
+      {reportModalOpen && (
+        <GenerateProjectReportModal
+          projectId={id}
+          projectCode={project.projectCode}
+          onClose={() => setReportModalOpen(false)}
+        />
+      )}
 
       {/* Close-project warning */}
       {closeWarning && (
@@ -1113,7 +1185,7 @@ function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete }) {
       <table className="min-w-full">
         <thead>
           <tr>
-            {['Description', 'Task', 'Logged by', 'Date', 'Duration', ''].map((h) => (
+            {['Description', 'Task', 'Logged by', 'Date', 'Duration', 'Cost', ''].map((h) => (
               <th key={h} className="table-th" style={{ borderBottom: `1px solid ${BORDER}` }}>{h}</th>
             ))}
           </tr>
@@ -1126,6 +1198,7 @@ function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete }) {
               <td className="table-td" style={{ color: MUTED }}>{e.loggedFor?.displayName || '—'}</td>
               <td className="table-td" style={{ color: MUTED }}>{e.entryDate}</td>
               <td className="table-td font-medium" style={{ color: TEXT }}>{formatSeconds(e.durationSeconds)}</td>
+              <td className="table-td" style={{ color: e.laborCost != null ? TEXT : MUTED }}>{e.laborCost != null ? formatCost(e.laborCost) : '—'}</td>
               <td className="table-td">
                 {(e.userId === user.id || isAdmin) && (
                   <button onClick={() => onDelete(e.id)} className="text-xs" style={{ color: 'var(--color-danger)' }}>delete</button>
@@ -1133,11 +1206,14 @@ function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete }) {
               </td>
             </tr>
           ))}
-          {data.entries.length === 0 && <tr><td colSpan={6} className="table-td" style={{ color: MUTED }}>No time logged yet.</td></tr>}
+          {data.entries.length === 0 && <tr><td colSpan={7} className="table-td" style={{ color: MUTED }}>No time logged yet.</td></tr>}
         </tbody>
       </table>
       <div className="border-t p-4 text-right text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>
         Total: {formatSeconds(data.totalSeconds)}
+        {data.entries.some((e) => e.laborCost != null) && (
+          <span className="ml-4">Labor cost: {formatCost(data.entries.reduce((sum, e) => sum + (Number(e.laborCost) || 0), 0))}</span>
+        )}
       </div>
     </div>
   );

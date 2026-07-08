@@ -53,6 +53,7 @@ const WorkflowCondition = require('./WorkflowCondition')(sequelize);
 const WorkflowAction = require('./WorkflowAction')(sequelize);
 const WorkflowRuleLog = require('./WorkflowRuleLog')(sequelize);
 const SavedReportView = require('./SavedReportView')(sequelize);
+const SavedCustomReport = require('./SavedCustomReport')(sequelize);
 const DashboardLayout = require('./DashboardLayout')(sequelize);
 const AdSyncLog = require('./AdSyncLog')(sequelize);
 const AdGroupMapping = require('./AdGroupMapping')(sequelize);
@@ -71,6 +72,7 @@ const db = {
   WorkflowAction,
   WorkflowRuleLog,
   SavedReportView,
+  SavedCustomReport,
   Project,
   ProjectMember,
   ProjectTask,
@@ -317,6 +319,8 @@ User.hasMany(SavedFilter, { foreignKey: 'userId', as: 'savedFilters', onDelete: 
 SavedFilter.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(SavedReportView, { foreignKey: 'userId', as: 'savedReportViews', onDelete: 'CASCADE' });
 SavedReportView.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(SavedCustomReport, { foreignKey: 'userId', as: 'savedCustomReports', onDelete: 'CASCADE' });
+SavedCustomReport.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasOne(DashboardLayout, { foreignKey: 'userId', as: 'dashboardLayout', onDelete: 'CASCADE' });
 DashboardLayout.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import Collapsible from '../components/Collapsible';
@@ -585,7 +585,7 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
 
 // ---- Profile tab ----
 
-function ProfileTab({ user, departments, onUpdate }) {
+function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
   const [form, setForm] = useState({
     firstName: user.firstName || '',
     lastName: user.lastName || '',
@@ -593,6 +593,8 @@ function ProfileTab({ user, departments, onUpdate }) {
     phone: formatPhone(user.phone || ''),
     jobTitle: user.jobTitle || '',
     departmentId: user.departmentId || '',
+    userType: user.userType || 'internal',
+    hourlyRate: user.hourlyRate ?? '',
   });
   const [saving, setSaving] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -602,14 +604,19 @@ function ProfileTab({ user, departments, onUpdate }) {
     e.preventDefault();
     setSaving(true);
     try {
-      await onUpdate({
+      const payload = {
         firstName: form.firstName.trim() || null,
         lastName: form.lastName.trim() || null,
         email: form.email.trim() || null,
         phone: form.phone.trim() || null,
         jobTitle: form.jobTitle.trim() || null,
         departmentId: form.departmentId || null,
-      });
+      };
+      if (canManageContractor) {
+        payload.userType = form.userType;
+        payload.hourlyRate = form.userType === 'contractor' && form.hourlyRate !== '' ? Number(form.hourlyRate) : null;
+      }
+      await onUpdate(payload);
     } finally {
       setSaving(false);
     }
@@ -671,6 +678,41 @@ function ProfileTab({ user, departments, onUpdate }) {
             {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
+        {canManageContractor && (
+          <div>
+            <label className="label">User type</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, userType: 'internal' }))}
+                className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium ${form.userType === 'internal' ? 'border-prism bg-prism/10 text-prism' : 'border-navy-200 text-navy-600'}`}
+              >
+                Internal
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, userType: 'contractor' }))}
+                className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium ${form.userType === 'contractor' ? 'border-prism bg-prism/10 text-prism' : 'border-navy-200 text-navy-600'}`}
+              >
+                Contractor
+              </button>
+            </div>
+          </div>
+        )}
+        {canManageContractor && form.userType === 'contractor' && (
+          <div>
+            <label className="label">Hourly rate ($)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="input"
+              value={form.hourlyRate}
+              onChange={set('hourlyRate')}
+              placeholder="0.00"
+            />
+          </div>
+        )}
         <div className="sm:col-span-2 flex justify-end gap-3">
           {user.isLocalAccount && (
             <button type="button" className="btn-secondary" onClick={resetPassword}>Reset password</button>
@@ -687,6 +729,7 @@ function ProfileTab({ user, departments, onUpdate }) {
 export default function UserDetail() {
   const { id } = useParams();
   const { refreshPermissions } = useAuth();
+  const canEditUsers = usePermission('people.edit_users');
   const [user, setUser] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -743,7 +786,7 @@ export default function UserDetail() {
         ))}
       </div>
 
-      {tab === 'profile' && <ProfileTab user={user} departments={departments} onUpdate={updateUser} />}
+      {tab === 'profile' && <ProfileTab user={user} departments={departments} onUpdate={updateUser} canManageContractor={canEditUsers} />}
       {tab === 'access' && <RolesPermissionsTab userId={id} onPermissionsChanged={refreshPermissions} />}
     </div>
   );

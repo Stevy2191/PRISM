@@ -9,6 +9,8 @@ const {
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { logProjectActivity } = require('../services/projectActivity');
+const { calculateLaborCost } = require('../utils/laborCost');
+const { generateProjectReport } = require('../services/projectReport');
 const {
   getProjectStatusBuckets,
   getFirstProjectStatusByBehavior,
@@ -607,11 +609,12 @@ const createTimeEntry = asyncHandler(async (req, res) => {
   }
 
   let targetUserId = req.user.id;
+  let targetUser = req.user;
   if (loggedForUserId !== undefined && loggedForUserId !== null && Number(loggedForUserId) !== req.user.id) {
     if (!(await canLogForOthers(req.user))) {
       throw new ApiError(403, 'Only admins and team leads can log time for other users', 'FORBIDDEN');
     }
-    const targetUser = await User.findByPk(loggedForUserId);
+    targetUser = await User.findByPk(loggedForUserId);
     if (!targetUser || !isStaff(targetUser)) throw new ApiError(400, 'Invalid user to log time for', 'VALIDATION_ERROR');
     targetUserId = targetUser.id;
   }
@@ -634,6 +637,7 @@ const createTimeEntry = asyncHandler(async (req, res) => {
     endTime: endDt,
     durationSeconds,
     entryDate: resolvedEntryDate,
+    laborCost: calculateLaborCost(targetUser, { durationSeconds }),
   });
   await writeAudit(req, 'project_time.create', 'ProjectTimeEntry', entry.id, { projectId: project.id, durationSeconds });
   await logProjectActivity(project.id, req.user.id, 'time_logged', { minutes: Math.round(durationSeconds / 60) });
@@ -959,6 +963,14 @@ const listActivity = asyncHandler(async (req, res) => {
   res.json({ activity });
 });
 
+// GET /projects/:id/report — streams a generated PDF report for this project.
+const generateReport = asyncHandler(async (req, res) => {
+  const project = await Project.findByPk(req.params.id, { attributes: ['id'] });
+  if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  const ok = await generateProjectReport(project.id, res);
+  if (!ok) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+});
+
 module.exports = {
   list, create, get, update, remove, getStats,
   listTasks, createTask, updateTask, removeTask, reorderTasks, renumberTask,
@@ -969,4 +981,5 @@ module.exports = {
   listMembers, addMember, removeMember,
   listFiles, uploadFile, downloadFile, removeFile,
   listActivity,
+  generateReport,
 };

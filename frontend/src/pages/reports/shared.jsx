@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
+  PieChart, Pie,
 } from 'recharts';
 
 export const PALETTE = [
@@ -134,6 +135,23 @@ export function MultiLineChart({ data, lines, xKey = 'date' }) {
           <Line key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.label} stroke={l.color || PALETTE[i % PALETTE.length]} strokeWidth={2} dot={false} />
         ))}
       </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+// Donut chart showing each group's share — used by the custom report
+// builder when visualization='pie'.
+export function DonutChart({ data, dataKey = 'count' }) {
+  if (!data || data.length === 0) return <p className="text-sm text-navy-400">No data.</p>;
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart>
+        <Pie data={data} dataKey={dataKey} nameKey="name" innerRadius="55%" outerRadius="85%" paddingAngle={2}>
+          {data.map((d, i) => <Cell key={d.name ?? i} fill={PALETTE[i % PALETTE.length]} />)}
+        </Pie>
+        <Tooltip />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+      </PieChart>
     </ResponsiveContainer>
   );
 }

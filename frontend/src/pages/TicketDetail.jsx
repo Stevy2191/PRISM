@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   IconPaperclip, IconAt, IconArrowUp, IconArrowDown, IconX, IconUpload,
   IconFile, IconTrash, IconPlayerPlayFilled, IconPlayerStopFilled, IconPlayerPauseFilled,
-  IconLock, IconWorld, IconAlertTriangle, IconLink,
+  IconLock, IconWorld, IconAlertTriangle, IconLink, IconFileText,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
@@ -64,6 +64,9 @@ function formatMinutes(min) {
   const m = Number(min) || 0;
   const h = Math.floor(m / 60);
   return h ? `${h}h ${m % 60}m` : `${m}m`;
+}
+function formatCost(n) {
+  return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 function formatDate(d) {
   if (!d) return '—';
@@ -1290,7 +1293,12 @@ function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, canLogT
                     {' · '}{formatDate(e.entryDate || e.loggedAt)}
                   </p>
                 </div>
-                <span className="font-mono text-sm font-semibold" style={{ color: 'var(--color-success)' }}>{formatMinutes(displayMinutes)}</span>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="font-mono text-sm font-semibold" style={{ color: 'var(--color-success)' }}>{formatMinutes(displayMinutes)}</span>
+                  {e.laborCost != null && (
+                    <span className="text-xs" style={{ color: MUTED }}>{formatCost(e.laborCost)}</span>
+                  )}
+                </div>
               </li>
             );
           })}
@@ -1495,6 +1503,62 @@ function LinkSection({ label, accent, ticketId, linking, onConfirm }) {
         </div>
       )}
     </div>
+  );
+}
+
+// The report has a fixed set of sections (no configurable filters) — the
+// "configure and generate" modal is mainly a preview + a loading state
+// while the PDF streams down, since generation can take a moment for a
+// ticket with a lot of history.
+function GenerateReportModal({ ticketId, ticketNumber, onClose }) {
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+
+  const generate = async () => {
+    setGenerating(true);
+    setError('');
+    try {
+      const res = await api.get(`/tickets/${ticketId}/report`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ticket-#${ticketNumber}-report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      onClose();
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <Modal title="Generate report" onClose={onClose}>
+      <p className="mb-4 text-sm" style={{ color: MUTED }}>
+        Generates a PDF summarizing this ticket — status, description, resolution, the public
+        conversation (private comments are never included), time entries and cost, attachments,
+        and a key-events activity log.
+      </p>
+      {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onClose} className="rounded-md border px-4 py-2 text-sm font-medium" style={{ borderColor: BORDER, color: TEXT }}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={generate}
+          disabled={generating}
+          className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          style={{ backgroundColor: BLUE }}
+        >
+          <IconFileText size={15} />
+          {generating ? 'Generating…' : 'Generate PDF'}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -1745,6 +1809,7 @@ export default function TicketDetail() {
 
   const [activeTab, setActiveTab] = useState('conversation');
   const [headerLinkModalOpen, setHeaderLinkModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'collapsed'; } catch { return false; }
   });
@@ -2093,6 +2158,17 @@ export default function TicketDetail() {
                 Link ticket
               </button>
             )}
+            {isStaff && (
+              <button
+                type="button"
+                onClick={() => setReportModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
+                style={{ borderColor: BORDER, color: MUTED }}
+              >
+                <IconFileText size={13} />
+                Generate report
+              </button>
+            )}
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">
             {isStaff && (
@@ -2132,6 +2208,9 @@ export default function TicketDetail() {
 
       {headerLinkModalOpen && (
         <LinkTicketModal ticketId={id} onClose={() => setHeaderLinkModalOpen(false)} onLinked={reloadActivityAndRelations} />
+      )}
+      {reportModalOpen && (
+        <GenerateReportModal ticketId={id} ticketNumber={String(ticket.id).padStart(5, '0')} onClose={() => setReportModalOpen(false)} />
       )}
 
       {/* Body: sidebar + main. flex:1 + min-height:0 + overflow:hidden so this

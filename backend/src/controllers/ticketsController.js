@@ -32,6 +32,8 @@ const {
 } = require('../services/notifications');
 const { logActivity, resolveDisplayValue } = require('../services/ticketActivity');
 const { getTicketStatusBuckets, getTicketStatusBehaviorMap } = require('../services/statusBehavior');
+const { calculateLaborCost } = require('../utils/laborCost');
+const { generateTicketReport } = require('../services/ticketReport');
 const { getUserTicketScope, hasPermission } = require('../services/permissionService');
 const { evaluateRules } = require('../services/workflowEngine');
 
@@ -668,11 +670,12 @@ const createTime = asyncHandler(async (req, res) => {
 
   // Attribute the entry to another tech — admins/team leads only.
   let targetUserId = req.user.id;
+  let targetUser = req.user;
   if (userId !== undefined && userId !== null && Number(userId) !== req.user.id) {
     if (!(await canLogForOthers(req.user))) {
       throw new ApiError(403, 'Only admins and team leads can log time for other users', 'FORBIDDEN');
     }
-    const targetUser = await User.findByPk(userId);
+    targetUser = await User.findByPk(userId);
     if (!targetUser || !isStaff(targetUser)) {
       throw new ApiError(400, 'Invalid user to log time for', 'VALIDATION_ERROR');
     }
@@ -701,6 +704,7 @@ const createTime = asyncHandler(async (req, res) => {
     note: note || null,
     entryDate: resolvedEntryDate,
     loggedAt: new Date(),
+    laborCost: calculateLaborCost(targetUser, { durationSeconds }),
   });
   await writeAudit(req, 'time.create', 'TimeEntry', entry.id, { ticketId: ticket.id, minutes: mins });
   await logActivity(ticket.id, req.user.id, 'time_logged', null, `${mins}m`);
@@ -1012,6 +1016,14 @@ const listActivity = asyncHandler(async (req, res) => {
   res.json({ activity });
 });
 
+// GET /tickets/:id/report — streams a generated PDF report for this ticket.
+const generateReport = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findByPk(req.params.id, { attributes: ['id'] });
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  const ok = await generateTicketReport(ticket.id, res);
+  if (!ok) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+});
+
 module.exports = {
   list,
   create,
@@ -1043,4 +1055,5 @@ module.exports = {
   getCustomFieldValues,
   updateCustomFieldValues,
   listActivity,
+  generateReport,
 };

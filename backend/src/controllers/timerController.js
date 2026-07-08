@@ -6,6 +6,7 @@ const { ActiveTimer, TimeEntry, Ticket } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { logActivity } = require('../services/ticketActivity');
+const { calculateLaborCost } = require('../utils/laborCost');
 
 function shape(t) {
   return t ? { type: t.entityType, id: t.entityId, label: t.label, startedAt: t.startedAt } : null;
@@ -18,9 +19,11 @@ async function logTimer(req, timer, note) {
   const entry = await TimeEntry.create({
     userId: req.user.id,
     minutes,
+    durationSeconds: seconds,
     note: note || 'Timer',
     loggedAt: timer.startedAt,
     ticketId: timer.entityId,
+    laborCost: calculateLaborCost(req.user, { durationSeconds: seconds }),
   });
   await writeAudit(req, 'timer.log', 'TimeEntry', entry.id, { ticketId: timer.entityId, minutes });
   await logActivity(timer.entityId, req.user.id, 'time_logged', null, `${minutes}m`);

@@ -47,6 +47,18 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(150),
         allowNull: true,
       },
+      // Contractor tracking — hourlyRate is only meaningful when
+      // userType='contractor'; internal staff never accrue laborCost on
+      // time entries (see utils/laborCost.js). Admin-only to edit.
+      userType: {
+        type: DataTypes.ENUM('internal', 'contractor'),
+        allowNull: false,
+        defaultValue: 'internal',
+      },
+      hourlyRate: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+      },
       email: {
         type: DataTypes.STRING(255),
         allowNull: true,
