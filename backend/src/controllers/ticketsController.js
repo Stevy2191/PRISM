@@ -36,6 +36,7 @@ const { calculateLaborCost } = require('../utils/laborCost');
 const { generateTicketReport } = require('../services/ticketReport');
 const { getUserTicketScope, hasPermission } = require('../services/permissionService');
 const { evaluateRules } = require('../services/workflowEngine');
+const { syncTicketToExternalCalendars, removeTicketFromExternalCalendars } = require('../services/calendarPush');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
@@ -289,6 +290,9 @@ const create = asyncHandler(async (req, res) => {
     await notifyWatchers(ticket, `Ticket created: ${ticket.title}`, [req.user.id]);
   }
   await evaluateRules(ticket.id, 'ticket_created');
+  // Fire-and-forget — never throws, never awaited on the response path (see
+  // calendarPush.js's module comment).
+  syncTicketToExternalCalendars(ticket.id);
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
   res.status(201).json({ ticket: withCustomFields(fresh) });
@@ -388,6 +392,14 @@ const update = asyncHandler(async (req, res) => {
   if (changes.assigneeId !== undefined && ticket.assigneeId !== previousAssigneeId) {
     await evaluateRules(ticket.id, 'ticket_assigned');
   }
+  if (changes.dueDate !== undefined || changes.assigneeId !== undefined) {
+    if (previousAssigneeId && previousAssigneeId !== ticket.assigneeId) {
+      // Reassigned — drop the pushed event from the old assignee's calendar
+      // before (re-)pushing to the new one, otherwise it'd be orphaned there.
+      removeTicketFromExternalCalendars(ticket.id, previousAssigneeId);
+    }
+    syncTicketToExternalCalendars(ticket.id);
+  }
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
   res.json({ ticket: withCustomFields(fresh) });
@@ -406,6 +418,7 @@ const remove = asyncHandler(async (req, res) => {
   // Remove attachment files from disk (best-effort).
   const dir = path.join(UPLOAD_ROOT, String(ticket.id));
   fs.rm(dir, { recursive: true, force: true }, () => {});
+  removeTicketFromExternalCalendars(ticket.id, ticket.assigneeId);
 
   res.json({ ok: true });
 });

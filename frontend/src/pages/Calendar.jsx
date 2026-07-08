@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { useNavigate } from 'react-router-dom';
 import {
   IconChevronLeft, IconChevronRight, IconX, IconTicket, IconFolder, IconChecklist,
-  IconCalendar, IconExternalLink,
+  IconCalendar, IconExternalLink, IconCalendarEvent, IconRefresh, IconAlertTriangle,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
@@ -35,6 +35,13 @@ function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); retu
 function addMonths(d, n) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
 function parseLocal(dateStr) { const [y, m, d] = dateStr.split('-').map(Number); return new Date(y, m - 1, d); }
 
+// External events come back keyed by `startDate`, not `dueDate` — normalize
+// so the day-grouping logic (which keys everything off `dueDate`) works
+// uniformly across PRISM and external events without special-casing.
+function normalizeExternal(events) {
+  return events.map((ev) => ({ ...ev, dueDate: ev.startDate }));
+}
+
 function monthGridDays(anchor) {
   const gridStart = startOfWeek(startOfMonth(anchor));
   const gridEnd = addDays(startOfWeek(endOfMonth(anchor)), 6);
@@ -66,9 +73,11 @@ const TYPE_META = {
   ticket: { icon: IconTicket, label: 'Ticket' },
   project: { icon: IconFolder, label: 'Project' },
   task: { icon: IconChecklist, label: 'Task' },
+  external: { icon: IconCalendarEvent, label: 'External' },
 };
 
 function eventColor(ev) {
+  if (ev.type === 'external') return ev.color || '#64748b';
   if (ev.type === 'project') return '#7c3aed';
   return ev.priorityColor || '#64748b';
 }
@@ -101,20 +110,26 @@ const OpenStatusContext = createContext(new Set(['Open', 'In Progress', 'Pending
 function EventPill({ event, todayStr, onClick }) {
   const openStatusNames = useContext(OpenStatusContext);
   const color = eventColor(event);
-  const overdue = overduePill(event, todayStr, openStatusNames);
+  const isExternal = event.type === 'external';
+  const overdue = !isExternal && overduePill(event, todayStr, openStatusNames);
   const Icon = TYPE_META[event.type].icon;
+  const title = isExternal
+    ? `${eventLabel(event)} — ${event.integrationName}${event.startDate ? ` — ${event.startDate}` : ''}`
+    : eventLabel(event);
   return (
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(event); }}
-      title={eventLabel(event)}
+      title={title}
       className="flex w-full items-center gap-1 truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium"
       style={{
         backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`,
         color,
         border: overdue ? `1px dashed ${DANGER}` : '1px solid transparent',
+        opacity: isExternal ? 0.8 : 1,
       }}
     >
+      {isExternal && <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />}
       <Icon size={11} className="flex-shrink-0" />
       <span className="truncate">{eventLabel(event)}</span>
     </button>
@@ -126,8 +141,9 @@ function EventPopover({ event, onClose }) {
   const navigate = useNavigate();
   const openStatusNames = useContext(OpenStatusContext);
   if (!event) return null;
+  const isExternal = event.type === 'external';
   const Icon = TYPE_META[event.type].icon;
-  const overdue = overduePill(event, fmtLocal(new Date()), openStatusNames);
+  const overdue = !isExternal && overduePill(event, fmtLocal(new Date()), openStatusNames);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-[10px] border p-5" style={{ backgroundColor: CARD_BG, borderColor: BORDER }} onClick={(e) => e.stopPropagation()}>
@@ -146,53 +162,85 @@ function EventPopover({ event, onClose }) {
 
         <h3 className="mb-3 text-base font-semibold" style={{ color: TEXT }}>{event.title}</h3>
 
-        <dl className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <dt style={{ color: MUTED }}>Due date</dt>
-            <dd style={{ color: overdue ? DANGER : TEXT }}>
-              {parseLocal(event.dueDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-              {overdue && ' (overdue)'}
-            </dd>
-          </div>
-          <div className="flex justify-between">
-            <dt style={{ color: MUTED }}>Status</dt>
-            <dd>
-              <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${event.statusColor} 15%, transparent)`, color: event.statusColor }}>
-                {event.status}
-              </span>
-            </dd>
-          </div>
-          {event.priority && (
+        {isExternal ? (
+          <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt style={{ color: MUTED }}>Priority</dt>
-              <dd className="capitalize" style={{ color: event.priorityColor }}>{event.priority === 'critical' || event.priority === 'urgent' ? 'Urgent' : event.priority}</dd>
+              <dt style={{ color: MUTED }}>Date</dt>
+              <dd style={{ color: TEXT }}>
+                {parseLocal(event.startDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+              </dd>
             </div>
-          )}
-          <div className="flex justify-between">
-            <dt style={{ color: MUTED }}>Assignee</dt>
-            <dd style={{ color: TEXT }}>{event.assigneeName || 'Unassigned'}</dd>
-          </div>
-          {event.projectCode && event.type === 'task' && (
+            {event.location && (
+              <div className="flex justify-between gap-3">
+                <dt className="flex-shrink-0" style={{ color: MUTED }}>Location</dt>
+                <dd className="text-right" style={{ color: TEXT }}>{event.location}</dd>
+              </div>
+            )}
+            {event.description && (
+              <div>
+                <dt className="mb-1" style={{ color: MUTED }}>Description</dt>
+                <dd className="whitespace-pre-wrap" style={{ color: TEXT }}>{event.description}</dd>
+              </div>
+            )}
             <div className="flex justify-between">
-              <dt style={{ color: MUTED }}>Project</dt>
-              <dd style={{ color: TEXT }}>{event.projectCode}</dd>
+              <dt style={{ color: MUTED }}>Calendar</dt>
+              <dd className="flex items-center gap-1.5" style={{ color: TEXT }}>
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: event.color }} />
+                {event.integrationName}
+              </dd>
             </div>
-          )}
-        </dl>
+          </dl>
+        ) : (
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <dt style={{ color: MUTED }}>Due date</dt>
+              <dd style={{ color: overdue ? DANGER : TEXT }}>
+                {parseLocal(event.dueDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                {overdue && ' (overdue)'}
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt style={{ color: MUTED }}>Status</dt>
+              <dd>
+                <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${event.statusColor} 15%, transparent)`, color: event.statusColor }}>
+                  {event.status}
+                </span>
+              </dd>
+            </div>
+            {event.priority && (
+              <div className="flex justify-between">
+                <dt style={{ color: MUTED }}>Priority</dt>
+                <dd className="capitalize" style={{ color: event.priorityColor }}>{event.priority === 'critical' || event.priority === 'urgent' ? 'Urgent' : event.priority}</dd>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <dt style={{ color: MUTED }}>Assignee</dt>
+              <dd style={{ color: TEXT }}>{event.assigneeName || 'Unassigned'}</dd>
+            </div>
+            {event.projectCode && event.type === 'task' && (
+              <div className="flex justify-between">
+                <dt style={{ color: MUTED }}>Project</dt>
+                <dd style={{ color: TEXT }}>{event.projectCode}</dd>
+              </div>
+            )}
+          </dl>
+        )}
 
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-md border px-4 py-2 text-sm font-medium" style={{ borderColor: BORDER, color: TEXT }}>
             Close
           </button>
-          <button
-            type="button"
-            onClick={() => navigate(event.url)}
-            className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold text-white"
-            style={{ backgroundColor: BLUE }}
-          >
-            <IconExternalLink size={15} />
-            Open {TYPE_META[event.type].label.toLowerCase()}
-          </button>
+          {!isExternal && (
+            <button
+              type="button"
+              onClick={() => navigate(event.url)}
+              className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold text-white"
+              style={{ backgroundColor: BLUE }}
+            >
+              <IconExternalLink size={15} />
+              Open {TYPE_META[event.type].label.toLowerCase()}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -463,6 +511,7 @@ function FilterBar({
   showTickets, setShowTickets, showProjects, setShowProjects, showTasks, setShowTasks,
   assigneeId, setAssigneeId, departmentId, setDepartmentId, statusFilter, setStatusFilter,
   myItemsOnly, setMyItemsOnly, assignableUsers, departments, canFilterDept, overdueCount,
+  integrations, activeIntegrationIds, toggleIntegration,
 }) {
   const toggle = (active, label, onClick) => (
     <button
@@ -506,6 +555,35 @@ function FilterBar({
       <span className="mx-1 h-5 w-px" style={{ backgroundColor: BORDER }} />
 
       {toggle(myItemsOnly, 'My items only', () => setMyItemsOnly((v) => !v))}
+
+      {integrations.length > 0 && (
+        <>
+          <span className="mx-1 h-5 w-px" style={{ backgroundColor: BORDER }} />
+          {integrations.map((integ) => {
+            const active = activeIntegrationIds.has(integ.id);
+            return (
+              <button
+                key={integ.id}
+                type="button"
+                onClick={() => toggleIntegration(integ.id)}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+                style={active
+                  ? { backgroundColor: `color-mix(in srgb, ${integ.color} 20%, transparent)`, color: integ.color, border: `1px solid ${integ.color}` }
+                  : { backgroundColor: 'transparent', color: MUTED, border: `1px solid ${BORDER}` }}
+              >
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: integ.color }} />
+                {integ.name}
+                {integ.needsReconnect && (
+                  <span className="flex items-center gap-0.5 text-amber-600" title="This calendar's connection expired — reconnect in Account Preferences">
+                    <IconAlertTriangle size={11} />
+                    Reconnect
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
@@ -536,12 +614,33 @@ export default function Calendar() {
   const [miniOpen, setMiniOpen] = useState(true);
   const [openStatusNames, setOpenStatusNames] = useState(new Set(['Open', 'In Progress', 'Pending', 'On Hold', 'Active']));
 
+  const [integrations, setIntegrations] = useState([]);
+  const [externalEvents, setExternalEvents] = useState([]);
+  const [activeIntegrationIds, setActiveIntegrationIds] = useState(new Set());
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
     api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
   }, []);
   useEffect(() => {
     if (canViewAll) api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
   }, [canViewAll]);
+  const loadIntegrations = () => {
+    api.get('/calendar/integrations')
+      .then(({ data }) => {
+        setIntegrations(data.integrations);
+        // Default every active integration's pill on, the first time the
+        // list loads — afterwards leave whatever the user has toggled alone.
+        setActiveIntegrationIds((prev) => (prev.size ? prev : new Set(data.integrations.filter((i) => i.isActive).map((i) => i.id))));
+      })
+      .catch(() => {});
+  };
+  useEffect(loadIntegrations, []);
+  const toggleIntegration = (id) => setActiveIntegrationIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   // Status names are admin-editable — resolve "open" ones for real instead
   // of hardcoding the seeded defaults, same idea as the backend's
   // getTicketStatusBuckets()/getProjectStatusBuckets().
@@ -568,11 +667,17 @@ export default function Calendar() {
 
     setLoading(true);
     setError('');
-    api.get('/calendar/events', {
-      params: { startDate: fmtLocal(needStart), endDate: fmtLocal(needEnd), types: 'tickets,projects,tasks' },
-    })
-      .then(({ data }) => {
-        setEvents(data.events);
+    Promise.all([
+      api.get('/calendar/events', {
+        params: { startDate: fmtLocal(needStart), endDate: fmtLocal(needEnd), types: 'tickets,projects,tasks' },
+      }),
+      api.get('/calendar/external-events', {
+        params: { startDate: fmtLocal(needStart), endDate: fmtLocal(needEnd) },
+      }).catch(() => ({ data: { events: [] } })), // external calendars are optional — never block PRISM events on them
+    ])
+      .then(([prismRes, externalRes]) => {
+        setEvents(prismRes.data.events);
+        setExternalEvents(normalizeExternal(externalRes.data.events));
         setFetchedRange({ start: needStart, end: needEnd });
       })
       .catch((err) => setError(errMessage(err)))
@@ -580,9 +685,25 @@ export default function Calendar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible.start.getTime(), visible.end.getTime()]);
 
+  const refreshAll = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all(integrations.filter((i) => i.isActive).map((i) => api.post(`/calendar/integrations/${i.id}/sync`).catch(() => {})));
+      const { data } = await api.get('/calendar/external-events', {
+        params: { startDate: fmtLocal(addMonths(visible.start, -1)), endDate: fmtLocal(addMonths(visible.end, 1)) },
+      });
+      setExternalEvents(normalizeExternal(data.events));
+      loadIntegrations(); // pick up any lastSynced/needsReconnect changes
+    } catch (err) {
+      alert(errMessage(err));
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const filteredEvents = useMemo(() => {
     const effectiveAssignee = myItemsOnly ? String(user.id) : assigneeId;
-    return events.filter((ev) => {
+    const prismFiltered = events.filter((ev) => {
       if (ev.type === 'ticket' && !showTickets) return false;
       if (ev.type === 'project' && !showProjects) return false;
       if (ev.type === 'task' && !showTasks) return false;
@@ -592,7 +713,11 @@ export default function Calendar() {
       if (statusFilter === 'overdue' && !overduePill(ev, todayStr, openStatusNames)) return false;
       return true;
     });
-  }, [events, showTickets, showProjects, showTasks, assigneeId, departmentId, statusFilter, myItemsOnly, user.id, todayStr, openStatusNames]);
+    // PRISM events always shown first, external calendar events layered on
+    // top — array order here is what eventsByDay's per-day grouping renders in.
+    const externalFiltered = externalEvents.filter((ev) => activeIntegrationIds.has(ev.integrationId));
+    return [...prismFiltered, ...externalFiltered];
+  }, [events, externalEvents, activeIntegrationIds, showTickets, showProjects, showTasks, assigneeId, departmentId, statusFilter, myItemsOnly, user.id, todayStr, openStatusNames]);
 
   const overdueCount = useMemo(() => events.filter((ev) => overduePill(ev, todayStr, openStatusNames)
     && ((ev.type === 'ticket' && showTickets) || (ev.type === 'project' && showProjects) || (ev.type === 'task' && showTasks))).length, [events, todayStr, showTickets, showProjects, showTasks, openStatusNames]);
@@ -608,12 +733,12 @@ export default function Calendar() {
 
   const eventsByDayForMini = useMemo(() => {
     const map = new Map();
-    events.forEach((ev) => {
+    [...events, ...externalEvents].forEach((ev) => {
       if (!map.has(ev.dueDate)) map.set(ev.dueDate, []);
       map.get(ev.dueDate).push(ev);
     });
     return map;
-  }, [events]);
+  }, [events, externalEvents]);
 
   const goPrev = () => {
     if (view === 'month') setAnchor((d) => addMonths(d, -1));
@@ -656,6 +781,19 @@ export default function Calendar() {
               </button>
             ))}
           </div>
+          {integrations.length > 0 && (
+            <button
+              type="button"
+              onClick={refreshAll}
+              disabled={refreshing}
+              title="Re-sync all connected calendars now"
+              className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+              style={{ borderColor: BORDER, color: TEXT }}
+            >
+              <IconRefresh size={15} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -669,6 +807,7 @@ export default function Calendar() {
         myItemsOnly={myItemsOnly} setMyItemsOnly={setMyItemsOnly}
         assignableUsers={assignableUsers} departments={departments}
         canFilterDept={canViewAll} overdueCount={overdueCount}
+        integrations={integrations} activeIntegrationIds={activeIntegrationIds} toggleIntegration={toggleIntegration}
       />
 
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}

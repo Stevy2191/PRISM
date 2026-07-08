@@ -28,16 +28,42 @@ const DEFAULTS = {
   'branding.appName': 'PRISM',
   'branding.tagline': 'Project & Request Integrated Service Manager',
   'branding.loginBullets': DEFAULT_LOGIN_BULLETS,
+
+  // OAuth app credentials the admin registers with Google/Microsoft for this
+  // PRISM instance (Settings -> Integrations -> Calendar Integration) — the
+  // client secrets are write-only from the API's perspective, see
+  // redactSettings()/upsertSettings() below.
+  'integrations.googleClientId': '',
+  'integrations.googleClientSecret': '',
+  'integrations.microsoftClientId': '',
+  'integrations.microsoftClientSecret': '',
+  'integrations.microsoftTenantId': '',
 };
 
 // Settings that store JSON-encoded values rather than plain strings.
 const JSON_KEYS = ['branding.loginBullets'];
+
+// Never sent back to the client once saved — GET/PUT/PATCH responses redact
+// these to '' (with a companion `<key>Set` boolean so the UI can still show
+// "configured"), and a blank incoming value on write means "leave unchanged"
+// rather than "clear it" (same reasoning as a password field).
+const SECRET_KEYS = ['integrations.googleClientSecret', 'integrations.microsoftClientSecret'];
 
 // Keys writable via PATCH/PUT /settings (everything except file upload
 // pointers, which have their own dedicated upload endpoints).
 const WRITABLE_KEYS = Object.keys(DEFAULTS).filter(
   (k) => k !== 'company.logoFilename' && k !== 'company.faviconFilename'
 );
+
+function redactSettings(values) {
+  const redacted = { ...values };
+  const flags = {};
+  SECRET_KEYS.forEach((key) => {
+    flags[`${key}Set`] = !!redacted[key];
+    redacted[key] = '';
+  });
+  return { ...redacted, ...flags };
+}
 
 async function getAllSettings() {
   const rows = await SystemSettings.findAll();
@@ -75,6 +101,13 @@ function publicShape(values) {
     },
     logoUrl: hasLogo ? '/api/v1/settings/logo' : null,
     faviconUrl: hasFavicon ? '/api/v1/settings/favicon' : null,
+    // Booleans only — never the client id/secret — so the Account
+    // Preferences "Connect calendar" modal knows whether to enable the
+    // Google/Microsoft buttons without needing admin permissions itself.
+    integrations: {
+      googleConfigured: !!(values['integrations.googleClientId'] && values['integrations.googleClientSecret']),
+      microsoftConfigured: !!(values['integrations.microsoftClientId'] && values['integrations.microsoftClientSecret']),
+    },
   };
 }
 
@@ -113,7 +146,7 @@ const getFavicon = asyncHandler(async (req, res) => {
 const get = asyncHandler(async (req, res) => {
   const values = await getAllSettings();
   res.json({
-    settings: values,
+    settings: redactSettings(values),
     public: publicShape(values),
     config: {
       ldap: {
@@ -142,10 +175,18 @@ const get = asyncHandler(async (req, res) => {
 // re-serialized so callers can pass either a JS array or a JSON string.
 async function upsertSettings(incoming, userId) {
   const keys = Object.keys(incoming).filter((k) => WRITABLE_KEYS.includes(k));
+  const written = [];
   for (const key of keys) {
     let value = incoming[key];
     if (JSON_KEYS.includes(key) && typeof value !== 'string') {
       value = JSON.stringify(value ?? []);
+    }
+    // A blank secret means "leave the stored value unchanged" — the GET
+    // response never sends the real secret back, so a round-trip save
+    // (load form, change something unrelated, submit) would otherwise wipe
+    // it out with an empty string every time.
+    if (SECRET_KEYS.includes(key) && (value === undefined || value === null || String(value).trim() === '')) {
+      continue; // eslint-disable-line no-continue
     }
     // eslint-disable-next-line no-await-in-loop
     await SystemSettings.upsert({
@@ -153,8 +194,9 @@ async function upsertSettings(incoming, userId) {
       value: value == null ? '' : String(value),
       updatedById: userId,
     });
+    written.push(key);
   }
-  return keys;
+  return written;
 }
 
 // PUT /settings — Admin. Upserts a map of key/value settings (legacy path,
@@ -165,7 +207,7 @@ const update = asyncHandler(async (req, res) => {
   await writeAudit(req, 'settings.update', 'SystemSettings', null, { keys });
 
   const values = await getAllSettings();
-  res.json({ settings: values, public: publicShape(values) });
+  res.json({ settings: redactSettings(values), public: publicShape(values) });
 });
 
 // PATCH /settings — Admin. Same as PUT, accepts { settings: {...} } or a bare
@@ -176,7 +218,7 @@ const patch = asyncHandler(async (req, res) => {
   await writeAudit(req, 'settings.update', 'SystemSettings', null, { keys });
 
   const values = await getAllSettings();
-  res.json({ settings: values, public: publicShape(values) });
+  res.json({ settings: redactSettings(values), public: publicShape(values) });
 });
 
 // POST /settings/logo — Admin. Uploads a new logo (multipart field "file").

@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../context/SettingsContext';
 import { useTheme, THEME_OPTIONS } from '../../context/ThemeContext';
 import { useNavStyle, NAV_STYLE_OPTIONS } from '../../context/NavStyleContext';
 import { formatPhone } from '../../utils/formatPhone';
@@ -229,6 +230,8 @@ export default function Preferences() {
 
       <ProfileSection user={user} onSaved={refresh} />
 
+      <CalendarIntegrationsSection />
+
       {user?.isLocalAccount && (
         <div className="card flex items-center justify-between p-5">
           <div>
@@ -321,6 +324,338 @@ function ProfileSection({ user, onSaved }) {
           <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </form>
+    </div>
+  );
+}
+
+// ---- Calendar integrations ----
+
+const PROVIDER_META = {
+  google: { label: 'Google', badgeClass: 'bg-red-50 text-red-700' },
+  microsoft: { label: 'Microsoft', badgeClass: 'bg-sky-50 text-sky-700' },
+  ical: { label: 'iCal', badgeClass: 'bg-navy-100 text-navy-600' },
+};
+
+function relativeSync(lastSynced) {
+  if (!lastSynced) return 'Never synced';
+  const diffMs = Date.now() - new Date(lastSynced).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'Synced just now';
+  if (mins < 60) return `Synced ${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `Synced ${hours}h ago`;
+  return `Synced ${Math.round(hours / 24)}d ago`;
+}
+
+function CalendarIntegrationsSection() {
+  const { settings } = useSettings();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [integrations, setIntegrations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [pickCalendarFor, setPickCalendarFor] = useState(null); // integration id awaiting calendar selection
+
+  const load = () => {
+    api.get('/calendar/integrations')
+      .then(({ data }) => setIntegrations(data.integrations))
+      .catch((err) => setError(errMessage(err)))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  // Handle the redirect back from a Google/Microsoft OAuth callback.
+  useEffect(() => {
+    const connected = searchParams.get('calendarConnected');
+    const integrationId = searchParams.get('integrationId');
+    const oauthError = searchParams.get('calendarError');
+    if (!connected && !oauthError) return;
+    if (oauthError) {
+      setError(`Couldn't connect calendar: ${oauthError}`);
+    } else if (connected) {
+      setNotice(`${PROVIDER_META[connected]?.label || connected} connected — choose which calendar to sync below.`);
+      load();
+      if (integrationId) setPickCalendarFor(Number(integrationId));
+    }
+    setSearchParams((sp) => { sp.delete('calendarConnected'); sp.delete('integrationId'); sp.delete('calendarError'); return sp; }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleActive = async (integ) => {
+    try {
+      const { data } = await api.patch(`/calendar/integrations/${integ.id}`, { isActive: !integ.isActive });
+      setIntegrations((list) => list.map((i) => (i.id === integ.id ? data.integration : i)));
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const toggleSyncEnabled = async (integ) => {
+    try {
+      const { data } = await api.patch(`/calendar/integrations/${integ.id}`, { syncEnabled: !integ.syncEnabled });
+      setIntegrations((list) => list.map((i) => (i.id === integ.id ? data.integration : i)));
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const disconnect = async (integ) => {
+    if (!confirm(`Disconnect "${integ.name}"? Its cached events will be removed from your calendar.`)) return;
+    try {
+      await api.delete(`/calendar/integrations/${integ.id}`);
+      setIntegrations((list) => list.filter((i) => i.id !== integ.id));
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  return (
+    <div className="card p-5">
+      <div className="mb-1 flex items-center justify-between">
+        <h2 className="font-semibold text-navy-900">Calendar integrations</h2>
+        <button type="button" className="btn-secondary" onClick={() => setConnectOpen(true)}>+ Connect calendar</button>
+      </div>
+      <p className="mb-3 text-sm text-navy-500">
+        Overlay your Google Calendar, Outlook, or any iCal feed on the PRISM Calendar page. Connected calendars are read-only in PRISM.
+      </p>
+      {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {notice && <div className="mb-3 rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700">{notice}</div>}
+
+      {loading ? (
+        <p className="text-sm text-navy-400">Loading…</p>
+      ) : integrations.length === 0 ? (
+        <p className="text-sm text-navy-400">No calendars connected yet.</p>
+      ) : (
+        <div className="divide-y divide-navy-100">
+          {integrations.map((integ) => (
+            <div key={integ.id} className="flex items-center justify-between gap-3 py-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: integ.color }} />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-medium text-navy-800">{integ.name}</p>
+                    <span className={`badge ${PROVIDER_META[integ.provider]?.badgeClass}`}>{PROVIDER_META[integ.provider]?.label}</span>
+                    {integ.needsReconnect && <span className="badge bg-red-100 text-red-700">Reconnect needed</span>}
+                  </div>
+                  <p className="text-xs text-navy-400">{relativeSync(integ.lastSynced)}</p>
+                </div>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-3">
+                {integ.provider !== 'ical' && (
+                  <label className="flex items-center gap-1.5 text-xs text-navy-500" title="Push PRISM ticket/project due dates to this calendar">
+                    <input type="checkbox" checked={integ.syncEnabled} onChange={() => toggleSyncEnabled(integ)} />
+                    Sync PRISM events
+                  </label>
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggleActive(integ)}
+                  className={`relative h-5 w-9 flex-shrink-0 rounded-full transition ${integ.isActive ? 'bg-prism' : 'bg-navy-200'}`}
+                  title={integ.isActive ? 'Active — click to disable' : 'Inactive — click to enable'}
+                >
+                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${integ.isActive ? 'left-4' : 'left-0.5'}`} />
+                </button>
+                <button type="button" onClick={() => disconnect(integ)} className="text-xs text-red-500 hover:underline">Disconnect</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {connectOpen && (
+        <ConnectCalendarModal
+          settings={settings}
+          onClose={() => setConnectOpen(false)}
+          onCreated={(integ) => { setIntegrations((list) => [...list, integ]); setConnectOpen(false); }}
+        />
+      )}
+      {pickCalendarFor && (
+        <PickCalendarModal
+          integrationId={pickCalendarFor}
+          onClose={() => setPickCalendarFor(null)}
+          onPicked={(integ) => { setIntegrations((list) => list.map((i) => (i.id === integ.id ? integ : i))); setPickCalendarFor(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConnectCalendarModal({ settings, onClose, onCreated }) {
+  const [icalMode, setIcalMode] = useState(false);
+  const [icalName, setIcalName] = useState('');
+  const [icalUrl, setIcalUrl] = useState('');
+  const [testResult, setTestResult] = useState(null);
+  const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const googleConfigured = !!settings?.integrations?.googleConfigured;
+  const microsoftConfigured = !!settings?.integrations?.microsoftConfigured;
+
+  const startOAuth = async (provider) => {
+    setError('');
+    try {
+      const { data } = await api.get(`/calendar/integrations/${provider}/auth-url`);
+      window.location.href = data.url;
+    } catch (err) {
+      setError(errMessage(err));
+    }
+  };
+
+  const testUrl = async () => {
+    if (!icalUrl.trim()) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { data } = await api.post('/calendar/integrations/ical/test', { icalUrl });
+      setTestResult(data);
+    } catch (err) {
+      setTestResult({ valid: false, error: errMessage(err) });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const submitIcal = async (e) => {
+    e.preventDefault();
+    if (!icalName.trim() || !icalUrl.trim()) return;
+    setSaving(true);
+    setError('');
+    try {
+      const { data } = await api.post('/calendar/integrations', { provider: 'ical', name: icalName.trim(), icalUrl: icalUrl.trim() });
+      onCreated(data.integration);
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="mb-3 text-base font-semibold text-navy-900">Connect calendar</h3>
+        {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+
+        {!icalMode ? (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => startOAuth('google')}
+              disabled={!googleConfigured}
+              className="flex w-full flex-col items-start rounded-md border border-navy-200 px-4 py-3 text-left hover:bg-navy-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="font-medium text-navy-800">Google Calendar</span>
+              {!googleConfigured && <span className="mt-0.5 text-xs text-navy-400">Configure OAuth credentials in Settings → Calendar Integration first</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => startOAuth('microsoft')}
+              disabled={!microsoftConfigured}
+              className="flex w-full flex-col items-start rounded-md border border-navy-200 px-4 py-3 text-left hover:bg-navy-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="font-medium text-navy-800">Microsoft Outlook / Office 365</span>
+              {!microsoftConfigured && <span className="mt-0.5 text-xs text-navy-400">Configure OAuth credentials in Settings → Calendar Integration first</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIcalMode(true)}
+              className="flex w-full flex-col items-start rounded-md border border-navy-200 px-4 py-3 text-left hover:bg-navy-50"
+            >
+              <span className="font-medium text-navy-800">iCal / CalDAV URL</span>
+              <span className="mt-0.5 text-xs text-navy-400">Any calendar that publishes a public .ics feed link</span>
+            </button>
+            <div className="flex justify-end pt-2">
+              <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={submitIcal} className="space-y-4">
+            <div>
+              <label className="label">Calendar name</label>
+              <input className="input" value={icalName} onChange={(e) => setIcalName(e.target.value)} placeholder="e.g. Work Calendar" required autoFocus />
+            </div>
+            <div>
+              <label className="label">iCal URL</label>
+              <input
+                className="input"
+                value={icalUrl}
+                onChange={(e) => { setIcalUrl(e.target.value); setTestResult(null); }}
+                placeholder="https://... or webcal://..."
+                required
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <button type="button" className="btn-secondary" onClick={testUrl} disabled={testing || !icalUrl.trim()}>
+                  {testing ? 'Testing…' : 'Test URL'}
+                </button>
+                {testResult?.valid && <span className="text-xs text-green-600">Valid feed — found {testResult.eventCount} event(s)</span>}
+                {testResult && !testResult.valid && <span className="text-xs text-red-600">{testResult.error}</span>}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-secondary" onClick={() => setIcalMode(false)}>Back</button>
+              <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Connecting…' : 'Connect'}</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PickCalendarModal({ integrationId, onClose, onPicked }) {
+  const [calendars, setCalendars] = useState(null);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get(`/calendar/integrations/${integrationId}/available-calendars`)
+      .then(({ data }) => setCalendars(data.calendars))
+      .catch((err) => setError(errMessage(err)));
+  }, [integrationId]);
+
+  const pick = async (calendarId) => {
+    setSaving(true);
+    setError('');
+    try {
+      const { data } = await api.patch(`/calendar/integrations/${integrationId}`, { calendarId });
+      onPicked(data.integration);
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="mb-3 text-base font-semibold text-navy-900">Which calendar should PRISM sync?</h3>
+        {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {!calendars ? (
+          <p className="text-sm text-navy-400">Loading your calendars…</p>
+        ) : (
+          <div className="max-h-64 space-y-1 overflow-y-auto">
+            {calendars.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                disabled={saving}
+                onClick={() => pick(c.id)}
+                className="flex w-full items-center justify-between rounded-md border border-navy-100 px-3 py-2 text-left text-sm hover:bg-navy-50"
+              >
+                <span>{c.name}</span>
+                {c.primary && <span className="badge bg-navy-100 text-navy-600">Primary</span>}
+              </button>
+            ))}
+            {calendars.length === 0 && <p className="text-sm text-navy-400">No calendars found on this account.</p>}
+          </div>
+        )}
+        <div className="mt-3 flex justify-end">
+          <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
+        </div>
+      </div>
     </div>
   );
 }

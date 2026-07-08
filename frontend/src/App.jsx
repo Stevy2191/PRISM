@@ -31,6 +31,7 @@ import SettingsLayouts from './pages/settings/Layouts';
 import WorkflowRules from './pages/settings/WorkflowRules';
 import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
 import DirectorySync from './pages/settings/DirectorySync';
+import CalendarIntegration from './pages/settings/CalendarIntegration';
 import Placeholder from './pages/settings/Placeholder';
 
 // Existing admin pages (reached via the Settings hub)
@@ -140,7 +141,7 @@ export default function App() {
         <Route path="/settings/export" element={admin(<Placeholder title="Export" />)} />
         <Route path="/settings/audit-log" element={perm(<AuditLog />, AUDIT_LOG_KEYS)} />
         <Route path="/settings/recycle-bin" element={admin(<Placeholder title="Recycle Bin" />)} />
-        <Route path="/settings/calendar-integration" element={admin(<Placeholder title="Calendar Integration" />)} />
+        <Route path="/settings/calendar-integration" element={admin(<CalendarIntegration />)} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

@@ -9,6 +9,7 @@ const {
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { logProjectActivity } = require('../services/projectActivity');
+const { syncProjectToExternalCalendars, removeProjectFromExternalCalendars } = require('../services/calendarPush');
 const { calculateLaborCost } = require('../utils/laborCost');
 const { generateProjectReport } = require('../services/projectReport');
 const {
@@ -241,6 +242,8 @@ const create = asyncHandler(async (req, res) => {
 
   await writeAudit(req, 'project.create', 'Project', project.id, { name: project.name, projectCode: project.projectCode });
   await logProjectActivity(project.id, req.user.id, 'project_created', { name: project.name, projectCode: project.projectCode });
+  // Fire-and-forget — never throws (see calendarPush.js's module comment).
+  syncProjectToExternalCalendars(project.id);
 
   res.status(201).json({ project: await getProjectWithDetail(project.id) });
 });
@@ -270,11 +273,18 @@ const update = asyncHandler(async (req, res) => {
   }
   const statusChanged = changes.status !== undefined && changes.status !== project.status;
   const previousStatus = project.status;
+  const previousLeadId = project.assignedToUserId;
 
   await project.update(changes);
   await writeAudit(req, 'project.update', 'Project', project.id, changes);
   if (statusChanged) {
     await logProjectActivity(project.id, req.user.id, 'status_changed', { from: previousStatus, to: changes.status });
+  }
+  if (changes.dueDate !== undefined || changes.assignedToUserId !== undefined) {
+    if (previousLeadId && previousLeadId !== project.assignedToUserId) {
+      removeProjectFromExternalCalendars(project.id, previousLeadId);
+    }
+    syncProjectToExternalCalendars(project.id);
   }
 
   res.json({ project: await getProjectWithDetail(project.id) });
@@ -289,6 +299,7 @@ const remove = asyncHandler(async (req, res) => {
   await project.destroy();
   fs.rm(filesDir, { recursive: true, force: true }, () => {});
   await writeAudit(req, 'project.delete', 'Project', project.id, { name: project.name });
+  removeProjectFromExternalCalendars(project.id, project.assignedToUserId);
   res.json({ ok: true });
 });
 
