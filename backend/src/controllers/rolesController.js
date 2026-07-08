@@ -42,17 +42,26 @@ const list = asyncHandler(async (req, res) => {
 });
 
 // POST /roles — create a custom role
-// Body: { name, description?, departmentId?, permissionKeys?: string[] }
+// Body: { name, description?, scope?, departmentId?, permissionKeys?: string[] }
 const create = asyncHandler(async (req, res) => {
-  const { name, description, departmentId, permissionKeys } = req.body || {};
+  const { name, description, scope, departmentId, permissionKeys } = req.body || {};
   if (!name || !name.trim()) {
     throw new ApiError(400, 'Role name is required', 'VALIDATION_ERROR');
+  }
+  if (scope !== undefined && !['system', 'department'].includes(scope)) {
+    throw new ApiError(400, 'scope must be "system" or "department"', 'VALIDATION_ERROR');
   }
 
   const keys = Array.isArray(permissionKeys) ? permissionKeys : [];
   const role = await sequelize.transaction(async (t) => {
     const created = await Role.create(
-      { name: name.trim(), description: description || null, departmentId: departmentId || null, isSystemRole: false },
+      {
+        name: name.trim(),
+        description: description || null,
+        scope: scope || 'system',
+        departmentId: departmentId || null,
+        isSystemRole: false,
+      },
       { transaction: t }
     );
 
@@ -112,13 +121,17 @@ const update = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'System roles cannot be renamed or rescoped — duplicate it to create a custom variant', 'SYSTEM_ROLE_LOCKED');
   }
 
-  const { name, description, departmentId } = req.body || {};
+  const { name, description, scope, departmentId } = req.body || {};
   const changes = {};
   if (name !== undefined) {
     if (!name.trim()) throw new ApiError(400, 'Role name is required', 'VALIDATION_ERROR');
     changes.name = name.trim();
   }
   if (description !== undefined) changes.description = description || null;
+  if (scope !== undefined) {
+    if (!['system', 'department'].includes(scope)) throw new ApiError(400, 'scope must be "system" or "department"', 'VALIDATION_ERROR');
+    changes.scope = scope;
+  }
   if (departmentId !== undefined) changes.departmentId = departmentId || null;
 
   await role.update(changes);

@@ -1,6 +1,9 @@
 // Shared nav definition + visibility rules, used by TopNav, SidebarCompact,
 // and the mobile drawer so all three stay in sync automatically.
 import { useEffect } from 'react';
+import { initials } from '../utils/userDisplay';
+
+export { initials };
 
 export const TICKETS_PERMISSION_KEYS = ['tickets.view_own', 'tickets.view_department', 'tickets.view_all'];
 export const PROJECTS_PERMISSION_KEYS = ['projects.view_own', 'projects.view_department', 'projects.view_all'];
@@ -59,12 +62,6 @@ const AVATAR_PALETTE = ['#2563eb', '#7c3aed', '#16a34a', '#d97706', '#dc2626', '
 export function colorForDepartment(departmentId) {
   if (!departmentId) return AVATAR_PALETTE[0];
   return AVATAR_PALETTE[departmentId % AVATAR_PALETTE.length];
-}
-
-export function initials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
 }
 
 // Cmd/Ctrl+K opens the global search overlay from anywhere in the app.

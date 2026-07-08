@@ -345,6 +345,7 @@ User.hasMany(UserRole, { foreignKey: 'userId', as: 'userRoles', onDelete: 'CASCA
 UserRole.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 UserRole.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
 UserRole.belongsTo(User, { foreignKey: 'assignedBy', as: 'assignedByUser' });
+UserRole.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 
 User.belongsTo(Role, { foreignKey: 'roleId', as: 'primaryRole' });
 

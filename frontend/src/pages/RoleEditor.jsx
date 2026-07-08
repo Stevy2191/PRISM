@@ -43,7 +43,7 @@ export default function RoleEditor() {
   const [error, setError] = useState('');
   const [departments, setDepartments] = useState([]);
   const [role, setRole] = useState(null); // existing role detail (edit mode only)
-  const [form, setForm] = useState({ name: '', description: '', departmentId: '' });
+  const [form, setForm] = useState({ name: '', description: '', scope: 'system', departmentId: '' });
   const [permissions, setPermissions] = useState([]); // [{ key, category, label, description, granted }]
 
   useEffect(() => {
@@ -61,6 +61,7 @@ export default function RoleEditor() {
           setForm({
             name: data.role.name,
             description: data.role.description || '',
+            scope: data.role.scope || 'system',
             departmentId: data.role.departmentId || '',
           });
           setPermissions(data.role.permissions);
@@ -107,7 +108,8 @@ export default function RoleEditor() {
         const { data } = await api.post('/roles', {
           name: form.name,
           description: form.description || null,
-          departmentId: form.departmentId || null,
+          scope: form.scope,
+          departmentId: form.scope === 'department' ? (form.departmentId || null) : null,
           permissionKeys: permissions.filter((p) => p.granted).map((p) => p.key),
         });
         navigate(`/admin/roles/${data.role.id}`, { replace: true });
@@ -115,7 +117,8 @@ export default function RoleEditor() {
         const { data } = await api.patch(`/roles/${id}`, {
           name: form.name,
           description: form.description || null,
-          departmentId: form.departmentId || null,
+          scope: form.scope,
+          departmentId: form.scope === 'department' ? (form.departmentId || null) : null,
         });
         setRole((r) => ({ ...r, ...data.role }));
       }
@@ -170,19 +173,50 @@ export default function RoleEditor() {
           </div>
           <div>
             <label className="label">Scope</label>
-            <select
-              className="input"
-              value={form.departmentId}
-              onChange={(e) => setForm((f) => ({ ...f, departmentId: e.target.value }))}
-              disabled={isSystemRole}
-            >
-              <option value="">System-wide</option>
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, scope: 'system' }))}
+                disabled={isSystemRole}
+                className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                  form.scope === 'system' ? 'border-prism bg-prism/10 text-prism' : 'border-navy-200 text-navy-600'
+                }`}
+              >
+                System-wide
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, scope: 'department' }))}
+                disabled={isSystemRole}
+                className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                  form.scope === 'department' ? 'border-prism bg-prism/10 text-prism' : 'border-navy-200 text-navy-600'
+                }`}
+              >
+                Department-scoped
+              </button>
+            </div>
             <p className="mt-1 text-xs text-navy-400">
-              System-wide roles apply regardless of department; department-scoped roles only apply to users in that department.
+              System-wide roles apply regardless of department. Department-scoped roles are assigned per department — an
+              admin picks which department each time this role is assigned to a user.
             </p>
           </div>
+          {form.scope === 'department' && (
+            <div>
+              <label className="label">Lock to a specific department (optional)</label>
+              <select
+                className="input"
+                value={form.departmentId}
+                onChange={(e) => setForm((f) => ({ ...f, departmentId: e.target.value }))}
+                disabled={isSystemRole}
+              >
+                <option value="">Any department (chosen per assignment)</option>
+                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+              <p className="mt-1 text-xs text-navy-400">
+                Leave as "Any department" to make this a reusable template, like the built-in Department Manager/Staff roles.
+              </p>
+            </div>
+          )}
           {!isSystemRole && (
             <button type="submit" className="btn-primary w-full" disabled={saving}>
               {saving ? 'Saving…' : 'Save role'}

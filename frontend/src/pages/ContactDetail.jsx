@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import { initials } from '../utils/userDisplay';
 import { useAnyPermission, usePermission } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
@@ -21,11 +22,6 @@ const PRIORITY_META = {
   low: { label: 'Low', color: 'var(--color-text-muted)' },
 };
 
-function initials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
-}
 
 // Deterministic accent color per department id, so a contact's avatar hints
 // at their department at a glance (per the "colored by department" spec).

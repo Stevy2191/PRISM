@@ -11,6 +11,17 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleString() : 'Never';
 }
 
+// "System-wide" vs "Department-scoped" is driven by role.scope, not the
+// (separate) role.departmentId, which only locks a *custom* role to one
+// specific department. A department-scoped role with no locked department
+// is a reusable template — the actual department is chosen per assignment.
+function roleScopeLabel(role) {
+  if (role.scope === 'department') {
+    return role.department?.name ? `Department-scoped — ${role.department.name}` : 'Department-scoped';
+  }
+  return 'System-wide';
+}
+
 // ---- Assign role modal ----
 
 // Left-edge accent color per seed role, so admins can eyeball access level
@@ -27,14 +38,14 @@ function roleAccentColor(role) {
   return ROLE_ACCENT_BY_NAME[role.name] || 'var(--color-accent)';
 }
 
-function AssignRoleOption({ role, onAssign }) {
+function AssignRoleOption({ role, onPick }) {
   const count = role.permissionCount ?? (role.permissions?.length || 0);
   return (
     <div className="relative flex items-stretch gap-2 overflow-hidden rounded-md border border-transparent hover:border-navy-100 hover:bg-navy-50">
       <div className="w-1 flex-shrink-0" style={{ backgroundColor: roleAccentColor(role) }} />
       <button
         type="button"
-        onClick={() => onAssign(role.id)}
+        onClick={() => onPick(role)}
         className="min-w-0 flex-1 py-2 pr-2 text-left"
       >
         <div className="flex items-center justify-between gap-2">
@@ -44,7 +55,7 @@ function AssignRoleOption({ role, onAssign }) {
           </span>
         </div>
         {role.description && <p className="mt-0.5 line-clamp-2 text-xs text-navy-500">{role.description}</p>}
-        <p className="mt-0.5 text-xs text-navy-400">{role.department?.name || 'System-wide'}</p>
+        <p className="mt-0.5 text-xs text-navy-400">{roleScopeLabel(role)}</p>
       </button>
       <a
         href={`/admin/roles/${role.id}`}
@@ -58,8 +69,13 @@ function AssignRoleOption({ role, onAssign }) {
   );
 }
 
-function AssignRoleModal({ roles, assignedRoleIds, onAssign, onClose }) {
+function AssignRoleModal({ roles, departments, assignedRoleIds, onAssign, onClose }) {
   const [search, setSearch] = useState('');
+  const [pendingRole, setPendingRole] = useState(null); // role awaiting a department pick
+  const [deptChoice, setDeptChoice] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
   const q = search.toLowerCase();
   const available = roles.filter(
     (r) =>
@@ -73,6 +89,52 @@ function AssignRoleModal({ roles, assignedRoleIds, onAssign, onClose }) {
   const systemRoles = available.filter((r) => r.isSystemRole);
   const customRoles = available.filter((r) => !r.isSystemRole);
 
+  const pick = (role) => {
+    setError('');
+    if (role.scope === 'department') {
+      setPendingRole(role);
+      setDeptChoice('');
+    } else {
+      confirm(role, null);
+    }
+  };
+
+  const confirm = async (role, departmentId) => {
+    setSaving(true);
+    setError('');
+    try {
+      await onAssign(role.id, departmentId);
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (pendingRole) {
+    return (
+      <Modal title={`Assign "${pendingRole.name}"`} onClose={onClose}>
+        <p className="mb-3 text-sm text-navy-600">Which department does this role apply to?</p>
+        {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        <select className="input mb-4" value={deptChoice} onChange={(e) => setDeptChoice(e.target.value)}>
+          <option value="">Select department…</option>
+          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+        <div className="flex justify-end gap-3">
+          <button type="button" className="btn-secondary" onClick={() => setPendingRole(null)}>Back</button>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={!deptChoice || saving}
+            onClick={() => confirm(pendingRole, deptChoice)}
+          >
+            {saving ? 'Assigning…' : 'Assign role'}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal title="Assign a role" onClose={onClose} wide>
       <input
@@ -82,17 +144,18 @@ function AssignRoleModal({ roles, assignedRoleIds, onAssign, onClose }) {
         onChange={(e) => setSearch(e.target.value)}
         autoFocus
       />
+      {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       <div className="max-h-96 space-y-1 overflow-y-auto">
         {systemRoles.length > 0 && (
           <>
             <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-navy-400">System roles</p>
-            {systemRoles.map((r) => <AssignRoleOption key={r.id} role={r} onAssign={onAssign} />)}
+            {systemRoles.map((r) => <AssignRoleOption key={r.id} role={r} onPick={pick} />)}
           </>
         )}
         {customRoles.length > 0 && (
           <>
             <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-navy-400">Custom roles</p>
-            {customRoles.map((r) => <AssignRoleOption key={r.id} role={r} onAssign={onAssign} />)}
+            {customRoles.map((r) => <AssignRoleOption key={r.id} role={r} onPick={pick} />)}
           </>
         )}
         {available.length === 0 && <p className="px-3 py-4 text-sm text-navy-400">No matching roles.</p>}
@@ -217,59 +280,164 @@ function AddOverrideModal({ permissions, onSave, onClose }) {
   );
 }
 
+// ---- Effective permissions (read-only, searchable, category-grouped) ----
+
+const CATEGORY_LABELS = { tickets: 'Tickets', projects: 'Projects', people: 'People', reports: 'Reports', settings: 'Settings' };
+
+function EffectivePermissionsSection({ effective, error }) {
+  const [search, setSearch] = useState('');
+  const [openCategories, setOpenCategories] = useState(() => new Set(Object.keys(CATEGORY_LABELS)));
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return effective;
+    return effective.filter((p) => p.label.toLowerCase().includes(term) || p.key.toLowerCase().includes(term));
+  }, [effective, search]);
+
+  const byCategory = useMemo(() => {
+    const map = new Map();
+    filtered.forEach((p) => {
+      if (!map.has(p.category)) map.set(p.category, []);
+      map.get(p.category).push(p);
+    });
+    return map;
+  }, [filtered]);
+
+  const toggleCategory = (cat) => setOpenCategories((prev) => {
+    const next = new Set(prev);
+    if (next.has(cat)) next.delete(cat); else next.add(cat);
+    return next;
+  });
+
+  return (
+    <Collapsible title="View effective permissions" subtitle={`${effective.length} permission${effective.length === 1 ? '' : 's'}`} defaultOpen={false}>
+      {error ? (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      ) : (
+        <div className="space-y-3">
+          <input
+            className="input"
+            placeholder="Filter by permission name or key…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {[...byCategory.entries()].map(([cat, perms]) => (
+            <div key={cat} className="overflow-hidden rounded-md border border-navy-100">
+              <button
+                type="button"
+                onClick={() => toggleCategory(cat)}
+                className="flex w-full items-center justify-between bg-navy-50 px-3 py-2 text-left"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="badge bg-navy-100 text-navy-600">{CATEGORY_LABELS[cat] || cat}</span>
+                  <span className="text-xs text-navy-400">{perms.length}</span>
+                </span>
+                <span className="text-navy-400">{openCategories.has(cat) ? '▾' : '▸'}</span>
+              </button>
+              {openCategories.has(cat) && (
+                <table className="min-w-full divide-y divide-navy-100">
+                  <thead className="bg-navy-50/50">
+                    <tr>
+                      <th className="table-th">Permission</th>
+                      <th className="table-th">Status</th>
+                      <th className="table-th">Source</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-navy-50">
+                    {perms.map((p) => (
+                      <tr key={p.key}>
+                        <td className="table-td">
+                          <p className="text-sm text-navy-800">{p.label}</p>
+                          <p className="text-xs text-navy-400">{p.key}</p>
+                        </td>
+                        <td className="table-td">
+                          <span className={`badge ${p.granted ? 'bg-green-100 text-green-800' : 'bg-navy-100 text-navy-500'}`}>
+                            {p.granted ? 'Granted' : 'Denied'}
+                          </span>
+                        </td>
+                        <td className="table-td text-xs text-navy-500">{p.source || 'Default: denied'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ))}
+          {filtered.length === 0 && <p className="text-sm text-navy-400">No permissions match &quot;{search}&quot;.</p>}
+        </div>
+      )}
+    </Collapsible>
+  );
+}
+
 // ---- Roles & Permissions tab ----
 
 function RolesPermissionsTab({ userId, onPermissionsChanged }) {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [allRoles, setAllRoles] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [userRoles, setUserRoles] = useState([]);
   const [primaryRoleId, setPrimaryRoleId] = useState(null);
+  const [rolesError, setRolesError] = useState('');
   const [overrides, setOverrides] = useState([]);
+  const [overridesError, setOverridesError] = useState('');
   const [allPermissions, setAllPermissions] = useState([]);
   const [effective, setEffective] = useState([]);
+  const [effectiveError, setEffectiveError] = useState('');
   const [showAssignRole, setShowAssignRole] = useState(false);
   const [showAddOverride, setShowAddOverride] = useState(false);
 
+  // Each of the 6 calls below is independently error-handled — a caller who
+  // e.g. only holds people.edit_users (not people.manage_roles or
+  // people.manage_permission_overrides) will 403 on some of these, and
+  // previously that 403 anywhere in a single shared Promise.all silently
+  // blanked out every section, including ones the caller *does* have access
+  // to (like effective permissions). Promise.allSettled + per-section error
+  // state means one failing section no longer takes the others down with it.
   const load = () => {
     setLoading(true);
-    Promise.all([
+    setRolesError('');
+    setOverridesError('');
+    setEffectiveError('');
+    Promise.allSettled([
       api.get('/roles'),
+      api.get('/departments'),
       api.get(`/users/${userId}/roles`),
       api.get(`/users/${userId}/overrides`),
       api.get('/permissions'),
       api.get(`/users/${userId}/permissions`),
-    ])
-      .then(([roles, ur, ov, perms, eff]) => {
-        setAllRoles(roles.data.roles);
-        setUserRoles(ur.data.userRoles);
-        setPrimaryRoleId(ur.data.primaryRoleId);
-        setOverrides(ov.data.overrides);
-        setAllPermissions(perms.data.permissions);
-        setEffective(eff.data.permissions);
-      })
-      .catch((err) => setError(errMessage(err)))
-      .finally(() => setLoading(false));
+    ]).then(([roles, depts, ur, ov, perms, eff]) => {
+      if (roles.status === 'fulfilled') setAllRoles(roles.value.data.roles);
+      if (depts.status === 'fulfilled') setDepartments(depts.value.data.departments);
+      if (ur.status === 'fulfilled') {
+        setUserRoles(ur.value.data.userRoles);
+        setPrimaryRoleId(ur.value.data.primaryRoleId);
+      } else {
+        setRolesError(errMessage(ur.reason));
+      }
+      if (ov.status === 'fulfilled') setOverrides(ov.value.data.overrides);
+      else setOverridesError(errMessage(ov.reason));
+      if (perms.status === 'fulfilled') setAllPermissions(perms.value.data.permissions);
+      if (eff.status === 'fulfilled') setEffective(eff.value.data.permissions);
+      else setEffectiveError(errMessage(eff.reason));
+    }).finally(() => setLoading(false));
   };
   useEffect(load, [userId]);
 
   const assignedRoleIds = useMemo(() => new Set(userRoles.map((ur) => ur.roleId)), [userRoles]);
 
-  const assignRole = async (roleId) => {
-    try {
-      await api.post(`/users/${userId}/roles`, { roleId });
-      setShowAssignRole(false);
-      load();
-      onPermissionsChanged();
-    } catch (err) {
-      alert(errMessage(err));
-    }
+  const assignRole = async (roleId, departmentId) => {
+    await api.post(`/users/${userId}/roles`, { roleId, departmentId: departmentId || undefined });
+    setShowAssignRole(false);
+    load();
+    onPermissionsChanged();
   };
 
-  const removeRole = async (roleId, name) => {
-    if (!confirm(`Remove the "${name}" role from this user?`)) return;
+  const removeRole = async (ur) => {
+    if (!confirm(`Remove the "${ur.role?.name}" role from this user?`)) return;
     try {
-      await api.delete(`/users/${userId}/roles/${roleId}`);
+      const params = ur.departmentId ? { departmentId: ur.departmentId } : {};
+      await api.delete(`/users/${userId}/roles/${ur.roleId}`, { params });
       load();
       onPermissionsChanged();
     } catch (err) {
@@ -302,14 +470,13 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
 
   return (
     <div className="space-y-6">
-      {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
-
       {/* Section 1 — Assigned roles */}
       <div className="card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-semibold text-navy-900">Assigned roles</h2>
           <button className="btn-primary" onClick={() => setShowAssignRole(true)}>+ Assign role</button>
         </div>
+        {rolesError && <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{rolesError}</div>}
         <div className="space-y-2">
           {userRoles.map((ur) => (
             <div key={ur.id} className="flex items-center justify-between rounded-md border border-navy-100 px-4 py-3">
@@ -320,14 +487,18 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
                     <span className="badge bg-prism/10 text-prism">Primary</span>
                   )}
                 </div>
-                <p className="text-xs text-navy-400">{ur.role?.department?.name || 'System-wide'}</p>
+                <p className="text-xs text-navy-400">
+                  {ur.role?.scope === 'department'
+                    ? `Department-scoped${ur.department?.name ? ` — ${ur.department.name}` : ''}`
+                    : 'System-wide'}
+                </p>
               </div>
-              <button onClick={() => removeRole(ur.roleId, ur.role?.name)} className="text-xs text-red-500 hover:underline">
+              <button onClick={() => removeRole(ur)} className="text-xs text-red-500 hover:underline">
                 Remove
               </button>
             </div>
           ))}
-          {userRoles.length === 0 && <p className="text-sm text-navy-400">No roles assigned.</p>}
+          {userRoles.length === 0 && !rolesError && <p className="text-sm text-navy-400">No roles assigned.</p>}
         </div>
       </div>
 
@@ -338,6 +509,7 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
           <button className="btn-primary" onClick={() => setShowAddOverride(true)}>+ Add override</button>
         </div>
         <p className="mb-3 text-sm text-navy-500">Overrides apply on top of this user's roles. Use for temporary access.</p>
+        {overridesError && <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{overridesError}</div>}
 
         <div className="space-y-2">
           {activeOverrides.map((o) => (
@@ -360,7 +532,7 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
               </p>
             </div>
           ))}
-          {activeOverrides.length === 0 && <p className="text-sm text-navy-400">No active overrides.</p>}
+          {activeOverrides.length === 0 && !overridesError && <p className="text-sm text-navy-400">No active overrides.</p>}
         </div>
 
         {expiredOverrides.length > 0 && (
@@ -388,25 +560,12 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
       </div>
 
       {/* Section 3 — Effective permissions (read-only) */}
-      <Collapsible title="View effective permissions" defaultOpen={false}>
-        <div className="space-y-1">
-          {effective.map((p) => (
-            <div key={p.key} className="flex items-center justify-between border-b border-navy-50 py-2 last:border-0">
-              <div>
-                <p className="text-sm text-navy-800">{p.label}</p>
-                <p className="text-xs text-navy-400">{p.source || 'Not granted by any role'}</p>
-              </div>
-              <span className={`badge ${p.granted ? 'bg-green-100 text-green-800' : 'bg-navy-100 text-navy-500'}`}>
-                {p.granted ? 'Granted' : 'Denied'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Collapsible>
+      <EffectivePermissionsSection effective={effective} error={effectiveError} />
 
       {showAssignRole && (
         <AssignRoleModal
           roles={allRoles}
+          departments={departments}
           assignedRoleIds={assignedRoleIds}
           onAssign={assignRole}
           onClose={() => setShowAssignRole(false)}
@@ -426,14 +585,29 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
 // ---- Profile tab ----
 
 function ProfileTab({ user, departments, onUpdate }) {
-  const [form, setForm] = useState({ departmentId: user.departmentId || '' });
+  const [form, setForm] = useState({
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    email: user.email || '',
+    phone: user.phone || '',
+    jobTitle: user.jobTitle || '',
+    departmentId: user.departmentId || '',
+  });
   const [saving, setSaving] = useState(false);
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await onUpdate({ departmentId: form.departmentId || null });
+      await onUpdate({
+        firstName: form.firstName.trim() || null,
+        lastName: form.lastName.trim() || null,
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        jobTitle: form.jobTitle.trim() || null,
+        departmentId: form.departmentId || null,
+      });
     } finally {
       setSaving(false);
     }
@@ -454,10 +628,6 @@ function ProfileTab({ user, departments, onUpdate }) {
           <p className="text-sm text-navy-700">{user.username}</p>
         </div>
         <div>
-          <label className="label">Email</label>
-          <p className="text-sm text-navy-700">{user.email || '—'}</p>
-        </div>
-        <div>
           <label className="label">Last login</label>
           <p className="text-sm text-navy-700">{formatDate(user.lastLogin)}</p>
         </div>
@@ -473,8 +643,28 @@ function ProfileTab({ user, departments, onUpdate }) {
       </div>
       <form onSubmit={save} className="grid grid-cols-1 gap-4 border-t border-navy-100 pt-4 sm:grid-cols-2">
         <div>
+          <label className="label">First name</label>
+          <input className="input" value={form.firstName} onChange={set('firstName')} />
+        </div>
+        <div>
+          <label className="label">Last name</label>
+          <input className="input" value={form.lastName} onChange={set('lastName')} />
+        </div>
+        <div>
+          <label className="label">Email</label>
+          <input type="email" className="input" value={form.email} onChange={set('email')} />
+        </div>
+        <div>
+          <label className="label">Phone</label>
+          <input className="input" value={form.phone} onChange={set('phone')} />
+        </div>
+        <div>
+          <label className="label">Job title</label>
+          <input className="input" value={form.jobTitle} onChange={set('jobTitle')} />
+        </div>
+        <div>
           <label className="label">Department</label>
-          <select className="input" value={form.departmentId} onChange={(e) => setForm((f) => ({ ...f, departmentId: e.target.value }))}>
+          <select className="input" value={form.departmentId} onChange={set('departmentId')}>
             <option value="">None</option>
             {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>

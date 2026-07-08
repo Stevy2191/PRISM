@@ -26,6 +26,27 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(255),
         allowNull: false,
       },
+      // firstName/lastName are optional and, when both set, are what
+      // displayName is kept in sync with (see usersController's
+      // computeDisplayName) — displayName itself remains the column every
+      // existing read call site already uses, so this is a write-time-only
+      // concern rather than something read paths need to re-resolve.
+      firstName: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      lastName: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      phone: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+      jobTitle: {
+        type: DataTypes.STRING(150),
+        allowNull: true,
+      },
       email: {
         type: DataTypes.STRING(255),
         allowNull: true,

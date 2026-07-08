@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import { initials } from '../utils/userDisplay';
 import { useAuth, useAnyPermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
@@ -14,11 +15,6 @@ const MUTED = 'var(--color-text-muted)';
 const BLUE = 'var(--color-accent)';
 const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };
 
-function initials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
-}
 
 function Avatar({ name, size = 32 }) {
   if (!name) {

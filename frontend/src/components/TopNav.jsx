@@ -119,7 +119,7 @@ export default function TopNav() {
                 className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
                 style={{ backgroundColor: colorForDepartment(user?.departmentId) }}
               >
-                {initials(user?.displayName)}
+                {initials(user)}
               </span>
             </button>
 

@@ -16,7 +16,7 @@ router.post('/', requirePermission('people.create_users'), ctrl.create); // crea
 router.get('/assignable', ctrl.listAssignable); // must precede /:id
 router.get('/directory', ctrl.listDirectory); // must precede /:id
 router.get('/:id', ctrl.get); // self-or-admin enforced in controller
-router.patch('/:id', requirePermission('people.edit_users'), ctrl.update);
+router.patch('/:id', ctrl.update); // self (profile fields) or people.edit_users (everything) — enforced in controller
 router.patch('/:id/preferences', ctrl.updatePreferences); // self-or-admin enforced in controller
 router.delete('/:id', requireRole('admin'), ctrl.remove);
 

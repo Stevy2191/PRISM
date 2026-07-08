@@ -23,13 +23,17 @@ const listRoles = asyncHandler(async (req, res) => {
     include: [
       { model: Role, as: 'role' },
       { model: User, as: 'assignedByUser', attributes: userAttrs },
+      { model: Department, as: 'department', attributes: ['id', 'name'] },
     ],
     order: [['assignedAt', 'ASC']],
   });
   res.json({ userRoles, primaryRoleId: user.roleId });
 });
 
-// POST /users/:id/roles — Body: { roleId }
+// POST /users/:id/roles — Body: { roleId, departmentId? }. departmentId is
+// required when the role is scope='department' (which department this
+// specific assignment is for — the role itself may be a reusable template
+// with no department of its own).
 const assignRole = asyncHandler(async (req, res) => {
   const user = await loadUser(req.params.id);
   const roleId = parseInt(req.body?.roleId, 10);
@@ -38,21 +42,39 @@ const assignRole = asyncHandler(async (req, res) => {
   const role = await Role.findByPk(roleId);
   if (!role) throw new ApiError(400, 'Role does not exist', 'VALIDATION_ERROR');
 
-  const [userRole, created] = await UserRole.findOrCreate({
-    where: { userId: user.id, roleId },
-    defaults: { assignedAt: new Date(), assignedBy: req.user.id },
+  let departmentId = null;
+  if (role.scope === 'department') {
+    departmentId = parseInt(req.body?.departmentId, 10) || null;
+    if (!departmentId) throw new ApiError(400, 'Select which department this role applies to', 'VALIDATION_ERROR');
+    const dept = await Department.findByPk(departmentId);
+    if (!dept) throw new ApiError(400, 'Department does not exist', 'VALIDATION_ERROR');
+  }
+
+  // MariaDB treats every NULL as distinct for unique-index purposes, so the
+  // (userId, roleId, departmentId) unique index alone wouldn't stop a
+  // duplicate system-scoped assignment (departmentId always null there) —
+  // check explicitly rather than relying on findOrCreate's index-driven atomicity.
+  const existing = await UserRole.findOne({ where: { userId: user.id, roleId, departmentId } });
+  if (existing) {
+    throw new ApiError(409, `User already has this role${departmentId ? ' for this department' : ''}`, 'ALREADY_ASSIGNED');
+  }
+  const userRole = await UserRole.create({
+    userId: user.id, roleId, departmentId, assignedAt: new Date(), assignedBy: req.user.id,
   });
-  if (!created) throw new ApiError(409, 'User already has this role', 'ALREADY_ASSIGNED');
 
   // A user with no primary role yet gets this one as primary automatically.
   if (!user.roleId) await user.update({ roleId });
 
   invalidateUserPermissions(user.id);
-  await writeAudit(req, 'user.assign_role', 'User', user.id, { roleId, roleName: role.name });
-  await writeSystemAudit(req, 'role_assigned', user.id, { roleId, roleName: role.name });
+  await writeAudit(req, 'user.assign_role', 'User', user.id, { roleId, roleName: role.name, departmentId });
+  await writeSystemAudit(req, 'role_assigned', user.id, { roleId, roleName: role.name, departmentId });
 
   const fresh = await UserRole.findByPk(userRole.id, {
-    include: [{ model: Role, as: 'role' }, { model: User, as: 'assignedByUser', attributes: userAttrs }],
+    include: [
+      { model: Role, as: 'role' },
+      { model: User, as: 'assignedByUser', attributes: userAttrs },
+      { model: Department, as: 'department', attributes: ['id', 'name'] },
+    ],
   });
   res.status(201).json({ userRole: fresh, primaryRoleId: user.roleId || roleId });
 });
@@ -61,8 +83,13 @@ const assignRole = asyncHandler(async (req, res) => {
 const removeRole = asyncHandler(async (req, res) => {
   const user = await loadUser(req.params.id);
   const roleId = parseInt(req.params.roleId, 10);
+  // Optional disambiguator: a department-scoped role can be assigned to the
+  // same user for more than one department (e.g. Department Manager for
+  // both IT and EMS) — without this, the first matching row wins.
+  const where = { userId: user.id, roleId };
+  if (req.query.departmentId !== undefined) where.departmentId = parseInt(req.query.departmentId, 10) || null;
 
-  const userRole = await UserRole.findOne({ where: { userId: user.id, roleId }, include: [{ model: Role, as: 'role' }] });
+  const userRole = await UserRole.findOne({ where, include: [{ model: Role, as: 'role' }] });
   if (!userRole) throw new ApiError(404, 'Role assignment not found', 'NOT_FOUND');
   const roleName = userRole.role?.name;
   await userRole.destroy();

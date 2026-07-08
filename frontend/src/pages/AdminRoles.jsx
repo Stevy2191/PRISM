@@ -4,6 +4,13 @@ import { IconLock } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
 
+function roleScopeLabel(role) {
+  if (role.scope === 'department') {
+    return role.department?.name ? `Department-scoped — ${role.department.name}` : 'Department-scoped';
+  }
+  return 'System-wide';
+}
+
 function RoleRow({ role, onDelete, onDuplicate }) {
   return (
     <div className="flex items-center justify-between gap-4 px-5 py-4">
@@ -14,7 +21,7 @@ function RoleRow({ role, onDelete, onDuplicate }) {
         </div>
         {role.description && <p className="mt-0.5 text-sm text-navy-500">{role.description}</p>}
         <p className="mt-1 text-xs text-navy-400">
-          {role.department?.name || 'System-wide'} · {role.memberCount} user{role.memberCount === 1 ? '' : 's'} ·{' '}
+          {roleScopeLabel(role)} · {role.memberCount} user{role.memberCount === 1 ? '' : 's'} ·{' '}
           {role.permissionCount} permission{role.permissionCount === 1 ? '' : 's'} granted
         </p>
       </div>
@@ -60,6 +67,7 @@ export default function AdminRoles() {
       const { data } = await api.post('/roles', {
         name: `${role.name} (Copy)`,
         description: role.description,
+        scope: role.scope,
         departmentId: role.departmentId,
         permissionKeys: (role.permissions || []).map((p) => p.key),
       });

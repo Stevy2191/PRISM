@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { IconX, IconUpload } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
+import { initials } from '../utils/userDisplay';
 import { useAuth } from '../context/AuthContext';
 import TagInput from '../components/TagInput';
 
@@ -67,11 +68,6 @@ function Label({ children, required }) {
 
 const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };
 
-function initials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
-}
 
 // Search-as-you-type contact picker for the Customer field. Falls back to a
 // quick inline "create new contact" form when no existing contact matches.

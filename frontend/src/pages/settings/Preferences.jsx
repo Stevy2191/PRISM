@@ -226,16 +226,7 @@ export default function Preferences() {
         </div>
       )}
 
-      <div className="card p-5">
-        <h2 className="mb-3 font-semibold text-navy-900">Your profile</h2>
-        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Name" value={user?.displayName} />
-          <Field label="Username" value={user?.username} />
-          <Field label="Email" value={user?.email || '—'} />
-          <Field label="Role" value={user?.primaryRole?.name || 'No role assigned'} />
-          <Field label="Account type" value={user?.isLocalAccount ? 'Local' : 'Active Directory'} />
-        </dl>
-      </div>
+      <ProfileSection user={user} onSaved={refresh} />
 
       {user?.isLocalAccount && (
         <div className="card flex items-center justify-between p-5">
@@ -250,11 +241,84 @@ export default function Preferences() {
   );
 }
 
-function Field({ label, value }) {
+// Self-service profile fields — first/last name combine to form the display
+// name shown throughout the app (see backend computeDisplayName). Department
+// is admin-only, managed from Settings -> Users instead.
+function ProfileSection({ user, onSaved }) {
+  const [form, setForm] = useState({
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    jobTitle: user?.jobTitle || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    setSaved(false);
+    try {
+      await api.patch(`/users/${user.id}`, {
+        firstName: form.firstName.trim() || null,
+        lastName: form.lastName.trim() || null,
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        jobTitle: form.jobTitle.trim() || null,
+      });
+      await onSaved();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div>
-      <dt className="text-xs font-medium text-navy-400">{label}</dt>
-      <dd className="text-sm capitalize text-navy-800">{value}</dd>
+    <div className="card p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-semibold text-navy-900">Your profile</h2>
+        {saved && <span className="text-xs font-medium text-green-600">Saved</span>}
+      </div>
+      {error && <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <form onSubmit={save} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="label">First name</label>
+          <input className="input" value={form.firstName} onChange={set('firstName')} />
+        </div>
+        <div>
+          <label className="label">Last name</label>
+          <input className="input" value={form.lastName} onChange={set('lastName')} />
+        </div>
+        <div>
+          <label className="label">Email</label>
+          <input type="email" className="input" value={form.email} onChange={set('email')} />
+        </div>
+        <div>
+          <label className="label">Phone</label>
+          <input className="input" value={form.phone} onChange={set('phone')} />
+        </div>
+        <div>
+          <label className="label">Job title</label>
+          <input className="input" value={form.jobTitle} onChange={set('jobTitle')} />
+        </div>
+        <div>
+          <label className="label">Username</label>
+          <p className="input flex items-center !bg-navy-50 text-navy-500">{user?.username}</p>
+        </div>
+        <div className="sm:col-span-2 flex items-center justify-between border-t border-navy-100 pt-4">
+          <span className="text-xs text-navy-400">
+            Role: {user?.primaryRole?.name || 'No role assigned'} · {user?.isLocalAccount ? 'Local account' : 'Active Directory'}
+          </span>
+          <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+        </div>
+      </form>
     </div>
   );
 }

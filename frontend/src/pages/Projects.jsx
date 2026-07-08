@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import { initials } from '../utils/userDisplay';
 import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -15,11 +16,6 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function initials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
-}
 
 function dueDateColor(dueDate, closed) {
   if (!dueDate || closed) return MUTED;

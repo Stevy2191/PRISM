@@ -6,6 +6,7 @@ import {
   IconLock, IconWorld, IconAlertTriangle, IconLink,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
+import { initials } from '../utils/userDisplay';
 import { useAuth, usePermission } from '../context/AuthContext';
 import { formatHMS } from '../context/TimerContext';
 import Spinner from '../components/Spinner';
@@ -58,11 +59,6 @@ const TABS = [
   { key: 'activity', label: 'Activity' },
 ];
 
-function initials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
-}
 function formatMinutes(min) {
   const m = Number(min) || 0;
   const h = Math.floor(m / 60);

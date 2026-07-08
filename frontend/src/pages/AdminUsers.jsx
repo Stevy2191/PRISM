@@ -151,10 +151,13 @@ export default function AdminUsers() {
             </tr>
           </thead>
           <tbody className="divide-y divide-navy-100">
-            {users.map((u) => (
+            {users.map((u) => {
+              const fullName = (u.firstName || u.lastName) ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : u.username;
+              return (
               <tr key={u.id} className="hover:bg-navy-50">
                 <td className="table-td font-medium">
-                  <Link to={`/admin/users/${u.id}`} className="text-prism hover:underline">{u.displayName}</Link>
+                  <Link to={`/admin/users/${u.id}`} className="text-prism hover:underline">{fullName}</Link>
+                  {u.jobTitle && <p className="mt-0.5 text-xs font-normal text-navy-400">{u.jobTitle}</p>}
                 </td>
                 <td className="table-td text-navy-500">{u.username}</td>
                 <td className="table-td">
@@ -203,7 +206,8 @@ export default function AdminUsers() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

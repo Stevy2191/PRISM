@@ -18,6 +18,13 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      // Which department this specific assignment applies to — only
+      // meaningful when the role is scope='department'. Null for
+      // system-wide role assignments.
+      departmentId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       assignedAt: {
         type: DataTypes.DATE,
         allowNull: false,

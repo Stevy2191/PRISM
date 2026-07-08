@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import { initials } from '../utils/userDisplay';
 import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
@@ -88,11 +89,6 @@ function ageDays(createdAt) {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
 }
 
-function initials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
-}
 
 function formatMinutes(min) {
   const m = Number(min) || 0;

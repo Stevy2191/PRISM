@@ -4,6 +4,7 @@ const { User, Department, Role, UserRole } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, hasPermission } = require('../services/permissionService');
+const { computeDisplayName } = require('../utils/userDisplay');
 
 const MIN_PASSWORD_LENGTH = 8;
 const userInclude = [{ model: Department, as: 'department' }, { model: Role, as: 'primaryRole' }];
@@ -91,12 +92,16 @@ const listDirectory = asyncHandler(async (req, res) => {
 // Directory (AD) users are never created here — they are provisioned on first
 // LDAP login. New local accounts must change their password on first login.
 const create = asyncHandler(async (req, res) => {
-  const { username, displayName, email, role, departmentId, password } = req.body || {};
+  const {
+    username, displayName, email, role, departmentId, password,
+    firstName, lastName, phone, jobTitle,
+  } = req.body || {};
   if (!username || !username.trim()) {
     throw new ApiError(400, 'Username is required', 'VALIDATION_ERROR');
   }
-  if (!displayName || !displayName.trim()) {
-    throw new ApiError(400, 'Display name is required', 'VALIDATION_ERROR');
+  const resolvedDisplayName = computeDisplayName({ firstName, lastName, fallback: displayName?.trim() });
+  if (!resolvedDisplayName) {
+    throw new ApiError(400, 'Display name is required (or provide first/last name)', 'VALIDATION_ERROR');
   }
   if (!password || password.length < MIN_PASSWORD_LENGTH) {
     throw new ApiError(
@@ -120,7 +125,11 @@ const create = asyncHandler(async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await User.create({
     username: username.trim(),
-    displayName: displayName.trim(),
+    displayName: resolvedDisplayName,
+    firstName: firstName ? firstName.trim() : null,
+    lastName: lastName ? lastName.trim() : null,
+    phone: phone ? phone.trim() : null,
+    jobTitle: jobTitle ? jobTitle.trim() : null,
     email: email || null,
     role: role || 'technician',
     departmentId: departmentId || null,
@@ -146,14 +155,31 @@ const get = asyncHandler(async (req, res) => {
   res.json({ user });
 });
 
-// PATCH /users/:id — Admin only (role, department)
+// PATCH /users/:id — self (profile fields only) or people.edit_users (everything).
+// Self-editing without people.edit_users may only touch the plain profile
+// fields (name/contact info) — role, department, and password stay admin-only
+// here (self password changes go through the dedicated change-password flow).
 const update = asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const user = await User.findByPk(id);
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
 
-  const { role, departmentId, password } = req.body || {};
+  const isSelf = req.user.id === id;
+  const canEditUsers = await hasPermission(req.user.id, 'people.edit_users');
+  if (!isSelf && !canEditUsers) {
+    throw new ApiError(403, 'You may only edit your own profile', 'FORBIDDEN');
+  }
+
+  const {
+    role, departmentId, password, firstName, lastName, phone, jobTitle, email,
+  } = req.body || {};
   const changes = {};
+
+  if (role !== undefined || departmentId !== undefined || password !== undefined) {
+    if (!canEditUsers) {
+      throw new ApiError(403, 'You do not have permission to change role, department, or password', 'FORBIDDEN');
+    }
+  }
 
   if (role !== undefined) {
     if (!['admin', 'technician'].includes(role)) {
@@ -179,6 +205,18 @@ const update = asyncHandler(async (req, res) => {
     }
     changes.passwordHash = await bcrypt.hash(password, 12);
     changes.mustChangePassword = true;
+  }
+
+  if (firstName !== undefined) changes.firstName = firstName ? firstName.trim() : null;
+  if (lastName !== undefined) changes.lastName = lastName ? lastName.trim() : null;
+  if (phone !== undefined) changes.phone = phone ? phone.trim() : null;
+  if (jobTitle !== undefined) changes.jobTitle = jobTitle ? jobTitle.trim() : null;
+  if (email !== undefined) changes.email = email ? email.trim() : null;
+
+  if (firstName !== undefined || lastName !== undefined) {
+    const resolvedFirst = changes.firstName !== undefined ? changes.firstName : user.firstName;
+    const resolvedLast = changes.lastName !== undefined ? changes.lastName : user.lastName;
+    changes.displayName = computeDisplayName({ firstName: resolvedFirst, lastName: resolvedLast, fallback: user.displayName });
   }
 
   await user.update(changes);

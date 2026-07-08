@@ -5,6 +5,7 @@ import {
   IconChevronDown, IconChevronRight, IconLink, IconChevronUp, IconPencil,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
+import { initials } from '../utils/userDisplay';
 import { useAuth, usePermission } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
@@ -35,11 +36,6 @@ const PRIORITY_META = {
   low: { label: 'Low', color: 'var(--color-text-muted)' },
 };
 
-function initials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
-}
 function formatSeconds(sec) {
   const s = Number(sec) || 0;
   const h = Math.floor(s / 3600);
