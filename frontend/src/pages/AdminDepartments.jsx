@@ -1,16 +1,29 @@
 import { useEffect, useState } from 'react';
 import api, { errMessage } from '../api/api';
+import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
 
 const EMPTY = { name: '', shortCode: '', description: '', defaultRoleId: '' };
 
 export default function AdminDepartments() {
+  const { showToast } = useToast();
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [form, setForm] = useState(EMPTY);
-  const [editing, setEditing] = useState(null);
+
+  // Two separate, unambiguous pieces of state instead of one "editing"
+  // value that used to double as both a boolean-ish flag and a numeric id
+  // (previously set to the *string* 'new' for create mode — since any
+  // non-empty string is truthy in JS, `if (editing)` treated create mode
+  // the same as edit mode and PATCHed /departments/new instead of POSTing,
+  // which 404'd as "Department not found").
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [shortCodeError, setShortCodeError] = useState('');
 
   const load = () => {
     Promise.all([api.get('/departments'), api.get('/roles')])
@@ -21,33 +34,60 @@ export default function AdminDepartments() {
 
   useEffect(load, []);
 
+  const openCreate = () => {
+    setForm(EMPTY);
+    setEditingId(null);
+    setFormError('');
+    setShortCodeError('');
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(EMPTY);
+    setFormError('');
+    setShortCodeError('');
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
     const payload = { ...form, defaultRoleId: form.defaultRoleId || null };
+    setSaving(true);
+    setFormError('');
+    setShortCodeError('');
     try {
-      if (editing) {
-        const { data } = await api.patch(`/departments/${editing}`, payload);
-        setDepartments((d) => d.map((x) => (x.id === editing ? data.department : x)));
+      if (editingId !== null) {
+        await api.patch(`/departments/${editingId}`, payload);
       } else {
-        const { data } = await api.post('/departments', payload);
-        setDepartments((d) => [...d, data.department]);
+        await api.post('/departments', payload);
+        showToast('Department created successfully');
       }
-      setForm(EMPTY);
-      setEditing(null);
+      closeForm();
+      load(); // refresh the list from the server so the new/updated department appears immediately
     } catch (err) {
-      alert(errMessage(err));
+      if (err?.response?.data?.code === 'SHORT_CODE_TAKEN') {
+        setShortCodeError(errMessage(err));
+      } else {
+        setFormError(errMessage(err));
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
   const startEdit = (d) => {
-    setEditing(d.id);
+    setEditingId(d.id);
     setForm({
       name: d.name,
       shortCode: d.shortCode || '',
       description: d.description || '',
       defaultRoleId: d.defaultRoleId || '',
     });
+    setFormError('');
+    setShortCodeError('');
+    setShowForm(true);
   };
 
   const remove = async (d) => {
@@ -69,14 +109,15 @@ export default function AdminDepartments() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-navy-900">Departments</h1>
-        {!editing && (
-          <button className="btn-primary" onClick={() => { setForm(EMPTY); setEditing('new'); }}>+ New department</button>
+        {!showForm && (
+          <button className="btn-primary" onClick={openCreate}>+ New department</button>
         )}
       </div>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
-      {editing !== null && (
+      {showForm && (
         <form onSubmit={submit} className="card space-y-4 p-5">
+          {formError && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</div>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="label">Name</label>
@@ -85,14 +126,18 @@ export default function AdminDepartments() {
             <div>
               <label className="label">Short code <span className="text-red-500">*</span></label>
               <input
-                className="input uppercase"
+                className={`input uppercase ${shortCodeError ? 'border-red-400' : ''}`}
                 value={form.shortCode}
-                maxLength={10}
+                maxLength={6}
                 placeholder="e.g. IT, HR, MNT"
-                onChange={(e) => setForm((f) => ({ ...f, shortCode: e.target.value.toUpperCase() }))}
-                required={editing === 'new'}
+                onChange={(e) => { setForm((f) => ({ ...f, shortCode: e.target.value.toUpperCase() })); setShortCodeError(''); }}
+                required
               />
-              <p className="mt-1 text-xs text-navy-400">Used to prefix this department's project IDs (e.g. IT-P00001).</p>
+              {shortCodeError ? (
+                <p className="mt-1 text-xs text-red-600">{shortCodeError}</p>
+              ) : (
+                <p className="mt-1 text-xs text-navy-400">Up to 6 characters, used to prefix this department's project IDs (e.g. IT-P00001).</p>
+              )}
             </div>
           </div>
           <div>
@@ -112,8 +157,10 @@ export default function AdminDepartments() {
             <p className="mt-1 text-xs text-navy-400">New users added to this department get this role automatically.</p>
           </div>
           <div className="flex justify-end gap-3">
-            <button type="button" className="btn-secondary" onClick={() => { setEditing(null); setForm(EMPTY); }}>Cancel</button>
-            <button type="submit" className="btn-primary">{editing === 'new' ? 'Create' : 'Save'}</button>
+            <button type="button" className="btn-secondary" onClick={closeForm}>Cancel</button>
+            <button type="submit" className="btn-primary" disabled={saving}>
+              {saving ? 'Saving…' : editingId !== null ? 'Save' : 'Create'}
+            </button>
           </div>
         </form>
       )}

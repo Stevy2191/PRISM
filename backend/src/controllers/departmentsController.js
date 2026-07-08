@@ -4,6 +4,25 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 
 const departmentInclude = [{ model: Role, as: 'defaultRole', attributes: ['id', 'name'] }];
+const SHORT_CODE_MAX = 6;
+
+// Normalizes + validates a short code (uppercase, max 6 chars, unique across
+// departments — used to prefix project IDs like IT-P00001, so a collision
+// would make two departments' project numbering ambiguous). excludeId lets
+// update() check uniqueness against every *other* department.
+async function normalizeShortCode(shortCode, excludeId) {
+  const trimmed = shortCode.trim().toUpperCase();
+  if (trimmed.length > SHORT_CODE_MAX) {
+    throw new ApiError(400, `Short code must be ${SHORT_CODE_MAX} characters or fewer`, 'VALIDATION_ERROR');
+  }
+  const where = { shortCode: trimmed };
+  if (excludeId) where.id = { [Op.ne]: excludeId };
+  const existing = await Department.findOne({ where });
+  if (existing) {
+    throw new ApiError(409, `Short code "${trimmed}" is already used by another department`, 'SHORT_CODE_TAKEN');
+  }
+  return trimmed;
+}
 
 async function memberCounts() {
   const rows = await User.findAll({
@@ -38,6 +57,7 @@ const create = asyncHandler(async (req, res) => {
   if (!shortCode || !shortCode.trim()) {
     throw new ApiError(400, 'Short code is required (used to prefix this department\'s project IDs)', 'VALIDATION_ERROR');
   }
+  const normalizedShortCode = await normalizeShortCode(shortCode);
   if (defaultRoleId) {
     const role = await Role.findByPk(defaultRoleId);
     if (!role) throw new ApiError(400, 'Default role does not exist', 'VALIDATION_ERROR');
@@ -45,7 +65,7 @@ const create = asyncHandler(async (req, res) => {
   const department = await Department.create({
     name: name.trim(),
     description: description || null,
-    shortCode: shortCode ? shortCode.trim().toUpperCase().slice(0, 10) : null,
+    shortCode: normalizedShortCode,
     defaultRoleId: defaultRoleId || null,
   });
   await writeAudit(req, 'department.create', 'Department', department.id, { name: department.name });
@@ -71,7 +91,9 @@ const update = asyncHandler(async (req, res) => {
   const changes = {};
   if (name !== undefined) changes.name = name.trim();
   if (description !== undefined) changes.description = description;
-  if (shortCode !== undefined) changes.shortCode = shortCode ? shortCode.trim().toUpperCase().slice(0, 10) : null;
+  if (shortCode !== undefined) {
+    changes.shortCode = shortCode ? await normalizeShortCode(shortCode, department.id) : null;
+  }
   if (defaultRoleId !== undefined) {
     if (defaultRoleId) {
       const role = await Role.findByPk(defaultRoleId);
