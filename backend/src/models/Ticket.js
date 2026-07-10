@@ -85,6 +85,14 @@ module.exports = (sequelize) => {
         type: DataTypes.DATEONLY,
         allowNull: true,
       },
+      // Optional time-of-day companion to dueDate — "HH:MM:SS" or null.
+      // A ticket can have a due date with no specific time; it can never
+      // have a dueTime without a dueDate (enforced in the controller, not
+      // here, to keep the same validation shape as the rest of the app).
+      dueTime: {
+        type: DataTypes.TIME,
+        allowNull: true,
+      },
       resolvedAt: {
         type: DataTypes.DATE,
         allowNull: true,

@@ -211,7 +211,7 @@ const list = asyncHandler(async (req, res) => {
 // POST /tickets
 const create = asyncHandler(async (req, res) => {
   const {
-    title, description, priority, type, status, projectId, departmentId, dueDate,
+    title, description, priority, type, status, projectId, departmentId, dueDate, dueTime,
     blueprintId, customFields, teamId, tags, watcherIds, parentTicketId, childTicketIds, relatedTicketIds,
     assigneeId, contactId,
   } = req.body || {};
@@ -246,6 +246,7 @@ const create = asyncHandler(async (req, res) => {
       projectId: projectId || null,
       departmentId: departmentId || null,
       dueDate: dueDate || null,
+      dueTime: dueDate ? (dueTime || null) : null,
       blueprintId: blueprintId || null,
       customFields: Array.isArray(customFields) && customFields.length ? customFields : null,
       tags: Array.isArray(tags) && tags.length ? tags : null,
@@ -325,6 +326,7 @@ const update = asyncHandler(async (req, res) => {
     'projectId',
     'departmentId',
     'dueDate',
+    'dueTime',
     'customFields',
     'tags',
     'resolution',
@@ -334,11 +336,16 @@ const update = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
+  // A dueTime with no dueDate is meaningless — clearing the date always
+  // clears any time set alongside it, even if the caller didn't say so.
+  if (changes.dueDate === null && changes.dueTime === undefined) {
+    changes.dueTime = null;
+  }
   if (changes.resolution !== undefined) {
     changes.resolutionUpdatedBy = req.user.id;
     changes.resolutionUpdatedAt = new Date();
   }
-  const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate'];
+  const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime'];
   const before = {};
   TRACKED_ACTIVITY_FIELDS.forEach((f) => { before[f] = ticket[f]; });
   const previousAssigneeId = ticket.assigneeId;
@@ -392,7 +399,7 @@ const update = asyncHandler(async (req, res) => {
   if (changes.assigneeId !== undefined && ticket.assigneeId !== previousAssigneeId) {
     await evaluateRules(ticket.id, 'ticket_assigned');
   }
-  if (changes.dueDate !== undefined || changes.assigneeId !== undefined) {
+  if (changes.dueDate !== undefined || changes.dueTime !== undefined || changes.assigneeId !== undefined) {
     if (previousAssigneeId && previousAssigneeId !== ticket.assigneeId) {
       // Reassigned — drop the pushed event from the old assignee's calendar
       // before (re-)pushing to the new one, otherwise it'd be orphaned there.

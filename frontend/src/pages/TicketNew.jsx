@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { IconX, IconUpload, IconCheck } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
+import { formatPhone } from '../utils/formatPhone';
 import { useAuth } from '../context/AuthContext';
 import TagInput from '../components/TagInput';
 
@@ -249,7 +250,7 @@ function QuickCreateContact({ initialName, error, creating, onCancel, onCreate }
       </div>
       <div className="grid grid-cols-2 gap-2">
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" className="input h-9 text-sm" style={fieldStyle} />
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="input h-9 text-sm" style={fieldStyle} />
+        <input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" className="input h-9 text-sm" style={fieldStyle} inputMode="tel" />
       </div>
       <div className="flex justify-end gap-2">
         <button type="button" onClick={(e) => { e.preventDefault(); onCancel(); }} className="btn-secondary h-8 px-3 text-xs">Cancel</button>
@@ -473,6 +474,7 @@ export default function TicketNew() {
   const [teamId, setTeamId] = useState('');
 
   const [dueDate, setDueDate] = useState('');
+  const [dueTime, setDueTime] = useState('');
 
   const [files, setFiles] = useState([]);
 
@@ -593,6 +595,7 @@ export default function TicketNew() {
         tags: tags.length ? tags : undefined,
         departmentId: customerDeptId || undefined,
         dueDate: dueDate || undefined,
+        dueTime: dueDate ? (dueTime || undefined) : undefined,
         watcherIds: watchers.map((w) => w.id),
         customFieldValues: Object.keys(customFieldValues).length ? customFieldValues : undefined,
       };
@@ -791,15 +794,33 @@ export default function TicketNew() {
         </Card>
 
         <Card title="Scheduling">
-          <div>
-            <Label>Due date</Label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="input max-w-[12rem]"
-              style={fieldStyle}
-            />
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label>Due date</Label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setDueDate(next);
+                  if (!next) setDueTime('');
+                }}
+                className="input max-w-[12rem]"
+                style={fieldStyle}
+              />
+            </div>
+            <div>
+              <Label>Due time</Label>
+              <input
+                type="time"
+                value={dueTime}
+                onChange={(e) => setDueTime(e.target.value)}
+                disabled={!dueDate}
+                title={!dueDate ? 'Set a due date first' : ''}
+                className="input max-w-[10rem] disabled:opacity-50"
+                style={fieldStyle}
+              />
+            </div>
           </div>
         </Card>
 

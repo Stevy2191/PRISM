@@ -91,7 +91,7 @@ const listEvents = asyncHandler(async (req, res) => {
     const tickets = await Ticket.findAll({
       where,
       include: [{ model: User, as: 'assignee', attributes: userAttrs }],
-      attributes: ['id', 'title', 'dueDate', 'status', 'priority', 'assigneeId', 'departmentId'],
+      attributes: ['id', 'title', 'dueDate', 'dueTime', 'status', 'priority', 'assigneeId', 'departmentId'],
     });
     tickets.forEach((t) => {
       if (statusFilter === 'overdue' && !(t.dueDate < todayStr)) return;
@@ -100,7 +100,7 @@ const listEvents = asyncHandler(async (req, res) => {
         type: 'ticket',
         title: t.title,
         dueDate: t.dueDate,
-        dueTime: null,
+        dueTime: t.dueTime,
         status: t.status,
         statusColor: colorByStatus.get(t.status) || '#3b82f6',
         priority: t.priority,

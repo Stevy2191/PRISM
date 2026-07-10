@@ -83,6 +83,16 @@ function timeAgo(dateStr) {
   if (days < 7) return `${days}d ago`;
   return formatDate(dateStr);
 }
+// dueTime is a nullable "HH:MM:SS" TIME column companion to dueDate — only
+// meaningful (and only ever set) when dueDate is also set.
+function formatDueDateTime(dueDate, dueTime) {
+  if (!dueDate) return 'None';
+  if (!dueTime) return dueDate;
+  const [h, m] = dueTime.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${dueDate} ${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
 function dueDateColor(dueDate) {
   if (!dueDate) return MUTED;
   const today = new Date().toISOString().slice(0, 10);
@@ -805,7 +815,7 @@ function Sidebar({
               <span title={`Type: ${ticket.type}`}>▣</span>
               <span title={`Assignee: ${ticket.assignee?.displayName || 'Unassigned'}`}>🧑</span>
               <span title={`Team: ${ticket.team?.name || 'No team'}`}>👥</span>
-              <span title={`Due: ${ticket.dueDate || 'None'}`}>📅</span>
+              <span title={`Due: ${formatDueDateTime(ticket.dueDate, ticket.dueTime)}`}>📅</span>
             </div>
           ) : (
             <div className="space-y-3">
@@ -878,8 +888,20 @@ function Sidebar({
                   type="date"
                   disabled={!isStaff}
                   value={ticket.dueDate || ''}
-                  onChange={(e) => patchTicket({ dueDate: e.target.value || null })}
+                  onChange={(e) => patchTicket(e.target.value ? { dueDate: e.target.value } : { dueDate: null, dueTime: null })}
                   className="input h-9 text-sm"
+                  style={fieldStyle}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs" style={{ color: MUTED }}>Due Time</label>
+                <input
+                  type="time"
+                  disabled={!isStaff || !ticket.dueDate}
+                  title={!ticket.dueDate ? 'Set a due date first' : ''}
+                  value={ticket.dueTime ? ticket.dueTime.slice(0, 5) : ''}
+                  onChange={(e) => patchTicket({ dueTime: e.target.value || null })}
+                  className="input h-9 text-sm disabled:opacity-50"
                   style={fieldStyle}
                 />
               </div>
@@ -1738,6 +1760,7 @@ const ACTIVITY_DOT = {
   teamId: 'var(--color-accent)',
   departmentId: 'var(--color-text-muted)',
   dueDate: 'var(--color-text-muted)',
+  dueTime: 'var(--color-text-muted)',
   comment: 'var(--color-relation-accent)',
   time_logged: 'var(--color-success)',
   attachment_added: 'var(--color-text-muted)',
@@ -1745,7 +1768,7 @@ const ACTIVITY_DOT = {
 };
 const ACTIVITY_FIELD_LABEL = {
   status: 'status', priority: 'priority', type: 'type', assigneeId: 'assignee',
-  teamId: 'team', departmentId: 'department', dueDate: 'due date',
+  teamId: 'team', departmentId: 'department', dueDate: 'due date', dueTime: 'due time',
 };
 
 function activityDescription(a) {
@@ -2193,7 +2216,7 @@ export default function TicketDetail() {
             )}
           </span>
           <span>Assignee: <span style={{ color: TEXT }}>{ticket.assignee?.displayName || 'Unassigned'}</span></span>
-          <span>Due: <span style={{ color: dueDateColor(ticket.dueDate) }}>{ticket.dueDate || '—'}</span></span>
+          <span>Due: <span style={{ color: dueDateColor(ticket.dueDate) }}>{ticket.dueDate ? formatDueDateTime(ticket.dueDate, ticket.dueTime) : '—'}</span></span>
           <span>Created: <span style={{ color: TEXT }}>{formatDate(ticket.createdAt)}</span></span>
         </div>
       </div>

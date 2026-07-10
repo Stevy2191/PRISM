@@ -107,6 +107,18 @@ function pillBackground(ev) {
   return TICKET_PRIORITY_PILL_BG[ev.priority] || TICKET_PRIORITY_PILL_BG.medium;
 }
 
+// The Tickets/Projects/Tasks filter toggles in FilterBar need a single swatch
+// each, but ticket pills vary by priority (see TICKET_PRIORITY_PILL_BG above)
+// — there's no one "the ticket color" the way there is for projects/tasks.
+// Medium priority's blue is used as tickets' representative shade since it's
+// the default priority for new tickets; projects/tasks reuse their exact
+// (single, fixed) pill color so those two always match precisely.
+const TYPE_TOGGLE_COLOR = {
+  tickets: TICKET_PRIORITY_PILL_BG.medium,
+  projects: '#7c3aed',
+  tasks: '#0891b2',
+};
+
 function eventLabel(ev) {
   const truncate = (s, n) => (s && s.length > n ? `${s.slice(0, n)}…` : s);
   if (ev.type === 'ticket') return `${ev.ticketNumber} ${truncate(ev.title, 40)}`;
@@ -550,13 +562,13 @@ function FilterBar({
   myItemsOnly, setMyItemsOnly, assignableUsers, departments, canFilterDept, overdueCount,
   integrations, activeIntegrationIds, toggleIntegration,
 }) {
-  const toggle = (active, label, onClick) => (
+  const toggle = (active, label, onClick, color = BLUE) => (
     <button
       type="button"
       onClick={onClick}
       className="rounded-full px-3 py-1 text-xs font-medium"
       style={active
-        ? { backgroundColor: BLUE, color: 'white' }
+        ? { backgroundColor: color, color: 'white' }
         : { backgroundColor: 'transparent', color: MUTED, border: `1px solid ${BORDER}` }}
     >
       {label}
@@ -565,9 +577,9 @@ function FilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-[10px] border p-3" style={{ borderColor: BORDER, backgroundColor: CARD_BG }}>
-      {toggle(showTickets, 'Tickets', () => setShowTickets((v) => !v))}
-      {toggle(showProjects, 'Projects', () => setShowProjects((v) => !v))}
-      {toggle(showTasks, 'Tasks', () => setShowTasks((v) => !v))}
+      {toggle(showTickets, 'Tickets', () => setShowTickets((v) => !v), TYPE_TOGGLE_COLOR.tickets)}
+      {toggle(showProjects, 'Projects', () => setShowProjects((v) => !v), TYPE_TOGGLE_COLOR.projects)}
+      {toggle(showTasks, 'Tasks', () => setShowTasks((v) => !v), TYPE_TOGGLE_COLOR.tasks)}
 
       <span className="mx-1 h-5 w-px" style={{ backgroundColor: BORDER }} />
 
