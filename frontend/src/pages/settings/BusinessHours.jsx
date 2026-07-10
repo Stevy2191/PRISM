@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import TimeDropdownPicker from '../../components/TimeDropdownPicker';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const WEEKEND_DAYS = ['saturday', 'sunday'];
@@ -184,9 +185,9 @@ export default function BusinessHours() {
           {checkedDays.length >= 2 && (
             <div className="flex flex-wrap items-center gap-3 rounded-md border border-prism/30 bg-prism/5 p-3">
               <span className="text-sm font-medium text-navy-700">Apply to {checkedDays.length} selected days:</span>
-              <input type="time" className="input w-32" value={bulkStart} onChange={(e) => setBulkStart(e.target.value)} />
+              <TimeDropdownPicker value={bulkStart} onChange={setBulkStart} allowBlank={false} selectClassName="input h-9 w-auto text-sm" />
               <span className="text-navy-400">to</span>
-              <input type="time" className="input w-32" value={bulkEnd} onChange={(e) => setBulkEnd(e.target.value)} />
+              <TimeDropdownPicker value={bulkEnd} onChange={setBulkEnd} allowBlank={false} selectClassName="input h-9 w-auto text-sm" />
               <button type="button" className="btn-primary text-xs" onClick={applyBulkTimes}>Apply</button>
             </div>
           )}
@@ -206,13 +207,17 @@ export default function BusinessHours() {
                       className="h-4 w-4 rounded border-navy-300 text-prism disabled:cursor-not-allowed" />
                     {day}
                   </label>
-                  <input type="time" className="input w-32" value={effective.start}
-                    disabled={closed || form.is24x7} onChange={(e) => setDay(day, 'start', e.target.value)}
-                    style={closed ? { opacity: 0.5 } : undefined} />
+                  <TimeDropdownPicker
+                    value={effective.start} onChange={(v) => setDay(day, 'start', v)} allowBlank={false}
+                    disabled={closed || form.is24x7}
+                    selectClassName={`input h-9 w-auto text-sm${closed ? ' opacity-50' : ''}`}
+                  />
                   <span className="text-navy-400">to</span>
-                  <input type="time" className="input w-32" value={effective.end}
-                    disabled={closed || form.is24x7} onChange={(e) => setDay(day, 'end', e.target.value)}
-                    style={closed ? { opacity: 0.5 } : undefined} />
+                  <TimeDropdownPicker
+                    value={effective.end} onChange={(v) => setDay(day, 'end', v)} allowBlank={false}
+                    disabled={closed || form.is24x7}
+                    selectClassName={`input h-9 w-auto text-sm${closed ? ' opacity-50' : ''}`}
+                  />
                   {closed && (
                     <span className="rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-500">Closed</span>
                   )}

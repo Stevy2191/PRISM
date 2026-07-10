@@ -6,6 +6,7 @@ import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
 import { useAuth } from '../context/AuthContext';
 import TagInput from '../components/TagInput';
+import TimeDropdownPicker from '../components/TimeDropdownPicker';
 
 // Colors read from the admin-customizable theme CSS variables (Settings -> Appearance).
 const BG = 'var(--color-bg)';
@@ -811,15 +812,14 @@ export default function TicketNew() {
             </div>
             <div>
               <Label>Due time</Label>
-              <input
-                type="time"
-                value={dueTime}
-                onChange={(e) => setDueTime(e.target.value)}
-                disabled={!dueDate}
-                title={!dueDate ? 'Set a due date first' : ''}
-                className="input max-w-[10rem] disabled:opacity-50"
-                style={fieldStyle}
-              />
+              <div title={!dueDate ? 'Set a due date first' : ''}>
+                <TimeDropdownPicker
+                  value={dueTime}
+                  onChange={setDueTime}
+                  disabled={!dueDate}
+                  fieldStyle={fieldStyle}
+                />
+              </div>
             </div>
           </div>
         </Card>

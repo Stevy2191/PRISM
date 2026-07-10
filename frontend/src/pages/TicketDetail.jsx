@@ -11,6 +11,7 @@ import { formatPhone } from '../utils/formatPhone';
 import { useAuth, usePermission } from '../context/AuthContext';
 import { formatHMS } from '../context/TimerContext';
 import Spinner from '../components/Spinner';
+import TimeDropdownPicker from '../components/TimeDropdownPicker';
 import { formatTicketId } from '../utils/ticketId';
 
 // Colors read from the admin-customizable theme CSS variables (Settings -> Appearance).
@@ -895,15 +896,15 @@ function Sidebar({
               </div>
               <div>
                 <label className="mb-1 block text-xs" style={{ color: MUTED }}>Due Time</label>
-                <input
-                  type="time"
-                  disabled={!isStaff || !ticket.dueDate}
-                  title={!ticket.dueDate ? 'Set a due date first' : ''}
-                  value={ticket.dueTime ? ticket.dueTime.slice(0, 5) : ''}
-                  onChange={(e) => patchTicket({ dueTime: e.target.value || null })}
-                  className="input h-9 text-sm disabled:opacity-50"
-                  style={fieldStyle}
-                />
+                <div title={!ticket.dueDate ? 'Set a due date first' : ''}>
+                  <TimeDropdownPicker
+                    value={ticket.dueTime ? ticket.dueTime.slice(0, 5) : null}
+                    onChange={(v) => patchTicket({ dueTime: v })}
+                    disabled={!isStaff || !ticket.dueDate}
+                    fieldStyle={fieldStyle}
+                    selectClassName="input h-9 text-sm"
+                  />
+                </div>
               </div>
             </div>
           )}

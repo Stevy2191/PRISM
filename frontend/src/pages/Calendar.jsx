@@ -562,14 +562,14 @@ function FilterBar({
   myItemsOnly, setMyItemsOnly, assignableUsers, departments, canFilterDept, overdueCount,
   integrations, activeIntegrationIds, toggleIntegration,
 }) {
-  const toggle = (active, label, onClick, color = BLUE) => (
+  const toggle = (active, label, onClick, color = BLUE, inactiveBorder = BORDER) => (
     <button
       type="button"
       onClick={onClick}
       className="rounded-full px-3 py-1 text-xs font-medium"
       style={active
         ? { backgroundColor: color, color: 'white' }
-        : { backgroundColor: 'transparent', color: MUTED, border: `1px solid ${BORDER}` }}
+        : { backgroundColor: 'transparent', color: MUTED, border: `1px solid ${inactiveBorder}` }}
     >
       {label}
     </button>
@@ -577,9 +577,9 @@ function FilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-[10px] border p-3" style={{ borderColor: BORDER, backgroundColor: CARD_BG }}>
-      {toggle(showTickets, 'Tickets', () => setShowTickets((v) => !v), TYPE_TOGGLE_COLOR.tickets)}
-      {toggle(showProjects, 'Projects', () => setShowProjects((v) => !v), TYPE_TOGGLE_COLOR.projects)}
-      {toggle(showTasks, 'Tasks', () => setShowTasks((v) => !v), TYPE_TOGGLE_COLOR.tasks)}
+      {toggle(showTickets, 'Tickets', () => setShowTickets((v) => !v), TYPE_TOGGLE_COLOR.tickets, 'var(--color-border-strong)')}
+      {toggle(showProjects, 'Projects', () => setShowProjects((v) => !v), TYPE_TOGGLE_COLOR.projects, 'var(--color-border-strong)')}
+      {toggle(showTasks, 'Tasks', () => setShowTasks((v) => !v), TYPE_TOGGLE_COLOR.tasks, 'var(--color-border-strong)')}
 
       <span className="mx-1 h-5 w-px" style={{ backgroundColor: BORDER }} />
 
