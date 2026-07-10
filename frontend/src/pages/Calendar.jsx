@@ -534,19 +534,19 @@ function FilterBar({
 
       <span className="mx-1 h-5 w-px" style={{ backgroundColor: BORDER }} />
 
-      <select className="input h-8 text-xs" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+      <select className="input h-8 max-w-[10rem] flex-shrink-0 text-xs" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
         <option value="">All assignees</option>
         {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
       </select>
 
       {canFilterDept && (
-        <select className="input h-8 text-xs" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+        <select className="input h-8 max-w-[10rem] flex-shrink-0 text-xs" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
           <option value="">All departments</option>
           {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
       )}
 
-      <select className="input h-8 text-xs" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+      <select className="input h-8 max-w-[10rem] flex-shrink-0 text-xs" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
         <option value="all">All statuses</option>
         <option value="open">Open only</option>
         <option value="overdue">Overdue only{overdueCount > 0 ? ` (${overdueCount})` : ''}</option>

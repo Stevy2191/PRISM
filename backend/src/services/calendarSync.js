@@ -103,7 +103,7 @@ async function syncIntegration(integration) {
   try {
     let events;
     if (integration.provider === 'ical') {
-      events = await ical.fetchIcalEvents(integration.icalUrl);
+      events = await ical.fetchIcalEvents(integration.icalUrl, { rangeStart: timeMin, rangeEnd: timeMax });
       events = events.filter((e) => e.startDate >= timeMin && e.startDate <= timeMax);
     } else {
       const providerLib = integration.provider === 'google' ? google : microsoft;

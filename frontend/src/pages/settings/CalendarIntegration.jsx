@@ -102,13 +102,14 @@ export default function CalendarIntegration() {
         <div className="card space-y-4 p-5">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-navy-900">Google Calendar</h2>
-            {form.googleClientSecretSet && <span className="badge bg-green-100 text-green-800">Configured</span>}
+            {form.googleClientSecretSet
+              ? <span className="badge bg-green-100 text-green-800">Configured</span>
+              : <span className="badge bg-navy-100 text-navy-500">Not configured</span>}
           </div>
           <div className="rounded-md bg-navy-50 p-3 text-xs text-navy-500">
             <p className="mb-1 font-medium text-navy-700">Setup instructions</p>
             <ol className="list-inside list-decimal space-y-0.5">
-              <li>Go to the <span className="font-medium">Google Cloud Console</span> → APIs &amp; Services → Credentials.</li>
-              <li>Create an OAuth 2.0 Client ID (type: Web application).</li>
+              <li>Create OAuth 2.0 credentials at <span className="font-medium">console.cloud.google.com</span> (APIs &amp; Services → Credentials → OAuth Client ID, type: Web application).</li>
               <li>Add the redirect URI below to "Authorized redirect URIs".</li>
               <li>Enable the <span className="font-medium">Google Calendar API</span> for the project.</li>
               <li>Paste the generated Client ID and Client Secret below.</li>
@@ -136,13 +137,14 @@ export default function CalendarIntegration() {
         <div className="card space-y-4 p-5">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-navy-900">Microsoft Outlook / Office 365</h2>
-            {form.microsoftClientSecretSet && <span className="badge bg-green-100 text-green-800">Configured</span>}
+            {form.microsoftClientSecretSet
+              ? <span className="badge bg-green-100 text-green-800">Configured</span>
+              : <span className="badge bg-navy-100 text-navy-500">Not configured</span>}
           </div>
           <div className="rounded-md bg-navy-50 p-3 text-xs text-navy-500">
             <p className="mb-1 font-medium text-navy-700">Setup instructions</p>
             <ol className="list-inside list-decimal space-y-0.5">
-              <li>Go to the <span className="font-medium">Azure Portal</span> → Azure Active Directory → App registrations.</li>
-              <li>Register a new application (Web platform).</li>
+              <li>Register an app at <span className="font-medium">portal.azure.com</span> (Azure Active Directory → App registrations → New registration, Web platform).</li>
               <li>Add the redirect URI below under Authentication.</li>
               <li>Under Certificates &amp; secrets, create a new client secret.</li>
               <li>Under API permissions, add Microsoft Graph delegated permissions: <span className="font-medium">Calendars.ReadWrite</span>, <span className="font-medium">offline_access</span>, <span className="font-medium">User.Read</span>.</li>
