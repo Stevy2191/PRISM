@@ -62,7 +62,13 @@ function periodLabel(view, anchor) {
     const { start, end } = visibleRangeFor('week', anchor);
     const sameMonth = start.getMonth() === end.getMonth();
     const startStr = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const endStr = end.toLocaleDateString(undefined, sameMonth ? { day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
+    // Intl's day+year-only skeleton (no month) renders a broken string in
+    // this environment's ICU build — e.g. "2026 (day: 11)" instead of
+    // "11, 2026" — so the same-month case is built by hand instead of
+    // relying on toLocaleDateString with an underspecified options object.
+    const endStr = sameMonth
+      ? `${end.getDate()}, ${end.getFullYear()}`
+      : end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     return `${startStr} – ${endStr}`;
   }
   return anchor.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -80,6 +86,25 @@ function eventColor(ev) {
   if (ev.type === 'external') return ev.color || '#64748b';
   if (ev.type === 'project') return '#7c3aed';
   return ev.priorityColor || '#64748b';
+}
+
+// Event pill backgrounds are hardcoded (not CSS variables) and always paired
+// with white text — unlike eventColor() above (used for icons/badges
+// elsewhere, which follows theme/admin-configured priority colors), pills
+// need a guaranteed-readable combination regardless of theme or admin color
+// settings, since they're small and text-dense.
+const TICKET_PRIORITY_PILL_BG = {
+  urgent: '#dc2626',
+  critical: '#dc2626',
+  high: '#d97706',
+  medium: '#2563eb',
+  low: '#475569',
+};
+function pillBackground(ev) {
+  if (ev.type === 'external') return ev.color || '#64748b';
+  if (ev.type === 'project') return '#7c3aed';
+  if (ev.type === 'task') return '#0891b2';
+  return TICKET_PRIORITY_PILL_BG[ev.priority] || TICKET_PRIORITY_PILL_BG.medium;
 }
 
 function eventLabel(ev) {
@@ -106,10 +131,10 @@ function overduePill(ev, todayStr, openStatusNames) {
 // just read it here instead.
 const OpenStatusContext = createContext(new Set(['Open', 'In Progress', 'Pending', 'On Hold', 'Active']));
 
-// ==================== Event pill (month view) ====================
+// ==================== Event pill (month/week views) ====================
 function EventPill({ event, todayStr, onClick }) {
   const openStatusNames = useContext(OpenStatusContext);
-  const color = eventColor(event);
+  const bg = pillBackground(event);
   const isExternal = event.type === 'external';
   const overdue = !isExternal && overduePill(event, todayStr, openStatusNames);
   const Icon = TYPE_META[event.type].icon;
@@ -121,17 +146,29 @@ function EventPill({ event, todayStr, onClick }) {
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(event); }}
       title={title}
-      className="flex w-full items-center gap-1 truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium"
+      className="flex items-center gap-1 text-left"
       style={{
-        backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`,
-        color,
-        border: overdue ? `1px dashed ${DANGER}` : '1px solid transparent',
-        opacity: isExternal ? 0.8 : 1,
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        backgroundColor: bg,
+        color: '#ffffff',
+        fontSize: '11px',
+        fontWeight: 500,
+        padding: '2px 6px',
+        borderRadius: '4px',
+        border: overdue ? '1px dashed #ffffff' : '1px solid transparent',
       }}
     >
-      {isExternal && <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />}
-      <Icon size={11} className="flex-shrink-0" />
-      <span className="truncate">{eventLabel(event)}</span>
+      <Icon size={11} className="flex-shrink-0" style={{ color: '#ffffff' }} />
+      {/* min-width: 0 is required for a flex child's text to actually
+          ellipsize instead of forcing the row (and its parent day column)
+          wider — flex items default to min-width: auto (their content
+          size), which nowrap text with no wrap points prevents shrinking. */}
+      <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {eventLabel(event)}
+      </span>
     </button>
   );
 }
@@ -292,7 +329,7 @@ function MonthView({ anchor, eventsByDay, todayStr, onDayClick, onEventClick }) 
             <div
               key={key}
               onClick={() => onDayClick(day)}
-              className="flex min-h-[104px] cursor-pointer flex-col gap-1 border-b border-r p-1.5 last:border-r-0"
+              className="flex min-h-[104px] min-w-0 cursor-pointer flex-col gap-1 overflow-hidden border-b border-r p-1.5 last:border-r-0"
               style={{ borderColor: BORDER, backgroundColor: inMonth ? CARD_BG : BG, opacity: inMonth ? 1 : 0.55 }}
             >
               <span
@@ -301,7 +338,7 @@ function MonthView({ anchor, eventsByDay, todayStr, onDayClick, onEventClick }) 
               >
                 {day.getDate()}
               </span>
-              <div className="flex flex-col gap-0.5">
+              <div className="flex min-w-0 flex-col gap-0.5">
                 {visible.map((ev) => <EventPill key={ev.id} event={ev} todayStr={todayStr} onClick={onEventClick} />)}
                 {extra > 0 && (
                   <button
@@ -378,7 +415,7 @@ function TimeGrid({ days, eventsByDay, todayStr, onEventClick }) {
           const key = fmtLocal(day);
           const dayEvents = eventsByDay.get(key) || [];
           return (
-            <div key={key} className="space-y-1 border-l p-1.5" style={{ borderColor: BORDER, minHeight: 40 }}>
+            <div key={key} className="min-w-0 space-y-1 overflow-hidden border-l p-1.5" style={{ borderColor: BORDER, minHeight: 40 }}>
               {dayEvents.map((ev) => <EventPill key={ev.id} event={ev} todayStr={todayStr} onClick={onEventClick} />)}
             </div>
           );
