@@ -80,11 +80,10 @@ const list = asyncHandler(async (req, res) => {
 // POST /contacts
 const create = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, phone, mobile, departmentId, jobTitle, assignedTo, notes, displayName } = req.body || {};
-  if (!firstName || !firstName.trim()) {
-    throw new ApiError(400, 'First name is required', 'VALIDATION_ERROR');
-  }
-  if (!lastName || !lastName.trim()) {
-    throw new ApiError(400, 'Last name is required', 'VALIDATION_ERROR');
+  const first = (firstName || '').trim();
+  const last = (lastName || '').trim();
+  if (!first && !last) {
+    throw new ApiError(400, 'First or last name is required', 'VALIDATION_ERROR');
   }
   if (email) {
     const existing = await Contact.findOne({ where: { email } });
@@ -92,9 +91,9 @@ const create = asyncHandler(async (req, res) => {
   }
 
   const contact = await Contact.create({
-    firstName: firstName.trim(),
-    lastName: lastName.trim(),
-    displayName: (displayName && displayName.trim()) || `${firstName.trim()} ${lastName.trim()}`.trim(),
+    firstName: first,
+    lastName: last,
+    displayName: (displayName && displayName.trim()) || `${first} ${last}`.trim(),
     email: email || null,
     phone: normalizePhone(phone),
     mobile: normalizePhone(mobile),
