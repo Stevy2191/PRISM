@@ -66,6 +66,35 @@ function SourceBadge({ source }) {
     </span>
   );
 }
+
+// CSAT survey status in the ticket header — a rating badge once the contact
+// has responded, or a quiet "awaiting response" pill while it's still
+// outstanding. Renders nothing if no survey was ever created for this
+// ticket (CSAT disabled, or the ticket has no contact/contact email).
+function CsatBadge({ survey }) {
+  if (!survey) return null;
+  if (survey.status === 'responded' && survey.rating) {
+    return (
+      <span
+        className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+        style={{ backgroundColor: 'color-mix(in srgb, #f59e0b 15%, transparent)', color: '#b45309' }}
+        title={survey.comment || ''}
+      >
+        {'★'.repeat(survey.rating)}
+        {'☆'.repeat(5 - survey.rating)} {survey.rating}/5
+        {survey.comment ? ` — ${survey.comment.slice(0, 40)}${survey.comment.length > 40 ? '…' : ''}` : ''}
+      </span>
+    );
+  }
+  if (survey.sentAt) {
+    return (
+      <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: 'var(--color-hover)', color: MUTED }}>
+        Survey sent — awaiting response
+      </span>
+    );
+  }
+  return null;
+}
 // Status name -> {color, behaviorType} lookup built from the fetched
 // ticket-statuses list (Settings -> Statuses), replacing what used to be a
 // fixed label/class map — colors are now arbitrary admin-chosen hex values.
@@ -2197,6 +2226,7 @@ export default function TicketDetail() {
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PRIORITY_META[ticket.priority].color }} />
               {PRIORITY_META[ticket.priority].label}
             </span>
+            <CsatBadge survey={ticket.csatSurvey} />
             {isStaff && (
               <button
                 type="button"

@@ -3,10 +3,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
 import {
-  IconMoodSmile, IconBolt, IconShieldCheck, IconMail, IconTrash,
+  IconBolt, IconShieldCheck, IconMail, IconTrash,
 } from '@tabler/icons-react';
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
+import SurveyPage from './pages/SurveyPage';
 import Dashboard from './pages/Dashboard';
 import Tickets from './pages/Tickets';
 import TicketNew from './pages/TicketNew';
@@ -42,6 +43,7 @@ import WorkflowRules from './pages/settings/WorkflowRules';
 import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
 import DirectorySync from './pages/settings/DirectorySync';
 import CalendarIntegration from './pages/settings/CalendarIntegration';
+import CustomerHappiness from './pages/settings/CustomerHappiness';
 import Placeholder from './pages/settings/Placeholder';
 
 // Existing admin pages (reached via the Settings hub)
@@ -86,6 +88,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+      {/* Fully public — a contact reaches this via an emailed CSAT survey link, no PRISM login. */}
+      <Route path="/survey/:token" element={<SurveyPage />} />
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -133,8 +137,9 @@ export default function App() {
         <Route path="/admin/settings" element={perm(<AdminSettings />, SYSTEM_KEYS)} />
         <Route path="/settings/email-log" element={perm(<EmailLog />, SYSTEM_KEYS)} />
 
+        <Route path="/settings/customer-happiness" element={perm(<CustomerHappiness />, SYSTEM_KEYS)} />
+
         {/* Placeholders for sections specified later */}
-        <Route path="/settings/customer-happiness" element={perm(<Placeholder title="Customer Happiness" icon={IconMoodSmile} note="Configure CSAT surveys sent to contacts after ticket closure. Coming in a future update." />, SYSTEM_KEYS)} />
         <Route path="/settings/layouts" element={perm(<SettingsLayouts />, SYSTEM_KEYS)} />
         <Route path="/settings/email-templates" element={admin(<Placeholder title="Email Templates" icon={IconMail} note="Customize the content of outbound system emails like ticket created, ticket closed, and CSAT surveys. Coming in a future update." />)} />
         <Route path="/settings/notifications" element={perm(<SettingsNotifications />, SYSTEM_KEYS)} />

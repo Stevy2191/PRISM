@@ -325,6 +325,96 @@ function TeamWorkloadPanel({ workload }) {
   );
 }
 
+function formatHoursShort(hours) {
+  if (hours === null || hours === undefined) return '—';
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 48) return `${hours.toFixed(1)}h`;
+  return `${(hours / 24).toFixed(1)}d`;
+}
+
+function StarRating({ value }) {
+  const full = Math.round(value);
+  return (
+    <span className="text-lg leading-none text-amber-500">
+      {'★'.repeat(full)}
+      <span style={{ color: 'var(--color-border)' }}>{'★'.repeat(5 - full)}</span>
+    </span>
+  );
+}
+
+function MyRatingsPanel({ ratings }) {
+  if (!ratings) return null;
+  return (
+    <Card>
+      <h2 className="font-semibold" style={{ color: TEXT }}>My Ratings</h2>
+      {ratings.showRating ? (
+        <div className="mt-3 flex items-baseline gap-2">
+          <StarRating value={ratings.avgRating || 0} />
+          <span className="text-2xl font-bold" style={{ color: TEXT }}>{ratings.avgRating?.toFixed(1)}</span>
+          <span className="text-sm" style={{ color: MUTED }}>/ 5 · {ratings.responseCount} response{ratings.responseCount === 1 ? '' : 's'}</span>
+        </div>
+      ) : (
+        <p className="mt-3 text-sm" style={{ color: MUTED }}>
+          Not enough survey responses yet ({ratings.responseCount}/{ratings.minTicketsToShowRating ?? 3}).
+        </p>
+      )}
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-xs" style={{ color: MUTED }}>Avg first response</p>
+          <p className="text-base font-semibold" style={{ color: TEXT }}>{formatHoursShort(ratings.avgFirstResponseHours)}</p>
+        </div>
+        <div>
+          <p className="text-xs" style={{ color: MUTED }}>Avg resolution</p>
+          <p className="text-base font-semibold" style={{ color: TEXT }}>{formatHoursShort(ratings.avgResolutionHours)}</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function TeamHappinessPanel({ data }) {
+  const scoreColor = (score) => {
+    if (score === null || score === undefined) return MUTED;
+    if (score >= 4) return 'var(--color-success)';
+    if (score >= 3) return 'var(--color-warning)';
+    return 'var(--color-danger)';
+  };
+  const sorted = [...(data || [])].sort((a, b) => (b.avgRating ?? -1) - (a.avgRating ?? -1));
+  return (
+    <Card className="!p-0">
+      <div className="border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
+        <h2 className="font-semibold" style={{ color: TEXT }}>Team Happiness</h2>
+      </div>
+      {sorted.length === 0 ? (
+        <p className="p-5 text-sm" style={{ color: MUTED }}>No technicians yet.</p>
+      ) : (
+        <ul className="divide-y" style={{ borderColor: CARD_BORDER }}>
+          {sorted.map((t) => (
+            <li key={t.userId} className="flex items-center justify-between gap-3 px-5 py-3">
+              <span className="min-w-0 flex-1 truncate text-sm" style={{ color: TEXT }}>{t.name}</span>
+              {t.showRating ? (
+                <>
+                  <span className="text-sm font-semibold" style={{ color: scoreColor(t.avgRating) }}>
+                    {t.avgRating?.toFixed(1)}
+                  </span>
+                  <span className="w-16 flex-shrink-0 text-right text-xs" style={{ color: MUTED }}>
+                    {t.responseCount} resp.
+                  </span>
+                  <span className="w-16 flex-shrink-0 text-right text-xs" style={{ color: MUTED }}>
+                    {formatHoursShort(t.avgResolutionHours)}
+                  </span>
+                </>
+              ) : (
+                <span className="text-xs" style={{ color: MUTED }}>Not enough responses ({t.responseCount})</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 function QuickActionsPanel() {
   const navigate = useNavigate();
   const shortcuts = [
@@ -421,12 +511,14 @@ const TECH_CATALOG = {
   notifications: { label: 'Notifications', defaultSize: 'half' },
   projectHealth: { label: 'Project Health', defaultSize: 'half' },
   hours: { label: 'Hours This Week', defaultSize: 'half' },
+  myRatings: { label: 'My Ratings', defaultSize: 'half' },
   quickActions: { label: 'Quick Actions', defaultSize: 'half' },
 };
 const ADMIN_CATALOG = {
   teamWorkload: { label: 'Team Workload', defaultSize: 'half' },
   activityFeed: { label: 'Activity Feed', defaultSize: 'half' },
   projectHealth: { label: 'Project Health', defaultSize: 'full' },
+  teamHappiness: { label: 'Team Happiness', defaultSize: 'half' },
   quickActions: { label: 'Quick Actions', defaultSize: 'half' },
 };
 
@@ -435,12 +527,14 @@ const TECH_DEFAULT_PANELS = [
   { key: 'notifications', size: 'half', hidden: false },
   { key: 'projectHealth', size: 'half', hidden: false },
   { key: 'hours', size: 'half', hidden: false },
+  { key: 'myRatings', size: 'half', hidden: false },
   { key: 'quickActions', size: 'half', hidden: true },
 ];
 const ADMIN_DEFAULT_PANELS = [
   { key: 'teamWorkload', size: 'half', hidden: false },
   { key: 'activityFeed', size: 'half', hidden: false },
   { key: 'projectHealth', size: 'full', hidden: false },
+  { key: 'teamHappiness', size: 'half', hidden: false },
   { key: 'quickActions', size: 'half', hidden: true },
 ];
 
@@ -725,7 +819,9 @@ export default function Dashboard() {
         />
       );
       case 'hours': return <HoursPanel hours={data.hours} />;
+      case 'myRatings': return <MyRatingsPanel ratings={data.myRatings} />;
       case 'teamWorkload': return <TeamWorkloadPanel workload={data.teamWorkload} />;
+      case 'teamHappiness': return <TeamHappinessPanel data={data.teamHappiness} />;
       case 'activityFeed': return (
         <ActivityFeedPanel
           activity={[...data.activity, ...activityMore]}

@@ -16,6 +16,7 @@ const { startWorkflowScheduler } = require('./services/workflowScheduler');
 const { startAdSyncScheduler } = require('./services/adSyncScheduler');
 const { startCalendarSyncScheduler } = require('./services/calendarSyncScheduler');
 const { startInboundEmailScheduler } = require('./services/inboundEmailScheduler');
+const { startCsatScheduler } = require('./services/csatScheduler');
 
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 3001;
@@ -100,6 +101,7 @@ async function start() {
     startAdSyncScheduler();
     startCalendarSyncScheduler();
     startInboundEmailScheduler();
+    startCsatScheduler();
   } catch (err) {
     console.error('[prism] failed to start:', err);
     process.exit(1);

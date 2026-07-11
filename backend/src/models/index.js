@@ -62,6 +62,7 @@ const AdGroupMapping = require('./AdGroupMapping')(sequelize);
 const AssignmentRule = require('./AssignmentRule')(sequelize);
 const SlaPolicy = require('./SlaPolicy')(sequelize);
 const EmailProcessingLog = require('./EmailProcessingLog')(sequelize);
+const CsatSurvey = require('./CsatSurvey')(sequelize);
 
 const db = {
   sequelize,
@@ -125,6 +126,7 @@ const db = {
   AssignmentRule,
   SlaPolicy,
   EmailProcessingLog,
+  CsatSurvey,
 };
 
 // ---- Associations ----
@@ -293,6 +295,15 @@ Holiday.belongsTo(HolidayList, { foreignKey: 'holidayListId', as: 'holidayList' 
 Ticket.hasOne(CsatResponse, { foreignKey: 'ticketId', as: 'csat', onDelete: 'CASCADE' });
 CsatResponse.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 CsatResponse.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// CSAT surveys (automated, contact-facing, token-based — distinct from the
+// staff-entered CsatResponse above)
+Ticket.hasMany(CsatSurvey, { foreignKey: 'ticketId', as: 'csatSurveys', onDelete: 'CASCADE' });
+Ticket.hasOne(CsatSurvey, { foreignKey: 'ticketId', as: 'csatSurvey', onDelete: 'CASCADE' });
+CsatSurvey.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+CsatSurvey.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+CsatSurvey.belongsTo(User, { foreignKey: 'assignedToUserId', as: 'assignedToUser' });
+User.hasMany(CsatSurvey, { foreignKey: 'assignedToUserId', as: 'csatSurveys' });
 
 // System settings
 SystemSettings.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });

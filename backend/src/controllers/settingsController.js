@@ -66,6 +66,17 @@ const DEFAULTS = {
   // notifications.js's createNotification() — the single choke point every
   // notification (event-driven or derived) already passes through.
   'notifications.enabledTypes': DEFAULT_NOTIFICATION_TYPES,
+
+  // Settings -> Customer Happiness: automated post-close CSAT survey emails
+  // (distinct from the older staff-entered happy/neutral/unhappy CsatResponse
+  // — see csatService.js). sendDelayHours=0 means "send immediately" (the
+  // scheduler still applies its own poll interval, so "immediately" is
+  // best-effort within a few minutes, not synchronous).
+  'csat.enabled': 'false',
+  'csat.sendDelayHours': '0',
+  'csat.surveyQuestion': 'How satisfied were you with the support you received?',
+  'csat.expiryDays': '7',
+  'csat.minTicketsToShowRating': '3',
 };
 
 // Settings that store JSON-encoded values rather than plain strings.

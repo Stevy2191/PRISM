@@ -35,12 +35,17 @@ const calendarRoutes = require('./calendar');
 const assignmentRulesRoutes = require('./assignmentRules');
 const slaPoliciesRoutes = require('./slaPolicies');
 const schedulesRoutes = require('./schedules');
+const surveyRoutes = require('./survey');
+const csatRoutes = require('./csat');
 
 const router = express.Router();
 
 router.get('/health', (req, res) => res.json({ ok: true, service: 'prism-backend' }));
 
 router.use('/auth', authRoutes);
+
+// Fully public — contact CSAT survey links, no PRISM login involved.
+router.use('/survey', surveyRoutes);
 
 // Settings has its own public (login branding) + admin endpoints inside it.
 router.use('/settings', settingsRoutes);
@@ -77,5 +82,6 @@ router.use('/calendar', guard, calendarRoutes);
 router.use('/assignment-rules', guard, assignmentRulesRoutes);
 router.use('/sla-policies', guard, slaPoliciesRoutes);
 router.use('/schedules', guard, schedulesRoutes);
+router.use('/csat', guard, csatRoutes);
 
 module.exports = router;

@@ -7,6 +7,7 @@ const { asyncHandler, ApiError } = require('../middleware/error');
 const { getUserReportScope } = require('../services/permissionService');
 const { getTicketStatusBuckets, getProjectStatusBuckets } = require('../services/statusBehavior');
 const { computeProjectCompletion } = require('../services/projectCompletion');
+const { getOverview, getTeamHappiness } = require('../services/csatStatsService');
 
 // ==================== Shared helpers ====================
 
@@ -1030,6 +1031,58 @@ const csat = asyncHandler(async (req, res) => {
   });
 });
 
+// ==================== Customer Happiness (new, token-based CsatSurvey) ====================
+// Distinct from `csat` above (the pre-existing staff-entered happy/neutral/
+// unhappy report) — this is the real customer-happiness report, sourced
+// from contacts' own 1-5 star survey responses.
+
+async function buildCustomerHappinessReport(req) {
+  const range = parseDateRange(req.query);
+  const deptId = parseDepartmentId(req.query);
+
+  const [overview, byTech] = await Promise.all([
+    getOverview({ range, departmentId: deptId }),
+    getTeamHappiness({ range, departmentId: deptId }),
+  ]);
+
+  return {
+    summary: {
+      overallScore: overview.overallScore,
+      responseCount: overview.responseCount,
+      sentCount: overview.sentCount,
+      responseRate: overview.responseRate,
+    },
+    chartData: {
+      scoreTrend: overview.scoreTrend,
+      scoreByTech: byTech.filter((t) => t.responseCount > 0).map((t) => ({ name: t.name, score: t.avgRating })),
+      scoreByDepartment: overview.scoreByDepartment,
+    },
+    recentComments: overview.recentComments,
+    tableData: {
+      columns: customerHappinessColumns(),
+      rows: overview.tableRows,
+    },
+  };
+}
+
+function customerHappinessColumns() {
+  return [
+    { key: 'ticketNumber', label: 'Ticket #' },
+    { key: 'ticketTitle', label: 'Title' },
+    { key: 'contact', label: 'Contact' },
+    { key: 'tech', label: 'Tech' },
+    { key: 'rating', label: 'Rating' },
+    { key: 'comment', label: 'Comment' },
+    { key: 'date', label: 'Date' },
+  ];
+}
+
+const customerHappiness = asyncHandler(async (req, res) => res.json(await buildCustomerHappinessReport(req)));
+const customerHappinessExport = asyncHandler(async (req, res) => {
+  const { tableData } = await buildCustomerHappinessReport(req);
+  sendCsv(res, 'customer-happiness', tableData.columns, tableData.rows);
+});
+
 module.exports = {
   parseDateRange, dateWhere, parseDepartmentId, parseAssigneeId, granularityFor, bucketKey,
   ticketScopeWhere, projectScopeWhere, contactDeptWhere, csvCell, sendCsv, hoursBetween, userAttrs,
@@ -1037,5 +1090,6 @@ module.exports = {
   teamPerformance, teamPerformanceExport, slaCompliance, slaComplianceExport,
   timeBilling, timeBillingExport, projectsReport, projectsReportExport,
   contactsReport, contactsReportExport, csat,
+  customerHappiness, customerHappinessExport,
   ticketsExport,
 };

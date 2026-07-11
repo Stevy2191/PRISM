@@ -10,6 +10,7 @@ const {
   TicketTask,
   TicketActivity,
   CsatResponse,
+  CsatSurvey,
   Team,
   TeamMember,
   CustomField,
@@ -42,6 +43,7 @@ const { generateTicketReport } = require('../services/ticketReport');
 const { getUserTicketScope, hasPermission } = require('../services/permissionService');
 const { evaluateRules } = require('../services/workflowEngine');
 const { syncTicketToExternalCalendars, removeTicketFromExternalCalendars } = require('../services/calendarPush');
+const { maybeCreateCsatSurvey } = require('../services/csatService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
@@ -57,6 +59,7 @@ const ticketInclude = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
   { model: User, as: 'resolutionUpdatedByUser', attributes: userAttrs },
   { model: CsatResponse, as: 'csat' },
+  { model: CsatSurvey, as: 'csatSurvey' },
   {
     model: TicketFieldValue,
     as: 'fieldValues',
@@ -438,7 +441,10 @@ const update = asyncHandler(async (req, res) => {
     const behaviorByName = await getTicketStatusBehaviorMap();
     const wasClosed = behaviorByName.get(previousStatus) === 'closed';
     const isClosed = behaviorByName.get(ticket.status) === 'closed';
-    if (isClosed && !wasClosed) await evaluateRules(ticket.id, 'ticket_closed');
+    if (isClosed && !wasClosed) {
+      await evaluateRules(ticket.id, 'ticket_closed');
+      await maybeCreateCsatSurvey(ticket);
+    }
   }
   if (changes.priority !== undefined && ticket.priority !== before.priority) {
     await evaluateRules(ticket.id, 'ticket_priority_changed');

@@ -726,6 +726,84 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
   );
 }
 
+// ---- Performance tab ----
+
+function StarRating({ value }) {
+  const full = Math.round(value);
+  return (
+    <span className="text-xl leading-none text-amber-500">
+      {'★'.repeat(full)}
+      <span className="text-navy-200">{'★'.repeat(5 - full)}</span>
+    </span>
+  );
+}
+
+function formatHours(hours) {
+  if (hours === null || hours === undefined) return '—';
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 48) return `${hours.toFixed(1)}h`;
+  return `${(hours / 24).toFixed(1)}d`;
+}
+
+function PerfCard({ label, children }) {
+  return (
+    <div className="rounded-[10px] border border-navy-100 bg-white p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-navy-400">{label}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+function PerformanceTab({ userId }) {
+  const [stats, setStats] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get('/csat/stats', { params: { userId } })
+      .then(({ data }) => setStats(data))
+      .catch((err) => setError(errMessage(err)));
+  }, [userId]);
+
+  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (!stats) return <Spinner />;
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-navy-500">
+        CSAT ratings and response/resolution times, computed from this technician&apos;s closed tickets and
+        survey responses.
+      </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <PerfCard label="Overall CSAT rating">
+          {stats.showRating ? (
+            <div className="flex items-baseline gap-2">
+              <StarRating value={stats.avgRating || 0} />
+              <span className="text-sm font-semibold text-navy-900">{stats.avgRating?.toFixed(1)}/5</span>
+            </div>
+          ) : (
+            <p className="text-sm text-navy-400">
+              Not enough responses yet ({stats.responseCount}/{stats.minTicketsToShowRating})
+            </p>
+          )}
+          {stats.showRating && (
+            <p className="mt-1 text-xs text-navy-400">{stats.responseCount} response{stats.responseCount === 1 ? '' : 's'}</p>
+          )}
+        </PerfCard>
+        <PerfCard label="Avg first response time">
+          <p className="text-xl font-bold text-navy-900">{formatHours(stats.avgFirstResponseHours)}</p>
+        </PerfCard>
+        <PerfCard label="Avg resolution time">
+          <p className="text-xl font-bold text-navy-900">{formatHours(stats.avgResolutionHours)}</p>
+        </PerfCard>
+        <PerfCard label="Tickets closed">
+          <p className="text-xl font-bold text-navy-900">{stats.ticketsClosedThisMonth}</p>
+          <p className="text-xs text-navy-400">this month · {stats.ticketsClosedThisYear} this year</p>
+        </PerfCard>
+      </div>
+    </div>
+  );
+}
+
 // ---- Page ----
 
 export default function UserDetail() {
@@ -767,6 +845,7 @@ export default function UserDetail() {
   const TABS = [
     { key: 'profile', label: 'Profile' },
     { key: 'access', label: 'Roles & Permissions' },
+    { key: 'performance', label: 'Performance' },
   ];
 
   return (
@@ -790,6 +869,7 @@ export default function UserDetail() {
 
       {tab === 'profile' && <ProfileTab user={user} departments={departments} onUpdate={updateUser} canManageContractor={canEditUsers} />}
       {tab === 'access' && <RolesPermissionsTab userId={id} onPermissionsChanged={refreshPermissions} />}
+      {tab === 'performance' && <PerformanceTab userId={id} />}
     </div>
   );
 }

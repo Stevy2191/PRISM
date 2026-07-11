@@ -7,6 +7,8 @@ const { syncDerivedNotifications } = require('../services/notifications');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { hasPermission } = require('../services/permissionService');
+const { getUserPerformanceStats, getTeamHappiness } = require('../services/csatStatsService');
+const { getAllSettings } = require('./settingsController');
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -400,11 +402,14 @@ const get = asyncHandler(async (req, res) => {
   }
 
   if (isSystemView && !requestedUserId) {
-    const [stats, projectHealth, workload, activity] = await Promise.all([
+    const settings = await getAllSettings();
+    const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
+    const [stats, projectHealth, workload, activity, teamHappiness] = await Promise.all([
       systemStats(buckets),
       projectHealthFor({}),
       teamWorkload(buckets),
       activityFeed(buckets, {}, {}),
+      getTeamHappiness({}),
     ]);
     return res.json({
       mode: 'admin_system',
@@ -414,17 +419,21 @@ const get = asyncHandler(async (req, res) => {
       teamWorkload: workload,
       activity: activity.events,
       activityHasMore: activity.hasMore,
+      teamHappiness: teamHappiness.map((t) => ({ ...t, showRating: t.responseCount >= minResponses })),
     });
   }
 
   if (isDepartmentView && !requestedUserId) {
     const deptId = req.user.departmentId;
     const deptProjectWhere = { [Op.or]: [{ ownerDepartmentId: deptId }, { forDepartmentId: deptId }] };
-    const [stats, projectHealth, workload, activity] = await Promise.all([
+    const settings = await getAllSettings();
+    const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
+    const [stats, projectHealth, workload, activity, teamHappiness] = await Promise.all([
       systemStats(buckets, { departmentId: deptId }),
       projectHealthFor(deptProjectWhere),
       teamWorkload(buckets, { departmentId: deptId }),
       activityFeed(buckets, { departmentId: deptId }, deptProjectWhere),
+      getTeamHappiness({ departmentId: deptId }),
     ]);
     return res.json({
       mode: 'admin_department',
@@ -434,6 +443,7 @@ const get = asyncHandler(async (req, res) => {
       teamWorkload: workload,
       activity: activity.events,
       activityHasMore: activity.hasMore,
+      teamHappiness: teamHappiness.map((t) => ({ ...t, showRating: t.responseCount >= minResponses })),
     });
   }
 
@@ -452,13 +462,16 @@ const get = asyncHandler(async (req, res) => {
   });
   const taskProjectIds = taskProjectRows.map((r) => r.projectId);
 
-  const [stats, tickets, notifications, projectHealth, hours] = await Promise.all([
+  const [stats, tickets, notifications, projectHealth, hours, myRatingsRaw, settings] = await Promise.all([
     statsForUser(targetId, scopeField, buckets),
     ticketsForUser(targetId, scopeField, behaviorByName),
     notificationsForUser(targetId),
     taskProjectIds.length ? projectHealthFor({ id: { [Op.in]: taskProjectIds } }) : [],
     hoursForUser(targetId),
+    getUserPerformanceStats(targetId),
+    getAllSettings(),
   ]);
+  const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
 
   res.json({
     mode: requestedUserId ? 'admin_filtered' : 'tech',
@@ -468,6 +481,7 @@ const get = asyncHandler(async (req, res) => {
     notifications,
     projectHealth,
     hours,
+    myRatings: { ...myRatingsRaw, showRating: myRatingsRaw.responseCount >= minResponses },
   });
 });
 

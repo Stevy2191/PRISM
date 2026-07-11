@@ -10,6 +10,7 @@ import SlaComplianceReport from './reports/SlaComplianceReport';
 import TimeBillingReport from './reports/TimeBillingReport';
 import ProjectsReport from './reports/ProjectsReport';
 import ContactsReport from './reports/ContactsReport';
+import CustomerHappinessReport from './reports/CustomerHappinessReport';
 import CustomReportBuilder from './reports/CustomReportBuilder';
 
 const CATEGORIES = [
@@ -45,6 +46,12 @@ const CATEGORIES = [
       { key: 'contacts', label: 'Contact Reports', endpoint: 'contacts', showAssignee: false },
     ],
   },
+  {
+    name: 'Customer Happiness',
+    reports: [
+      { key: 'customer-happiness', label: 'Customer Happiness', endpoint: 'customer-happiness', showAssignee: false },
+    ],
+  },
 ];
 
 const ALL_REPORTS = CATEGORIES.flatMap((c) => c.reports);
@@ -57,6 +64,7 @@ const REPORT_COMPONENTS = {
   'time-billing': TimeBillingReport,
   projects: ProjectsReport,
   contacts: ContactsReport,
+  'customer-happiness': CustomerHappinessReport,
 };
 
 export default function Reports() {

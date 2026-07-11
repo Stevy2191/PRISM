@@ -44,6 +44,10 @@ router.get('/tickets/export', canExport, ctrl.ticketsExport);
 // Pre-existing customer happiness report (see Settings -> Customer Happiness).
 router.get('/csat', ctrl.csat);
 
+// New token-based CSAT survey report (real customer-submitted ratings).
+router.get('/customer-happiness', ctrl.customerHappiness);
+router.get('/customer-happiness/export', canExport, ctrl.customerHappinessExport);
+
 // Custom report builder
 router.get('/custom/metadata', customCtrl.metadata);
 router.post('/custom', customCtrl.run);
