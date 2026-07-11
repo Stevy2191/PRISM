@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const {
-  Ticket, Project, User, TimeEntry, Notification, TicketActivity, ProjectActivity, DashboardLayout,
+  Ticket, Project, User, TimeEntry, Notification, TicketActivity, ProjectActivity, DashboardLayout, Asset,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
@@ -180,6 +180,20 @@ async function hoursForUser(userId) {
 
   const total = Math.round(byDay.reduce((sum, d) => sum + d.hours, 0) * 10) / 10;
   return { total, byDay };
+}
+
+// Small admin-dashboard "Assets" summary — same counts as GET /assets/stats,
+// duplicated here rather than imported (it's a 3-query helper, not worth a
+// shared service module for).
+async function assetsSummaryStats() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const in90Str = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  const [dueForReplacement, expiredWarranty, totalActive] = await Promise.all([
+    Asset.count({ where: { replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90Str } } }),
+    Asset.count({ where: { warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } } }),
+    Asset.count({ where: { status: 'active' } }),
+  ]);
+  return { dueForReplacement, expiredWarranty, totalActive };
 }
 
 async function teamWorkload(buckets, extraUserWhere = {}) {
@@ -404,12 +418,13 @@ const get = asyncHandler(async (req, res) => {
   if (isSystemView && !requestedUserId) {
     const settings = await getAllSettings();
     const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
-    const [stats, projectHealth, workload, activity, teamHappiness] = await Promise.all([
+    const [stats, projectHealth, workload, activity, teamHappiness, assetsSummary] = await Promise.all([
       systemStats(buckets),
       projectHealthFor({}),
       teamWorkload(buckets),
       activityFeed(buckets, {}, {}),
       getTeamHappiness({}),
+      assetsSummaryStats(),
     ]);
     return res.json({
       mode: 'admin_system',
@@ -420,6 +435,7 @@ const get = asyncHandler(async (req, res) => {
       activity: activity.events,
       activityHasMore: activity.hasMore,
       teamHappiness: teamHappiness.map((t) => ({ ...t, showRating: t.responseCount >= minResponses })),
+      assetsSummary,
     });
   }
 

@@ -63,6 +63,10 @@ const AssignmentRule = require('./AssignmentRule')(sequelize);
 const SlaPolicy = require('./SlaPolicy')(sequelize);
 const EmailProcessingLog = require('./EmailProcessingLog')(sequelize);
 const CsatSurvey = require('./CsatSurvey')(sequelize);
+const AssetCategory = require('./AssetCategory')(sequelize);
+const Asset = require('./Asset')(sequelize);
+const AssetTicket = require('./AssetTicket')(sequelize);
+const AssetActivity = require('./AssetActivity')(sequelize);
 
 const db = {
   sequelize,
@@ -127,6 +131,10 @@ const db = {
   SlaPolicy,
   EmailProcessingLog,
   CsatSurvey,
+  AssetCategory,
+  Asset,
+  AssetTicket,
+  AssetActivity,
 };
 
 // ---- Associations ----
@@ -304,6 +312,28 @@ CsatSurvey.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 CsatSurvey.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 CsatSurvey.belongsTo(User, { foreignKey: 'assignedToUserId', as: 'assignedToUser' });
 User.hasMany(CsatSurvey, { foreignKey: 'assignedToUserId', as: 'csatSurveys' });
+
+// Asset tracking
+AssetCategory.hasMany(Asset, { foreignKey: 'categoryId', as: 'assets' });
+Asset.belongsTo(AssetCategory, { foreignKey: 'categoryId', as: 'category' });
+Asset.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+Asset.belongsTo(Contact, { foreignKey: 'assignedToContactId', as: 'assignedToContact' });
+Asset.belongsTo(User, { foreignKey: 'assignedToUserId', as: 'assignedToUser' });
+Asset.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+
+Asset.hasMany(AssetTicket, { foreignKey: 'assetId', as: 'assetTickets', onDelete: 'CASCADE' });
+AssetTicket.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+AssetTicket.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+AssetTicket.belongsTo(User, { foreignKey: 'linkedBy', as: 'linkedByUser' });
+Ticket.hasMany(AssetTicket, { foreignKey: 'ticketId', as: 'assetTickets', onDelete: 'CASCADE' });
+
+// Convenience many-to-many, backed by the same AssetTickets join rows above.
+Asset.belongsToMany(Ticket, { through: AssetTicket, foreignKey: 'assetId', otherKey: 'ticketId', as: 'linkedTickets' });
+Ticket.belongsToMany(Asset, { through: AssetTicket, foreignKey: 'ticketId', otherKey: 'assetId', as: 'linkedAssets' });
+
+Asset.hasMany(AssetActivity, { foreignKey: 'assetId', as: 'activity', onDelete: 'CASCADE' });
+AssetActivity.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+AssetActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // System settings
 SystemSettings.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });

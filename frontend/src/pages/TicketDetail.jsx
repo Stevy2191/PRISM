@@ -759,6 +759,7 @@ function Sidebar({
   watchers, onAddWatcher, onRemoveWatcher,
   departments, contactDeptAssign, onContactDeptChange, onAssignContactDepartment,
   customFieldDefs, onSaveCustomField,
+  onLinkAsset, onUnlinkAsset,
   mobileSheet,
 }) {
   const [tagInput, setTagInput] = useState('');
@@ -772,6 +773,20 @@ function Sidebar({
         )
         .slice(0, 6)
     : [];
+
+  const linkedAssets = ticket.linkedAssets || [];
+  const [assetQuery, setAssetQuery] = useState('');
+  const [assetResults, setAssetResults] = useState([]);
+  useEffect(() => {
+    if (!assetQuery.trim()) { setAssetResults([]); return undefined; }
+    const t = setTimeout(() => {
+      api.get('/assets', { params: { search: assetQuery.trim() } })
+        .then(({ data }) => setAssetResults(data.assets.filter((a) => !linkedAssets.some((la) => la.id === a.id)).slice(0, 6)))
+        .catch(() => setAssetResults([]));
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetQuery]);
 
   const width = collapsed ? 44 : 240;
 
@@ -1050,6 +1065,50 @@ function Sidebar({
                         style={{ color: TEXT }}
                       >
                         {u.displayName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </SidebarSection>
+
+        <SidebarSection title="Linked Assets" collapsed={collapsed}>
+          {collapsed ? (
+            <span title={linkedAssets.map((a) => a.assetTag).join(', ') || 'No linked assets'}>🖥</span>
+          ) : (
+            <div>
+              <div className="space-y-1.5">
+                {linkedAssets.map((a) => (
+                  <span key={a.id} className="flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-2 text-xs font-medium" style={{ backgroundColor: BORDER, color: TEXT }}>
+                    <Link to={`/assets/${a.id}`} className="min-w-0 flex-1 truncate hover:underline">
+                      <span className="font-mono">{a.assetTag}</span> — {a.name}
+                    </Link>
+                    <button type="button" onClick={() => onUnlinkAsset(a.id)} style={{ color: MUTED }}><IconX size={11} /></button>
+                  </span>
+                ))}
+                {linkedAssets.length === 0 && <p className="text-xs" style={{ color: MUTED }}>No linked assets.</p>}
+              </div>
+              <div className="relative mt-2">
+                <input
+                  value={assetQuery}
+                  onChange={(e) => setAssetQuery(e.target.value)}
+                  placeholder="+ Link asset…"
+                  className="input h-8 text-xs"
+                  style={fieldStyle}
+                />
+                {assetResults.length > 0 && (
+                  <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-md border p-1 shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+                    {assetResults.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => { onLinkAsset(a.id); setAssetQuery(''); }}
+                        className="block w-full rounded px-2 py-1 text-left text-xs hover:bg-white/5"
+                        style={{ color: TEXT }}
+                      >
+                        <span className="font-mono">{a.assetTag}</span> — {a.name}
                       </button>
                     ))}
                   </div>
@@ -2140,6 +2199,29 @@ export default function TicketDetail() {
     }
   };
 
+  // Asset linking is asset-centric on the backend (POST/DELETE
+  // /assets/:assetId/tickets, not a ticket-side endpoint) — see
+  // assetsController.js. A lightweight re-fetch (not the full load()) keeps
+  // the rest of the page from flashing a loading spinner for this.
+  const linkAsset = async (assetId) => {
+    try {
+      await api.post(`/assets/${assetId}/tickets`, { ticketId: id });
+      const { data } = await api.get(`/tickets/${id}`);
+      setTicket(data.ticket);
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+  const unlinkAsset = async (assetId) => {
+    try {
+      await api.delete(`/assets/${assetId}/tickets/${id}`);
+      const { data } = await api.get(`/tickets/${id}`);
+      setTicket(data.ticket);
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
   const addTask = async (description) => {
     try {
       const { data } = await api.post(`/tickets/${id}/tasks`, { description });
@@ -2330,6 +2412,8 @@ export default function TicketDetail() {
             onAssignContactDepartment={assignContactDepartment}
             customFieldDefs={customFieldDefs}
             onSaveCustomField={saveCustomFieldValue}
+            onLinkAsset={linkAsset}
+            onUnlinkAsset={unlinkAsset}
           />
         </div>
 

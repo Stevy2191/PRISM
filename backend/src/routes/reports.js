@@ -48,6 +48,16 @@ router.get('/csat', ctrl.csat);
 router.get('/customer-happiness', ctrl.customerHappiness);
 router.get('/customer-happiness/export', canExport, ctrl.customerHappinessExport);
 
+// Assets
+router.get('/assets/replacement', ctrl.assetsReplacement);
+router.get('/assets/replacement/export', canExport, ctrl.assetsReplacementExport);
+router.get('/assets/warranty', ctrl.assetsWarranty);
+router.get('/assets/warranty/export', canExport, ctrl.assetsWarrantyExport);
+router.get('/assets/inventory', ctrl.assetsInventory);
+router.get('/assets/inventory/export', canExport, ctrl.assetsInventoryExport);
+router.get('/assets/ticket-history', ctrl.assetsTicketHistory);
+router.get('/assets/ticket-history/export', canExport, ctrl.assetsTicketHistoryExport);
+
 // Custom report builder
 router.get('/custom/metadata', customCtrl.metadata);
 router.post('/custom', customCtrl.run);

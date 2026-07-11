@@ -11,6 +11,10 @@ import TimeBillingReport from './reports/TimeBillingReport';
 import ProjectsReport from './reports/ProjectsReport';
 import ContactsReport from './reports/ContactsReport';
 import CustomerHappinessReport from './reports/CustomerHappinessReport';
+import AssetsReplacementReport from './reports/AssetsReplacementReport';
+import AssetsWarrantyReport from './reports/AssetsWarrantyReport';
+import AssetsInventoryReport from './reports/AssetsInventoryReport';
+import AssetsTicketHistoryReport from './reports/AssetsTicketHistoryReport';
 import CustomReportBuilder from './reports/CustomReportBuilder';
 
 const CATEGORIES = [
@@ -52,6 +56,15 @@ const CATEGORIES = [
       { key: 'customer-happiness', label: 'Customer Happiness', endpoint: 'customer-happiness', showAssignee: false },
     ],
   },
+  {
+    name: 'Assets',
+    reports: [
+      { key: 'assets-replacement', label: 'Assets Due for Replacement', endpoint: 'assets/replacement', showAssignee: false },
+      { key: 'assets-warranty', label: 'Warranty Status', endpoint: 'assets/warranty', showAssignee: false },
+      { key: 'assets-inventory', label: 'Asset Inventory', endpoint: 'assets/inventory', showAssignee: false },
+      { key: 'assets-ticket-history', label: 'Asset Ticket History', endpoint: 'assets/ticket-history', showAssignee: false },
+    ],
+  },
 ];
 
 const ALL_REPORTS = CATEGORIES.flatMap((c) => c.reports);
@@ -65,6 +78,10 @@ const REPORT_COMPONENTS = {
   projects: ProjectsReport,
   contacts: ContactsReport,
   'customer-happiness': CustomerHappinessReport,
+  'assets-replacement': AssetsReplacementReport,
+  'assets-warranty': AssetsWarrantyReport,
+  'assets-inventory': AssetsInventoryReport,
+  'assets-ticket-history': AssetsTicketHistoryReport,
 };
 
 export default function Reports() {

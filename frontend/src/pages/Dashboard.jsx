@@ -415,6 +415,28 @@ function TeamHappinessPanel({ data }) {
   );
 }
 
+function AssetsSummaryPanel({ data }) {
+  if (!data) return null;
+  const stats = [
+    { label: 'Due for replacement (90 days)', value: data.dueForReplacement, to: '/assets?filter=dueForReplacement', color: data.dueForReplacement > 0 ? 'var(--color-warning)' : TEXT },
+    { label: 'Expired warranty', value: data.expiredWarranty, to: '/assets?filter=expiredWarranty', color: data.expiredWarranty > 0 ? 'var(--color-danger)' : TEXT },
+    { label: 'Total active', value: data.totalActive, to: '/assets?status=active', color: TEXT },
+  ];
+  return (
+    <Card>
+      <h2 className="font-semibold" style={{ color: TEXT }}>Assets</h2>
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        {stats.map((s) => (
+          <Link key={s.label} to={s.to} className="rounded-md border p-3 text-center transition hover:opacity-80" style={{ borderColor: CARD_BORDER }}>
+            <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+            <p className="mt-1 text-xs" style={{ color: MUTED }}>{s.label}</p>
+          </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function QuickActionsPanel() {
   const navigate = useNavigate();
   const shortcuts = [
@@ -519,6 +541,7 @@ const ADMIN_CATALOG = {
   activityFeed: { label: 'Activity Feed', defaultSize: 'half' },
   projectHealth: { label: 'Project Health', defaultSize: 'full' },
   teamHappiness: { label: 'Team Happiness', defaultSize: 'half' },
+  assetsSummary: { label: 'Assets', defaultSize: 'half' },
   quickActions: { label: 'Quick Actions', defaultSize: 'half' },
 };
 
@@ -535,6 +558,7 @@ const ADMIN_DEFAULT_PANELS = [
   { key: 'activityFeed', size: 'half', hidden: false },
   { key: 'projectHealth', size: 'full', hidden: false },
   { key: 'teamHappiness', size: 'half', hidden: false },
+  { key: 'assetsSummary', size: 'half', hidden: false },
   { key: 'quickActions', size: 'half', hidden: true },
 ];
 
@@ -822,6 +846,7 @@ export default function Dashboard() {
       case 'myRatings': return <MyRatingsPanel ratings={data.myRatings} />;
       case 'teamWorkload': return <TeamWorkloadPanel workload={data.teamWorkload} />;
       case 'teamHappiness': return <TeamHappinessPanel data={data.teamHappiness} />;
+      case 'assetsSummary': return <AssetsSummaryPanel data={data.assetsSummary} />;
       case 'activityFeed': return (
         <ActivityFeedPanel
           activity={[...data.activity, ...activityMore]}

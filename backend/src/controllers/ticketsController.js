@@ -11,6 +11,8 @@ const {
   TicketActivity,
   CsatResponse,
   CsatSurvey,
+  AssetTicket,
+  Asset,
   Team,
   TeamMember,
   CustomField,
@@ -44,6 +46,7 @@ const { getUserTicketScope, hasPermission } = require('../services/permissionSer
 const { evaluateRules } = require('../services/workflowEngine');
 const { syncTicketToExternalCalendars, removeTicketFromExternalCalendars } = require('../services/calendarPush');
 const { maybeCreateCsatSurvey } = require('../services/csatService');
+const { logAssetActivity } = require('../services/assetActivity');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const ticketInclude = [
@@ -60,6 +63,7 @@ const ticketInclude = [
   { model: User, as: 'resolutionUpdatedByUser', attributes: userAttrs },
   { model: CsatResponse, as: 'csat' },
   { model: CsatSurvey, as: 'csatSurvey' },
+  { model: Asset, as: 'linkedAssets', through: { attributes: [] }, attributes: ['id', 'assetTag', 'name'] },
   {
     model: TicketFieldValue,
     as: 'fieldValues',
@@ -222,7 +226,7 @@ const create = asyncHandler(async (req, res) => {
   const {
     title, description, priority, type, status, projectId, departmentId, dueDate, dueTime,
     blueprintId, customFields, teamId, tags, watcherIds, parentTicketId, childTicketIds, relatedTicketIds,
-    assigneeId, contactId, source,
+    assigneeId, contactId, source, assetIds,
   } = req.body || {};
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
@@ -246,6 +250,9 @@ const create = asyncHandler(async (req, res) => {
     ? [...new Set(relatedTicketIds.map((id) => parseInt(id, 10)).filter(Boolean))]
     : [];
   const parentId = parentTicketId ? parseInt(parentTicketId, 10) : null;
+  const assetIdList = Array.isArray(assetIds)
+    ? [...new Set(assetIds.map((id) => parseInt(id, 10)).filter(Boolean))]
+    : [];
 
   // Simple auto-assignment (Settings -> Assignment Rules) only kicks in when
   // the caller didn't already pick an assignee/team explicitly — an
@@ -313,11 +320,22 @@ const create = asyncHandler(async (req, res) => {
       // eslint-disable-next-line no-await-in-loop
       await TicketWatcher.create({ ticketId: created.id, userId }, { transaction: t });
     }
+    for (const assetId of assetIdList) {
+      // eslint-disable-next-line no-await-in-loop
+      await AssetTicket.create({ assetId, ticketId: created.id, linkedBy: req.user.id }, { transaction: t });
+    }
 
     return created;
   });
   await writeAudit(req, 'ticket.create', 'Ticket', ticket.id, { title: ticket.title });
   await logActivity(ticket.id, req.user.id, 'created', null, null);
+  if (assetIdList.length) {
+    const ticketNumber = String(ticket.id).padStart(5, '0');
+    for (const assetId of assetIdList) {
+      // eslint-disable-next-line no-await-in-loop
+      await logAssetActivity(assetId, req.user.id, 'ticket_linked', { ticketId: ticket.id, ticketNumber, ticketTitle: ticket.title });
+    }
+  }
   await notifyAssigned(ticket, req.user.id);
   if (watcherIdList.length) {
     await notifyWatchers(ticket, `Ticket created: ${ticket.title}`, [req.user.id]);

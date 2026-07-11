@@ -37,6 +37,7 @@ const slaPoliciesRoutes = require('./slaPolicies');
 const schedulesRoutes = require('./schedules');
 const surveyRoutes = require('./survey');
 const csatRoutes = require('./csat');
+const assetsRoutes = require('./assets');
 
 const router = express.Router();
 
@@ -83,5 +84,6 @@ router.use('/assignment-rules', guard, assignmentRulesRoutes);
 router.use('/sla-policies', guard, slaPoliciesRoutes);
 router.use('/schedules', guard, schedulesRoutes);
 router.use('/csat', guard, csatRoutes);
+router.use('/assets', guard, assetsRoutes);
 
 module.exports = router;
