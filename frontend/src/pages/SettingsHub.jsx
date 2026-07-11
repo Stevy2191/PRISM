@@ -1,5 +1,33 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+
+const SCROLL_KEY = 'settings_scroll';
+
+// sessionStorage can throw (private browsing with storage disabled, quota
+// exceeded, etc.) — every call here is wrapped so a storage failure never
+// breaks navigation, it just silently skips scroll restoration.
+function readStoredScroll() {
+  try {
+    return sessionStorage.getItem(SCROLL_KEY);
+  } catch {
+    return null;
+  }
+}
+function clearStoredScroll() {
+  try {
+    sessionStorage.removeItem(SCROLL_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+function saveScroll() {
+  try {
+    sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+  } catch {
+    /* ignore */
+  }
+}
 
 // Sub-item permission gates, per the roles/permissions build spec (Prompt 4).
 // Each is deliberately its own array — the rules aren't all the same set.
@@ -87,6 +115,26 @@ const SECTIONS = [
 export default function SettingsHub() {
   const { user, hasAnyPermission } = useAuth();
   const role = user?.role;
+
+  // Restore the scroll position saved when the user last left this page for
+  // a sub-page (see the save effect below). The short delay lets the
+  // section grid finish rendering/laying out first — scrolling immediately
+  // on mount can land short if the page's full height isn't committed yet.
+  useEffect(() => {
+    const saved = readStoredScroll();
+    if (saved === null) return undefined;
+    clearStoredScroll();
+    const y = Number(saved);
+    if (!Number.isFinite(y)) return undefined;
+    const timer = setTimeout(() => window.scrollTo(0, y), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Save scroll position on unmount — fires for every way of navigating to
+  // a sub-page (a "← Back to Settings"-style nav link click, browser
+  // back/forward, etc.), not just a specific onClick handler that every
+  // sub-page link would otherwise need individually.
+  useEffect(() => () => saveScroll(), []);
 
   // Items with a `permission` array are gated purely on the resolved
   // permissions map (Prompt 3 roles/permissions system); everything else
