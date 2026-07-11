@@ -2,7 +2,7 @@ const express = require('express');
 const ctrl = require('../controllers/ticketsController');
 const { requireRole } = require('../middleware/role');
 const { requirePermission } = require('../middleware/requirePermission');
-const { upload } = require('../middleware/upload');
+const { upload, enforceMaxAttachmentSize } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -25,7 +25,7 @@ router.delete('/:id/comments/:commentId', ctrl.removeComment);
 
 // Attachments
 router.get('/:id/attachments', ctrl.listAttachments);
-router.post('/:id/attachments', upload.single('file'), ctrl.createAttachment);
+router.post('/:id/attachments', upload.single('file'), enforceMaxAttachmentSize, ctrl.createAttachment);
 router.get('/:id/attachments/:attachmentId/download', ctrl.downloadAttachment);
 router.delete('/:id/attachments/:attachmentId', ctrl.removeAttachment);
 

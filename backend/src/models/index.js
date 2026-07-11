@@ -59,6 +59,8 @@ const CalendarEventCache = require('./CalendarEventCache')(sequelize);
 const DashboardLayout = require('./DashboardLayout')(sequelize);
 const AdSyncLog = require('./AdSyncLog')(sequelize);
 const AdGroupMapping = require('./AdGroupMapping')(sequelize);
+const AssignmentRule = require('./AssignmentRule')(sequelize);
+const SlaPolicy = require('./SlaPolicy')(sequelize);
 
 const db = {
   sequelize,
@@ -119,6 +121,8 @@ const db = {
   UserPermissionOverride,
   SystemAuditLog,
   ProjectIdSequence,
+  AssignmentRule,
+  SlaPolicy,
 };
 
 // ---- Associations ----
@@ -369,6 +373,12 @@ UserPermissionOverride.belongsTo(User, { foreignKey: 'grantedBy', as: 'grantedBy
 // System audit log (permission-change trail)
 SystemAuditLog.belongsTo(User, { foreignKey: 'actorUserId', as: 'actor' });
 SystemAuditLog.belongsTo(User, { foreignKey: 'targetUserId', as: 'target' });
+
+// Assignment rules
+AssignmentRule.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+AssignmentRule.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
+AssignmentRule.belongsTo(Team, { foreignKey: 'teamId', as: 'team' });
+AssignmentRule.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 
 // Per-department project-ID sequence
 Department.hasOne(ProjectIdSequence, { foreignKey: 'departmentId', as: 'projectIdSequence' });

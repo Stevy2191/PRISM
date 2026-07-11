@@ -32,6 +32,9 @@ const workflowRulesRoutes = require('./workflowRules');
 const searchRoutes = require('./search');
 const adSyncRoutes = require('./adSync');
 const calendarRoutes = require('./calendar');
+const assignmentRulesRoutes = require('./assignmentRules');
+const slaPoliciesRoutes = require('./slaPolicies');
+const schedulesRoutes = require('./schedules');
 
 const router = express.Router();
 
@@ -71,5 +74,8 @@ router.use('/workflow-rules', guard, workflowRulesRoutes);
 router.use('/search', guard, searchRoutes);
 router.use('/ad-sync', guard, adSyncRoutes);
 router.use('/calendar', guard, calendarRoutes);
+router.use('/assignment-rules', guard, assignmentRulesRoutes);
+router.use('/sla-policies', guard, slaPoliciesRoutes);
+router.use('/schedules', guard, schedulesRoutes);
 
 module.exports = router;

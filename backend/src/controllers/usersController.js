@@ -6,6 +6,7 @@ const { writeAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, hasPermission } = require('../services/permissionService');
 const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
+const { getAllSettings } = require('./settingsController');
 
 const MIN_PASSWORD_LENGTH = 8;
 const userInclude = [{ model: Department, as: 'department' }, { model: Role, as: 'primaryRole' }];
@@ -124,6 +125,10 @@ const create = asyncHandler(async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  // System-wide time-tracking defaults (Settings -> Time Tracking) seed a
+  // new user's own timer preferences — after creation, Preferences fully
+  // overrides these per-user, this is only the initial value.
+  const settings = await getAllSettings();
   const user = await User.create({
     username: username.trim(),
     displayName: resolvedDisplayName,
@@ -137,6 +142,8 @@ const create = asyncHandler(async (req, res) => {
     passwordHash,
     isLocalAccount: true,
     mustChangePassword: true,
+    timerMode: ['manual', 'automatic'].includes(settings['timeTracking.defaultMode']) ? settings['timeTracking.defaultMode'] : 'manual',
+    timerMinThreshold: Number(settings['timeTracking.defaultMinThreshold']) || 0,
   });
   await assignInitialRole(user, user.role, user.departmentId, req.user.id);
   await writeAudit(req, 'user.create_local', 'User', user.id, { username: user.username, role: user.role });

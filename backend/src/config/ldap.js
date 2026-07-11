@@ -228,7 +228,26 @@ function isConfigured() {
   );
 }
 
+// Attempts a real service-account bind against the currently configured
+// LDAP_URL/LDAP_BIND_DN/LDAP_BIND_PASSWORD — used by the General Settings
+// page's "Test connection" button. Never throws; always resolves with a
+// pass/fail + human-readable message.
+async function testConnection() {
+  if (!isConfigured()) {
+    return { ok: false, message: 'LDAP is not configured (LDAP_URL / LDAP_BIND_DN / LDAP_BIND_PASSWORD env vars).' };
+  }
+  const client = createClient();
+  try {
+    await bind(client, ldapConfig.bindDN, ldapConfig.bindPassword);
+    return { ok: true, message: `Successfully bound to ${ldapConfig.url} as ${ldapConfig.bindDN}.` };
+  } catch (err) {
+    return { ok: false, message: err.message || 'Bind failed.' };
+  } finally {
+    client.unbind(() => {});
+  }
+}
+
 module.exports = {
-  ldapConfig, authenticate, isConfigured, searchAllUsers,
+  ldapConfig, authenticate, isConfigured, searchAllUsers, testConnection,
   attr, attrAll, attrGuidHex, cnFromDn, isAccountDisabled,
 };

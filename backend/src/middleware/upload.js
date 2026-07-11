@@ -4,9 +4,17 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
+const { SystemSettings } = require('../models');
 
 const UPLOAD_ROOT = process.env.UPLOAD_DIR || '/uploads';
-const MAX_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_SIZE = 25 * 1024 * 1024; // 25MB — default shown before any admin override
+// Multer's own limit is a fixed safety ceiling, set at server startup — it
+// can't read the DB-backed admin setting (General Settings -> Max
+// attachment size) at construction time. enforceMaxAttachmentSize() below
+// is the layer that actually enforces the admin-configured value; this
+// ceiling just stops something absurd from ever reaching disk regardless of
+// what's configured.
+const HARD_CEILING_SIZE = 100 * 1024 * 1024; // 100MB
 
 // Extensions that could be executed server-side or auto-run on Windows/macOS.
 const BLOCKED_EXTENSIONS = new Set([
@@ -46,7 +54,7 @@ const fileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
-const upload = multer({ storage, limits: { fileSize: MAX_SIZE }, fileFilter });
+const upload = multer({ storage, limits: { fileSize: HARD_CEILING_SIZE }, fileFilter });
 
 // Project attachments — stored under a "projects/" subdirectory (rather than
 // bare /uploads/{id}/, which ticket attachments already own) so a project and
@@ -66,7 +74,30 @@ const projectStorage = multer.diskStorage({
     cb(null, unique);
   },
 });
-const projectUpload = multer({ storage: projectStorage, limits: { fileSize: MAX_SIZE }, fileFilter });
+const projectUpload = multer({ storage: projectStorage, limits: { fileSize: HARD_CEILING_SIZE }, fileFilter });
+
+// Runs after upload/projectUpload's .single('file') — the admin-configured
+// soft limit (General Settings -> Max attachment size), enforced against a
+// file already on disk since disk storage can't be intercepted mid-stream
+// the way multer's own built-in limit can.
+async function enforceMaxAttachmentSize(req, res, next) {
+  if (!req.file) return next();
+  try {
+    const row = await SystemSettings.findOne({ where: { key: 'system.maxAttachmentSizeMB' } });
+    const maxMB = row?.value ? Number(row.value) : 25;
+    const maxBytes = (Number.isFinite(maxMB) && maxMB > 0 ? maxMB : 25) * 1024 * 1024;
+    if (req.file.size > maxBytes) {
+      fs.unlink(req.file.path, () => {});
+      const err = new Error(`File exceeds the configured maximum attachment size (${maxMB}MB)`);
+      err.status = 400;
+      err.code = 'FILE_TOO_LARGE';
+      return next(err);
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+}
 
 // Contact CSV import — parsed in-memory and discarded, never written to
 // disk (the wizard re-sends the parsed rows on later steps instead of the
@@ -87,4 +118,4 @@ const csvUpload = multer({
   },
 });
 
-module.exports = { upload, projectUpload, csvUpload, UPLOAD_ROOT, MAX_SIZE, CSV_MAX_SIZE };
+module.exports = { upload, projectUpload, csvUpload, UPLOAD_ROOT, MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize };

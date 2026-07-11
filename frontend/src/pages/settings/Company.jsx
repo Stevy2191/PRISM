@@ -6,6 +6,7 @@ import Spinner from '../../components/Spinner';
 
 const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney'];
 const DATE_FORMATS = ['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMM YYYY'];
+const TIME_FORMATS = [['12h', '12-hour (2:30 PM)'], ['24h', '24-hour (14:30)']];
 const LANGUAGES = [['en', 'English'], ['es', 'Spanish'], ['fr', 'French'], ['de', 'German']];
 
 export default function Company() {
@@ -26,6 +27,7 @@ export default function Company() {
           'company.supportEmail': s['company.supportEmail'] || '',
           'company.timezone': s['company.timezone'] || 'UTC',
           'company.dateFormat': s['company.dateFormat'] || 'YYYY-MM-DD',
+          'company.timeFormat': s['company.timeFormat'] || '12h',
           'company.language': s['company.language'] || 'en',
         });
       })
@@ -111,7 +113,7 @@ export default function Company() {
           <label className="label">Support email</label>
           <input type="email" className="input" value={form['company.supportEmail']} onChange={set('company.supportEmail')} />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="label">Timezone</label>
             <select className="input" value={form['company.timezone']} onChange={set('company.timezone')}>
@@ -122,6 +124,12 @@ export default function Company() {
             <label className="label">Date format</label>
             <select className="input" value={form['company.dateFormat']} onChange={set('company.dateFormat')}>
               {DATE_FORMATS.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Time format</label>
+            <select className="input" value={form['company.timeFormat']} onChange={set('company.timeFormat')}>
+              {TIME_FORMATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
           <div>

@@ -908,6 +908,53 @@ const contactsReportExport = asyncHandler(async (req, res) => {
   sendCsv(res, 'contacts', tableData.columns, tableData.rows);
 });
 
+// ==================== Raw ticket list export (Settings -> Export) ====================
+// Unlike the aggregated Ticket Volume report above, this is a flat row-per-
+// ticket dump — the Export settings page's "Tickets" button, not part of
+// the 7-report nav.
+const TICKET_EXPORT_COLUMNS = [
+  { key: 'ticketNumber', label: 'Ticket #' },
+  { key: 'title', label: 'Title' },
+  { key: 'type', label: 'Type' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'status', label: 'Status' },
+  { key: 'assignee', label: 'Assignee' },
+  { key: 'department', label: 'Department' },
+  { key: 'createdAt', label: 'Created' },
+  { key: 'dueDate', label: 'Due date' },
+  { key: 'resolvedAt', label: 'Resolved' },
+];
+const ticketsExport = asyncHandler(async (req, res) => {
+  const scope = await getUserReportScope(req.user.id);
+  const range = parseDateRange(req.query);
+  const deptId = parseDepartmentId(req.query);
+
+  const where = ticketScopeWhere(dateWhere('createdAt', range), scope, req.user, deptId);
+  const tickets = await Ticket.findAll({
+    where,
+    include: [
+      { model: User, as: 'assignee', attributes: userAttrs },
+      { model: Department, as: 'department', attributes: ['id', 'name'] },
+    ],
+    order: [['createdAt', 'DESC']],
+  });
+
+  const rows = tickets.map((t) => ({
+    ticketNumber: `#${String(t.id).padStart(5, '0')}`,
+    title: t.title,
+    type: t.type,
+    priority: t.priority,
+    status: t.status,
+    assignee: t.assignee?.displayName || '',
+    department: t.department?.name || '',
+    createdAt: t.createdAt ? t.createdAt.toISOString().slice(0, 10) : '',
+    dueDate: t.dueDate || '',
+    resolvedAt: t.resolvedAt ? t.resolvedAt.toISOString().slice(0, 10) : '',
+  }));
+
+  sendCsv(res, 'tickets', TICKET_EXPORT_COLUMNS, rows);
+});
+
 // ==================== Customer happiness (pre-existing, untouched logic) ====================
 // Kept as its own report — not part of the new 5-category nav, but the
 // Settings -> Customer Happiness page promises "CSAT scores are available
@@ -985,4 +1032,5 @@ module.exports = {
   teamPerformance, teamPerformanceExport, slaCompliance, slaComplianceExport,
   timeBilling, timeBillingExport, projectsReport, projectsReportExport,
   contactsReport, contactsReportExport, csat,
+  ticketsExport,
 };

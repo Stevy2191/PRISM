@@ -4,7 +4,7 @@
 // instance, no Redis — see prism_backend_stack conventions), so a plain
 // setInterval is the right fit rather than adding one.
 const { Op } = require('sequelize');
-const { Ticket, WorkflowRuleLog } = require('../models');
+const { Ticket, WorkflowRuleLog, SystemSettings } = require('../models');
 const { getActiveRulesForTrigger, runRuleForTicket } = require('./workflowEngine');
 const { getTicketStatusBuckets } = require('./statusBehavior');
 
@@ -96,6 +96,14 @@ async function runChecks() {
     await checkOverdue();
   } catch (err) {
     console.error('[workflow-scheduler] overdue check failed:', err);
+  }
+  // Read by the Schedules settings page (schedulesController.js) — this
+  // scheduler has no other queryable "last run" record, unlike AD sync
+  // (AdSyncLog) and calendar sync (UserCalendarIntegration.lastSynced).
+  try {
+    await SystemSettings.upsert({ key: 'scheduler.workflowLastRun', value: new Date().toISOString() });
+  } catch (err) {
+    console.error('[workflow-scheduler] failed to record last-run timestamp:', err);
   }
 }
 

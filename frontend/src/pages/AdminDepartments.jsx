@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
@@ -107,6 +108,7 @@ export default function AdminDepartments() {
 
   return (
     <div className="space-y-5">
+      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-navy-900">Departments</h1>
         {!showForm && (

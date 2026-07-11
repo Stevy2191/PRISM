@@ -46,9 +46,19 @@ router.get('/favicon', ctrl.getFavicon);
 // Admin endpoints.
 const manageSystem = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_system')];
 const manageBranding = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_branding')];
-router.get('/', manageSystem, ctrl.get);
+// GET is widened to settings.manage_branding too — a branding-only role
+// (no manage_system) still needs to load the Company/Branding pages to use
+// its own logo/favicon-upload permission (manageBranding below). Safe to
+// widen: GET already redacts integration secrets to booleans via
+// redactSettings(). PUT/PATCH deliberately stay manage_system-only — the
+// same settings blob also holds integrations.* OAuth client secrets, and a
+// branding-only role writing to this endpoint could overwrite those, which
+// is a real permission escalation, not just a UX gap.
+const readSettings = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_system', 'settings.manage_branding')];
+router.get('/', readSettings, ctrl.get);
 router.put('/', manageSystem, ctrl.update);
 router.patch('/', manageSystem, ctrl.patch);
+router.post('/ldap/test', manageSystem, ctrl.testLdapConnection);
 router.post('/logo', manageBranding, logoUpload.single('file'), ctrl.uploadLogo);
 router.delete('/logo', manageBranding, ctrl.removeLogo);
 router.post('/favicon', manageBranding, faviconUpload.single('file'), ctrl.uploadFavicon);

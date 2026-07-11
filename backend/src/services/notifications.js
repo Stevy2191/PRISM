@@ -6,7 +6,7 @@
 // user's notifications or dashboard are fetched, and idempotently inserts at
 // most one notification per ticket per type.
 const { Op } = require('sequelize');
-const { Notification, Ticket, TicketWatcher } = require('../models');
+const { Notification, Ticket, TicketWatcher, SystemSettings } = require('../models');
 const { getTicketStatusBuckets } = require('./statusBehavior');
 
 const DUE_SOON_DAYS = 2;
@@ -16,8 +16,23 @@ function truncate(text, len) {
   return clean.length > len ? `${clean.slice(0, len)}…` : clean;
 }
 
+// Settings -> Notifications: a system-wide on/off per event type. Missing
+// or unparseable setting = everything enabled (matches the pre-this-feature
+// behavior, so an unconfigured instance doesn't suddenly go silent).
+async function isTypeEnabled(type) {
+  const row = await SystemSettings.findOne({ where: { key: 'notifications.enabledTypes' } });
+  if (!row?.value) return true;
+  try {
+    const enabled = JSON.parse(row.value);
+    return Array.isArray(enabled) ? enabled.includes(type) : true;
+  } catch {
+    return true;
+  }
+}
+
 async function createNotification({ userId, type, message, ticketId = null }) {
   if (!userId) return null;
+  if (!(await isTypeEnabled(type))) return null;
   return Notification.create({ userId, type, message, ticketId });
 }
 

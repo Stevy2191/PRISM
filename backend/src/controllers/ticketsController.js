@@ -32,6 +32,8 @@ const {
 } = require('../services/notifications');
 const { logActivity, resolveDisplayValue } = require('../services/ticketActivity');
 const { getTicketStatusBuckets, getTicketStatusBehaviorMap } = require('../services/statusBehavior');
+const { getAllSettings } = require('./settingsController');
+const { matchAssignmentRule } = require('./assignmentRulesController');
 const { calculateLaborCost } = require('../utils/laborCost');
 const { generateTicketReport } = require('../services/ticketReport');
 const { getUserTicketScope, hasPermission } = require('../services/permissionService');
@@ -233,6 +235,23 @@ const create = asyncHandler(async (req, res) => {
     : [];
   const parentId = parentTicketId ? parseInt(parentTicketId, 10) : null;
 
+  // Simple auto-assignment (Settings -> Assignment Rules) only kicks in when
+  // the caller didn't already pick an assignee/team explicitly — an
+  // explicit choice on the new-ticket form always wins.
+  let ruleAssigneeId = null;
+  let ruleTeamId = null;
+  if (!assigneeId && !teamId) {
+    const matched = await matchAssignmentRule({
+      type: type || 'request',
+      departmentId: departmentId || null,
+      priority: priority || 'medium',
+    });
+    if (matched) {
+      ruleAssigneeId = matched.assigneeId;
+      ruleTeamId = matched.teamId;
+    }
+  }
+
   const ticket = await sequelize.transaction(async (t) => {
     const created = await Ticket.create({
       title: title.trim(),
@@ -240,8 +259,8 @@ const create = asyncHandler(async (req, res) => {
       status: status || 'Open',
       priority: priority || 'medium',
       type: type || 'request',
-      assigneeId: assigneeId || null,
-      teamId: teamId || null,
+      assigneeId: assigneeId || ruleAssigneeId || null,
+      teamId: teamId || ruleTeamId || null,
       contactId,
       projectId: projectId || null,
       departmentId: departmentId || null,
@@ -350,6 +369,24 @@ const update = asyncHandler(async (req, res) => {
   TRACKED_ACTIVITY_FIELDS.forEach((f) => { before[f] = ticket[f]; });
   const previousAssigneeId = ticket.assigneeId;
   const previousStatus = ticket.status;
+
+  // System-wide "require time logged before close" (Settings -> Time
+  // Tracking) — only fires on a genuine transition INTO a closed-behavior
+  // status, not on every save of an already-closed ticket.
+  if (changes.status !== undefined && changes.status !== previousStatus) {
+    const behaviorByName = await getTicketStatusBehaviorMap();
+    const closingNow = behaviorByName.get(changes.status) === 'closed' && behaviorByName.get(previousStatus) !== 'closed';
+    if (closingNow) {
+      const settings = await getAllSettings();
+      if (settings['timeTracking.requireBeforeClose'] === 'true') {
+        const loggedCount = await TimeEntry.count({ where: { ticketId: ticket.id } });
+        if (!loggedCount) {
+          throw new ApiError(400, 'Log time on this ticket before closing it', 'TIME_REQUIRED_BEFORE_CLOSE');
+        }
+      }
+    }
+  }
+
   await sequelize.transaction(async (t) => {
     await ticket.update(changes, { transaction: t });
     if (req.body.customFieldValues) {

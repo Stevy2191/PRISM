@@ -84,6 +84,7 @@ export default function AdminRoles() {
 
   return (
     <div className="space-y-5">
+      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-navy-900">Roles & Permissions</h1>
         <Link to="/admin/roles/new" className="btn-primary">+ New role</Link>

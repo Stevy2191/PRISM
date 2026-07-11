@@ -37,6 +37,10 @@ router.get('/projects/export', canExport, ctrl.projectsReportExport);
 router.get('/contacts', ctrl.contactsReport);
 router.get('/contacts/export', canExport, ctrl.contactsReportExport);
 
+// Raw ticket-list CSV dump (Settings -> Export), distinct from the
+// aggregated Ticket Volume report above.
+router.get('/tickets/export', canExport, ctrl.ticketsExport);
+
 // Pre-existing customer happiness report (see Settings -> Customer Happiness).
 router.get('/csat', ctrl.csat);
 

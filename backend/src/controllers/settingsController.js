@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const { ldapConfig } = require('../config/ldap');
+const { ldapConfig, isConfigured, testConnection } = require('../config/ldap');
 const { SystemSettings } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -15,12 +15,17 @@ const DEFAULT_LOGIN_BULLETS = JSON.stringify([
   'API access',
 ]);
 
+// Every Notification.type value (see the model's ENUM) — all on by default.
+const ALL_NOTIFICATION_TYPES = ['assigned', 'comment', 'reply', 'overdue', 'due_soon', 'status_change', 'watcher_update', 'workflow'];
+const DEFAULT_NOTIFICATION_TYPES = JSON.stringify(ALL_NOTIFICATION_TYPES);
+
 // Defaults applied when a setting has not been configured.
 const DEFAULTS = {
   'company.name': 'Acme Corp',
   'company.supportEmail': '',
   'company.timezone': 'UTC',
   'company.dateFormat': 'YYYY-MM-DD',
+  'company.timeFormat': '12h',
   'company.language': 'en',
   'company.logoFilename': '',
   'company.faviconFilename': '',
@@ -38,10 +43,36 @@ const DEFAULTS = {
   'integrations.microsoftClientId': '',
   'integrations.microsoftClientSecret': '',
   'integrations.microsoftTenantId': '',
+
+  // System-wide time-tracking defaults (Settings -> Customization -> Time
+  // Tracking). defaultMode/defaultMinThreshold seed a new local user's own
+  // timerMode/timerMinThreshold at account-creation time (see
+  // usersController.js's create) — after that, each user's Preferences page
+  // fully overrides their own values, matching "system-wide default, users
+  // can override" from the spec. requireBeforeClose is enforced live on
+  // every ticket status change, not just at creation (see ticketsController
+  // .js's update).
+  'timeTracking.defaultMode': 'manual',
+  'timeTracking.defaultMinThreshold': '0',
+  'timeTracking.requireBeforeClose': 'false',
+
+  // General Settings -> inbound email + max attachment size. Inbound email
+  // is storage only — there's no SMTP/mail-receiving pipeline in this app
+  // yet, so this address isn't consumed by anything (see General Settings
+  // page copy, which is honest about that). Max attachment size IS live —
+  // read by upload.js as a soft ceiling under multer's hard limit.
+  'system.inboundEmailAddress': '',
+  'system.maxAttachmentSizeMB': '25',
+
+  // Settings -> Notifications: which event types are allowed to create an
+  // in-app notification at all (system-wide gate, not per-user). Checked in
+  // notifications.js's createNotification() — the single choke point every
+  // notification (event-driven or derived) already passes through.
+  'notifications.enabledTypes': DEFAULT_NOTIFICATION_TYPES,
 };
 
 // Settings that store JSON-encoded values rather than plain strings.
-const JSON_KEYS = ['branding.loginBullets'];
+const JSON_KEYS = ['branding.loginBullets', 'notifications.enabledTypes'];
 
 // Never sent back to the client once saved — GET/PUT/PATCH responses redact
 // these to '' (with a companion `<key>Set` boolean so the UI can still show
@@ -91,6 +122,7 @@ function publicShape(values) {
       supportEmail: values['company.supportEmail'],
       timezone: values['company.timezone'],
       dateFormat: values['company.dateFormat'],
+      timeFormat: values['company.timeFormat'],
       language: values['company.language'],
       hasLogo,
     },
@@ -143,18 +175,31 @@ const getFavicon = asyncHandler(async (req, res) => {
 });
 
 // GET /settings — Admin. All system settings + the read-only env/config viewer.
+function ldapUrlParts(url) {
+  try {
+    const u = new URL(url);
+    return { port: u.port || (u.protocol === 'ldaps:' ? '636' : '389'), ssl: u.protocol === 'ldaps:' };
+  } catch {
+    return { port: null, ssl: false };
+  }
+}
+
 const get = asyncHandler(async (req, res) => {
   const values = await getAllSettings();
+  const { port, ssl } = ldapUrlParts(ldapConfig.url);
   res.json({
     settings: redactSettings(values),
     public: publicShape(values),
     config: {
       ldap: {
         url: ldapConfig.url,
+        port,
+        ssl,
         baseDN: ldapConfig.baseDN,
         bindDN: ldapConfig.bindDN,
         userFilter: ldapConfig.userFilter,
         bindPasswordSet: !!ldapConfig.bindPassword,
+        isConfigured: isConfigured(),
       },
       database: {
         host: process.env.DB_HOST || null,
@@ -168,6 +213,15 @@ const get = asyncHandler(async (req, res) => {
       },
     },
   });
+});
+
+// POST /settings/ldap/test — attempts a real bind with the current
+// env-configured service account. Doesn't accept credentials in the
+// request; LDAP is env-var configured, not editable via this API (see
+// General Settings page copy).
+const testLdapConnection = asyncHandler(async (req, res) => {
+  const result = await testConnection();
+  res.json(result);
 });
 
 // Shared upsert logic for PUT/PATCH /settings — a map of key/value pairs.
@@ -295,4 +349,6 @@ module.exports = {
   removeFavicon,
   BRANDING_DIR,
   getAllSettings,
+  testLdapConnection,
+  ALL_NOTIFICATION_TYPES,
 };

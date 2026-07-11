@@ -2,6 +2,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
+import {
+  IconMoodSmile, IconBolt, IconShieldCheck, IconMail, IconTrash,
+} from '@tabler/icons-react';
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
 import Dashboard from './pages/Dashboard';
@@ -28,6 +31,13 @@ import SettingsTeams from './pages/settings/Teams';
 import SettingsModules from './pages/settings/Modules';
 import SettingsPreferences from './pages/settings/Preferences';
 import SettingsLayouts from './pages/settings/Layouts';
+import SettingsTimeTracking from './pages/settings/TimeTracking';
+import AssignmentRules from './pages/settings/AssignmentRules';
+import SLAs from './pages/settings/SLAs';
+import Schedules from './pages/settings/Schedules';
+import SettingsImport from './pages/settings/Import';
+import SettingsExport from './pages/settings/Export';
+import SettingsNotifications from './pages/settings/Notifications';
 import WorkflowRules from './pages/settings/WorkflowRules';
 import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
 import DirectorySync from './pages/settings/DirectorySync';
@@ -122,25 +132,24 @@ export default function App() {
         <Route path="/admin/settings" element={perm(<AdminSettings />, SYSTEM_KEYS)} />
 
         {/* Placeholders for sections specified later */}
-        <Route path="/settings/customer-happiness" element={perm(<Placeholder title="Customer Happiness" note="CSAT scores are available on the Reports page and on each ticket." />, SYSTEM_KEYS)} />
+        <Route path="/settings/customer-happiness" element={perm(<Placeholder title="Customer Happiness" icon={IconMoodSmile} note="Configure CSAT surveys sent to contacts after ticket closure. Coming in a future update." />, SYSTEM_KEYS)} />
         <Route path="/settings/layouts" element={perm(<SettingsLayouts />, SYSTEM_KEYS)} />
-        <Route path="/settings/email-templates" element={admin(<Placeholder title="Email Templates" />)} />
-        <Route path="/settings/notifications" element={staff(<Placeholder title="Notifications" />)} />
-        <Route path="/settings/general" element={admin(<Placeholder title="General Settings" note="System/LDAP configuration is shown read-only under Admin → General Settings." />)} />
-        <Route path="/settings/time-tracking" element={staff(<Placeholder title="Time Tracking" note="Time logging is available on tickets and projects; summaries are on Reports." />)} />
-        <Route path="/settings/assignment-rules" element={admin(<Placeholder title="Assignment Rules" />)} />
+        <Route path="/settings/email-templates" element={admin(<Placeholder title="Email Templates" icon={IconMail} note="Customize the content of outbound system emails like ticket created, ticket closed, and CSAT surveys. Coming in a future update." />)} />
+        <Route path="/settings/notifications" element={perm(<SettingsNotifications />, SYSTEM_KEYS)} />
+        <Route path="/settings/time-tracking" element={perm(<SettingsTimeTracking />, SYSTEM_KEYS)} />
+        <Route path="/settings/assignment-rules" element={perm(<AssignmentRules />, SYSTEM_KEYS)} />
         <Route path="/settings/workflow-rules" element={perm(<WorkflowRules />, SYSTEM_KEYS)} />
         <Route path="/settings/workflow-rules/new" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
         <Route path="/settings/workflow-rules/:id" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
         <Route path="/settings/directory-sync" element={perm(<DirectorySync />, SYSTEM_KEYS)} />
-        <Route path="/settings/macros" element={admin(<Placeholder title="Macros" />)} />
-        <Route path="/settings/slas" element={admin(<Placeholder title="SLAs" />)} />
-        <Route path="/settings/supervisor-rules" element={admin(<Placeholder title="Supervisor Rules" />)} />
-        <Route path="/settings/schedules" element={admin(<Placeholder title="Schedules" />)} />
-        <Route path="/settings/import" element={admin(<Placeholder title="Import" />)} />
-        <Route path="/settings/export" element={admin(<Placeholder title="Export" />)} />
+        <Route path="/settings/macros" element={admin(<Placeholder title="Macros" icon={IconBolt} note="Create one-click action sets that apply multiple changes to a ticket at once. Coming in a future update." />)} />
+        <Route path="/settings/slas" element={perm(<SLAs />, SYSTEM_KEYS)} />
+        <Route path="/settings/supervisor-rules" element={admin(<Placeholder title="Supervisor Rules" icon={IconShieldCheck} note="Automatic escalation rules that fire when tickets are idle too long. Coming in a future update." />)} />
+        <Route path="/settings/schedules" element={perm(<Schedules />, SYSTEM_KEYS)} />
+        <Route path="/settings/import" element={admin(<SettingsImport />)} />
+        <Route path="/settings/export" element={admin(<SettingsExport />)} />
         <Route path="/settings/audit-log" element={perm(<AuditLog />, AUDIT_LOG_KEYS)} />
-        <Route path="/settings/recycle-bin" element={admin(<Placeholder title="Recycle Bin" />)} />
+        <Route path="/settings/recycle-bin" element={admin(<Placeholder title="Recycle Bin" icon={IconTrash} note="Recover recently deleted tickets and contacts. Requires soft-delete support that isn't built yet. Coming in a future update." />)} />
         <Route path="/settings/calendar-integration" element={admin(<CalendarIntegration />)} />
       </Route>
 
