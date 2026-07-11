@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 
 // NOTE ON SCROLL TARGET: Layout.jsx's <main> (the content area under the
 // top nav / beside the sidebar) has no overflow/height constraint of its
@@ -117,6 +118,8 @@ const SECTIONS = [
 
 export default function SettingsHub() {
   const { user, hasAnyPermission } = useAuth();
+  const { settings } = useSettings();
+  const adConnected = !!settings?.ldap?.connected;
   const role = user?.role;
 
   const lastWriteAtRef = useRef(0);
@@ -194,7 +197,15 @@ export default function SettingsHub() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {section.items.map((it) => (
               <Link key={it.to} to={it.to} className="card p-5 transition hover:border-prism hover:shadow-md">
-                <p className="font-semibold text-navy-900">{it.label}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-semibold text-navy-900">{it.label}</p>
+                  {it.label === 'General Settings' && adConnected && (
+                    <span
+                      className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-500"
+                      title="Active Directory connected"
+                    />
+                  )}
+                </div>
                 <p className="mt-1 text-sm text-navy-500">{it.desc}</p>
               </Link>
             ))}

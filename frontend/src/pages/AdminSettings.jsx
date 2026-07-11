@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
+import LdapSection from './settings/LdapSection';
 
 const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney'];
 
@@ -29,8 +30,6 @@ export default function AdminSettings() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState(null);
 
   useEffect(() => {
     api.get('/settings')
@@ -67,19 +66,6 @@ export default function AdminSettings() {
     }
   };
 
-  const testLdap = async () => {
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const { data } = await api.post('/settings/ldap/test');
-      setTestResult(data);
-    } catch (err) {
-      setTestResult({ ok: false, message: errMessage(err) });
-    } finally {
-      setTesting(false);
-    }
-  };
-
   if (loading || !form) return <Spinner />;
   if (error && !config) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
 
@@ -92,38 +78,7 @@ export default function AdminSettings() {
       </div>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
-      <div className="card p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold text-navy-900">LDAP / Active Directory</h2>
-          <span className={`badge ${config.ldap.isConfigured ? 'bg-green-100 text-green-800' : 'bg-navy-100 text-navy-500'}`}>
-            {config.ldap.isConfigured ? 'Configured' : 'Not configured'}
-          </span>
-        </div>
-        <p className="mb-3 text-xs text-navy-400">
-          Read-only — set via LDAP_URL / LDAP_BASE_DN / LDAP_BIND_DN / LDAP_BIND_PASSWORD / LDAP_ENABLED
-          environment variables on the server, not editable here.
-        </p>
-        <Row label="LDAP URL" value={config.ldap.url} />
-        <Row label="Port" value={config.ldap.port} />
-        <Row label="SSL/TLS" value={config.ldap.ssl ? 'Enabled (ldaps://)' : 'Disabled'} />
-        <Row label="Base DN" value={config.ldap.baseDN} />
-        <Row label="Bind DN" value={config.ldap.bindDN} />
-        <Row label="User filter" value={config.ldap.userFilter} />
-        <div className="flex justify-between py-2 text-sm">
-          <span className="text-navy-500">Bind password</span>
-          <Bool value={config.ldap.bindPasswordSet} />
-        </div>
-        <div className="mt-3 flex items-center gap-3 border-t border-navy-100 pt-3">
-          <button type="button" className="btn-secondary text-sm" onClick={testLdap} disabled={testing}>
-            {testing ? 'Testing…' : 'Test connection'}
-          </button>
-          {testResult && (
-            <span className={`text-sm ${testResult.ok ? 'text-green-600' : 'text-red-600'}`}>
-              {testResult.message}
-            </span>
-          )}
-        </div>
-      </div>
+      <LdapSection />
 
       <form onSubmit={save} className="card space-y-4 p-5">
         <h2 className="font-semibold text-navy-900">System</h2>

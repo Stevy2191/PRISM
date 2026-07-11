@@ -1,6 +1,5 @@
 const path = require('path');
 const fs = require('fs');
-const { ldapConfig, isConfigured, testConnection } = require('../config/ldap');
 const { SystemSettings } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -140,6 +139,14 @@ function publicShape(values) {
       googleConfigured: !!(values['integrations.googleClientId'] && values['integrations.googleClientSecret']),
       microsoftConfigured: !!(values['integrations.microsoftClientId'] && values['integrations.microsoftClientSecret']),
     },
+    // Drives the green dot on the Settings hub's "General Settings" card —
+    // exposed here (rather than only on the manage_system-gated
+    // GET /settings/ldap) so any authenticated user can see it regardless
+    // of their own permissions, same reasoning as the integrations booleans
+    // above. "Connected" means database-configured AND has a successful
+    // test on record — not just "fields are filled in" (that's `configured`
+    // on GET /settings/ldap), matching the "configured and connected" spec.
+    ldap: { connected: !!(values['ldap.host'] && values['ldap.lastTestAt']) },
   };
 }
 
@@ -174,33 +181,16 @@ const getFavicon = asyncHandler(async (req, res) => {
   res.sendFile(filePath);
 });
 
-// GET /settings — Admin. All system settings + the read-only env/config viewer.
-function ldapUrlParts(url) {
-  try {
-    const u = new URL(url);
-    return { port: u.port || (u.protocol === 'ldaps:' ? '636' : '389'), ssl: u.protocol === 'ldaps:' };
-  } catch {
-    return { port: null, ssl: false };
-  }
-}
-
+// GET /settings — Admin. All system settings + the read-only env/config
+// viewer. LDAP config now lives on its own dedicated GET/PATCH /settings/ldap
+// (ldapSettingsController.js) — the config.ldap sub-object that used to be
+// here is gone, superseded by that.
 const get = asyncHandler(async (req, res) => {
   const values = await getAllSettings();
-  const { port, ssl } = ldapUrlParts(ldapConfig.url);
   res.json({
     settings: redactSettings(values),
     public: publicShape(values),
     config: {
-      ldap: {
-        url: ldapConfig.url,
-        port,
-        ssl,
-        baseDN: ldapConfig.baseDN,
-        bindDN: ldapConfig.bindDN,
-        userFilter: ldapConfig.userFilter,
-        bindPasswordSet: !!ldapConfig.bindPassword,
-        isConfigured: isConfigured(),
-      },
       database: {
         host: process.env.DB_HOST || null,
         port: process.env.DB_PORT || null,
@@ -213,15 +203,6 @@ const get = asyncHandler(async (req, res) => {
       },
     },
   });
-});
-
-// POST /settings/ldap/test — attempts a real bind with the current
-// env-configured service account. Doesn't accept credentials in the
-// request; LDAP is env-var configured, not editable via this API (see
-// General Settings page copy).
-const testLdapConnection = asyncHandler(async (req, res) => {
-  const result = await testConnection();
-  res.json(result);
 });
 
 // Shared upsert logic for PUT/PATCH /settings — a map of key/value pairs.
@@ -349,6 +330,5 @@ module.exports = {
   removeFavicon,
   BRANDING_DIR,
   getAllSettings,
-  testLdapConnection,
   ALL_NOTIFICATION_TYPES,
 };

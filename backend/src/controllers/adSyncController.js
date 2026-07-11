@@ -22,7 +22,7 @@ const getSettings = asyncHandler(async (req, res) => {
   res.json({
     enabled: enabledRaw === 'true',
     intervalHours: Number(intervalRaw),
-    ldapConfigured: isConfigured(),
+    ldapConfigured: await isConfigured(),
     lastSync: lastLog ? {
       status: lastLog.status,
       startedAt: lastLog.startedAt,
@@ -49,7 +49,7 @@ const saveSettings = asyncHandler(async (req, res) => {
 // POST /ad-sync/run — manual trigger; runs inline (no job queue in this app)
 // and returns once complete, so the frontend should show a loading state.
 const runNow = asyncHandler(async (req, res) => {
-  if (!isConfigured()) throw new ApiError(400, 'LDAP is not configured (see Settings -> General Settings)', 'LDAP_NOT_CONFIGURED');
+  if (!(await isConfigured())) throw new ApiError(400, 'LDAP is not configured (see Settings -> General Settings)', 'LDAP_NOT_CONFIGURED');
   const log = await runAdContactSync('manual');
   res.json({ log });
 });

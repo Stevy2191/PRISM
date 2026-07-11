@@ -20,7 +20,7 @@ async function maybeRunScheduledSync() {
     getSetting('adsync.enabled', 'false'),
     getSetting('adsync.intervalHours', '24'),
   ]);
-  if (enabledRaw !== 'true' || !isConfigured()) return;
+  if (enabledRaw !== 'true' || !(await isConfigured())) return;
 
   const intervalHours = Number(intervalRaw);
   if (!intervalHours || intervalHours <= 0) return; // 0 = manual only

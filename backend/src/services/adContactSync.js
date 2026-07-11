@@ -3,7 +3,7 @@
 // is configured for this feature.
 const { Op } = require('sequelize');
 const {
-  isConfigured, searchAllUsers, attr, attrAll, attrGuidHex, cnFromDn, isAccountDisabled,
+  isConfigured, resolveLdapConfig, searchAllUsers, attr, attrAll, attrGuidHex, cnFromDn, isAccountDisabled,
 } = require('../config/ldap');
 const { Contact, AdSyncLog, AdGroupMapping } = require('../models');
 const { logContactActivity } = require('../services/contactActivity');
@@ -22,15 +22,19 @@ function resolveDepartment(entry, groupMap) {
   return null;
 }
 
-function attributesFromEntry(entry) {
+// Attribute names come from the resolved LDAP config (Settings -> General
+// Settings -> Active Directory), not hardcoded AD names — a non-AD LDAP
+// directory can map these to whatever its own schema calls them.
+function attributesFromEntry(entry, config) {
   return {
-    firstName: attr(entry, 'givenName') || attr(entry, 'displayName') || attr(entry, 'sAMAccountName') || null,
-    lastName: attr(entry, 'sn') || '',
-    email: attr(entry, 'mail') || null,
-    phone: normalizePhoneLenient(attr(entry, 'telephoneNumber')),
+    firstName: attr(entry, config.firstNameAttr) || attr(entry, config.displayNameAttr) || attr(entry, config.usernameAttr) || null,
+    lastName: attr(entry, config.lastNameAttr) || '',
+    email: attr(entry, config.emailAttr) || null,
+    phone: normalizePhoneLenient(attr(entry, config.phoneAttr)),
     // title first; AD's `department` attribute is a fallback source for job
     // title only (per spec) — it does not drive PRISM's departmentId, which
-    // comes exclusively from group mapping.
+    // comes exclusively from group mapping. Not part of the configurable
+    // attribute set (AD-specific concepts, not exposed in the settings UI).
     jobTitle: attr(entry, 'title') || attr(entry, 'department') || null,
     guid: attrGuidHex(entry),
     disabled: isAccountDisabled(attr(entry, 'userAccountControl')),
@@ -59,8 +63,8 @@ async function deactivateContact(contact, counters) {
   counters.contactsDeactivated += 1;
 }
 
-async function processEnabledUser(entry, groupMap, counters) {
-  const a = attributesFromEntry(entry);
+async function processEnabledUser(entry, groupMap, counters, config) {
+  const a = attributesFromEntry(entry, config);
   if (!a.firstName && !a.email) return; // nothing usable to identify/create a contact with
 
   const departmentId = resolveDepartment(entry, groupMap);
@@ -110,12 +114,17 @@ async function runAdContactSync(triggeredBy = 'scheduled') {
   const errors = [];
 
   try {
-    if (!isConfigured()) {
+    if (!(await isConfigured())) {
       throw Object.assign(new Error('LDAP is not configured'), { code: 'LDAP_NOT_CONFIGURED' });
     }
 
+    // Resolved once and reused for both the search's requested attribute
+    // list and parsing the returned entries — must be the same config both
+    // times, or the attributes searchAllUsers() actually requested from the
+    // directory won't match what attributesFromEntry() looks for.
+    const config = await resolveLdapConfig();
     const [entries, mappings] = await Promise.all([
-      searchAllUsers(),
+      searchAllUsers(config),
       AdGroupMapping.findAll(),
     ]);
     const groupMap = new Map(mappings.map((m) => [m.adGroupName.toLowerCase(), m.departmentId]));
@@ -126,7 +135,7 @@ async function runAdContactSync(triggeredBy = 'scheduled') {
     for (const entry of entries) {
       counters.usersProcessed += 1;
       try {
-        const a = attributesFromEntry(entry);
+        const a = attributesFromEntry(entry, config);
         if (a.disabled) {
           // eslint-disable-next-line no-await-in-loop
           const existing = await findExistingContact(a.guid, a.email);
@@ -137,11 +146,11 @@ async function runAdContactSync(triggeredBy = 'scheduled') {
           }
         } else {
           // eslint-disable-next-line no-await-in-loop
-          const id = await processEnabledUser(entry, groupMap, counters);
+          const id = await processEnabledUser(entry, groupMap, counters, config);
           if (id) seenContactIds.add(id);
         }
       } catch (err) {
-        errors.push({ entry: attr(entry, 'sAMAccountName') || attr(entry, 'dn') || 'unknown', message: err.message });
+        errors.push({ entry: attr(entry, config.usernameAttr) || attr(entry, 'dn') || 'unknown', message: err.message });
       }
     }
 

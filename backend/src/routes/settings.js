@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const express = require('express');
 const multer = require('multer');
 const ctrl = require('../controllers/settingsController');
+const ldapCtrl = require('../controllers/ldapSettingsController');
 const { authenticate } = require('../middleware/auth');
 const { blockUntilPasswordChanged } = require('../middleware/role');
 const { requirePermission } = require('../middleware/requirePermission');
@@ -58,7 +59,9 @@ const readSettings = [authenticate, blockUntilPasswordChanged, requirePermission
 router.get('/', readSettings, ctrl.get);
 router.put('/', manageSystem, ctrl.update);
 router.patch('/', manageSystem, ctrl.patch);
-router.post('/ldap/test', manageSystem, ctrl.testLdapConnection);
+router.get('/ldap', manageSystem, ldapCtrl.get);
+router.patch('/ldap', manageSystem, ldapCtrl.update);
+router.post('/ldap/test', manageSystem, ldapCtrl.test);
 router.post('/logo', manageBranding, logoUpload.single('file'), ctrl.uploadLogo);
 router.delete('/logo', manageBranding, ctrl.removeLogo);
 router.post('/favicon', manageBranding, faviconUpload.single('file'), ctrl.uploadFavicon);

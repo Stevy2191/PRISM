@@ -63,7 +63,7 @@ async function loginUnified(identifier, password) {
   }
 
   // 2. No local account — try AD if it is configured.
-  if (!isLdapConfigured()) {
+  if (!(await isLdapConfigured())) {
     throw new ApiError(401, 'Invalid username or password', 'INVALID_CREDENTIALS');
   }
 
