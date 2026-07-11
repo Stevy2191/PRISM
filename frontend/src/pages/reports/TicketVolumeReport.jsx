@@ -52,7 +52,7 @@ export default function TicketVolumeReport({ filters, onForbidden }) {
         <MultiLineChart data={data.chartData.volumeOverTime} xKey="date" lines={[{ dataKey: 'count', label: 'Created', color: PALETTE[0] }]} />
       </ChartCard>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
         <ChartCard title="Tickets by status">
           <SimpleBarChart data={data.chartData.byStatus} color={PALETTE[0]} colorForName={colorForStatus} />
         </ChartCard>
@@ -61,6 +61,9 @@ export default function TicketVolumeReport({ filters, onForbidden }) {
         </ChartCard>
         <ChartCard title="Tickets by priority">
           <SimpleBarChart data={data.chartData.byPriority} color={PALETTE[4]} />
+        </ChartCard>
+        <ChartCard title="Tickets by source">
+          <SimpleBarChart data={data.chartData.bySource} color={PALETTE[2]} />
         </ChartCard>
       </div>
 

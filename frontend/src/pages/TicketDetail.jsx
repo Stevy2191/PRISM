@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   IconPaperclip, IconAt, IconArrowUp, IconArrowDown, IconX, IconUpload,
   IconFile, IconTrash, IconPlayerPlayFilled, IconPlayerStopFilled, IconPlayerPauseFilled,
-  IconLock, IconWorld, IconAlertTriangle, IconLink, IconFileText,
+  IconLock, IconWorld, IconAlertTriangle, IconLink, IconFileText, IconMail, IconPhone,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
@@ -45,6 +45,27 @@ const PRIORITY_META = {
   medium: { label: 'Medium', color: 'var(--color-accent)' },
   low: { label: 'Low', color: 'var(--color-text-muted)' },
 };
+// Hardcoded colors (not theme CSS variables) per spec — these identify how
+// a ticket entered the system and should read the same regardless of theme.
+const SOURCE_META = {
+  manual: { label: 'Manual', color: '#64748b', icon: null },
+  email: { label: 'Email', color: '#2563eb', icon: IconMail },
+  phone: { label: 'Phone', color: '#16a34a', icon: IconPhone },
+  portal: { label: 'Portal', color: '#7c3aed', icon: IconWorld },
+};
+function SourceBadge({ source }) {
+  const meta = SOURCE_META[source] || SOURCE_META.manual;
+  const Icon = meta.icon;
+  return (
+    <span
+      className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+      style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
+    >
+      {Icon && <Icon size={12} />}
+      {meta.label}
+    </span>
+  );
+}
 // Status name -> {color, behaviorType} lookup built from the fetched
 // ticket-statuses list (Settings -> Statuses), replacing what used to be a
 // fixed label/class map — colors are now arbitrary admin-chosen hex values.
@@ -2154,6 +2175,7 @@ export default function TicketDetail() {
         <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <span className="font-mono text-lg" style={{ color: MUTED }}>{formatTicketId(ticket)}</span>
+            <SourceBadge source={ticket.source} />
             <h1 className="text-xl font-bold" style={{ color: TEXT }}>{ticket.title}</h1>
             {(() => {
               const statusMeta = findStatus(ticketStatuses, ticket.status);

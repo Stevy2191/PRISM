@@ -90,7 +90,7 @@ const FIELD_DEFS = {
 };
 
 const GROUP_BY_OPTIONS = {
-  tickets: ['department', 'assignee', 'status', 'priority', 'month', 'type'],
+  tickets: ['department', 'assignee', 'status', 'priority', 'month', 'type', 'source'],
   projects: ['department', 'status', 'month'],
   time_entries: ['tech', 'month', 'ticket', 'project'],
   expenses_materials: [],
@@ -132,6 +132,7 @@ async function loadTicketRecords(req, filters) {
   if (filters.status) where.status = filters.status;
   if (filters.priority) where.priority = filters.priority;
   if (filters.assigneeId) where.assigneeId = filters.assigneeId;
+  if (filters.source) where.source = filters.source;
 
   const tickets = await Ticket.findAll({
     where,
@@ -170,7 +171,7 @@ async function loadTicketRecords(req, filters) {
       dueDate: t.dueDate || '',
       resolutionHours,
       timeLoggedHours: Math.round(((minutesByTicket.get(t.id) || 0) / 60) * 10) / 10,
-      source: 'Manual',
+      source: t.source,
       tags: Array.isArray(t.tags) ? t.tags.join(', ') : '',
       _departmentName: t.department?.name || 'Unassigned',
       _assigneeName: t.assignee?.displayName || 'Unassigned',
@@ -438,6 +439,7 @@ function groupKeyFor(dataSource, groupBy, record) {
     if (groupBy === 'status') return record.status;
     if (groupBy === 'priority') return record.priority;
     if (groupBy === 'type') return record.type;
+    if (groupBy === 'source') return record.source;
     if (groupBy === 'month') return record._month;
   }
   if (dataSource === 'projects') {

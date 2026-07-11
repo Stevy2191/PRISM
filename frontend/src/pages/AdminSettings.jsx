@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
 import LdapSection from './settings/LdapSection';
+import InboundEmailSection from './settings/InboundEmailSection';
+import OutboundEmailSection from './settings/OutboundEmailSection';
 
 const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney'];
 
@@ -36,7 +38,6 @@ export default function AdminSettings() {
       .then(({ data }) => {
         setConfig(data.config);
         setForm({
-          inboundEmailAddress: data.settings['system.inboundEmailAddress'] || '',
           maxAttachmentSizeMB: data.settings['system.maxAttachmentSizeMB'] || '25',
           timezone: data.settings['company.timezone'] || 'UTC',
         });
@@ -52,7 +53,6 @@ export default function AdminSettings() {
     try {
       await api.put('/settings', {
         settings: {
-          'system.inboundEmailAddress': form.inboundEmailAddress,
           'system.maxAttachmentSizeMB': String(form.maxAttachmentSizeMB),
           'company.timezone': form.timezone,
         },
@@ -80,6 +80,18 @@ export default function AdminSettings() {
 
       <LdapSection />
 
+      <InboundEmailSection />
+      <OutboundEmailSection />
+      <div className="card p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-navy-900">Email Log</h2>
+            <p className="mt-1 text-xs text-navy-400">See why an inbound email did or didn't create a ticket.</p>
+          </div>
+          <Link to="/settings/email-log" className="btn-secondary text-sm">View log</Link>
+        </div>
+      </div>
+
       <form onSubmit={save} className="card space-y-4 p-5">
         <h2 className="font-semibold text-navy-900">System</h2>
 
@@ -89,19 +101,6 @@ export default function AdminSettings() {
             {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
           </select>
           <p className="mt-1 text-xs text-navy-400">Same value as Company → Timezone — editing it here updates that too.</p>
-        </div>
-
-        <div>
-          <label className="label">Inbound email address</label>
-          <input
-            type="email" className="input max-w-sm" placeholder="support@yourcompany.com"
-            value={form.inboundEmailAddress}
-            onChange={(e) => setForm((f) => ({ ...f, inboundEmailAddress: e.target.value }))}
-          />
-          <p className="mt-1 text-xs text-navy-400">
-            The address email-to-ticket would forward from. Stored for future use — PRISM doesn't
-            yet have an inbound email processor, so nothing is created from this address today.
-          </p>
         </div>
 
         <div>

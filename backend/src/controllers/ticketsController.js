@@ -18,6 +18,7 @@ const {
   Contact,
   Project,
   Department,
+  SystemSettings,
   sequelize,
 } = require('../models');
 const { Op } = require('sequelize');
@@ -34,6 +35,8 @@ const { logActivity, resolveDisplayValue } = require('../services/ticketActivity
 const { getTicketStatusBuckets, getTicketStatusBehaviorMap } = require('../services/statusBehavior');
 const { getAllSettings } = require('./settingsController');
 const { matchAssignmentRule } = require('./assignmentRulesController');
+const { sendMail } = require('../services/emailSender');
+const { buildTicketMessageId } = require('../services/inboundEmailService');
 const { calculateLaborCost } = require('../utils/laborCost');
 const { generateTicketReport } = require('../services/ticketReport');
 const { getUserTicketScope, hasPermission } = require('../services/permissionService');
@@ -131,7 +134,7 @@ const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'creat
 const list = asyncHandler(async (req, res) => {
   const where = {};
   const {
-    status, priority, assignee, project, department, contactId, type, team,
+    status, priority, assignee, project, department, contactId, type, team, source,
     search, myTickets, overdue, unassigned, sortBy, sortDir,
   } = req.query;
 
@@ -141,6 +144,7 @@ const list = asyncHandler(async (req, res) => {
   if (status) where.status = status === 'closed' ? { [Op.in]: buckets.closed } : status;
   if (priority) where.priority = priority;
   if (type) where.type = type;
+  if (source) where.source = source;
   if (assignee) where.assigneeId = assignee;
   if (project) where.projectId = project;
   if (department) where.departmentId = department;
@@ -215,7 +219,7 @@ const create = asyncHandler(async (req, res) => {
   const {
     title, description, priority, type, status, projectId, departmentId, dueDate, dueTime,
     blueprintId, customFields, teamId, tags, watcherIds, parentTicketId, childTicketIds, relatedTicketIds,
-    assigneeId, contactId,
+    assigneeId, contactId, source,
   } = req.body || {};
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
@@ -223,6 +227,11 @@ const create = asyncHandler(async (req, res) => {
   if (!contactId) {
     throw new ApiError(400, 'A contact is required', 'VALIDATION_ERROR');
   }
+  // 'email'/'portal' are system-set only (inbound email processing / future
+  // customer portal, both create tickets internally rather than through
+  // this HTTP endpoint) — a caller of this API can only pick manual/phone,
+  // same restriction the create-ticket form's dropdown itself enforces.
+  const resolvedSource = ['manual', 'phone'].includes(source) ? source : 'manual';
 
   const watcherIdList = Array.isArray(watcherIds)
     ? [...new Set(watcherIds.map((id) => parseInt(id, 10)).filter(Boolean))]
@@ -259,6 +268,7 @@ const create = asyncHandler(async (req, res) => {
       status: status || 'Open',
       priority: priority || 'medium',
       type: type || 'request',
+      source: resolvedSource,
       assigneeId: assigneeId || ruleAssigneeId || null,
       teamId: teamId || ruleTeamId || null,
       contactId,
@@ -489,6 +499,25 @@ const listComments = asyncHandler(async (req, res) => {
   res.json({ comments });
 });
 
+// Emails a customer-visible reply out to the ticket's contact — fire-and-
+// forget from the caller's perspective (see call site below): an
+// unconfigured or briefly-down SMTP server must never block the comment
+// itself from saving, so this is never awaited on the response path.
+async function sendReplyEmailToContact(ticket, comment, authorUser) {
+  const contact = await Contact.findByPk(ticket.contactId);
+  if (!contact || !contact.email) return;
+
+  const ticketNumber = String(ticket.id).padStart(5, '0');
+  const smtpFromRow = await SystemSettings.findOne({ where: { key: 'smtp.fromEmail' } });
+  await sendMail({
+    to: contact.email,
+    subject: `Re: [Ticket #${ticketNumber}] ${ticket.title}`,
+    text: `${comment.body}\n\n--\nReply to this email to respond to your ticket.`,
+    headers: { 'X-PRISM-Ticket-ID': ticketNumber },
+    messageId: buildTicketMessageId(ticket.id, smtpFromRow?.value),
+  });
+}
+
 // POST /tickets/:id/comments
 const createComment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
@@ -535,6 +564,14 @@ const createComment = asyncHandler(async (req, res) => {
       `Someone commented on ticket you're watching: ${ticket.title}`,
       [req.user.id, ticket.assigneeId]
     );
+    // Fire-and-forget: only a human-authored reply through this HTTP
+    // endpoint emails the contact — inbound-email-created reply comments
+    // are written directly via Comment.create() in inboundEmailService.js,
+    // never through here, so there's no risk of mailing a reply back in
+    // response to the email that created it.
+    sendReplyEmailToContact(ticket, comment, req.user).catch((err) => {
+      console.error('[ticket-reply-email] failed to send for ticket', ticket.id, err.message);
+    });
   }
 
   await evaluateRules(ticket.id, 'ticket_comment_added');

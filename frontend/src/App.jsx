@@ -53,6 +53,7 @@ import AdminDepartments from './pages/AdminDepartments';
 import AdminBlueprints from './pages/AdminBlueprints';
 import AdminApiKeys from './pages/AdminApiKeys';
 import AdminSettings from './pages/AdminSettings';
+import EmailLog from './pages/settings/EmailLog';
 import AuditLog from './pages/settings/AuditLog';
 
 const admin = (el) => <ProtectedRoute roles={['admin']}>{el}</ProtectedRoute>;
@@ -130,6 +131,7 @@ export default function App() {
         <Route path="/admin/blueprints" element={staff(<AdminBlueprints />)} />
         <Route path="/admin/apikeys" element={<AdminApiKeys />} />
         <Route path="/admin/settings" element={perm(<AdminSettings />, SYSTEM_KEYS)} />
+        <Route path="/settings/email-log" element={perm(<EmailLog />, SYSTEM_KEYS)} />
 
         {/* Placeholders for sections specified later */}
         <Route path="/settings/customer-happiness" element={perm(<Placeholder title="Customer Happiness" icon={IconMoodSmile} note="Configure CSAT surveys sent to contacts after ticket closure. Coming in a future update." />, SYSTEM_KEYS)} />

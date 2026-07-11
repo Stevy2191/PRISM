@@ -45,6 +45,15 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: 'request',
       },
+      // How this ticket came into existence. 'email'/'portal' are only ever
+      // set by the system (inbound email processing / future customer
+      // portal) — never selectable on the manual ticket-creation form,
+      // which only offers 'manual'/'phone'.
+      source: {
+        type: DataTypes.ENUM('manual', 'email', 'phone', 'portal'),
+        allowNull: false,
+        defaultValue: 'manual',
+      },
       assigneeId: {
         type: DataTypes.INTEGER,
         allowNull: true,

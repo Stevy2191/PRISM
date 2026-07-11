@@ -61,6 +61,7 @@ const AdSyncLog = require('./AdSyncLog')(sequelize);
 const AdGroupMapping = require('./AdGroupMapping')(sequelize);
 const AssignmentRule = require('./AssignmentRule')(sequelize);
 const SlaPolicy = require('./SlaPolicy')(sequelize);
+const EmailProcessingLog = require('./EmailProcessingLog')(sequelize);
 
 const db = {
   sequelize,
@@ -123,6 +124,7 @@ const db = {
   ProjectIdSequence,
   AssignmentRule,
   SlaPolicy,
+  EmailProcessingLog,
 };
 
 // ---- Associations ----
@@ -379,6 +381,9 @@ AssignmentRule.belongsTo(Department, { foreignKey: 'departmentId', as: 'departme
 AssignmentRule.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
 AssignmentRule.belongsTo(Team, { foreignKey: 'teamId', as: 'team' });
 AssignmentRule.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+
+// Inbound email processing log
+EmailProcessingLog.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 
 // Per-department project-ID sequence
 Department.hasOne(ProjectIdSequence, { foreignKey: 'departmentId', as: 'projectIdSequence' });

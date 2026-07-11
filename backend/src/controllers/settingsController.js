@@ -55,12 +55,10 @@ const DEFAULTS = {
   'timeTracking.defaultMinThreshold': '0',
   'timeTracking.requireBeforeClose': 'false',
 
-  // General Settings -> inbound email + max attachment size. Inbound email
-  // is storage only — there's no SMTP/mail-receiving pipeline in this app
-  // yet, so this address isn't consumed by anything (see General Settings
-  // page copy, which is honest about that). Max attachment size IS live —
-  // read by upload.js as a soft ceiling under multer's hard limit.
-  'system.inboundEmailAddress': '',
+  // General Settings -> max attachment size — read by upload.js as a soft
+  // ceiling under multer's hard limit. (The old system.inboundEmailAddress
+  // storage-only stub is gone — superseded by the real inboundEmail.*
+  // config below, which actually has a mail-receiving pipeline behind it.)
   'system.maxAttachmentSizeMB': '25',
 
   // Settings -> Notifications: which event types are allowed to create an

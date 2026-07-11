@@ -52,6 +52,14 @@ async function getFirstProjectStatusByBehavior(behaviorType) {
   return ProjectStatus.findOne({ where: { behaviorType }, order: [['position', 'ASC']] });
 }
 
+// Same idea for tickets — used by inbound email processing, which creates
+// tickets with no explicit status (there's no form to pick one from), so it
+// needs "whatever the admin's first open-behavior status is" rather than a
+// hardcoded 'Open' literal (an admin may have renamed or reordered statuses).
+async function getFirstTicketStatusByBehavior(behaviorType) {
+  return TicketStatus.findOne({ where: { behaviorType }, order: [['position', 'ASC']] });
+}
+
 module.exports = {
   getTicketStatusBuckets,
   getTicketStatusBehaviorMap,
@@ -59,4 +67,5 @@ module.exports = {
   getProjectStatusBehaviorMap,
   getProjectStatusIdBehaviorMap,
   getFirstProjectStatusByBehavior,
+  getFirstTicketStatusByBehavior,
 };

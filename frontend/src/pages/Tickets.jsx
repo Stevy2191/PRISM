@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { IconMail, IconPhone, IconWorld } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
 import { useAuth, usePermission } from '../context/AuthContext';
@@ -41,10 +42,18 @@ const PRIORITY_META = {
   medium: { label: 'Medium', color: 'var(--color-accent)' },
   low: { label: 'Low', color: 'var(--color-text-muted)' },
 };
+// Hardcoded colors (not theme CSS variables) per spec — identifies how a
+// ticket entered the system, should read the same regardless of theme.
+const SOURCE_META = {
+  manual: { label: 'Manual', color: '#64748b', icon: null },
+  email: { label: 'Email', color: '#2563eb', icon: IconMail },
+  phone: { label: 'Phone', color: '#16a34a', icon: IconPhone },
+  portal: { label: 'Portal', color: '#7c3aed', icon: IconWorld },
+};
 
 const FIXED_COLUMNS = ['id', 'title'];
 const DEFAULT_COLUMN_ORDER = [
-  'priority', 'status', 'dueDate', 'assignee', 'type', 'team', 'timeLogged', 'createdDate', 'actions',
+  'priority', 'status', 'dueDate', 'assignee', 'type', 'source', 'team', 'timeLogged', 'createdDate', 'actions',
 ];
 const COLUMN_LABELS = {
   id: '#',
@@ -54,6 +63,7 @@ const COLUMN_LABELS = {
   dueDate: 'Due date',
   assignee: 'Assignee',
   type: 'Type',
+  source: 'Source',
   team: 'Team',
   timeLogged: 'Time logged',
   createdDate: 'Created date',
@@ -132,6 +142,20 @@ function PriorityCell({ priority }) {
   return (
     <span className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>
       <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: meta.color }} />
+      {meta.label}
+    </span>
+  );
+}
+
+function SourceCell({ source }) {
+  const meta = SOURCE_META[source] || SOURCE_META.manual;
+  const Icon = meta.icon;
+  return (
+    <span
+      className="flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+      style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
+    >
+      {Icon && <Icon size={11} />}
       {meta.label}
     </span>
   );
@@ -419,6 +443,7 @@ export default function Tickets() {
   const [myTickets, setMyTickets] = useState(false);
   const [overdue, setOverdue] = useState(false);
   const [unassigned, setUnassigned] = useState(false);
+  const [newFromEmail, setNewFromEmail] = useState(false);
   const [sort, setSort] = useState({ key: 'updatedAt', dir: 'desc' });
 
   const [view, setView] = useState('table');
@@ -486,6 +511,7 @@ export default function Tickets() {
     if (myTickets) params.myTickets = 'true';
     if (overdue) params.overdue = 'true';
     if (unassigned) params.unassigned = 'true';
+    if (newFromEmail) { params.source = 'email'; params.unassigned = 'true'; }
     params.sortBy = SORTABLE_COLUMNS[sort.key] || 'updatedAt';
     params.sortDir = sort.dir;
 
@@ -494,7 +520,7 @@ export default function Tickets() {
       .then(({ data }) => setTickets(data.tickets))
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
-  }, [search, status, priority, assignee, myTickets, overdue, unassigned, sort]);
+  }, [search, status, priority, assignee, myTickets, overdue, unassigned, newFromEmail, sort]);
 
   useEffect(() => {
     const t = setTimeout(load, search ? 300 : 0);
@@ -515,12 +541,13 @@ export default function Tickets() {
     setMyTickets(!!fj.myTickets);
     setOverdue(!!fj.overdue);
     setUnassigned(!!fj.unassigned);
+    setNewFromEmail(!!fj.newFromEmail);
     if (fj.sortKey) setSort({ key: fj.sortKey, dir: fj.sortDir || 'desc' });
     setActiveSavedFilterId(f.id);
   };
 
   const saveCurrentFilter = async (name) => {
-    const filterJson = { search, status, priority, assignee, myTickets, overdue, unassigned, sortKey: sort.key, sortDir: sort.dir };
+    const filterJson = { search, status, priority, assignee, myTickets, overdue, unassigned, newFromEmail, sortKey: sort.key, sortDir: sort.dir };
     try {
       const { data } = await api.post('/saved-filters', { name, filterJson });
       setSavedFilters((prev) => [...prev, data.savedFilter]);
@@ -549,6 +576,7 @@ export default function Tickets() {
   const toggleMyTickets = () => { clearActiveSavedFilter(); setMyTickets((v) => !v); };
   const toggleOverdue = () => { clearActiveSavedFilter(); setOverdue((v) => !v); };
   const toggleUnassigned = () => { clearActiveSavedFilter(); setUnassigned((v) => !v); };
+  const toggleNewFromEmail = () => { clearActiveSavedFilter(); setNewFromEmail((v) => !v); };
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -701,6 +729,16 @@ export default function Tickets() {
             style={{ borderColor: unassigned ? BLUE : BORDER, backgroundColor: unassigned ? BLUE : CARD_BG, color: unassigned ? 'white' : TEXT }}
           >
             Unassigned
+          </button>
+          <button
+            type="button"
+            onClick={toggleNewFromEmail}
+            title="Unassigned tickets created from inbound email"
+            className={`${filterButtonCls(newFromEmail)} flex-shrink-0 flex items-center gap-1.5`}
+            style={{ borderColor: newFromEmail ? '#2563eb' : BORDER, backgroundColor: newFromEmail ? '#2563eb' : CARD_BG, color: newFromEmail ? 'white' : TEXT }}
+          >
+            <IconMail size={13} />
+            New from email
           </button>
 
           <div className="flex flex-shrink-0 items-center gap-2">
@@ -953,6 +991,7 @@ export default function Tickets() {
                         {key === 'dueDate' && <DueDateCell dueDate={t.dueDate} />}
                         {key === 'assignee' && <Avatar name={t.assignee?.displayName} />}
                         {key === 'type' && <span className="text-sm capitalize" style={{ color: TEXT }}>{t.type}</span>}
+                        {key === 'source' && <SourceCell source={t.source} />}
                         {key === 'team' && <span className="text-sm" style={{ color: TEXT }}>{t.team?.name || '—'}</span>}
                         {key === 'timeLogged' && <span className="text-sm" style={{ color: TEXT }}>{formatMinutes(t.timeLoggedMinutes)}</span>}
                         {key === 'createdDate' && <span className="text-sm" style={{ color: MUTED }}>{new Date(t.createdAt).toLocaleDateString()}</span>}

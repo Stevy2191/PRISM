@@ -32,6 +32,14 @@ const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low' },
 ];
 
+// Email/Portal are system-set only (inbound email processing / future
+// customer portal) — never offered here, matching the backend's own
+// restriction to manual/phone on this endpoint.
+const SOURCE_OPTIONS = [
+  { value: 'manual', label: 'Manual' },
+  { value: 'phone', label: 'Phone' },
+];
+
 function Required() {
   return <span style={{ color: 'var(--color-danger)' }}> *</span>;
 }
@@ -459,6 +467,7 @@ export default function TicketNew() {
   const [description, setDescription] = useState('');
   const [type, setType] = useState('request');
   const [priority, setPriority] = useState('medium');
+  const [source, setSource] = useState('manual');
   const [tags, setTags] = useState([]);
 
   const [directory, setDirectory] = useState([]);
@@ -593,6 +602,7 @@ export default function TicketNew() {
         description: description || undefined,
         type,
         priority,
+        source,
         tags: tags.length ? tags : undefined,
         departmentId: customerDeptId || undefined,
         dueDate: dueDate || undefined,
@@ -663,7 +673,7 @@ export default function TicketNew() {
               style={{ ...fieldStyle, minHeight: '90px' }}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label required>Type</Label>
               <select value={type} onChange={(e) => setType(e.target.value)} required className="input" style={fieldStyle}>
@@ -674,6 +684,12 @@ export default function TicketNew() {
               <Label required>Priority</Label>
               <select value={priority} onChange={(e) => setPriority(e.target.value)} required className="input" style={fieldStyle}>
                 {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label required>Source</Label>
+              <select value={source} onChange={(e) => setSource(e.target.value)} required className="input" style={fieldStyle}>
+                {SOURCE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
           </div>

@@ -16,7 +16,7 @@ const VIS_OPTIONS = [
 // Which generic filter controls are relevant per data source — the filter
 // panel only shows what applies, per spec's per-source filter list.
 const FILTER_APPLICABILITY = {
-  tickets: ['dateRange', 'dateField', 'department', 'assignee', 'status', 'priority', 'tag', 'customField'],
+  tickets: ['dateRange', 'dateField', 'department', 'assignee', 'status', 'priority', 'source', 'tag', 'customField'],
   projects: ['dateRange', 'dateField', 'department', 'status', 'tag'],
   time_entries: ['dateRange', 'department', 'assignee', 'userType'],
   expenses_materials: ['dateRange', 'department'],
@@ -30,7 +30,7 @@ const DATE_FIELD_OPTIONS = {
 
 const EMPTY_FILTERS = {
   startDate: '', endDate: '', dateField: 'createdAt', departmentId: '', assigneeId: '',
-  status: '', priority: '', userType: '', tag: '', customFieldKey: '', customFieldValue: '',
+  status: '', priority: '', source: '', userType: '', tag: '', customFieldKey: '', customFieldValue: '',
 };
 
 function filtersToPayload(filters) {
@@ -42,6 +42,7 @@ function filtersToPayload(filters) {
   if (filters.assigneeId) payload.assigneeId = filters.assigneeId;
   if (filters.status) payload.status = filters.status;
   if (filters.priority) payload.priority = filters.priority;
+  if (filters.source) payload.source = filters.source;
   if (filters.userType) payload.userType = filters.userType;
   if (filters.tag) payload.tag = filters.tag;
   if (filters.customFieldKey) payload.customField = { key: filters.customFieldKey, value: filters.customFieldValue };
@@ -306,6 +307,18 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
                   <option value="critical">Critical</option>
+                </select>
+              </div>
+            )}
+            {applicableFilters.includes('source') && (
+              <div>
+                <label className="label">Source</label>
+                <select className="input h-9" value={filters.source} onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value }))}>
+                  <option value="">Any source</option>
+                  <option value="manual">Manual</option>
+                  <option value="phone">Phone</option>
+                  <option value="email">Email</option>
+                  <option value="portal">Portal</option>
                 </select>
               </div>
             )}
