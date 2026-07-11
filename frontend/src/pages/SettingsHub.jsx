@@ -1,8 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const SCROLL_KEY = 'settings_scroll';
+// NOTE ON SCROLL TARGET: Layout.jsx's <main> (the content area under the
+// top nav / beside the sidebar) has no overflow/height constraint of its
+// own — grep confirms the only overflow-y-auto elements anywhere in the
+// nav shell are the nav menus themselves, not the page content area. That
+// means the page genuinely scrolls at the window/document level, not
+// inside a nested container, so this uses window.scrollY / window.scrollTo
+// rather than a container ref. A ref pointed at a non-scrolling div would
+// always read scrollTop === 0 and silently do nothing.
+export const SETTINGS_SCROLL_KEY = 'settings_scroll_y';
+const SCROLL_KEY = SETTINGS_SCROLL_KEY;
+const THROTTLE_MS = 100;
 
 // sessionStorage can throw (private browsing with storage disabled, quota
 // exceeded, etc.) — every call here is wrapped so a storage failure never
@@ -14,16 +24,9 @@ function readStoredScroll() {
     return null;
   }
 }
-function clearStoredScroll() {
+function writeStoredScroll(y) {
   try {
-    sessionStorage.removeItem(SCROLL_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-function saveScroll() {
-  try {
-    sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+    sessionStorage.setItem(SCROLL_KEY, String(y));
   } catch {
     /* ignore */
   }
@@ -116,25 +119,57 @@ export default function SettingsHub() {
   const { user, hasAnyPermission } = useAuth();
   const role = user?.role;
 
-  // Restore the scroll position saved when the user last left this page for
-  // a sub-page (see the save effect below). The short delay lets the
-  // section grid finish rendering/laying out first — scrolling immediately
-  // on mount can land short if the page's full height isn't committed yet.
+  const lastWriteAtRef = useRef(0);
+  const trailingTimerRef = useRef(null);
+
+  // Restore the scroll position saved from the last time this page was
+  // left. requestAnimationFrame defers until after the browser has painted
+  // the freshly-mounted page, so the scrollable height being measured is
+  // the real, settled one. Deliberately does NOT clear the stored value —
+  // clearing happens only when the user navigates away from the whole
+  // settings/admin area (see Layout.jsx), so repeated back-and-forth
+  // navigation within Settings keeps restoring correctly. (An earlier
+  // version cleared the value synchronously inside this same effect body,
+  // before the deferred restore ran — under React.StrictMode's dev-only
+  // double-invoke-on-mount, that meant the first invocation's clear wiped
+  // the value before the second, real mount ever got to read it, so the
+  // restore silently never fired.)
   useEffect(() => {
     const saved = readStoredScroll();
     if (saved === null) return undefined;
-    clearStoredScroll();
     const y = Number(saved);
     if (!Number.isFinite(y)) return undefined;
-    const timer = setTimeout(() => window.scrollTo(0, y), 50);
-    return () => clearTimeout(timer);
+    const raf = requestAnimationFrame(() => window.scrollTo(0, y));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Save scroll position on unmount — fires for every way of navigating to
-  // a sub-page (a "← Back to Settings"-style nav link click, browser
-  // back/forward, etc.), not just a specific onClick handler that every
-  // sub-page link would otherwise need individually.
-  useEffect(() => () => saveScroll(), []);
+  // Continuously persist scroll position (throttled to once per 100ms)
+  // while this page is scrolled, rather than only on unmount — this is
+  // resilient to any way the component goes away, including cases where an
+  // unmount cleanup might not fire in time relative to a route swap.
+  useEffect(() => {
+    const onScroll = () => {
+      const now = Date.now();
+      const elapsed = now - lastWriteAtRef.current;
+      const commit = () => {
+        lastWriteAtRef.current = Date.now();
+        writeStoredScroll(window.scrollY);
+      };
+      if (elapsed >= THROTTLE_MS) {
+        commit();
+      } else {
+        // Trailing-edge write so the final resting scroll position still
+        // gets recorded even if the user stops scrolling mid-throttle-window.
+        clearTimeout(trailingTimerRef.current);
+        trailingTimerRef.current = setTimeout(commit, THROTTLE_MS - elapsed);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      clearTimeout(trailingTimerRef.current);
+    };
+  }, []);
 
   // Items with a `permission` array are gated purely on the resolved
   // permissions map (Prompt 3 roles/permissions system); everything else
