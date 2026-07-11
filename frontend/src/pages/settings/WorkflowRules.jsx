@@ -48,7 +48,7 @@ function LogsModal({ rule, onClose }) {
       ) : error ? (
         <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>
       ) : (
-        <div className="max-h-[28rem] overflow-y-auto">
+        <div className="max-h-[28rem] overflow-x-auto overflow-y-auto">
           <table className="min-w-full divide-y divide-navy-100">
             <thead className="bg-navy-50">
               <tr>

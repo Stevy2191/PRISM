@@ -117,7 +117,7 @@ function FieldEditorModal({ field, onClose, onSaved }) {
       <form onSubmit={submit} className="space-y-4">
         {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="label">Label *</label>
             <input className="input" value={label} onChange={(e) => handleLabelChange(e.target.value)} required />
@@ -181,7 +181,7 @@ function FieldEditorModal({ field, onClose, onSaved }) {
           <p className="mt-1 text-xs text-navy-400">Leave all unchecked to apply to every ticket type.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="label">Placeholder text</label>
             <input className="input" value={placeholder} onChange={(e) => setPlaceholder(e.target.value)} />

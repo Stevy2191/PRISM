@@ -336,6 +336,7 @@ function EffectivePermissionsSection({ effective, error }) {
                 <span className="text-navy-400">{openCategories.has(cat) ? '▾' : '▸'}</span>
               </button>
               {openCategories.has(cat) && (
+                <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-navy-100">
                   <thead className="bg-navy-50/50">
                     <tr>
@@ -361,6 +362,7 @@ function EffectivePermissionsSection({ effective, error }) {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           ))}

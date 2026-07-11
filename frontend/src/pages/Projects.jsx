@@ -304,9 +304,9 @@ export default function Projects() {
   const totalCost = useMemo(() => (p) => Number(p.totalCost || 0), []);
 
   return (
-    <div style={{ margin: '-2rem -1.5rem', padding: 0, height: '100vh' }} className="flex flex-col overflow-hidden bg-navy-50">
-      <div className="flex-shrink-0 space-y-3 px-6 py-4">
-        <div className="flex items-center justify-between">
+    <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
+      <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Projects</h1>
           {canCreateProjects && <Link to="/projects/new" className="btn-primary">+ New Project</Link>}
         </div>
@@ -409,7 +409,7 @@ export default function Projects() {
 
       {isStaff && view === 'table' && showBulkBar && (
         <div
-          className={`flex flex-shrink-0 items-center ${bulkBarClosing ? 'bulk-bar--closing' : 'bulk-bar--opening'}`}
+          className={`flex flex-shrink-0 flex-wrap items-center ${bulkBarClosing ? 'bulk-bar--closing' : 'bulk-bar--opening'}`}
           style={{
             gap: '12px',
             padding: '8px 16px',
@@ -478,7 +478,7 @@ export default function Projects() {
                   style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
                 >
                   {isStaff && (
-                    <div className="absolute right-3 top-3 hidden items-center gap-2 group-hover:flex">
+                    <div className="absolute right-3 top-3 flex items-center gap-2 md:hidden md:group-hover:flex">
                       <button type="button" onClick={() => navigate(`/projects/${p.id}`)} title="Edit" style={{ color: MUTED }}>✎</button>
                       {canDeleteProjects && (
                         <button type="button" onClick={() => deleteProject(p.id, p.name)} title="Delete" style={{ color: 'var(--color-danger)' }}>🗑</button>
@@ -512,7 +512,7 @@ export default function Projects() {
             })}
           </div>
         ) : (
-          <div className="mt-4 rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+          <div className="mt-4 overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
             <table className="min-w-full">
               <thead>
                 <tr>

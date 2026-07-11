@@ -253,11 +253,11 @@ function QuickCreateContact({ initialName, error, creating, onCancel, onCreate }
       <p className="text-sm font-medium" style={{ color: TEXT }}>New contact</p>
       {validationError && <p className="text-xs" style={{ color: 'var(--color-danger)' }}>{validationError}</p>}
       {error && <p className="text-xs" style={{ color: 'var(--color-danger)' }}>{error}</p>}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" className="input h-9 text-sm" style={fieldStyle} />
         <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" className="input h-9 text-sm" style={fieldStyle} />
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" className="input h-9 text-sm" style={fieldStyle} />
         <input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" className="input h-9 text-sm" style={fieldStyle} inputMode="tel" />
       </div>
@@ -635,7 +635,7 @@ export default function TicketNew() {
 
   return (
     <div style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: '2rem 1.5rem' }} className="min-h-full">
-      <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
+      <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6 pb-24 sm:pb-0">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold" style={{ color: TEXT }}>New Ticket</h1>
         </div>
@@ -673,7 +673,7 @@ export default function TicketNew() {
               style={{ ...fieldStyle, minHeight: '90px' }}
             />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <Label required>Type</Label>
               <select value={type} onChange={(e) => setType(e.target.value)} required className="input" style={fieldStyle}>
@@ -790,7 +790,7 @@ export default function TicketNew() {
 
           {isStaff && (
             <div className="border-t pt-4" style={{ borderColor: BORDER }}>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label>Assignee</Label>
                   <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className="input" style={fieldStyle}>
@@ -812,7 +812,7 @@ export default function TicketNew() {
 
         <Card title="Scheduling">
           <div className="flex flex-wrap items-end gap-3">
-            <div>
+            <div className="w-full sm:w-auto">
               <Label>Due date</Label>
               <input
                 type="date"
@@ -822,11 +822,11 @@ export default function TicketNew() {
                   setDueDate(next);
                   if (!next) setDueTime('');
                 }}
-                className="input max-w-[12rem]"
+                className="input w-full sm:max-w-[12rem]"
                 style={fieldStyle}
               />
             </div>
-            <div>
+            <div className="w-full sm:w-auto">
               <Label>Due time</Label>
               <div title={!dueDate ? 'Set a due date first' : ''}>
                 <TimeDropdownPicker
@@ -844,10 +844,13 @@ export default function TicketNew() {
           <Dropzone files={files} onFiles={addFiles} onRemove={removeFile} />
         </Card>
 
-        <div className="flex justify-between pt-2">
+        <div
+          className="fixed inset-x-0 bottom-0 z-30 flex justify-between gap-3 border-t px-4 py-3 sm:static sm:z-auto sm:border-0 sm:px-0 sm:py-0 sm:pt-2"
+          style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
+        >
           <Link
             to="/tickets"
-            className="rounded-md border px-4 py-2 text-sm font-medium"
+            className="flex-1 rounded-md border px-4 py-2 text-center text-sm font-medium sm:flex-none"
             style={{ borderColor: BORDER, color: TEXT }}
           >
             Cancel
@@ -855,7 +858,7 @@ export default function TicketNew() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="flex-1 rounded-md px-5 py-2 text-sm font-semibold text-white disabled:opacity-50 sm:flex-none"
             style={{ backgroundColor: BLUE }}
           >
             {saving ? 'Creating…' : 'Create Ticket'}

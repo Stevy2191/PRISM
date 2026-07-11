@@ -72,7 +72,7 @@ export default function SidebarCompact() {
               key={n.to}
               to={n.to}
               className={({ isActive }) =>
-                `group relative flex h-10 w-10 items-center justify-center rounded-md text-lg ${isActive ? 'bg-prism text-white' : 'hover:bg-[var(--color-hover)]'}`
+                `group relative flex h-11 w-11 items-center justify-center rounded-md text-lg ${isActive ? 'bg-prism text-white' : 'hover:bg-[var(--color-hover)]'}`
               }
               style={({ isActive }) => (isActive ? undefined : { color: 'var(--color-text-secondary)' })}
             >
@@ -86,20 +86,20 @@ export default function SidebarCompact() {
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="group relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"
+            className="group relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"
             style={{ color: 'var(--color-text-secondary)' }}
           >
             <IconSearch size={18} stroke={1.8} />
             <Tooltip label="Search (Ctrl+K)" />
           </button>
 
-          <div className="flex h-10 w-10 items-center justify-center">
+          <div className="flex h-11 w-11 items-center justify-center">
             <NotificationsDropdown align="left" />
           </div>
 
           <Link
             to="/settings"
-            className="group relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"
+            className="group relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"
             style={{ color: 'var(--color-text-secondary)' }}
           >
             <IconSettings size={18} stroke={1.8} />
@@ -107,7 +107,7 @@ export default function SidebarCompact() {
           </Link>
 
           <div className="relative" ref={userMenuRef}>
-            <button type="button" onClick={() => setUserMenuOpen((o) => !o)} className="group relative flex h-10 w-10 items-center justify-center">
+            <button type="button" onClick={() => setUserMenuOpen((o) => !o)} className="group relative flex h-11 w-11 items-center justify-center">
               <span
                 className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
                 style={{ backgroundColor: colorForDepartment(user?.departmentId) }}

@@ -50,9 +50,9 @@ export default function GlobalSearch({ onClose }) {
   const hasAny = results.tickets.length || results.projects.length || results.contacts.length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-24" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 sm:p-4 sm:pt-24" onClick={onClose}>
       <div
-        className="w-full max-w-xl overflow-hidden rounded-lg border shadow-2xl"
+        className="flex max-h-[100dvh] w-full max-w-xl flex-col overflow-hidden rounded-none border shadow-2xl sm:max-h-[80vh] sm:rounded-lg"
         style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
         onClick={(e) => e.stopPropagation()}
       >

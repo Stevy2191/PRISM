@@ -67,8 +67,8 @@ export default function TopNav() {
           </span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden flex-1 items-center gap-1 md:flex">
+        {/* Desktop nav (1024px+) — full labels */}
+        <nav className="hidden flex-1 items-center gap-1 lg:flex">
           {items.map((n) => (
             <NavLink
               key={n.to}
@@ -88,6 +88,28 @@ export default function TopNav() {
           ))}
         </nav>
 
+        {/* Tablet nav (768-1024px) — compact icon-over-label */}
+        <nav className="hidden flex-1 items-stretch gap-0.5 overflow-x-auto md:flex lg:hidden">
+          {items.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              className={({ isActive }) =>
+                `relative flex flex-shrink-0 flex-col items-center justify-center gap-0.5 px-2.5 text-[11px] font-medium transition ${
+                  isActive ? '' : 'hover:opacity-80'
+                }`
+              }
+              style={({ isActive }) => ({
+                color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                borderBottom: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
+              })}
+            >
+              <span className="text-sm leading-none">{n.icon}</span>
+              <span className="truncate leading-none">{n.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
         {/* Mobile: push everything right since nav items are hidden */}
         <div className="flex-1 md:hidden" />
 
@@ -95,7 +117,7 @@ export default function TopNav() {
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"
+            className="hidden h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--color-hover)] md:flex"
             style={{ color: 'var(--color-text-secondary)' }}
             title="Search (Ctrl+K)"
           >
@@ -106,14 +128,14 @@ export default function TopNav() {
 
           <Link
             to="/settings"
-            className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"
+            className="hidden h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--color-hover)] md:flex"
             style={{ color: 'var(--color-text-secondary)' }}
             title="Settings"
           >
             <IconSettings size={18} stroke={1.8} />
           </Link>
 
-          <div className="relative ml-1" ref={userMenuRef}>
+          <div className="relative ml-1 hidden md:block" ref={userMenuRef}>
             <button type="button" onClick={() => setUserMenuOpen((o) => !o)} title={user?.displayName}>
               <span
                 className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
@@ -180,12 +202,17 @@ export default function TopNav() {
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
           <div
-            className="absolute inset-y-0 right-0 flex w-64 flex-col shadow-2xl"
+            className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col shadow-2xl"
             style={{ backgroundColor: 'var(--color-card)' }}
           >
-            <div className="flex items-center justify-between border-b px-4" style={{ height: 52, borderColor: 'var(--color-border)' }}>
+            <div className="flex flex-shrink-0 items-center justify-between border-b px-4" style={{ height: 52, borderColor: 'var(--color-border)' }}>
               <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Menu</span>
-              <button type="button" onClick={() => setMobileMenuOpen(false)} style={{ color: 'var(--color-text-secondary)' }}>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-11 w-11 items-center justify-center"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
                 <IconX size={20} stroke={1.8} />
               </button>
             </div>
@@ -196,7 +223,7 @@ export default function TopNav() {
                   to={n.to}
                   onClick={() => setMobileMenuOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${isActive ? 'bg-prism text-white' : 'hover:bg-[var(--color-hover)]'}`
+                    `flex h-12 items-center gap-3 rounded-md px-3 text-sm font-medium ${isActive ? 'bg-prism text-white' : 'hover:bg-[var(--color-hover)]'}`
                   }
                   style={({ isActive }) => (isActive ? undefined : { color: 'var(--color-text-secondary)' })}
                 >
@@ -205,6 +232,47 @@ export default function TopNav() {
                 </NavLink>
               ))}
             </nav>
+
+            <div className="flex-shrink-0 border-t p-3" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="flex items-center gap-3 px-1 py-2">
+                <span
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+                  style={{ backgroundColor: colorForDepartment(user?.departmentId) }}
+                >
+                  {initials(user)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{user?.displayName}</p>
+                  <p className="truncate text-xs" style={{ color: 'var(--color-text-muted)' }}>{user?.primaryRole?.name || 'No role assigned'}</p>
+                </div>
+              </div>
+              <Link
+                to="/settings/preferences"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-12 items-center rounded-md px-3 text-sm font-medium hover:bg-[var(--color-hover)]"
+                style={{ color: 'var(--color-text-primary)' }}
+              >
+                Account preferences
+              </Link>
+              {user?.isLocalAccount && (
+                <Link
+                  to="/change-password"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex h-12 items-center rounded-md px-3 text-sm font-medium hover:bg-[var(--color-hover)]"
+                  style={{ color: 'var(--color-text-primary)' }}
+                >
+                  Change password
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+                className="flex h-12 w-full items-center rounded-md px-3 text-left text-sm font-medium hover:bg-[var(--color-hover)]"
+                style={{ color: 'var(--color-danger)' }}
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       )}

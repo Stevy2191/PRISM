@@ -103,12 +103,21 @@
   }
   body {
     @apply bg-navy-50 text-navy-900 antialiased;
+    /* Safety net: individual pages/tables are responsible for their own
+       overflow-x-auto on scoped regions (tables, kanban boards) — this just
+       guarantees the page itself never grows a horizontal scrollbar even if
+       one of those is missed. */
+    overflow-x: hidden;
   }
 }
 
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-prism-accent disabled:opacity-50 disabled:cursor-not-allowed;
+    /* Minimum 44x44 tap target on touch screens (WCAG 2.5.5 / task spec) —
+       desktop keeps its existing compact px-4 py-2 sizing since mouse
+       pointers don't need the extra hit area. */
+    @apply max-sm:min-h-[44px];
   }
   .btn-primary {
     @apply btn bg-prism text-white hover:opacity-90;

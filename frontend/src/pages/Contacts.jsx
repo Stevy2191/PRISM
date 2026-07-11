@@ -51,7 +51,7 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
   const setPhoneField = (k) => (e) => setForm((f) => ({ ...f, [k]: formatPhone(e.target.value) }));
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>First name *</label>
           <input className="input" style={fieldStyle} value={form.firstName} onChange={set('firstName')} required />
@@ -61,7 +61,7 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
           <input className="input" style={fieldStyle} value={form.lastName} onChange={set('lastName')} required />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Email</label>
           <input type="email" className="input" style={fieldStyle} value={form.email} onChange={set('email')} />
@@ -71,7 +71,7 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
           <input className="input" style={fieldStyle} value={form.jobTitle} onChange={set('jobTitle')} />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Phone</label>
           <input className="input" style={fieldStyle} value={form.phone} onChange={setPhoneField('phone')} placeholder="(555) 123-4567" inputMode="tel" />
@@ -81,7 +81,7 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
           <input className="input" style={fieldStyle} value={form.mobile} onChange={setPhoneField('mobile')} placeholder="(555) 123-4567" inputMode="tel" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Department</label>
           <select className="input" style={fieldStyle} value={form.departmentId} onChange={set('departmentId')}>
@@ -240,10 +240,10 @@ export default function Contacts() {
   };
 
   return (
-    <div style={{ margin: '-2rem -1.5rem', padding: 0, height: '100vh' }} className="flex flex-col overflow-hidden" >
+    <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden sm:-mx-6 sm:-my-8">
       <div style={{ backgroundColor: BG }} className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex-shrink-0 space-y-3 px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Contacts</h1>
               <p className="text-sm" style={{ color: MUTED }}>{contacts.length} contact{contacts.length === 1 ? '' : 's'}</p>
@@ -313,14 +313,79 @@ export default function Contacts() {
 
         {error && <div className="mx-6 rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
-        <div className="flex flex-1 overflow-hidden px-6 pb-6">
-          <div className="flex-1 overflow-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+        <div className="flex flex-1 flex-col overflow-hidden px-3 pb-4 sm:px-6 sm:pb-6 md:flex-row">
+          {sortBy === 'lastName' && contacts.length > 0 && (
+            <div
+              className="order-1 mb-2 flex flex-shrink-0 gap-0.5 overflow-x-auto py-1 md:order-2 md:mb-0 md:ml-2 md:flex-col md:items-center md:justify-center md:overflow-visible md:py-2"
+            >
+              {ALPHABET.map((letter) => {
+                const has = firstIndexByLetter[letter] !== undefined;
+                return (
+                  <button
+                    key={letter}
+                    type="button"
+                    disabled={!has}
+                    onClick={() => jumpTo(letter)}
+                    className="flex-shrink-0 text-[11px] font-semibold leading-none disabled:cursor-default"
+                    style={{ color: has ? BLUE : BORDER, padding: '4px 5px' }}
+                  >
+                    {letter}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="order-2 flex-1 overflow-auto rounded-[10px] border md:order-1" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
             {loading ? (
               <div className="flex h-full items-center justify-center p-8"><Spinner /></div>
             ) : contacts.length === 0 ? (
               <div className="p-8 text-center text-sm" style={{ color: MUTED }}>No contacts found.</div>
             ) : (
-              <table className="min-w-full">
+              <>
+                {/* Card view — mobile/tablet (below md: 768px) */}
+                <div className="space-y-2 p-2 md:hidden">
+                  {contacts.map((c) => (
+                    <Link
+                      key={c.id}
+                      to={`/contacts/${c.id}`}
+                      ref={(el) => { if (el) rowRefs.current.set(c.id, el); }}
+                      className="block rounded-[10px] border p-3"
+                      style={{ borderColor: BORDER, opacity: c.status === 'inactive' ? 0.6 : 1 }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar name={c.displayName} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate font-semibold" style={{ color: TEXT }}>{c.displayName}</span>
+                            {c.status === 'inactive' && (
+                              <span
+                                className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                style={{ backgroundColor: BORDER, color: MUTED }}
+                              >
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                          {c.department ? (
+                            <span className="mt-0.5 inline-flex rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
+                              {c.department.name}
+                            </span>
+                          ) : (
+                            <span className="mt-0.5 block text-xs" style={{ color: MUTED }}>No department</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-2 space-y-0.5 text-sm" style={{ color: MUTED }}>
+                        <p className="truncate">{c.email || '—'}</p>
+                        <p>{c.phone ? formatPhone(c.phone) : '—'}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Table view — desktop/laptop (md: 768px+) */}
+                <table className="hidden min-w-full md:table">
                 <thead>
                   <tr>
                     {SORT_COLUMNS.map((col) => (
@@ -391,28 +456,9 @@ export default function Contacts() {
                   ))}
                 </tbody>
               </table>
+              </>
             )}
           </div>
-
-          {sortBy === 'lastName' && contacts.length > 0 && (
-            <div className="ml-2 flex flex-shrink-0 flex-col items-center justify-center gap-0.5 py-2">
-              {ALPHABET.map((letter) => {
-                const has = firstIndexByLetter[letter] !== undefined;
-                return (
-                  <button
-                    key={letter}
-                    type="button"
-                    disabled={!has}
-                    onClick={() => jumpTo(letter)}
-                    className="text-[10px] font-semibold leading-none disabled:cursor-default"
-                    style={{ color: has ? BLUE : BORDER, padding: '1px 3px' }}
-                  >
-                    {letter}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
 

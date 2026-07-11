@@ -37,7 +37,7 @@ function SyncLogModal({ onClose }) {
       ) : error ? (
         <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">{error}</div>
       ) : (
-        <div className="max-h-[26rem] overflow-y-auto">
+        <div className="max-h-[26rem] overflow-x-auto overflow-y-auto">
           <table className="min-w-full divide-y divide-navy-100">
             <thead className="bg-navy-50">
               <tr>
@@ -234,6 +234,7 @@ export default function DirectorySync() {
           When a synced user belongs to a mapped AD group, their contact gets that department. If a user is in multiple mapped groups, the first match wins.
         </p>
 
+        <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-navy-100">
           <thead className="bg-navy-50">
             <tr>
@@ -257,9 +258,10 @@ export default function DirectorySync() {
             )}
           </tbody>
         </table>
+        </div>
 
-        <div className="flex items-end gap-2 border-t border-navy-100 pt-4">
-          <div className="flex-1">
+        <div className="flex flex-wrap items-end gap-2 border-t border-navy-100 pt-4">
+          <div className="min-w-[10rem] flex-1">
             <label className="label">AD group name</label>
             <input className="input" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} placeholder="e.g. IT-Staff" />
           </div>

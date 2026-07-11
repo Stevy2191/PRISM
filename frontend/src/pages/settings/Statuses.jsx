@@ -191,8 +191,8 @@ export default function Statuses() {
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteTarget(null)}>
-          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 sm:p-4" onClick={() => setDeleteTarget(null)}>
+          <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-white p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-2 text-base font-semibold text-navy-900">Delete "{deleteTarget.name}"?</h2>
             <p className="mb-4 text-sm text-navy-600">
               Any {scope === 'ticket' ? 'tickets' : 'projects'} currently using this status will be moved to the default

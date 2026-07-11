@@ -447,6 +447,7 @@ export default function Tickets() {
   const [sort, setSort] = useState({ key: 'updatedAt', dir: 'desc' });
 
   const [view, setView] = useState('table');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [columnPrefs, setColumnPrefs] = useState(loadColumnPrefs);
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
@@ -662,86 +663,130 @@ export default function Tickets() {
     `rounded-md border px-3 py-2 text-sm font-medium transition ${active ? 'text-white' : ''}`;
 
   const allSelected = tickets.length > 0 && selectedIds.size === tickets.length;
+  const activeFilterCount = [status, priority, assignee].filter(Boolean).length;
 
   return (
-    <div style={{ margin: '-2rem -1.5rem', padding: 0, height: '100vh' }} className="flex flex-col overflow-hidden bg-navy-50">
-      <div className="flex-shrink-0 space-y-3 px-6 py-4">
+    <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
+      <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Tickets</h1>
-          {canCreateTickets && <Link to="/tickets/new" className="btn-primary">+ New Ticket</Link>}
+          {canCreateTickets && <Link to="/tickets/new" className="btn-primary hidden lg:inline-flex">+ New Ticket</Link>}
         </div>
 
-        {/* Toolbar — single row on desktop (lg: 1024px+), wraps on tablet/mobile. */}
-        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
+        {/* Toolbar — single row on desktop (lg: 1024px+); search gets its own
+            full-width row and filters collapse into a bottom-sheet button on
+            mobile/tablet. */}
+        <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
           <input
             value={search}
             onChange={(e) => setSearchTracked(e.target.value)}
             placeholder="Search by ticket number, title, or keyword…"
-            className="input h-9 min-w-[220px] flex-1 text-sm"
+            className="input h-9 w-full text-sm lg:min-w-[220px] lg:max-w-none lg:flex-1"
             style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
           />
-          <select
-            value={status}
-            onChange={(e) => setStatusTracked(e.target.value)}
-            className="input h-9 max-w-[10rem] flex-shrink-0 text-sm"
-            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-          >
-            {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <select
-            value={priority}
-            onChange={(e) => setPriorityTracked(e.target.value)}
-            className="input h-9 max-w-[10rem] flex-shrink-0 text-sm"
-            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-          >
-            {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <select
-            value={assignee}
-            onChange={(e) => setAssigneeTracked(e.target.value)}
-            className="input h-9 max-w-[11rem] flex-shrink-0 text-sm"
-            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-          >
-            <option value="">All assignees</option>
-            {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-          </select>
 
-          <button
-            type="button"
-            onClick={toggleMyTickets}
-            className={`${filterButtonCls(myTickets)} flex-shrink-0`}
-            style={{ borderColor: myTickets ? BLUE : BORDER, backgroundColor: myTickets ? BLUE : CARD_BG, color: myTickets ? 'white' : TEXT }}
-          >
-            My tickets
-          </button>
-          <button
-            type="button"
-            onClick={toggleOverdue}
-            className={`${filterButtonCls(overdue)} flex-shrink-0`}
-            style={{ borderColor: overdue ? 'var(--color-danger)' : BORDER, backgroundColor: overdue ? 'var(--color-danger)' : CARD_BG, color: overdue ? 'white' : TEXT }}
-          >
-            Overdue
-          </button>
-          <button
-            type="button"
-            onClick={toggleUnassigned}
-            className={`${filterButtonCls(unassigned)} flex-shrink-0`}
-            style={{ borderColor: unassigned ? BLUE : BORDER, backgroundColor: unassigned ? BLUE : CARD_BG, color: unassigned ? 'white' : TEXT }}
-          >
-            Unassigned
-          </button>
-          <button
-            type="button"
-            onClick={toggleNewFromEmail}
-            title="Unassigned tickets created from inbound email"
-            className={`${filterButtonCls(newFromEmail)} flex-shrink-0 flex items-center gap-1.5`}
-            style={{ borderColor: newFromEmail ? '#2563eb' : BORDER, backgroundColor: newFromEmail ? '#2563eb' : CARD_BG, color: newFromEmail ? 'white' : TEXT }}
-          >
-            <IconMail size={13} />
-            New from email
-          </button>
+          <div className="flex items-center gap-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="flex h-10 flex-shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium"
+              style={{ borderColor: BORDER, backgroundColor: CARD_BG, color: TEXT }}
+            >
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-xs font-semibold text-white" style={{ backgroundColor: BLUE }}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            <div className="flex flex-shrink-0 rounded-md border" style={{ borderColor: BORDER }}>
+              <button
+                type="button"
+                onClick={() => setView('table')}
+                className="rounded-l-md px-3 py-2 text-sm font-medium"
+                style={{ backgroundColor: view === 'table' ? BLUE : CARD_BG, color: view === 'table' ? 'white' : TEXT }}
+              >
+                Table
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('board')}
+                className="rounded-r-md px-3 py-2 text-sm font-medium"
+                style={{ backgroundColor: view === 'board' ? BLUE : CARD_BG, color: view === 'board' ? 'white' : TEXT }}
+              >
+                Board
+              </button>
+            </div>
+          </div>
 
-          <div className="flex flex-shrink-0 items-center gap-2">
+          {/* Desktop-inline filter selects (1024px+) */}
+          <div className="hidden lg:contents">
+            <select
+              value={status}
+              onChange={(e) => setStatusTracked(e.target.value)}
+              className="input h-9 max-w-[10rem] flex-shrink-0 text-sm"
+              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+            >
+              {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select
+              value={priority}
+              onChange={(e) => setPriorityTracked(e.target.value)}
+              className="input h-9 max-w-[10rem] flex-shrink-0 text-sm"
+              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+            >
+              {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select
+              value={assignee}
+              onChange={(e) => setAssigneeTracked(e.target.value)}
+              className="input h-9 max-w-[11rem] flex-shrink-0 text-sm"
+              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+            >
+              <option value="">All assignees</option>
+              {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+            </select>
+          </div>
+
+          {/* Quick-filter chips — horizontally scrollable on mobile/tablet, inline on desktop. */}
+          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:contents lg:overflow-visible lg:px-0 lg:pb-0">
+            <button
+              type="button"
+              onClick={toggleMyTickets}
+              className={`${filterButtonCls(myTickets)} flex-shrink-0 whitespace-nowrap`}
+              style={{ borderColor: myTickets ? BLUE : BORDER, backgroundColor: myTickets ? BLUE : CARD_BG, color: myTickets ? 'white' : TEXT }}
+            >
+              My tickets
+            </button>
+            <button
+              type="button"
+              onClick={toggleOverdue}
+              className={`${filterButtonCls(overdue)} flex-shrink-0 whitespace-nowrap`}
+              style={{ borderColor: overdue ? 'var(--color-danger)' : BORDER, backgroundColor: overdue ? 'var(--color-danger)' : CARD_BG, color: overdue ? 'white' : TEXT }}
+            >
+              Overdue
+            </button>
+            <button
+              type="button"
+              onClick={toggleUnassigned}
+              className={`${filterButtonCls(unassigned)} flex-shrink-0 whitespace-nowrap`}
+              style={{ borderColor: unassigned ? BLUE : BORDER, backgroundColor: unassigned ? BLUE : CARD_BG, color: unassigned ? 'white' : TEXT }}
+            >
+              Unassigned
+            </button>
+            <button
+              type="button"
+              onClick={toggleNewFromEmail}
+              title="Unassigned tickets created from inbound email"
+              className={`${filterButtonCls(newFromEmail)} flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap`}
+              style={{ borderColor: newFromEmail ? '#2563eb' : BORDER, backgroundColor: newFromEmail ? '#2563eb' : CARD_BG, color: newFromEmail ? 'white' : TEXT }}
+            >
+              <IconMail size={13} />
+              New from email
+            </button>
+          </div>
+
+          <div className="hidden flex-shrink-0 items-center gap-2 lg:flex">
             <SavedFiltersMenu
               savedFilters={savedFilters}
               activeId={activeSavedFilterId}
@@ -784,7 +829,7 @@ export default function Tickets() {
           accent color at low opacity so it reads as distinct from both. */}
       {isStaff && view === 'table' && showBulkBar && (
         <div
-          className={`flex flex-shrink-0 items-center ${bulkBarClosing ? 'bulk-bar--closing' : 'bulk-bar--opening'}`}
+          className={`flex flex-shrink-0 flex-wrap items-center ${bulkBarClosing ? 'bulk-bar--closing' : 'bulk-bar--opening'}`}
           style={{
             gap: '12px',
             padding: '8px 16px',
@@ -859,11 +904,11 @@ export default function Tickets() {
         {loading ? (
           <div className="flex h-full items-center justify-center"><Spinner /></div>
         ) : view === 'board' ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="flex gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-visible md:pb-0">
             {boardColumns.map((col) => (
               <div
                 key={col.id}
-                className="rounded-[10px] border"
+                className="w-[85vw] max-w-[320px] flex-shrink-0 rounded-[10px] border md:w-auto md:max-w-none"
                 style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
               >
                 <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: BORDER }}>
@@ -907,7 +952,51 @@ export default function Tickets() {
             ))}
           </div>
         ) : (
-          <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+          <>
+            {/* Card view — mobile/tablet (below md: 768px) */}
+            <div className="space-y-2 md:hidden">
+              {tickets.length === 0 && (
+                <p className="px-1 py-6 text-center text-sm" style={{ color: MUTED }}>No tickets found.</p>
+              )}
+              {sortedTickets.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => navigate(`/tickets/${t.id}`)}
+                  className="cursor-pointer rounded-[10px] border p-3"
+                  style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
+                >
+                  <div className="flex items-start gap-2">
+                    {isStaff && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(t.id)}
+                        onChange={() => toggleSelect(t.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-1 h-5 w-5 flex-shrink-0 accent-blue-500"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs" style={{ color: MUTED }}>{formatTicketId(t)}</span>
+                        <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: (PRIORITY_META[t.priority] || PRIORITY_META.medium).color }} title={(PRIORITY_META[t.priority] || PRIORITY_META.medium).label} />
+                      </div>
+                      <p className="mt-0.5 truncate text-sm font-medium" style={{ color: TEXT }}>{t.title}</p>
+                      {canViewAllTickets && t.department?.name && <DeptPill name={t.department.name} />}
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />
+                        <DueDateCell dueDate={t.dueDate} />
+                      </div>
+                      <div className="mt-2">
+                        <Avatar name={t.assignee?.displayName} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Table view — desktop/laptop (md: 768px+) */}
+            <div className="hidden rounded-[10px] border md:block" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -1009,9 +1098,84 @@ export default function Tickets() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </div>
+
+      {canCreateTickets && (
+        <Link
+          to="/tickets/new"
+          className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-semibold text-white shadow-lg lg:hidden"
+          style={{ backgroundColor: BLUE }}
+          aria-label="New ticket"
+        >
+          +
+        </Link>
+      )}
+
+      {filtersOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setFiltersOpen(false)} />
+          <div
+            className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl border-t p-4"
+            style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base font-semibold" style={{ color: TEXT }}>Filters</h3>
+              <button type="button" onClick={() => setFiltersOpen(false)} className="text-sm font-medium" style={{ color: BLUE }}>
+                Done
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="label">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatusTracked(e.target.value)}
+                  className="input h-11 text-sm"
+                  style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+                >
+                  {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Priority</label>
+                <select
+                  value={priority}
+                  onChange={(e) => setPriorityTracked(e.target.value)}
+                  className="input h-11 text-sm"
+                  style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+                >
+                  {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Assignee</label>
+                <select
+                  value={assignee}
+                  onChange={(e) => setAssigneeTracked(e.target.value)}
+                  className="input h-11 text-sm"
+                  style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+                >
+                  <option value="">All assignees</option>
+                  {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <SavedFiltersMenu
+                  savedFilters={savedFilters}
+                  activeId={activeSavedFilterId}
+                  onApply={applySavedFilter}
+                  onSave={saveCurrentFilter}
+                  onDelete={deleteSavedFilter}
+                />
+                <span className="text-xs" style={{ color: MUTED }}>Saved filters</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

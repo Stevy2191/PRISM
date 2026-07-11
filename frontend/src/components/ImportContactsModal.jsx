@@ -56,9 +56,9 @@ function unmatchedDepartmentValues(headers, rows, mapping, departments) {
 
 function Modal({ title, children, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4" onClick={onClose}>
       <div
-        className="flex w-full max-w-4xl max-h-[85vh] flex-col rounded-[10px] border p-5"
+        className="flex max-h-[100dvh] w-full flex-col rounded-none border p-5 sm:max-h-[85vh] sm:max-w-4xl sm:rounded-[10px]"
         style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -295,7 +295,7 @@ export default function ImportContactsModal({ departments, onClose, onImported }
 
       {step === 'preview' && validated && (
         <div className="space-y-4">
-          <div className="grid grid-cols-4 gap-3 text-center text-sm">
+          <div className="grid grid-cols-2 gap-3 text-center text-sm sm:grid-cols-4">
             <div className="rounded-md p-3" style={{ backgroundColor: 'var(--color-bg)' }}>
               <p className="text-lg font-bold" style={{ color: 'var(--color-success)' }}>{validated.summary.willCreate}</p>
               <p style={{ color: MUTED }}>will be created</p>
@@ -365,7 +365,7 @@ export default function ImportContactsModal({ departments, onClose, onImported }
 
       {step === 'results' && results && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3 text-center text-sm">
+          <div className="grid grid-cols-1 gap-3 text-center text-sm sm:grid-cols-3">
             <div className="rounded-md p-3" style={{ backgroundColor: 'var(--color-bg)' }}>
               <p className="text-lg font-bold" style={{ color: 'var(--color-success)' }}>{results.created}</p>
               <p style={{ color: MUTED }}>created</p>

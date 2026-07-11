@@ -425,8 +425,8 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
       </div>
 
       {saveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSaveModalOpen(false)}>
-          <div className="w-full max-w-sm rounded-md bg-white p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={() => setSaveModalOpen(false)}>
+          <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-white p-5 sm:max-h-[90vh] sm:max-w-sm sm:rounded-md" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-3 font-semibold text-navy-900">{savedId ? 'Update saved report' : 'Save custom report'}</h3>
             <input
               autoFocus

@@ -533,8 +533,8 @@ function ConnectCalendarModal({ settings, onClose, onCreated }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
+      <div className="card max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
         <h3 className="mb-3 text-base font-semibold text-navy-900">Connect calendar</h3>
         {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
@@ -629,8 +629,8 @@ function PickCalendarModal({ integrationId, onClose, onPicked }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
+      <div className="card max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
         <h3 className="mb-3 text-base font-semibold text-navy-900">Which calendar should PRISM sync?</h3>
         {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
         {!calendars ? (

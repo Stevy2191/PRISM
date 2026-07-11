@@ -76,6 +76,7 @@ export default function Reports() {
   const [forbidden, setForbidden] = useState(false);
   const [customReports, setCustomReports] = useState([]);
   const [editingSavedId, setEditingSavedId] = useState(null);
+  const [navOpen, setNavOpen] = useState(false);
 
   const activeReport = ALL_REPORTS.find((r) => r.key === activeKey);
   const ActiveComponent = REPORT_COMPONENTS[activeKey];
@@ -181,10 +182,26 @@ export default function Reports() {
 
   if (forbidden) return <AccessRestricted />;
 
+  const currentNavLabel = activeKey === 'custom'
+    ? (editingSavedId ? (customReports.find((r) => r.id === editingSavedId)?.name || 'Custom report') : 'New custom report')
+    : (ALL_REPORTS.find((r) => r.key === activeKey)?.label || 'Reports');
+
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      <nav className="w-full shrink-0 space-y-5 lg:w-56">
-        <h1 className="text-2xl font-bold text-navy-900">Reports</h1>
+      <div className="lg:w-56 lg:flex-shrink-0">
+        <h1 className="mb-3 text-2xl font-bold text-navy-900 lg:hidden">Reports</h1>
+        <button
+          type="button"
+          onClick={() => setNavOpen((o) => !o)}
+          className="mb-2 flex w-full items-center justify-between rounded-md border px-3 py-2.5 text-sm font-medium lg:hidden"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)', backgroundColor: 'var(--color-card)' }}
+        >
+          <span className="truncate">{currentNavLabel}</span>
+          <span className="flex-shrink-0">{navOpen ? '▲' : '▼'}</span>
+        </button>
+
+      <nav className={`w-full shrink-0 space-y-5 lg:block lg:w-56 ${navOpen ? 'block' : 'hidden'}`}>
+        <h1 className="hidden text-2xl font-bold text-navy-900 lg:block">Reports</h1>
         {CATEGORIES.map((cat) => (
           <div key={cat.name}>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-navy-400">{cat.name}</p>
@@ -192,7 +209,7 @@ export default function Reports() {
               {cat.reports.map((r) => (
                 <button
                   key={r.key}
-                  onClick={() => setActiveKey(r.key)}
+                  onClick={() => { setActiveKey(r.key); setNavOpen(false); }}
                   className={`block w-full rounded-md px-3 py-1.5 text-left text-sm ${
                     activeKey === r.key ? 'bg-prism text-white' : 'text-navy-600 hover:bg-navy-50'
                   }`}
@@ -210,7 +227,7 @@ export default function Reports() {
             <div className="flex flex-wrap gap-1.5">
               {savedViews.map((v) => (
                 <span key={v.id} className="inline-flex items-center gap-1 rounded-full bg-navy-100 px-2.5 py-1 text-xs text-navy-700">
-                  <button type="button" onClick={() => applyView(v)} className="hover:underline">{v.name}</button>
+                  <button type="button" onClick={() => { applyView(v); setNavOpen(false); }} className="hover:underline">{v.name}</button>
                   <button type="button" onClick={() => deleteView(v.id)} className="text-navy-400 hover:text-red-500">✕</button>
                 </span>
               ))}
@@ -222,7 +239,7 @@ export default function Reports() {
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-navy-400">Custom Reports</p>
           <div className="space-y-0.5">
             <button
-              onClick={() => openCustomBuilder(null)}
+              onClick={() => { openCustomBuilder(null); setNavOpen(false); }}
               className={`block w-full rounded-md px-3 py-1.5 text-left text-sm font-medium ${
                 activeKey === 'custom' && !editingSavedId ? 'bg-prism text-white' : 'text-prism hover:bg-navy-50'
               }`}
@@ -236,7 +253,7 @@ export default function Reports() {
                   activeKey === 'custom' && editingSavedId === r.id ? 'bg-prism text-white' : 'text-navy-600 hover:bg-navy-50'
                 }`}
               >
-                <button type="button" onClick={() => openCustomBuilder(r.id)} className="min-w-0 flex-1 text-left">
+                <button type="button" onClick={() => { openCustomBuilder(r.id); setNavOpen(false); }} className="min-w-0 flex-1 text-left">
                   <span className="block truncate">{r.name}</span>
                   <span className={`block text-xs ${activeKey === 'custom' && editingSavedId === r.id ? 'text-white/70' : 'text-navy-400'}`}>
                     {r.dataSource} · {r.lastRunAt ? new Date(r.lastRunAt).toLocaleDateString() : 'never run'}
@@ -245,7 +262,7 @@ export default function Reports() {
                 <button
                   type="button"
                   onClick={() => deleteCustomReport(r.id)}
-                  className={`ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 ${activeKey === 'custom' && editingSavedId === r.id ? 'text-white/70 hover:text-white' : 'text-navy-400 hover:text-red-500'}`}
+                  className={`ml-1 flex-shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 ${activeKey === 'custom' && editingSavedId === r.id ? 'text-white/70 hover:text-white' : 'text-navy-400 hover:text-red-500'}`}
                 >
                   ✕
                 </button>
@@ -254,6 +271,7 @@ export default function Reports() {
           </div>
         </div>
       </nav>
+      </div>
 
       <div className="min-w-0 flex-1 space-y-5">
         {activeKey === 'custom' ? (

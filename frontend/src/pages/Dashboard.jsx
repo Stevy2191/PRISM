@@ -768,21 +768,21 @@ export default function Dashboard() {
               {!isTechMode && <h1 className="text-xl font-semibold" style={{ color: TEXT }}>Dashboard</h1>}
             </div>
 
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2">
-                {canFilterByUser && (
-                  <select
-                    value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
-                    className="rounded-md border px-3 py-1.5 text-sm focus:outline-none"
-                    style={{ backgroundColor: CARD_BG, borderColor: 'var(--color-border-strong)', color: TEXT }}
-                  >
-                    <option value="">{isSystemViewer ? 'All users (system wide)' : 'All users in my department'}</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.displayName}</option>
-                    ))}
-                  </select>
-                )}
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+              {canFilterByUser && (
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="w-full rounded-md border px-3 py-1.5 text-sm focus:outline-none sm:w-auto"
+                  style={{ backgroundColor: CARD_BG, borderColor: 'var(--color-border-strong)', color: TEXT }}
+                >
+                  <option value="">{isSystemViewer ? 'All users (system wide)' : 'All users in my department'}</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.displayName}</option>
+                  ))}
+                </select>
+              )}
+              <div className="flex items-center justify-end gap-2">
                 {editMode ? (
                   <>
                     <AddPanelMenu hiddenPanels={hiddenPanelDefs} onAdd={addPanel} />
@@ -800,7 +800,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatCard
               label={isTechMode ? 'My Open Tickets' : (data.mode === 'admin_department' ? 'My Department Open Tickets' : 'Total Open Tickets')}
               value={data.stats.openTickets}

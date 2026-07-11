@@ -41,7 +41,7 @@ export default function Layout() {
         className="min-h-screen w-full"
         style={isSidebar ? { paddingLeft: 60 } : { paddingTop: 52 }}
       >
-        <div className="w-full px-6 py-8">
+        <div className="w-full px-3 py-4 sm:px-6 sm:py-8">
           <Outlet />
         </div>
       </main>

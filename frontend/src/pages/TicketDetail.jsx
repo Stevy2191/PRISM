@@ -226,9 +226,9 @@ function TimeEntryFields({ entryDate, onEntryDateChange, startMinutes, onStartMi
 
 function Modal({ title, children, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-[10px] border p-5"
+        className="max-h-[100dvh] w-full overflow-y-auto rounded-none border p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-[10px]"
         style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -730,6 +730,7 @@ function Sidebar({
   watchers, onAddWatcher, onRemoveWatcher,
   departments, contactDeptAssign, onContactDeptChange, onAssignContactDepartment,
   customFieldDefs, onSaveCustomField,
+  mobileSheet,
 }) {
   const [tagInput, setTagInput] = useState('');
   const [watcherQuery, setWatcherQuery] = useState('');
@@ -749,32 +750,34 @@ function Sidebar({
     <aside
       className="relative flex-shrink-0 transition-all"
       style={{
-        width,
+        width: mobileSheet ? '100%' : width,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        borderRight: `1px solid ${BORDER}`,
+        borderRight: mobileSheet ? 'none' : `1px solid ${BORDER}`,
         backgroundColor: CARD_BG,
       }}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex-shrink-0 flex items-center text-sm"
-        style={{
-          width: '100%',
-          height: 36,
-          padding: '0 12px',
-          justifyContent: collapsed ? 'center' : 'flex-end',
-          backgroundColor: 'var(--color-hover)',
-          borderBottom: `1px solid ${BORDER}`,
-          color: TEXT,
-        }}
-        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        {collapsed ? '›' : '‹'}
-      </button>
+      {!mobileSheet && (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex-shrink-0 flex items-center text-sm"
+          style={{
+            width: '100%',
+            height: 36,
+            padding: '0 12px',
+            justifyContent: collapsed ? 'center' : 'flex-end',
+            backgroundColor: 'var(--color-hover)',
+            borderBottom: `1px solid ${BORDER}`,
+            color: TEXT,
+          }}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? '›' : '‹'}
+        </button>
+      )}
 
       <div
         className={collapsed ? 'flex flex-col items-center gap-4 pt-4' : 'space-y-5 p-4'}
@@ -1187,7 +1190,7 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPrivateCo
         </div>
       )}
 
-      <div className="mt-2 flex items-center justify-between">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => fileRef.current?.click()} title="Attach a file" className="rounded-md border p-2" style={{ borderColor: BORDER, color: MUTED }}>
             <IconPaperclip size={16} />
@@ -1197,7 +1200,7 @@ function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPrivateCo
             <IconAt size={16} />
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={saveDraft} className="rounded-md border px-3 py-2 text-sm font-medium" style={{ borderColor: BORDER, color: TEXT }}>
             Save draft
           </button>
@@ -1453,7 +1456,7 @@ function AttachmentsTab({ ticketId, attachments, onUpload, onRemove }) {
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); onRemove(a.id); }}
-              className="absolute right-1 top-1 hidden rounded p-1 group-hover:block"
+              className="absolute right-1 top-1 rounded p-1 md:hidden md:group-hover:block"
               style={{ color: MUTED }}
             >
               <IconTrash size={14} />
@@ -1860,6 +1863,7 @@ export default function TicketDetail() {
   });
   const [noTimeWarning, setNoTimeWarning] = useState(null);
   const [noResolutionWarning, setNoResolutionWarning] = useState(null);
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? 'collapsed' : 'expanded'); } catch { /* ignore */ }
@@ -2152,8 +2156,8 @@ export default function TicketDetail() {
 
   return (
     <div
-      style={{ margin: '-2rem -1.5rem', padding: 0, height: '100vh' }}
-      className="flex flex-col overflow-hidden bg-navy-50"
+      style={{ padding: 0, height: '100vh' }}
+      className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8"
     >
       {/* Header — auto height, does not grow */}
       <div
@@ -2217,6 +2221,14 @@ export default function TicketDetail() {
             )}
           </div>
           <div className="flex flex-shrink-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileDetailsOpen(true)}
+              className="rounded-md border px-3 py-2 text-sm font-medium md:hidden"
+              style={{ borderColor: BORDER, color: TEXT }}
+            >
+              Details
+            </button>
             {isStaff && (
               <TimerWidget
                 ticket={ticket}
@@ -2263,31 +2275,33 @@ export default function TicketDetail() {
           row takes exactly the remaining viewport height and its children
           (which scroll internally) never push the page taller than 100vh. */}
       <div className="flex items-stretch" style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
-        <Sidebar
-          ticket={ticket}
-          collapsed={collapsed}
-          onToggle={() => setCollapsed((c) => !c)}
-          isStaff={isStaff}
-          canAssign={canAssign}
-          onStatusChange={handleStatusChange}
-          patchTicket={patchTicket}
-          assignableUsers={assignableUsers}
-          teams={teams}
-          directory={directory}
-          ticketStatuses={ticketStatuses}
-          tags={ticket.tags || []}
-          onAddTag={addTag}
-          onRemoveTag={removeTag}
-          watchers={watchers}
-          onAddWatcher={addWatcher}
-          onRemoveWatcher={removeWatcher}
-          departments={departments}
-          contactDeptAssign={contactDeptAssign}
-          onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
-          onAssignContactDepartment={assignContactDepartment}
-          customFieldDefs={customFieldDefs}
-          onSaveCustomField={saveCustomFieldValue}
-        />
+        <div className="hidden md:contents">
+          <Sidebar
+            ticket={ticket}
+            collapsed={collapsed}
+            onToggle={() => setCollapsed((c) => !c)}
+            isStaff={isStaff}
+            canAssign={canAssign}
+            onStatusChange={handleStatusChange}
+            patchTicket={patchTicket}
+            assignableUsers={assignableUsers}
+            teams={teams}
+            directory={directory}
+            ticketStatuses={ticketStatuses}
+            tags={ticket.tags || []}
+            onAddTag={addTag}
+            onRemoveTag={removeTag}
+            watchers={watchers}
+            onAddWatcher={addWatcher}
+            onRemoveWatcher={removeWatcher}
+            departments={departments}
+            contactDeptAssign={contactDeptAssign}
+            onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
+            onAssignContactDepartment={assignContactDepartment}
+            customFieldDefs={customFieldDefs}
+            onSaveCustomField={saveCustomFieldValue}
+          />
+        </div>
 
         <div
           className="min-w-0"
@@ -2296,13 +2310,13 @@ export default function TicketDetail() {
           {/* Hardcoded per theme via CSS classes (not --color-* variables) so
               the tab bar stays readable no matter what custom background
               color an admin or user has set. */}
-          <div className="ticket-tab-bar flex-shrink-0 flex">
+          <div className="ticket-tab-bar flex flex-shrink-0 overflow-x-auto">
             {TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setActiveTab(t.key)}
-                className={`ticket-tab -mb-px border-b-2 px-4 py-3 text-sm font-medium ${activeTab === t.key ? 'ticket-tab--active' : ''}`}
+                className={`ticket-tab -mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${activeTab === t.key ? 'ticket-tab--active' : ''}`}
               >
                 {t.key === 'relationships' && relations.length > 0 ? `${t.label} (${relations.length})` : t.label}
               </button>
@@ -2394,6 +2408,51 @@ export default function TicketDetail() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {mobileDetailsOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileDetailsOpen(false)} />
+          <div
+            className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col overflow-hidden rounded-t-2xl border-t"
+            style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
+          >
+            <div className="flex flex-shrink-0 items-center justify-between border-b px-4 py-3" style={{ borderColor: BORDER }}>
+              <h3 className="text-base font-semibold" style={{ color: TEXT }}>Details</h3>
+              <button type="button" onClick={() => setMobileDetailsOpen(false)} className="text-sm font-medium" style={{ color: BLUE }}>
+                Done
+              </button>
+            </div>
+            <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
+              <Sidebar
+                ticket={ticket}
+                collapsed={false}
+                mobileSheet
+                onToggle={() => {}}
+                isStaff={isStaff}
+                canAssign={canAssign}
+                onStatusChange={handleStatusChange}
+                patchTicket={patchTicket}
+                assignableUsers={assignableUsers}
+                teams={teams}
+                directory={directory}
+                ticketStatuses={ticketStatuses}
+                tags={ticket.tags || []}
+                onAddTag={addTag}
+                onRemoveTag={removeTag}
+                watchers={watchers}
+                onAddWatcher={addWatcher}
+                onRemoveWatcher={removeWatcher}
+                departments={departments}
+                contactDeptAssign={contactDeptAssign}
+                onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
+                onAssignContactDepartment={assignContactDepartment}
+                customFieldDefs={customFieldDefs}
+                onSaveCustomField={saveCustomFieldValue}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

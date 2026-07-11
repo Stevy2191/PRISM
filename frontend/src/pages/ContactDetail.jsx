@@ -159,7 +159,10 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
   };
 
   return (
-    <div className="w-80 flex-shrink-0 space-y-5 overflow-y-auto border-r p-5" style={{ borderColor: BORDER, backgroundColor: CARD_BG }}>
+    <div
+      className="w-full flex-shrink-0 space-y-5 overflow-visible border-b p-4 sm:p-5 md:w-80 md:overflow-y-auto md:border-b-0 md:border-r"
+      style={{ borderColor: BORDER, backgroundColor: CARD_BG }}
+    >
       <div className="flex flex-col items-center text-center">
         <Avatar name={contact.displayName} size={72} color={deptColor(contact.departmentId)} />
         {editingName ? (
@@ -340,7 +343,7 @@ function TicketsTab({ tickets, statuses }) {
           </button>
         ))}
       </div>
-      <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+      <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
         <table className="min-w-full">
           <thead>
             <tr>
@@ -495,8 +498,13 @@ export default function ContactDetail() {
   if (!contact) return null;
 
   return (
-    <div style={{ margin: '-2rem -1.5rem', padding: 0, height: '100vh', backgroundColor: BG }} className="flex overflow-hidden">
-      <ContactRail contacts={contactsList} currentId={id} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
+    <div
+      style={{ backgroundColor: BG }}
+      className="-mx-3 -my-4 flex flex-col overflow-visible sm:-mx-6 sm:-my-8 md:h-screen md:flex-row md:overflow-hidden"
+    >
+      <div className="hidden md:contents">
+        <ContactRail contacts={contactsList} currentId={id} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
+      </div>
 
       <PropertiesPanel
         contact={contact}
@@ -508,16 +516,16 @@ export default function ContactDetail() {
         onCreateTicket={() => navigate(`/tickets/new?contactId=${contact.id}`)}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex-shrink-0 border-b px-6 py-4" style={{ borderColor: BORDER }}>
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1">
+      <div className="flex flex-1 flex-col overflow-visible md:overflow-hidden">
+        <div className="flex-shrink-0 border-b px-3 py-4 sm:px-6" style={{ borderColor: BORDER }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-1 overflow-x-auto">
               {['Overview', 'Tickets', 'Activity'].map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTab(t)}
-                  className="rounded-md px-3 py-1.5 text-sm font-medium"
+                  className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium"
                   style={{ backgroundColor: tab === t ? BLUE : 'transparent', color: tab === t ? 'white' : MUTED }}
                 >
                   {t}
@@ -529,7 +537,7 @@ export default function ContactDetail() {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-visible p-3 sm:p-6 md:overflow-y-auto">
           {tab === 'Overview' && stats && <OverviewTab stats={stats} recentTickets={recentTickets} statuses={statuses} />}
           {tab === 'Tickets' && <TicketsTab tickets={tickets} statuses={statuses} />}
           {tab === 'Activity' && <ActivityTab activity={activity} />}

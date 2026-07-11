@@ -122,9 +122,9 @@ function TimeEntryFields({ entryDate, onEntryDateChange, startMinutes, onStartMi
 
 function Modal({ title, children, onClose, wide }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4" onClick={onClose}>
       <div
-        className={`w-full ${wide ? 'max-w-2xl' : 'max-w-md'} max-h-[90vh] overflow-y-auto rounded-[10px] border p-5`}
+        className={`w-full max-h-[100dvh] overflow-y-auto rounded-none border p-5 sm:max-h-[90vh] sm:rounded-[10px] ${wide ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
         style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -500,7 +500,7 @@ export default function ProjectDetail() {
       )}
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Completion" value={`${stats.completionPercent || 0}%`} color={compColor} />
         <StatCard label="Total time logged" value={formatSeconds(stats.totalTimeSeconds)} color={TEXT} />
         <StatCard label="Total cost" value={formatCost(stats.totalCost)} color={TEXT} />
@@ -513,13 +513,13 @@ export default function ProjectDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-shrink-0" style={{ backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
+      <div className="flex flex-shrink-0 overflow-x-auto" style={{ backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className="-mb-px border-b-2 px-4 py-3 text-sm font-medium"
+            className="-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium"
             style={{ borderColor: tab === t.key ? BLUE : 'transparent', color: tab === t.key ? BLUE : MUTED }}
           >
             {t.label}
@@ -943,7 +943,7 @@ function TasksTab({ tasks, isStaff, canEdit, statuses, assignableUsers, onOpenTa
                   )}
                 </div>
                 {canEdit && (
-                  <div className="flex flex-shrink-0 flex-col gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="flex flex-shrink-0 flex-col gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); moveTask(task, -1); }}
@@ -1177,7 +1177,7 @@ function TaskDetailModal({ projectId, task, statuses, assignableUsers, onClose, 
 // ==================== Time entries tab ====================
 function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete }) {
   return (
-    <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+    <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
         <h2 className="font-semibold" style={{ color: TEXT }}>Time Entries</h2>
         {canLogTime && <button onClick={onAdd} className="btn-primary">+ Log time</button>}
@@ -1278,7 +1278,7 @@ function AddTimeModal({ tasks, isAdmin, assignableUsers, onClose, onSave }) {
 const EXPENSE_CATEGORIES = ['materials', 'labor', 'travel', 'equipment', 'other'];
 function ExpensesTab({ data, canManageExpenses, onAdd, onDelete }) {
   return (
-    <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+    <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
         <h2 className="font-semibold" style={{ color: TEXT }}>Expenses</h2>
         {canManageExpenses && <button onClick={onAdd} className="btn-primary">+ Add expense</button>}
@@ -1369,7 +1369,7 @@ function AddExpenseModal({ tasks, onClose, onSave }) {
 // ==================== Materials tab ====================
 function MaterialsTab({ data, canManageExpenses, onAdd, onDelete }) {
   return (
-    <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+    <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
         <h2 className="font-semibold" style={{ color: TEXT }}>Materials</h2>
         {canManageExpenses && <button onClick={onAdd} className="btn-primary">+ Add item</button>}
@@ -1455,7 +1455,7 @@ function AddMaterialModal({ tasks, onClose, onSave }) {
         ))}
         <button onClick={addSerialField} className="flex items-center gap-1 text-xs font-medium" style={{ color: BLUE }}><IconPlus size={12} /> Add another serial</button>
       </div>
-      <div className="mb-3 grid grid-cols-3 gap-3">
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Quantity</label>
           <input type="number" min="1" className="input" style={fieldStyle} value={quantity} onChange={(e) => setQuantity(e.target.value)} />

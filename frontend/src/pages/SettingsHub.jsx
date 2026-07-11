@@ -194,7 +194,7 @@ export default function SettingsHub() {
       {visibleSections.map((section) => (
         <div key={section.title}>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-navy-400">{section.title}</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {section.items.map((it) => (
               <Link key={it.to} to={it.to} className="card p-5 transition hover:border-prism hover:shadow-md">
                 <div className="flex items-center gap-1.5">

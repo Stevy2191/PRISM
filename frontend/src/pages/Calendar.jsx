@@ -194,8 +194,8 @@ function EventPopover({ event, onClose }) {
   const Icon = TYPE_META[event.type].icon;
   const overdue = !isExternal && overduePill(event, fmtLocal(new Date()), openStatusNames);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-[10px] border p-5" style={{ backgroundColor: CARD_BG, borderColor: BORDER }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
+      <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none border p-5 sm:max-h-[90vh] sm:max-w-sm sm:rounded-[10px]" style={{ backgroundColor: CARD_BG, borderColor: BORDER }} onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-start justify-between">
           <div className="flex items-center gap-2">
             <Icon size={18} style={{ color: eventColor(event) }} />
@@ -299,8 +299,8 @@ function EventPopover({ event, onClose }) {
 // ==================== "+N more" day overflow modal ====================
 function DayOverflowModal({ date, events, todayStr, onClose, onEventClick }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-[10px] border p-5" style={{ backgroundColor: CARD_BG, borderColor: BORDER }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
+      <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none border p-5 sm:max-h-[90vh] sm:max-w-sm sm:rounded-[10px]" style={{ backgroundColor: CARD_BG, borderColor: BORDER }} onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-semibold" style={{ color: TEXT }}>
             {date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -642,7 +642,7 @@ export default function Calendar() {
   const { user } = useAuth();
   const canViewAll = usePermission('tickets.view_all') || usePermission('projects.view_all');
 
-  const [view, setView] = useState('month');
+  const [view, setView] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'week' : 'month'));
   const [anchor, setAnchor] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [fetchedRange, setFetchedRange] = useState(null); // { start: Date, end: Date }
