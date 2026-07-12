@@ -9,6 +9,7 @@ module.exports = (sequelize) => {
       name: { type: DataTypes.STRING(100), allowNull: false, unique: true },
       icon: { type: DataTypes.STRING(20), allowNull: true },
       color: { type: DataTypes.STRING(20), allowNull: true },
+      isBuiltIn: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     },
     {
       sequelize,

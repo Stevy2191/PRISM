@@ -12,11 +12,12 @@ const {
 const { asyncHandler } = require('../middleware/error');
 const { getUserTicketScope, getUserProjectScope } = require('../services/permissionService');
 const { getTicketStatusBuckets, getProjectStatusBuckets, getProjectStatusIdBehaviorMap } = require('../services/statusBehavior');
+const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 
 const userAttrs = ['id', 'displayName'];
 
 function parseTypes(raw) {
-  const all = ['tickets', 'projects', 'tasks'];
+  const all = ['tickets', 'projects', 'tasks', 'subscriptions'];
   if (!raw) return all;
   const requested = String(raw).split(',').map((s) => s.trim()).filter(Boolean);
   return all.filter((t) => requested.includes(t));
@@ -193,6 +194,30 @@ const listEvents = asyncHandler(async (req, res) => {
         });
       });
     }
+  }
+
+  if (types.includes('subscriptions')) {
+    const renewals = await getSubscriptionRenewals({});
+    renewals.forEach((r) => {
+      if (startDate && r.renewalDate < startDate) return;
+      if (endDate && r.renewalDate > endDate) return;
+      if (departmentId && String(r.asset.departmentId) !== String(departmentId)) return;
+      events.push({
+        id: `subscription-${r.asset.id}`,
+        type: 'subscription',
+        title: `${r.asset.name} renewal${r.provider ? ` — ${r.provider}` : ''}`,
+        dueDate: r.renewalDate,
+        dueTime: null,
+        status: 'Renewal',
+        statusColor: '#0d9488',
+        priority: null,
+        priorityColor: '#0d9488',
+        assigneeId: null,
+        assigneeName: null,
+        departmentIds: r.asset.departmentId ? [r.asset.departmentId] : [],
+        url: `/assets/${r.asset.id}`,
+      });
+    });
   }
 
   res.json({ events });

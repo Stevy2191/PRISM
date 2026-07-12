@@ -77,6 +77,12 @@ const DEFAULTS = {
   'csat.surveyQuestion': 'How satisfied were you with the support you received?',
   'csat.expiryDays': '7',
   'csat.minTicketsToShowRating': '3',
+
+  // Assets -> subscription renewal alert (Network Equipment / Mobile
+  // Devices / Mobile Routers "nextRenewalDate" field) — see
+  // assetAlertScheduler.js. Days-before-renewal threshold for
+  // auto-creating a reminder ticket.
+  'assets.subscriptionAlertDays': '30',
 };
 
 // Settings that store JSON-encoded values rather than plain strings.

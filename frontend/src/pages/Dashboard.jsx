@@ -420,12 +420,13 @@ function AssetsSummaryPanel({ data }) {
   const stats = [
     { label: 'Due for replacement (90 days)', value: data.dueForReplacement, to: '/assets?filter=dueForReplacement', color: data.dueForReplacement > 0 ? 'var(--color-warning)' : TEXT },
     { label: 'Expired warranty', value: data.expiredWarranty, to: '/assets?filter=expiredWarranty', color: data.expiredWarranty > 0 ? 'var(--color-danger)' : TEXT },
+    { label: 'Subscriptions renewing (30 days)', value: data.subscriptionsRenewingSoon ?? 0, to: '/calendar', color: (data.subscriptionsRenewingSoon ?? 0) > 0 ? 'var(--color-warning)' : TEXT },
     { label: 'Total active', value: data.totalActive, to: '/assets?status=active', color: TEXT },
   ];
   return (
     <Card>
       <h2 className="font-semibold" style={{ color: TEXT }}>Assets</h2>
-      <div className="mt-3 grid grid-cols-3 gap-3">
+      <div className="mt-3 grid grid-cols-2 gap-3">
         {stats.map((s) => (
           <Link key={s.label} to={s.to} className="rounded-md border p-3 text-center transition hover:opacity-80" style={{ borderColor: CARD_BORDER }}>
             <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>

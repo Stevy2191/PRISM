@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { IconFile, IconUpload, IconTrash, IconDownload } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
@@ -45,6 +46,25 @@ function Field({ label, children }) {
       <div className="mt-0.5 text-sm" style={{ color: TEXT }}>{children ?? <span style={{ color: MUTED }}>—</span>}</div>
     </div>
   );
+}
+
+// Subscription renewal uses its own thresholds — green >60 days, amber
+// 30-60, red <30 or past due — distinct from dateUrgencyColor's 90-day
+// warranty/replacement threshold (see Assets.jsx).
+function subscriptionUrgencyColor(dateStr) {
+  if (!dateStr) return MUTED;
+  const days = Math.round((new Date(`${dateStr}T00:00:00`) - new Date(new Date().toDateString())) / 86400000);
+  if (days < 30) return 'var(--color-danger)';
+  if (days <= 60) return 'var(--color-warning)';
+  return 'var(--color-success)';
+}
+
+const SUBSCRIPTION_FIELD_KEYS = new Set(['subscriptionProvider', 'subscriptionCost', 'billingCycle', 'nextRenewalDate', 'autoRenews']);
+
+function formatFieldValue(field, value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (field.fieldType === 'toggle') return value === 'true' || value === true ? 'Yes' : 'No';
+  return value;
 }
 
 export default function AssetDetail() {
@@ -144,7 +164,10 @@ export default function AssetDetail() {
       </div>
 
       <div className="flex gap-1 overflow-x-auto border-b" style={{ borderColor: BORDER }}>
-        {[['overview', 'Overview'], ['tickets', 'Tickets'], ['activity', 'Activity']].map(([key, label]) => (
+        {[
+          ['overview', 'Overview'], ['tickets', 'Tickets'], ['activity', 'Activity'],
+          ['attachments', 'Attachments'], ['checkouts', 'Checkout History'],
+        ].map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -157,9 +180,11 @@ export default function AssetDetail() {
         ))}
       </div>
 
-      {tab === 'overview' && <OverviewTab asset={asset} departments={departments} onPatch={patchAsset} />}
+      {tab === 'overview' && <OverviewTab asset={asset} departments={departments} onPatch={patchAsset} onCheckedOut={load} />}
       {tab === 'tickets' && <TicketsTab assetId={id} asset={asset} canLinkTickets={canLinkTickets} navigate={navigate} />}
       {tab === 'activity' && <ActivityTab assetId={id} />}
+      {tab === 'attachments' && <AttachmentsTab assetId={id} />}
+      {tab === 'checkouts' && <CheckoutsTab assetId={id} asset={asset} onChanged={load} />}
 
       {showEditForm && (
         <AssetFormModal
@@ -193,9 +218,10 @@ export default function AssetDetail() {
   );
 }
 
-function OverviewTab({ asset, departments, onPatch }) {
+function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
   const [notes, setNotes] = useState(asset.notes || '');
   const notesTimer = useRef(null);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
   useEffect(() => setNotes(asset.notes || ''), [asset.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -204,6 +230,11 @@ function OverviewTab({ asset, departments, onPatch }) {
     clearTimeout(notesTimer.current);
     notesTimer.current = setTimeout(() => onPatch({ notes: value || null }), 800);
   };
+
+  const allFieldValues = asset.fieldValues || [];
+  const subscriptionValues = allFieldValues.filter((fv) => SUBSCRIPTION_FIELD_KEYS.has(fv.field?.fieldKey));
+  const deviceValues = allFieldValues.filter((fv) => !SUBSCRIPTION_FIELD_KEYS.has(fv.field?.fieldKey));
+  const renewalValue = subscriptionValues.find((fv) => fv.field?.fieldKey === 'nextRenewalDate');
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -228,6 +259,14 @@ function OverviewTab({ asset, departments, onPatch }) {
           <Field label="MAC address">{asset.macAddress}</Field>
         </div>
         <Field label="Firmware version">{asset.firmwareVersion}</Field>
+        {asset.deployedDate && <Field label="Deployed date">{asset.deployedDate}</Field>}
+        {deviceValues.length > 0 && (
+          <div className="grid grid-cols-2 gap-4 border-t pt-4" style={{ borderColor: BORDER }}>
+            {deviceValues.map((fv) => (
+              <Field key={fv.id} label={fv.field?.label}>{formatFieldValue(fv.field, fv.value)}</Field>
+            ))}
+          </div>
+        )}
         <div>
           <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Notes</p>
           <textarea
@@ -243,11 +282,16 @@ function OverviewTab({ asset, departments, onPatch }) {
         <h2 className="font-semibold" style={{ color: TEXT }}>Assignment &amp; lifecycle</h2>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Assigned to</p>
-          <p className="mt-0.5 text-sm" style={{ color: TEXT }}>
-            {asset.assignedToContact ? `${asset.assignedToContact.displayName} (Contact)`
-              : asset.assignedToUser ? `${asset.assignedToUser.displayName} (User)`
-              : <span style={{ color: MUTED }}>Unassigned</span>}
-          </p>
+          <div className="mt-0.5 flex items-center justify-between gap-2">
+            <p className="text-sm" style={{ color: TEXT }}>
+              {asset.assignedToContact ? `${asset.assignedToContact.displayName} (Contact)`
+                : asset.assignedToUser ? `${asset.assignedToUser.displayName} (User)`
+                : <span style={{ color: MUTED }}>Unassigned</span>}
+            </p>
+            {asset.assignedToContact && (
+              <button type="button" onClick={() => setShowCheckoutModal(true)} className="btn-secondary flex-shrink-0 text-xs">Check out</button>
+            )}
+          </div>
           <p className="mt-1 text-xs" style={{ color: MUTED }}>Use Edit to change assignment.</p>
         </div>
         <Field label="Department">{asset.department?.name}</Field>
@@ -282,6 +326,158 @@ function OverviewTab({ asset, departments, onPatch }) {
             <option value="lost">Lost</option>
           </select>
         </div>
+      </div>
+
+      {subscriptionValues.length > 0 && (
+        <div className="space-y-4 rounded-[10px] border p-5 lg:col-span-2" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+          <h2 className="font-semibold" style={{ color: TEXT }}>Subscription</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {subscriptionValues.map((fv) => (
+              <div key={fv.id}>
+                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>{fv.field?.label}</p>
+                <p
+                  className="mt-0.5 text-sm"
+                  style={{ color: fv.field?.fieldKey === 'nextRenewalDate' ? subscriptionUrgencyColor(fv.value) : TEXT }}
+                >
+                  {formatFieldValue(fv.field, fv.value) ?? <span style={{ color: MUTED }}>—</span>}
+                </p>
+              </div>
+            ))}
+          </div>
+          {renewalValue?.value && (
+            <p className="text-xs" style={{ color: subscriptionUrgencyColor(renewalValue.value) }}>
+              {subscriptionUrgencyColor(renewalValue.value) === 'var(--color-danger)' ? 'Renews soon or overdue'
+                : subscriptionUrgencyColor(renewalValue.value) === 'var(--color-warning)' ? 'Renewing within 60 days'
+                : 'Renewal not due soon'}
+            </p>
+          )}
+        </div>
+      )}
+
+      {showCheckoutModal && (
+        <CheckoutModal
+          assetId={asset.id}
+          contact={asset.assignedToContact}
+          onClose={() => setShowCheckoutModal(false)}
+          onCheckedOut={() => { setShowCheckoutModal(false); onCheckedOut?.(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Checkout creation, followed by an inline "send the generated form now?"
+// step when a PDF was generated — matches the spec's flow of "Send checkout
+// form" appearing right after generation, without a second trip back to
+// this asset's Checkout History tab.
+function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
+  const [step, setStep] = useState('form'); // 'form' | 'sent-prompt'
+  const [checkedOutAt, setCheckedOutAt] = useState(todayStr());
+  const [notes, setNotes] = useState('');
+  const [generateForm, setGenerateForm] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const [checkout, setCheckout] = useState(null);
+  const [attachment, setAttachment] = useState(null);
+  const [emailTo, setEmailTo] = useState(contact?.email || '');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('Please find attached your equipment checkout form. Please sign and return to the IT department.');
+  const [sending, setSending] = useState(false);
+
+  const submitCheckout = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      const { data } = await api.post(`/assets/${assetId}/checkouts`, {
+        contactId: contact.id, checkedOutAt, notes: notes || undefined, generateForm,
+      });
+      if (data.attachment) {
+        setCheckout(data.checkout);
+        setAttachment(data.attachment);
+        setEmailSubject(`Equipment Checkout Form — ${data.checkout.asset?.assetTag || ''} ${data.checkout.asset?.name || ''}`.trim());
+        setStep('sent-prompt');
+      } else {
+        onCheckedOut();
+      }
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sendForm = async () => {
+    setSending(true);
+    setError('');
+    try {
+      await api.post(`/assets/${assetId}/checkouts/${checkout.id}/send-form`, {
+        attachmentId: attachment.id, to: emailTo, subject: emailSubject, body: emailBody,
+      });
+      onCheckedOut();
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
+      <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
+        {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+
+        {step === 'form' ? (
+          <form onSubmit={submitCheckout} className="space-y-3">
+            <h2 className="text-base font-semibold" style={{ color: TEXT }}>Check out equipment</h2>
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Contact</p>
+              <p className="text-sm" style={{ color: TEXT }}>{contact?.displayName}</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Checkout date</label>
+              <input type="date" className="input" style={fieldStyle} value={checkedOutAt} onChange={(e) => setCheckedOutAt(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Notes</label>
+              <textarea className="input resize-y" style={{ ...fieldStyle, minHeight: '70px' }} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+            <label className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>
+              <input type="checkbox" checked={generateForm} onChange={(e) => setGenerateForm(e.target.checked)} className="h-4 w-4" />
+              Generate checkout form
+            </label>
+            <div className="flex justify-end gap-2 border-t pt-3" style={{ borderColor: BORDER }}>
+              <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+              <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Checking out…' : 'Check out'}</button>
+            </div>
+          </form>
+        ) : (
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold" style={{ color: TEXT }}>Send checkout form?</h2>
+            <p className="text-sm" style={{ color: MUTED }}>The checkout form PDF was generated and saved to this asset&apos;s attachments.</p>
+            <div>
+              <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>To</label>
+              <input className="input" style={fieldStyle} value={emailTo} onChange={(e) => setEmailTo(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Subject</label>
+              <input className="input" style={fieldStyle} value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Body</label>
+              <textarea className="input resize-y" style={{ ...fieldStyle, minHeight: '80px' }} value={emailBody} onChange={(e) => setEmailBody(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2 border-t pt-3" style={{ borderColor: BORDER }}>
+              <button type="button" onClick={onCheckedOut} className="btn-secondary">Skip</button>
+              <button type="button" onClick={sendForm} disabled={sending || !emailTo} className="btn-primary">{sending ? 'Sending…' : 'Send'}</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -444,6 +640,14 @@ const ACTIVITY_LABEL = {
   assignment_changed: 'Assignment changed',
   ticket_linked: 'Ticket linked',
   ticket_unlinked: 'Ticket unlinked',
+  checked_out: 'Checked out',
+  checked_in: 'Checked in',
+  checkout_form_generated: 'Checkout form generated',
+  checkout_form_sent: 'Checkout form sent',
+  checkout_form_received: 'Checkout form received',
+  attachment_added: 'Attachment added',
+  attachment_removed: 'Attachment removed',
+  subscription_alert_ticket_created: 'Subscription renewal alert created',
 };
 
 function activityDescription(a) {
@@ -453,7 +657,280 @@ function activityDescription(a) {
   if (a.action === 'assignment_changed') return 'Assignment changed';
   if (a.action === 'ticket_linked' || a.action === 'ticket_unlinked') return `Ticket #${d.ticketNumber} — ${d.ticketTitle || ''}`;
   if (a.action === 'updated') return `Updated: ${(d.fields || []).join(', ')}`;
+  if (a.action === 'checked_out') return `Checked out to ${d.contactName || 'a contact'}`;
+  if (a.action === 'checkout_form_sent') return `Sent to ${d.to || ''}`;
+  if (a.action === 'attachment_added' || a.action === 'attachment_removed') return d.originalName || '';
+  if (a.action === 'subscription_alert_ticket_created') return `Ticket #${d.ticketNumber} created — renews ${d.renewalDate}`;
   return a.action;
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ---- Attachments tab ----
+
+function AttachmentsTab({ assetId }) {
+  const [attachments, setAttachments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const inputRef = useRef(null);
+
+  const load = () => {
+    api.get(`/assets/${assetId}/attachments`).then(({ data }) => setAttachments(data.attachments)).finally(() => setLoading(false));
+  };
+  useEffect(load, [assetId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const upload = async (file) => {
+    setUploadError('');
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      await api.post(`/assets/${assetId}/attachments`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      load();
+    } catch (err) {
+      setUploadError(errMessage(err));
+    }
+  };
+  const handleFiles = (files) => Array.from(files).forEach((f) => upload(f));
+
+  const remove = async (attachmentId) => {
+    if (!confirm('Delete this attachment?')) return;
+    await api.delete(`/assets/${assetId}/attachments/${attachmentId}`);
+    load();
+  };
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div className="space-y-3">
+      {uploadError && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{uploadError}</div>}
+      {attachments.length === 0 ? (
+        <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+          No attachments yet — invoices, receipts, warranty documents, signed checkout forms, or photos of the equipment.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {attachments.map((a) => (
+            <div key={a.id} className="flex items-center gap-3 rounded-[10px] border p-3" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+              <IconFile size={24} style={{ color: MUTED, flexShrink: 0 }} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium" style={{ color: TEXT }}>{a.originalName}</p>
+                <p className="text-xs" style={{ color: MUTED }}>
+                  {formatFileSize(a.size)} · Uploaded by {a.uploadedBy?.displayName || 'System'} · {new Date(a.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <a
+                href={`/api/v1/assets/${assetId}/attachments/${a.id}/download`}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"
+                style={{ color: BLUE }}
+                title="Download"
+              >
+                <IconDownload size={16} />
+              </a>
+              <button
+                type="button"
+                onClick={() => remove(a.id)}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"
+                style={{ color: 'var(--color-danger)' }}
+                title="Delete"
+              >
+                <IconTrash size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+        onClick={() => inputRef.current?.click()}
+        className="cursor-pointer rounded-md border-2 border-dashed p-6 text-center"
+        style={{ borderColor: dragOver ? BLUE : BORDER, backgroundColor: dragOver ? 'color-mix(in srgb, var(--color-accent) 8%, var(--color-bg))' : BG }}
+      >
+        <IconUpload size={22} style={{ color: MUTED, margin: '0 auto' }} />
+        <p className="mt-2 text-sm" style={{ color: TEXT }}>Drag &amp; drop files here or browse</p>
+        <p className="mt-1 text-xs" style={{ color: MUTED }}>PDF, JPG, PNG, DOCX, XLSX — max 25MB</p>
+        <input ref={inputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" className="hidden" onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }} />
+      </div>
+    </div>
+  );
+}
+
+// ---- Checkout History tab ----
+
+function CheckoutsTab({ assetId, asset, onChanged }) {
+  const [checkouts, setCheckouts] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [sendPrompt, setSendPrompt] = useState(null); // { checkout, attachment }
+
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      api.get(`/assets/${assetId}/checkouts`),
+      api.get(`/assets/${assetId}/attachments`),
+    ]).then(([c, a]) => { setCheckouts(c.data.checkouts); setAttachments(a.data.attachments); }).finally(() => setLoading(false));
+  };
+  useEffect(load, [assetId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const checkIn = async (checkoutId) => {
+    setBusyId(checkoutId);
+    try {
+      await api.post(`/assets/${assetId}/checkouts/${checkoutId}/check-in`);
+      onChanged?.();
+      load();
+    } catch (err) {
+      alert(errMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const markReceived = async (checkoutId) => {
+    setBusyId(checkoutId);
+    try {
+      await api.patch(`/assets/${assetId}/checkouts/${checkoutId}`, { formReceived: true });
+      load();
+    } catch (err) {
+      alert(errMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div className="space-y-3">
+      {checkouts.length === 0 ? (
+        <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+          No checkout history yet.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {checkouts.map((c) => {
+            const active = !c.checkedInAt;
+            const durationDays = c.checkedInAt
+              ? Math.round((new Date(c.checkedInAt) - new Date(c.checkedOutAt)) / 86400000)
+              : Math.round((Date.now() - new Date(c.checkedOutAt)) / 86400000);
+            return (
+              <div key={c.id} className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: active ? BLUE : BORDER }}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: TEXT }}>
+                      {c.contact?.displayName}
+                      {active && <span className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>Current</span>}
+                    </p>
+                    <p className="mt-0.5 text-xs" style={{ color: MUTED }}>
+                      Checked out {new Date(c.checkedOutAt).toLocaleDateString()}
+                      {c.checkedInAt ? ` · Checked in ${new Date(c.checkedInAt).toLocaleDateString()}` : ' · Still out'}
+                      {' · '}{durationDays}d
+                    </p>
+                    {c.notes && <p className="mt-1 text-xs" style={{ color: MUTED }}>{c.notes}</p>}
+                    <p className="mt-1 text-xs" style={{ color: MUTED }}>
+                      {c.checkoutFormReturnedAt
+                        ? `Checkout form: Received ${new Date(c.checkoutFormReturnedAt).toLocaleDateString()}`
+                        : c.checkoutFormSentAt
+                        ? `Checkout form sent ${new Date(c.checkoutFormSentAt).toLocaleDateString()} — awaiting return`
+                        : null}
+                    </p>
+                  </div>
+                  <div className="flex flex-shrink-0 flex-wrap gap-2">
+                    {active && (
+                      <button type="button" onClick={() => checkIn(c.id)} disabled={busyId === c.id} className="btn-secondary text-xs">
+                        {busyId === c.id ? 'Checking in…' : 'Check in'}
+                      </button>
+                    )}
+                    {!c.checkoutFormSentAt && attachments.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSendPrompt({ checkout: c, attachment: attachments[0] })}
+                        className="btn-secondary text-xs"
+                      >
+                        Send checkout form
+                      </button>
+                    )}
+                    {c.checkoutFormSentAt && !c.checkoutFormReturnedAt && (
+                      <button type="button" onClick={() => markReceived(c.id)} disabled={busyId === c.id} className="btn-secondary text-xs">
+                        Mark form received
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {sendPrompt && (
+        <SendCheckoutFormModal
+          assetId={assetId}
+          asset={asset}
+          checkout={sendPrompt.checkout}
+          attachment={sendPrompt.attachment}
+          onClose={() => setSendPrompt(null)}
+          onSent={() => { setSendPrompt(null); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function SendCheckoutFormModal({ assetId, asset, checkout, attachment, onClose, onSent }) {
+  const [to, setTo] = useState(checkout.contact?.email || '');
+  const [subject, setSubject] = useState(`Equipment Checkout Form — ${asset.assetTag} ${asset.name}`);
+  const [body, setBody] = useState('Please find attached your equipment checkout form. Please sign and return to the IT department.');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+
+  const send = async () => {
+    setSending(true);
+    setError('');
+    try {
+      await api.post(`/assets/${assetId}/checkouts/${checkout.id}/send-form`, { attachmentId: attachment.id, to, subject, body });
+      onSent();
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
+      <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
+        <h2 className="mb-3 text-base font-semibold" style={{ color: TEXT }}>Send checkout form</h2>
+        {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>To</label>
+            <input className="input" style={fieldStyle} value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Subject</label>
+            <input className="input" style={fieldStyle} value={subject} onChange={(e) => setSubject(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Body</label>
+            <textarea className="input resize-y" style={{ ...fieldStyle, minHeight: '80px' }} value={body} onChange={(e) => setBody(e.target.value)} />
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end gap-2 border-t pt-3" style={{ borderColor: BORDER }}>
+          <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+          <button type="button" onClick={send} disabled={sending || !to} className="btn-primary">{sending ? 'Sending…' : 'Send'}</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ActivityTab({ assetId }) {

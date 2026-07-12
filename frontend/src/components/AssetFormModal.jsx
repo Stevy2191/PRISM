@@ -9,6 +9,17 @@ const TEXT = 'var(--color-text-primary)';
 const MUTED = 'var(--color-text-muted)';
 const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };
 
+// Legacy static "compute device" columns from the original asset build —
+// now shown conditionally per category rather than on every asset. Matched
+// by category name; anything not listed here (custom categories, "Other")
+// shows none of them, relying entirely on the new per-category dynamic
+// field system instead.
+const COMPUTE_FIELD_CATEGORIES = new Set(['Computers', 'Laptops', 'Servers']);
+const IP_MAC_CATEGORIES = new Set(['Computers', 'Laptops', 'Servers', 'Network Equipment', 'Printers', 'Mobile Routers / Hotspots']);
+const DEPLOYED_DATE_CATEGORIES = new Set(['Computers', 'Laptops', 'Mobile Devices']);
+
+const SUBSCRIPTION_FIELD_KEYS = new Set(['subscriptionProvider', 'subscriptionCost', 'billingCycle', 'nextRenewalDate', 'autoRenews']);
+
 function Label({ children, required }) {
   return (
     <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>
@@ -23,6 +34,38 @@ function Section({ title, children }) {
       <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: MUTED }}>{title}</h3>
       <div className="space-y-3">{children}</div>
     </div>
+  );
+}
+
+// Renders one AssetCategoryField's input based on fieldType — mirrors
+// TicketNew.jsx's CustomFieldInput for admin-defined ticket custom fields.
+function CategoryFieldInput({ field, value, onChange }) {
+  if (field.fieldType === 'dropdown') {
+    return (
+      <select className="input" style={fieldStyle} value={value || ''} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Select…</option>
+        {(field.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
+  if (field.fieldType === 'toggle') {
+    return (
+      <label className="flex h-9 items-center gap-2 text-sm" style={{ color: TEXT }}>
+        <input type="checkbox" checked={value === 'true' || value === true} onChange={(e) => onChange(e.target.checked ? 'true' : 'false')} className="h-4 w-4" />
+        Yes
+      </label>
+    );
+  }
+  const typeAttr = { number: 'number', date: 'date', phone: 'tel', email: 'email' }[field.fieldType] || 'text';
+  return (
+    <input
+      type={typeAttr}
+      className="input"
+      style={fieldStyle}
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+      step={field.fieldType === 'number' ? '0.01' : undefined}
+    />
   );
 }
 
@@ -137,7 +180,7 @@ const DEFAULT_FORM = {
   assetTag: '', name: '', categoryId: '', status: 'active',
   make: '', model: '', serialNumber: '',
   operatingSystem: '', osVersion: '', processor: '', ram: '', storage: '',
-  ipAddress: '', macAddress: '', firmwareVersion: '',
+  ipAddress: '', macAddress: '', firmwareVersion: '', deployedDate: '',
   departmentId: '', locationBuilding: '', locationFloor: '', locationRoom: '',
   purchaseDate: '', purchasePrice: '', vendorName: '', warrantyExpiryDate: '', replacementPlanDate: '',
   notes: '',
@@ -154,10 +197,16 @@ export default function AssetFormModal({ asset, categories, departments, onClose
   const [contact, setContact] = useState(asset?.assignedToContact || null);
   const [user, setUser] = useState(asset?.assignedToUser || null);
   const [tagTouched, setTagTouched] = useState(isEdit);
+  const [fieldValues, setFieldValues] = useState(() => {
+    const initial = {};
+    (asset?.fieldValues || []).forEach((fv) => { initial[fv.fieldId] = fv.value; });
+    return initial;
+  });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setFieldValue = (fieldId) => (value) => setFieldValues((v) => ({ ...v, [fieldId]: value }));
 
   // Auto-fill the suggested tag whenever category changes, unless the admin
   // already edited the tag field themselves.
@@ -167,6 +216,15 @@ export default function AssetFormModal({ asset, categories, departments, onClose
     if (cat?.nextTagSuggestion) setForm((f) => ({ ...f, assetTag: cat.nextTagSuggestion }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.categoryId, categories]);
+
+  const category = categories.find((c) => String(c.id) === String(form.categoryId));
+  const categoryName = category?.name || '';
+  const showCompute = COMPUTE_FIELD_CATEGORIES.has(categoryName);
+  const showIpMac = IP_MAC_CATEGORIES.has(categoryName);
+  const showDeployedDate = DEPLOYED_DATE_CATEGORIES.has(categoryName);
+  const allDynamicFields = category?.fields || [];
+  const subscriptionFields = allDynamicFields.filter((f) => SUBSCRIPTION_FIELD_KEYS.has(f.fieldKey));
+  const deviceFields = allDynamicFields.filter((f) => !SUBSCRIPTION_FIELD_KEYS.has(f.fieldKey));
 
   const submit = async (e) => {
     e.preventDefault();
@@ -179,6 +237,7 @@ export default function AssetFormModal({ asset, categories, departments, onClose
       Object.keys(payload).forEach((k) => { if (payload[k] === '') payload[k] = null; });
       payload.assignedToContactId = contact?.id || null;
       payload.assignedToUserId = user?.id || null;
+      payload.fieldValues = fieldValues;
 
       const { data } = isEdit
         ? await api.patch(`/assets/${asset.id}`, payload)
@@ -232,29 +291,65 @@ export default function AssetFormModal({ asset, categories, departments, onClose
               </select>
             </div>
           </div>
-        </Section>
-
-        <Section title="Device details">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div><Label>Make</Label><input className="input" style={fieldStyle} value={form.make} onChange={set('make')} /></div>
             <div><Label>Model</Label><input className="input" style={fieldStyle} value={form.model} onChange={set('model')} /></div>
             <div><Label>Serial number</Label><input className="input" style={fieldStyle} value={form.serialNumber} onChange={set('serialNumber')} /></div>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><Label>Operating system</Label><input className="input" style={fieldStyle} value={form.operatingSystem} onChange={set('operatingSystem')} /></div>
-            <div><Label>OS version</Label><input className="input" style={fieldStyle} value={form.osVersion} onChange={set('osVersion')} /></div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div><Label>Processor</Label><input className="input" style={fieldStyle} value={form.processor} onChange={set('processor')} /></div>
-            <div><Label>RAM</Label><input className="input" style={fieldStyle} value={form.ram} onChange={set('ram')} placeholder="16GB" /></div>
-            <div><Label>Storage</Label><input className="input" style={fieldStyle} value={form.storage} onChange={set('storage')} placeholder="512GB SSD" /></div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div><Label>IP address</Label><input className="input" style={fieldStyle} value={form.ipAddress} onChange={set('ipAddress')} /></div>
-            <div><Label>MAC address</Label><input className="input" style={fieldStyle} value={form.macAddress} onChange={set('macAddress')} /></div>
-            <div><Label>Firmware version</Label><input className="input" style={fieldStyle} value={form.firmwareVersion} onChange={set('firmwareVersion')} /></div>
-          </div>
         </Section>
+
+        {(showCompute || showIpMac || showDeployedDate || deviceFields.length > 0) && (
+          <Section title="Device Details">
+            {showCompute && (
+              <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div><Label>Operating system</Label><input className="input" style={fieldStyle} value={form.operatingSystem} onChange={set('operatingSystem')} /></div>
+                  <div><Label>OS version</Label><input className="input" style={fieldStyle} value={form.osVersion} onChange={set('osVersion')} /></div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div><Label>Processor</Label><input className="input" style={fieldStyle} value={form.processor} onChange={set('processor')} /></div>
+                  <div><Label>RAM</Label><input className="input" style={fieldStyle} value={form.ram} onChange={set('ram')} placeholder="16GB" /></div>
+                  <div><Label>Storage</Label><input className="input" style={fieldStyle} value={form.storage} onChange={set('storage')} placeholder="512GB SSD" /></div>
+                </div>
+              </>
+            )}
+            {(showIpMac || showCompute) && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {showIpMac && <div><Label>IP address</Label><input className="input" style={fieldStyle} value={form.ipAddress} onChange={set('ipAddress')} /></div>}
+                {showIpMac && <div><Label>MAC address</Label><input className="input" style={fieldStyle} value={form.macAddress} onChange={set('macAddress')} /></div>}
+                <div><Label>Firmware version</Label><input className="input" style={fieldStyle} value={form.firmwareVersion} onChange={set('firmwareVersion')} /></div>
+              </div>
+            )}
+            {showDeployedDate && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div><Label>Deployed date</Label><input type="date" className="input" style={fieldStyle} value={form.deployedDate || ''} onChange={set('deployedDate')} /></div>
+              </div>
+            )}
+            {deviceFields.length > 0 && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {deviceFields.map((f) => (
+                  <div key={f.id}>
+                    <Label required={f.required}>{f.label}</Label>
+                    <CategoryFieldInput field={f} value={fieldValues[f.id]} onChange={setFieldValue(f.id)} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
+        {subscriptionFields.length > 0 && (
+          <Section title="Subscription">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {subscriptionFields.map((f) => (
+                <div key={f.id}>
+                  <Label required={f.required}>{f.label}</Label>
+                  <CategoryFieldInput field={f} value={fieldValues[f.id]} onChange={setFieldValue(f.id)} />
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
 
         <Section title="Assignment">
           <AssignedToPicker contact={contact} user={user} onChangeContact={setContact} onChangeUser={setUser} />

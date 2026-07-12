@@ -67,6 +67,10 @@ const AssetCategory = require('./AssetCategory')(sequelize);
 const Asset = require('./Asset')(sequelize);
 const AssetTicket = require('./AssetTicket')(sequelize);
 const AssetActivity = require('./AssetActivity')(sequelize);
+const AssetCategoryField = require('./AssetCategoryField')(sequelize);
+const AssetFieldValue = require('./AssetFieldValue')(sequelize);
+const AssetCheckout = require('./AssetCheckout')(sequelize);
+const AssetAttachment = require('./AssetAttachment')(sequelize);
 
 const db = {
   sequelize,
@@ -135,6 +139,10 @@ const db = {
   Asset,
   AssetTicket,
   AssetActivity,
+  AssetCategoryField,
+  AssetFieldValue,
+  AssetCheckout,
+  AssetAttachment,
 };
 
 // ---- Associations ----
@@ -334,6 +342,26 @@ Ticket.belongsToMany(Asset, { through: AssetTicket, foreignKey: 'ticketId', othe
 Asset.hasMany(AssetActivity, { foreignKey: 'assetId', as: 'activity', onDelete: 'CASCADE' });
 AssetActivity.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
 AssetActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// Per-category custom fields (mirrors CustomField/TicketFieldValue for tickets)
+AssetCategory.hasMany(AssetCategoryField, { foreignKey: 'categoryId', as: 'fields', onDelete: 'CASCADE' });
+AssetCategoryField.belongsTo(AssetCategory, { foreignKey: 'categoryId', as: 'category' });
+Asset.hasMany(AssetFieldValue, { foreignKey: 'assetId', as: 'fieldValues', onDelete: 'CASCADE' });
+AssetFieldValue.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+AssetFieldValue.belongsTo(AssetCategoryField, { foreignKey: 'fieldId', as: 'field' });
+AssetCategoryField.hasMany(AssetFieldValue, { foreignKey: 'fieldId', as: 'values', onDelete: 'CASCADE' });
+
+// Checkout / check-in history
+Asset.hasMany(AssetCheckout, { foreignKey: 'assetId', as: 'checkouts', onDelete: 'CASCADE' });
+AssetCheckout.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+AssetCheckout.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+AssetCheckout.belongsTo(User, { foreignKey: 'checkedOutBy', as: 'checkedOutByUser' });
+AssetCheckout.belongsTo(User, { foreignKey: 'checkedInBy', as: 'checkedInByUser' });
+
+// Attachments (separate model per parent type, same convention as ProjectFile)
+Asset.hasMany(AssetAttachment, { foreignKey: 'assetId', as: 'attachments', onDelete: 'CASCADE' });
+AssetAttachment.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+AssetAttachment.belongsTo(User, { foreignKey: 'uploadedById', as: 'uploadedBy' });
 
 // System settings
 SystemSettings.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });

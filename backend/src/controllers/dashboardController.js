@@ -9,6 +9,7 @@ const { computeProjectCompletion } = require('../services/projectCompletion');
 const { hasPermission } = require('../services/permissionService');
 const { getUserPerformanceStats, getTeamHappiness } = require('../services/csatStatsService');
 const { getAllSettings } = require('./settingsController');
+const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -188,12 +189,13 @@ async function hoursForUser(userId) {
 async function assetsSummaryStats() {
   const todayStr = new Date().toISOString().slice(0, 10);
   const in90Str = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
-  const [dueForReplacement, expiredWarranty, totalActive] = await Promise.all([
+  const [dueForReplacement, expiredWarranty, totalActive, renewingSoon] = await Promise.all([
     Asset.count({ where: { replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90Str } } }),
     Asset.count({ where: { warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } } }),
     Asset.count({ where: { status: 'active' } }),
+    getSubscriptionRenewals({ withinDays: 30 }),
   ]);
-  return { dueForReplacement, expiredWarranty, totalActive };
+  return { dueForReplacement, expiredWarranty, totalActive, subscriptionsRenewingSoon: renewingSoon.length };
 }
 
 async function teamWorkload(buckets, extraUserWhere = {}) {

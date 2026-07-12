@@ -28,6 +28,7 @@ module.exports = (sequelize) => {
       vendorName: { type: DataTypes.STRING(150), allowNull: true },
       warrantyExpiryDate: { type: DataTypes.DATEONLY, allowNull: true },
       replacementPlanDate: { type: DataTypes.DATEONLY, allowNull: true },
+      deployedDate: { type: DataTypes.DATEONLY, allowNull: true },
       ipAddress: { type: DataTypes.STRING(45), allowNull: true },
       macAddress: { type: DataTypes.STRING(50), allowNull: true },
       operatingSystem: { type: DataTypes.STRING(100), allowNull: true },

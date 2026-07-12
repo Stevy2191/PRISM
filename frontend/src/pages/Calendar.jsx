@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { useNavigate } from 'react-router-dom';
 import {
   IconChevronLeft, IconChevronRight, IconX, IconTicket, IconFolder, IconChecklist,
-  IconCalendar, IconExternalLink, IconCalendarEvent, IconRefresh, IconAlertTriangle,
+  IconCalendar, IconExternalLink, IconCalendarEvent, IconRefresh, IconAlertTriangle, IconRepeat,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
@@ -80,6 +80,7 @@ const TYPE_META = {
   project: { icon: IconFolder, label: 'Project' },
   task: { icon: IconChecklist, label: 'Task' },
   external: { icon: IconCalendarEvent, label: 'External' },
+  subscription: { icon: IconRepeat, label: 'Subscription' },
 };
 
 function eventColor(ev) {
@@ -117,6 +118,7 @@ const TYPE_TOGGLE_COLOR = {
   tickets: TICKET_PRIORITY_PILL_BG.medium,
   projects: '#7c3aed',
   tasks: '#0891b2',
+  subscriptions: '#0d9488',
 };
 
 function eventLabel(ev) {
@@ -558,6 +560,7 @@ function MiniCalendar({ anchor, eventsByDay, onSelectDate }) {
 // ==================== Filter bar ====================
 function FilterBar({
   showTickets, setShowTickets, showProjects, setShowProjects, showTasks, setShowTasks,
+  showSubscriptions, setShowSubscriptions,
   assigneeId, setAssigneeId, departmentId, setDepartmentId, statusFilter, setStatusFilter,
   myItemsOnly, setMyItemsOnly, assignableUsers, departments, canFilterDept, overdueCount,
   integrations, activeIntegrationIds, toggleIntegration,
@@ -580,6 +583,7 @@ function FilterBar({
       {toggle(showTickets, 'Tickets', () => setShowTickets((v) => !v), TYPE_TOGGLE_COLOR.tickets, 'var(--color-border-strong)')}
       {toggle(showProjects, 'Projects', () => setShowProjects((v) => !v), TYPE_TOGGLE_COLOR.projects, 'var(--color-border-strong)')}
       {toggle(showTasks, 'Tasks', () => setShowTasks((v) => !v), TYPE_TOGGLE_COLOR.tasks, 'var(--color-border-strong)')}
+      {toggle(showSubscriptions, 'Subscriptions', () => setShowSubscriptions((v) => !v), TYPE_TOGGLE_COLOR.subscriptions, 'var(--color-border-strong)')}
 
       <span className="mx-1 h-5 w-px" style={{ backgroundColor: BORDER }} />
 
@@ -652,6 +656,7 @@ export default function Calendar() {
   const [showTickets, setShowTickets] = useState(true);
   const [showProjects, setShowProjects] = useState(true);
   const [showTasks, setShowTasks] = useState(false);
+  const [showSubscriptions, setShowSubscriptions] = useState(true);
   const [assigneeId, setAssigneeId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -718,7 +723,7 @@ export default function Calendar() {
     setError('');
     Promise.all([
       api.get('/calendar/events', {
-        params: { startDate: fmtLocal(needStart), endDate: fmtLocal(needEnd), types: 'tickets,projects,tasks' },
+        params: { startDate: fmtLocal(needStart), endDate: fmtLocal(needEnd), types: 'tickets,projects,tasks,subscriptions' },
       }),
       api.get('/calendar/external-events', {
         params: { startDate: fmtLocal(needStart), endDate: fmtLocal(needEnd) },
@@ -756,17 +761,18 @@ export default function Calendar() {
       if (ev.type === 'ticket' && !showTickets) return false;
       if (ev.type === 'project' && !showProjects) return false;
       if (ev.type === 'task' && !showTasks) return false;
+      if (ev.type === 'subscription' && !showSubscriptions) return false;
       if (effectiveAssignee && String(ev.assigneeId) !== String(effectiveAssignee)) return false;
       if (departmentId && !(ev.departmentIds || []).map(String).includes(String(departmentId))) return false;
-      if (statusFilter === 'open' && !isOpenish(ev.status, openStatusNames)) return false;
-      if (statusFilter === 'overdue' && !overduePill(ev, todayStr, openStatusNames)) return false;
+      if (ev.type !== 'subscription' && statusFilter === 'open' && !isOpenish(ev.status, openStatusNames)) return false;
+      if (ev.type !== 'subscription' && statusFilter === 'overdue' && !overduePill(ev, todayStr, openStatusNames)) return false;
       return true;
     });
     // PRISM events always shown first, external calendar events layered on
     // top — array order here is what eventsByDay's per-day grouping renders in.
     const externalFiltered = externalEvents.filter((ev) => activeIntegrationIds.has(ev.integrationId));
     return [...prismFiltered, ...externalFiltered];
-  }, [events, externalEvents, activeIntegrationIds, showTickets, showProjects, showTasks, assigneeId, departmentId, statusFilter, myItemsOnly, user.id, todayStr, openStatusNames]);
+  }, [events, externalEvents, activeIntegrationIds, showTickets, showProjects, showTasks, showSubscriptions, assigneeId, departmentId, statusFilter, myItemsOnly, user.id, todayStr, openStatusNames]);
 
   const overdueCount = useMemo(() => events.filter((ev) => overduePill(ev, todayStr, openStatusNames)
     && ((ev.type === 'ticket' && showTickets) || (ev.type === 'project' && showProjects) || (ev.type === 'task' && showTasks))).length, [events, todayStr, showTickets, showProjects, showTasks, openStatusNames]);
@@ -850,6 +856,7 @@ export default function Calendar() {
         showTickets={showTickets} setShowTickets={setShowTickets}
         showProjects={showProjects} setShowProjects={setShowProjects}
         showTasks={showTasks} setShowTasks={setShowTasks}
+        showSubscriptions={showSubscriptions} setShowSubscriptions={setShowSubscriptions}
         assigneeId={assigneeId} setAssigneeId={setAssigneeId}
         departmentId={departmentId} setDepartmentId={setDepartmentId}
         statusFilter={statusFilter} setStatusFilter={setStatusFilter}

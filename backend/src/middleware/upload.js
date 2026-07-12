@@ -76,6 +76,41 @@ const projectStorage = multer.diskStorage({
 });
 const projectUpload = multer({ storage: projectStorage, limits: { fileSize: HARD_CEILING_SIZE }, fileFilter });
 
+// Asset attachments — stored under "assets/{assetId}/", same collision-
+// avoidance reasoning as projects. Allow-listed by extension (PDF/JPG/PNG/
+// DOCX/XLSX per spec) rather than just the blocked-extensions list every
+// other upload uses, since these are meant to be end-user-facing documents
+// (invoices, warranty PDFs, signed checkout forms) — a narrower allow-list
+// is the right default here even though nothing else in the app does this.
+const ASSET_ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.docx', '.xlsx']);
+const assetStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const assetId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(assetId) || assetId <= 0) {
+      return cb(new Error('Invalid asset id'));
+    }
+    const dir = path.join(UPLOAD_ROOT, 'assets', String(assetId));
+    fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const unique = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+    cb(null, unique);
+  },
+});
+const assetFileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!ASSET_ALLOWED_EXTENSIONS.has(ext)) {
+    const err = new Error('Only PDF, JPG, PNG, DOCX, and XLSX files are allowed');
+    err.status = 400;
+    err.code = 'INVALID_FILE_TYPE';
+    return cb(err, false);
+  }
+  cb(null, true);
+};
+const ASSET_MAX_SIZE = 25 * 1024 * 1024; // 25MB, hard — spec-mandated, not admin-configurable like tickets'.
+const assetUpload = multer({ storage: assetStorage, limits: { fileSize: ASSET_MAX_SIZE }, fileFilter: assetFileFilter });
+
 // Runs after upload/projectUpload's .single('file') — the admin-configured
 // soft limit (General Settings -> Max attachment size), enforced against a
 // file already on disk since disk storage can't be intercepted mid-stream
@@ -118,4 +153,4 @@ const csvUpload = multer({
   },
 });
 
-module.exports = { upload, projectUpload, csvUpload, UPLOAD_ROOT, MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize };
+module.exports = { upload, projectUpload, assetUpload, csvUpload, UPLOAD_ROOT, MAX_SIZE, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize };
