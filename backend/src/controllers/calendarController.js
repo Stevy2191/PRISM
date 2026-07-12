@@ -8,6 +8,7 @@
 const { Op } = require('sequelize');
 const {
   Ticket, Project, ProjectTask, ProjectMember, ProjectStatus, TicketStatus, User,
+  License, Contract,
 } = require('../models');
 const { asyncHandler } = require('../middleware/error');
 const { getUserTicketScope, getUserProjectScope } = require('../services/permissionService');
@@ -17,7 +18,7 @@ const { getSubscriptionRenewals } = require('../services/assetSubscriptionServic
 const userAttrs = ['id', 'displayName'];
 
 function parseTypes(raw) {
-  const all = ['tickets', 'projects', 'tasks', 'subscriptions'];
+  const all = ['tickets', 'projects', 'tasks', 'subscriptions', 'license_expiry', 'contract_renewal'];
   if (!raw) return all;
   const requested = String(raw).split(',').map((s) => s.trim()).filter(Boolean);
   return all.filter((t) => requested.includes(t));
@@ -216,6 +217,62 @@ const listEvents = asyncHandler(async (req, res) => {
         assigneeName: null,
         departmentIds: r.asset.departmentId ? [r.asset.departmentId] : [],
         url: `/assets/${r.asset.id}`,
+      });
+    });
+  }
+
+  if (types.includes('license_expiry')) {
+    const where = { expiryDate: { [Op.ne]: null } };
+    if (startDate) where.expiryDate = { ...where.expiryDate, [Op.gte]: startDate };
+    if (endDate) where.expiryDate = { ...where.expiryDate, [Op.lte]: endDate };
+    if (departmentId) where.departmentId = departmentId;
+    const licenses = await License.findAll({ where });
+    licenses.forEach((lic) => {
+      events.push({
+        id: `license-${lic.id}`,
+        type: 'license_expiry',
+        title: `${lic.name} expires${lic.vendor ? ` — ${lic.vendor}` : ''}`,
+        dueDate: lic.expiryDate,
+        dueTime: null,
+        status: 'Expiring',
+        statusColor: '#ea580c',
+        priority: null,
+        priorityColor: '#ea580c',
+        assigneeId: null,
+        assigneeName: null,
+        departmentIds: lic.departmentId ? [lic.departmentId] : [],
+        url: `/assets/licenses/${lic.id}`,
+      });
+    });
+  }
+
+  if (types.includes('contract_renewal')) {
+    const where = {
+      [Op.or]: [
+        { renewalDate: { [Op.ne]: null } },
+        { renewalDate: null, endDate: { [Op.ne]: null } },
+      ],
+    };
+    if (departmentId) where.departmentId = departmentId;
+    const contracts = await Contract.findAll({ where });
+    contracts.forEach((c) => {
+      const renewsOn = c.renewalDate || c.endDate;
+      if (startDate && renewsOn < startDate) return;
+      if (endDate && renewsOn > endDate) return;
+      events.push({
+        id: `contract-${c.id}`,
+        type: 'contract_renewal',
+        title: `${c.name} renews${c.vendor ? ` — ${c.vendor}` : ''}`,
+        dueDate: renewsOn,
+        dueTime: null,
+        status: 'Renewal',
+        statusColor: '#0f766e',
+        priority: null,
+        priorityColor: '#0f766e',
+        assigneeId: null,
+        assigneeName: null,
+        departmentIds: c.departmentId ? [c.departmentId] : [],
+        url: `/assets/contracts/${c.id}`,
       });
     });
   }

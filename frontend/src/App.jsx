@@ -19,6 +19,10 @@ import Contacts from './pages/Contacts';
 import ContactDetail from './pages/ContactDetail';
 import Assets from './pages/Assets';
 import AssetDetail from './pages/AssetDetail';
+import Licenses from './pages/assets/Licenses';
+import LicenseDetail from './pages/assets/LicenseDetail';
+import Contracts from './pages/assets/Contracts';
+import ContractDetail from './pages/assets/ContractDetail';
 import Reports from './pages/Reports';
 import Calendar from './pages/Calendar';
 import NotFound from './pages/NotFound';
@@ -35,6 +39,7 @@ import SettingsModules from './pages/settings/Modules';
 import SettingsPreferences from './pages/settings/Preferences';
 import SettingsLayouts from './pages/settings/Layouts';
 import SettingsAssetCategories from './pages/settings/AssetCategories';
+import SettingsAssetAlerts from './pages/settings/AssetAlerts';
 import SettingsTimeTracking from './pages/settings/TimeTracking';
 import AssignmentRules from './pages/settings/AssignmentRules';
 import SLAs from './pages/settings/SLAs';
@@ -107,6 +112,10 @@ export default function App() {
         <Route path="/contacts/:id" element={perm(<ContactDetail />, CONTACTS_KEYS)} />
 
         <Route path="/assets" element={perm(<Assets />, ASSETS_KEYS)} />
+        <Route path="/assets/licenses" element={perm(<Licenses />, ASSETS_KEYS)} />
+        <Route path="/assets/licenses/:id" element={perm(<LicenseDetail />, ASSETS_KEYS)} />
+        <Route path="/assets/contracts" element={perm(<Contracts />, ASSETS_KEYS)} />
+        <Route path="/assets/contracts/:id" element={perm(<ContractDetail />, ASSETS_KEYS)} />
         <Route path="/assets/:id" element={perm(<AssetDetail />, ASSETS_KEYS)} />
 
         <Route path="/projects" element={perm(<Projects />, PROJECTS_KEYS)} />
@@ -149,6 +158,7 @@ export default function App() {
         {/* Placeholders for sections specified later */}
         <Route path="/settings/layouts" element={perm(<SettingsLayouts />, SYSTEM_KEYS)} />
         <Route path="/settings/asset-categories" element={perm(<SettingsAssetCategories />, SYSTEM_KEYS)} />
+        <Route path="/settings/asset-alerts" element={perm(<SettingsAssetAlerts />, SYSTEM_KEYS)} />
         <Route path="/settings/email-templates" element={admin(<Placeholder title="Email Templates" icon={IconMail} note="Customize the content of outbound system emails like ticket created, ticket closed, and CSAT surveys. Coming in a future update." />)} />
         <Route path="/settings/notifications" element={perm(<SettingsNotifications />, SYSTEM_KEYS)} />
         <Route path="/settings/time-tracking" element={perm(<SettingsTimeTracking />, SYSTEM_KEYS)} />

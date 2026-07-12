@@ -19,12 +19,25 @@ export const SETTINGS_PERMISSION_KEYS = [
   'people.manage_roles', 'people.manage_departments', 'people.view_all',
 ];
 
-// Nav modules. `key` matches a ModuleVisibility.moduleName row.
+// Nav modules. `key` matches a ModuleVisibility.moduleName row. `subItems`
+// (optional) renders the item as a dropdown in TopNav/SidebarCompact — the
+// parent `to` is still the default click target, sub-items are the
+// Licenses/Contracts sub-sections nested under Assets.
 export const NAV = [
   { key: 'dashboard', to: '/dashboard', label: 'Dashboard', icon: '◧' },
   { key: 'tickets', to: '/tickets', label: 'Tickets', icon: '🎫' },
   { key: 'contacts', to: '/contacts', label: 'Contacts', icon: '👤' },
-  { key: 'assets', to: '/assets', label: 'Assets', icon: '🖥' },
+  {
+    key: 'assets',
+    to: '/assets',
+    label: 'Assets',
+    icon: '🖥',
+    subItems: [
+      { to: '/assets', label: 'Assets', icon: '🖥' },
+      { to: '/assets/licenses', label: 'Licenses', icon: '📄' },
+      { to: '/assets/contracts', label: 'Contracts', icon: '📑' },
+    ],
+  },
   { key: 'projects', to: '/projects', label: 'Projects', icon: '🗂' },
   { key: 'reports', to: '/reports', label: 'Reports', icon: '📊' },
   { key: 'calendar', to: '/calendar', label: 'Calendar', icon: '📅' },

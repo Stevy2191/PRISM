@@ -80,6 +80,7 @@ const SECTIONS = [
       { label: 'Statuses', to: '/settings/statuses', desc: 'Custom ticket & project statuses', permission: STATUSES_KEYS },
       { label: 'Layouts & Fields', to: '/settings/layouts', desc: 'Custom ticket fields', permission: SYSTEM_KEYS },
       { label: 'Asset Categories', to: '/settings/asset-categories', desc: 'Asset categories & device fields', permission: SYSTEM_KEYS },
+      { label: 'Asset Alerts', to: '/settings/asset-alerts', desc: 'Days-before-expiry thresholds for auto-created reminder tickets', permission: SYSTEM_KEYS },
       { label: 'Blueprints', to: '/admin/blueprints', desc: 'Ticket templates', roles: ['admin', 'technician'] },
       { label: 'Email Templates', to: '/settings/email-templates', desc: 'Outbound email content' },
       { label: 'Notifications', to: '/settings/notifications', desc: 'Which events send in-app notifications', permission: SYSTEM_KEYS },

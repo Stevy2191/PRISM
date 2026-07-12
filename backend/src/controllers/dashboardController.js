@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const {
   Ticket, Project, User, TimeEntry, Notification, TicketActivity, ProjectActivity, DashboardLayout, Asset,
+  License, Contract,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
@@ -189,13 +190,27 @@ async function hoursForUser(userId) {
 async function assetsSummaryStats() {
   const todayStr = new Date().toISOString().slice(0, 10);
   const in90Str = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
-  const [dueForReplacement, expiredWarranty, totalActive, renewingSoon] = await Promise.all([
+  const in30Str = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const in60Str = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+  const [dueForReplacement, expiredWarranty, totalActive, renewingSoon, licensesExpiringSoon, contractsRenewingSoon] = await Promise.all([
     Asset.count({ where: { replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90Str } } }),
     Asset.count({ where: { warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } } }),
     Asset.count({ where: { status: 'active' } }),
     getSubscriptionRenewals({ withinDays: 30 }),
+    License.count({ where: { expiryDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: in30Str } } }),
+    Contract.count({
+      where: {
+        [Op.or]: [
+          { renewalDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: in60Str } },
+          { renewalDate: null, endDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: in60Str } },
+        ],
+      },
+    }),
   ]);
-  return { dueForReplacement, expiredWarranty, totalActive, subscriptionsRenewingSoon: renewingSoon.length };
+  return {
+    dueForReplacement, expiredWarranty, totalActive, subscriptionsRenewingSoon: renewingSoon.length,
+    licensesExpiringSoon, contractsRenewingSoon,
+  };
 }
 
 async function teamWorkload(buckets, extraUserWhere = {}) {

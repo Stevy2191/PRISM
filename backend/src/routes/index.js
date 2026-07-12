@@ -38,6 +38,8 @@ const schedulesRoutes = require('./schedules');
 const surveyRoutes = require('./survey');
 const csatRoutes = require('./csat');
 const assetsRoutes = require('./assets');
+const licensesRoutes = require('./licenses');
+const contractsRoutes = require('./contracts');
 
 const router = express.Router();
 
@@ -85,5 +87,7 @@ router.use('/sla-policies', guard, slaPoliciesRoutes);
 router.use('/schedules', guard, schedulesRoutes);
 router.use('/csat', guard, csatRoutes);
 router.use('/assets', guard, assetsRoutes);
+router.use('/licenses', guard, licensesRoutes);
+router.use('/contracts', guard, contractsRoutes);
 
 module.exports = router;

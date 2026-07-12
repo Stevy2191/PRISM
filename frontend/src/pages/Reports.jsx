@@ -15,6 +15,11 @@ import AssetsReplacementReport from './reports/AssetsReplacementReport';
 import AssetsWarrantyReport from './reports/AssetsWarrantyReport';
 import AssetsInventoryReport from './reports/AssetsInventoryReport';
 import AssetsTicketHistoryReport from './reports/AssetsTicketHistoryReport';
+import LicensesInventoryReport from './reports/LicensesInventoryReport';
+import ContractsSummaryReport from './reports/ContractsSummaryReport';
+import SoftwareSpendReport from './reports/SoftwareSpendReport';
+import ContractSpendReport from './reports/ContractSpendReport';
+import UpcomingRenewalsReport from './reports/UpcomingRenewalsReport';
 import CustomReportBuilder from './reports/CustomReportBuilder';
 
 const CATEGORIES = [
@@ -65,6 +70,16 @@ const CATEGORIES = [
       { key: 'assets-ticket-history', label: 'Asset Ticket History', endpoint: 'assets/ticket-history', showAssignee: false },
     ],
   },
+  {
+    name: 'Licenses & Contracts',
+    reports: [
+      { key: 'licenses-inventory', label: 'License Inventory', endpoint: 'licenses/inventory', showAssignee: false },
+      { key: 'contracts-summary', label: 'Contract Summary', endpoint: 'contracts/summary', showAssignee: false },
+      { key: 'software-spend', label: 'Total Software Spend', endpoint: 'licenses/spend', showAssignee: false },
+      { key: 'contract-spend', label: 'Total Contract Spend', endpoint: 'contracts/spend', showAssignee: false },
+      { key: 'upcoming-renewals', label: 'Upcoming Renewals', endpoint: 'licenses-contracts/upcoming-renewals', showAssignee: false },
+    ],
+  },
 ];
 
 const ALL_REPORTS = CATEGORIES.flatMap((c) => c.reports);
@@ -82,6 +97,11 @@ const REPORT_COMPONENTS = {
   'assets-warranty': AssetsWarrantyReport,
   'assets-inventory': AssetsInventoryReport,
   'assets-ticket-history': AssetsTicketHistoryReport,
+  'licenses-inventory': LicensesInventoryReport,
+  'contracts-summary': ContractsSummaryReport,
+  'software-spend': SoftwareSpendReport,
+  'contract-spend': ContractSpendReport,
+  'upcoming-renewals': UpcomingRenewalsReport,
 };
 
 export default function Reports() {

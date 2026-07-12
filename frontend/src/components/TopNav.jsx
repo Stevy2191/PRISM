@@ -1,12 +1,78 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { IconSearch, IconSettings, IconMenu2, IconX } from '@tabler/icons-react';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
+import { IconSearch, IconSettings, IconMenu2, IconX, IconChevronDown } from '@tabler/icons-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import api from '../api/api';
 import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
 import NotificationsDropdown from './NotificationsDropdown';
 import GlobalSearch from './GlobalSearch';
+
+// Renders a nav item with `subItems` (currently just Assets: Assets/
+// Licenses/Contracts) as a click-to-open dropdown rather than a plain link —
+// the only nav item with sub-sections, so this stays local to TopNav rather
+// than a generalized menu system nothing else needs yet.
+function NavDropdown({ item, iconOnly }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  const isActive = item.subItems.some((s) => (
+    s.to === item.to ? location.pathname === s.to : location.pathname === s.to || location.pathname.startsWith(`${s.to}/`)
+  ));
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={
+          iconOnly
+            ? `relative flex h-full flex-shrink-0 flex-col items-center justify-center gap-0.5 px-2.5 text-[11px] font-medium transition ${isActive ? '' : 'hover:opacity-80'}`
+            : `relative flex h-[52px] items-center gap-1 px-3 text-sm font-medium transition ${isActive ? '' : 'hover:opacity-80'}`
+        }
+        style={{
+          color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+          borderBottom: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
+        }}
+      >
+        {iconOnly && <span className="text-sm leading-none">{item.icon}</span>}
+        <span className={iconOnly ? 'truncate leading-none' : ''}>{item.label}</span>
+        <IconChevronDown size={14} stroke={2} className={open ? 'rotate-180' : ''} />
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 top-full z-40 w-44 overflow-hidden rounded-b-md border-x border-b shadow-lg"
+          style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+        >
+          {item.subItems.map((s) => (
+            <NavLink
+              key={s.to}
+              to={s.to}
+              end={s.to === item.to}
+              onClick={() => setOpen(false)}
+              className={({ isActive: a }) => `flex items-center gap-2 px-3 py-2 text-sm ${a ? 'font-medium' : ''}`}
+              style={({ isActive: a }) => ({
+                color: 'var(--color-text-primary)',
+                backgroundColor: a ? 'var(--color-hover)' : 'transparent',
+              })}
+            >
+              <span className="w-4 text-center text-xs">{s.icon}</span>
+              {s.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TopNav() {
   const { user, logout, hasAnyPermission } = useAuth();
@@ -69,7 +135,9 @@ export default function TopNav() {
 
         {/* Desktop nav (1024px+) — full labels */}
         <nav className="hidden flex-1 items-center gap-1 lg:flex">
-          {items.map((n) => (
+          {items.map((n) => (n.subItems ? (
+            <NavDropdown key={n.to} item={n} />
+          ) : (
             <NavLink
               key={n.to}
               to={n.to}
@@ -85,12 +153,14 @@ export default function TopNav() {
             >
               {n.label}
             </NavLink>
-          ))}
+          )))}
         </nav>
 
         {/* Tablet nav (768-1024px) — compact icon-over-label */}
         <nav className="hidden flex-1 items-stretch gap-0.5 overflow-x-auto md:flex lg:hidden">
-          {items.map((n) => (
+          {items.map((n) => (n.subItems ? (
+            <NavDropdown key={n.to} item={n} iconOnly />
+          ) : (
             <NavLink
               key={n.to}
               to={n.to}
@@ -107,7 +177,7 @@ export default function TopNav() {
               <span className="text-sm leading-none">{n.icon}</span>
               <span className="truncate leading-none">{n.label}</span>
             </NavLink>
-          ))}
+          )))}
         </nav>
 
         {/* Mobile: push everything right since nav items are hidden */}
@@ -218,18 +288,34 @@ export default function TopNav() {
             </div>
             <nav className="flex-1 space-y-1 overflow-y-auto p-3">
               {items.map((n) => (
-                <NavLink
-                  key={n.to}
-                  to={n.to}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex h-12 items-center gap-3 rounded-md px-3 text-sm font-medium ${isActive ? 'bg-prism text-white' : 'hover:bg-[var(--color-hover)]'}`
-                  }
-                  style={({ isActive }) => (isActive ? undefined : { color: 'var(--color-text-secondary)' })}
-                >
-                  <span className="w-4 text-center">{n.icon}</span>
-                  {n.label}
-                </NavLink>
+                <div key={n.to}>
+                  <NavLink
+                    to={n.to}
+                    end={!!n.subItems}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex h-12 items-center gap-3 rounded-md px-3 text-sm font-medium ${isActive ? 'bg-prism text-white' : 'hover:bg-[var(--color-hover)]'}`
+                    }
+                    style={({ isActive }) => (isActive ? undefined : { color: 'var(--color-text-secondary)' })}
+                  >
+                    <span className="w-4 text-center">{n.icon}</span>
+                    {n.label}
+                  </NavLink>
+                  {n.subItems && n.subItems.filter((s) => s.to !== n.to).map((s) => (
+                    <NavLink
+                      key={s.to}
+                      to={s.to}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `ml-6 flex h-10 items-center gap-3 rounded-md px-3 text-sm ${isActive ? 'bg-prism text-white' : 'hover:bg-[var(--color-hover)]'}`
+                      }
+                      style={({ isActive }) => (isActive ? undefined : { color: 'var(--color-text-secondary)' })}
+                    >
+                      <span className="w-4 text-center text-xs">{s.icon}</span>
+                      {s.label}
+                    </NavLink>
+                  ))}
+                </div>
               ))}
             </nav>
 

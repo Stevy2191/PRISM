@@ -3,7 +3,7 @@ const path = require('path');
 const { Op } = require('sequelize');
 const {
   Asset, AssetCategory, AssetTicket, AssetActivity, AssetCategoryField, AssetFieldValue,
-  AssetCheckout, AssetAttachment,
+  AssetCheckout, AssetAttachment, License, Contract,
   Ticket, Contact, User, Department,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
@@ -14,6 +14,7 @@ const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { generateCheckoutFormPdf } = require('../services/assetCheckoutPdf');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 const { sendMail } = require('../services/emailSender');
+const { getAllSettings } = require('./settingsController');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 
 const userAttrs = ['id', 'displayName', 'username'];
@@ -158,6 +159,57 @@ const stats = asyncHandler(async (req, res) => {
   ]);
 
   res.json({ dueForReplacement, expiredWarranty, totalActive, subscriptionsRenewingSoon: renewingSoon.length });
+});
+
+// GET /assets/expiry-summary — combined counts across all three Assets
+// sub-sections (hardware assets, licenses, contracts), for the admin
+// dashboard's Assets panel. Each threshold reads its own configurable
+// Settings -> Asset Alerts value rather than a shared hardcoded window.
+const expirySummary = asyncHandler(async (req, res) => {
+  const settings = await getAllSettings();
+  const warrantyDays = Number(settings['assets.warrantyAlertDays']) || 90;
+  const replacementDays = Number(settings['assets.replacementAlertDays']) || 90;
+  const subscriptionDays = Number(settings['assets.subscriptionAlertDays']) || 30;
+  const licenseDays = Number(settings['licenses.expiryAlertDays']) || 30;
+  const contractDays = Number(settings['contracts.renewalAlertDays']) || 60;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const cutoff = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+
+  const [
+    dueForReplacement, expiredWarranty, warrantyExpiringSoon, subscriptionsRenewingSoon,
+    licensesExpiringSoon, licensesExpired,
+    contractsRenewingSoon, contractsExpired,
+  ] = await Promise.all([
+    Asset.count({ where: { replacementPlanDate: { [Op.ne]: null, [Op.lte]: cutoff(replacementDays) } } }),
+    Asset.count({ where: { warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } } }),
+    Asset.count({ where: { warrantyExpiryDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(warrantyDays) } } }),
+    getSubscriptionRenewals({ withinDays: subscriptionDays }),
+    License.count({ where: { expiryDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(licenseDays) } } }),
+    License.count({ where: { expiryDate: { [Op.ne]: null, [Op.lt]: todayStr } } }),
+    Contract.count({
+      where: {
+        [Op.or]: [
+          { renewalDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(contractDays) } },
+          { renewalDate: null, endDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(contractDays) } },
+        ],
+      },
+    }),
+    Contract.count({
+      where: {
+        [Op.or]: [
+          { renewalDate: { [Op.ne]: null, [Op.lt]: todayStr } },
+          { renewalDate: null, endDate: { [Op.ne]: null, [Op.lt]: todayStr } },
+        ],
+      },
+    }),
+  ]);
+
+  res.json({
+    assets: { dueForReplacement, expiredWarranty, warrantyExpiringSoon, subscriptionsRenewingSoon: subscriptionsRenewingSoon.length },
+    licenses: { expiringSoon: licensesExpiringSoon, expired: licensesExpired },
+    contracts: { renewingSoon: contractsRenewingSoon, expired: contractsExpired },
+  });
 });
 
 // GET /assets/:id
@@ -663,7 +715,7 @@ const removeAttachment = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  list, listCategories, stats, get, create, update, remove,
+  list, listCategories, stats, expirySummary, get, create, update, remove,
   listTickets, linkTicket, unlinkTicket, listActivity,
   listCheckouts, createCheckout, checkInCheckout, sendCheckoutForm, updateCheckout,
   listAttachments, createAttachment, downloadAttachment, removeAttachment,

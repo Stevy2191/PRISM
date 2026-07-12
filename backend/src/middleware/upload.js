@@ -111,6 +111,28 @@ const assetFileFilter = (req, file, cb) => {
 const ASSET_MAX_SIZE = 25 * 1024 * 1024; // 25MB, hard — spec-mandated, not admin-configurable like tickets'.
 const assetUpload = multer({ storage: assetStorage, limits: { fileSize: ASSET_MAX_SIZE }, fileFilter: assetFileFilter });
 
+// License/Contract attachments — same "assets/{id}/" collision-avoidance
+// reasoning and allow-list as asset attachments (license certificates,
+// purchase orders, agreement/amendment/SOW PDFs).
+function makeLinkedUpload(subdir) {
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const id = parseInt(req.params.id, 10);
+      if (!Number.isInteger(id) || id <= 0) return cb(new Error(`Invalid ${subdir} id`));
+      const dir = path.join(UPLOAD_ROOT, subdir, String(id));
+      fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const unique = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+      cb(null, unique);
+    },
+  });
+  return multer({ storage, limits: { fileSize: ASSET_MAX_SIZE }, fileFilter: assetFileFilter });
+}
+const licenseUpload = makeLinkedUpload('licenses');
+const contractUpload = makeLinkedUpload('contracts');
+
 // Runs after upload/projectUpload's .single('file') — the admin-configured
 // soft limit (General Settings -> Max attachment size), enforced against a
 // file already on disk since disk storage can't be intercepted mid-stream
@@ -153,4 +175,7 @@ const csvUpload = multer({
   },
 });
 
-module.exports = { upload, projectUpload, assetUpload, csvUpload, UPLOAD_ROOT, MAX_SIZE, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize };
+module.exports = {
+  upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload,
+  UPLOAD_ROOT, MAX_SIZE, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize,
+};

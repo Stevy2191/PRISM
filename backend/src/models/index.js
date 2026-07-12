@@ -71,6 +71,17 @@ const AssetCategoryField = require('./AssetCategoryField')(sequelize);
 const AssetFieldValue = require('./AssetFieldValue')(sequelize);
 const AssetCheckout = require('./AssetCheckout')(sequelize);
 const AssetAttachment = require('./AssetAttachment')(sequelize);
+const License = require('./License')(sequelize);
+const LicenseAsset = require('./LicenseAsset')(sequelize);
+const LicenseContact = require('./LicenseContact')(sequelize);
+const LicenseAttachment = require('./LicenseAttachment')(sequelize);
+const LicenseActivity = require('./LicenseActivity')(sequelize);
+const LicenseTicket = require('./LicenseTicket')(sequelize);
+const Contract = require('./Contract')(sequelize);
+const ContractAsset = require('./ContractAsset')(sequelize);
+const ContractAttachment = require('./ContractAttachment')(sequelize);
+const ContractActivity = require('./ContractActivity')(sequelize);
+const ContractTicket = require('./ContractTicket')(sequelize);
 
 const db = {
   sequelize,
@@ -143,6 +154,17 @@ const db = {
   AssetFieldValue,
   AssetCheckout,
   AssetAttachment,
+  License,
+  LicenseAsset,
+  LicenseContact,
+  LicenseAttachment,
+  LicenseActivity,
+  LicenseTicket,
+  Contract,
+  ContractAsset,
+  ContractAttachment,
+  ContractActivity,
+  ContractTicket,
 };
 
 // ---- Associations ----
@@ -362,6 +384,60 @@ AssetCheckout.belongsTo(User, { foreignKey: 'checkedInBy', as: 'checkedInByUser'
 Asset.hasMany(AssetAttachment, { foreignKey: 'assetId', as: 'attachments', onDelete: 'CASCADE' });
 AssetAttachment.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
 AssetAttachment.belongsTo(User, { foreignKey: 'uploadedById', as: 'uploadedBy' });
+
+// Licenses & Contracts (sub-sections of Assets)
+Department.hasMany(License, { foreignKey: 'departmentId', as: 'licenses' });
+License.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+License.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+
+License.hasMany(LicenseAsset, { foreignKey: 'licenseId', as: 'licenseAssets', onDelete: 'CASCADE' });
+LicenseAsset.belongsTo(License, { foreignKey: 'licenseId', as: 'license' });
+LicenseAsset.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+LicenseAsset.belongsTo(User, { foreignKey: 'assignedBy', as: 'assignedByUser' });
+Asset.hasMany(LicenseAsset, { foreignKey: 'assetId', as: 'licenseAssets', onDelete: 'CASCADE' });
+License.belongsToMany(Asset, { through: LicenseAsset, foreignKey: 'licenseId', otherKey: 'assetId', as: 'linkedAssets' });
+Asset.belongsToMany(License, { through: LicenseAsset, foreignKey: 'assetId', otherKey: 'licenseId', as: 'licenses' });
+
+License.hasMany(LicenseContact, { foreignKey: 'licenseId', as: 'licenseContacts', onDelete: 'CASCADE' });
+LicenseContact.belongsTo(License, { foreignKey: 'licenseId', as: 'license' });
+LicenseContact.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+LicenseContact.belongsTo(User, { foreignKey: 'assignedBy', as: 'assignedByUser' });
+
+License.hasMany(LicenseAttachment, { foreignKey: 'licenseId', as: 'attachments', onDelete: 'CASCADE' });
+LicenseAttachment.belongsTo(License, { foreignKey: 'licenseId', as: 'license' });
+LicenseAttachment.belongsTo(User, { foreignKey: 'uploadedById', as: 'uploadedBy' });
+
+License.hasMany(LicenseActivity, { foreignKey: 'licenseId', as: 'activity', onDelete: 'CASCADE' });
+LicenseActivity.belongsTo(License, { foreignKey: 'licenseId', as: 'license' });
+LicenseActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+License.hasMany(LicenseTicket, { foreignKey: 'licenseId', as: 'licenseTickets', onDelete: 'CASCADE' });
+LicenseTicket.belongsTo(License, { foreignKey: 'licenseId', as: 'license' });
+LicenseTicket.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+
+Department.hasMany(Contract, { foreignKey: 'departmentId', as: 'contracts' });
+Contract.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+Contract.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+
+Contract.hasMany(ContractAsset, { foreignKey: 'contractId', as: 'contractAssets', onDelete: 'CASCADE' });
+ContractAsset.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
+ContractAsset.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+ContractAsset.belongsTo(User, { foreignKey: 'linkedBy', as: 'linkedByUser' });
+Asset.hasMany(ContractAsset, { foreignKey: 'assetId', as: 'contractAssets', onDelete: 'CASCADE' });
+Contract.belongsToMany(Asset, { through: ContractAsset, foreignKey: 'contractId', otherKey: 'assetId', as: 'linkedAssets' });
+Asset.belongsToMany(Contract, { through: ContractAsset, foreignKey: 'assetId', otherKey: 'contractId', as: 'contracts' });
+
+Contract.hasMany(ContractAttachment, { foreignKey: 'contractId', as: 'attachments', onDelete: 'CASCADE' });
+ContractAttachment.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
+ContractAttachment.belongsTo(User, { foreignKey: 'uploadedById', as: 'uploadedBy' });
+
+Contract.hasMany(ContractActivity, { foreignKey: 'contractId', as: 'activity', onDelete: 'CASCADE' });
+ContractActivity.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
+ContractActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+Contract.hasMany(ContractTicket, { foreignKey: 'contractId', as: 'contractTickets', onDelete: 'CASCADE' });
+ContractTicket.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
+ContractTicket.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 
 // System settings
 SystemSettings.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });

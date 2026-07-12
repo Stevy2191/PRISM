@@ -58,6 +58,18 @@ router.get('/assets/inventory/export', canExport, ctrl.assetsInventoryExport);
 router.get('/assets/ticket-history', ctrl.assetsTicketHistory);
 router.get('/assets/ticket-history/export', canExport, ctrl.assetsTicketHistoryExport);
 
+// Licenses & Contracts
+router.get('/licenses/inventory', ctrl.licensesInventory);
+router.get('/licenses/inventory/export', canExport, ctrl.licensesInventoryExport);
+router.get('/contracts/summary', ctrl.contractsSummary);
+router.get('/contracts/summary/export', canExport, ctrl.contractsSummaryExport);
+router.get('/licenses/spend', ctrl.softwareSpend);
+router.get('/licenses/spend/export', canExport, ctrl.softwareSpendExport);
+router.get('/contracts/spend', ctrl.contractSpend);
+router.get('/contracts/spend/export', canExport, ctrl.contractSpendExport);
+router.get('/licenses-contracts/upcoming-renewals', ctrl.upcomingRenewals);
+router.get('/licenses-contracts/upcoming-renewals/export', canExport, ctrl.upcomingRenewalsExport);
+
 // Custom report builder
 router.get('/custom/metadata', customCtrl.metadata);
 router.post('/custom', customCtrl.run);

@@ -78,11 +78,16 @@ const DEFAULTS = {
   'csat.expiryDays': '7',
   'csat.minTicketsToShowRating': '3',
 
-  // Assets -> subscription renewal alert (Network Equipment / Mobile
-  // Devices / Mobile Routers "nextRenewalDate" field) — see
-  // assetAlertScheduler.js. Days-before-renewal threshold for
-  // auto-creating a reminder ticket.
+  // Settings -> Asset Alerts: days-before-X thresholds for auto-creating a
+  // reminder ticket, one per expiring-item type — see
+  // assetAlertScheduler.js. warrantyAlertDays/replacementAlertDays existed
+  // as hardcoded 90-day windows in stats/dashboard queries before this;
+  // they're now admin-configurable like subscriptionAlertDays always was.
   'assets.subscriptionAlertDays': '30',
+  'assets.warrantyAlertDays': '90',
+  'assets.replacementAlertDays': '90',
+  'licenses.expiryAlertDays': '30',
+  'contracts.renewalAlertDays': '60',
 };
 
 // Settings that store JSON-encoded values rather than plain strings.

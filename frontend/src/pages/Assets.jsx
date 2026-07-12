@@ -4,6 +4,7 @@ import api, { errMessage } from '../api/api';
 import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import AssetFormModal from '../components/AssetFormModal';
+import AssetsSubNav from '../components/AssetsSubNav';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -157,6 +158,7 @@ export default function Assets() {
 
   return (
     <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
+      <AssetsSubNav />
       <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Assets</h1>

@@ -422,6 +422,8 @@ function AssetsSummaryPanel({ data }) {
     { label: 'Expired warranty', value: data.expiredWarranty, to: '/assets?filter=expiredWarranty', color: data.expiredWarranty > 0 ? 'var(--color-danger)' : TEXT },
     { label: 'Subscriptions renewing (30 days)', value: data.subscriptionsRenewingSoon ?? 0, to: '/calendar', color: (data.subscriptionsRenewingSoon ?? 0) > 0 ? 'var(--color-warning)' : TEXT },
     { label: 'Total active', value: data.totalActive, to: '/assets?status=active', color: TEXT },
+    { label: 'Licenses expiring (30 days)', value: data.licensesExpiringSoon ?? 0, to: '/assets/licenses?status=expiring_soon', color: (data.licensesExpiringSoon ?? 0) > 0 ? 'var(--color-warning)' : TEXT },
+    { label: 'Contracts renewing (60 days)', value: data.contractsRenewingSoon ?? 0, to: '/assets/contracts?status=expiring_soon', color: (data.contractsRenewingSoon ?? 0) > 0 ? 'var(--color-warning)' : TEXT },
   ];
   return (
     <Card>

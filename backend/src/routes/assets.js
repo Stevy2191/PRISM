@@ -31,6 +31,7 @@ router.delete('/categories/:categoryId', canManageCategories, categoriesCtrl.rem
 
 router.get('/categories', ctrl.listCategories);
 router.get('/stats', ctrl.stats);
+router.get('/expiry-summary', ctrl.expirySummary);
 
 router.get('/', ctrl.list);
 router.post('/', canCreate, ctrl.create);
