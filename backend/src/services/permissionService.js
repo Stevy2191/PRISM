@@ -9,7 +9,7 @@
 //   3. default: false
 const { Op } = require('sequelize');
 const {
-  User, UserRole, RolePermission, Permission, UserPermissionOverride, Role,
+  User, UserRole, RolePermission, Permission, UserPermissionOverride, Role, ProjectMember,
 } = require('../models');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -180,6 +180,32 @@ async function explainUserPermissions(userId) {
   });
 }
 
+// Record-level access checks — the list endpoints (GET /tickets, GET
+// /projects) already filter by scope via a `where` clause, but the
+// single-record endpoints (GET /tickets/:id, GET /projects/:id and their
+// sub-resources) previously only checked "does this user have ANY view
+// permission" via requirePermission(), then fetched the record by raw id
+// with no scope filter — meaning an 'own'-scoped user could read any
+// ticket/project in the system just by knowing (or guessing) its id. These
+// mirror the exact same scope semantics as the list `where` clauses above,
+// applied to one already-fetched record instead of a query.
+async function canAccessTicket(user, ticket) {
+  const scope = await getUserTicketScope(user.id);
+  if (scope === 'all') return true;
+  if (scope === 'department') return ticket.departmentId === user.departmentId || ticket.assigneeId === user.id;
+  return ticket.assigneeId === user.id;
+}
+
+async function canAccessProject(user, project) {
+  const scope = await getUserProjectScope(user.id);
+  if (scope === 'all') return true;
+  const isMember = !!(await ProjectMember.findOne({ where: { projectId: project.id, userId: user.id } }));
+  if (scope === 'department') {
+    return project.ownerDepartmentId === user.departmentId || project.forDepartmentId === user.departmentId || isMember;
+  }
+  return isMember;
+}
+
 module.exports = {
   resolveUserPermissions,
   hasPermission,
@@ -187,6 +213,8 @@ module.exports = {
   getUserTicketScope,
   getUserProjectScope,
   getUserReportScope,
+  canAccessTicket,
+  canAccessProject,
   invalidateUserPermissions,
   invalidateAllPermissions,
   explainUserPermissions,

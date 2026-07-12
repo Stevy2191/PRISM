@@ -20,7 +20,7 @@ const {
 } = require('../services/statusBehavior');
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { UPLOAD_ROOT } = require('../middleware/upload');
-const { getUserProjectScope } = require('../services/permissionService');
+const { getUserProjectScope, canAccessProject } = require('../services/permissionService');
 const { generateProjectCode, generateTaskCode, generateSubtaskCode, formatTaskCode, formatSubtaskCode } = require('../services/projectCodeService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
@@ -252,6 +252,11 @@ const create = asyncHandler(async (req, res) => {
 const get = asyncHandler(async (req, res) => {
   const project = await getProjectWithDetail(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  // viewMin only checked "has ANY view tier" at the route level; an
+  // 'own'/'department'-scoped user could otherwise read any project by id.
+  if (!(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
   res.json({ project });
 });
 
@@ -307,6 +312,7 @@ const remove = asyncHandler(async (req, res) => {
 const getStats = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   res.json({ stats: await buildProjectStats(project.id) });
 });
 
@@ -323,6 +329,7 @@ const taskInclude = [
 const listTasks = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const statusIdBehavior = await getProjectStatusIdBehaviorMap();
   const tasks = await ProjectTask.findAll({
@@ -589,6 +596,7 @@ const timeEntryInclude = [
 const listTimeEntries = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const entries = await ProjectTimeEntry.findAll({
     where: { projectId: project.id },
@@ -711,6 +719,7 @@ const expenseInclude = [
 const listExpenses = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const expenses = await ProjectExpense.findAll({
     where: { projectId: project.id },
@@ -780,6 +789,7 @@ const materialInclude = [
 const listMaterials = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const materials = await ProjectMaterial.findAll({
     where: { projectId: project.id },
@@ -863,6 +873,7 @@ const removeMaterial = asyncHandler(async (req, res) => {
 const listMembers = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const members = await ProjectMember.findAll({
     where: { projectId: project.id },
@@ -910,6 +921,7 @@ const removeMember = asyncHandler(async (req, res) => {
 const listFiles = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const files = await ProjectFile.findAll({
     where: { projectId: project.id },
@@ -945,6 +957,10 @@ const uploadFile = asyncHandler(async (req, res) => {
 
 // GET /projects/:id/files/:fileId/download
 const downloadFile = asyncHandler(async (req, res) => {
+  const project = await Project.findByPk(req.params.id);
+  if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+
   const file = await ProjectFile.findOne({ where: { id: req.params.fileId, projectId: req.params.id } });
   if (!file) throw new ApiError(404, 'File not found', 'NOT_FOUND');
   res.download(file.filepath, file.filename);
@@ -965,6 +981,7 @@ const removeFile = asyncHandler(async (req, res) => {
 const listActivity = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const activity = await ProjectActivity.findAll({
     where: { projectId: project.id },
@@ -976,8 +993,9 @@ const listActivity = asyncHandler(async (req, res) => {
 
 // GET /projects/:id/report — streams a generated PDF report for this project.
 const generateReport = asyncHandler(async (req, res) => {
-  const project = await Project.findByPk(req.params.id, { attributes: ['id'] });
+  const project = await Project.findByPk(req.params.id, { attributes: ['id', 'ownerDepartmentId', 'forDepartmentId'] });
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   const ok = await generateProjectReport(project.id, res);
   if (!ok) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
 });

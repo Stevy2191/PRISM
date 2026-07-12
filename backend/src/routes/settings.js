@@ -9,6 +9,7 @@ const emailCtrl = require('../controllers/emailSettingsController');
 const { authenticate } = require('../middleware/auth');
 const { blockUntilPasswordChanged } = require('../middleware/role');
 const { requirePermission } = require('../middleware/requirePermission');
+const { verifyFileSignature } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -70,9 +71,9 @@ router.get('/smtp', manageSystem, emailCtrl.getSmtp);
 router.patch('/smtp', manageSystem, emailCtrl.updateSmtp);
 router.post('/smtp/test', manageSystem, emailCtrl.testSmtp);
 router.get('/email-log', manageSystem, emailCtrl.getEmailLog);
-router.post('/logo', manageBranding, logoUpload.single('file'), ctrl.uploadLogo);
+router.post('/logo', manageBranding, logoUpload.single('file'), verifyFileSignature, ctrl.uploadLogo);
 router.delete('/logo', manageBranding, ctrl.removeLogo);
-router.post('/favicon', manageBranding, faviconUpload.single('file'), ctrl.uploadFavicon);
+router.post('/favicon', manageBranding, faviconUpload.single('file'), verifyFileSignature, ctrl.uploadFavicon);
 router.delete('/favicon', manageBranding, ctrl.removeFavicon);
 
 module.exports = router;

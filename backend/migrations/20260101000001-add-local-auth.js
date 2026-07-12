@@ -9,8 +9,12 @@ const bcrypt = require('bcryptjs');
  *   BOOTSTRAP_LOCAL_USERNAME (default: admin)
  *   BOOTSTRAP_LOCAL_PASSWORD (default: changeme)
  *
- * The bootstrap account is created with mustChangePassword=false because the
- * password was set intentionally by the operator during setup.
+ * The bootstrap account is created with mustChangePassword=false only when
+ * BOOTSTRAP_LOCAL_PASSWORD was explicitly set (the operator chose a real
+ * password during setup). If it was left unset, the account falls back to
+ * the well-known literal "changeme" — mustChangePassword=true in that case,
+ * same as any other account, so an operator who skips the env var isn't left
+ * running production with a public default credential.
  * Accounts created via Admin → Users still get mustChangePassword=true.
  */
 module.exports = {
@@ -62,7 +66,7 @@ module.exports = {
           departmentId: null,
           passwordHash,
           isLocalAccount: true,
-          mustChangePassword: false,
+          mustChangePassword: !process.env.BOOTSTRAP_LOCAL_PASSWORD,
           lastLogin: null,
           createdAt: now,
           updatedAt: now,

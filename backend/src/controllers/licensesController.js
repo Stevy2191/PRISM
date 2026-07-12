@@ -30,15 +30,6 @@ async function logLicenseActivity(licenseId, userId, action, detail = null) {
   return LicenseActivity.create({ licenseId, userId: userId || null, action, detail });
 }
 
-// Never send the ciphertext (or plaintext) in a normal response — just
-// whether one is set. Reveal is a dedicated, permission-gated endpoint.
-function shapeLicense(license) {
-  const json = license.toJSON();
-  const licenseKeySet = !!json.licenseKey;
-  delete json.licenseKey;
-  return { ...json, licenseKeySet };
-}
-
 async function recomputeUsedSeats(licenseId) {
   const usedSeats = await LicenseContact.count({ where: { licenseId } });
   await License.update({ usedSeats }, { where: { id: licenseId } });
@@ -78,7 +69,7 @@ const list = asyncHandler(async (req, res) => {
   }
 
   const licenses = await License.findAll({ where, include: licenseInclude, order: [['name', 'ASC']] });
-  res.json({ licenses: licenses.map(shapeLicense) });
+  res.json({ licenses });
 });
 
 // GET /licenses/:id
@@ -93,7 +84,7 @@ const get = asyncHandler(async (req, res) => {
   ]);
 
   res.json({
-    license: shapeLicense(license),
+    license,
     stats: {
       totalSeats: license.totalSeats,
       usedSeats: license.usedSeats,
@@ -123,7 +114,7 @@ const create = asyncHandler(async (req, res) => {
   await logLicenseActivity(license.id, req.user.id, 'created', { name: license.name });
 
   const fresh = await License.findByPk(license.id, { include: licenseInclude });
-  res.status(201).json({ license: shapeLicense(fresh) });
+  res.status(201).json({ license: fresh });
 });
 
 // PATCH /licenses/:id
@@ -147,7 +138,7 @@ const update = asyncHandler(async (req, res) => {
   await logLicenseActivity(license.id, req.user.id, 'updated', { changes: Object.keys(values) });
 
   const fresh = await License.findByPk(license.id, { include: licenseInclude });
-  res.json({ license: shapeLicense(fresh) });
+  res.json({ license: fresh });
 });
 
 // GET /licenses/:id/reveal-key — gated by assets.view_license_keys at the

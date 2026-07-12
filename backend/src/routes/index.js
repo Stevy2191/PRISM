@@ -3,6 +3,7 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const { blockUntilPasswordChanged } = require('../middleware/role');
+const { globalLimiter } = require('../middleware/rateLimit');
 
 const authRoutes = require('./auth');
 const usersRoutes = require('./users');
@@ -54,8 +55,8 @@ router.use('/survey', surveyRoutes);
 router.use('/settings', settingsRoutes);
 
 // Protected routes. `guard` = authenticated AND (for local accounts) not pending a
-// forced password change.
-const guard = [authenticate, blockUntilPasswordChanged];
+// forced password change AND under the generous per-user request-rate backstop.
+const guard = [authenticate, blockUntilPasswordChanged, globalLimiter];
 router.use('/users', guard, usersRoutes);
 router.use('/roles', guard, rolesRoutes);
 router.use('/permissions', guard, permissionsRoutes);

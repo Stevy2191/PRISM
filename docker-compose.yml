@@ -9,7 +9,7 @@
 #   docker compose -f docker-compose.dev.yml up -d --build
 services:
   mariadb:
-    image: mariadb:10.11
+    image: mariadb:11
     restart: unless-stopped
     environment:
       MARIADB_DATABASE: ${DB_NAME:-prism}

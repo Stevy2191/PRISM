@@ -2,7 +2,7 @@ const express = require('express');
 const ctrl = require('../controllers/assetsController');
 const categoriesCtrl = require('../controllers/assetCategoriesController');
 const { requirePermission } = require('../middleware/requirePermission');
-const { assetUpload } = require('../middleware/upload');
+const { assetUpload, verifyFileSignature } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -52,7 +52,7 @@ router.post('/:id/checkouts/:checkoutId/check-in', canEdit, ctrl.checkInCheckout
 router.post('/:id/checkouts/:checkoutId/send-form', canEdit, ctrl.sendCheckoutForm);
 
 router.get('/:id/attachments', ctrl.listAttachments);
-router.post('/:id/attachments', canEdit, assetUpload.single('file'), ctrl.createAttachment);
+router.post('/:id/attachments', canEdit, assetUpload.single('file'), verifyFileSignature, ctrl.createAttachment);
 router.get('/:id/attachments/:attachmentId/download', ctrl.downloadAttachment);
 router.delete('/:id/attachments/:attachmentId', canEdit, ctrl.removeAttachment);
 

@@ -70,6 +70,14 @@ web_modules/
 .env.*
 !.env.example
 
+# Certificates and private keys — never commit these regardless of where
+# they end up in the tree (TLS certs, SSH keys, signing keys, etc.)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

@@ -1,7 +1,20 @@
 const { DataTypes, Model } = require('sequelize');
 
 module.exports = (sequelize) => {
-  class License extends Model {}
+  class License extends Model {
+    // Never expose the encrypted licenseKey ciphertext in an API response —
+    // enforced here (not just in the controller) so any future serialization
+    // path (a new endpoint, an include on another model) can't accidentally
+    // leak it by skipping a controller-level mask helper. Reveal is a
+    // dedicated, permission-gated endpoint that reads the raw column
+    // directly via a separate query, not through this JSON path.
+    toJSON() {
+      const values = { ...this.get() };
+      values.licenseKeySet = !!values.licenseKey;
+      delete values.licenseKey;
+      return values;
+    }
+  }
 
   License.init(
     {

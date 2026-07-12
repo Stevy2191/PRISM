@@ -114,6 +114,12 @@ const create = asyncHandler(async (req, res) => {
 const get = asyncHandler(async (req, res) => {
   const contact = await Contact.findByPk(req.params.id, { include: contactInclude });
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+  // Route-level viewMin only checked "has EITHER view tier" — a
+  // department-scoped user could otherwise read any contact by id.
+  const canViewAll = await hasPermission(req.user.id, 'people.view_all');
+  if (!canViewAll && contact.departmentId !== req.user.departmentId) {
+    throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
+  }
 
   const buckets = await getTicketStatusBuckets();
   const [totalTickets, openTickets, overdueTickets, resolvedTickets, recentTickets] = await Promise.all([
@@ -250,6 +256,10 @@ const remove = asyncHandler(async (req, res) => {
 const listTickets = asyncHandler(async (req, res) => {
   const contact = await Contact.findByPk(req.params.id);
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+  const canViewAllContacts = await hasPermission(req.user.id, 'people.view_all');
+  if (!canViewAllContacts && contact.departmentId !== req.user.departmentId) {
+    throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
+  }
 
   const tickets = await Ticket.findAll({
     where: { contactId: contact.id },
@@ -263,6 +273,10 @@ const listTickets = asyncHandler(async (req, res) => {
 const listActivity = asyncHandler(async (req, res) => {
   const contact = await Contact.findByPk(req.params.id);
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+  const canViewAllContacts = await hasPermission(req.user.id, 'people.view_all');
+  if (!canViewAllContacts && contact.departmentId !== req.user.departmentId) {
+    throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
+  }
 
   const activity = await ContactActivity.findAll({
     where: { contactId: contact.id },

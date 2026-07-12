@@ -10,9 +10,19 @@ function isExpired(survey, expiryDays) {
   return Date.now() - new Date(anchor).getTime() > expiryDays * 86400000;
 }
 
+// surveyToken is always a generated UUID v4 (see CsatSurvey model / the
+// scheduler that mints these) — rejecting anything else before it ever
+// reaches the DB avoids a wasted query for garbage/oversized input on a
+// fully public, unauthenticated endpoint.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidToken(token) {
+  return typeof token === 'string' && UUID_RE.test(token);
+}
+
 // GET /survey/:token — details needed to render the page, or a reason it
 // can't be filled out (expired / already responded / not found).
 const getSurvey = asyncHandler(async (req, res) => {
+  if (!isValidToken(req.params.token)) throw new ApiError(404, 'Survey not found', 'NOT_FOUND');
   const survey = await CsatSurvey.findOne({
     where: { surveyToken: req.params.token },
     include: [{ model: Ticket, as: 'ticket', attributes: ['id', 'title'] }],
@@ -39,29 +49,10 @@ const getSurvey = asyncHandler(async (req, res) => {
   });
 });
 
-// Very light abuse guard — a survey token is a full UUID (128 bits), so
-// brute-forcing isn't realistically feasible, but repeated bad requests to
-// the same token (script re-submitting, etc.) are still worth capping.
-const submitAttempts = new Map();
-const SUBMIT_WINDOW_MS = 15 * 60 * 1000;
-const SUBMIT_MAX = 10;
-function submitRateLimit(req, res, next) {
-  const key = req.ip || 'unknown';
-  const now = Date.now();
-  const record = submitAttempts.get(key);
-  if (!record || now > record.resetAt) {
-    submitAttempts.set(key, { count: 1, resetAt: now + SUBMIT_WINDOW_MS });
-    return next();
-  }
-  record.count += 1;
-  if (record.count > SUBMIT_MAX) {
-    return res.status(429).json({ error: true, message: 'Too many attempts, please try again later', code: 'RATE_LIMITED' });
-  }
-  return next();
-}
-
-// POST /survey/:token — { rating: 1-5, comment? }
+// POST /survey/:token — { rating: 1-5, comment? } — rate-limited at the
+// route level (see middleware/rateLimit.js's surveySubmitLimiter).
 const submitSurvey = asyncHandler(async (req, res) => {
+  if (!isValidToken(req.params.token)) throw new ApiError(404, 'Survey not found', 'NOT_FOUND');
   const survey = await CsatSurvey.findOne({ where: { surveyToken: req.params.token } });
   if (!survey) throw new ApiError(404, 'Survey not found', 'NOT_FOUND');
 
@@ -92,4 +83,4 @@ const submitSurvey = asyncHandler(async (req, res) => {
   res.json({ status: 'responded', message: 'Thank you for your feedback! Your response helps us improve our service.' });
 });
 
-module.exports = { getSurvey, submitSurvey, submitRateLimit };
+module.exports = { getSurvey, submitSurvey };

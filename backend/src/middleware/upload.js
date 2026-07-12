@@ -133,6 +133,79 @@ function makeLinkedUpload(subdir) {
 const licenseUpload = makeLinkedUpload('licenses');
 const contractUpload = makeLinkedUpload('contracts');
 
+// Magic-byte signatures for the extension allow-list above — extension
+// checks alone only look at the filename an attacker fully controls, so a
+// renamed executable (foo.exe -> foo.pdf) would otherwise sail through.
+// DOCX/XLSX are both OOXML, i.e. a ZIP container, so they share PK's magic
+// bytes; anything more specific would require unzipping and inspecting
+// [Content_Types].xml, which isn't worth it for a belt-and-suspenders check.
+const MAGIC_BYTES = {
+  '.pdf': [Buffer.from('25504446', 'hex')], // %PDF
+  '.jpg': [Buffer.from('FFD8FF', 'hex')],
+  '.jpeg': [Buffer.from('FFD8FF', 'hex')],
+  '.png': [Buffer.from('89504E470D0A1A0A', 'hex')],
+  '.docx': [Buffer.from('504B0304', 'hex'), Buffer.from('504B0506', 'hex')],
+  '.xlsx': [Buffer.from('504B0304', 'hex'), Buffer.from('504B0506', 'hex')],
+  // Branding (logo/favicon) upload formats — .svg is deliberately absent
+  // (plain XML/text, no fixed magic bytes to check).
+  '.gif': [Buffer.from('474946', 'hex')],
+  '.webp': [Buffer.from('52494646', 'hex')], // RIFF container; WEBP marker is at byte 8, not worth a second read
+  '.ico': [Buffer.from('00000100', 'hex')],
+  '.bmp': [Buffer.from('424D', 'hex')],
+};
+
+// Signatures that are never legitimate for any upload regardless of claimed
+// extension — a Windows/Linux executable or a shebang script disguised with
+// a document extension. Checked on every disk-backed upload (tickets/
+// projects included), not just the strict allow-list ones, since the
+// block-list uploads accept broad file types by design and can't do a full
+// per-type magic-byte allow-list.
+const DANGEROUS_SIGNATURES = [
+  Buffer.from('4D5A', 'hex'), // MZ — Windows PE (.exe/.dll)
+  Buffer.from('7F454C46', 'hex'), // \x7fELF — Linux binary
+  Buffer.from('2321', 'hex'), // #!  — shebang script
+];
+
+function startsWithAny(buf, signatures) {
+  return signatures.some((sig) => buf.length >= sig.length && buf.subarray(0, sig.length).equals(sig));
+}
+
+// Runs after any disk-backed upload's .single('file') — reads the first 8
+// bytes actually written to disk and checks them against MAGIC_BYTES for the
+// claimed extension (when one is defined) plus the DANGEROUS_SIGNATURES
+// block regardless. Deletes the file and rejects on mismatch.
+function verifyFileSignature(req, res, next) {
+  if (!req.file) return next();
+  fs.open(req.file.path, 'r', (openErr, fd) => {
+    if (openErr) return next(openErr);
+    const head = Buffer.alloc(8);
+    fs.read(fd, head, 0, 8, 0, (readErr) => {
+      fs.close(fd, () => {});
+      if (readErr) return next(readErr);
+
+      const reject = (message) => {
+        fs.unlink(req.file.path, () => {});
+        const err = new Error(message);
+        err.status = 400;
+        err.code = 'INVALID_FILE_CONTENT';
+        return next(err);
+      };
+
+      if (startsWithAny(head, DANGEROUS_SIGNATURES)) {
+        return reject('This file\'s content is not permitted, regardless of its extension');
+      }
+
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      const expected = MAGIC_BYTES[ext];
+      if (expected && !startsWithAny(head, expected)) {
+        return reject(`This file's content does not match its ${ext} extension`);
+      }
+
+      return next();
+    });
+  });
+}
+
 // Runs after upload/projectUpload's .single('file') — the admin-configured
 // soft limit (General Settings -> Max attachment size), enforced against a
 // file already on disk since disk storage can't be intercepted mid-stream
@@ -177,5 +250,5 @@ const csvUpload = multer({
 
 module.exports = {
   upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload,
-  UPLOAD_ROOT, MAX_SIZE, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize,
+  UPLOAD_ROOT, MAX_SIZE, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature,
 };

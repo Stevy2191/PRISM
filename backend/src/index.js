@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
+const helmet = require('helmet');
 const cors = require('cors');
 const session = require('express-session');
 const SequelizeStore = require('connect-session-sequelize')(session.Store);
@@ -37,6 +38,14 @@ if (
 
 // Trust the reverse proxy (frontend nginx) so secure cookies work behind it.
 app.set('trust proxy', 1);
+
+// Standard security headers (X-Content-Type-Options, X-Frame-Options,
+// Strict-Transport-Security, a default Content-Security-Policy, etc.). This
+// backend is a pure JSON API (no HTML rendering, no cross-origin asset
+// requests — the frontend always reaches it through a same-origin proxy, see
+// vite.config.js / nginx.conf), so helmet's defaults apply cleanly with no
+// per-directive tuning needed.
+app.use(helmet());
 
 app.use(
   cors({

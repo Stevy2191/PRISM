@@ -10,7 +10,7 @@
 # The backend automatically waits for the database, runs migrations, and starts.
 services:
   mariadb:
-    image: mariadb:10.11
+    image: mariadb:11
     restart: unless-stopped
     environment:
       MARIADB_DATABASE: ${DB_NAME:-prism}

@@ -1,7 +1,7 @@
 const express = require('express');
 const ctrl = require('../controllers/licensesController');
 const { requirePermission } = require('../middleware/requirePermission');
-const { licenseUpload } = require('../middleware/upload');
+const { licenseUpload, verifyFileSignature } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -30,7 +30,7 @@ router.post('/:id/contacts', canManage, ctrl.assignContact);
 router.delete('/:id/contacts/:contactId', canManage, ctrl.unassignContact);
 
 router.get('/:id/attachments', ctrl.listAttachments);
-router.post('/:id/attachments', canManage, licenseUpload.single('file'), ctrl.createAttachment);
+router.post('/:id/attachments', canManage, licenseUpload.single('file'), verifyFileSignature, ctrl.createAttachment);
 router.get('/:id/attachments/:attachmentId/download', ctrl.downloadAttachment);
 router.delete('/:id/attachments/:attachmentId', canManage, ctrl.removeAttachment);
 
