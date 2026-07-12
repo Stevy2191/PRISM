@@ -79,6 +79,21 @@ function daysUntil(dateStr) {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
+// Checkout/check-in dates may be backdated arbitrarily (entering existing
+// deployed equipment, correcting historical records) but never postdated —
+// compared against end-of-today so "today" itself is always valid regardless
+// of what time of day the request arrives.
+function assertNotFutureDate(value, label) {
+  if (!value) return;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) throw new ApiError(400, `${label} is not a valid date`, 'VALIDATION_ERROR');
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  if (d.getTime() > endOfToday.getTime()) {
+    throw new ApiError(400, `${label} cannot be in the future`, 'FUTURE_DATE_NOT_ALLOWED');
+  }
+}
+
 // GET /assets?search=&categoryId=&departmentId=&status=&assignedTo=
 const list = asyncHandler(async (req, res) => {
   const { search, categoryId, departmentId, status, assignedTo } = req.query;
@@ -384,6 +399,7 @@ const createCheckout = asyncHandler(async (req, res) => {
   const contact = await Contact.findByPk(contactId, { include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] });
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
 
+  assertNotFutureDate(req.body.checkedOutAt, 'Checkout date');
   const checkedOutAt = req.body.checkedOutAt ? new Date(req.body.checkedOutAt) : new Date();
   const checkout = await AssetCheckout.create({
     assetId: asset.id,
@@ -421,7 +437,10 @@ const createCheckout = asyncHandler(async (req, res) => {
   res.status(201).json({ checkout: fresh, attachment });
 });
 
-// POST /assets/:id/checkouts/:checkoutId/check-in
+// POST /assets/:id/checkouts/:checkoutId/check-in — { checkedInAt } optional,
+// defaults to now; may be backdated (e.g. entering a return that actually
+// happened last week) but never postdated, and never before the checkout's
+// own checkedOutAt.
 const checkInCheckout = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
@@ -429,7 +448,13 @@ const checkInCheckout = asyncHandler(async (req, res) => {
   if (!checkout) throw new ApiError(404, 'Checkout not found', 'NOT_FOUND');
   if (checkout.checkedInAt) throw new ApiError(400, 'This checkout has already been checked in', 'ALREADY_CHECKED_IN');
 
-  await checkout.update({ checkedInAt: new Date(), checkedInBy: req.user.id });
+  assertNotFutureDate(req.body.checkedInAt, 'Check-in date');
+  const checkedInAt = req.body.checkedInAt ? new Date(req.body.checkedInAt) : new Date();
+  if (checkedInAt.getTime() < new Date(checkout.checkedOutAt).getTime()) {
+    throw new ApiError(400, 'Check-in date cannot be before the checkout date', 'VALIDATION_ERROR');
+  }
+
+  await checkout.update({ checkedInAt, checkedInBy: req.user.id });
 
   if (asset.assignedToContactId === checkout.contactId) {
     await asset.update({ assignedToContactId: null });
@@ -477,7 +502,10 @@ const sendCheckoutForm = asyncHandler(async (req, res) => {
 });
 
 // PATCH /assets/:id/checkouts/:checkoutId — { formReceived: true } marks the
-// signed form as returned.
+// signed form as returned. Also supports editing a checkout record directly
+// ({ contactId, checkedOutAt, checkedInAt, notes }) so historical/incorrect
+// entries can be corrected — checkedInAt may be sent as `null` to reopen a
+// checkout as the asset's current/active one.
 const updateCheckout = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
@@ -487,6 +515,76 @@ const updateCheckout = asyncHandler(async (req, res) => {
   if (req.body.formReceived) {
     await checkout.update({ checkoutFormReturnedAt: new Date() });
     await logAssetActivity(asset.id, req.user.id, 'checkout_form_received', { checkoutId: checkout.id });
+  }
+
+  const hasContactId = Object.prototype.hasOwnProperty.call(req.body, 'contactId');
+  const hasCheckedOutAt = Object.prototype.hasOwnProperty.call(req.body, 'checkedOutAt');
+  const hasCheckedInAt = Object.prototype.hasOwnProperty.call(req.body, 'checkedInAt');
+  const hasNotes = Object.prototype.hasOwnProperty.call(req.body, 'notes');
+
+  if (hasContactId || hasCheckedOutAt || hasCheckedInAt || hasNotes) {
+    const updates = {};
+
+    if (hasContactId) {
+      if (!req.body.contactId) throw new ApiError(400, 'Contact is required', 'VALIDATION_ERROR');
+      const contact = await Contact.findByPk(req.body.contactId);
+      if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+      updates.contactId = contact.id;
+    }
+
+    if (hasCheckedOutAt) {
+      assertNotFutureDate(req.body.checkedOutAt, 'Checkout date');
+      updates.checkedOutAt = new Date(req.body.checkedOutAt);
+    }
+
+    if (hasCheckedInAt) {
+      assertNotFutureDate(req.body.checkedInAt, 'Check-in date');
+      updates.checkedInAt = req.body.checkedInAt ? new Date(req.body.checkedInAt) : null;
+    }
+
+    if (hasNotes) {
+      updates.notes = req.body.notes || null;
+    }
+
+    const resolvedCheckedOutAt = hasCheckedOutAt ? updates.checkedOutAt : checkout.checkedOutAt;
+    const resolvedCheckedInAt = hasCheckedInAt ? updates.checkedInAt : checkout.checkedInAt;
+    if (resolvedCheckedInAt && resolvedCheckedInAt.getTime() < new Date(resolvedCheckedOutAt).getTime()) {
+      throw new ApiError(400, 'Check-in date cannot be before the checkout date', 'VALIDATION_ERROR');
+    }
+
+    const wasActive = !checkout.checkedInAt;
+    const willBeActive = !resolvedCheckedInAt;
+    const originalContactId = checkout.contactId;
+
+    if (willBeActive && !wasActive) {
+      const otherActive = await AssetCheckout.findOne({
+        where: { assetId: asset.id, checkedInAt: null, id: { [Op.ne]: checkout.id } },
+      });
+      if (otherActive) {
+        throw new ApiError(400, 'This asset already has an active checkout — check it in before reopening another one', 'VALIDATION_ERROR');
+      }
+    }
+
+    if (hasCheckedInAt) {
+      if (willBeActive && !wasActive) {
+        updates.checkedInBy = null;
+      } else if (!willBeActive && wasActive) {
+        updates.checkedInBy = req.user.id;
+      }
+    }
+
+    await checkout.update(updates);
+
+    if (willBeActive) {
+      const activeContactId = hasContactId ? updates.contactId : originalContactId;
+      if (asset.assignedToContactId !== activeContactId) {
+        await asset.update({ assignedToContactId: activeContactId, assignedToUserId: null });
+      }
+    } else if (wasActive && asset.assignedToContactId === originalContactId) {
+      await asset.update({ assignedToContactId: null });
+    }
+
+    await logAssetActivity(asset.id, req.user.id, 'checkout_edited', { checkoutId: checkout.id, changes: Object.keys(updates) });
   }
 
   const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });

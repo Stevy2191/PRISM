@@ -441,7 +441,7 @@ function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Checkout date</label>
-              <input type="date" className="input" style={fieldStyle} value={checkedOutAt} onChange={(e) => setCheckedOutAt(e.target.value)} />
+              <input type="date" className="input" style={fieldStyle} value={checkedOutAt} max={todayStr()} onChange={(e) => setCheckedOutAt(e.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Notes</label>
@@ -771,6 +771,8 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [sendPrompt, setSendPrompt] = useState(null); // { checkout, attachment }
+  const [checkInTarget, setCheckInTarget] = useState(null); // checkout being checked in
+  const [editTarget, setEditTarget] = useState(null); // checkout being edited
 
   const load = () => {
     setLoading(true);
@@ -780,19 +782,6 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
     ]).then(([c, a]) => { setCheckouts(c.data.checkouts); setAttachments(a.data.attachments); }).finally(() => setLoading(false));
   };
   useEffect(load, [assetId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const checkIn = async (checkoutId) => {
-    setBusyId(checkoutId);
-    try {
-      await api.post(`/assets/${assetId}/checkouts/${checkoutId}/check-in`);
-      onChanged?.();
-      load();
-    } catch (err) {
-      alert(errMessage(err));
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   const markReceived = async (checkoutId) => {
     setBusyId(checkoutId);
@@ -845,8 +834,8 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
                   </div>
                   <div className="flex flex-shrink-0 flex-wrap gap-2">
                     {active && (
-                      <button type="button" onClick={() => checkIn(c.id)} disabled={busyId === c.id} className="btn-secondary text-xs">
-                        {busyId === c.id ? 'Checking in…' : 'Check in'}
+                      <button type="button" onClick={() => setCheckInTarget(c)} disabled={busyId === c.id} className="btn-secondary text-xs">
+                        Check in
                       </button>
                     )}
                     {!c.checkoutFormSentAt && attachments.length > 0 && (
@@ -863,6 +852,9 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
                         Mark form received
                       </button>
                     )}
+                    <button type="button" onClick={() => setEditTarget(c)} className="btn-secondary text-xs">
+                      Edit
+                    </button>
                   </div>
                 </div>
               </div>
@@ -881,6 +873,197 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
           onSent={() => { setSendPrompt(null); load(); }}
         />
       )}
+
+      {checkInTarget && (
+        <CheckInModal
+          assetId={assetId}
+          checkout={checkInTarget}
+          onClose={() => setCheckInTarget(null)}
+          onCheckedIn={() => { setCheckInTarget(null); onChanged?.(); load(); }}
+        />
+      )}
+
+      {editTarget && (
+        <EditCheckoutModal
+          assetId={assetId}
+          checkout={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => { setEditTarget(null); onChanged?.(); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Prompts for a check-in date (defaults to today, freely backdatable, never
+// future) rather than firing the check-in immediately — mirrors
+// CheckoutModal's own editable date field so entering historical returns
+// works the same way entering historical checkouts does.
+function CheckInModal({ assetId, checkout, onClose, onCheckedIn }) {
+  const [checkedInAt, setCheckedInAt] = useState(todayStr());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await api.post(`/assets/${assetId}/checkouts/${checkout.id}/check-in`, { checkedInAt });
+      onCheckedIn();
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
+      <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-sm sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
+        <form onSubmit={submit} className="space-y-3">
+          <h2 className="text-base font-semibold" style={{ color: TEXT }}>Check in equipment</h2>
+          {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Contact</p>
+            <p className="text-sm" style={{ color: TEXT }}>{checkout.contact?.displayName}</p>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Check-in date</label>
+            <input
+              type="date"
+              className="input"
+              style={fieldStyle}
+              value={checkedInAt}
+              max={todayStr()}
+              min={checkout.checkedOutAt?.slice(0, 10)}
+              onChange={(e) => setCheckedInAt(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 border-t pt-3" style={{ borderColor: BORDER }}>
+            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Checking in…' : 'Check in'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Edits an existing checkout record directly — for correcting data-entry
+// mistakes and backfilling historical checkouts, not part of the normal
+// checkout/check-in flow. Unchecking "still checked out" reveals a check-in
+// date field; leaving it checked sends checkedInAt: null, which reopens the
+// record as the asset's active checkout (the backend rejects this if another
+// checkout is already active).
+function EditCheckoutModal({ assetId, checkout, onClose, onSaved }) {
+  const [contact, setContact] = useState(checkout.contact || null);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [checkedOutAt, setCheckedOutAt] = useState(checkout.checkedOutAt.slice(0, 10));
+  const [stillOut, setStillOut] = useState(!checkout.checkedInAt);
+  const [checkedInAt, setCheckedInAt] = useState(checkout.checkedInAt ? checkout.checkedInAt.slice(0, 10) : todayStr());
+  const [notes, setNotes] = useState(checkout.notes || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); return; }
+    const t = setTimeout(() => {
+      api.get('/contacts', { params: { search: query.trim() } })
+        .then(({ data }) => setResults(data.contacts.slice(0, 8)))
+        .catch(() => setResults([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!contact) { setError('Contact is required'); return; }
+    setSaving(true);
+    try {
+      await api.patch(`/assets/${assetId}/checkouts/${checkout.id}`, {
+        contactId: contact.id,
+        checkedOutAt,
+        checkedInAt: stillOut ? null : checkedInAt,
+        notes: notes || null,
+      });
+      onSaved();
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
+      <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
+        <form onSubmit={submit} className="space-y-3">
+          <h2 className="text-base font-semibold" style={{ color: TEXT }}>Edit checkout record</h2>
+          {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Contact</label>
+            {contact ? (
+              <div className="flex items-center justify-between rounded-md border p-2.5" style={{ borderColor: BORDER, backgroundColor: BG }}>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: TEXT }}>{contact.displayName}</p>
+                  {contact.email && <p className="text-xs" style={{ color: MUTED }}>{contact.email}</p>}
+                </div>
+                <button type="button" onClick={() => setContact(null)} style={{ color: MUTED }}>✕</button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  className="input"
+                  style={fieldStyle}
+                  placeholder="Search contacts…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                {results.length > 0 && (
+                  <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+                    {results.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => { setContact(c); setQuery(''); setResults([]); }}
+                        className="block w-full px-3 py-2 text-left text-sm hover:opacity-80"
+                        style={{ color: TEXT }}
+                      >
+                        {c.displayName}{c.email ? ` · ${c.email}` : ''}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Checkout date</label>
+            <input type="date" className="input" style={fieldStyle} value={checkedOutAt} max={todayStr()} onChange={(e) => setCheckedOutAt(e.target.value)} />
+          </div>
+          <label className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>
+            <input type="checkbox" checked={stillOut} onChange={(e) => setStillOut(e.target.checked)} className="h-4 w-4" />
+            Still checked out (not returned)
+          </label>
+          {!stillOut && (
+            <div>
+              <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Check-in date</label>
+              <input type="date" className="input" style={fieldStyle} value={checkedInAt} max={todayStr()} min={checkedOutAt} onChange={(e) => setCheckedInAt(e.target.value)} />
+            </div>
+          )}
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Notes</label>
+            <textarea className="input resize-y" style={{ ...fieldStyle, minHeight: '70px' }} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+          <div className="flex justify-end gap-2 border-t pt-3" style={{ borderColor: BORDER }}>
+            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save'}</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
