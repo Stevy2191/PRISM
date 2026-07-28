@@ -111,7 +111,7 @@ export default function AssignmentRules() {
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-navy-900">Assignment Rules</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-navy-900">Assignment Rules</h1>
           <p className="text-sm text-navy-500">
             Auto-assign new tickets by type, department, and priority. Rules are checked top to
             bottom — the first match wins, and only applies when the ticket has no assignee already.

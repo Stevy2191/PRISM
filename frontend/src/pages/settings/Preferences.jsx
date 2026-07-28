@@ -102,7 +102,7 @@ export default function Preferences() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold text-navy-900">Preferences</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Preferences</h1>
 
       <div className="card p-5">
         <h2 className="mb-3 font-semibold text-navy-900">Appearance</h2>

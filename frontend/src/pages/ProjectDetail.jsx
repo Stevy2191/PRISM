@@ -410,7 +410,7 @@ export default function ProjectDetail() {
               />
             ) : (
               <h1
-                className="cursor-pointer text-2xl font-bold hover:opacity-80"
+                className="cursor-pointer text-2xl font-bold tracking-tight hover:opacity-80"
                 style={{ color: TEXT }}
                 onClick={() => { if (isStaff) { setNameDraft(project.name); setEditingName(true); } }}
                 title={isStaff ? 'Click to rename' : ''}
@@ -419,7 +419,7 @@ export default function ProjectDetail() {
               </h1>
             )}
             <span
-              className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+              className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
               style={{ backgroundColor: `color-mix(in srgb, ${statusMeta?.color || MUTED} 13%, transparent)`, color: statusMeta?.color || MUTED }}
             >
               {project.status}
@@ -427,14 +427,14 @@ export default function ProjectDetail() {
           </div>
           <p className="mt-1 text-sm" style={{ color: MUTED }}>
             {project.ownerDepartment?.name && (
-              <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
+              <span className="rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
                 {project.ownerDepartment.name}
               </span>
             )}
             {project.forDepartment?.name && project.forDepartment.name !== project.ownerDepartment?.name && (
               <>
                 {' → '}
-                <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-success) 15%, transparent)', color: 'var(--color-success)' }}>
+                <span className="rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-success) 15%, transparent)', color: 'var(--color-success)' }}>
                   {project.forDepartment.name}
                 </span>
               </>
@@ -447,7 +447,7 @@ export default function ProjectDetail() {
                   key={tag}
                   type="button"
                   onClick={() => navigate(`/projects?tag=${encodeURIComponent(tag)}`)}
-                  className="rounded-full px-2 py-0.5 text-xs font-medium hover:opacity-75"
+                  className="rounded-[3px] px-2 py-0.5 text-xs font-medium hover:opacity-75"
                   style={{ backgroundColor: BORDER, color: TEXT }}
                 >
                   {tag}
@@ -700,7 +700,7 @@ function StatCard({ label, value, color }) {
   return (
     <div className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>{label}</p>
-      <p className="mt-1 text-2xl font-bold" style={{ color }}>{value}</p>
+      <p className="mt-1 text-2xl font-bold tracking-tight" style={{ color }}>{value}</p>
     </div>
   );
 }
@@ -894,7 +894,7 @@ function TasksTab({ tasks, isStaff, canEdit, statuses, assignableUsers, onOpenTa
                     <span className="font-medium" style={{ color: task.isComplete ? MUTED : TEXT, textDecoration: task.isComplete ? 'line-through' : 'none' }}>
                       {task.title}
                     </span>
-                    <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${task.status?.color || MUTED} 13%, transparent)`, color: task.status?.color || MUTED }}>
+                    <span className="whitespace-nowrap rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${task.status?.color || MUTED} 13%, transparent)`, color: task.status?.color || MUTED }}>
                       {task.status?.name}
                     </span>
                     <span className="flex items-center gap-1 text-xs" style={{ color: MUTED }}>
@@ -904,7 +904,7 @@ function TasksTab({ tasks, isStaff, canEdit, statuses, assignableUsers, onOpenTa
                       <Link
                         to={`/tickets/${task.linkedTicket.id}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                        className="flex items-center gap-1 rounded-[3px] px-2 py-0.5 text-xs font-medium"
                         style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}
                       >
                         <IconLink size={11} /> {formatTicketId(task.linkedTicket)} {task.linkedTicket.title}
@@ -1291,7 +1291,7 @@ function ExpensesTab({ data, canManageExpenses, onAdd, onDelete }) {
           {data.expenses.map((e) => (
             <tr key={e.id}>
               <td className="table-td" style={{ color: TEXT }}>{e.description}</td>
-              <td className="table-td"><span className="rounded-full px-2 py-0.5 text-xs font-medium capitalize" style={{ backgroundColor: BORDER, color: TEXT }}>{e.category}</span></td>
+              <td className="table-td"><span className="rounded-[3px] px-2 py-0.5 text-xs font-medium capitalize" style={{ backgroundColor: BORDER, color: TEXT }}>{e.category}</span></td>
               <td className="table-td" style={{ color: MUTED }}>{e.task?.title || '—'}</td>
               <td className="table-td" style={{ color: MUTED }}>{e.loggedByUser?.displayName || '—'}</td>
               <td className="table-td" style={{ color: MUTED }}>{e.entryDate}</td>

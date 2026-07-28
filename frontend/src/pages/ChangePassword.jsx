@@ -46,7 +46,7 @@ export default function ChangePassword() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy-900 px-4">
       <div className="w-full max-w-md">
-        <h1 className="mb-2 text-center text-2xl font-bold tracking-wide text-white">PRISM</h1>
+        <h1 className="mb-2 text-center text-2xl font-bold tracking-tight tracking-wide text-white">PRISM</h1>
 
         <form onSubmit={handleSubmit} className="card space-y-4 p-6">
           <div>

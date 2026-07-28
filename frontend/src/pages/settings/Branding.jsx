@@ -123,7 +123,7 @@ export default function Branding() {
     <div className="mx-auto max-w-2xl space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-navy-900">Branding</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Branding</h1>
         <div className="flex items-center gap-3">
           {saved && <span className="text-sm text-green-600">Saved</span>}
           <button onClick={save} className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>

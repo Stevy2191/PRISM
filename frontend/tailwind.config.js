@@ -37,6 +37,37 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+        // The "data face" — the signature of the operations-console direction.
+        // Every identifier, metric, timestamp and SLA readout renders in this,
+        // so a strong system-mono stack (no webfont download to fail) carries
+        // the look reliably. A user's JetBrains Mono / SF Mono is used if
+        // present; otherwise it falls back cleanly to the platform monospace.
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+      },
+      // Sharper than Tailwind's defaults across the board — an operations
+      // console reads as precise, not soft. Existing `rounded-md/lg/xl` usages
+      // tighten automatically without touching every file. `full` is untouched
+      // so avatars and status dots stay circular.
+      borderRadius: {
+        DEFAULT: '3px',
+        sm: '2px',
+        md: '4px',
+        lg: '5px',
+        xl: '7px',
+        '2xl': '9px',
+        '3xl': '12px',
+      },
+      // Hairline-first depth: shadows are tight and low-opacity so surfaces are
+      // delineated by borders, with shadow only as a faint lift.
+      boxShadow: {
+        sm: '0 1px 2px 0 rgb(0 0 0 / 0.10)',
+        DEFAULT: '0 1px 2px 0 rgb(0 0 0 / 0.14)',
+        md: '0 2px 6px -1px rgb(0 0 0 / 0.18)',
+        lg: '0 8px 24px -6px rgb(0 0 0 / 0.28)',
+      },
+      letterSpacing: {
+        // Used by eyebrow labels / uppercase section headers.
+        eyebrow: '0.14em',
       },
     },
   },

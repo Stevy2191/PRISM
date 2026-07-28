@@ -88,7 +88,7 @@ export default function NotificationsDropdown({ align = 'right' }) {
         <IconBell size={19} stroke={1.8} />
         {unreadCount > 0 && (
           <span
-            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-[3px] px-1 text-[10px] font-bold text-white"
             style={{ backgroundColor: 'var(--color-danger)' }}
           >
             {unreadCount > 9 ? '9+' : unreadCount}

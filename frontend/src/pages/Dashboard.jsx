@@ -113,18 +113,34 @@ function Card({ children, className = '' }) {
   );
 }
 
+// Console readout: eyebrow label, oversized mono metric, and a thin
+// status-colored rule capping the card — the repeated unit of the dashboard.
 function StatCard({ label, value, color, delta }) {
   return (
-    <Card>
-      <p className="text-sm font-medium" style={{ color: MUTED }}>{label}</p>
-      <p className="mt-2 text-3xl font-bold" style={{ color }}>{value}</p>
+    <div className="relative h-full overflow-hidden rounded-lg border p-5" style={{ backgroundColor: CARD_BG, borderColor: CARD_BORDER }}>
+      <span className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: color }} />
+      <p className="eyebrow">{label}</p>
+      <p className="mt-3 font-mono text-4xl font-bold leading-none tracking-tight" style={{ color }}>{value}</p>
       {delta !== undefined && (
-        <p className="mt-1 text-xs" style={{ color: delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-          {delta >= 0 ? '+' : ''}
-          {delta} vs last week
+        <p className="mt-2 font-mono text-xs" style={{ color: delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+          {delta >= 0 ? '▲ +' : '▼ '}{delta} <span style={{ color: MUTED }}>vs last week</span>
         </p>
       )}
-    </Card>
+    </div>
+  );
+}
+
+// Shared console-style panel header — accent tick + tracked uppercase eyebrow.
+// Optional right-hand slot for controls (e.g. Mark all read).
+function PanelHead({ title, children }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5" style={{ borderColor: CARD_BORDER }}>
+      <h2 className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-eyebrow" style={{ color: MUTED }}>
+        <span className="h-3.5 w-1 flex-shrink-0 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />
+        {title}
+      </h2>
+      {children}
+    </div>
   );
 }
 
@@ -142,9 +158,7 @@ function ProgressBar({ percent, color }) {
 function ProjectHealthPanel({ projects, title = 'Project Health', emptyText = 'No projects to show.' }) {
   return (
     <Card className="!p-0">
-      <div className="border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
-        <h2 className="font-semibold" style={{ color: TEXT }}>{title}</h2>
-      </div>
+      <PanelHead title={title} />
       {projects.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>{emptyText}</p>
       ) : (
@@ -158,7 +172,7 @@ function ProjectHealthPanel({ projects, title = 'Project Health', emptyText = 'N
                     {p.name}
                   </Link>
                   <span
-                    className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
                     style={{ backgroundColor: tint(badge.color), color: badge.color }}
                   >
                     {dueBadgeLabel(p.dueBadge, p.dueDate)}
@@ -183,9 +197,7 @@ function ProjectHealthPanel({ projects, title = 'Project Health', emptyText = 'N
 function TicketsPanel({ tickets }) {
   return (
     <Card className="!p-0">
-      <div className="border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
-        <h2 className="font-semibold" style={{ color: TEXT }}>My Tickets</h2>
-      </div>
+      <PanelHead title="My Tickets" />
       {tickets.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>No assigned tickets.</p>
       ) : (
@@ -203,7 +215,7 @@ function TicketsPanel({ tickets }) {
                   </p>
                 </div>
                 <span
-                  className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium"
+                  className="flex-shrink-0 rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
                   style={{ backgroundColor: tint(status.color), color: status.color }}
                 >
                   {status.label}
@@ -221,8 +233,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, marking }) {
   const hasUnread = notifications.some((n) => !n.isRead);
   return (
     <Card className="!p-0">
-      <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
-        <h2 className="font-semibold" style={{ color: TEXT }}>Notifications</h2>
+      <PanelHead title="Notifications">
         <button
           type="button"
           onClick={onMarkAllRead}
@@ -232,7 +243,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, marking }) {
         >
           Mark all read
         </button>
-      </div>
+      </PanelHead>
       {notifications.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>You&apos;re all caught up.</p>
       ) : (
@@ -275,8 +286,8 @@ function HoursPanel({ hours }) {
   const maxHours = Math.max(1, ...hours.byDay.map((d) => d.hours));
   return (
     <Card>
-      <h2 className="font-semibold" style={{ color: TEXT }}>My Hours This Week</h2>
-      <p className="mt-2 text-3xl font-bold" style={{ color: TEXT }}>{hours.total}h</p>
+      <h2 className="eyebrow">My Hours This Week</h2>
+      <p className="mt-2 font-mono text-3xl font-bold tracking-tight" style={{ color: TEXT }}>{hours.total}h</p>
       <div className="mt-5 space-y-3">
         {hours.byDay.map((d) => (
           <div key={d.day} className="flex items-center gap-3">
@@ -300,9 +311,7 @@ function TeamWorkloadPanel({ workload }) {
   const colorFor = (count) => (count > 25 ? 'var(--color-danger)' : count > 15 ? 'var(--color-warning)' : 'var(--color-accent)');
   return (
     <Card className="!p-0">
-      <div className="border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
-        <h2 className="font-semibold" style={{ color: TEXT }}>Team Workload</h2>
-      </div>
+      <PanelHead title="Team Workload" />
       {workload.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>No staff members yet.</p>
       ) : (
@@ -346,11 +355,11 @@ function MyRatingsPanel({ ratings }) {
   if (!ratings) return null;
   return (
     <Card>
-      <h2 className="font-semibold" style={{ color: TEXT }}>My Ratings</h2>
+      <h2 className="eyebrow">My Ratings</h2>
       {ratings.showRating ? (
         <div className="mt-3 flex items-baseline gap-2">
           <StarRating value={ratings.avgRating || 0} />
-          <span className="text-2xl font-bold" style={{ color: TEXT }}>{ratings.avgRating?.toFixed(1)}</span>
+          <span className="font-mono text-2xl font-bold tracking-tight" style={{ color: TEXT }}>{ratings.avgRating?.toFixed(1)}</span>
           <span className="text-sm" style={{ color: MUTED }}>/ 5 · {ratings.responseCount} response{ratings.responseCount === 1 ? '' : 's'}</span>
         </div>
       ) : (
@@ -382,9 +391,7 @@ function TeamHappinessPanel({ data }) {
   const sorted = [...(data || [])].sort((a, b) => (b.avgRating ?? -1) - (a.avgRating ?? -1));
   return (
     <Card className="!p-0">
-      <div className="border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
-        <h2 className="font-semibold" style={{ color: TEXT }}>Team Happiness</h2>
-      </div>
+      <PanelHead title="Team Happiness" />
       {sorted.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>No technicians yet.</p>
       ) : (
@@ -427,11 +434,11 @@ function AssetsSummaryPanel({ data }) {
   ];
   return (
     <Card>
-      <h2 className="font-semibold" style={{ color: TEXT }}>Assets</h2>
+      <h2 className="eyebrow">Assets</h2>
       <div className="mt-3 grid grid-cols-2 gap-3">
         {stats.map((s) => (
           <Link key={s.label} to={s.to} className="rounded-md border p-3 text-center transition hover:opacity-80" style={{ borderColor: CARD_BORDER }}>
-            <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+            <p className="font-mono text-2xl font-bold tracking-tight" style={{ color: s.color }}>{s.value}</p>
             <p className="mt-1 text-xs" style={{ color: MUTED }}>{s.label}</p>
           </Link>
         ))}
@@ -450,7 +457,7 @@ function QuickActionsPanel() {
   ];
   return (
     <Card>
-      <h2 className="mb-4 font-semibold" style={{ color: TEXT }}>Quick Actions</h2>
+      <h2 className="eyebrow mb-4">Quick Actions</h2>
       <button
         type="button"
         onClick={() => navigate('/tickets/new')}
@@ -481,9 +488,7 @@ function QuickActionsPanel() {
 function ActivityFeedPanel({ activity, hasMore, onLoadMore, loadingMore }) {
   return (
     <Card className="!p-0">
-      <div className="border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
-        <h2 className="font-semibold" style={{ color: TEXT }}>Activity Feed</h2>
-      </div>
+      <PanelHead title="Activity Feed" />
       {activity.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>No recent activity.</p>
       ) : (
@@ -660,10 +665,10 @@ function GreetingBar({ title, subtitleName }) {
   return (
     <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: TEXT }}>{title}</h1>
+        <h1 className="page-title">{title}</h1>
         {subtitleName && <p className="text-sm" style={{ color: MUTED }}>Here is what&apos;s happening with {subtitleName}&apos;s work.</p>}
       </div>
-      <p className="text-sm" style={{ color: MUTED }}>
+      <p className="font-mono text-xs uppercase tracking-wide" style={{ color: MUTED }}>
         {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
       </p>
     </div>
@@ -889,7 +894,7 @@ export default function Dashboard() {
               {isTechMode && data.mode === 'admin_filtered' && (
                 <GreetingBar title={`Viewing ${data.viewingUser.displayName}'s dashboard`} subtitleName={data.viewingUser.displayName} />
               )}
-              {!isTechMode && <h1 className="text-xl font-semibold" style={{ color: TEXT }}>Dashboard</h1>}
+              {!isTechMode && <h1 className="page-title">Dashboard</h1>}
             </div>
 
             <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">

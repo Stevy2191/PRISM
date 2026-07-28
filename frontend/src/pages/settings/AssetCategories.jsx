@@ -355,7 +355,7 @@ export default function AssetCategories() {
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-navy-900">Asset Categories</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-navy-900">Asset Categories</h1>
           <p className="text-sm text-navy-500">Manage asset categories and the device-specific fields shown for each.</p>
         </div>
         <button type="button" onClick={() => setEditorCategory('new')} className="btn-primary flex-shrink-0">+ New category</button>

@@ -57,7 +57,7 @@ export default function AuditLog() {
   return (
     <div className="space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold text-navy-900">Audit Log</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Audit Log</h1>
       <p className="text-sm text-navy-500">Every role assignment and permission override change, system-wide.</p>
 
       <div className="card flex flex-wrap items-end gap-3 p-5">

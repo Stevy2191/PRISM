@@ -47,7 +47,7 @@ function Required() {
 function OptionalPill() {
   return (
     <span
-      className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+      className="rounded-[3px] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
       style={{ backgroundColor: BORDER, color: MUTED }}
     >
       Optional
@@ -508,7 +508,7 @@ function Dropzone({ files, onFiles, onRemove }) {
           {files.map((f) => (
             <span
               key={f.id}
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+              className="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1 text-xs font-medium"
               style={{ backgroundColor: BORDER, color: TEXT }}
             >
               {f.file.name}
@@ -716,7 +716,7 @@ export default function TicketNew() {
     <div style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: '2rem 1.5rem' }} className="min-h-full">
       <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6 pb-24 sm:pb-0">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold" style={{ color: TEXT }}>New Ticket</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>New Ticket</h1>
         </div>
 
         {error && (

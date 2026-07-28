@@ -169,7 +169,7 @@ export default function DirectorySync() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold text-navy-900">Directory Sync</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Directory Sync</h1>
 
       {error && <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 

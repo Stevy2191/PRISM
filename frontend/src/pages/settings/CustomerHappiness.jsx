@@ -76,7 +76,7 @@ export default function CustomerHappiness() {
     <div className="mx-auto max-w-2xl space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div>
-        <h1 className="text-2xl font-bold text-navy-900">Customer Happiness</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Customer Happiness</h1>
         <p className="text-sm text-navy-500">
           Automatically email a satisfaction survey to the contact when a ticket is closed. Ratings feed
           into technician performance stats on their profile, the dashboard, and reports.

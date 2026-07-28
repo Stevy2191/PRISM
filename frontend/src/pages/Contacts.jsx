@@ -245,7 +245,7 @@ export default function Contacts() {
         <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Contacts</h1>
+              <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Contacts</h1>
               <p className="text-sm" style={{ color: MUTED }}>{contacts.length} contact{contacts.length === 1 ? '' : 's'}</p>
             </div>
             {canEdit && (
@@ -360,7 +360,7 @@ export default function Contacts() {
                             <span className="truncate font-semibold" style={{ color: TEXT }}>{c.displayName}</span>
                             {c.status === 'inactive' && (
                               <span
-                                className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                className="flex-shrink-0 rounded-[3px] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                                 style={{ backgroundColor: BORDER, color: MUTED }}
                               >
                                 Inactive
@@ -368,7 +368,7 @@ export default function Contacts() {
                             )}
                           </div>
                           {c.department ? (
-                            <span className="mt-0.5 inline-flex rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
+                            <span className="mt-0.5 inline-flex rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
                               {c.department.name}
                             </span>
                           ) : (
@@ -421,7 +421,7 @@ export default function Contacts() {
                           </Link>
                           {c.status === 'inactive' && (
                             <span
-                              className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                              className="flex-shrink-0 rounded-[3px] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                               style={{ backgroundColor: BORDER, color: MUTED }}
                             >
                               Inactive
@@ -433,7 +433,7 @@ export default function Contacts() {
                       <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.createdAt ? c.createdAt.slice(0, 10) : '—'}</td>
                       <td className="px-4 py-3">
                         {c.department ? (
-                          <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
+                          <span className="rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
                             {c.department.name}
                           </span>
                         ) : (

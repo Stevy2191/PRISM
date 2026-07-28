@@ -73,7 +73,7 @@ export default function AdminSettings() {
     <div className="max-w-3xl space-y-6">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div>
-        <h1 className="text-2xl font-bold text-navy-900">General Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">General Settings</h1>
         <p className="text-sm text-navy-500">System-level configuration.</p>
       </div>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}

@@ -53,7 +53,7 @@ export default function AdminApiKeys() {
   return (
     <div className="space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold text-navy-900">API Keys</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">API Keys</h1>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       {newKey && (

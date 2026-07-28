@@ -27,7 +27,7 @@ function StatCard({ label, value, color }) {
   return (
     <div className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>{label}</p>
-      <p className="mt-1 text-2xl font-bold" style={{ color: color || TEXT }}>{value}</p>
+      <p className="mt-1 text-2xl font-bold tracking-tight" style={{ color: color || TEXT }}>{value}</p>
     </div>
   );
 }
@@ -816,7 +816,7 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
                   <div>
                     <p className="text-sm font-medium" style={{ color: TEXT }}>
                       {c.contact?.displayName}
-                      {active && <span className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>Current</span>}
+                      {active && <span className="ml-2 rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>Current</span>}
                     </p>
                     <p className="mt-0.5 text-xs" style={{ color: MUTED }}>
                       Checked out {new Date(c.checkedOutAt).toLocaleDateString()}

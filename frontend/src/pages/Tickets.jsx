@@ -152,7 +152,7 @@ function SourceCell({ source }) {
   const Icon = meta.icon;
   return (
     <span
-      className="flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+      className="flex w-fit items-center gap-1 rounded-[3px] px-2 py-0.5 text-xs font-medium"
       style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
     >
       {Icon && <Icon size={11} />}
@@ -169,9 +169,10 @@ function StatusBadge({ ticket, ticketStatuses }) {
   const color = meta?.color || MUTED;
   return (
     <span
-      className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[3px] px-2 py-0.5 text-xs font-medium"
       style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}
     >
+      <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
       {ticket.status}
     </span>
   );
@@ -205,7 +206,7 @@ function DeptPill({ name }) {
   if (!name) return null;
   return (
     <span
-      className="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+      className="ml-2 inline-flex items-center rounded-[3px] px-2 py-0.5 text-[11px] font-medium"
       style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)' }}
     >
       {name}
@@ -669,7 +670,7 @@ export default function Tickets() {
     <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
       <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Tickets</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Tickets</h1>
           {canCreateTickets && <Link to="/tickets/new" className="btn-primary hidden lg:inline-flex">+ New Ticket</Link>}
         </div>
 
@@ -694,7 +695,7 @@ export default function Tickets() {
             >
               Filters
               {activeFilterCount > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-xs font-semibold text-white" style={{ backgroundColor: BLUE }}>
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-[3px] px-1 text-xs font-semibold text-white" style={{ backgroundColor: BLUE }}>
                   {activeFilterCount}
                 </span>
               )}
@@ -917,7 +918,7 @@ export default function Tickets() {
                     {col.name}
                   </h2>
                   <span
-                    className="rounded-full px-2 py-0.5 text-xs font-medium"
+                    className="rounded-[3px] px-2 py-0.5 font-mono text-xs font-semibold"
                     style={{ backgroundColor: `color-mix(in srgb, ${col.color} 13%, transparent)`, color: col.color }}
                   >
                     {col.tickets.length}

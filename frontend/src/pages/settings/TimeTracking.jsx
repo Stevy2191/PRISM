@@ -52,7 +52,7 @@ export default function TimeTracking() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold text-navy-900">Time Tracking</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Time Tracking</h1>
       <p className="text-sm text-navy-500">
         System-wide defaults for time logging. Individual users can still override their own
         timer mode and threshold in Account Preferences.

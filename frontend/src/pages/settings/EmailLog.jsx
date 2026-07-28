@@ -27,7 +27,7 @@ export default function EmailLog() {
     <div className="space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div>
-        <h1 className="text-2xl font-bold text-navy-900">Email Log</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Email Log</h1>
         <p className="text-sm text-navy-500">The last 100 emails the inbound processor looked at, including ones it skipped or failed on.</p>
       </div>
 

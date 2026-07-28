@@ -51,6 +51,10 @@
   --navy-950: 2 6 16;
   --surface: 255 255 255;            /* cards / inputs */
   color-scheme: light;
+
+  /* Mono "data face" exposed as a variable for inline-style consumers
+     (matches tailwind.config.js fontFamily.mono). Theme-independent. */
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 [data-theme='dark'] {
@@ -114,11 +118,51 @@
        one of those is missed. */
     overflow-x: hidden;
   }
+
+  /* Operations-console typography. The mono "data face" always carries
+     tabular figures so IDs, metrics and time columns line up digit-for-digit
+     — the core of the console readout feel. */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Display headings are set tight and deliberate rather than default-loose. */
+  h1,
+  h2 {
+    letter-spacing: -0.02em;
+  }
+
+  /* Selection + focus tuned to the accent so interaction reads as one system. */
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  }
+
+  /* Thin, unobtrusive console scrollbars — track disappears, thumb is a
+     hairline rail. Applies app-wide including the scoped scroll regions
+     (tables, kanban, modals). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 6px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-faint);
+  }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-prism-accent disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-prism-accent focus:ring-offset-1 focus:ring-offset-[var(--color-bg)] disabled:opacity-50 disabled:cursor-not-allowed;
+    /* Console buttons press in on click for a tactile, physical feel. */
+    @apply active:translate-y-px;
     /* Minimum 44x44 tap target on touch screens (WCAG 2.5.5 / task spec) —
        desktop keeps its existing compact px-4 py-2 sizing since mouse
        pointers don't need the extra hit area. */
@@ -128,13 +172,13 @@
     @apply btn bg-prism text-white hover:opacity-90;
   }
   .btn-secondary {
-    @apply btn bg-surface text-navy-700 border border-navy-200 hover:bg-navy-100;
+    @apply btn bg-surface text-navy-700 border border-navy-200 hover:bg-navy-100 hover:border-navy-300;
   }
   .btn-danger {
     @apply btn bg-red-600 text-white hover:bg-red-700;
   }
   .input {
-    @apply w-full rounded-md border border-navy-200 bg-surface px-3 py-2 text-sm text-navy-900 placeholder-navy-300 focus:border-prism focus:outline-none focus:ring-1 focus:ring-prism;
+    @apply w-full rounded-md border border-navy-200 bg-surface px-3 py-2 text-sm text-navy-900 placeholder-navy-300 transition-colors focus:border-prism focus:outline-none focus:ring-1 focus:ring-prism;
   }
   .label {
     @apply mb-1 block text-sm font-medium text-navy-700;
@@ -142,11 +186,45 @@
   .card {
     @apply rounded-lg border border-navy-100 bg-surface shadow-sm;
   }
+
+  /* ── Operations-console primitives ──────────────────────────────────────
+     The design language: small tracked uppercase eyebrows label regions,
+     status reads as a squared chip or a bare dot, identifiers/metrics render
+     in the mono data face, and page headers open with an accent tick. */
+
+  /* Tiny tracked uppercase label that heads a panel or section. Encodes
+     structure the way a control panel labels its readouts. */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-eyebrow text-navy-400;
+  }
+
+  /* Page title — tight, deliberate display weight. Replaces ad-hoc
+     `text-2xl font-bold` headers so every page opens the same way. */
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-navy-900;
+  }
+
+  /* Header strip inside a .card / panel: hairline-ruled, left accent tick. */
+  .panel-header {
+    @apply flex items-center justify-between gap-3 border-b border-navy-100 px-4 py-3;
+  }
+
+  /* Squared status/type chip — the console alternative to the pill. Pair with
+     a .status-dot for the classic dot-plus-label readout. */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-[3px] px-2 py-0.5 text-xs font-medium;
+  }
+  .status-dot {
+    @apply inline-block h-2 w-2 flex-shrink-0 rounded-full;
+  }
+
+  /* Squared badge (was a full pill) — status/priority markers read as console
+     tags. Kept text-transform-free so callers' `capitalize` still governs. */
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-[3px] px-2 py-0.5 text-xs font-medium;
   }
   .table-th {
-    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-navy-500;
+    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-eyebrow text-navy-400;
   }
   .table-td {
     @apply px-4 py-3 text-sm text-navy-800;

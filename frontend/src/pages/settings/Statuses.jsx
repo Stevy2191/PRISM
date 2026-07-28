@@ -109,7 +109,7 @@ export default function Statuses() {
     <div className="mx-auto max-w-3xl space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div>
-        <h1 className="text-2xl font-bold text-navy-900">Statuses</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Statuses</h1>
         <p className="text-sm text-navy-500">Define, reorder, and recolor ticket and project statuses. Changes apply immediately across the app.</p>
       </div>
 

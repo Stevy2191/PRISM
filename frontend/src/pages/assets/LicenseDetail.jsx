@@ -19,7 +19,7 @@ function StatCard({ label, value }) {
   return (
     <div className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>{label}</p>
-      <p className="mt-1 text-2xl font-bold" style={{ color: TEXT }}>{value}</p>
+      <p className="mt-1 text-2xl font-bold tracking-tight" style={{ color: TEXT }}>{value}</p>
     </div>
   );
 }
@@ -96,7 +96,7 @@ export default function LicenseDetail() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold" style={{ color: TEXT }}>{license.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>{license.name}</h1>
             <LicenseTypeBadge type={license.licenseType} />
             <StatusPill status={status} />
           </div>

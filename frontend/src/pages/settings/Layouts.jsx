@@ -429,7 +429,7 @@ export default function Layouts() {
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold text-navy-900">Layouts &amp; Fields</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Layouts &amp; Fields</h1>
 
       <div className="flex gap-1 border-b border-navy-100">
         <button

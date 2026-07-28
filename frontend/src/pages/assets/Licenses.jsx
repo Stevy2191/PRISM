@@ -35,7 +35,7 @@ export function licenseStatus(expiryDate) {
 export function LicenseTypeBadge({ type }) {
   return (
     <span
-      className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
       style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 13%, transparent)', color: 'var(--color-accent)' }}
     >
       {LICENSE_TYPE_LABELS[type] || type}
@@ -46,7 +46,7 @@ export function LicenseTypeBadge({ type }) {
 export function StatusPill({ status }) {
   return (
     <span
-      className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
       style={{ backgroundColor: `color-mix(in srgb, ${status.color} 13%, transparent)`, color: status.color }}
     >
       {status.label}
@@ -115,7 +115,7 @@ export default function Licenses() {
       <AssetsSubNav />
       <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Licenses</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Licenses</h1>
           {canManage && (
             <button type="button" onClick={() => setShowForm(true)} className="btn-primary">+ New license</button>
           )}

@@ -110,7 +110,7 @@ export default function AdminDepartments() {
     <div className="space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-navy-900">Departments</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Departments</h1>
         {!showForm && (
           <button className="btn-primary" onClick={openCreate}>+ New department</button>
         )}

@@ -33,7 +33,7 @@ function StatusBadge({ status, color }) {
   const c = color || MUTED;
   return (
     <span
-      className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
       style={{ backgroundColor: `color-mix(in srgb, ${c} 13%, transparent)`, color: c }}
     >
       {status}
@@ -59,7 +59,7 @@ function TagChips({ tags, onTagClick }) {
         <span
           key={tag}
           onClick={onTagClick ? (e) => { e.preventDefault(); e.stopPropagation(); onTagClick(tag); } : undefined}
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${onTagClick ? 'cursor-pointer hover:opacity-75' : ''}`}
+          className={`rounded-[3px] px-2 py-0.5 text-xs font-medium ${onTagClick ? 'cursor-pointer hover:opacity-75' : ''}`}
           style={{ backgroundColor: BORDER, color: TEXT }}
         >
           {tag}
@@ -307,7 +307,7 @@ export default function Projects() {
     <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
       <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Projects</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Projects</h1>
           {canCreateProjects && <Link to="/projects/new" className="btn-primary">+ New Project</Link>}
         </div>
 

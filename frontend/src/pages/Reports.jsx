@@ -234,7 +234,7 @@ export default function Reports() {
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       <div className="lg:w-56 lg:flex-shrink-0">
-        <h1 className="mb-3 text-2xl font-bold text-navy-900 lg:hidden">Reports</h1>
+        <h1 className="mb-3 text-2xl font-bold tracking-tight text-navy-900 lg:hidden">Reports</h1>
         <button
           type="button"
           onClick={() => setNavOpen((o) => !o)}
@@ -246,7 +246,7 @@ export default function Reports() {
         </button>
 
       <nav className={`w-full shrink-0 space-y-5 lg:block lg:w-56 ${navOpen ? 'block' : 'hidden'}`}>
-        <h1 className="hidden text-2xl font-bold text-navy-900 lg:block">Reports</h1>
+        <h1 className="hidden text-2xl font-bold tracking-tight text-navy-900 lg:block">Reports</h1>
         {CATEGORIES.map((cat) => (
           <div key={cat.name}>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-navy-400">{cat.name}</p>

@@ -21,7 +21,7 @@ export default function TagInput({ tags, onChange }) {
       {tags.map((tag) => (
         <span
           key={tag}
-          className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+          className="flex items-center gap-1 rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
           style={{ backgroundColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
         >
           {tag}

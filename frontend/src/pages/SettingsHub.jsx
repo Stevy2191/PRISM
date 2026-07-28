@@ -189,7 +189,7 @@ export default function SettingsHub() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-navy-900">Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Settings</h1>
         <p className="text-sm text-navy-500">Configure PRISM for your organization.</p>
       </div>
 

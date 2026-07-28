@@ -495,7 +495,7 @@ export default function WorkflowRuleEditor() {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <Link to="/settings/workflow-rules" className="text-sm text-prism hover:underline">← Back to Workflow Rules</Link>
-      <h1 className="text-2xl font-bold text-navy-900">{isNew ? 'New workflow rule' : 'Edit workflow rule'}</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">{isNew ? 'New workflow rule' : 'Edit workflow rule'}</h1>
 
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 

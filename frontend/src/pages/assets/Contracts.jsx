@@ -42,7 +42,7 @@ export function contractStatus(contract) {
 export function ContractTypeBadge({ type }) {
   return (
     <span
-      className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
       style={{ backgroundColor: 'color-mix(in srgb, #0f766e 13%, transparent)', color: '#0f766e' }}
     >
       {CONTRACT_TYPE_LABELS[type] || type}
@@ -53,7 +53,7 @@ export function ContractTypeBadge({ type }) {
 export function StatusPill({ status }) {
   return (
     <span
-      className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
       style={{ backgroundColor: `color-mix(in srgb, ${status.color} 13%, transparent)`, color: status.color }}
     >
       {status.label}
@@ -122,7 +122,7 @@ export default function Contracts() {
       <AssetsSubNav />
       <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Contracts</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Contracts</h1>
           {canManage && (
             <button type="button" onClick={() => setShowForm(true)} className="btn-primary">+ New contract</button>
           )}

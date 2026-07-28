@@ -67,7 +67,7 @@ export function StatCard({ label, value, sub }) {
   return (
     <div className="card p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-navy-400">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-navy-900">{value}</p>
+      <p className="mt-1 text-2xl font-bold tracking-tight text-navy-900">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-navy-400">{sub}</p>}
     </div>
   );

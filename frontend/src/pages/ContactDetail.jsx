@@ -53,7 +53,7 @@ function StatusBadge({ status, statuses }) {
   const meta = statuses.find((s) => s.name === status);
   const color = meta?.color || MUTED;
   return (
-    <span className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}>
+    <span className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}>
       {status}
     </span>
   );
@@ -199,7 +199,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
         </div>
         {contact.status === 'inactive' && (
           <span
-            className="mt-2 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide"
+            className="mt-2 rounded-[3px] px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide"
             style={{ backgroundColor: BORDER, color: MUTED }}
           >
             Inactive
@@ -286,7 +286,7 @@ function OverviewTab({ stats, recentTickets, statuses }) {
         {cards.map((c) => (
           <div key={c.label} className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
             <p className="text-xs" style={{ color: MUTED }}>{c.label}</p>
-            <p className="mt-1 text-2xl font-bold" style={{ color: TEXT }}>{c.value}</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight" style={{ color: TEXT }}>{c.value}</p>
           </div>
         ))}
       </div>

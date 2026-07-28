@@ -63,7 +63,7 @@ export default function Notifications() {
     <div className="mx-auto max-w-2xl space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div>
-        <h1 className="text-2xl font-bold text-navy-900">Notifications</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Notifications</h1>
         <p className="text-sm text-navy-500">
           System-wide switches for which events create an in-app notification. Turning an event off
           here stops it for everyone, not just you.

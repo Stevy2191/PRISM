@@ -207,7 +207,7 @@ function EventPopover({ event, onClose }) {
           <div className="flex items-center gap-2">
             <Icon size={18} style={{ color: eventColor(event) }} />
             <span
-              className="rounded-full px-2 py-0.5 text-xs font-medium"
+              className="rounded-[3px] px-2 py-0.5 text-xs font-medium"
               style={{ backgroundColor: `color-mix(in srgb, ${eventColor(event)} 15%, transparent)`, color: eventColor(event) }}
             >
               {TYPE_META[event.type].label}
@@ -258,7 +258,7 @@ function EventPopover({ event, onClose }) {
             <div className="flex justify-between">
               <dt style={{ color: MUTED }}>Status</dt>
               <dd>
-                <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${event.statusColor} 15%, transparent)`, color: event.statusColor }}>
+                <span className="rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${event.statusColor} 15%, transparent)`, color: event.statusColor }}>
                   {event.status}
                 </span>
               </dd>
@@ -503,7 +503,7 @@ function DayView({ anchor, eventsByDay, todayStr, onEventClick }) {
                   >
                     <Icon size={15} style={{ color: eventColor(ev), flexShrink: 0 }} />
                     <span className="min-w-0 flex-1 truncate" style={{ color: TEXT }}>{eventLabel(ev)}</span>
-                    <span className="flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${ev.statusColor} 15%, transparent)`, color: ev.statusColor }}>
+                    <span className="flex-shrink-0 rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${ev.statusColor} 15%, transparent)`, color: ev.statusColor }}>
                       {ev.status}
                     </span>
                   </button>
@@ -574,7 +574,7 @@ function FilterBar({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full px-3 py-1 text-xs font-medium"
+      className="rounded-[3px] px-3 py-1 text-xs font-medium"
       style={active
         ? { backgroundColor: color, color: 'white' }
         : { backgroundColor: 'transparent', color: MUTED, border: `1px solid ${inactiveBorder}` }}
@@ -626,7 +626,7 @@ function FilterBar({
                 key={integ.id}
                 type="button"
                 onClick={() => toggleIntegration(integ.id)}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+                className="flex items-center gap-1.5 rounded-[3px] px-3 py-1 text-xs font-medium"
                 style={active
                   ? { backgroundColor: `color-mix(in srgb, ${integ.color} 20%, transparent)`, color: integ.color, border: `1px solid ${integ.color}` }
                   : { backgroundColor: 'transparent', color: MUTED, border: `1px solid ${BORDER}` }}
@@ -827,7 +827,7 @@ export default function Calendar() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <IconCalendar size={24} style={{ color: BLUE }} />
-          <h1 className="text-2xl font-bold" style={{ color: TEXT }}>{periodLabel(view, anchor)}</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>{periodLabel(view, anchor)}</h1>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">

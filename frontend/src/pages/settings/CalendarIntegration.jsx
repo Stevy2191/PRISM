@@ -90,7 +90,7 @@ export default function CalendarIntegration() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold text-navy-900">Calendar Integration</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Calendar Integration</h1>
       <p className="text-sm text-navy-500">
         OAuth app credentials for the Google Calendar / Microsoft Outlook connect buttons on the Calendar
         page (Account Preferences → Calendar integrations). Without these configured here, users can still

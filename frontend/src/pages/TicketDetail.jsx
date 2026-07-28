@@ -58,7 +58,7 @@ function SourceBadge({ source }) {
   const Icon = meta.icon;
   return (
     <span
-      className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="flex items-center gap-1 rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
       style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
     >
       {Icon && <Icon size={12} />}
@@ -76,7 +76,7 @@ function CsatBadge({ survey }) {
   if (survey.status === 'responded' && survey.rating) {
     return (
       <span
-        className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+        className="flex items-center gap-1 rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
         style={{ backgroundColor: 'color-mix(in srgb, #f59e0b 15%, transparent)', color: '#b45309' }}
         title={survey.comment || ''}
       >
@@ -88,7 +88,7 @@ function CsatBadge({ survey }) {
   }
   if (survey.sentAt) {
     return (
-      <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: 'var(--color-hover)', color: MUTED }}>
+      <span className="rounded-[3px] px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: 'var(--color-hover)', color: MUTED }}>
         Survey sent — awaiting response
       </span>
     );
@@ -697,7 +697,7 @@ function CustomFieldValue({ field, value, disabled, onSave }) {
         {(field.options || []).map((o) => (
           <label
             key={o}
-            className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+            className="flex items-center gap-1 rounded-[3px] px-2 py-0.5 text-xs"
             style={{ backgroundColor: selected.includes(o) ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : BORDER, color: selected.includes(o) ? BLUE : MUTED }}
           >
             <input type="checkbox" disabled={disabled} checked={selected.includes(o)} onChange={() => toggle(o)} className="h-3 w-3" />
@@ -1009,7 +1009,7 @@ function Sidebar({
             <div>
               <div className="flex flex-wrap gap-1.5">
                 {(tags || []).map((tag) => (
-                  <span key={tag} className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: BORDER, color: TEXT }}>
+                  <span key={tag} className="flex items-center gap-1 rounded-[3px] px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: BORDER, color: TEXT }}>
                     {tag}
                     <button type="button" onClick={() => onRemoveTag(tag)} style={{ color: MUTED }}><IconX size={11} /></button>
                   </span>
@@ -1144,7 +1144,7 @@ function ConversationTab({ ticket, comments }) {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold" style={{ color: TEXT }}>{c.author?.displayName}</span>
                 <span
-                  className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                  className="rounded-[3px] px-2 py-0.5 text-[10px] font-medium"
                   style={
                     isCustomer
                       ? { backgroundColor: 'color-mix(in srgb, var(--color-accent) 20%, var(--color-bg))', color: 'var(--color-accent)' }
@@ -1154,12 +1154,12 @@ function ConversationTab({ ticket, comments }) {
                   {isCustomer ? 'Customer' : 'Tech'}
                 </span>
                 {isPrivate && (
-                  <span className="conv-badge--private flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium">
+                  <span className="conv-badge--private flex items-center gap-1 rounded-[3px] px-2 py-0.5 text-[10px] font-medium">
                     <IconLock size={10} /> Private comment
                   </span>
                 )}
                 {isPublicComment && (
-                  <span className="conv-badge--public flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium">
+                  <span className="conv-badge--public flex items-center gap-1 rounded-[3px] px-2 py-0.5 text-[10px] font-medium">
                     <IconWorld size={10} /> Comment
                   </span>
                 )}
@@ -2297,7 +2297,7 @@ export default function TicketDetail() {
               const statusColor = statusMeta?.color || MUTED;
               return (
                 <span
-                  className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                  className="rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
                   style={{ backgroundColor: `color-mix(in srgb, ${statusColor} 13%, transparent)`, color: statusColor }}
                 >
                   {ticket.status}

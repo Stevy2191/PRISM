@@ -39,7 +39,7 @@ export function StatusBadge({ status }) {
   const meta = STATUS_META[status] || STATUS_META.active;
   return (
     <span
-      className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
       style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
     >
       {meta.label}
@@ -51,7 +51,7 @@ export function CategoryBadge({ category }) {
   if (!category) return <span className="text-xs" style={{ color: MUTED }}>—</span>;
   return (
     <span
-      className="inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+      className="inline-flex w-fit items-center gap-1 rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
       style={{ backgroundColor: `color-mix(in srgb, ${category.color || MUTED} 13%, transparent)`, color: category.color || MUTED }}
     >
       <span>{category.icon}</span>
@@ -161,7 +161,7 @@ export default function Assets() {
       <AssetsSubNav />
       <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold" style={{ color: TEXT }}>Assets</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Assets</h1>
           {canCreate && (
             <button type="button" onClick={() => setShowForm(true)} className="btn-primary hidden lg:inline-flex">
               + New asset

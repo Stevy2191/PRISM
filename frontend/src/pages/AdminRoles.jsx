@@ -86,7 +86,7 @@ export default function AdminRoles() {
     <div className="space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-navy-900">Roles & Permissions</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Roles & Permissions</h1>
         <Link to="/admin/roles/new" className="btn-primary">+ New role</Link>
       </div>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}

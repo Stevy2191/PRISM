@@ -114,7 +114,7 @@ export default function AdminBlueprints() {
     <div className="space-y-5">
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-navy-900">Blueprints</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Blueprints</h1>
         {editing === null && <button onClick={startNew} className="btn-primary">+ New Blueprint</button>}
       </div>
       <p className="text-sm text-navy-500">

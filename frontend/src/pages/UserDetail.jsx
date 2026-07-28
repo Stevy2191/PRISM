@@ -851,7 +851,7 @@ export default function UserDetail() {
   return (
     <div className="space-y-5">
       <Link to="/admin/users" className="text-sm text-prism hover:underline">← Back to Users</Link>
-      <h1 className="text-2xl font-bold text-navy-900">{user.displayName}</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">{user.displayName}</h1>
 
       <div className="flex gap-2 border-b border-navy-100">
         {TABS.map((t) => (
