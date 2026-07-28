@@ -54,25 +54,30 @@
 }
 
 [data-theme='dark'] {
-  --color-bg: #080b12;
-  --color-sidebar: #0a0d14;
-  --color-card: #0d1120;
-  --color-border: #161c2d;
-  --color-border-strong: #1a2235;
+  /* Softened dark theme — backgrounds sit at a muted dark slate rather than
+     near-black so the page and its contents stay comfortably legible, with an
+     elevation ladder (bg < sidebar-ish < card < hover) and borders light
+     enough to actually delineate surfaces. Text tiers are lifted for contrast:
+     muted/faint used to collapse into the background and are now readable. */
+  --color-bg: #161b28;               /* page — soft dark slate, not near-black */
+  --color-sidebar: #12161f;          /* slightly deeper than bg for separation */
+  --color-card: #1e2533;             /* elevated surface, unified with --surface */
+  --color-border: #2f3849;           /* now visibly distinct against bg/card */
+  --color-border-strong: #3d4759;
   --color-accent: #3b82f6;
-  --color-accent-hover: #1d4ed8;
+  --color-accent-hover: #2563eb;     /* a touch brighter over the lighter bg */
   --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #475569;
-  --color-text-faint: #334155;
+  --color-text-secondary: #b3becd;   /* was #94a3b8 — brighter */
+  --color-text-muted: #8592a6;       /* was #475569 — now legible */
+  --color-text-faint: #64748b;       /* was #334155 — now legible */
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
-  --color-input-bg: #080b12;
-  --color-input-border: #1a2235;
-  --color-hover: #0d1120;
+  --color-input-bg: #1e2533;         /* matches card surface */
+  --color-input-border: #3d4759;
+  --color-hover: #262f40;
   --color-timer: #4ade80;
-  --color-relation-accent: #7c3aed;
+  --color-relation-accent: #a78bfa;  /* brighter purple over dark */
   --color-relation-accent-light: #a78bfa;
 
   --brand-primary-rgb: 59 130 246;   /* #3b82f6, mirrors --color-accent */
@@ -80,10 +85,10 @@
 
   /* Navy scale remapped so low indices are dark (backgrounds) and high
      indices are light (text). */
-  --navy-50: 15 23 42;     /* page background */
-  --navy-100: 51 65 85;    /* dividers / subtle borders / chips */
-  --navy-200: 71 85 105;   /* input borders */
-  --navy-300: 100 116 139; /* muted text / placeholders */
+  --navy-50: 22 27 40;     /* #161b28 page background, matches --color-bg */
+  --navy-100: 47 56 73;    /* #2f3849 dividers / subtle borders / chips */
+  --navy-200: 61 71 89;    /* #3d4759 input borders */
+  --navy-300: 133 146 166; /* #8592a6 muted text / placeholders — legible */
   --navy-400: 148 163 184;
   --navy-500: 148 163 184;
   --navy-600: 203 213 225;
@@ -91,7 +96,7 @@
   --navy-800: 226 232 240; /* body text */
   --navy-900: 241 245 249; /* headings */
   --navy-950: 248 250 252;
-  --surface: 30 41 59;     /* cards / inputs */
+  --surface: 30 37 51;     /* #1e2533 cards / inputs */
   color-scheme: dark;
 }
 
@@ -175,13 +180,13 @@
     padding: 0.75rem;
     font-size: 0.875rem;
   }
-  [data-theme='dark'] .conv-bubble--customer { background-color: #1a1d2e; border-color: #2a2d3e; color: #e2e8f0; }
+  [data-theme='dark'] .conv-bubble--customer { background-color: #232a3b; border-color: #333c4f; color: #e2e8f0; }
   [data-theme='light'] .conv-bubble--customer { background-color: #ffffff; border-color: #e2e8f0; color: #0f172a; }
-  [data-theme='dark'] .conv-bubble--tech { background-color: #0d1f3c; border-color: #1e3a5f; color: #e2e8f0; }
+  [data-theme='dark'] .conv-bubble--tech { background-color: #1a2c48; border-color: #2c4a72; color: #e2e8f0; }
   [data-theme='light'] .conv-bubble--tech { background-color: #eff6ff; border-color: #bfdbfe; color: #0f172a; }
-  [data-theme='dark'] .conv-bubble--private { background-color: #1a1200; border-color: #3d2d00; color: #e2e8f0; }
+  [data-theme='dark'] .conv-bubble--private { background-color: #2b2410; border-color: #4a3d15; color: #e2e8f0; }
   [data-theme='light'] .conv-bubble--private { background-color: #fffbeb; border-color: #fde68a; color: #0f172a; }
-  [data-theme='dark'] .conv-bubble--public { background-color: #1a1d2e; border-color: #1a1d2e; border-left: 3px solid #f59e0b; color: #e2e8f0; }
+  [data-theme='dark'] .conv-bubble--public { background-color: #232a3b; border-color: #232a3b; border-left: 3px solid #f59e0b; color: #e2e8f0; }
   [data-theme='light'] .conv-bubble--public { background-color: #ffffff; border-color: #ffffff; border-left: 3px solid #f59e0b; color: #0f172a; }
 
   [data-theme='dark'] .conv-badge--private,
@@ -195,10 +200,10 @@
     background-color: color-mix(in srgb, #f59e0b 18%, transparent);
   }
 
-  [data-theme='dark'] .ticket-tab-bar { background-color: #0d1120; border-bottom: 1px solid #1a2235; }
+  [data-theme='dark'] .ticket-tab-bar { background-color: #1e2533; border-bottom: 1px solid #2f3849; }
   [data-theme='light'] .ticket-tab-bar { background-color: #ffffff; border-bottom: 1px solid #e2e8f0; }
   .ticket-tab { border-color: transparent; }
-  [data-theme='dark'] .ticket-tab { color: #475569; }
+  [data-theme='dark'] .ticket-tab { color: #8592a6; }
   [data-theme='light'] .ticket-tab { color: #64748b; }
   [data-theme='dark'] .ticket-tab.ticket-tab--active { color: #3b82f6; border-color: #3b82f6; }
   [data-theme='light'] .ticket-tab.ticket-tab--active { color: #2563eb; border-color: #2563eb; }

@@ -20,7 +20,7 @@ const THRESHOLD_OPTIONS = [
 // literal values rather than the live --color-* variables.
 const THEME_PREVIEWS = {
   light: { bg: '#f8fafc', card: '#ffffff', accent: '#2563eb', border: '#e2e8f0' },
-  dark: { bg: '#080b12', card: '#0d1120', accent: '#3b82f6', border: '#161c2d' },
+  dark: { bg: '#161b28', card: '#1e2533', accent: '#3b82f6', border: '#2f3849' },
 };
 
 function ThemeSwatch({ value }) {
