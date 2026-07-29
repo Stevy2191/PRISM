@@ -8,9 +8,12 @@ const { DataTypes, Model } = require('sequelize');
 //
 //   status:     draft     — only visible to staff in the KB (work in progress)
 //               published  — visible to staff readers
-//   visibility: internal  — staff only
-//               public     — ALSO shown on the auth-less /kb portal, but only
-//                            once status === 'published'
+//   visibility: internal  — "Agents only" in the UI: staff workspace only
+//               public     — "End users" in the UI: also visible to end users
+//                            (served by the /kb portal routes), but only once
+//                            status === 'published'. The future end-user portal
+//                            reads these same visibility='public' + published
+//                            articles.
 module.exports = (sequelize) => {
   class KbArticle extends Model {}
 

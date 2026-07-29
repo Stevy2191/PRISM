@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  IconSearch, IconPlus, IconWorld, IconLock, IconFolder, IconDots, IconTrash, IconPencil, IconFileText,
+  IconSearch, IconPlus, IconWorld, IconLock, IconUsers, IconFolder, IconDots, IconTrash, IconPencil, IconFileText,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { usePermission } from '../context/AuthContext';
@@ -25,12 +25,12 @@ function StatusChip({ status }) {
 }
 
 function VisibilityChip({ visibility }) {
-  const isPublic = visibility === 'public';
-  const color = isPublic ? 'var(--color-accent)' : MUTED;
-  const Icon = isPublic ? IconWorld : IconLock;
+  const isEndUsers = visibility === 'public';
+  const color = isEndUsers ? 'var(--color-accent)' : MUTED;
+  const Icon = isEndUsers ? IconUsers : IconLock;
   return (
     <span className="chip" style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}>
-      <Icon size={12} /> {isPublic ? 'Public' : 'Internal'}
+      <Icon size={12} /> {isEndUsers ? 'End users' : 'Agents only'}
     </span>
   );
 }
@@ -114,6 +114,7 @@ export default function KnowledgeBase() {
   const [search, setSearch] = useState('');
   const [activeCat, setActiveCat] = useState(''); // '', 'none', or category id
   const [status, setStatus] = useState('');
+  const [audience, setAudience] = useState(''); // '', 'internal' (agents), 'public' (end users)
   const [showCatManager, setShowCatManager] = useState(false);
 
   const loadCategories = useCallback(() => {
@@ -126,11 +127,12 @@ export default function KnowledgeBase() {
     if (search.trim()) params.q = search.trim();
     if (activeCat) params.categoryId = activeCat;
     if (status) params.status = status;
+    if (audience) params.visibility = audience;
     api.get('/knowledge/articles', { params })
       .then(({ data }) => setArticles(data.articles))
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
-  }, [search, activeCat, status]);
+  }, [search, activeCat, status, audience]);
 
   useEffect(() => { loadCategories(); }, [loadCategories]);
   useEffect(() => {
@@ -203,6 +205,11 @@ export default function KnowledgeBase() {
                 className="input pl-9"
               />
             </div>
+            <select value={audience} onChange={(e) => setAudience(e.target.value)} className="input sm:w-40">
+              <option value="">All audiences</option>
+              <option value="internal">Agents only</option>
+              <option value="public">End users</option>
+            </select>
             <select value={status} onChange={(e) => setStatus(e.target.value)} className="input sm:w-40">
               <option value="">All statuses</option>
               <option value="published">Published</option>

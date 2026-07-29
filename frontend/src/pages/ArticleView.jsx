@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  IconArrowLeft, IconPencil, IconTrash, IconFile, IconWorld, IconLock, IconFolder, IconEye, IconExternalLink,
+  IconArrowLeft, IconPencil, IconTrash, IconFile, IconUsers, IconLock, IconFolder, IconEye, IconExternalLink,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { usePermission } from '../context/AuthContext';
@@ -75,7 +75,7 @@ export default function ArticleView() {
             {published ? 'Published' : 'Draft'}
           </span>
           <span className="chip" style={{ backgroundColor: `color-mix(in srgb, ${isPublic ? 'var(--color-accent)' : MUTED} 13%, transparent)`, color: isPublic ? 'var(--color-accent)' : MUTED }}>
-            {isPublic ? <IconWorld size={12} /> : <IconLock size={12} />} {isPublic ? 'Public' : 'Internal'}
+            {isPublic ? <IconUsers size={12} /> : <IconLock size={12} />} {isPublic ? 'End users' : 'Agents only'}
           </span>
           {article.category && (
             <span className="chip" style={{ backgroundColor: 'color-mix(in srgb, var(--color-text-primary) 7%, transparent)', color: MUTED }}>
