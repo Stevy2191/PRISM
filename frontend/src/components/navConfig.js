@@ -10,6 +10,7 @@ export const PROJECTS_PERMISSION_KEYS = ['projects.view_own', 'projects.view_dep
 export const CONTACTS_PERMISSION_KEYS = ['people.view_own_department', 'people.view_all'];
 export const ASSETS_PERMISSION_KEYS = ['assets.view'];
 export const REPORTS_PERMISSION_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
+export const KNOWLEDGE_PERMISSION_KEYS = ['kb.view'];
 // "Any permission starting with settings." plus the three People permissions
 // that specifically unlock a Settings-hub card (manage_roles, manage_departments,
 // view_all) — deliberately narrower than the full People permission set.
@@ -40,6 +41,7 @@ export const NAV = [
   },
   { key: 'projects', to: '/projects', label: 'Projects', icon: '🗂' },
   { key: 'reports', to: '/reports', label: 'Reports', icon: '📊' },
+  { key: 'knowledge', to: '/knowledge', label: 'Knowledge', icon: '📚' },
   { key: 'calendar', to: '/calendar', label: 'Calendar', icon: '📅' },
   { key: 'settings', to: '/settings', label: 'Settings', icon: '⚙️' },
 ];
@@ -52,6 +54,7 @@ export const DEFAULT_ROLES = {
   assets: ['admin', 'technician'],
   projects: ['admin', 'technician'],
   reports: ['admin', 'technician'],
+  knowledge: ['admin', 'technician'],
   calendar: ['admin', 'technician'],
   settings: ['admin', 'technician'],
 };
@@ -67,6 +70,7 @@ export function permissionGate(key, hasAnyPermission) {
   if (key === 'assets') return hasAnyPermission(ASSETS_PERMISSION_KEYS);
   if (key === 'projects') return hasAnyPermission(PROJECTS_PERMISSION_KEYS);
   if (key === 'reports') return hasAnyPermission(REPORTS_PERMISSION_KEYS);
+  if (key === 'knowledge') return hasAnyPermission(KNOWLEDGE_PERMISSION_KEYS);
   if (key === 'settings') return hasAnyPermission(SETTINGS_PERMISSION_KEYS);
   return true;
 }

@@ -133,6 +133,39 @@ function makeLinkedUpload(subdir) {
 const licenseUpload = makeLinkedUpload('licenses');
 const contractUpload = makeLinkedUpload('contracts');
 
+// Knowledge Base attachments — uploaded how-tos / documents. Broader
+// allow-list than the asset modules since KB docs legitimately include Office
+// formats (incl. legacy .doc/.xls/.ppt) and plain text, stored under
+// "knowledge/{articleId}/". Still magic-byte verified (see MAGIC_BYTES below).
+const KB_ALLOWED_EXTENSIONS = new Set([
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.txt', '.csv', '.md', '.rtf', '.png', '.jpg', '.jpeg', '.gif', '.webp',
+]);
+const kbFileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!KB_ALLOWED_EXTENSIONS.has(ext)) {
+    const err = new Error('That file type is not allowed. Use PDF, Office documents, text, or images.');
+    err.status = 400;
+    err.code = 'INVALID_FILE_TYPE';
+    return cb(err, false);
+  }
+  cb(null, true);
+};
+const kbStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const articleId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(articleId) || articleId <= 0) return cb(new Error('Invalid article id'));
+    const dir = path.join(UPLOAD_ROOT, 'knowledge', String(articleId));
+    fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const unique = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+    cb(null, unique);
+  },
+});
+const kbUpload = multer({ storage: kbStorage, limits: { fileSize: ASSET_MAX_SIZE }, fileFilter: kbFileFilter });
+
 // Magic-byte signatures for the extension allow-list above — extension
 // checks alone only look at the filename an attacker fully controls, so a
 // renamed executable (foo.exe -> foo.pdf) would otherwise sail through.
@@ -146,6 +179,15 @@ const MAGIC_BYTES = {
   '.png': [Buffer.from('89504E470D0A1A0A', 'hex')],
   '.docx': [Buffer.from('504B0304', 'hex'), Buffer.from('504B0506', 'hex')],
   '.xlsx': [Buffer.from('504B0304', 'hex'), Buffer.from('504B0506', 'hex')],
+  // OOXML (all ZIP containers, PK magic) — KB attachments.
+  '.pptx': [Buffer.from('504B0304', 'hex'), Buffer.from('504B0506', 'hex')],
+  // Legacy MS Office (OLE2 / Compound File Binary) share this magic header.
+  '.doc': [Buffer.from('D0CF11E0A1B11AE1', 'hex')],
+  '.xls': [Buffer.from('D0CF11E0A1B11AE1', 'hex')],
+  '.ppt': [Buffer.from('D0CF11E0A1B11AE1', 'hex')],
+  // .txt / .csv / .md / .rtf are plain text with no reliable magic bytes, so
+  // they're intentionally absent — verifyFileSignature only enforces the
+  // DANGEROUS_SIGNATURES block for those, which is the right belt here.
   // Branding (logo/favicon) upload formats — .svg is deliberately absent
   // (plain XML/text, no fixed magic bytes to check).
   '.gif': [Buffer.from('474946', 'hex')],
@@ -249,6 +291,6 @@ const csvUpload = multer({
 });
 
 module.exports = {
-  upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload,
+  upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload, kbUpload,
   UPLOAD_ROOT, MAX_SIZE, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature,
 };

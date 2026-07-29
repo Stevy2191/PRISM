@@ -25,6 +25,11 @@ import Contracts from './pages/assets/Contracts';
 import ContractDetail from './pages/assets/ContractDetail';
 import Reports from './pages/Reports';
 import Calendar from './pages/Calendar';
+import KnowledgeBase from './pages/KnowledgeBase';
+import ArticleEditor from './pages/ArticleEditor';
+import ArticleView from './pages/ArticleView';
+import KbPortal from './pages/kb/KbPortal';
+import KbPortalArticle from './pages/kb/KbPortalArticle';
 import NotFound from './pages/NotFound';
 
 // Settings hub + sections
@@ -82,6 +87,7 @@ const CALENDAR_KEYS = [...TICKETS_KEYS, ...PROJECTS_KEYS];
 const CONTACTS_KEYS = ['people.view_own_department', 'people.view_all'];
 const ASSETS_KEYS = ['assets.view'];
 const REPORTS_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
+const KB_KEYS = ['kb.view'];
 const USERS_KEYS = ['people.view_all', 'people.create_users'];
 const TEAMS_KEYS = ['people.view_all', 'people.manage_departments'];
 const DEPARTMENTS_KEYS = ['people.manage_departments'];
@@ -99,6 +105,9 @@ export default function App() {
       <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
       {/* Fully public — a contact reaches this via an emailed CSAT survey link, no PRISM login. */}
       <Route path="/survey/:token" element={<SurveyPage />} />
+      {/* Fully public knowledge base portal — published + public articles only. */}
+      <Route path="/kb" element={<KbPortal />} />
+      <Route path="/kb/a/:slug" element={<KbPortalArticle />} />
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -124,6 +133,11 @@ export default function App() {
 
         <Route path="/reports" element={perm(<Reports />, REPORTS_KEYS)} />
         <Route path="/calendar" element={perm(<Calendar />, CALENDAR_KEYS)} />
+
+        <Route path="/knowledge" element={perm(<KnowledgeBase />, KB_KEYS)} />
+        <Route path="/knowledge/new" element={perm(<ArticleEditor />, KB_KEYS)} />
+        <Route path="/knowledge/:id" element={perm(<ArticleView />, KB_KEYS)} />
+        <Route path="/knowledge/:id/edit" element={perm(<ArticleEditor />, KB_KEYS)} />
 
         {/* Settings hub + sections */}
         <Route path="/settings" element={<SettingsHub />} />

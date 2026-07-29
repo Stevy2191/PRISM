@@ -41,6 +41,8 @@ const csatRoutes = require('./csat');
 const assetsRoutes = require('./assets');
 const licensesRoutes = require('./licenses');
 const contractsRoutes = require('./contracts');
+const knowledgeRoutes = require('./knowledge');
+const kbPublicRoutes = require('./kbPublic');
 
 const router = express.Router();
 
@@ -50,6 +52,10 @@ router.use('/auth', authRoutes);
 
 // Fully public — contact CSAT survey links, no PRISM login involved.
 router.use('/survey', surveyRoutes);
+
+// Fully public — the knowledge base portal (published + public articles only,
+// enforced in the controller). No login involved.
+router.use('/kb', kbPublicRoutes);
 
 // Settings has its own public (login branding) + admin endpoints inside it.
 router.use('/settings', settingsRoutes);
@@ -90,5 +96,6 @@ router.use('/csat', guard, csatRoutes);
 router.use('/assets', guard, assetsRoutes);
 router.use('/licenses', guard, licensesRoutes);
 router.use('/contracts', guard, contractsRoutes);
+router.use('/knowledge', guard, knowledgeRoutes);
 
 module.exports = router;

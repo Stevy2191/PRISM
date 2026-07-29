@@ -82,6 +82,9 @@ const ContractAsset = require('./ContractAsset')(sequelize);
 const ContractAttachment = require('./ContractAttachment')(sequelize);
 const ContractActivity = require('./ContractActivity')(sequelize);
 const ContractTicket = require('./ContractTicket')(sequelize);
+const KbCategory = require('./KbCategory')(sequelize);
+const KbArticle = require('./KbArticle')(sequelize);
+const KbAttachment = require('./KbAttachment')(sequelize);
 
 const db = {
   sequelize,
@@ -165,6 +168,9 @@ const db = {
   ContractAttachment,
   ContractActivity,
   ContractTicket,
+  KbCategory,
+  KbArticle,
+  KbAttachment,
 };
 
 // ---- Associations ----
@@ -438,6 +444,15 @@ ContractActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 Contract.hasMany(ContractTicket, { foreignKey: 'contractId', as: 'contractTickets', onDelete: 'CASCADE' });
 ContractTicket.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
 ContractTicket.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+
+// Knowledge Base
+KbCategory.hasMany(KbArticle, { foreignKey: 'categoryId', as: 'articles' });
+KbArticle.belongsTo(KbCategory, { foreignKey: 'categoryId', as: 'category' });
+KbArticle.belongsTo(User, { foreignKey: 'authorId', as: 'author' });
+KbArticle.belongsTo(User, { foreignKey: 'updatedById', as: 'editor' });
+KbArticle.hasMany(KbAttachment, { foreignKey: 'articleId', as: 'attachments', onDelete: 'CASCADE' });
+KbAttachment.belongsTo(KbArticle, { foreignKey: 'articleId', as: 'article' });
+KbAttachment.belongsTo(User, { foreignKey: 'uploadedById', as: 'uploadedBy' });
 
 // System settings
 SystemSettings.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });
