@@ -158,11 +158,11 @@ export default function ArticleEditor() {
       {visibility === 'public' ? (
         <p className="text-xs" style={{ color: status === 'published' ? 'var(--color-text-muted)' : 'var(--color-warning)' }}>
           {status === 'published'
-            ? 'Visible to end users in the end-user portal.'
-            : 'End-user articles appear in the end-user portal once their status is Published.'}
+            ? 'Agents can always see this here. It’s also visible to end users in the end-user portal.'
+            : 'Agents can see this here now. It appears in the end-user portal once its status is Published.'}
         </p>
       ) : (
-        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Visible to agents only — hidden from the end-user portal.</p>
+        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Visible to agents only — not shown in the end-user portal.</p>
       )}
 
       {/* Body editor */}
