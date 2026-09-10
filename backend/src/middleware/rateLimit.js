@@ -4,7 +4,7 @@
 // sit after `authenticate` in the guard chain) and fall back to IP for
 // endpoints that run before/without authentication (login, the public
 // survey link).
-const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator, MemoryStore } = require('express-rate-limit');
 
 // ipKeyGenerator normalizes IPv6 addresses to a /64 prefix before using them
 // as a key — using req.ip directly would let an IPv6 client cycle through
@@ -16,7 +16,9 @@ function keyByUserOrIp(req) {
 // POST /auth/login — 10 attempts per 15 minutes per IP. Runs before
 // authentication (there's no user yet), so this is IP-keyed same as the
 // login-specific limiter it replaces.
+const loginStore = new MemoryStore();
 const loginLimiter = rateLimit({
+  store: loginStore,
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -26,7 +28,9 @@ const loginLimiter = rateLimit({
 
 // POST /survey/:token — fully public, unauthenticated. 5 submissions per
 // hour per IP.
+const surveyStore = new MemoryStore();
 const surveySubmitLimiter = rateLimit({
+  store: surveyStore,
   windowMs: 60 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -36,7 +40,9 @@ const surveySubmitLimiter = rateLimit({
 
 // POST /contacts/import(/parse) — authenticated, 5 imports per hour per user
 // (a bulk write/parse operation, not a per-row action).
+const contactsImportStore = new MemoryStore();
 const contactsImportLimiter = rateLimit({
+  store: contactsImportStore,
   windowMs: 60 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -48,7 +54,9 @@ const contactsImportLimiter = rateLimit({
 // Everything else behind `guard` — generous, just a backstop against a
 // runaway client/script rather than a normal-usage limit. 200 requests/min
 // per authenticated user.
+const globalStore = new MemoryStore();
 const globalLimiter = rateLimit({
+  store: globalStore,
   windowMs: 60 * 1000,
   max: 200,
   standardHeaders: true,
@@ -57,4 +65,44 @@ const globalLimiter = rateLimit({
   message: { error: true, message: 'Too many requests, please slow down', code: 'RATE_LIMITED' },
 });
 
-module.exports = { loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter };
+
+// POST /apikeys — an API key is a long-lived bearer credential carrying the
+// full permission set of the user who minted it, so creation is deliberately
+// slow: 10 per hour per user. Also blunts a compromised session being used to
+// mint a persistent foothold.
+const apiKeyCreateStore = new MemoryStore();
+const apiKeyCreateLimiter = rateLimit({
+  store: apiKeyCreateStore,
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: keyByUserOrIp,
+  message: { error: true, message: 'Too many API keys created, please try again later', code: 'RATE_LIMITED' },
+});
+
+// POST /auth/change-password — throttles online guessing of the *current*
+// password by someone holding a hijacked session, which the login limiter
+// never sees.
+const passwordChangeStore = new MemoryStore();
+const passwordChangeLimiter = rateLimit({
+  store: passwordChangeStore,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: keyByUserOrIp,
+  message: { error: true, message: 'Too many password change attempts, please try again later', code: 'RATE_LIMITED' },
+});
+
+// Clears every limiter's counters. Used by the test suite so one case's
+// login attempts don't rate-limit the next; never called at runtime.
+function resetRateLimits() {
+  [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore]
+    .forEach((store) => store.resetAll && store.resetAll());
+}
+
+module.exports = {
+  loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
+  apiKeyCreateLimiter, passwordChangeLimiter, resetRateLimits,
+};

@@ -1,0 +1,90 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+jobs:
+  backend:
+    name: Backend test suite
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_DATABASE: prism_test
+          MARIADB_USER: prism
+          MARIADB_PASSWORD: prismtestpw
+          MARIADB_ROOT_PASSWORD: roottestpw
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      # config/config.js appends "_test" for the test environment, so the
+      # migrations land in prism_test — the schema the suite runs against.
+      DB_NAME: prism
+      DB_USER: prism
+      DB_PASSWORD: prismtestpw
+      SESSION_SECRET: ci-session-secret-not-used-outside-continuous-integration
+      ENCRYPTION_KEY: ci-encryption-key-not-used-outside-continuous-integration
+      LDAP_ENABLED: 'false'
+      COOKIE_SECURE: 'false'
+      UPLOAD_DIR: /tmp/prism-test-uploads
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Apply migrations to the test schema
+        working-directory: ./backend
+        run: npm run test:migrate
+
+      - name: Run tests
+        working-directory: ./backend
+        # .env.test is developer-local and not committed; CI supplies the same
+        # values through the job environment above.
+        run: npm test
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: ./frontend
+        run: npm run build

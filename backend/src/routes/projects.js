@@ -1,12 +1,11 @@
 const express = require('express');
 const ctrl = require('../controllers/projectsController');
-const { requireRole } = require('../middleware/role');
 const { requirePermission } = require('../middleware/requirePermission');
 const { projectUpload, enforceMaxAttachmentSize } = require('../middleware/upload');
 
 const router = express.Router();
 
-const staff = requireRole('admin', 'technician');
+const logTime = requirePermission('projects.log_time');
 const viewMin = requirePermission('projects.view_own', 'projects.view_department', 'projects.view_all');
 const editMin = requirePermission('projects.edit_own', 'projects.edit_department', 'projects.edit_all');
 
@@ -20,21 +19,21 @@ router.get('/:id/stats', viewMin, ctrl.getStats);
 
 // Tasks + subtasks
 router.get('/:id/tasks', ctrl.listTasks);
-router.post('/:id/tasks', staff, ctrl.createTask);
-router.patch('/:id/tasks/reorder', staff, ctrl.reorderTasks); // must precede /:taskId
-router.patch('/:id/tasks/:taskId', staff, ctrl.updateTask);
-router.delete('/:id/tasks/:taskId', staff, ctrl.removeTask);
-router.patch('/:id/tasks/:taskId/code', staff, ctrl.renumberTask);
-router.post('/:id/tasks/:taskId/subtasks', staff, ctrl.createSubtask);
-router.patch('/:id/tasks/:taskId/subtasks/:subtaskId', staff, ctrl.updateSubtask);
-router.delete('/:id/tasks/:taskId/subtasks/:subtaskId', staff, ctrl.removeSubtask);
-router.patch('/:id/tasks/:taskId/subtasks/:subtaskId/code', staff, ctrl.renumberSubtask);
+router.post('/:id/tasks', editMin, ctrl.createTask);
+router.patch('/:id/tasks/reorder', editMin, ctrl.reorderTasks); // must precede /:taskId
+router.patch('/:id/tasks/:taskId', editMin, ctrl.updateTask);
+router.delete('/:id/tasks/:taskId', editMin, ctrl.removeTask);
+router.patch('/:id/tasks/:taskId/code', editMin, ctrl.renumberTask);
+router.post('/:id/tasks/:taskId/subtasks', editMin, ctrl.createSubtask);
+router.patch('/:id/tasks/:taskId/subtasks/:subtaskId', editMin, ctrl.updateSubtask);
+router.delete('/:id/tasks/:taskId/subtasks/:subtaskId', editMin, ctrl.removeSubtask);
+router.patch('/:id/tasks/:taskId/subtasks/:subtaskId/code', editMin, ctrl.renumberSubtask);
 
-// Time entries (logging is staff-only, matching tickets)
+// Time entries (requires projects.log_time, matching tickets)
 router.get('/:id/time-entries', ctrl.listTimeEntries);
 router.post('/:id/time-entries', requirePermission('projects.log_time'), ctrl.createTimeEntry);
-router.patch('/:id/time-entries/:entryId', staff, ctrl.updateTimeEntry);
-router.delete('/:id/time-entries/:entryId', staff, ctrl.removeTimeEntry);
+router.patch('/:id/time-entries/:entryId', logTime, ctrl.updateTimeEntry);
+router.delete('/:id/time-entries/:entryId', logTime, ctrl.removeTimeEntry);
 
 // Expenses
 router.get('/:id/expenses', ctrl.listExpenses);
@@ -55,9 +54,9 @@ router.delete('/:id/members/:userId', requirePermission('projects.manage_members
 
 // Files
 router.get('/:id/files', ctrl.listFiles);
-router.post('/:id/files', staff, projectUpload.single('file'), enforceMaxAttachmentSize, ctrl.uploadFile);
+router.post('/:id/files', editMin, projectUpload.single('file'), enforceMaxAttachmentSize, ctrl.uploadFile);
 router.get('/:id/files/:fileId/download', ctrl.downloadFile);
-router.delete('/:id/files/:fileId', staff, ctrl.removeFile);
+router.delete('/:id/files/:fileId', editMin, ctrl.removeFile);
 
 // Activity
 router.get('/:id/activity', ctrl.listActivity);

@@ -1,16 +1,17 @@
 const express = require('express');
 const ctrl = require('../controllers/blueprintsController');
-const { requireRole } = require('../middleware/role');
+const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
 
-const staff = requireRole('admin', 'technician');
+const canManage = requirePermission('projects.create');
 
-// All authenticated users may read/use blueprints; staff manage them.
+// Anyone who can view projects may read/use blueprints; managing them
+// requires the same permission as creating a project from one.
 router.get('/', ctrl.list);
 router.get('/:id', ctrl.get);
-router.post('/', staff, ctrl.create);
-router.patch('/:id', staff, ctrl.update);
-router.delete('/:id', staff, ctrl.remove);
+router.post('/', canManage, ctrl.create);
+router.patch('/:id', canManage, ctrl.update);
+router.delete('/:id', canManage, ctrl.remove);
 
 module.exports = router;

@@ -206,6 +206,38 @@ async function canAccessProject(user, project) {
   return isMember;
 }
 
+
+// Authority over content someone else created on a ticket (editing or
+// deleting another user's comment or attachment). This used to be an
+// isStaff() test against the legacy User.role enum — but that enum is
+// 'technician' for every non-admin account, so it authorized every logged-in
+// user to moderate anyone's comments regardless of their real permissions.
+// Moderation now requires genuine authority beyond your own items:
+// tickets.edit_all anywhere, or tickets.edit_department within your own
+// department. tickets.edit_own is deliberately not enough — it is the
+// baseline permission for handling your own work.
+async function canModerateTicketContent(user, ticket) {
+  const permissions = await resolveUserPermissions(user.id);
+  if (permissions['tickets.edit_all']) return true;
+  if (permissions['tickets.edit_department']) {
+    return ticket.departmentId != null && ticket.departmentId === user.departmentId;
+  }
+  return false;
+}
+
+// Same reasoning for project content (files, task trees) created by others.
+async function canModerateProjectContent(user, project) {
+  const permissions = await resolveUserPermissions(user.id);
+  if (permissions['projects.edit_all']) return true;
+  if (permissions['projects.edit_department']) {
+    return (
+      (project.ownerDepartmentId != null && project.ownerDepartmentId === user.departmentId)
+      || (project.forDepartmentId != null && project.forDepartmentId === user.departmentId)
+    );
+  }
+  return false;
+}
+
 module.exports = {
   resolveUserPermissions,
   hasPermission,
@@ -215,6 +247,8 @@ module.exports = {
   getUserReportScope,
   canAccessTicket,
   canAccessProject,
+  canModerateTicketContent,
+  canModerateProjectContent,
   invalidateUserPermissions,
   invalidateAllPermissions,
   explainUserPermissions,

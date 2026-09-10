@@ -1,12 +1,13 @@
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
+const { QueryTypes } = require('sequelize');
 const { User, TeamMember, Role, sequelize } = require('../models');
 const { authenticate: ldapAuthenticate, isConfigured: isLdapConfigured } = require('../config/ldap');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { resolveUserPermissions } = require('../services/permissionService');
+const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 
-const MIN_PASSWORD_LENGTH = 8;
 const primaryRoleInclude = [{ model: Role, as: 'primaryRole' }];
 
 // Admins and team leads may log time on tickets against another tech's name.
@@ -14,6 +15,51 @@ async function serializeUserWithFlags(user) {
   const canLogTimeForOthers =
     user.role === 'admin' || !!(await TeamMember.findOne({ where: { userId: user.id, isLead: true } }));
   return { ...user.toJSON(), canLogTimeForOthers };
+}
+
+
+// Issue a brand-new session id for the authenticated user. Express-session
+// reuses the existing id by default, so an attacker who could plant a session
+// cookie in someone's browser (a shared kiosk, a network position on a plain
+// HTTP deployment, XSS on an adjacent origin) still held a valid handle on
+// that session after the victim logged in — classic session fixation. The
+// pre-login session is destroyed and replaced, so any previously-known id is
+// worthless.
+function regenerateSession(req) {
+  return new Promise((resolve, reject) => {
+    if (!req.session || typeof req.session.regenerate !== 'function') return resolve();
+    return req.session.regenerate((err) => (err ? reject(err) : resolve()));
+  });
+}
+
+
+// Revoke every stored session belonging to a user except the one making the
+// request. connect-session-sequelize keeps the serialized session in the
+// `data` column, so the owning user is matched on the JSON payload rather
+// than a dedicated column. Best-effort: a failure here must not block the
+// password change that triggered it.
+async function destroyOtherSessionsForUser(userId, keepSid) {
+  try {
+    const rows = await sequelize.query(
+      'SELECT sid, data FROM Sessions',
+      { type: QueryTypes.SELECT }
+    );
+    const stale = rows.filter((row) => {
+      if (!row || row.sid === keepSid) return false;
+      try {
+        return JSON.parse(row.data)?.userId === userId;
+      } catch {
+        return false;
+      }
+    });
+    if (!stale.length) return;
+    await sequelize.query('DELETE FROM Sessions WHERE sid IN (:sids)', {
+      replacements: { sids: stale.map((row) => row.sid) },
+      type: QueryTypes.DELETE,
+    });
+  } catch (err) {
+    console.error('[auth] could not revoke other sessions for user', userId, err);
+  }
 }
 
 // POST /auth/login
@@ -28,6 +74,7 @@ const login = asyncHandler(async (req, res) => {
 
   const { user, method } = await loginUnified(username, password);
 
+  await regenerateSession(req);
   req.session.userId = user.id;
   req.user = user;
   user.lastLogin = new Date();
@@ -132,7 +179,11 @@ const logout = asyncHandler(async (req, res) => {
   await new Promise((resolve, reject) => {
     req.session.destroy((err) => (err ? reject(err) : resolve()));
   });
-  res.clearCookie('prism.sid');
+  res.clearCookie('prism.sid', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.COOKIE_SECURE === 'true',
+  });
   res.json({ ok: true, userId });
 });
 
@@ -156,12 +207,21 @@ const changePassword = asyncHandler(async (req, res) => {
   }
 
   const { currentPassword, newPassword } = req.body || {};
-  if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
-    throw new ApiError(
-      400,
-      `New password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-      'WEAK_PASSWORD'
-    );
+  const policy = validatePassword(newPassword, {
+    username: user.username,
+    displayName: user.displayName,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+  });
+  if (!policy.ok) {
+    throw new ApiError(400, describeProblems(policy.problems), 'WEAK_PASSWORD');
+  }
+
+  // A new password identical to the current one defeats the point of
+  // changing it — particularly on the forced first-login change.
+  if (user.passwordHash && (await bcrypt.compare(newPassword, user.passwordHash))) {
+    throw new ApiError(400, 'New password must be different from your current password', 'WEAK_PASSWORD');
   }
 
   // Verify the current password unless this is a forced first-login change.
@@ -176,6 +236,13 @@ const changePassword = asyncHandler(async (req, res) => {
   user.mustChangePassword = false;
   await user.save();
   await writeAudit(req, 'auth.change_password', 'User', user.id, null);
+
+  // Re-issue this session and drop every other one belonging to the account,
+  // so a stolen pre-change session cannot outlive the password it was
+  // obtained with.
+  await destroyOtherSessionsForUser(user.id, req.sessionID);
+  await regenerateSession(req);
+  req.session.userId = user.id;
 
   res.json({ ok: true, user: await serializeUserWithFlags(user) });
 });

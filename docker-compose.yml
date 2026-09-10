@@ -35,6 +35,13 @@ services:
     environment:
       DB_HOST: mariadb
       PORT: 3001
+      # The backend is reachable only through the frontend nginx service on
+      # this network (no host port is published for it), and nginx sets
+      # X-Forwarded-For. Trusting exactly one proxy hop lets rate limiting see
+      # real client IPs. Do not raise this, and do not publish the backend
+      # port: a directly-reachable backend that trusts X-Forwarded-For lets a
+      # client forge its source IP and reset the login rate limiter at will.
+      TRUST_PROXY: 1
     volumes:
       - uploads_data:/uploads
 

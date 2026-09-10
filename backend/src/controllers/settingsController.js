@@ -178,6 +178,21 @@ const getPublic = asyncHandler(async (req, res) => {
 });
 
 // GET /settings/logo — PUBLIC. Streams the current logo file.
+
+// Branding files are uploaded by anyone holding settings.manage_branding and
+// served from a public, unauthenticated, same-origin URL. SVG is a document
+// format: an <svg> containing <script> executes when it is the top-level
+// response, which would let a branding-only role run script on the app origin
+// in the browser of anyone who opens the logo URL — session-riding as that
+// user. These headers make the file inert regardless of its contents:
+// a CSP that permits nothing, a sandbox, and no MIME sniffing.
+function sendBrandingFile(res, filePath) {
+  res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', 'inline');
+  return res.sendFile(filePath);
+}
+
 const getLogo = asyncHandler(async (req, res) => {
   const values = await getAllSettings();
   const filename = values['company.logoFilename'];
@@ -186,7 +201,7 @@ const getLogo = asyncHandler(async (req, res) => {
   await fs.promises.access(filePath).catch(() => {
     throw new ApiError(404, 'Logo file missing', 'NOT_FOUND');
   });
-  res.sendFile(filePath);
+  sendBrandingFile(res, filePath);
 });
 
 // GET /settings/favicon — PUBLIC. Streams the current favicon file.
@@ -198,7 +213,7 @@ const getFavicon = asyncHandler(async (req, res) => {
   await fs.promises.access(filePath).catch(() => {
     throw new ApiError(404, 'Favicon file missing', 'NOT_FOUND');
   });
-  res.sendFile(filePath);
+  sendBrandingFile(res, filePath);
 });
 
 // GET /settings — Admin. All system settings + the read-only env/config

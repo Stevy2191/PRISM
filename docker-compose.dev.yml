@@ -38,6 +38,12 @@ services:
     environment:
       DB_HOST: mariadb
       PORT: 3001
+      # Deliberately NOT setting TRUST_PROXY here: unlike the production
+      # stack, this file publishes the backend port below so it can be called
+      # directly during development. Trusting X-Forwarded-For on a
+      # directly-reachable backend would let anyone spoof their source IP past
+      # the login rate limiter. The cost is that rate limits seen through
+      # nginx are shared rather than per-client, which is fine for dev.
     volumes:
       - uploads_data:/uploads
     ports:

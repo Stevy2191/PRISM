@@ -9,7 +9,13 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  # Images are only built once the suite passes, so a failing test stops the
+  # release rather than shipping :latest to the registry regardless.
+  test:
+    uses: ./.github/workflows/test.yml
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read

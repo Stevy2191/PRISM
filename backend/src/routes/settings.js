@@ -23,9 +23,15 @@ const brandingStorage = (prefix) => multer.diskStorage({
     cb(null, `${prefix}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`);
   },
 });
+// file.mimetype is whatever the client's multipart part declared, so it is a
+// hint, not evidence — anything can claim image/png. The extension is checked
+// here and the bytes actually written are checked by verifyFileSignature on
+// the route, which is the part that can't be lied about.
+const BRANDING_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp']);
 const imageFileFilter = (req, file, cb) => {
-  if (/^image\//.test(file.mimetype)) return cb(null, true);
-  const err = new Error('Only image files are allowed');
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (/^image\//.test(file.mimetype) && BRANDING_EXTENSIONS.has(ext)) return cb(null, true);
+  const err = new Error('Only PNG, JPG, GIF, WEBP, SVG, ICO or BMP images are allowed');
   err.status = 400;
   err.code = 'INVALID_FILE_TYPE';
   cb(err, false);

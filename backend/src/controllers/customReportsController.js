@@ -1,7 +1,7 @@
 const { SavedCustomReport } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { getSourceMetadata, runCustomReport, FIELD_DEFS } = require('../services/customReportEngine');
-const { csvCell } = require('./reportsController');
+const { toCsv } = require('../utils/csv');
 const {
   newDocument, drawHeader, sectionTitle, table, barChart, streamPdfResponse,
 } = require('../services/pdfReport');
@@ -30,13 +30,14 @@ const exportCsv = asyncHandler(async (req, res) => {
   const { dataSource } = req.body || {};
   if (!FIELD_DEFS[dataSource]) throw new ApiError(400, 'Invalid dataSource', 'VALIDATION_ERROR');
   const { tableData } = await runCustomReport(req);
-  const lines = [tableData.columns.map((c) => csvCell(c.label)).join(',')];
-  tableData.rows.forEach((row) => {
-    lines.push(tableData.columns.map((c) => csvCell(row[c.key])).join(','));
-  });
+  const csv = toCsv(
+    tableData.columns.map((c) => c.label),
+    tableData.rows.map((row) => tableData.columns.map((c) => row[c.key]))
+  );
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="prism-custom-report-${dataSource}.csv"`);
-  res.send(lines.join('\r\n'));
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.send(csv);
 });
 
 // POST /reports/custom/export-pdf
