@@ -1,11 +1,12 @@
 const express = require('express');
 const ctrl = require('../controllers/timerController');
-const { requireRole } = require('../middleware/role');
+const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
 
-// Time logging is staff-only, so the timer is too.
-router.use(requireRole('admin', 'technician'));
+// The timer exists to produce time entries, so it requires the same
+// permission as logging time directly.
+router.use(requirePermission('projects.log_time'));
 
 router.get('/', ctrl.get);
 router.post('/start', ctrl.start);

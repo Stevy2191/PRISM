@@ -129,6 +129,10 @@ if [[ "$SKIP_CONFIG" == false ]]; then
   DB_PASSWORD="$(gen_secret)"
   DB_ROOT_PASSWORD="$(gen_secret)"
   SESSION_SECRET="$(gen_secret)"
+  # Separate from SESSION_SECRET so the session secret can be rotated later
+  # without making stored credentials (LDAP bind password, license keys,
+  # calendar tokens) undecryptable.
+  ENCRYPTION_KEY="$(gen_secret)"
   success "Secrets generated."
 
   # Write .env
@@ -152,6 +156,11 @@ LDAP_BIND_PASSWORD=${LDAP_BIND_PASSWORD}
 LDAP_USER_FILTER=${LDAP_USER_FILTER}
 
 SESSION_SECRET=${SESSION_SECRET}
+
+# Encrypts credentials stored in the database. Keep this backed up: losing it
+# means re-entering the LDAP bind password and any stored license keys.
+ENCRYPTION_KEY=${ENCRYPTION_KEY}
+
 NODE_ENV=production
 
 # MariaDB root password (used by the mariadb container only)

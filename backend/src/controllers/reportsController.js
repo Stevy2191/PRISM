@@ -5,6 +5,7 @@ const {
   Asset, AssetCategory, AssetTicket, License, Contract, ContractAsset,
 } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/error');
+const { toCsv } = require('../utils/csv');
 const { getUserReportScope } = require('../services/permissionService');
 const { getTicketStatusBuckets, getProjectStatusBuckets } = require('../services/statusBehavior');
 const { computeProjectCompletion } = require('../services/projectCompletion');
@@ -103,19 +104,15 @@ function contactDeptWhere(where, scope, user, requestedDepartmentId) {
   return { ...where, departmentId: user.departmentId };
 }
 
-// Quote a CSV cell if it contains a comma, quote, or newline.
-function csvCell(value) {
-  const s = value === null || value === undefined ? '' : String(value);
-  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
 function sendCsv(res, filename, columns, rows) {
-  const header = columns.map((c) => c.label);
-  const body = rows.map((row) => columns.map((c) => csvCell(row[c.key])));
-  const csv = [header, ...body].map((r) => r.map(csvCell).join(',')).join('\r\n');
+  const csv = toCsv(
+    columns.map((c) => c.label),
+    rows.map((row) => columns.map((c) => row[c.key]))
+  );
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="prism-${filename}.csv"`);
+  // Stops a browser from ever rendering an export inline.
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.send(csv);
 }
 
@@ -1496,7 +1493,7 @@ const upcomingRenewalsExport = asyncHandler(async (req, res) => {
 
 module.exports = {
   parseDateRange, dateWhere, parseDepartmentId, parseAssigneeId, granularityFor, bucketKey,
-  ticketScopeWhere, projectScopeWhere, contactDeptWhere, csvCell, sendCsv, hoursBetween, userAttrs,
+  ticketScopeWhere, projectScopeWhere, contactDeptWhere, sendCsv, hoursBetween, userAttrs,
   ticketVolume, ticketVolumeExport, ticketTrends, ticketTrendsExport,
   teamPerformance, teamPerformanceExport, slaCompliance, slaComplianceExport,
   timeBilling, timeBillingExport, projectsReport, projectsReportExport,

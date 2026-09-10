@@ -1,7 +1,7 @@
 const express = require('express');
 const ctrl = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
-const { loginLimiter } = require('../middleware/rateLimit');
+const { loginLimiter, passwordChangeLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
@@ -11,6 +11,6 @@ router.get('/me', authenticate, ctrl.me);
 router.get('/me/permissions', authenticate, ctrl.myPermissions);
 // Forced/voluntary password change for local accounts. Authenticated, but not
 // behind the must-change-password guard (so users can actually change it).
-router.post('/change-password', authenticate, ctrl.changePassword);
+router.post('/change-password', passwordChangeLimiter, authenticate, ctrl.changePassword);
 
 module.exports = router;

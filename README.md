@@ -33,15 +33,34 @@ in MariaDB, and persists attachments to the `uploads` volume.
 
 ---
 
-## Roles
+## Roles and permissions
 
-| Role | Capabilities |
+Access is governed by **granular permissions** (49 of them, across tickets,
+projects, people, assets, reports, knowledge and settings) grouped into roles.
+A user's effective permissions are the union of the roles they hold, plus any
+per-user overrides.
+
+Six roles are seeded; all are editable under **Settings → Roles** except where
+noted, and you can add your own.
+
+| Seeded role | Intended for |
 |------|--------------|
-| **Admin** | Full access: users, departments, projects, tickets, settings, API keys |
-| **Technician** | Create/edit/close tickets & projects, log time, comment, upload attachments |
-| **Requester** | Read-only on projects; create & view *their own* tickets, comment on them |
+| **System Administrator** | Full access to everything. Cannot be deleted. |
+| **System Technician** | Handles tickets and projects across the whole organisation |
+| **Department Manager** | Manages tickets, projects and people within one department |
+| **Department Staff** | Works tickets within one department |
+| **Read Only** | Views tickets, projects and people; no write access |
+| **Requester** | Retired — superseded by Contacts, kept only for legacy installs |
 
-New users default to **Requester** on first login. An Admin assigns roles afterward.
+Most permissions come in `own` / `department` / `all` tiers, which control both
+what a list returns and what a single record will open.
+
+Customers and end-users are **Contacts**, not users — they have no login. See
+the Contacts module rather than creating accounts for them.
+
+> New users are assigned a role at creation time. Directory (AD) users are
+> provisioned on first login with **no permissions at all** until an
+> administrator assigns them a role.
 
 ---
 
@@ -104,12 +123,23 @@ If you prefer to configure things yourself instead of running `setup.sh`:
 
 ```bash
 cp .env.example .env
-# Edit .env — set DB_PASSWORD, SESSION_SECRET, BOOTSTRAP_LOCAL_PASSWORD,
-# APP_PORT (host port, default 8080), and LDAP_* variables (or leave them
-# as placeholder stubs if you don't use Active Directory).
+# Edit .env and set, at minimum:
+#   SESSION_SECRET           openssl rand -hex 32   (required)
+#   ENCRYPTION_KEY           openssl rand -hex 32   (recommended)
+#   DB_PASSWORD              a real password
+#   BOOTSTRAP_LOCAL_PASSWORD the first admin's password
+#   APP_PORT                 host port, default 8080
+#   LDAP_*                   only if you use Active Directory
 docker compose pull
 docker compose up -d
 ```
+
+PRISM **refuses to start** if `SESSION_SECRET` is missing, left as a
+placeholder, or shorter than 32 characters — it signs session cookies and
+derives the key that encrypts stored credentials. The same applies to
+placeholder values left in `DB_PASSWORD` or `BOOTSTRAP_LOCAL_PASSWORD`.
+Startup lists every problem it finds at once. See [UPGRADING.md](UPGRADING.md)
+if you are upgrading an existing install.
 
 ### Building from source (development)
 
@@ -178,8 +208,9 @@ The Express session table (`Sessions`) is created automatically at startup by
 PRISM supports two login methods, selectable via tabs on the login page:
 
 - **Active Directory** — username + password verified against LDAP/AD. AD users are
-  created automatically on first login (defaulting to the **Requester** role) and
-  their `displayName`/`email` are synced from the directory on every login.
+  created automatically on first login **with no permissions** until an administrator
+  assigns them a role, and their `displayName`/`email` are synced from the directory
+  on every login.
 - **Local Account** — username **or** email + password, verified against a bcrypt
   hash stored in the `Users` table. Local accounts are created **manually by an
   Admin** (Admin → Users → *New Local Account*) and are never created or modified by
@@ -361,6 +392,26 @@ driven and stored inline on the ticket.
   exactly one of `ticketId` / `projectId`. The project detail page has a **Time Log**
   tab aggregating ticket + project-level time, and **Reports** breaks time down by
   user, project, and department with CSV export.
+
+---
+
+## Running the tests
+
+The backend has a Jest + supertest suite covering authentication, the
+authorization model, and a regression test for each fixed security finding.
+CI runs it before publishing images, so a failure blocks the release.
+
+```bash
+cd backend
+npm ci
+cp .env.example .env.test   # set DB_* to a scratch database and a SESSION_SECRET
+npm run test:migrate        # applies migrations to <DB_NAME>_test
+npm test                    # or: npm run test:unit / npm run test:integration
+```
+
+Integration tests run against a real MariaDB schema and drive the real Express
+app — the authorization stack is deliberately not mocked, since it is the
+thing under test.
 
 ---
 

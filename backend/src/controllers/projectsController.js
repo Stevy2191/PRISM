@@ -20,7 +20,7 @@ const {
 } = require('../services/statusBehavior');
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { UPLOAD_ROOT } = require('../middleware/upload');
-const { getUserProjectScope, canAccessProject } = require('../services/permissionService');
+const { getUserProjectScope, canAccessProject, hasPermission } = require('../services/permissionService');
 const { generateProjectCode, generateTaskCode, generateSubtaskCode, formatTaskCode, formatSubtaskCode } = require('../services/projectCodeService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
@@ -37,7 +37,6 @@ async function canLogForOthers(user) {
   const lead = await TeamMember.findOne({ where: { userId: user.id, isLead: true } });
   return !!lead;
 }
-const isStaff = (user) => user.role === 'admin' || user.role === 'technician';
 
 async function buildProjectStats(projectId) {
   const [completion, timeSum, expenseSum, materialSum, ticketBuckets] = await Promise.all([
@@ -634,7 +633,7 @@ const createTimeEntry = asyncHandler(async (req, res) => {
       throw new ApiError(403, 'Only admins and team leads can log time for other users', 'FORBIDDEN');
     }
     targetUser = await User.findByPk(loggedForUserId);
-    if (!targetUser || !isStaff(targetUser)) throw new ApiError(400, 'Invalid user to log time for', 'VALIDATION_ERROR');
+    if (!targetUser || !(await hasPermission(targetUser.id, 'projects.log_time'))) throw new ApiError(400, 'Invalid user to log time for', 'VALIDATION_ERROR');
     targetUserId = targetUser.id;
   }
 

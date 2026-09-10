@@ -6,9 +6,9 @@ const { writeAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, hasPermission } = require('../services/permissionService');
 const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
+const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
 
-const MIN_PASSWORD_LENGTH = 8;
 const userInclude = [{ model: Department, as: 'department' }, { model: Role, as: 'primaryRole' }];
 
 // The legacy role enum still drives this endpoint; keep the new roles/
@@ -33,7 +33,14 @@ async function syncSeedRoleAssignment(user, legacyRole, assignedBy) {
 // New users get their department's configured default role (Settings →
 // Departments) when one is set; otherwise fall back to the legacy role enum
 // mapping above.
-async function assignInitialRole(user, legacyRole, departmentId, assignedBy) {
+async function assignInitialRole(user, legacyRole, departmentId, assignedBy, explicitRoleId) {
+  if (explicitRoleId) {
+    await UserRole.destroy({ where: { userId: user.id } });
+    await UserRole.create({ userId: user.id, roleId: explicitRoleId, assignedAt: new Date(), assignedBy: assignedBy || null });
+    await user.update({ roleId: explicitRoleId });
+    invalidateUserPermissions(user.id);
+    return;
+  }
   const department = departmentId ? await Department.findByPk(departmentId) : null;
   if (department && department.defaultRoleId) {
     await UserRole.destroy({ where: { userId: user.id } });
@@ -96,7 +103,7 @@ const listDirectory = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const {
     username, displayName, email, role, departmentId, password,
-    firstName, lastName, phone, jobTitle,
+    firstName, lastName, phone, jobTitle, roleId,
   } = req.body || {};
   if (!username || !username.trim()) {
     throw new ApiError(400, 'Username is required', 'VALIDATION_ERROR');
@@ -105,12 +112,9 @@ const create = asyncHandler(async (req, res) => {
   if (!resolvedDisplayName) {
     throw new ApiError(400, 'Display name is required (or provide first/last name)', 'VALIDATION_ERROR');
   }
-  if (!password || password.length < MIN_PASSWORD_LENGTH) {
-    throw new ApiError(
-      400,
-      `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-      'WEAK_PASSWORD'
-    );
+  const policy = validatePassword(password, { username, displayName, firstName, lastName, email });
+  if (!policy.ok) {
+    throw new ApiError(400, describeProblems(policy.problems), 'WEAK_PASSWORD');
   }
   if (role && !['admin', 'technician'].includes(role)) {
     throw new ApiError(400, 'Invalid role', 'VALIDATION_ERROR');
@@ -122,6 +126,12 @@ const create = asyncHandler(async (req, res) => {
   if (departmentId) {
     const dept = await Department.findByPk(departmentId);
     if (!dept) throw new ApiError(400, 'Department does not exist', 'VALIDATION_ERROR');
+  }
+  // Validated before the account exists, so a bad roleId fails the request
+  // outright rather than leaving a user created with the wrong permissions.
+  if (roleId !== undefined && roleId !== null && roleId !== '') {
+    const requestedRole = await Role.findByPk(roleId);
+    if (!requestedRole) throw new ApiError(400, 'Role does not exist', 'VALIDATION_ERROR');
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -145,7 +155,7 @@ const create = asyncHandler(async (req, res) => {
     timerMode: ['manual', 'automatic'].includes(settings['timeTracking.defaultMode']) ? settings['timeTracking.defaultMode'] : 'manual',
     timerMinThreshold: Number(settings['timeTracking.defaultMinThreshold']) || 0,
   });
-  await assignInitialRole(user, user.role, user.departmentId, req.user.id);
+  await assignInitialRole(user, user.role, user.departmentId, req.user.id, roleId || null);
   await writeAudit(req, 'user.create_local', 'User', user.id, { username: user.username, role: user.role });
 
   const fresh = await User.findByPk(user.id, { include: userInclude });
@@ -209,8 +219,15 @@ const update = asyncHandler(async (req, res) => {
     if (!user.isLocalAccount) {
       throw new ApiError(400, 'Cannot set a password on a directory (AD) account', 'NOT_LOCAL_ACCOUNT');
     }
-    if (!password || password.length < MIN_PASSWORD_LENGTH) {
-      throw new ApiError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`, 'WEAK_PASSWORD');
+    const resetPolicy = validatePassword(password, {
+      username: user.username,
+      displayName: user.displayName,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+    });
+    if (!resetPolicy.ok) {
+      throw new ApiError(400, describeProblems(resetPolicy.problems), 'WEAK_PASSWORD');
     }
     changes.passwordHash = await bcrypt.hash(password, 12);
     changes.mustChangePassword = true;

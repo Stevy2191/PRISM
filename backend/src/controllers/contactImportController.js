@@ -6,22 +6,15 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhoneLenient } = require('../utils/phone');
+const { toCsv } = require('../utils/csv');
 
 const IMPORT_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'mobile', 'department', 'jobTitle'];
 
-function csvCell(value) {
-  const s = value === null || value === undefined ? '' : String(value);
-  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
 // GET /contacts/import/sample — a template CSV with the expected headers.
 const sample = asyncHandler(async (req, res) => {
-  const rows = [
-    IMPORT_FIELDS,
+  const csv = toCsv(IMPORT_FIELDS, [
     ['Jane', 'Doe', 'jane.doe@example.com', '555-0100', '555-0101', 'IT Support', 'Systems Analyst'],
-  ];
-  const csv = rows.map((r) => r.map(csvCell).join(',')).join('\r\n');
+  ]);
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="prism-contacts-import-sample.csv"');
   res.send(csv);

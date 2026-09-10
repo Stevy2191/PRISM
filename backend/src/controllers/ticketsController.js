@@ -42,7 +42,7 @@ const { sendMail } = require('../services/emailSender');
 const { buildTicketMessageId } = require('../services/inboundEmailService');
 const { calculateLaborCost } = require('../utils/laborCost');
 const { generateTicketReport } = require('../services/ticketReport');
-const { getUserTicketScope, hasPermission, canAccessTicket } = require('../services/permissionService');
+const { getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent } = require('../services/permissionService');
 const { evaluateRules } = require('../services/workflowEngine');
 const { syncTicketToExternalCalendars, removeTicketFromExternalCalendars } = require('../services/calendarPush');
 const { maybeCreateCsatSurvey } = require('../services/csatService');
@@ -130,7 +130,6 @@ function withCustomFields(ticket) {
   return json;
 }
 
-const isStaff = (user) => user.role === 'admin' || user.role === 'technician';
 
 // Admins and team leads may log time attributed to another tech.
 async function canLogForOthers(user) {
@@ -452,7 +451,7 @@ const update = asyncHandler(async (req, res) => {
   if (changes.assigneeId !== undefined && ticket.assigneeId && ticket.assigneeId !== previousAssigneeId) {
     await notifyAssigned(ticket, req.user.id);
   }
-  if (changes.status !== undefined && ticket.status !== previousStatus && isStaff(req.user)) {
+  if (changes.status !== undefined && ticket.status !== previousStatus) {
     await notifyWatchers(
       ticket,
       `Status changed to "${ticket.status.replace(/_/g, ' ')}" on ticket: ${ticket.title}`,
@@ -563,8 +562,8 @@ const createComment = asyncHandler(async (req, res) => {
   }
   let resolvedType = 'reply';
   if (type && type !== 'reply') {
-    if (!isStaff(req.user)) {
-      throw new ApiError(403, 'Only staff can post internal comments', 'FORBIDDEN');
+    if (!(await hasPermission(req.user.id, 'tickets.view_private_comments'))) {
+      throw new ApiError(403, 'You do not have permission to post internal comments', 'FORBIDDEN');
     }
     if (!COMMENT_TYPES.includes(type)) {
       throw new ApiError(400, 'Invalid comment type', 'VALIDATION_ERROR');
@@ -625,7 +624,7 @@ const updateComment = asyncHandler(async (req, res) => {
     where: { id: req.params.commentId, ticketId: req.params.id },
   });
   if (!comment) throw new ApiError(404, 'Comment not found', 'NOT_FOUND');
-  if (comment.authorId !== req.user.id && !isStaff(req.user)) {
+  if (comment.authorId !== req.user.id && !(await canModerateTicketContent(req.user, ticket))) {
     throw new ApiError(403, 'You can only edit your own comments', 'FORBIDDEN');
   }
   const { body } = req.body || {};
@@ -650,7 +649,7 @@ const removeComment = asyncHandler(async (req, res) => {
     where: { id: req.params.commentId, ticketId: req.params.id },
   });
   if (!comment) throw new ApiError(404, 'Comment not found', 'NOT_FOUND');
-  if (comment.authorId !== req.user.id && !isStaff(req.user)) {
+  if (comment.authorId !== req.user.id && !(await canModerateTicketContent(req.user, ticket))) {
     throw new ApiError(403, 'You can only delete your own comments', 'FORBIDDEN');
   }
   await comment.destroy();
@@ -734,7 +733,7 @@ const removeAttachment = asyncHandler(async (req, res) => {
     where: { id: req.params.attachmentId, ticketId: ticket.id },
   });
   if (!attachment) throw new ApiError(404, 'Attachment not found', 'NOT_FOUND');
-  if (attachment.uploadedById !== req.user.id && !isStaff(req.user)) {
+  if (attachment.uploadedById !== req.user.id && !(await canModerateTicketContent(req.user, ticket))) {
     throw new ApiError(403, 'You can only remove your own attachments', 'FORBIDDEN');
   }
 
@@ -807,7 +806,7 @@ const createTime = asyncHandler(async (req, res) => {
       throw new ApiError(403, 'Only admins and team leads can log time for other users', 'FORBIDDEN');
     }
     targetUser = await User.findByPk(userId);
-    if (!targetUser || !isStaff(targetUser)) {
+    if (!targetUser || !(await hasPermission(targetUser.id, 'projects.log_time'))) {
       throw new ApiError(400, 'Invalid user to log time for', 'VALIDATION_ERROR');
     }
     targetUserId = targetUser.id;
