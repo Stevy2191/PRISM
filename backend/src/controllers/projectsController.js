@@ -18,7 +18,7 @@ const {
   getProjectStatusIdBehaviorMap,
   getTicketStatusBuckets,
 } = require('../services/statusBehavior');
-const { computeProjectCompletion } = require('../services/projectCompletion');
+const { computeProjectCompletion, isTaskComplete, subtaskCompletionPercent } = require('../services/projectCompletion');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const { getUserProjectScope, canAccessProject } = require('../services/permissionService');
 const { generateProjectCode, generateTaskCode, generateSubtaskCode, formatTaskCode, formatSubtaskCode } = require('../services/projectCodeService');
@@ -343,7 +343,6 @@ const listTasks = asyncHandler(async (req, res) => {
     order: [['position', 'ASC'], ['id', 'ASC']],
   });
 
-  const { isTaskComplete, subtaskCompletionPercent } = require('../services/projectCompletion');
   const annotated = tasks.map((t) => {
     const json = t.toJSON();
     json.isComplete = isTaskComplete(t, t.subtasks || [], statusIdBehavior);

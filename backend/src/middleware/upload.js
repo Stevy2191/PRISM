@@ -7,7 +7,6 @@ const multer = require('multer');
 const { SystemSettings } = require('../models');
 
 const UPLOAD_ROOT = process.env.UPLOAD_DIR || '/uploads';
-const MAX_SIZE = 25 * 1024 * 1024; // 25MB — default shown before any admin override
 // Multer's own limit is a fixed safety ceiling, set at server startup — it
 // can't read the DB-backed admin setting (General Settings -> Max
 // attachment size) at construction time. enforceMaxAttachmentSize() below
@@ -292,5 +291,5 @@ const csvUpload = multer({
 
 module.exports = {
   upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload, kbUpload,
-  UPLOAD_ROOT, MAX_SIZE, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature,
+  UPLOAD_ROOT, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature,
 };

@@ -718,12 +718,7 @@ async function buildProjectsReport(req) {
     (p) => p.closedAt && (!range.start || p.closedAt >= range.start) && (!range.end || p.closedAt <= range.end)
   );
 
-  const rows = [];
-  let totalMaterialsCost = 0;
-  let totalExpensesCost = 0;
-  // eslint-disable-next-line no-restricted-syntax
-  for (const p of projects) {
-    // eslint-disable-next-line no-await-in-loop
+  const rows = await Promise.all(projects.map(async (p) => {
     const [completion, timeSum, expenseSum, materialSum] = await Promise.all([
       computeProjectCompletion(p.id),
       ProjectTimeEntry.sum('durationSeconds', { where: { projectId: p.id } }),
@@ -732,9 +727,7 @@ async function buildProjectsReport(req) {
     ]);
     const materials = Number(materialSum) || 0;
     const expenses = Number(expenseSum) || 0;
-    totalMaterialsCost += materials;
-    totalExpensesCost += expenses;
-    rows.push({
+    return {
       id: p.id,
       projectCode: p.projectCode,
       name: p.name,
@@ -747,8 +740,14 @@ async function buildProjectsReport(req) {
       materialsCost: materials,
       expensesCost: expenses,
       totalCost: Math.round((materials + expenses) * 100) / 100,
-    });
-  }
+    };
+  }));
+  let totalMaterialsCost = 0;
+  let totalExpensesCost = 0;
+  rows.forEach((r) => {
+    totalMaterialsCost += r.materialsCost;
+    totalExpensesCost += r.expensesCost;
+  });
 
   const byStatus = new Map();
   projects.forEach((p) => {

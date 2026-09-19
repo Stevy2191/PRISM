@@ -210,10 +210,7 @@ async function loadProjectRecords(req, filters) {
     order: [['createdAt', 'DESC']],
   });
 
-  let records = [];
-  // eslint-disable-next-line no-restricted-syntax
-  for (const p of projects) {
-    // eslint-disable-next-line no-await-in-loop
+  let records = await Promise.all(projects.map(async (p) => {
     const [completion, timeSum, laborSum, expenseSum, materialSum] = await Promise.all([
       computeProjectCompletion(p.id),
       ProjectTimeEntry.sum('durationSeconds', { where: { projectId: p.id } }),
@@ -224,7 +221,7 @@ async function loadProjectRecords(req, filters) {
     const laborCost = Number(laborSum) || 0;
     const expensesTotal = Number(expenseSum) || 0;
     const materialsTotal = Number(materialSum) || 0;
-    records.push({
+    return {
       id: p.id,
       projectCode: p.projectCode,
       name: p.name,
@@ -245,8 +242,8 @@ async function loadProjectRecords(req, filters) {
       _departmentName: p.ownerDepartment?.name || 'Unassigned',
       _month: p.createdAt ? p.createdAt.toISOString().slice(0, 7) : '',
       _tagList: Array.isArray(p.tags) ? p.tags : [],
-    });
-  }
+    };
+  }));
   if (filters.tag) records = records.filter((r) => r._tagList.includes(filters.tag));
   return records;
 }
@@ -394,16 +391,13 @@ async function loadContactRecords(req, filters) {
   });
 
   const ticketBuckets = await getTicketStatusBuckets();
-  const records = [];
-  // eslint-disable-next-line no-restricted-syntax
-  for (const c of contacts) {
-    // eslint-disable-next-line no-await-in-loop
+  const records = await Promise.all(contacts.map(async (c) => {
     const [totalTickets, openTickets, lastTicket] = await Promise.all([
       Ticket.count({ where: { contactId: c.id } }),
       Ticket.count({ where: { contactId: c.id, status: { [Op.in]: ticketBuckets.open } } }),
       Ticket.findOne({ where: { contactId: c.id }, order: [['createdAt', 'DESC']], attributes: ['createdAt'] }),
     ]);
-    records.push({
+    return {
       id: c.id,
       name: c.displayName,
       email: c.email || '',
@@ -417,8 +411,8 @@ async function loadContactRecords(req, filters) {
       createdAt: c.createdAt ? c.createdAt.toISOString().slice(0, 10) : '',
       status: c.status,
       _departmentName: c.department?.name || 'Unassigned',
-    });
-  }
+    };
+  }));
   return records;
 }
 
