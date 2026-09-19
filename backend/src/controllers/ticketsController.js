@@ -369,6 +369,12 @@ const get = asyncHandler(async (req, res) => {
 const update = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  // editMin only checked "has ANY edit tier" at the route level — same gap
+  // as get() (see comment there) but for writes: without this, an
+  // 'own'/'department'-scoped user could edit any ticket by id.
+  if (!(await canAccessTicket(req.user, ticket))) {
+    throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  }
 
   // Every PRISM user is staff now (the requester tier moved to Contacts,
   // who don't call this API), so there's one edit surface — resolution
@@ -556,6 +562,7 @@ async function sendReplyEmailToContact(ticket, comment, authorUser) {
 const createComment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const { body, type } = req.body || {};
   if (!body || !body.trim()) {
@@ -620,6 +627,7 @@ const createComment = asyncHandler(async (req, res) => {
 const updateComment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const comment = await Comment.findOne({
     where: { id: req.params.commentId, ticketId: req.params.id },
@@ -645,6 +653,7 @@ const updateComment = asyncHandler(async (req, res) => {
 const removeComment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const comment = await Comment.findOne({
     where: { id: req.params.commentId, ticketId: req.params.id },
@@ -682,10 +691,9 @@ const createAttachment = asyncHandler(async (req, res) => {
     if (req.file) fs.rm(req.file.path, { force: true }, () => {});
     throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   }
-  try {
-  } catch (err) {
+  if (!(await canAccessTicket(req.user, ticket))) {
     if (req.file) fs.rm(req.file.path, { force: true }, () => {});
-    throw err;
+    throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
   }
   if (!req.file) {
     throw new ApiError(400, 'No file uploaded (field name must be "file")', 'NO_FILE');
@@ -729,6 +737,7 @@ const downloadAttachment = asyncHandler(async (req, res) => {
 const removeAttachment = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const attachment = await Attachment.findOne({
     where: { id: req.params.attachmentId, ticketId: ticket.id },
@@ -769,6 +778,7 @@ const listTime = asyncHandler(async (req, res) => {
 const createTime = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const { minutes, note, entryDate, userId, startTime, endTime } = req.body || {};
 
@@ -855,6 +865,10 @@ const removeTime = asyncHandler(async (req, res) => {
     where: { id: req.params.entryId, ticketId: req.params.id },
   });
   if (!entry) throw new ApiError(404, 'Time entry not found', 'NOT_FOUND');
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket || !(await canAccessTicket(req.user, ticket))) {
+    throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  }
   if (entry.userId !== req.user.id && req.user.role !== 'admin') {
     throw new ApiError(403, 'You can only remove your own time entries', 'FORBIDDEN');
   }
@@ -900,6 +914,7 @@ const listRelations = asyncHandler(async (req, res) => {
 const createRelation = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const { relatedTicketId, relationType } = req.body || {};
   const relId = parseInt(relatedTicketId, 10);
@@ -956,6 +971,10 @@ const removeRelation = asyncHandler(async (req, res) => {
     },
   });
   if (!relation) throw new ApiError(404, 'Relation not found', 'NOT_FOUND');
+  const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket || !(await canAccessTicket(req.user, ticket))) {
+    throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  }
   await relation.destroy();
   await writeAudit(req, 'relation.delete', 'TicketRelation', relation.id, { ticketId: req.params.id });
   res.json({ ok: true });
@@ -982,6 +1001,7 @@ const getCsat = asyncHandler(async (req, res) => {
 const submitCsat = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const buckets = await getTicketStatusBuckets();
   if (!buckets.closed.includes(ticket.status)) {
@@ -1028,6 +1048,7 @@ const listWatchers = asyncHandler(async (req, res) => {
 const addWatcher = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const userId = parseInt(req.body?.userId, 10);
   if (!userId) throw new ApiError(400, 'userId is required', 'VALIDATION_ERROR');
@@ -1045,6 +1066,7 @@ const addWatcher = asyncHandler(async (req, res) => {
 const removeWatcher = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   await TicketWatcher.destroy({ where: { ticketId: ticket.id, userId: req.params.userId } });
   res.json({ ok: true });
@@ -1070,6 +1092,7 @@ const listTasks = asyncHandler(async (req, res) => {
 const createTask = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const { description, assigneeId } = req.body || {};
   if (!description || !description.trim()) {
@@ -1091,6 +1114,9 @@ const updateTask = asyncHandler(async (req, res) => {
   const task = await TicketTask.findOne({ where: { id: req.params.taskId, ticketId: req.params.id } });
   if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
   const ticket = await Ticket.findByPk(req.params.id);
+  if (!ticket || !(await canAccessTicket(req.user, ticket))) {
+    throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  }
 
   const changes = {};
   if (req.body?.completed !== undefined) changes.completed = !!req.body.completed;
@@ -1122,6 +1148,7 @@ const getCustomFieldValues = asyncHandler(async (req, res) => {
 const updateCustomFieldValues = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const values = req.body?.values;
   if (!values || typeof values !== 'object' || Array.isArray(values)) {
