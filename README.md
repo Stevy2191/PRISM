@@ -462,11 +462,18 @@ driven and stored inline on the ticket.
 ## Running the tests
 
 The backend has a Jest + supertest suite covering authentication, the
-authorization model, and a regression test for each fixed security finding.
-CI runs it before publishing images, so a failure blocks the release.
+authorization model, single sign-on, and a regression test for each fixed
+security finding. CI runs it before publishing images, so a failure blocks the
+release.
+
+**Node 24.9 or newer is required** — several dependencies are ESM-only, and
+Jest can only `require()` an ES module natively from that version. The
+Dockerfiles and CI both pin Node 24; the suite fails fast with an explanation
+on anything older.
 
 ```bash
 cd backend
+nvm use 24                  # or any Node >= 24.9
 npm ci
 cp .env.example .env.test   # set DB_* to a scratch database and a SESSION_SECRET
 npm run test:migrate        # applies migrations to <DB_NAME>_test
@@ -475,7 +482,9 @@ npm test                    # or: npm run test:unit / npm run test:integration
 
 Integration tests run against a real MariaDB schema and drive the real Express
 app — the authorization stack is deliberately not mocked, since it is the
-thing under test.
+thing under test. The SSO tests run against a mock identity provider that
+speaks both OIDC and SAML, signing real tokens and assertions, so signature
+and replay failures are exercised rather than assumed.
 
 ---
 
