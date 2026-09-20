@@ -7,7 +7,7 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     const { INTEGER, STRING, JSON: JSONType, DATE } = Sequelize;
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const names = tables.map((t) => (typeof t === 'string' ? t : t.tableName));
     if (names.includes('SavedFilters')) return undefined;
 

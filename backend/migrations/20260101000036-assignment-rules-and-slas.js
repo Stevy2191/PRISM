@@ -4,7 +4,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     const { DataTypes: dt } = Sequelize;
 
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
 
     if (!tables.includes('AssignmentRules')) {
       await queryInterface.createTable('AssignmentRules', {
@@ -47,7 +47,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tables.includes('SlaPolicies')) await queryInterface.dropTable('SlaPolicies');
     if (tables.includes('AssignmentRules')) await queryInterface.dropTable('AssignmentRules');
   },

@@ -24,7 +24,7 @@ module.exports = {
       await queryInterface.addColumn('Contacts', 'adLastSynced', { type: dt.DATE, allowNull: true });
     }
 
-    const existing = await queryInterface.showAllTables();
+    const existing = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const tableNames = existing.map((t) => (typeof t === 'string' ? t : t.tableName));
 
     if (!tableNames.includes('AdSyncLogs')) {
@@ -54,7 +54,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    const existing = await queryInterface.showAllTables();
+    const existing = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const tableNames = existing.map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tableNames.includes('AdGroupMappings')) await queryInterface.dropTable('AdGroupMappings');
     if (tableNames.includes('AdSyncLogs')) await queryInterface.dropTable('AdSyncLogs');

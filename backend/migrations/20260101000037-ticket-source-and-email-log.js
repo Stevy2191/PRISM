@@ -13,7 +13,7 @@ module.exports = {
       });
     }
 
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     if (!tables.includes('EmailProcessingLogs')) {
       await queryInterface.createTable('EmailProcessingLogs', {
         id: { type: dt.INTEGER, primaryKey: true, autoIncrement: true },
@@ -31,7 +31,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tables.includes('EmailProcessingLogs')) await queryInterface.dropTable('EmailProcessingLogs');
 
     const ticketCols = await queryInterface.describeTable('Tickets');

@@ -11,7 +11,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     const { DataTypes: dt } = Sequelize;
     const now = { type: dt.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') };
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
 
     // ---- Providers ----
     // One row per identity provider. `config` holds the protocol-specific
@@ -115,7 +115,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     for (const table of ['SsoAuthRequests', 'SsoGroupMappings', 'SsoIdentities', 'SsoProviders']) {
       if (tables.includes(table)) await queryInterface.dropTable(table);
     }

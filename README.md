@@ -189,6 +189,12 @@ docker compose exec backend npm run migrate
 docker compose exec backend npm run migrate:undo
 ```
 
+> **Writing a migration?** `queryInterface.showAllTables()` returns
+> `{ tableName, schema }` objects, not strings, so a guard like
+> `tables.includes('MyTable')` is always false. Normalize it first:
+> `(await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName))`.
+> The existing migrations all do this.
+
 Running locally without Docker (from `backend/`):
 
 ```bash

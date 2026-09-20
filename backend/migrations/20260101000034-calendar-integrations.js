@@ -8,7 +8,7 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     const { DataTypes: dt } = Sequelize;
-    const existing = await queryInterface.showAllTables();
+    const existing = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const tableNames = existing.map((t) => (typeof t === 'string' ? t : t.tableName));
 
     if (!tableNames.includes('UserCalendarIntegrations')) {
@@ -68,7 +68,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    const existing = await queryInterface.showAllTables();
+    const existing = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const tableNames = existing.map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tableNames.includes('CalendarEventCaches')) await queryInterface.dropTable('CalendarEventCaches');
     if (tableNames.includes('UserCalendarIntegrations')) await queryInterface.dropTable('UserCalendarIntegrations');

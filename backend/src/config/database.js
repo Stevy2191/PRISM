@@ -1,5 +1,6 @@
 // Runtime Sequelize instance shared across the app.
 const { Sequelize } = require('sequelize');
+const dialectModule = require('./mariadbDriver');
 
 const sequelize = new Sequelize(
   process.env.DB_NAME || 'prism',
@@ -9,6 +10,9 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST || 'mariadb',
     port: parseInt(process.env.DB_PORT, 10) || 3306,
     dialect: 'mariadb',
+    // Wrapped driver — see mariadbDriver.js. Without it, any raw query
+    // (and therefore every migration rollback) fails on a strict-mode delete.
+    dialectModule,
     dialectOptions: {
       timezone: 'Etc/UTC',
     },

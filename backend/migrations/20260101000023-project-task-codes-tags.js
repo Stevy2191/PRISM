@@ -28,7 +28,7 @@ module.exports = {
     const now = { type: DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') };
 
     // ---- ProjectIdSequences ----
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     if (!tables.includes('ProjectIdSequences')) {
       await queryInterface.createTable('ProjectIdSequences', {
         id: { type: INTEGER, primaryKey: true, autoIncrement: true },

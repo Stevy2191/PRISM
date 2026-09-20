@@ -17,7 +17,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     const { DataTypes: dt } = Sequelize;
     const now = { type: dt.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') };
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
 
     if (!tables.includes('AssetCategories')) {
       await queryInterface.createTable('AssetCategories', {
@@ -98,7 +98,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tables.includes('AssetActivity')) await queryInterface.dropTable('AssetActivity');
     if (tables.includes('AssetTickets')) await queryInterface.dropTable('AssetTickets');
     if (tables.includes('Assets')) await queryInterface.dropTable('Assets');

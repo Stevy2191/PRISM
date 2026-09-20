@@ -31,7 +31,7 @@ module.exports = {
     const { DataTypes: dt, QueryTypes } = Sequelize;
     const now = { type: dt.DATE, allowNull: false, defaultValue: dt.NOW };
 
-    const existing = await queryInterface.showAllTables();
+    const existing = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const tableNames = existing.map((t) => (typeof t === 'string' ? t : t.tableName));
 
     // ---- 1. Contacts table ----
@@ -205,7 +205,7 @@ module.exports = {
 
     await queryInterface.bulkDelete('ModuleVisibility', { moduleName: 'contacts' });
 
-    const existing = await queryInterface.showAllTables();
+    const existing = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const tableNames = existing.map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tableNames.includes('ContactActivities')) {
       await queryInterface.dropTable('ContactActivities');

@@ -13,7 +13,7 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     const { INTEGER, JSON: JSONType, ENUM, DATE } = Sequelize;
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const names = tables.map((t) => (typeof t === 'string' ? t : t.tableName));
 
     const ticketsCols = await queryInterface.describeTable('Tickets');

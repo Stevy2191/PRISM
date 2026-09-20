@@ -10,7 +10,7 @@ module.exports = {
     const { DataTypes: dt } = Sequelize;
     const now = { type: dt.DATE, allowNull: false, defaultValue: dt.NOW };
 
-    const existing = await queryInterface.showAllTables();
+    const existing = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const tableNames = existing.map((t) => (typeof t === 'string' ? t : t.tableName));
 
     if (!tableNames.includes('WorkflowRules')) {
@@ -97,7 +97,7 @@ module.exports = {
       await queryInterface.sequelize.query('ALTER TABLE Tickets DROP COLUMN createdBy');
     }
 
-    const existing = await queryInterface.showAllTables();
+    const existing = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const tableNames = existing.map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tableNames.includes('WorkflowRuleLogs')) await queryInterface.dropTable('WorkflowRuleLogs');
     if (tableNames.includes('WorkflowActions')) await queryInterface.dropTable('WorkflowActions');

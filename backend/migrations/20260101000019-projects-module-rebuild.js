@@ -63,7 +63,7 @@ module.exports = {
     }
 
     // ---- Drop Milestones (superseded by ProjectTasks/ProjectSubtasks) ----
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tables.includes('Milestones')) await q('DROP TABLE `Milestones`');
 
     // ---- ProjectMembers ----

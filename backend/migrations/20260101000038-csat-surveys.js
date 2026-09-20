@@ -4,7 +4,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     const { DataTypes: dt } = Sequelize;
 
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     if (!tables.includes('CsatSurveys')) {
       await queryInterface.createTable('CsatSurveys', {
         id: { type: dt.INTEGER, primaryKey: true, autoIncrement: true },
@@ -28,7 +28,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tables.includes('CsatSurveys')) await queryInterface.dropTable('CsatSurveys');
   },
 };

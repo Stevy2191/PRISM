@@ -11,7 +11,7 @@ module.exports = {
     const { INTEGER, STRING, TEXT, BOOLEAN, ENUM, DATE } = Sequelize;
     const now = { type: DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') };
 
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     const names = tables.map((t) => (typeof t === 'string' ? t : t.tableName));
     const hasTable = (n) => names.includes(n);
 

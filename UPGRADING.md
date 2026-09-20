@@ -29,15 +29,23 @@ permanently.
 
 See the [SSO section of the README](README.md#single-sign-on-sso) for setup.
 
-### Known issue, pre-existing: migration rollback
+### Fixed: migration rollback
 
-`sequelize-cli db:migrate:undo` fails on this project with
-`Cannot delete property 'meta' of [object Array]`. This is an incompatibility
-between `sequelize@6` and `mariadb@3.5` — Sequelize's MariaDB dialect does
-`delete data.meta`, which the newer driver defines as non-configurable. It
-affects any migration whose `down()` calls `removeColumn` (21 of the 47 in
-this repo, including this one) and predates the SSO work. Rolling *forward*
-is unaffected.
+`sequelize-cli db:migrate:undo` previously failed with
+`Cannot delete property 'meta' of [object Array]`, and even when it did not,
+`down()` silently dropped nothing. Both causes are fixed; rollback now works
+across every migration (verified by migrating all 47 up, undoing all of them,
+and re-applying).
+
+If you maintain your own migrations in this project, note the second cause:
+`queryInterface.showAllTables()` returns `{ tableName, schema }` objects in
+this Sequelize version, not strings, so a guard like
+`tables.includes('MyTable')` is always false. Normalize first:
+
+```js
+const tables = (await queryInterface.showAllTables())
+  .map((t) => (typeof t === 'string' ? t : t.tableName));
+```
 
 ---
 

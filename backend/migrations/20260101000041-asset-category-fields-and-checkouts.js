@@ -61,7 +61,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     const { DataTypes: dt, QueryTypes } = Sequelize;
     const now = { type: dt.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') };
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
 
     // ---- AssetCategories.isBuiltIn + new categories ----
     const catCols = await queryInterface.describeTable('AssetCategories');
@@ -178,7 +178,7 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    const tables = await queryInterface.showAllTables();
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
     if (tables.includes('AssetAttachments')) await queryInterface.dropTable('AssetAttachments');
     if (tables.includes('AssetCheckouts')) await queryInterface.dropTable('AssetCheckouts');
     if (tables.includes('AssetFieldValues')) await queryInterface.dropTable('AssetFieldValues');
