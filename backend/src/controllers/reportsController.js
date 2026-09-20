@@ -42,6 +42,17 @@ function parseDepartmentId(query) {
   const id = parseInt(query.departmentId, 10);
   return Number.isFinite(id) ? id : null;
 }
+
+// Asset/license/contract reports have no per-record owner (unlike tickets/
+// projects/contacts), so "own" and "department" scope both collapse to "my
+// department" here. Mirrors contactDeptWhere's scoping rule but resolves to
+// a plain departmentId (rather than a where clause) since a couple of these
+// reports filter through a nested include instead of the top-level where.
+async function resolveReportDeptId(req, requestedDepartmentId) {
+  const scope = await getUserReportScope(req.user.id);
+  if (scope === 'all') return requestedDepartmentId;
+  return req.user.departmentId || -1; // no department on the user -> match nothing, not everything
+}
 function parseAssigneeId(query) {
   const id = parseInt(query.assigneeId, 10);
   return Number.isFinite(id) ? id : null;
@@ -704,12 +715,7 @@ async function buildProjectsReport(req) {
     (p) => p.closedAt && (!range.start || p.closedAt >= range.start) && (!range.end || p.closedAt <= range.end)
   );
 
-  const rows = [];
-  let totalMaterialsCost = 0;
-  let totalExpensesCost = 0;
-  // eslint-disable-next-line no-restricted-syntax
-  for (const p of projects) {
-    // eslint-disable-next-line no-await-in-loop
+  const rows = await Promise.all(projects.map(async (p) => {
     const [completion, timeSum, expenseSum, materialSum] = await Promise.all([
       computeProjectCompletion(p.id),
       ProjectTimeEntry.sum('durationSeconds', { where: { projectId: p.id } }),
@@ -718,9 +724,7 @@ async function buildProjectsReport(req) {
     ]);
     const materials = Number(materialSum) || 0;
     const expenses = Number(expenseSum) || 0;
-    totalMaterialsCost += materials;
-    totalExpensesCost += expenses;
-    rows.push({
+    return {
       id: p.id,
       projectCode: p.projectCode,
       name: p.name,
@@ -733,8 +737,14 @@ async function buildProjectsReport(req) {
       materialsCost: materials,
       expensesCost: expenses,
       totalCost: Math.round((materials + expenses) * 100) / 100,
-    });
-  }
+    };
+  }));
+  let totalMaterialsCost = 0;
+  let totalExpensesCost = 0;
+  rows.forEach((r) => {
+    totalMaterialsCost += r.materialsCost;
+    totalExpensesCost += r.expensesCost;
+  });
 
   const byStatus = new Map();
   projects.forEach((p) => {
@@ -1105,7 +1115,7 @@ function assetRow(a) {
 // defaults to "within the next 90 days" (including anything already past
 // due — that's more urgent, not less).
 async function buildAssetsReplacementReport(req) {
-  const deptId = parseDepartmentId(req.query);
+  const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
   const where = { replacementPlanDate: { [Op.ne]: null } };
   if (deptId) where.departmentId = deptId;
 
@@ -1140,7 +1150,7 @@ const assetsReplacementExport = asyncHandler(async (req, res) => {
 
 // GET /reports/assets/warranty — expired + expiring-soon (90 days) warranties.
 async function buildAssetsWarrantyReport(req) {
-  const deptId = parseDepartmentId(req.query);
+  const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
   const where = { warrantyExpiryDate: { [Op.ne]: null } };
   if (deptId) where.departmentId = deptId;
   if (req.query.startDate || req.query.endDate) {
@@ -1174,7 +1184,7 @@ const assetsWarrantyExport = asyncHandler(async (req, res) => {
 // GET /reports/assets/inventory — full inventory list, filterable by
 // department/category/status.
 async function buildAssetsInventoryReport(req) {
-  const deptId = parseDepartmentId(req.query);
+  const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
   const where = {};
   if (deptId) where.departmentId = deptId;
   if (req.query.categoryId) where.categoryId = req.query.categoryId;
@@ -1214,7 +1224,7 @@ const assetsInventoryExport = asyncHandler(async (req, res) => {
 
 // GET /reports/assets/ticket-history — which assets generate the most tickets.
 async function buildAssetsTicketHistoryReport(req) {
-  const deptId = parseDepartmentId(req.query);
+  const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
   const range = parseDateRange(req.query);
 
   const linkWhere = {};
@@ -1299,7 +1309,7 @@ function contractRow(c, assetsCoveredCount) {
 
 // GET /reports/licenses/inventory — every license, seats, cost, expiry.
 async function buildLicensesInventoryReport(req) {
-  const deptId = parseDepartmentId(req.query);
+  const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
   const where = {};
   if (deptId) where.departmentId = deptId;
   if (req.query.licenseType) where.licenseType = req.query.licenseType;
@@ -1331,7 +1341,7 @@ const licensesInventoryExport = asyncHandler(async (req, res) => {
 
 // GET /reports/contracts/summary — every contract, cost, renewal date.
 async function buildContractsSummaryReport(req) {
-  const deptId = parseDepartmentId(req.query);
+  const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
   const where = {};
   if (deptId) where.departmentId = deptId;
   if (req.query.contractType) where.contractType = req.query.contractType;
@@ -1367,7 +1377,7 @@ const contractsSummaryExport = asyncHandler(async (req, res) => {
 
 // GET /reports/licenses/spend — sum of license annual costs by department.
 async function buildSoftwareSpendReport(req) {
-  const deptId = parseDepartmentId(req.query);
+  const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
   const where = {};
   if (deptId) where.departmentId = deptId;
 
@@ -1403,7 +1413,7 @@ const softwareSpendExport = asyncHandler(async (req, res) => {
 
 // GET /reports/contracts/spend — sum of contract annual costs by department.
 async function buildContractSpendReport(req) {
-  const deptId = parseDepartmentId(req.query);
+  const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
   const where = {};
   if (deptId) where.departmentId = deptId;
 
@@ -1442,7 +1452,7 @@ const contractSpendExport = asyncHandler(async (req, res) => {
 // renewing within a date range, combined into one sorted list. No range
 // given defaults to "within the next 90 days".
 async function buildUpcomingRenewalsReport(req) {
-  const deptId = parseDepartmentId(req.query);
+  const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
   const range = parseDateRange(req.query);
   const startStr = range.start ? range.start.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
   const endStr = range.end ? range.end.toISOString().slice(0, 10) : new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);

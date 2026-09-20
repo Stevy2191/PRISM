@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import { usePermission } from '../../context/AuthContext';
 import Spinner from '../../components/Spinner';
@@ -432,7 +432,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
               autoFocus
               className="input mb-4"
               placeholder="Report name"
-              value={saveName || (savedId ? '' : '')}
+              value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
             />
             <div className="flex justify-end gap-2">

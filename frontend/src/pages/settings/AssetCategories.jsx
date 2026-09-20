@@ -39,7 +39,7 @@ function InlineFieldForm({ field, onCancel, onSave }) {
   const isNew = !field;
   const [label, setLabel] = useState(field?.label || '');
   const [fieldKey, setFieldKey] = useState(field?.fieldKey || '');
-  const [keyTouched, setKeyTouched] = useState(!isNew);
+  const keyTouched = !isNew;
   const [fieldType, setFieldType] = useState(field?.fieldType || 'text');
   const [required, setRequired] = useState(field?.required || false);
   const [options, setOptions] = useState(field?.options?.length ? field.options : ['', '']);

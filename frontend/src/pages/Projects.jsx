@@ -301,7 +301,7 @@ export default function Projects() {
     }
   };
 
-  const totalCost = useMemo(() => (p) => Number(p.totalCost || 0), []);
+  const totalCost = (p) => Number(p.totalCost || 0);
 
   return (
     <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">

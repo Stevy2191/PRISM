@@ -37,6 +37,19 @@ function PortalShell({ children, wordmark, logoUrl }) {
   );
 }
 
+function ArticleCard({ article }) {
+  return (
+    <Link to={`/kb/a/${article.slug}`} className="card flex items-start gap-3 p-4 transition hover:border-navy-200">
+      <IconFileText size={20} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-accent)' }} />
+      <div className="min-w-0 flex-1">
+        <h3 className="font-medium" style={{ color: TEXT }}>{article.title}</h3>
+        {article.excerpt && <p className="mt-0.5 line-clamp-2 text-sm" style={{ color: MUTED }}>{article.excerpt}</p>}
+      </div>
+      <IconChevronRight size={18} className="mt-0.5 flex-shrink-0" style={{ color: MUTED }} />
+    </Link>
+  );
+}
+
 export default function KbPortal() {
   const { settings } = useSettings();
   const wordmark = settings.appName || settings.branding?.appName || 'PRISM';
@@ -101,16 +114,7 @@ export default function KbPortal() {
             <p className="py-10 text-center text-sm" style={{ color: MUTED }}>No articles found.</p>
           ) : (
             <div className="space-y-2">
-              {articles.map((a) => (
-                <Link key={a.id} to={`/kb/a/${a.slug}`} className="card flex items-start gap-3 p-4 transition hover:border-navy-200">
-                  <IconFileText size={20} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-accent)' }} />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-medium" style={{ color: TEXT }}>{a.title}</h3>
-                    {a.excerpt && <p className="mt-0.5 line-clamp-2 text-sm" style={{ color: MUTED }}>{a.excerpt}</p>}
-                  </div>
-                  <IconChevronRight size={18} className="mt-0.5 flex-shrink-0" style={{ color: MUTED }} />
-                </Link>
-              ))}
+              {articles.map((a) => <ArticleCard key={a.id} article={a} />)}
             </div>
           )}
         </div>
@@ -143,16 +147,7 @@ export default function KbPortal() {
             <div className="card p-10 text-center text-sm" style={{ color: MUTED }}>No published articles yet.</div>
           ) : (
             <div className="space-y-2">
-              {articles.map((a) => (
-                <Link key={a.id} to={`/kb/a/${a.slug}`} className="card flex items-start gap-3 p-4 transition hover:border-navy-200">
-                  <IconFileText size={20} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-accent)' }} />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-medium" style={{ color: TEXT }}>{a.title}</h3>
-                    {a.excerpt && <p className="mt-0.5 line-clamp-2 text-sm" style={{ color: MUTED }}>{a.excerpt}</p>}
-                  </div>
-                  <IconChevronRight size={18} className="mt-0.5 flex-shrink-0" style={{ color: MUTED }} />
-                </Link>
-              ))}
+              {articles.map((a) => <ArticleCard key={a.id} article={a} />)}
             </div>
           )}
         </>

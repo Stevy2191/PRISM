@@ -285,9 +285,14 @@ async function processOneMessage(client, uid, config) {
   const systemActorId = await getSystemActorUserId();
 
   if (ticketId) {
-    const ticket = await Ticket.findByPk(ticketId);
-    if (ticket) {
-      const contact = await findOrCreateContact(fromAddress, fromName);
+    const ticket = await Ticket.findByPk(ticketId, { include: [{ model: Contact, as: 'contact', attributes: ['email'] }] });
+    // The subject/In-Reply-To/References headers are attacker-controlled —
+    // matching a ticket id there is not proof the sender owns that ticket.
+    // Only append as a reply when the From address is the ticket's actual
+    // contact; otherwise fall through to the "unmatched" path below, which
+    // opens a new ticket from this sender instead of letting anyone inject
+    // content into an arbitrary ticket by guessing its id.
+    if (ticket && ticket.contact && ticket.contact.email.toLowerCase() === fromAddress) {
       const comment = await Comment.create({
         body: textBody, authorId: systemActorId, ticketId: ticket.id, type: 'reply',
       });

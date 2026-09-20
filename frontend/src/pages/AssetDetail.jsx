@@ -344,13 +344,16 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
               </div>
             ))}
           </div>
-          {renewalValue?.value && (
-            <p className="text-xs" style={{ color: subscriptionUrgencyColor(renewalValue.value) }}>
-              {subscriptionUrgencyColor(renewalValue.value) === 'var(--color-danger)' ? 'Renews soon or overdue'
-                : subscriptionUrgencyColor(renewalValue.value) === 'var(--color-warning)' ? 'Renewing within 60 days'
-                : 'Renewal not due soon'}
-            </p>
-          )}
+          {renewalValue?.value && (() => {
+            const renewalColor = subscriptionUrgencyColor(renewalValue.value);
+            return (
+              <p className="text-xs" style={{ color: renewalColor }}>
+                {renewalColor === 'var(--color-danger)' ? 'Renews soon or overdue'
+                  : renewalColor === 'var(--color-warning)' ? 'Renewing within 60 days'
+                  : 'Renewal not due soon'}
+              </p>
+            );
+          })()}
         </div>
       )}
 

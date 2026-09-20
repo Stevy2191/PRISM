@@ -18,7 +18,7 @@ const {
   getProjectStatusIdBehaviorMap,
   getTicketStatusBuckets,
 } = require('../services/statusBehavior');
-const { computeProjectCompletion } = require('../services/projectCompletion');
+const { computeProjectCompletion, isTaskComplete, subtaskCompletionPercent } = require('../services/projectCompletion');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const { getUserProjectScope, canAccessProject, hasPermission } = require('../services/permissionService');
 const { generateProjectCode, generateTaskCode, generateSubtaskCode, formatTaskCode, formatSubtaskCode } = require('../services/projectCodeService');
@@ -263,6 +263,11 @@ const get = asyncHandler(async (req, res) => {
 const update = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  // editMin only checked "has ANY edit tier" at the route level — same gap
+  // as get() (see comment there) but for writes.
+  if (!(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
 
   const allowed = [
     'name', 'description', 'status', 'ownerDepartmentId', 'forDepartmentId',
@@ -337,7 +342,6 @@ const listTasks = asyncHandler(async (req, res) => {
     order: [['position', 'ASC'], ['id', 'ASC']],
   });
 
-  const { isTaskComplete, subtaskCompletionPercent } = require('../services/projectCompletion');
   const annotated = tasks.map((t) => {
     const json = t.toJSON();
     json.isComplete = isTaskComplete(t, t.subtasks || [], statusIdBehavior);
@@ -352,6 +356,7 @@ const listTasks = asyncHandler(async (req, res) => {
 const createTask = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const { title, description, statusId, priority, assignedToUserId, dueDate, linkedTicketId } = req.body || {};
   if (!title || !title.trim()) throw new ApiError(400, 'Task title is required', 'VALIDATION_ERROR');
@@ -388,6 +393,10 @@ const createTask = asyncHandler(async (req, res) => {
 const updateTask = asyncHandler(async (req, res) => {
   const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
   if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
 
   const allowed = ['title', 'description', 'statusId', 'priority', 'assignedToUserId', 'dueDate', 'linkedTicketId', 'position'];
   const changes = {};
@@ -417,6 +426,10 @@ const updateTask = asyncHandler(async (req, res) => {
 const removeTask = asyncHandler(async (req, res) => {
   const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
   if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
   await task.destroy();
   await logProjectActivity(req.params.id, req.user.id, 'task_deleted', { taskId: task.id, title: task.title, taskCode: task.taskCode });
   res.json({ ok: true });
@@ -428,6 +441,7 @@ const removeTask = asyncHandler(async (req, res) => {
 const reorderTasks = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const order = Array.isArray(req.body?.order) ? req.body.order.map((v) => parseInt(v, 10)).filter(Boolean) : [];
   if (!order.length) throw new ApiError(400, 'order must be a non-empty array of task IDs', 'VALIDATION_ERROR');
@@ -452,6 +466,9 @@ const renumberTask = asyncHandler(async (req, res) => {
   const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
   if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
   const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
 
   const number = parseInt(req.body?.number, 10);
   if (!Number.isFinite(number) || number < 1 || number > 99) {
@@ -483,6 +500,10 @@ const renumberTask = asyncHandler(async (req, res) => {
 const createSubtask = asyncHandler(async (req, res) => {
   const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
   if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
 
   const { title, statusId, assignedToUserId, dueDate } = req.body || {};
   if (!title || !title.trim()) throw new ApiError(400, 'Subtask title is required', 'VALIDATION_ERROR');
@@ -516,6 +537,12 @@ const createSubtask = asyncHandler(async (req, res) => {
 const updateSubtask = asyncHandler(async (req, res) => {
   const subtask = await ProjectSubtask.findOne({ where: { id: req.params.subtaskId, taskId: req.params.taskId } });
   if (!subtask) throw new ApiError(404, 'Subtask not found', 'NOT_FOUND');
+  const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
+  if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
 
   const allowed = ['title', 'statusId', 'assignedToUserId', 'dueDate', 'position'];
   const changes = {};
@@ -548,6 +575,10 @@ const renumberSubtask = asyncHandler(async (req, res) => {
   if (!subtask) throw new ApiError(404, 'Subtask not found', 'NOT_FOUND');
   const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
   if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
 
   const number = parseInt(req.body?.number, 10);
   if (!Number.isFinite(number) || number < 1 || number > 99) {
@@ -579,6 +610,10 @@ const renumberSubtask = asyncHandler(async (req, res) => {
 const removeSubtask = asyncHandler(async (req, res) => {
   const subtask = await ProjectSubtask.findOne({ where: { id: req.params.subtaskId, taskId: req.params.taskId } });
   if (!subtask) throw new ApiError(404, 'Subtask not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
   await subtask.destroy();
   res.json({ ok: true });
 });
@@ -610,6 +645,7 @@ const listTimeEntries = asyncHandler(async (req, res) => {
 const createTimeEntry = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const { taskId, description, startTime, endTime, entryDate, loggedForUserId } = req.body || {};
 
@@ -668,6 +704,10 @@ const createTimeEntry = asyncHandler(async (req, res) => {
 const updateTimeEntry = asyncHandler(async (req, res) => {
   const entry = await ProjectTimeEntry.findOne({ where: { id: req.params.entryId, projectId: req.params.id } });
   if (!entry) throw new ApiError(404, 'Time entry not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
   if (entry.userId !== req.user.id && req.user.role !== 'admin') {
     throw new ApiError(403, 'You can only edit your own time entries', 'FORBIDDEN');
   }
@@ -699,6 +739,10 @@ const updateTimeEntry = asyncHandler(async (req, res) => {
 const removeTimeEntry = asyncHandler(async (req, res) => {
   const entry = await ProjectTimeEntry.findOne({ where: { id: req.params.entryId, projectId: req.params.id } });
   if (!entry) throw new ApiError(404, 'Time entry not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
   if (entry.userId !== req.user.id && req.user.role !== 'admin') {
     throw new ApiError(403, 'You can only remove your own time entries', 'FORBIDDEN');
   }
@@ -733,6 +777,7 @@ const listExpenses = asyncHandler(async (req, res) => {
 const createExpense = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const { description, amount, category, entryDate, taskId } = req.body || {};
   if (!description || !description.trim()) throw new ApiError(400, 'Description is required', 'VALIDATION_ERROR');
@@ -758,6 +803,10 @@ const createExpense = asyncHandler(async (req, res) => {
 const updateExpense = asyncHandler(async (req, res) => {
   const expense = await ProjectExpense.findOne({ where: { id: req.params.expenseId, projectId: req.params.id } });
   if (!expense) throw new ApiError(404, 'Expense not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
 
   const allowed = ['description', 'amount', 'category', 'entryDate', 'taskId'];
   const changes = {};
@@ -773,6 +822,10 @@ const updateExpense = asyncHandler(async (req, res) => {
 const removeExpense = asyncHandler(async (req, res) => {
   const expense = await ProjectExpense.findOne({ where: { id: req.params.expenseId, projectId: req.params.id } });
   if (!expense) throw new ApiError(404, 'Expense not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
   await expense.destroy();
   res.json({ ok: true });
 });
@@ -803,6 +856,7 @@ const listMaterials = asyncHandler(async (req, res) => {
 const createMaterial = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const { itemName, vendor, modelNumber, serialNumber, quantity, unitCost, taskId, notes } = req.body || {};
   if (!itemName || !itemName.trim()) throw new ApiError(400, 'Item name is required', 'VALIDATION_ERROR');
@@ -839,6 +893,10 @@ const createMaterial = asyncHandler(async (req, res) => {
 const updateMaterial = asyncHandler(async (req, res) => {
   const material = await ProjectMaterial.findOne({ where: { id: req.params.materialId, projectId: req.params.id } });
   if (!material) throw new ApiError(404, 'Material not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
 
   const allowed = ['itemName', 'vendor', 'modelNumber', 'serialNumber', 'quantity', 'unitCost', 'taskId', 'notes'];
   const changes = {};
@@ -862,6 +920,10 @@ const updateMaterial = asyncHandler(async (req, res) => {
 const removeMaterial = asyncHandler(async (req, res) => {
   const material = await ProjectMaterial.findOne({ where: { id: req.params.materialId, projectId: req.params.id } });
   if (!material) throw new ApiError(404, 'Material not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
   await material.destroy();
   res.json({ ok: true });
 });
@@ -886,6 +948,7 @@ const listMembers = asyncHandler(async (req, res) => {
 const addMember = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const { userId, role } = req.body || {};
   if (!userId) throw new ApiError(400, 'userId is required', 'VALIDATION_ERROR');
@@ -910,6 +973,10 @@ const addMember = asyncHandler(async (req, res) => {
 const removeMember = asyncHandler(async (req, res) => {
   const member = await ProjectMember.findOne({ where: { projectId: req.params.id, userId: req.params.userId } });
   if (!member) throw new ApiError(404, 'Member not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
   await member.destroy();
   res.json({ ok: true });
 });
@@ -937,6 +1004,10 @@ const uploadFile = asyncHandler(async (req, res) => {
   if (!project) {
     fs.rm(req.file.path, { force: true }, () => {});
     throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  }
+  if (!(await canAccessProject(req.user, project))) {
+    fs.rm(req.file.path, { force: true }, () => {});
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   }
 
   const { taskId } = req.body || {};
@@ -969,6 +1040,10 @@ const downloadFile = asyncHandler(async (req, res) => {
 const removeFile = asyncHandler(async (req, res) => {
   const file = await ProjectFile.findOne({ where: { id: req.params.fileId, projectId: req.params.id } });
   if (!file) throw new ApiError(404, 'File not found', 'NOT_FOUND');
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) {
+    throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
   await file.destroy();
   fs.rm(file.filepath, { force: true }, () => {});
   res.json({ ok: true });

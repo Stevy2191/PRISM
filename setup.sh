@@ -27,6 +27,47 @@ gen_password() {
     || head -c 10 /dev/urandom | xxd -p 2>/dev/null | tr -d '\n' | cut -c1-20
 }
 
+# Returns success (0) if something is already listening on the given TCP port
+# on this host. Tries the most reliable tool available, falling back to
+# bash's own /dev/tcp so it still works with none of ss/lsof/nc installed.
+port_in_use() {
+  local port="$1"
+  if command -v ss &>/dev/null; then
+    ss -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "[.:]${port}\$"
+  elif command -v lsof &>/dev/null; then
+    lsof -iTCP:"${port}" -sTCP:LISTEN &>/dev/null
+  elif command -v nc &>/dev/null; then
+    nc -z 127.0.0.1 "${port}" &>/dev/null
+  else
+    (exec 3<>"/dev/tcp/127.0.0.1/${port}") 2>/dev/null && exec 3<&- 3>&-
+  fi
+}
+
+# Prompts for a host port, re-prompting until the entered value is a valid,
+# free TCP port. Sets the global APP_PORT. $1 is the default/current port
+# shown in the prompt.
+choose_app_port() {
+  local default_port="$1"
+  local prompt="  Host port to serve PRISM on [${default_port}]: "
+  local input port
+  while true; do
+    read -r -p "$prompt" input
+    port="${input:-$default_port}"
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
+      warn "\"${port}\" is not a valid port number (1-65535)."
+      prompt="  Host port to serve PRISM on: "
+      continue
+    fi
+    if port_in_use "$port"; then
+      warn "Port ${port} is already in use on this machine."
+      prompt="  Enter a different host port to use: "
+      continue
+    fi
+    APP_PORT="$port"
+    break
+  done
+}
+
 # ---------------------------------------------------------------------------
 # Banner
 # ---------------------------------------------------------------------------
@@ -99,8 +140,7 @@ if [[ "$SKIP_CONFIG" == false ]]; then
 
   # Host port
   echo ""
-  read -r -p "  Host port to serve PRISM on [8080]: " APP_PORT
-  APP_PORT="${APP_PORT:-8080}"
+  choose_app_port "8080"
 
   # LDAP / Active Directory
   echo ""
@@ -186,6 +226,13 @@ fi
 if [[ "$SKIP_CONFIG" == true ]]; then
   APP_PORT="$(grep -E '^APP_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')"
   APP_PORT="${APP_PORT:-80}"
+
+  if port_in_use "$APP_PORT"; then
+    warn "Port ${APP_PORT} (from existing .env) is already in use on this machine."
+    choose_app_port "$APP_PORT"
+    sed -i.bak -E "s/^APP_PORT=.*/APP_PORT=${APP_PORT}/" "$ENV_FILE" && rm -f "${ENV_FILE}.bak"
+    success "Updated .env with APP_PORT=${APP_PORT}."
+  fi
 fi
 
 echo ""

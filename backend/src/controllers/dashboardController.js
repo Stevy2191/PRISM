@@ -390,6 +390,20 @@ async function activityFeed(buckets, ticketWhere = {}, projectWhere = {}, { limi
   };
 }
 
+// Shared by GET /dashboard and GET /dashboard/activity: whether the caller
+// sees the system-wide or department-scoped variant of the dashboard.
+async function resolveDashboardScope(userId) {
+  const [canViewAllTickets, canViewAllProjects, canViewDeptTickets, canViewDeptProjects] = await Promise.all([
+    hasPermission(userId, 'tickets.view_all'),
+    hasPermission(userId, 'projects.view_all'),
+    hasPermission(userId, 'tickets.view_department'),
+    hasPermission(userId, 'projects.view_department'),
+  ]);
+  const isSystemView = canViewAllTickets || canViewAllProjects;
+  const isDepartmentView = !isSystemView && (canViewDeptTickets || canViewDeptProjects);
+  return { isSystemView, isDepartmentView };
+}
+
 // GET /dashboard?userId= — everything the dashboard page needs in one round
 // trip. Modes:
 //   admin_system     — tickets.view_all or projects.view_all, no userId:
@@ -404,14 +418,7 @@ async function activityFeed(buckets, ticketWhere = {}, projectWhere = {}, { limi
 const get = asyncHandler(async (req, res) => {
   const requestedUserId = req.query.userId ? parseInt(req.query.userId, 10) : null;
 
-  const [canViewAllTickets, canViewAllProjects, canViewDeptTickets, canViewDeptProjects] = await Promise.all([
-    hasPermission(req.user.id, 'tickets.view_all'),
-    hasPermission(req.user.id, 'projects.view_all'),
-    hasPermission(req.user.id, 'tickets.view_department'),
-    hasPermission(req.user.id, 'projects.view_department'),
-  ]);
-  const isSystemView = canViewAllTickets || canViewAllProjects;
-  const isDepartmentView = !isSystemView && (canViewDeptTickets || canViewDeptProjects);
+  const { isSystemView, isDepartmentView } = await resolveDashboardScope(req.user.id);
 
   if (requestedUserId && !isSystemView && !isDepartmentView) {
     throw new ApiError(403, "You don't have permission to view another user's dashboard", 'FORBIDDEN');
@@ -523,14 +530,7 @@ const get = asyncHandler(async (req, res) => {
 const activityMore = asyncHandler(async (req, res) => {
   const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
 
-  const [canViewAllTickets, canViewAllProjects, canViewDeptTickets, canViewDeptProjects] = await Promise.all([
-    hasPermission(req.user.id, 'tickets.view_all'),
-    hasPermission(req.user.id, 'projects.view_all'),
-    hasPermission(req.user.id, 'tickets.view_department'),
-    hasPermission(req.user.id, 'projects.view_department'),
-  ]);
-  const isSystemView = canViewAllTickets || canViewAllProjects;
-  const isDepartmentView = !isSystemView && (canViewDeptTickets || canViewDeptProjects);
+  const { isSystemView, isDepartmentView } = await resolveDashboardScope(req.user.id);
   if (!isSystemView && !isDepartmentView) {
     throw new ApiError(403, "You don't have permission to view the activity feed", 'FORBIDDEN');
   }
