@@ -1,7 +1,7 @@
 {
   "name": "prism-backend",
   "version": "1.0.0",
-  "description": "PRISM ticketing and project management — backend API",
+  "description": "PRISM ticketing and project management \u2014 backend API",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -44,5 +44,8 @@
     "jose": "^6.2.12",
     "supertest": "^7.2.2",
     "xml-crypto": "^6.3.0"
+  },
+  "engines": {
+    "node": ">=24.9.0"
   }
 }
