@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
-import { errMessage } from '../api/api';
+import api, { errMessage } from '../api/api';
 
 const DEFAULT_BULLETS = ['Ticket & project tracking', 'Time logging & reports', 'AD & local auth', 'API access'];
 const MONO = 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace)';
@@ -27,12 +27,30 @@ export default function Login() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [clock, setClock] = useState(() => formatClock(new Date()));
+  const [ssoProviders, setSsoProviders] = useState([]);
 
   // Live session clock — ticks once a second.
   useEffect(() => {
     const id = setInterval(() => setClock(formatClock(new Date())), 1000);
     return () => clearInterval(id);
   }, []);
+
+  // Configured sign-on providers, if any. A failure here is not worth
+  // surfacing — the password form still works, so it just means no buttons.
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/sso/providers')
+      .then(({ data }) => { if (!cancelled) setSsoProviders(data.providers || []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // A failed sign-on redirects back here with the reason in the query string
+  // (the callback cannot render an error itself — it is an API route).
+  useEffect(() => {
+    const ssoError = new URLSearchParams(location.search).get('ssoError');
+    if (ssoError) setError(ssoError);
+  }, [location.search]);
 
   if (!loading && user) {
     const dest = location.state?.from?.pathname || '/dashboard';
@@ -372,6 +390,45 @@ export default function Login() {
                 {submitting ? 'Authenticating…' : 'Sign in'}
                 {!submitting && <span className="arrow">→</span>}
               </button>
+
+              {ssoProviders.length > 0 && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '1.5rem 0 1rem' }}>
+                    <span style={{ flex: 1, height: 1, backgroundColor: 'var(--color-border)' }} />
+                    <span style={{ fontSize: 11, letterSpacing: '0.08em', color: 'var(--color-text-faint)', fontFamily: MONO, textTransform: 'uppercase' }}>
+                      or
+                    </span>
+                    <span style={{ flex: 1, height: 1, backgroundColor: 'var(--color-border)' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {ssoProviders.map((p) => (
+                      // A full page navigation, not fetch: the browser has to
+                      // follow the redirect to the identity provider itself.
+                      <a
+                        key={p.slug}
+                        href={`/api/v1/sso/${encodeURIComponent(p.slug)}/start?returnTo=${encodeURIComponent(location.state?.from?.pathname || '/dashboard')}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '100%',
+                          padding: '12px 0',
+                          borderRadius: 4,
+                          border: '1px solid var(--color-border)',
+                          backgroundColor: 'transparent',
+                          color: 'var(--color-text)',
+                          fontSize: 14,
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        {p.label}
+                      </a>
+                    ))}
+                  </div>
+                </>
+              )}
 
               <p style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: 'var(--color-text-faint)', margin: '1.75rem 0 0 0', fontFamily: MONO, letterSpacing: '0.04em' }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: 'var(--color-success)' }} />

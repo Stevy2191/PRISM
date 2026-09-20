@@ -59,6 +59,10 @@ const CalendarEventCache = require('./CalendarEventCache')(sequelize);
 const DashboardLayout = require('./DashboardLayout')(sequelize);
 const AdSyncLog = require('./AdSyncLog')(sequelize);
 const AdGroupMapping = require('./AdGroupMapping')(sequelize);
+const SsoProvider = require('./SsoProvider')(sequelize);
+const SsoIdentity = require('./SsoIdentity')(sequelize);
+const SsoGroupMapping = require('./SsoGroupMapping')(sequelize);
+const SsoAuthRequest = require('./SsoAuthRequest')(sequelize);
 const AssignmentRule = require('./AssignmentRule')(sequelize);
 const SlaPolicy = require('./SlaPolicy')(sequelize);
 const EmailProcessingLog = require('./EmailProcessingLog')(sequelize);
@@ -97,6 +101,10 @@ const db = {
   DashboardLayout,
   AdSyncLog,
   AdGroupMapping,
+  SsoProvider,
+  SsoIdentity,
+  SsoGroupMapping,
+  SsoAuthRequest,
   WorkflowAction,
   WorkflowRuleLog,
   SavedReportView,
@@ -548,5 +556,18 @@ EmailProcessingLog.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 // Per-department project-ID sequence
 Department.hasOne(ProjectIdSequence, { foreignKey: 'departmentId', as: 'projectIdSequence' });
 ProjectIdSequence.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+
+// Single sign-on
+SsoProvider.hasMany(SsoIdentity, { foreignKey: 'providerId', as: 'identities', onDelete: 'CASCADE' });
+SsoIdentity.belongsTo(SsoProvider, { foreignKey: 'providerId', as: 'provider' });
+SsoIdentity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(SsoIdentity, { foreignKey: 'userId', as: 'ssoIdentities' });
+
+SsoProvider.hasMany(SsoGroupMapping, { foreignKey: 'providerId', as: 'groupMappings', onDelete: 'CASCADE' });
+SsoGroupMapping.belongsTo(SsoProvider, { foreignKey: 'providerId', as: 'provider' });
+SsoGroupMapping.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
+
+SsoProvider.belongsTo(Role, { foreignKey: 'defaultRoleId', as: 'defaultRole' });
+SsoAuthRequest.belongsTo(SsoProvider, { foreignKey: 'providerId', as: 'provider' });
 
 module.exports = db;

@@ -11,7 +11,10 @@ const models = require('../../src/models');
 const { invalidateAllPermissions } = require('../../src/services/permissionService');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
-const { User, UserRole, Role, Department, Contact, Ticket, Comment } = models;
+const {
+  User, UserRole, Role, Department, Contact, Ticket, Comment,
+  SsoProvider, SsoIdentity, SsoGroupMapping, SsoAuthRequest,
+} = models;
 
 // Seeded system roles created by the migrations.
 const ROLE = {
@@ -100,6 +103,7 @@ async function resetData() {
     'Comments', 'Attachments', 'TicketWatchers', 'TicketTasks', 'TicketActivities',
     'TicketRelations', 'TimeEntries', 'Tickets', 'Contacts',
     'ProjectMembers', 'ProjectTasks', 'Projects',
+    'SsoAuthRequests', 'SsoGroupMappings', 'SsoIdentities', 'SsoProviders',
     'UserRoles', 'UserPermissionOverrides', 'ApiKeys', 'Sessions', 'Users', 'Departments',
   ];
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
@@ -109,6 +113,10 @@ async function resetData() {
     await sequelize.query(`TRUNCATE TABLE \`${table}\``).catch(() => {});
   }
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
+  // SystemSettings is not truncated (migrations seed rows other code relies
+  // on), but settings a test flips must not leak into the next one — SSO
+  // enforcement in particular would fail every subsequent login.
+  await sequelize.query("DELETE FROM SystemSettings WHERE `key` LIKE 'sso.%'").catch(() => {});
   invalidateAllPermissions();
   // Otherwise one case's login attempts rate-limit the next.
   resetRateLimits();
@@ -121,5 +129,6 @@ async function closeDb() {
 module.exports = {
   getApp, ensureSchema, createUser, createUserAndLogin, login, resetData, closeDb, roleIdByName,
   ROLE, models, sequelize,
-  Department, Contact, Ticket, Comment, User,
+  Department, Contact, Ticket, Comment, User, UserRole, Role,
+  SsoProvider, SsoIdentity, SsoGroupMapping, SsoAuthRequest,
 };

@@ -1,7 +1,7 @@
 {
   "name": "prism-backend",
   "version": "1.0.0",
-  "description": "PRISM ticketing and project management \u2014 backend API",
+  "description": "PRISM ticketing and project management — backend API",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -15,6 +15,7 @@
     "test:migrate": "cross-env NODE_ENV=test sequelize-cli db:migrate --env test"
   },
   "dependencies": {
+    "@node-saml/node-saml": "^5.1.0",
     "bcryptjs": "^3.0.3",
     "connect-session-sequelize": "^8.0.6",
     "cors": "^2.8.5",
@@ -31,6 +32,7 @@
     "multer": "^2.2.0",
     "node-ical": "^0.26.1",
     "nodemailer": "^9.0.3",
+    "openid-client": "^6.8.8",
     "pdfkit": "^0.19.1",
     "sanitize-html": "^2.17.6",
     "sequelize": "^6.37.8",
@@ -39,6 +41,8 @@
   "devDependencies": {
     "cross-env": "^10.1.0",
     "jest": "^30.5.1",
-    "supertest": "^7.2.2"
+    "jose": "^6.2.12",
+    "supertest": "^7.2.2",
+    "xml-crypto": "^6.3.0"
   }
 }

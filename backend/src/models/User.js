@@ -104,6 +104,15 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: false,
       },
+      // Exempt from "SSO only" enforcement, so a misconfigured identity
+      // provider cannot lock an organisation out of its own helpdesk. Only
+      // meaningful on local accounts — a directory or SSO account depends on
+      // the very infrastructure it would need to bypass.
+      isBreakGlass: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
       mustChangePassword: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
