@@ -211,6 +211,9 @@ PRISM supports two login methods, selectable via tabs on the login page:
   created automatically on first login **with no permissions** until an administrator
   assigns them a role, and their `displayName`/`email` are synced from the directory
   on every login.
+- **Single sign-on** — SAML 2.0 or OpenID Connect against your own identity provider
+  (Entra ID, Okta, Google Workspace, Keycloak, ADFS, …). Configure under
+  **Settings → Single Sign-On**; see [SSO setup](#single-sign-on-sso) below.
 - **Local Account** — username **or** email + password, verified against a bcrypt
   hash stored in the `Users` table. Local accounts are created **manually by an
   Admin** (Admin → Users → *New Local Account*) and are never created or modified by
@@ -229,6 +232,67 @@ use an `X-API-Key` header (see *Generating an API key*).
 
 Admins can reset a local account's password from **Admin → Users** (which re-arms
 `mustChangePassword`). AD passwords are managed in Active Directory, not in PRISM.
+
+---
+
+## Single sign-on (SSO)
+
+PRISM federates with any identity provider speaking **OpenID Connect** or
+**SAML 2.0**, and can use several at once. Configure them under
+**Settings → Single Sign-On** (requires `settings.manage_system`).
+
+### Adding a provider
+
+1. **Settings → Single Sign-On → Add provider**, pick the protocol and give it
+   a slug (it appears in the callback URL and cannot be changed later).
+2. Save, then copy the **Redirect URI** / **ACS URL** shown on the provider and
+   register it with your IdP. SAML providers also expose service-provider
+   metadata for upload.
+3. For OIDC, supply the issuer URL and client ID/secret — PRISM reads
+   `/.well-known/openid-configuration`, so the endpoints are discovered.
+   For SAML, supply the sign-on URL and the IdP's signing certificate.
+4. Enable the provider. A button appears on the login page.
+
+> Callback URLs are built from `PUBLIC_APP_URL`. Set it, or the URLs PRISM
+> shows (and sends to the IdP) will point at localhost.
+
+### How accounts are matched
+
+Users are matched on the provider's **stable subject identifier** (OIDC `sub`,
+SAML `NameID`) — never on email address, which an IdP may assert without
+verifying and which can be recycled between people.
+
+A subject signing in for the first time gets an account created automatically,
+**with no permissions**, unless a group mapping applies. Turn off *Create
+accounts automatically* to require that an administrator link the account
+first.
+
+### Mapping groups to roles
+
+Under a provider's **Group mappings**, map a group claim value to a PRISM role.
+Mappings are re-evaluated on every sign-in, so removing someone from a group in
+your IdP removes the role here the next time they log in. Roles an
+administrator assigned by hand are left alone.
+
+For OIDC, set the *Groups claim* to whatever your IdP emits (`groups` for Entra
+ID and Okta). For SAML, set the *Groups attribute*.
+
+### Requiring SSO
+
+**Require single sign-on** disables password and directory login for everyone
+except **break-glass accounts** — local accounts marked on their user page as
+able to sign in with a password regardless.
+
+PRISM refuses to turn this on unless at least one enabled provider and one
+active local break-glass account exist, and refuses to remove the last
+break-glass account while it is on. Without that, an identity provider outage
+or misconfiguration would lock you out of your own helpdesk with no way back
+in.
+
+### Not supported
+
+IdP-initiated login (SP-initiated only), Single Logout (SLO), and SCIM
+provisioning.
 
 ---
 

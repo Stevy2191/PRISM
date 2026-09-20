@@ -602,6 +602,28 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const setPhone = (e) => setForm((f) => ({ ...f, phone: formatPhone(e.target.value) }));
 
+  // Break-glass lives on its own endpoint rather than the profile form: the
+  // server refuses to clear the last one while SSO is required, and that
+  // needs to surface immediately rather than on a general save.
+  const [breakGlass, setBreakGlass] = useState(!!user.isBreakGlass);
+  const [breakGlassSaving, setBreakGlassSaving] = useState(false);
+  const [breakGlassError, setBreakGlassError] = useState('');
+
+  const saveBreakGlass = async (next) => {
+    setBreakGlassError('');
+    setBreakGlassSaving(true);
+    const previous = breakGlass;
+    setBreakGlass(next);
+    try {
+      await api.put(`/sso-admin/break-glass/${user.id}`, { isBreakGlass: next });
+    } catch (err) {
+      setBreakGlass(previous);
+      setBreakGlassError(errMessage(err, 'Could not change break-glass access'));
+    } finally {
+      setBreakGlassSaving(false);
+    }
+  };
+
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -646,6 +668,27 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
           <label className="label">Account type</label>
           <p className="text-sm text-navy-700">{user.isLocalAccount ? 'Local' : 'Active Directory'}</p>
         </div>
+        {user.isLocalAccount && (
+          <div>
+            <label className="label">Break-glass access</label>
+            <label className="flex items-start gap-2 text-sm text-navy-700">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-navy-300 text-prism"
+                checked={!!breakGlass}
+                onChange={(e) => saveBreakGlass(e.target.checked)}
+                disabled={breakGlassSaving}
+              />
+              <span>
+                Can still sign in with a password while single sign-on is required.
+                <span className="block text-xs text-navy-400">
+                  Keep at least one, so a problem with your identity provider cannot lock everyone out.
+                </span>
+              </span>
+            </label>
+            {breakGlassError && <p className="mt-1 text-xs text-red-600">{breakGlassError}</p>}
+          </div>
+        )}
         <div>
           <label className="label">Primary role</label>
           <p className="text-sm text-navy-700">{user.primaryRole?.name || 'None assigned'}</p>

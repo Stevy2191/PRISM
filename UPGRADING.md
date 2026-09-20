@@ -1,5 +1,46 @@
 # Upgrading PRISM
 
+## Unreleased — single sign-on
+
+Adds SAML 2.0 and OIDC single sign-on. **Run migrations before starting the
+new backend** (`npm run migrate`, or let the container entrypoint do it) —
+this release adds four tables and one column.
+
+Nothing changes for existing installs until an administrator configures a
+provider: no new required environment variables, and local and LDAP login are
+untouched.
+
+### One setting worth checking
+
+Callback URLs handed to your identity provider are built from
+`PUBLIC_APP_URL`. It is derived from request headers nowhere, deliberately —
+`Host` and `X-Forwarded-Host` are attacker-controllable, and trusting them
+would let someone have an authorization code redirected to a host of their
+choosing. If `PUBLIC_APP_URL` is unset, PRISM falls back to
+`http://localhost:$APP_PORT`, which is fine for local testing and wrong for
+anything else.
+
+### If you intend to require SSO
+
+Designate at least one **break-glass** account first (a user's page →
+*Break-glass access*). PRISM will not let you enable enforcement without one,
+because an identity provider outage would otherwise lock everyone out
+permanently.
+
+See the [SSO section of the README](README.md#single-sign-on-sso) for setup.
+
+### Known issue, pre-existing: migration rollback
+
+`sequelize-cli db:migrate:undo` fails on this project with
+`Cannot delete property 'meta' of [object Array]`. This is an incompatibility
+between `sequelize@6` and `mariadb@3.5` — Sequelize's MariaDB dialect does
+`delete data.meta`, which the newer driver defines as non-configurable. It
+affects any migration whose `down()` calls `removeColumn` (21 of the 47 in
+this repo, including this one) and predates the SSO work. Rolling *forward*
+is unaffected.
+
+---
+
 ## Unreleased — security hardening
 
 This release closes a privilege-escalation flaw and adopts fail-closed

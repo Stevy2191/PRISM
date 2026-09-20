@@ -114,6 +114,7 @@ const SECTIONS = [
       { label: 'API Keys', to: '/admin/apikeys', desc: 'Programmatic access', roles: ALL },
       { label: 'Calendar Integration', to: '/settings/calendar-integration', desc: 'Sync with calendars' },
       { label: 'Directory Sync', to: '/settings/directory-sync', desc: 'AD contact sync & group mapping', permission: SYSTEM_KEYS },
+      { label: 'Single Sign-On', to: '/settings/single-sign-on', desc: 'SAML & OIDC identity providers', permission: SYSTEM_KEYS },
     ],
   },
 ];

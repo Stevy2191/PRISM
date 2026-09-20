@@ -95,14 +95,28 @@ const passwordChangeLimiter = rateLimit({
   message: { error: true, message: 'Too many password change attempts, please try again later', code: 'RATE_LIMITED' },
 });
 
+
+// SSO start/callback — unauthenticated, and each start creates a row. Keyed
+// by IP since there is no user yet. Generous enough for a shared egress IP in
+// an office, tight enough to stop someone filling the table.
+const ssoStore = new MemoryStore();
+const ssoLimiter = rateLimit({
+  store: ssoStore,
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: true, message: 'Too many sign-on attempts, please try again later', code: 'RATE_LIMITED' },
+});
+
 // Clears every limiter's counters. Used by the test suite so one case's
 // login attempts don't rate-limit the next; never called at runtime.
 function resetRateLimits() {
-  [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore]
+  [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
-  apiKeyCreateLimiter, passwordChangeLimiter, resetRateLimits,
+  apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
 };

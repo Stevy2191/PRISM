@@ -7,6 +7,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { resolveUserPermissions } = require('../services/permissionService');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
+const { getAllSettings } = require('./settingsController');
 
 const primaryRoleInclude = [{ model: Role, as: 'primaryRole' }];
 
@@ -62,6 +63,22 @@ async function destroyOtherSessionsForUser(userId, keepSid) {
   }
 }
 
+
+// When an administrator requires SSO, password and directory logins are
+// refused — except for accounts explicitly designated break-glass. Without
+// that exemption a misconfigured or unreachable identity provider would lock
+// an organisation out of its own helpdesk with no way back in.
+async function assertPasswordLoginAllowed(user) {
+  const settings = await getAllSettings();
+  if (settings['sso.enforced'] !== 'true') return;
+  if (user && user.isBreakGlass && user.isLocalAccount) return;
+  throw new ApiError(
+    403,
+    'This organisation requires single sign-on. Use one of the sign-on options on the login page.',
+    'SSO_REQUIRED'
+  );
+}
+
 // POST /auth/login
 // Body: { username, password }
 // Auth method is auto-detected: local accounts take priority; if no local
@@ -106,6 +123,9 @@ async function loginUnified(identifier, password) {
     if (!localUser.isActive) {
       throw new ApiError(401, 'This account has been deactivated', 'ACCOUNT_DEACTIVATED');
     }
+    // Checked only after the password verifies, so the error cannot be used
+    // to enumerate which accounts hold the break-glass exemption.
+    await assertPasswordLoginAllowed(localUser);
     return { user: localUser, method: 'local' };
   }
 
@@ -118,6 +138,9 @@ async function loginUnified(identifier, password) {
   if (!user.isActive) {
     throw new ApiError(401, 'This account has been deactivated', 'ACCOUNT_DEACTIVATED');
   }
+  // A directory account can never be break-glass (it depends on the same
+  // infrastructure SSO does), so enforcement always applies here.
+  await assertPasswordLoginAllowed(user);
   return { user, method: 'ldap' };
 }
 
