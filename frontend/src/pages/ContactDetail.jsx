@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import LoadMore from '../components/LoadMore';
 import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
 import { useAnyPermission, usePermission } from '../context/AuthContext';
@@ -14,6 +15,9 @@ const BORDER = 'var(--color-border)';
 const TEXT = 'var(--color-text-primary)';
 const MUTED = 'var(--color-text-muted)';
 const BLUE = 'var(--color-accent)';
+
+// Rows loaded at a time by the growing detail lists.
+const SUBLIST_STEP = 25;
 const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };
 
 const PRIORITY_META = {
@@ -67,11 +71,11 @@ function formatHours(hours) {
 }
 
 // ==================== Left rail: contact list ====================
-function ContactRail({ contacts, currentId, collapsed, onToggle }) {
-  const [search, setSearch] = useState('');
-  const filtered = search.trim()
-    ? contacts.filter((c) => c.displayName.toLowerCase().includes(search.trim().toLowerCase()))
-    : contacts;
+// The rail lists contacts for quick navigation. Its search is resolved by the
+// API rather than by filtering `contacts` here: the list endpoint returns one
+// page, so a client-side filter would only ever search the first 50 names.
+function ContactRail({ contacts, currentId, collapsed, onToggle, search, onSearchChange, total }) {
+  const filtered = contacts;
 
   if (collapsed) {
     return (
@@ -91,7 +95,7 @@ function ContactRail({ contacts, currentId, collapsed, onToggle }) {
       <div className="flex items-center gap-2 border-b p-3" style={{ borderColor: BORDER }}>
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search contacts…"
           className="input h-8 flex-1 text-sm"
           style={fieldStyle}
@@ -117,6 +121,11 @@ function ContactRail({ contacts, currentId, collapsed, onToggle }) {
           </Link>
         ))}
         {filtered.length === 0 && <p className="px-3 py-4 text-sm" style={{ color: MUTED }}>No matches.</p>}
+        {total > filtered.length && (
+          <p className="px-3 py-3 text-xs" style={{ color: MUTED }}>
+            Showing {filtered.length} of {total.toLocaleString()} — search to narrow.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -317,7 +326,7 @@ function OverviewTab({ stats, recentTickets, statuses }) {
 
 const TICKET_FILTERS = ['All', 'Open', 'Closed', 'On Hold'];
 
-function TicketsTab({ tickets, statuses }) {
+function TicketsTab({ tickets, statuses, total, onLoadMore }) {
   const [filter, setFilter] = useState('All');
   const behaviorByName = new Map(statuses.map((s) => [s.name, s.behaviorType]));
   const filtered = tickets.filter((t) => {
@@ -381,6 +390,7 @@ function TicketsTab({ tickets, statuses }) {
           </tbody>
         </table>
       </div>
+      <LoadMore loaded={tickets.length} total={total} onLoadMore={onLoadMore} noun="tickets" />
     </div>
   );
 }
@@ -391,7 +401,7 @@ const ACTIVITY_LABELS = {
   department_assigned: 'assigned a department',
 };
 
-function ActivityTab({ activity }) {
+function ActivityTab({ activity, total, onLoadMore }) {
   return (
     <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <ul className="divide-y" style={{ borderColor: BORDER }}>
@@ -406,6 +416,7 @@ function ActivityTab({ activity }) {
         ))}
         {activity.length === 0 && <li className="px-4 py-6 text-center text-sm" style={{ color: MUTED }}>No activity yet.</li>}
       </ul>
+      <LoadMore loaded={activity.length} total={total} onLoadMore={onLoadMore} noun="entries" />
     </div>
   );
 }
@@ -422,6 +433,8 @@ export default function ContactDetail() {
   const [stats, setStats] = useState(null);
   const [recentTickets, setRecentTickets] = useState([]);
   const [contactsList, setContactsList] = useState([]);
+  const [contactsTotal, setContactsTotal] = useState(0);
+  const [railSearch, setRailSearch] = useState('');
   const [departments, setDepartments] = useState([]);
   const [assignableUsers, setAssignableUsers] = useState([]);
   const [statuses, setStatuses] = useState([]);
@@ -431,6 +444,13 @@ export default function ContactDetail() {
   const [collapsed, setCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Growing page size rather than accumulated pages — same reason as the
+  // ticket detail page: both lists are refetched after edits.
+  const [ticketsLimit, setTicketsLimit] = useState(SUBLIST_STEP);
+  const [ticketsTotal, setTicketsTotal] = useState(0);
+  const [activityLimit, setActivityLimit] = useState(SUBLIST_STEP);
+  const [activityTotal, setActivityTotal] = useState(0);
 
   const loadDetail = () => {
     api.get(`/contacts/${id}`)
@@ -442,17 +462,29 @@ export default function ContactDetail() {
   useEffect(() => {
     setLoading(true);
     loadDetail();
-    api.get(`/contacts/${id}/tickets`).then(({ data }) => setTickets(data.tickets)).catch(() => {});
-    api.get(`/contacts/${id}/activity`).then(({ data }) => setActivity(data.activity)).catch(() => {});
+    api.get(`/contacts/${id}/tickets`, { params: { limit: ticketsLimit } })
+      .then(({ data }) => { setTickets(data.tickets); setTicketsTotal(data.total); }).catch(() => {});
+    api.get(`/contacts/${id}/activity`, { params: { limit: activityLimit } })
+      .then(({ data }) => { setActivity(data.activity); setActivityTotal(data.total); }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, ticketsLimit, activityLimit]);
 
   useEffect(() => {
-    api.get('/contacts').then(({ data }) => setContactsList(data.contacts)).catch(() => {});
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
     api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
     api.get('/ticket-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
   }, []);
+
+  // Rail contents, refetched as the rail's search box changes.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const params = railSearch.trim() ? { search: railSearch.trim() } : {};
+      api.get('/contacts', { params })
+        .then(({ data }) => { setContactsList(data.contacts); setContactsTotal(data.total); })
+        .catch(() => {});
+    }, railSearch ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [railSearch]);
 
   const saveContact = async (changes) => {
     try {
@@ -474,7 +506,8 @@ export default function ContactDetail() {
       setContact(data.contact);
       showToast(`Department assigned — ${data.ticketsUpdated} ticket${data.ticketsUpdated === 1 ? '' : 's'} updated`);
       api.get(`/contacts/${id}/tickets`).then(({ data: td }) => setTickets(td.tickets)).catch(() => {});
-      api.get(`/contacts/${id}/activity`).then(({ data: ad }) => setActivity(ad.activity)).catch(() => {});
+      api.get(`/contacts/${id}/activity`, { params: { limit: activityLimit } })
+        .then(({ data: ad }) => { setActivity(ad.activity); setActivityTotal(ad.total); }).catch(() => {});
     } catch (err) {
       alert(errMessage(err));
     }
@@ -503,7 +536,15 @@ export default function ContactDetail() {
       className="-mx-3 -my-4 flex flex-col overflow-visible sm:-mx-6 sm:-my-8 md:h-screen md:flex-row md:overflow-hidden"
     >
       <div className="hidden md:contents">
-        <ContactRail contacts={contactsList} currentId={id} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
+        <ContactRail
+          contacts={contactsList}
+          currentId={id}
+          collapsed={collapsed}
+          onToggle={() => setCollapsed((c) => !c)}
+          search={railSearch}
+          onSearchChange={setRailSearch}
+          total={contactsTotal}
+        />
       </div>
 
       <PropertiesPanel
@@ -539,8 +580,21 @@ export default function ContactDetail() {
         </div>
         <div className="flex-1 overflow-visible p-3 sm:p-6 md:overflow-y-auto">
           {tab === 'Overview' && stats && <OverviewTab stats={stats} recentTickets={recentTickets} statuses={statuses} />}
-          {tab === 'Tickets' && <TicketsTab tickets={tickets} statuses={statuses} />}
-          {tab === 'Activity' && <ActivityTab activity={activity} />}
+          {tab === 'Tickets' && (
+            <TicketsTab
+              tickets={tickets}
+              statuses={statuses}
+              total={ticketsTotal}
+              onLoadMore={() => setTicketsLimit((n) => n + SUBLIST_STEP)}
+            />
+          )}
+          {tab === 'Activity' && (
+            <ActivityTab
+              activity={activity}
+              total={activityTotal}
+              onLoadMore={() => setActivityLimit((n) => n + SUBLIST_STEP)}
+            />
+          )}
         </div>
       </div>
     </div>

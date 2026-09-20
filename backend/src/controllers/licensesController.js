@@ -6,12 +6,19 @@ const {
   Asset, AssetCategory, Contact, User, Department,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
+const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
 const { encryptToken, decryptToken } = require('../utils/tokenCrypto');
 const { getAllSettings } = require('./settingsController');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 
 const userAttrs = ['id', 'displayName', 'username'];
+
+const SUBLIST_LIMIT = 25;
+// The detail-page lists grow by "load more", which asks for a larger single
+// page rather than a second one — so their ceiling is higher than the shared
+// 200 used for browsable tables.
+const SUBLIST_MAX = 500;
 
 const licenseInclude = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
@@ -68,8 +75,16 @@ const list = asyncHandler(async (req, res) => {
     }
   }
 
-  const licenses = await License.findAll({ where, include: licenseInclude, order: [['name', 'ASC']] });
-  res.json({ licenses });
+  const { page, limit, offset } = parsePagination(req);
+  const { rows, count } = await License.findAndCountAll({
+    where,
+    include: licenseInclude,
+    order: [['name', 'ASC'], ['id', 'ASC']],
+    limit,
+    offset,
+    distinct: true,
+  });
+  res.json(paginated('licenses', { rows, count }, { page, limit }));
 });
 
 // GET /licenses/:id
@@ -276,12 +291,15 @@ const unassignContact = asyncHandler(async (req, res) => {
 const listAttachments = asyncHandler(async (req, res) => {
   const license = await License.findByPk(req.params.id);
   if (!license) throw new ApiError(404, 'License not found', 'NOT_FOUND');
-  const attachments = await LicenseAttachment.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await LicenseAttachment.findAndCountAll({
     where: { licenseId: license.id },
     include: [{ model: User, as: 'uploadedBy', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ attachments });
+  res.json(paginated('attachments', { rows, count }, { page, limit }));
 });
 
 // POST /licenses/:id/attachments — multipart/form-data (field: "file")
@@ -334,12 +352,15 @@ const removeAttachment = asyncHandler(async (req, res) => {
 const listActivity = asyncHandler(async (req, res) => {
   const license = await License.findByPk(req.params.id);
   if (!license) throw new ApiError(404, 'License not found', 'NOT_FOUND');
-  const activity = await LicenseActivity.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await LicenseActivity.findAndCountAll({
     where: { licenseId: license.id },
     include: [{ model: User, as: 'user', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ activity });
+  res.json(paginated('activity', { rows, count }, { page, limit }));
 });
 
 module.exports = {

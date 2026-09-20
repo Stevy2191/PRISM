@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const { User, Department, Role, UserRole } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
+const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, hasPermission } = require('../services/permissionService');
 const { computeDisplayName } = require('../utils/userDisplay');
@@ -67,16 +68,24 @@ const list = asyncHandler(async (req, res) => {
     const canViewAll = await hasPermission(req.user.id, 'people.view_all');
     where = canViewAll ? {} : { departmentId: req.user.departmentId };
   }
-  const users = await User.findAll({
+  const { page, limit, offset } = parsePagination(req);
+  const { rows, count } = await User.findAndCountAll({
     where,
     include: userInclude,
-    order: [['displayName', 'ASC']],
+    order: [['displayName', 'ASC'], ['id', 'ASC']],
+    limit,
+    offset,
+    distinct: true,
   });
-  res.json({ users });
+  res.json(paginated('users', { rows, count }, { page, limit }));
 });
 
 // GET /users/assignable — any authenticated user. Minimal fields for
 // populating "assignee" pickers/filters; only staff can be assigned tickets.
+//
+// Deliberately NOT paginated, unlike GET /users. This is a dropdown's option
+// list: truncating it would silently hide assignees with no way for the user
+// to tell. It is bounded by staff headcount and carries two columns.
 const listAssignable = asyncHandler(async (req, res) => {
   const users = await User.findAll({
     where: { role: { [Op.in]: ['admin', 'technician'] }, isActive: true },
@@ -87,7 +96,8 @@ const listAssignable = asyncHandler(async (req, res) => {
 });
 
 // GET /users/directory — any authenticated user. Every active user, minimal
-// fields, for the watcher picker on ticket creation.
+// fields, for the watcher picker on ticket creation. Unpaginated for the same
+// reason as /users/assignable — it populates pickers, not a browsable table.
 const listDirectory = asyncHandler(async (req, res) => {
   const users = await User.findAll({
     where: { isActive: true },

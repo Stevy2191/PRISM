@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
 import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
 import { useAuth, useAnyPermission } from '../context/AuthContext';
@@ -179,8 +181,15 @@ export default function Contacts() {
 
   const rowRefs = useRef(new Map());
 
-  const load = () => {
-    setLoading(true);
+  // Which page each letter starts on, for the A-Z rail. Computed server-side
+  // (GET /contacts/index) because a letter's position depends on the whole
+  // filtered set, not the page in the browser.
+  const [alphaIndex, setAlphaIndex] = useState({});
+
+  const filterKey = JSON.stringify([search, departmentId, assignedTo, myContacts, noDept, status, sortBy, sortDir]);
+  const pager = usePagination({ filterKey, storageKey: 'prism.contacts.pageSize' });
+
+  const filterParams = () => {
     const params = { sortBy, sortDir };
     if (search) params.search = search;
     if (departmentId) params.departmentId = departmentId;
@@ -188,10 +197,26 @@ export default function Contacts() {
     if (myContacts) params.myContacts = 'true';
     if (noDept) params.noDept = 'true';
     if (status) params.status = status;
-    api.get('/contacts', { params })
-      .then(({ data }) => setContacts(data.contacts))
+    return params;
+  };
+
+  const load = () => {
+    setLoading(true);
+    const params = filterParams();
+    api.get('/contacts', { params: { ...params, ...pager.params } })
+      .then(({ data }) => { setContacts(data.contacts); pager.applyMeta(data); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
+    // The rail only makes sense under a name sort, so don't pay for it
+    // otherwise. `limit` must match the listing's or the page numbers it
+    // returns would point at the wrong rows.
+    if (sortBy === 'lastName') {
+      api.get('/contacts/index', { params: { ...params, limit: pager.limit } })
+        .then(({ data }) => setAlphaIndex(data.index))
+        .catch(() => setAlphaIndex({}));
+    } else {
+      setAlphaIndex({});
+    }
   };
 
   useEffect(() => {
@@ -204,7 +229,7 @@ export default function Contacts() {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, departmentId, assignedTo, myContacts, noDept, status, sortBy, sortDir]);
+  }, [search, departmentId, assignedTo, myContacts, noDept, status, sortBy, sortDir, pager.page, pager.limit]);
 
   const toggleSort = (col) => {
     if (sortBy === col) {
@@ -215,24 +240,39 @@ export default function Contacts() {
     }
   };
 
-  // First contact whose lastName starts with each letter — used by the A-Z
-  // quick jump rail. Only meaningful while sorted by name.
-  const firstIndexByLetter = useMemo(() => {
-    const map = {};
-    if (sortBy !== 'lastName') return map;
-    contacts.forEach((c, idx) => {
-      const letter = (c.lastName || c.displayName || '?').trim()[0]?.toUpperCase();
-      if (letter && !(letter in map)) map[letter] = idx;
-    });
-    return map;
-  }, [contacts, sortBy]);
+  // Jumping to a letter now means "go to the page it starts on", then scroll
+  // to its first row once that page has rendered. Within the current page the
+  // scroll happens immediately.
+  const [pendingJumpLetter, setPendingJumpLetter] = useState(null);
+
+  const scrollToLetter = (letter) => {
+    const match = contacts.find(
+      (c) => (c.lastName || c.displayName || '?').trim()[0]?.toUpperCase() === letter
+    );
+    if (!match) return false;
+    const row = rowRefs.current.get(match.id);
+    if (!row) return false;
+    row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+  };
 
   const jumpTo = (letter) => {
-    const idx = firstIndexByLetter[letter];
-    if (idx === undefined) return;
-    const row = rowRefs.current.get(contacts[idx].id);
-    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const targetPage = alphaIndex[letter];
+    if (targetPage === undefined) return;
+    if (targetPage !== pager.page) {
+      setPendingJumpLetter(letter);
+      pager.setPage(targetPage);
+      return;
+    }
+    scrollToLetter(letter);
   };
+
+  // Finish a jump that had to change page first.
+  useEffect(() => {
+    if (!pendingJumpLetter || loading) return;
+    if (scrollToLetter(pendingJumpLetter)) setPendingJumpLetter(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts, loading, pendingJumpLetter]);
 
   const handleCreated = (contact) => {
     setShowNew(false);
@@ -246,7 +286,7 @@ export default function Contacts() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Contacts</h1>
-              <p className="text-sm" style={{ color: MUTED }}>{contacts.length} contact{contacts.length === 1 ? '' : 's'}</p>
+              <p className="text-sm" style={{ color: MUTED }}>{pager.total.toLocaleString()} contact{pager.total === 1 ? '' : 's'}</p>
             </div>
             {canEdit && (
               <div className="flex gap-2">
@@ -319,7 +359,7 @@ export default function Contacts() {
               className="order-1 mb-2 flex flex-shrink-0 gap-0.5 overflow-x-auto py-1 md:order-2 md:mb-0 md:ml-2 md:flex-col md:items-center md:justify-center md:overflow-visible md:py-2"
             >
               {ALPHABET.map((letter) => {
-                const has = firstIndexByLetter[letter] !== undefined;
+                const has = alphaIndex[letter] !== undefined;
                 return (
                   <button
                     key={letter}
@@ -457,6 +497,16 @@ export default function Contacts() {
                 </tbody>
               </table>
               </>
+            )}
+            {!loading && contacts.length > 0 && (
+              <Pagination
+                page={pager.page}
+                limit={pager.limit}
+                total={pager.total}
+                totalPages={pager.totalPages}
+                onPageChange={pager.setPage}
+                onLimitChange={pager.setLimit}
+              />
             )}
           </div>
         </div>

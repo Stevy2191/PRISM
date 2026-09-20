@@ -22,6 +22,7 @@ const {
   Project,
   Department,
   SystemSettings,
+  TicketStatus,
   sequelize,
 } = require('../models');
 const { Op } = require('sequelize');
@@ -41,6 +42,7 @@ const { matchAssignmentRule } = require('./assignmentRulesController');
 const { sendMail } = require('../services/emailSender');
 const { buildTicketMessageId } = require('../services/inboundEmailService');
 const { calculateLaborCost } = require('../utils/laborCost');
+const { parsePagination, paginated } = require('../utils/pagination');
 const { generateTicketReport } = require('../services/ticketReport');
 const { getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent } = require('../services/permissionService');
 const { evaluateRules } = require('../services/workflowEngine');
@@ -138,14 +140,25 @@ async function canLogForOthers(user) {
   return !!lead;
 }
 
+// Default page size for the per-record lists on a ticket's detail page
+// (comments, attachments, time entries, activity). They use a "load more"
+// control rather than numbered pages, so this is the chunk size.
+const SUBLIST_LIMIT = 25;
+// The detail-page lists grow by "load more", which asks for a larger single
+// page rather than a second one — so their ceiling is higher than the shared
+// 200 used for browsable tables.
+const SUBLIST_MAX = 500;
+
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
 
-// GET /tickets — with filters
-const list = asyncHandler(async (req, res) => {
+// Builds the WHERE clause for a ticket listing from the query string plus the
+// caller's permission scope. Shared by the paginated table listing and the
+// board, so both honour exactly the same filters and scope rules.
+async function buildTicketListWhere(req) {
   const where = {};
   const {
     status, priority, assignee, project, department, contactId, type, team, source,
-    search, myTickets, overdue, unassigned, sortBy, sortDir,
+    search, myTickets, overdue, unassigned,
   } = req.query;
 
   // "Closed" in the UI covers every status whose behaviorType is 'closed';
@@ -199,28 +212,155 @@ const list = asyncHandler(async (req, res) => {
     where.assigneeId = req.user.id;
   }
 
-  const orderColumn = SORTABLE_COLUMNS.includes(sortBy) ? sortBy : 'updatedAt';
-  const orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
+  return where;
+}
 
-  const tickets = await Ticket.findAll({
+// Resolves a `?sortBy=cf:<fieldKey>` into the ORDER BY pieces needed to sort
+// on a custom field's value. Sorting used to happen in the browser over the
+// whole result set; with pagination the browser only ever holds one page, so
+// it has to happen in SQL. Returns null for a normal column sort.
+async function resolveCustomFieldSort(sortBy) {
+  if (typeof sortBy !== 'string' || !sortBy.startsWith('cf:')) return null;
+  const fieldKey = sortBy.slice(3);
+  const field = await CustomField.findOne({ where: { fieldKey } });
+  if (!field) return null;
+  // Values live in a single TEXT column, so a number field has to be cast or
+  // it sorts lexically ("10" before "9").
+  const col = sequelize.col('fieldValues.value');
+  return {
+    fieldId: field.id,
+    orderExpr: field.fieldType === 'number' ? sequelize.cast(col, 'DECIMAL(20,6)') : col,
+  };
+}
+
+// Resolves one page of ticket ids, then hydrates just those.
+//
+// This is deliberately two queries. `ticketInclude` pulls in hasMany/belongsToMany
+// associations (fieldValues, linkedAssets), and combining those with LIMIT in a
+// single findAndCountAll goes wrong twice over: `count` counts joined rows rather
+// than tickets, and LIMIT applies to joined rows too. Selecting bare ids first —
+// no hasMany joins — keeps both honest, and the second query needs no limit at all
+// because it is already constrained to one page of ids.
+async function fetchTicketPage(where, { limit, offset, sortBy, sortDir }) {
+  const orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
+  const cfSort = await resolveCustomFieldSort(sortBy);
+
+  const idQuery = {
     where,
-    include: ticketInclude,
-    order: [[orderColumn, orderDir]],
+    attributes: ['id'],
+    limit,
+    offset,
+    distinct: true,
+    subQuery: false,
+    raw: true,
+  };
+
+  if (cfSort) {
+    idQuery.include = [{
+      model: TicketFieldValue,
+      as: 'fieldValues',
+      attributes: [],
+      required: false,
+      where: { fieldId: cfSort.fieldId },
+    }];
+    // Tickets with no value for the field still appear (LEFT JOIN), they just
+    // sort together as NULLs. `id` breaks ties so paging stays stable.
+    idQuery.order = [[cfSort.orderExpr, orderDir], ['id', 'DESC']];
+  } else {
+    const column = SORTABLE_COLUMNS.includes(sortBy) ? sortBy : 'updatedAt';
+    idQuery.order = [[column, orderDir], ['id', 'DESC']];
+  }
+
+  const { rows: idRows, count } = await Ticket.findAndCountAll(idQuery);
+  const ids = idRows.map((r) => r.id);
+  if (!ids.length) return { tickets: [], count: Array.isArray(count) ? count.length : count };
+
+  const hydrated = await Ticket.findAll({ where: { id: { [Op.in]: ids } }, include: ticketInclude });
+  const byId = new Map(hydrated.map((t) => [t.id, t]));
+  return {
+    tickets: ids.map((id) => byId.get(id)).filter(Boolean),
+    count: Array.isArray(count) ? count.length : count,
+  };
+}
+
+// Sums logged time per ticket for a page of tickets.
+async function timeLoggedByTicket(ticketIds) {
+  if (!ticketIds.length) return new Map();
+  const totals = await TimeEntry.findAll({
+    where: { ticketId: { [Op.in]: ticketIds } },
+    attributes: ['ticketId', [sequelize.fn('SUM', sequelize.col('minutes')), 'total']],
+    group: ['ticketId'],
+    raw: true,
+  });
+  return new Map(totals.map((r) => [r.ticketId, Number(r.total) || 0]));
+}
+
+// GET /tickets — with filters, paginated
+const list = asyncHandler(async (req, res) => {
+  const where = await buildTicketListWhere(req);
+  const { page, limit, offset } = parsePagination(req);
+  const { tickets, count } = await fetchTicketPage(where, {
+    limit, offset, sortBy: req.query.sortBy, sortDir: req.query.sortDir,
   });
 
-  const ticketIds = tickets.map((t) => t.id);
-  const timeTotals = ticketIds.length
-    ? await TimeEntry.findAll({
-        where: { ticketId: { [Op.in]: ticketIds } },
-        attributes: ['ticketId', [sequelize.fn('SUM', sequelize.col('minutes')), 'total']],
-        group: ['ticketId'],
-        raw: true,
-      })
-    : [];
-  const minutesByTicket = new Map(timeTotals.map((r) => [r.ticketId, Number(r.total) || 0]));
+  const minutesByTicket = await timeLoggedByTicket(tickets.map((t) => t.id));
+
+  res.json(paginated(
+    'tickets',
+    {
+      rows: tickets.map((t) => ({
+        ...withCustomFields(t),
+        timeLoggedMinutes: minutesByTicket.get(t.id) || 0,
+      })),
+      count,
+    },
+    { page, limit }
+  ));
+});
+
+// Per-column cap on the board. The board is a whole-pipeline view, so it can't
+// be paged the way the table is — instead each column shows its newest N and
+// reports its true total so the UI can say "+N more".
+const BOARD_COLUMN_LIMIT = 100;
+
+// GET /tickets/board — the same filters as GET /tickets, but grouped into one
+// bucket per ticket status and capped per bucket instead of paged.
+const board = asyncHandler(async (req, res) => {
+  const baseWhere = await buildTicketListWhere(req);
+  const statuses = await TicketStatus.findAll({
+    where: { behaviorType: { [Op.ne]: 'archived' } },
+    order: [['position', 'ASC']],
+  });
+
+  const columns = await Promise.all(statuses.map(async (s) => {
+    // Each column re-applies the shared filters with its own status pinned.
+    // `status` from the query string is intentionally overridden: the board
+    // shows every column, and the table's status dropdown is hidden in board
+    // view.
+    const where = { ...baseWhere, status: s.name };
+    const { tickets, count } = await fetchTicketPage(where, {
+      limit: BOARD_COLUMN_LIMIT,
+      offset: 0,
+      sortBy: req.query.sortBy,
+      sortDir: req.query.sortDir,
+    });
+    return { status: s.toJSON(), tickets, total: count };
+  }));
+
+  const minutesByTicket = await timeLoggedByTicket(
+    columns.flatMap((c) => c.tickets.map((t) => t.id))
+  );
 
   res.json({
-    tickets: tickets.map((t) => ({ ...withCustomFields(t), timeLoggedMinutes: minutesByTicket.get(t.id) || 0 })),
+    columns: columns.map((c) => ({
+      status: c.status,
+      total: c.total,
+      limit: BOARD_COLUMN_LIMIT,
+      tickets: c.tickets.map((t) => ({
+        ...withCustomFields(t),
+        timeLoggedMinutes: minutesByTicket.get(t.id) || 0,
+      })),
+    })),
   });
 });
 
@@ -530,12 +670,19 @@ const listComments = asyncHandler(async (req, res) => {
   const canViewPrivate = await hasPermission(req.user.id, 'tickets.view_private_comments');
   if (!canViewPrivate) where.type = { [Op.ne]: 'comment_private' };
 
-  const comments = await Comment.findAll({
+  // Comments read oldest-first, but the page worth loading first is the
+  // newest one — so select descending (page 1 = most recent) and flip each
+  // page back into reading order before sending it. "Show older comments"
+  // then just asks for page 2, 3, ... and prepends.
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await Comment.findAndCountAll({
     where,
     include: [{ model: User, as: 'author', attributes: userAttrs }],
-    order: [['createdAt', 'ASC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ comments });
+  res.json(paginated('comments', { rows: rows.slice().reverse(), count }, { page, limit }));
 });
 
 // Emails a customer-visible reply out to the ticket's contact — fire-and-
@@ -674,12 +821,15 @@ const listAttachments = asyncHandler(async (req, res) => {
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
-  const attachments = await Attachment.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await Attachment.findAndCountAll({
     where: { ticketId: ticket.id },
     include: [{ model: User, as: 'uploadedBy', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ attachments });
+  res.json(paginated('attachments', { rows, count }, { page, limit }));
 });
 
 // POST /tickets/:id/attachments — multipart/form-data (field: "file")
@@ -761,16 +911,29 @@ const listTime = asyncHandler(async (req, res) => {
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
-  const entries = await TimeEntry.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await TimeEntry.findAndCountAll({
     where: { ticketId: ticket.id },
     include: [
       { model: User, as: 'user', attributes: userAttrs },
       { model: User, as: 'loggedBy', attributes: userAttrs },
     ],
-    order: [['loggedAt', 'DESC']],
+    order: [['loggedAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  const totalMinutes = entries.reduce((sum, e) => sum + e.minutes, 0);
-  res.json({ entries, totalMinutes });
+  // totalMinutes is the ticket's whole logged time, not this page's — it's a
+  // headline figure, and summing only the visible rows would quietly
+  // under-report it.
+  const [{ total: summed } = {}] = await TimeEntry.findAll({
+    where: { ticketId: ticket.id },
+    attributes: [[sequelize.fn('SUM', sequelize.col('minutes')), 'total']],
+    raw: true,
+  });
+  res.json({
+    ...paginated('entries', { rows, count }, { page, limit }),
+    totalMinutes: Number(summed) || 0,
+  });
 });
 
 // POST /tickets/:id/time — Admin/Technician (enforced at route level)
@@ -1171,12 +1334,15 @@ const listActivity = asyncHandler(async (req, res) => {
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
-  const activity = await TicketActivity.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await TicketActivity.findAndCountAll({
     where: { ticketId: ticket.id },
     include: [{ model: User, as: 'user', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ activity });
+  res.json(paginated('activity', { rows, count }, { page, limit }));
 });
 
 // GET /tickets/:id/report — streams a generated PDF report for this ticket.
@@ -1190,6 +1356,7 @@ const generateReport = asyncHandler(async (req, res) => {
 
 module.exports = {
   list,
+  board,
   create,
   get,
   update,

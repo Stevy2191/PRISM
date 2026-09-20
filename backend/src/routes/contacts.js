@@ -19,6 +19,8 @@ router.post('/import', editMin, contactsImportLimiter, importCtrl.commit);
 
 router.get('/', viewMin, ctrl.list);
 router.post('/', editMin, ctrl.create);
+// Must precede '/:id' — otherwise 'index' is read as a contact id.
+router.get('/index', viewMin, ctrl.alphaIndex);
 router.get('/:id', viewMin, ctrl.get);
 router.patch('/:id', editMin, ctrl.update);
 router.patch('/:id/department', editMin, ctrl.assignDepartment);

@@ -15,7 +15,9 @@ export default function Teams() {
   const [form, setForm] = useState(EMPTY);
 
   const load = () => {
-    Promise.all([api.get('/teams'), api.get('/departments'), api.get('/users')])
+    // limit=all — `users` here is the team-member picker's option list, not a
+    // browsable table, so it must not be cut off at one page.
+    Promise.all([api.get('/teams'), api.get('/departments'), api.get('/users', { params: { limit: 'all' } })])
       .then(([t, d, u]) => { setTeams(t.data.teams); setDepartments(d.data.departments); setUsers(u.data.users); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));

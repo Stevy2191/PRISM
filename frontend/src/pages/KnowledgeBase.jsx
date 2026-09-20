@@ -4,6 +4,8 @@ import {
   IconSearch, IconPlus, IconWorld, IconLock, IconUsers, IconFolder, IconDots, IconTrash, IconPencil, IconFileText,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
 import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
@@ -115,6 +117,9 @@ export default function KnowledgeBase() {
   const [activeCat, setActiveCat] = useState(''); // '', 'none', or category id
   const [status, setStatus] = useState('');
   const [audience, setAudience] = useState(''); // '', 'internal' (agents), 'public' (end users)
+
+  const filterKey = JSON.stringify([search, activeCat, status, audience]);
+  const pager = usePagination({ filterKey, storageKey: 'prism.kb.pageSize' });
   const [showCatManager, setShowCatManager] = useState(false);
 
   const loadCategories = useCallback(() => {
@@ -128,11 +133,12 @@ export default function KnowledgeBase() {
     if (activeCat) params.categoryId = activeCat;
     if (status) params.status = status;
     if (audience) params.visibility = audience;
-    api.get('/knowledge/articles', { params })
-      .then(({ data }) => setArticles(data.articles))
+    api.get('/knowledge/articles', { params: { ...params, ...pager.params } })
+      .then(({ data }) => { setArticles(data.articles); pager.applyMeta(data); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
-  }, [search, activeCat, status, audience]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, activeCat, status, audience, pager.page, pager.limit]);
 
   useEffect(() => { loadCategories(); }, [loadCategories]);
   useEffect(() => {
@@ -259,6 +265,18 @@ export default function KnowledgeBase() {
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+          {!loading && articles.length > 0 && (
+            <div className="card mt-3">
+              <Pagination
+                page={pager.page}
+                limit={pager.limit}
+                total={pager.total}
+                totalPages={pager.totalPages}
+                onPageChange={pager.setPage}
+                onLimitChange={pager.setLimit}
+              />
             </div>
           )}
         </div>

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
 import { initials } from '../utils/userDisplay';
 import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
@@ -202,10 +204,13 @@ export default function Projects() {
   const [showBulkBar, setShowBulkBar] = useState(false);
   const [bulkBarClosing, setBulkBarClosing] = useState(false);
 
-  const allTags = useMemo(
-    () => [...new Set(projects.flatMap((p) => p.tags || []))].sort((a, b) => a.localeCompare(b)),
-    [projects]
-  );
+  // The tag filter's options come from their own endpoint rather than from
+  // the loaded projects — with one page loaded, deriving them here would only
+  // ever offer the tags that happen to be on the current page.
+  const [allTags, setAllTags] = useState([]);
+
+  const filterKey = JSON.stringify([search, statusFilter, ownerDeptFilter, forDeptFilter, assigneeFilter, tagFilter, myProjects, myDepartment, overdue]);
+  const pager = usePagination({ filterKey, storageKey: 'prism.projects.pageSize' });
 
   const load = () => {
     setLoading(true);
@@ -219,8 +224,8 @@ export default function Projects() {
     if (myProjects) params.myProjects = 'true';
     if (myDepartment) params.myDepartment = 'true';
     if (overdue) params.overdue = 'true';
-    api.get('/projects', { params })
-      .then(({ data }) => setProjects(data.projects))
+    api.get('/projects', { params: { ...params, ...pager.params } })
+      .then(({ data }) => { setProjects(data.projects); pager.applyMeta(data); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
   };
@@ -235,6 +240,7 @@ export default function Projects() {
     api.get('/project-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
     if (isStaff) api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
+    api.get('/projects/tags').then(({ data }) => setAllTags(data.tags)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -242,7 +248,7 @@ export default function Projects() {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusFilter, ownerDeptFilter, forDeptFilter, assigneeFilter, tagFilter, myProjects, myDepartment, overdue]);
+  }, [search, statusFilter, ownerDeptFilter, forDeptFilter, assigneeFilter, tagFilter, myProjects, myDepartment, overdue, pager.page, pager.limit]);
 
   useEffect(() => {
     if (selectedIds.size > 0) {
@@ -555,6 +561,19 @@ export default function Projects() {
           </div>
         )}
       </div>
+
+      {!loading && projects.length > 0 && (
+        <div style={{ backgroundColor: CARD_BG, flex: '0 0 auto' }}>
+          <Pagination
+            page={pager.page}
+            limit={pager.limit}
+            total={pager.total}
+            totalPages={pager.totalPages}
+            onPageChange={(next) => { pager.setPage(next); clearSelection(); }}
+            onLimitChange={(next) => { pager.setLimit(next); clearSelection(); }}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   IconLock, IconWorld, IconAlertTriangle, IconLink, IconFileText, IconMail, IconPhone,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
+import LoadMore from '../components/LoadMore';
 import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
 import { useAuth, usePermission } from '../context/AuthContext';
@@ -23,6 +24,10 @@ const MUTED = 'var(--color-text-muted)';
 const BLUE = 'var(--color-accent)';
 const TIMER_COLOR = 'var(--color-timer)';
 const PURPLE = 'var(--color-relation-accent)';
+
+// How many rows the growing detail lists (comments, activity) load at a time.
+// Matches the API's own default page size for these endpoints.
+const SUBLIST_STEP = 25;
 const PURPLE_LIGHT = 'var(--color-relation-accent-light)';
 const SIDEBAR_STORAGE_KEY = 'prism.ticketDetail.sidebar';
 
@@ -1124,9 +1129,12 @@ function Sidebar({
 
 // ---- Conversation tab ----
 
-function ConversationTab({ ticket, comments }) {
+function ConversationTab({ ticket, comments, total, onLoadMore }) {
   return (
     <div className="space-y-4">
+      {/* Older messages sit above the thread, where they'd be if they were
+          already loaded. */}
+      <LoadMore loaded={comments.length} total={total} onLoadMore={onLoadMore} noun="messages" />
       {comments.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No messages yet.</p>}
       {comments.map((c) => {
         const isCustomer = c.authorId === ticket.requesterId;
@@ -1898,7 +1906,7 @@ function activityDescription(a) {
   return `${actor} updated this ticket`;
 }
 
-function ActivityTab({ activity }) {
+function ActivityTab({ activity, total, onLoadMore }) {
   return (
     <ul className="space-y-3">
       {activity.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No activity yet.</p>}
@@ -1911,6 +1919,7 @@ function ActivityTab({ activity }) {
           </div>
         </li>
       ))}
+      <LoadMore loaded={activity.length} total={total} onLoadMore={onLoadMore} noun="entries" />
     </ul>
   );
 }
@@ -1927,12 +1936,19 @@ export default function TicketDetail() {
   const [ticket, setTicket] = useState(null);
   const ticketTimer = useTicketTimer(ticket);
   const [comments, setComments] = useState([]);
+  // "Load more" grows the page size rather than accumulating pages: almost
+  // every action on this page triggers a refetch, and a grown limit survives
+  // those where an accumulated page count would not.
+  const [commentLimit, setCommentLimit] = useState(SUBLIST_STEP);
+  const [commentTotal, setCommentTotal] = useState(0);
   const [attachments, setAttachments] = useState([]);
   const [time, setTime] = useState({ entries: [], totalMinutes: 0 });
   const [relations, setRelations] = useState([]);
   const [watchers, setWatchers] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [activityLimit, setActivityLimit] = useState(SUBLIST_STEP);
+  const [activityTotal, setActivityTotal] = useState(0);
   const [directory, setDirectory] = useState([]);
   const [assignableUsers, setAssignableUsers] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -1963,30 +1979,40 @@ export default function TicketDetail() {
     try {
       const [t, c, a, tm, rel, w, tk, act] = await Promise.all([
         api.get(`/tickets/${id}`),
-        api.get(`/tickets/${id}/comments`),
-        api.get(`/tickets/${id}/attachments`),
-        api.get(`/tickets/${id}/time`),
+        api.get(`/tickets/${id}/comments`, { params: { limit: commentLimit } }),
+        api.get(`/tickets/${id}/attachments`, { params: { limit: 'all' } }),
+        api.get(`/tickets/${id}/time`, { params: { limit: 'all' } }),
         api.get(`/tickets/${id}/relations`),
         api.get(`/tickets/${id}/watchers`),
         api.get(`/tickets/${id}/tasks`),
-        api.get(`/tickets/${id}/activity`),
+        api.get(`/tickets/${id}/activity`, { params: { limit: activityLimit } }),
       ]);
       setTicket(t.data.ticket);
       setComments(c.data.comments);
+      setCommentTotal(c.data.total);
       setAttachments(a.data.attachments);
       setTime(tm.data);
       setRelations(rel.data.relations);
       setWatchers(w.data.watchers);
       setTasks(tk.data.tasks);
       setActivity(act.data.activity);
+      setActivityTotal(act.data.total);
     } catch (err) {
       setError(errMessage(err));
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, commentLimit, activityLimit]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Actions all over this page refresh the activity feed. Routing them through
+  // one helper keeps the "load more" expansion intact.
+  const reloadActivity = useCallback(() => (
+    api.get(`/tickets/${id}/activity`, { params: { limit: activityLimit } })
+      .then(({ data }) => { setActivity(data.activity); setActivityTotal(data.total); })
+      .catch(() => {})
+  ), [id, activityLimit]);
 
   useEffect(() => {
     api.get('/users/directory').then(({ data }) => setDirectory(data.users)).catch(() => {});
@@ -2074,14 +2100,14 @@ export default function TicketDetail() {
 
   const reloadActivityAndRelations = () => {
     api.get(`/tickets/${id}/relations`).then(({ data }) => setRelations(data.relations)).catch(() => {});
-    api.get(`/tickets/${id}/activity`).then(({ data }) => setActivity(data.activity)).catch(() => {});
+    reloadActivity();
   };
 
   const patchTicket = async (changes) => {
     try {
       const { data } = await api.patch(`/tickets/${id}`, changes);
       setTicket(data.ticket);
-      api.get(`/tickets/${id}/activity`).then(({ data: d }) => setActivity(d.activity)).catch(() => {});
+      reloadActivity();
     } catch (err) {
       alert(errMessage(err));
     }
@@ -2099,7 +2125,7 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}/custom-field-values`, { values: { [fieldKey]: value } });
       setTicket((prev) => (prev ? { ...prev, customFields: data.customFields } : prev));
-      api.get(`/tickets/${id}/activity`).then(({ data: d }) => setActivity(d.activity)).catch(() => {});
+      reloadActivity();
     } catch (err) {
       alert(errMessage(err));
     }
@@ -2137,14 +2163,14 @@ export default function TicketDetail() {
   };
 
   const reloadTime = () => {
-    api.get(`/tickets/${id}/time`).then(({ data }) => setTime(data)).catch(() => {});
-    api.get(`/tickets/${id}/activity`).then(({ data }) => setActivity(data.activity)).catch(() => {});
+    api.get(`/tickets/${id}/time`, { params: { limit: 'all' } }).then(({ data }) => setTime(data)).catch(() => {});
+    reloadActivity();
   };
 
   const sendReply = async (body, type) => {
     const { data } = await api.post(`/tickets/${id}/comments`, { body, type });
     setComments((prev) => [...prev, data.comment]);
-    api.get(`/tickets/${id}/activity`).then(({ data: d }) => setActivity(d.activity)).catch(() => {});
+    reloadActivity();
   };
 
   const uploadFile = async (file) => {
@@ -2153,7 +2179,7 @@ export default function TicketDetail() {
     try {
       const { data } = await api.post(`/tickets/${id}/attachments`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setAttachments((prev) => [data.attachment, ...prev]);
-      api.get(`/tickets/${id}/activity`).then(({ data: d }) => setActivity(d.activity)).catch(() => {});
+      reloadActivity();
     } catch (err) {
       alert(errMessage(err));
     }
@@ -2256,7 +2282,7 @@ export default function TicketDetail() {
       userId: loggedForId,
     });
     setTime((t) => ({ entries: [data.entry, ...t.entries], totalMinutes: t.totalMinutes + data.entry.minutes }));
-    api.get(`/tickets/${id}/activity`).then(({ data: d }) => setActivity(d.activity)).catch(() => {});
+    reloadActivity();
   };
 
   if (loading) return <Spinner />;
@@ -2438,7 +2464,14 @@ export default function TicketDetail() {
           </div>
 
           <div className="p-6" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
-            {activeTab === 'conversation' && <ConversationTab ticket={ticket} comments={comments} />}
+            {activeTab === 'conversation' && (
+              <ConversationTab
+                ticket={ticket}
+                comments={comments}
+                total={commentTotal}
+                onLoadMore={() => setCommentLimit((n) => n + SUBLIST_STEP)}
+              />
+            )}
             {activeTab === 'resolution' && (
               <ResolutionTab ticket={ticket} onSave={saveResolution} isStaff={isStaff} />
             )}
@@ -2461,7 +2494,13 @@ export default function TicketDetail() {
             {activeTab === 'relationships' && (
               <RelationshipsTab ticketId={id} relations={relations} isStaff={isStaff} reload={reloadActivityAndRelations} closedStatusNames={closedStatusNames} />
             )}
-            {activeTab === 'activity' && <ActivityTab activity={activity} />}
+            {activeTab === 'activity' && (
+              <ActivityTab
+                activity={activity}
+                total={activityTotal}
+                onLoadMore={() => setActivityLimit((n) => n + SUBLIST_STEP)}
+              />
+            )}
           </div>
 
           {/* Sibling below the scrollable tab content, not inside it — stays

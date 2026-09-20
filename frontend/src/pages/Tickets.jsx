@@ -7,6 +7,8 @@ import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
 
 // Colors read from the admin-customizable theme CSS variables (Settings -> Appearance).
 const BG = 'var(--color-bg)';
@@ -430,6 +432,10 @@ export default function Tickets() {
   const navigate = useNavigate();
 
   const [tickets, setTickets] = useState([]);
+  // Board columns come from the server pre-grouped (GET /tickets/board) — the
+  // browser only ever holds one page of the table, so it can't group the whole
+  // pipeline itself any more.
+  const [boardData, setBoardData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [assignableUsers, setAssignableUsers] = useState([]);
@@ -447,11 +453,22 @@ export default function Tickets() {
   const [newFromEmail, setNewFromEmail] = useState(false);
   const [sort, setSort] = useState({ key: 'updatedAt', dir: 'desc' });
 
+  // Any change to a filter has to send the table back to page 1 — otherwise
+  // narrowing the results while on page 5 shows an empty table.
+  const filterKey = JSON.stringify([search, status, priority, assignee, myTickets, overdue, unassigned, newFromEmail, sort]);
+  const pager = usePagination({ filterKey, storageKey: 'prism.tickets.pageSize' });
+
   const [view, setView] = useState('table');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [columnPrefs, setColumnPrefs] = useState(loadColumnPrefs);
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  // "Select all" on a paginated table selects the visible page. This flag is
+  // the explicit opt-in to act on every ticket matching the current filters,
+  // including the ones not on screen — an unmissable second step, because a
+  // bulk edit that silently covers more than you can see is the dangerous
+  // version of this feature.
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [bulkActionType, setBulkActionType] = useState('');
   const [bulkValue, setBulkValue] = useState('');
   const [bulkSaving, setBulkSaving] = useState(false);
@@ -502,9 +519,8 @@ export default function Tickets() {
 
   const clearActiveSavedFilter = () => setActiveSavedFilterId(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError('');
+  // Filters shared by the table listing and the board.
+  const filterParams = useCallback(() => {
     const params = {};
     if (search.trim()) params.search = search.trim();
     if (status) params.status = status;
@@ -514,15 +530,39 @@ export default function Tickets() {
     if (overdue) params.overdue = 'true';
     if (unassigned) params.unassigned = 'true';
     if (newFromEmail) { params.source = 'email'; params.unassigned = 'true'; }
-    params.sortBy = SORTABLE_COLUMNS[sort.key] || 'updatedAt';
+    // A `cf:`-prefixed key is passed through as-is — the server resolves it
+    // to the custom field and sorts on its value in SQL. (This used to be
+    // sorted in the browser, which only works while the whole result set is
+    // in memory.)
+    params.sortBy = sort.key.startsWith('cf:') ? sort.key : (SORTABLE_COLUMNS[sort.key] || 'updatedAt');
     params.sortDir = sort.dir;
+    return params;
+  }, [search, status, priority, assignee, myTickets, overdue, unassigned, newFromEmail, sort]);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
+    const params = filterParams();
+
+    if (view === 'board') {
+      api
+        .get('/tickets/board', { params })
+        .then(({ data }) => setBoardData(data.columns))
+        .catch((err) => setError(errMessage(err)))
+        .finally(() => setLoading(false));
+      return;
+    }
 
     api
-      .get('/tickets', { params })
-      .then(({ data }) => setTickets(data.tickets))
+      .get('/tickets', { params: { ...params, ...pager.params } })
+      .then(({ data }) => {
+        setTickets(data.tickets);
+        pager.applyMeta(data);
+      })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
-  }, [search, status, priority, assignee, myTickets, overdue, unassigned, newFromEmail, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterParams, view, pager.page, pager.limit]);
 
   useEffect(() => {
     const t = setTimeout(load, search ? 300 : 0);
@@ -588,16 +628,31 @@ export default function Tickets() {
     });
   };
   const toggleSelectAll = () => {
+    // Always operates on the visible page. Extending to every match is a
+    // separate, explicit action (see selectAllMatching).
+    setSelectAllMatching(false);
     setSelectedIds((prev) => (prev.size === tickets.length ? new Set() : new Set(tickets.map((t) => t.id))));
   };
-  const clearSelection = () => { setSelectedIds(new Set()); setBulkActionType(''); setBulkValue(''); };
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setSelectAllMatching(false);
+    setBulkActionType('');
+    setBulkValue('');
+  };
 
   const applyBulkAction = async () => {
-    const ids = [...selectedIds];
-    if (!ids.length || !bulkActionType) return;
+    if (!selectedIds.size || !bulkActionType) return;
     if (bulkActionType !== 'close' && !bulkValue) return;
     setBulkSaving(true);
     try {
+      // When the user opted into "all N matching", the ids beyond the current
+      // page have to be fetched before anything is patched — the page only
+      // holds the rows on screen.
+      let ids = [...selectedIds];
+      if (selectAllMatching) {
+        const { data } = await api.get('/tickets', { params: { ...filterParams(), limit: 'all' } });
+        ids = data.tickets.map((t) => t.id);
+      }
       let changes;
       if (bulkActionType === 'status') changes = { status: bulkValue };
       else if (bulkActionType === 'priority') changes = { priority: bulkValue };
@@ -623,20 +678,10 @@ export default function Tickets() {
   );
 
   // The backend only understands built-in sort columns, so a custom-field
-  // sort is applied client-side to the already-fetched list instead of
-  // round-tripping with a ?sortBy it wouldn't recognize.
-  const sortedTickets = useMemo(() => {
-    if (!sort.key.startsWith('cf:')) return tickets;
-    const fieldKey = sort.key.slice(3);
-    const field = customFieldDefs.find((f) => f.fieldKey === fieldKey);
-    const dir = sort.dir === 'asc' ? 1 : -1;
-    return [...tickets].sort((a, b) => {
-      const av = a.customFields?.[fieldKey];
-      const bv = b.customFields?.[fieldKey];
-      if (field?.fieldType === 'number') return ((Number(av) || 0) - (Number(bv) || 0)) * dir;
-      return String(av || '').localeCompare(String(bv || '')) * dir;
-    });
-  }, [tickets, sort, customFieldDefs]);
+  // Every sort — plain columns and custom fields alike — is resolved by the
+  // server across the whole result set. Sorting here would only ever reorder
+  // the page on screen, which looks like a broken sort.
+  const sortedTickets = tickets;
 
   const behaviorByName = useMemo(
     () => new Map(ticketStatuses.map((s) => [s.name, s.behaviorType])),
@@ -646,24 +691,21 @@ export default function Tickets() {
   // One column per ticket status (ordered by its admin-configured position),
   // grouped by the ticket's actual status — not a fixed set of derived
   // buckets. Archived statuses are hidden from this default board view.
-  const boardColumns = useMemo(() => {
-    const cols = ticketStatuses
-      .filter((s) => s.behaviorType !== 'archived')
-      .slice()
-      .sort((a, b) => a.position - b.position)
-      .map((s) => ({ ...s, tickets: [] }));
-    const byName = new Map(cols.map((c) => [c.name, c]));
-    tickets.forEach((t) => {
-      const col = byName.get(t.status);
-      if (col) col.tickets.push(t);
-    });
-    return cols;
-  }, [tickets, ticketStatuses]);
+  // Shaped by the server: one entry per non-archived status, each carrying
+  // its capped ticket list plus the true total behind it.
+  const boardColumns = useMemo(
+    () => boardData.map((c) => ({ ...c.status, tickets: c.tickets, total: c.total, cap: c.limit })),
+    [boardData]
+  );
 
   const filterButtonCls = (active) =>
     `rounded-md border px-3 py-2 text-sm font-medium transition ${active ? 'text-white' : ''}`;
 
   const allSelected = tickets.length > 0 && selectedIds.size === tickets.length;
+  // The whole page is ticked and there are more matches behind it — offer to
+  // extend the selection rather than pretending the page is everything.
+  const canOfferSelectAllMatching = allSelected && pager.total > tickets.length;
+  const selectionCount = selectAllMatching ? pager.total : selectedIds.size;
   const activeFilterCount = [status, priority, assignee].filter(Boolean).length;
 
   return (
@@ -840,8 +882,28 @@ export default function Tickets() {
         >
           <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="h-4 w-4 flex-shrink-0 accent-blue-500" />
           <span className="flex-shrink-0 whitespace-nowrap font-medium" style={{ color: BLUE, fontSize: '13px' }}>
-            {selectedIds.size} selected
+            {selectionCount.toLocaleString()} selected
           </span>
+          {canOfferSelectAllMatching && !selectAllMatching && (
+            <button
+              type="button"
+              onClick={() => setSelectAllMatching(true)}
+              className="flex-shrink-0 whitespace-nowrap underline"
+              style={{ color: BLUE, fontSize: '12px' }}
+            >
+              Select all {pager.total.toLocaleString()} matching
+            </button>
+          )}
+          {selectAllMatching && (
+            <button
+              type="button"
+              onClick={() => setSelectAllMatching(false)}
+              className="flex-shrink-0 whitespace-nowrap underline"
+              style={{ color: BLUE, fontSize: '12px' }}
+            >
+              Just this page
+            </button>
+          )}
 
           <span className="flex-shrink-0 whitespace-nowrap" style={{ color: MUTED, fontSize: '12px' }}>Action:</span>
           <select
@@ -921,7 +983,7 @@ export default function Tickets() {
                     className="rounded-[3px] px-2 py-0.5 font-mono text-xs font-semibold"
                     style={{ backgroundColor: `color-mix(in srgb, ${col.color} 13%, transparent)`, color: col.color }}
                   >
-                    {col.tickets.length}
+                    {col.total}
                   </span>
                 </div>
                 <div className="space-y-2 p-3">
@@ -948,6 +1010,13 @@ export default function Tickets() {
                       </div>
                     );
                   })}
+                  {col.total > col.tickets.length && (
+                    // The board shows a whole pipeline at once, so it can't be
+                    // paged — each column is capped instead, and says so.
+                    <p className="pt-1 text-center text-xs" style={{ color: MUTED }}>
+                      +{(col.total - col.tickets.length).toLocaleString()} more — narrow the filters to see them
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
@@ -1103,6 +1172,21 @@ export default function Tickets() {
           </>
         )}
       </div>
+
+      {/* Outside the scrolling region so the controls stay put while the table
+          scrolls. Hidden on the board, which is capped per column instead. */}
+      {!loading && view !== 'board' && (
+        <div style={{ backgroundColor: CARD_BG, flex: '0 0 auto' }}>
+          <Pagination
+            page={pager.page}
+            limit={pager.limit}
+            total={pager.total}
+            totalPages={pager.totalPages}
+            onPageChange={(next) => { pager.setPage(next); clearSelection(); }}
+            onLimitChange={(next) => { pager.setLimit(next); clearSelection(); }}
+          />
+        </div>
+      )}
 
       {canCreateTickets && (
         <Link

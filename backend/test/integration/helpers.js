@@ -102,7 +102,11 @@ async function resetData() {
   const tables = [
     'Comments', 'Attachments', 'TicketWatchers', 'TicketTasks', 'TicketActivities',
     'TicketRelations', 'TimeEntries', 'Tickets', 'Contacts',
-    'ProjectMembers', 'ProjectTasks', 'Projects',
+    // Project child tables truncate with Projects: TRUNCATE resets
+    // AUTO_INCREMENT, so a project created by the next test reuses id 1 and
+    // would otherwise inherit the previous test's expenses/time/materials.
+    'ProjectExpenses', 'ProjectMaterials', 'ProjectTimeEntries',
+    'ProjectMembers', 'ProjectSubtasks', 'ProjectTasks', 'Projects',
     'SsoAuthRequests', 'SsoGroupMappings', 'SsoIdentities', 'SsoProviders',
     'UserRoles', 'UserPermissionOverrides', 'ApiKeys', 'Sessions', 'Users', 'Departments',
   ];

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { IconFile, IconUpload, IconTrash, IconDownload } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
+import LoadMore from '../components/LoadMore';
 import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import AssetFormModal from '../components/AssetFormModal';
@@ -14,6 +15,9 @@ const BG = 'var(--color-bg)';
 const TEXT = 'var(--color-text-primary)';
 const MUTED = 'var(--color-text-muted)';
 const BLUE = 'var(--color-accent)';
+
+// Rows loaded at a time by the growing detail lists.
+const SUBLIST_STEP = 25;
 const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };
 
 const PRIORITY_META = {
@@ -488,14 +492,18 @@ function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
 
 function TicketsTab({ assetId, asset, canLinkTickets, navigate }) {
   const [tickets, setTickets] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [limit, setLimit] = useState(SUBLIST_STEP);
   const [loading, setLoading] = useState(true);
   const [showLink, setShowLink] = useState(false);
 
   const load = () => {
     setLoading(true);
-    api.get(`/assets/${assetId}/tickets`).then(({ data }) => setTickets(data.tickets)).finally(() => setLoading(false));
+    api.get(`/assets/${assetId}/tickets`, { params: { limit } })
+      .then(({ data }) => { setTickets(data.tickets); setTotal(data.total); })
+      .finally(() => setLoading(false));
   };
-  useEffect(load, [assetId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [assetId, limit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const unlink = async (ticketId) => {
     if (!confirm('Unlink this ticket from the asset?')) return;
@@ -557,6 +565,7 @@ function TicketsTab({ assetId, asset, canLinkTickets, navigate }) {
               ))}
             </tbody>
           </table>
+          <LoadMore loaded={tickets.length} total={total} onLoadMore={() => setLimit((n) => n + SUBLIST_STEP)} noun="tickets" />
         </div>
       )}
 
@@ -684,7 +693,10 @@ function AttachmentsTab({ assetId }) {
   const inputRef = useRef(null);
 
   const load = () => {
-    api.get(`/assets/${assetId}/attachments`).then(({ data }) => setAttachments(data.attachments)).finally(() => setLoading(false));
+    // Attachment lists are short and are rendered as a complete set (with a
+    // drop zone), so they ask for everything rather than paging.
+    api.get(`/assets/${assetId}/attachments`, { params: { limit: 'all' } })
+      .then(({ data }) => setAttachments(data.attachments)).finally(() => setLoading(false));
   };
   useEffect(load, [assetId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -777,14 +789,21 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
   const [checkInTarget, setCheckInTarget] = useState(null); // checkout being checked in
   const [editTarget, setEditTarget] = useState(null); // checkout being edited
 
+  const [checkoutLimit, setCheckoutLimit] = useState(SUBLIST_STEP);
+  const [checkoutTotal, setCheckoutTotal] = useState(0);
+
   const load = () => {
     setLoading(true);
     Promise.all([
-      api.get(`/assets/${assetId}/checkouts`),
-      api.get(`/assets/${assetId}/attachments`),
-    ]).then(([c, a]) => { setCheckouts(c.data.checkouts); setAttachments(a.data.attachments); }).finally(() => setLoading(false));
+      api.get(`/assets/${assetId}/checkouts`, { params: { limit: checkoutLimit } }),
+      api.get(`/assets/${assetId}/attachments`, { params: { limit: 'all' } }),
+    ]).then(([c, a]) => {
+      setCheckouts(c.data.checkouts);
+      setCheckoutTotal(c.data.total);
+      setAttachments(a.data.attachments);
+    }).finally(() => setLoading(false));
   };
-  useEffect(load, [assetId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [assetId, checkoutLimit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markReceived = async (checkoutId) => {
     setBusyId(checkoutId);
@@ -863,6 +882,7 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
               </div>
             );
           })}
+          <LoadMore loaded={checkouts.length} total={checkoutTotal} onLoadMore={() => setCheckoutLimit((n) => n + SUBLIST_STEP)} noun="records" />
         </div>
       )}
 
@@ -1121,11 +1141,15 @@ function SendCheckoutFormModal({ assetId, asset, checkout, attachment, onClose, 
 
 function ActivityTab({ assetId }) {
   const [activity, setActivity] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [limit, setLimit] = useState(SUBLIST_STEP);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get(`/assets/${assetId}/activity`).then(({ data }) => setActivity(data.activity)).finally(() => setLoading(false));
-  }, [assetId]);
+    api.get(`/assets/${assetId}/activity`, { params: { limit } })
+      .then(({ data }) => { setActivity(data.activity); setTotal(data.total); })
+      .finally(() => setLoading(false));
+  }, [assetId, limit]);
 
   if (loading) return <Spinner />;
   if (activity.length === 0) {
@@ -1152,6 +1176,7 @@ function ActivityTab({ assetId }) {
           </li>
         ))}
       </ul>
+      <LoadMore loaded={activity.length} total={total} onLoadMore={() => setLimit((n) => n + SUBLIST_STEP)} noun="entries" />
     </div>
   );
 }

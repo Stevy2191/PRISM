@@ -5,6 +5,7 @@ import {
   IconChevronDown, IconChevronRight, IconLink, IconChevronUp, IconPencil, IconFileText,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
+import LoadMore from '../components/LoadMore';
 import { initials } from '../utils/userDisplay';
 import { useAuth, usePermission } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -17,6 +18,9 @@ const BORDER = 'var(--color-border)';
 const TEXT = 'var(--color-text-primary)';
 const MUTED = 'var(--color-text-muted)';
 const BLUE = 'var(--color-accent)';
+
+// Rows loaded at a time by the growing detail lists.
+const SUBLIST_STEP = 25;
 const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };
 
 const TABS = [
@@ -243,17 +247,26 @@ export default function ProjectDetail() {
   const [closeWarning, setCloseWarning] = useState(false);
   const [dismissedCloseWarning, setDismissedCloseWarning] = useState(false);
 
+  // How many rows of each growing list are currently loaded. Passed as the
+  // request's `limit` so a refetch after an edit doesn't collapse the list
+  // back to the first chunk.
+  const [timeLimit, setTimeLimit] = useState(SUBLIST_STEP);
+  const [expenseLimit, setExpenseLimit] = useState(SUBLIST_STEP);
+  const [materialLimit, setMaterialLimit] = useState(SUBLIST_STEP);
+  const [activityLimit, setActivityLimit] = useState(SUBLIST_STEP);
+  const [activityTotal, setActivityTotal] = useState(0);
+
   const loadAll = async () => {
     try {
       const [p, t, te, ex, mat, mem, fl, act] = await Promise.all([
         api.get(`/projects/${id}`),
         api.get(`/projects/${id}/tasks`),
-        api.get(`/projects/${id}/time-entries`),
-        api.get(`/projects/${id}/expenses`),
-        api.get(`/projects/${id}/materials`),
+        api.get(`/projects/${id}/time-entries`, { params: { limit: timeLimit } }),
+        api.get(`/projects/${id}/expenses`, { params: { limit: expenseLimit } }),
+        api.get(`/projects/${id}/materials`, { params: { limit: materialLimit } }),
         api.get(`/projects/${id}/members`),
         api.get(`/projects/${id}/files`),
-        api.get(`/projects/${id}/activity`),
+        api.get(`/projects/${id}/activity`, { params: { limit: activityLimit } }),
       ]);
       setProject(p.data.project);
       setTasks(t.data.tasks);
@@ -263,6 +276,7 @@ export default function ProjectDetail() {
       setMembers(mem.data.members);
       setFiles(fl.data.files);
       setActivity(act.data.activity);
+      setActivityTotal(act.data.total);
     } catch (err) {
       setError(errMessage(err));
     } finally {
@@ -273,7 +287,7 @@ export default function ProjectDetail() {
   useEffect(() => {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, timeLimit, expenseLimit, materialLimit, activityLimit]);
 
   useEffect(() => {
     api.get('/project-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
@@ -286,7 +300,11 @@ export default function ProjectDetail() {
 
   const reloadTasks = () => api.get(`/projects/${id}/tasks`).then(({ data }) => setTasks(data.tasks));
   const reloadProject = () => api.get(`/projects/${id}`).then(({ data }) => setProject(data.project));
-  const reloadActivity = () => api.get(`/projects/${id}/activity`).then(({ data }) => setActivity(data.activity));
+  const reloadActivity = () => api.get(`/projects/${id}/activity`, { params: { limit: activityLimit } })
+    .then(({ data }) => { setActivity(data.activity); setActivityTotal(data.total); });
+  const reloadTime = () => api.get(`/projects/${id}/time-entries`, { params: { limit: timeLimit } }).then(({ data }) => setTimeEntries(data));
+  const reloadExpenses = () => api.get(`/projects/${id}/expenses`, { params: { limit: expenseLimit } }).then(({ data }) => setExpenses(data));
+  const reloadMaterials = () => api.get(`/projects/${id}/materials`, { params: { limit: materialLimit } }).then(({ data }) => setMaterials(data));
 
   // All-tasks-closed prompt: fires once completion hits 100% while the
   // project's own status is still open-behavior.
@@ -554,27 +572,25 @@ export default function ProjectDetail() {
           onAdd={() => setShowAddTime(true)}
           onDelete={async (entryId) => {
             await api.delete(`/projects/${id}/time-entries/${entryId}`);
-            const { data } = await api.get(`/projects/${id}/time-entries`);
-            setTimeEntries(data);
+            await reloadTime();
             reloadProject();
           }}
+          onLoadMore={() => setTimeLimit((n) => n + SUBLIST_STEP)}
         />
       )}
       {tab === 'expenses' && (
         <ExpensesTab data={expenses} canManageExpenses={canManageExpenses} onAdd={() => setShowAddExpense(true)} onDelete={async (expId) => {
           await api.delete(`/projects/${id}/expenses/${expId}`);
-          const { data } = await api.get(`/projects/${id}/expenses`);
-          setExpenses(data);
+          await reloadExpenses();
           reloadProject();
-        }} />
+        }} onLoadMore={() => setExpenseLimit((n) => n + SUBLIST_STEP)} />
       )}
       {tab === 'materials' && (
         <MaterialsTab data={materials} canManageExpenses={canManageExpenses} onAdd={() => setShowAddMaterial(true)} onDelete={async (matId) => {
           await api.delete(`/projects/${id}/materials/${matId}`);
-          const { data } = await api.get(`/projects/${id}/materials`);
-          setMaterials(data);
+          await reloadMaterials();
           reloadProject();
-        }} />
+        }} onLoadMore={() => setMaterialLimit((n) => n + SUBLIST_STEP)} />
       )}
       {tab === 'people' && (
         <PeopleTab
@@ -606,7 +622,13 @@ export default function ProjectDetail() {
           }}
         />
       )}
-      {tab === 'activity' && <ActivityTab activity={activity} />}
+      {tab === 'activity' && (
+        <ActivityTab
+          activity={activity}
+          total={activityTotal}
+          onLoadMore={() => setActivityLimit((n) => n + SUBLIST_STEP)}
+        />
+      )}
 
       {/* ---- Modals ---- */}
       {showAddTask && (
@@ -644,8 +666,7 @@ export default function ProjectDetail() {
           onSave={async (payload) => {
             await api.post(`/projects/${id}/time-entries`, payload);
             setShowAddTime(false);
-            const { data } = await api.get(`/projects/${id}/time-entries`);
-            setTimeEntries(data);
+            await reloadTime();
             reloadProject();
           }}
         />
@@ -658,8 +679,7 @@ export default function ProjectDetail() {
           onSave={async (payload) => {
             await api.post(`/projects/${id}/expenses`, payload);
             setShowAddExpense(false);
-            const { data } = await api.get(`/projects/${id}/expenses`);
-            setExpenses(data);
+            await reloadExpenses();
             reloadProject();
           }}
         />
@@ -672,8 +692,7 @@ export default function ProjectDetail() {
           onSave={async (payload) => {
             await api.post(`/projects/${id}/materials`, payload);
             setShowAddMaterial(false);
-            const { data } = await api.get(`/projects/${id}/materials`);
-            setMaterials(data);
+            await reloadMaterials();
             reloadProject();
           }}
         />
@@ -1175,7 +1194,7 @@ function TaskDetailModal({ projectId, task, statuses, assignableUsers, onClose, 
 }
 
 // ==================== Time entries tab ====================
-function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete }) {
+function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete, onLoadMore }) {
   return (
     <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
@@ -1209,10 +1228,13 @@ function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete }) {
           {data.entries.length === 0 && <tr><td colSpan={7} className="table-td" style={{ color: MUTED }}>No time logged yet.</td></tr>}
         </tbody>
       </table>
+      <LoadMore loaded={data.entries.length} total={data.total} onLoadMore={onLoadMore} noun="entries" />
+      {/* Both figures are summed server-side over the whole project — adding
+          up `data.entries` would only cover the rows currently loaded. */}
       <div className="border-t p-4 text-right text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>
         Total: {formatSeconds(data.totalSeconds)}
-        {data.entries.some((e) => e.laborCost != null) && (
-          <span className="ml-4">Labor cost: {formatCost(data.entries.reduce((sum, e) => sum + (Number(e.laborCost) || 0), 0))}</span>
+        {data.totalLaborCost != null && (
+          <span className="ml-4">Labor cost: {formatCost(data.totalLaborCost)}</span>
         )}
       </div>
     </div>
@@ -1276,7 +1298,7 @@ function AddTimeModal({ tasks, isAdmin, assignableUsers, onClose, onSave }) {
 
 // ==================== Expenses tab ====================
 const EXPENSE_CATEGORIES = ['materials', 'labor', 'travel', 'equipment', 'other'];
-function ExpensesTab({ data, canManageExpenses, onAdd, onDelete }) {
+function ExpensesTab({ data, canManageExpenses, onAdd, onDelete, onLoadMore }) {
   return (
     <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
@@ -1302,7 +1324,9 @@ function ExpensesTab({ data, canManageExpenses, onAdd, onDelete }) {
           {data.expenses.length === 0 && <tr><td colSpan={7} className="table-td" style={{ color: MUTED }}>No expenses yet.</td></tr>}
         </tbody>
       </table>
-      <div className="border-t p-4 text-right text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>Total: {formatCost(data.total)}</div>
+      <LoadMore loaded={data.expenses.length} total={data.total} onLoadMore={onLoadMore} noun="expenses" />
+      {/* totalAmount is the project's whole spend; `total` is the row count. */}
+      <div className="border-t p-4 text-right text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>Total: {formatCost(data.totalAmount)}</div>
     </div>
   );
 }
@@ -1367,7 +1391,7 @@ function AddExpenseModal({ tasks, onClose, onSave }) {
 }
 
 // ==================== Materials tab ====================
-function MaterialsTab({ data, canManageExpenses, onAdd, onDelete }) {
+function MaterialsTab({ data, canManageExpenses, onAdd, onDelete, onLoadMore }) {
   return (
     <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
@@ -1393,7 +1417,8 @@ function MaterialsTab({ data, canManageExpenses, onAdd, onDelete }) {
           {data.materials.length === 0 && <tr><td colSpan={7} className="table-td" style={{ color: MUTED }}>No materials logged yet.</td></tr>}
         </tbody>
       </table>
-      <div className="border-t p-4 text-right text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>Total: {formatCost(data.total)}</div>
+      <LoadMore loaded={data.materials.length} total={data.total} onLoadMore={onLoadMore} noun="materials" />
+      <div className="border-t p-4 text-right text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>Total: {formatCost(data.totalAmount)}</div>
     </div>
   );
 }
@@ -1614,7 +1639,7 @@ const ACTIVITY_LABELS = {
   member_added: 'added a member',
   file_uploaded: 'uploaded a file',
 };
-function ActivityTab({ activity }) {
+function ActivityTab({ activity, total, onLoadMore }) {
   return (
     <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <ul className="divide-y" style={{ borderColor: BORDER }}>
@@ -1634,6 +1659,7 @@ function ActivityTab({ activity }) {
         })}
         {activity.length === 0 && <li className="px-4 py-6 text-center text-sm" style={{ color: MUTED }}>No activity yet.</li>}
       </ul>
+      <LoadMore loaded={activity.length} total={total} onLoadMore={onLoadMore} noun="entries" />
     </div>
   );
 }

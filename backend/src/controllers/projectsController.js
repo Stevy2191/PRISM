@@ -11,6 +11,16 @@ const { writeAudit } = require('../middleware/audit');
 const { logProjectActivity } = require('../services/projectActivity');
 const { syncProjectToExternalCalendars, removeProjectFromExternalCalendars } = require('../services/calendarPush');
 const { calculateLaborCost } = require('../utils/laborCost');
+const { parsePagination, paginated } = require('../utils/pagination');
+
+// Chunk size for the "load more" lists on a project's detail page. Tasks are
+// deliberately excluded — they are drag-reorderable, and a reorder that can
+// only see one page of the ordering would corrupt it.
+const SUBLIST_LIMIT = 25;
+// The detail-page lists grow by "load more", which asks for a larger single
+// page rather than a second one — so their ceiling is higher than the shared
+// 200 used for browsable tables.
+const SUBLIST_MAX = 500;
 const { generateProjectReport } = require('../services/projectReport');
 const {
   getProjectStatusBuckets,
@@ -79,7 +89,11 @@ async function getProjectWithDetail(id) {
 
 // GET /projects — filters: status, ownerDept, forDept, assignee, myProjects,
 // myDepartment, overdue, search, tag.
-const list = asyncHandler(async (req, res) => {
+// Builds the WHERE clause for a project listing from the query string plus
+// the caller's permission scope. Returns `{ where, empty }` — `empty` means
+// the scope resolved to no projects at all, so the caller should short-circuit
+// rather than run a query with an impossible clause.
+async function buildProjectListWhere(req) {
   const where = {};
   const { status, ownerDept, forDept, assignee, myProjects, myDepartment, overdue, search, tag } = req.query;
 
@@ -90,7 +104,7 @@ const list = asyncHandler(async (req, res) => {
   if (scope === 'own') {
     const memberships = await ProjectMember.findAll({ where: { userId: req.user.id }, attributes: ['projectId'], raw: true });
     const memberProjectIds = memberships.map((m) => m.projectId);
-    if (memberProjectIds.length === 0) return res.json({ projects: [] });
+    if (memberProjectIds.length === 0) return { where, empty: true };
     where.id = { [Op.in]: memberProjectIds };
   } else if (scope === 'department') {
     const memberships = await ProjectMember.findAll({ where: { userId: req.user.id }, attributes: ['projectId'], raw: true });
@@ -151,22 +165,51 @@ const list = asyncHandler(async (req, res) => {
       raw: true,
     });
     const ids = memberships.map((m) => m.projectId);
-    if (ids.length === 0) return res.json({ projects: [] });
+    if (ids.length === 0) return { where, empty: true };
     where.id = { [Op.in]: ids };
   }
 
-  const projects = await Project.findAll({
+  return { where, empty: false };
+}
+
+// GET /projects — paginated
+const list = asyncHandler(async (req, res) => {
+  const { page, limit, offset } = parsePagination(req);
+  const { where, empty } = await buildProjectListWhere(req);
+  if (empty) return res.json(paginated('projects', { rows: [], count: 0 }, { page, limit }));
+
+  // Two queries on purpose: the `members` include is a hasMany, so pairing it
+  // with LIMIT in one findAndCountAll would both inflate `count` (one row per
+  // member) and let LIMIT cut a project's members in half. Page the bare ids
+  // first, then hydrate exactly those.
+  const { rows: idRows, count } = await Project.findAndCountAll({
     where,
+    attributes: ['id'],
+    order: [['updatedAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
+    distinct: true,
+    subQuery: false,
+    raw: true,
+  });
+  const ids = idRows.map((r) => r.id);
+  if (!ids.length) return res.json(paginated('projects', { rows: [], count }, { page, limit }));
+
+  const found = await Project.findAll({
+    where: { id: { [Op.in]: ids } },
     include: [
       ...projectInclude,
       { model: ProjectMember, as: 'members', include: [{ model: User, as: 'user', attributes: userAttrs }] },
     ],
-    order: [['updatedAt', 'DESC']],
   });
+  const byId = new Map(found.map((pr) => [pr.id, pr]));
+  const projects = ids.map((id) => byId.get(id)).filter(Boolean);
 
   const statusRows = await ProjectStatus.findAll({ attributes: ['name', 'color'] });
-  const colorByName = new Map(statusRows.map((s) => [s.name, s.color]));
+  const colorByName = new Map(statusRows.map((st) => [st.name, st.color]));
 
+  // Three extra queries per project. That was 3×N over the whole table before
+  // paging; it is now bounded by the page size.
   const withStats = await Promise.all(
     projects.map(async (project) => {
       const [completion, expenseSum, materialSum] = await Promise.all([
@@ -182,7 +225,29 @@ const list = asyncHandler(async (req, res) => {
     })
   );
 
-  res.json({ projects: withStats });
+  return res.json(paginated('projects', { rows: withStats, count }, { page, limit }));
+});
+
+// GET /projects/tags — every distinct tag across the projects this caller can
+// see. The tag filter dropdown used to derive its options from the loaded
+// project list; once that list is one page long it would only ever offer the
+// tags on that page, so the options come from their own query.
+const listTags = asyncHandler(async (req, res) => {
+  const { where, empty } = await buildProjectListWhere({ ...req, query: {} });
+  if (empty) return res.json({ tags: [] });
+
+  const rows = await Project.findAll({ where, attributes: ['tags'], raw: true });
+  const tags = new Set();
+  for (const row of rows) {
+    // `tags` is JSON — already an array when the driver parses it, still a
+    // string when it doesn't.
+    let value = row.tags;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch { value = null; }
+    }
+    if (Array.isArray(value)) value.forEach((t) => { if (t) tags.add(String(t)); });
+  }
+  return res.json({ tags: [...tags].sort((a, b) => a.localeCompare(b)) });
 });
 
 // POST /projects — Admin/Technician
@@ -632,13 +697,28 @@ const listTimeEntries = asyncHandler(async (req, res) => {
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
-  const entries = await ProjectTimeEntry.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await ProjectTimeEntry.findAndCountAll({
     where: { projectId: project.id },
     include: timeEntryInclude,
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  const totalSeconds = entries.reduce((sum, e) => sum + (e.durationSeconds || 0), 0);
-  res.json({ entries, totalSeconds });
+  // Both headline figures cover the whole project, not the loaded page. Labor
+  // cost in particular used to be summed in the browser over every entry —
+  // doing that over one page would under-report the project's real cost.
+  const [totalSeconds, totalLaborCost] = await Promise.all([
+    ProjectTimeEntry.sum('durationSeconds', { where: { projectId: project.id } }),
+    ProjectTimeEntry.sum('laborCost', { where: { projectId: project.id } }),
+  ]);
+  res.json({
+    ...paginated('entries', { rows, count }, { page, limit }),
+    totalSeconds: Number(totalSeconds) || 0,
+    // Null (rather than 0) when no entry carries a cost, so the UI can tell
+    // "no contractor time logged" from "zero cost".
+    totalLaborCost: totalLaborCost == null ? null : Number(totalLaborCost),
+  });
 });
 
 // POST /projects/:id/time-entries
@@ -764,13 +844,18 @@ const listExpenses = asyncHandler(async (req, res) => {
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
-  const expenses = await ProjectExpense.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await ProjectExpense.findAndCountAll({
     where: { projectId: project.id },
     include: expenseInclude,
     order: [['entryDate', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  res.json({ expenses, total });
+  // Named `totalAmount`, not `total` — `total` is the row count that every
+  // paginated response carries, and the money sum would otherwise clobber it.
+  const totalAmount = Number(await ProjectExpense.sum('amount', { where: { projectId: project.id } })) || 0;
+  res.json({ ...paginated('expenses', { rows, count }, { page, limit }), totalAmount });
 });
 
 // POST /projects/:id/expenses
@@ -843,13 +928,18 @@ const listMaterials = asyncHandler(async (req, res) => {
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
-  const materials = await ProjectMaterial.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await ProjectMaterial.findAndCountAll({
     where: { projectId: project.id },
     include: materialInclude,
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  const total = materials.reduce((sum, m) => sum + Number(m.totalCost), 0);
-  res.json({ materials, total });
+  // Named `totalAmount`, not `total` — `total` is the row count that every
+  // paginated response carries, and the money sum would otherwise clobber it.
+  const totalAmount = Number(await ProjectMaterial.sum('totalCost', { where: { projectId: project.id } })) || 0;
+  res.json({ ...paginated('materials', { rows, count }, { page, limit }), totalAmount });
 });
 
 // POST /projects/:id/materials
@@ -1075,7 +1165,7 @@ const generateReport = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  list, create, get, update, remove, getStats,
+  list, listTags, create, get, update, remove, getStats,
   listTasks, createTask, updateTask, removeTask, reorderTasks, renumberTask,
   createSubtask, updateSubtask, removeSubtask, renumberSubtask,
   listTimeEntries, createTimeEntry, updateTimeEntry, removeTimeEntry,

@@ -4,6 +4,7 @@ const { Op } = require('sequelize');
 const sanitizeHtml = require('sanitize-html');
 const { KbArticle, KbCategory, KbAttachment, User } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
+const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 
@@ -164,14 +165,18 @@ const listArticles = asyncHandler(async (req, res) => {
     const term = `%${q.trim()}%`;
     where[Op.or] = [{ title: { [Op.like]: term } }, { excerpt: { [Op.like]: term } }];
   }
-  const articles = await KbArticle.findAll({
+  const { page, limit, offset } = parsePagination(req);
+  const { rows, count } = await KbArticle.findAndCountAll({
     where,
     include: articleListInclude,
-    order: [['updatedAt', 'DESC']],
+    order: [['updatedAt', 'DESC'], ['id', 'DESC']],
     // Body is heavy and unneeded in lists.
     attributes: { exclude: ['body'] },
+    limit,
+    offset,
+    distinct: true,
   });
-  res.json({ articles });
+  res.json(paginated('articles', { rows, count }, { page, limit }));
 });
 
 const getArticle = asyncHandler(async (req, res) => {

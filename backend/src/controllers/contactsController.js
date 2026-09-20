@@ -6,6 +6,7 @@ const { hasPermission } = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
+const { parsePagination, paginated } = require('../utils/pagination');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const contactInclude = [
@@ -21,13 +22,19 @@ async function scopeWhere(req) {
   return canViewAll ? {} : { departmentId: req.user.departmentId };
 }
 
+// Chunk size for the "load more" lists on a contact's detail page.
+const SUBLIST_LIMIT = 25;
+// The detail-page lists grow by "load more", which asks for a larger single
+// page rather than a second one — so their ceiling is higher than the shared
+// 200 used for browsable tables.
+const SUBLIST_MAX = 500;
+
 const SORTABLE_COLUMNS = ['firstName', 'lastName', 'displayName', 'email', 'createdAt', 'updatedAt'];
 
-// GET /contacts
-const list = asyncHandler(async (req, res) => {
-  const {
-    search, departmentId, assignedTo, myContacts, noDept, sortBy, sortDir, status,
-  } = req.query;
+// Builds the WHERE clause for a contact listing. Shared by the paginated
+// list and the A-Z index so the index always describes the list it sits above.
+async function buildContactListWhere(req) {
+  const { search, departmentId, assignedTo, myContacts, noDept, status } = req.query;
 
   const where = await scopeWhere(req);
   if (departmentId) where.departmentId = departmentId;
@@ -47,17 +54,33 @@ const list = asyncHandler(async (req, res) => {
       { mobile: { [Op.like]: `%${term}%` } },
     ];
   }
+  return where;
+}
 
-  const orderColumn = SORTABLE_COLUMNS.includes(sortBy) ? sortBy : 'lastName';
-  const orderDir = sortDir === 'desc' ? 'DESC' : 'ASC';
+function contactOrder(req) {
+  const orderColumn = SORTABLE_COLUMNS.includes(req.query.sortBy) ? req.query.sortBy : 'lastName';
+  const orderDir = req.query.sortDir === 'desc' ? 'DESC' : 'ASC';
+  return { orderColumn, orderDir, order: [[orderColumn, orderDir], ['firstName', 'ASC'], ['id', 'ASC']] };
+}
 
-  const contacts = await Contact.findAll({
+// GET /contacts — paginated
+const list = asyncHandler(async (req, res) => {
+  const where = await buildContactListWhere(req);
+  const { page, limit, offset } = parsePagination(req);
+  const { order } = contactOrder(req);
+
+  // contactInclude is belongsTo-only, so a single findAndCountAll is safe
+  // here — no hasMany join to multiply the count or eat into the LIMIT.
+  const { rows, count } = await Contact.findAndCountAll({
     where,
     include: contactInclude,
-    order: [[orderColumn, orderDir], ['firstName', 'ASC']],
+    order,
+    limit,
+    offset,
+    distinct: true,
   });
 
-  const contactIds = contacts.map((c) => c.id);
+  const contactIds = rows.map((c) => c.id);
   const ticketStats = contactIds.length
     ? await Ticket.findAll({
         where: { contactId: { [Op.in]: contactIds } },
@@ -68,13 +91,47 @@ const list = asyncHandler(async (req, res) => {
     : [];
   const statsByContact = new Map(ticketStats.map((r) => [r.contactId, { count: Number(r.count) || 0, lastTicketAt: r.lastTicketAt }]));
 
-  res.json({
-    contacts: contacts.map((c) => ({
-      ...c.toJSON(),
-      ticketCount: statsByContact.get(c.id)?.count || 0,
-      lastTicketAt: statsByContact.get(c.id)?.lastTicketAt || null,
-    })),
+  res.json(paginated(
+    'contacts',
+    {
+      rows: rows.map((c) => ({
+        ...c.toJSON(),
+        ticketCount: statsByContact.get(c.id)?.count || 0,
+        lastTicketAt: statsByContact.get(c.id)?.lastTicketAt || null,
+      })),
+      count,
+    },
+    { page, limit }
+  ));
+});
+
+// GET /contacts/index — which page each letter of the alphabet starts on,
+// for the A-Z jump strip.
+//
+// The strip used to scroll to a row index within the fully-loaded list. With
+// one page in the browser at a time it has to resolve to a page number
+// instead, which only the server can work out. Takes the same filters, sort
+// and ?limit as the listing so the two always agree.
+const alphaIndex = asyncHandler(async (req, res) => {
+  const where = await buildContactListWhere(req);
+  const { orderColumn, order } = contactOrder(req);
+  const { limit } = parsePagination(req);
+
+  // One indexed column, no joins — cheap enough to walk the whole matching
+  // set, and there is no way to get a letter's ordinal position without it.
+  const rows = await Contact.findAll({ where, attributes: ['id', orderColumn, 'firstName'], order, raw: true });
+
+  const index = {};
+  rows.forEach((row, i) => {
+    const source = String(row[orderColumn] || row.firstName || '').trim();
+    if (!source) return;
+    const letter = source[0].toUpperCase();
+    if (!/[A-Z]/.test(letter)) return;
+    // First occurrence wins — that's where the jump should land.
+    if (index[letter] === undefined) index[letter] = Math.floor(i / limit) + 1;
   });
+
+  res.json({ index, total: rows.length, limit });
 });
 
 // POST /contacts
@@ -261,12 +318,15 @@ const listTickets = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
   }
 
-  const tickets = await Ticket.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await Ticket.findAndCountAll({
     where: { contactId: contact.id },
     include: [{ model: User, as: 'assignee', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ tickets });
+  res.json(paginated('tickets', { rows, count }, { page, limit }));
 });
 
 // GET /contacts/:id/activity
@@ -278,16 +338,20 @@ const listActivity = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
   }
 
-  const activity = await ContactActivity.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await ContactActivity.findAndCountAll({
     where: { contactId: contact.id },
     include: [{ model: User, as: 'user', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ activity });
+  res.json(paginated('activity', { rows, count }, { page, limit }));
 });
 
 module.exports = {
   list,
+  alphaIndex,
   create,
   get,
   update,

@@ -6,11 +6,18 @@ const {
   Asset, AssetCategory, User, Department,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
+const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
 const { getAllSettings } = require('./settingsController');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 
 const userAttrs = ['id', 'displayName', 'username'];
+
+const SUBLIST_LIMIT = 25;
+// The detail-page lists grow by "load more", which asks for a larger single
+// page rather than a second one — so their ceiling is higher than the shared
+// 200 used for browsable tables.
+const SUBLIST_MAX = 500;
 
 const contractInclude = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
@@ -81,17 +88,32 @@ const list = asyncHandler(async (req, res) => {
     }
   }
 
-  const contracts = await Contract.findAll({ where, include: contractInclude, order: [['name', 'ASC']] });
-  const assetCounts = await ContractAsset.findAll({
-    where: { contractId: { [Op.in]: contracts.map((c) => c.id) } },
-    attributes: ['contractId'],
+  const { page, limit, offset } = parsePagination(req);
+  const { rows: contracts, count } = await Contract.findAndCountAll({
+    where,
+    include: contractInclude,
+    order: [['name', 'ASC'], ['id', 'ASC']],
+    limit,
+    offset,
+    distinct: true,
   });
+  const assetCounts = contracts.length
+    ? await ContractAsset.findAll({
+        where: { contractId: { [Op.in]: contracts.map((c) => c.id) } },
+        attributes: ['contractId'],
+      })
+    : [];
   const countByContract = new Map();
   assetCounts.forEach((r) => countByContract.set(r.contractId, (countByContract.get(r.contractId) || 0) + 1));
 
-  res.json({
-    contracts: contracts.map((c) => ({ ...c.toJSON(), assetsCoveredCount: countByContract.get(c.id) || 0 })),
-  });
+  res.json(paginated(
+    'contracts',
+    {
+      rows: contracts.map((c) => ({ ...c.toJSON(), assetsCoveredCount: countByContract.get(c.id) || 0 })),
+      count,
+    },
+    { page, limit }
+  ));
 });
 
 // GET /contracts/:id
@@ -225,12 +247,15 @@ const unlinkAsset = asyncHandler(async (req, res) => {
 const listAttachments = asyncHandler(async (req, res) => {
   const contract = await Contract.findByPk(req.params.id);
   if (!contract) throw new ApiError(404, 'Contract not found', 'NOT_FOUND');
-  const attachments = await ContractAttachment.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await ContractAttachment.findAndCountAll({
     where: { contractId: contract.id },
     include: [{ model: User, as: 'uploadedBy', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ attachments });
+  res.json(paginated('attachments', { rows, count }, { page, limit }));
 });
 
 // POST /contracts/:id/attachments — multipart/form-data (field: "file")
@@ -283,12 +308,15 @@ const removeAttachment = asyncHandler(async (req, res) => {
 const listActivity = asyncHandler(async (req, res) => {
   const contract = await Contract.findByPk(req.params.id);
   if (!contract) throw new ApiError(404, 'Contract not found', 'NOT_FOUND');
-  const activity = await ContractActivity.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await ContractActivity.findAndCountAll({
     where: { contractId: contract.id },
     include: [{ model: User, as: 'user', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ activity });
+  res.json(paginated('activity', { rows, count }, { page, limit }));
 });
 
 module.exports = {

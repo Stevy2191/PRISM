@@ -315,7 +315,7 @@ function AttachmentsTab({ contractId }) {
   const inputRef = useRef(null);
 
   const load = () => {
-    api.get(`/contracts/${contractId}/attachments`).then(({ data }) => setAttachments(data.attachments)).finally(() => setLoading(false));
+    api.get(`/contracts/${contractId}/attachments`, { params: { limit: 'all' } }).then(({ data }) => setAttachments(data.attachments)).finally(() => setLoading(false));
   };
   useEffect(load, [contractId]); // eslint-disable-line react-hooks/exhaustive-deps
 

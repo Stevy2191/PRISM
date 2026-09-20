@@ -436,7 +436,7 @@ function AttachmentsTab({ licenseId }) {
   const inputRef = useRef(null);
 
   const load = () => {
-    api.get(`/licenses/${licenseId}/attachments`).then(({ data }) => setAttachments(data.attachments)).finally(() => setLoading(false));
+    api.get(`/licenses/${licenseId}/attachments`, { params: { limit: 'all' } }).then(({ data }) => setAttachments(data.attachments)).finally(() => setLoading(false));
   };
   useEffect(load, [licenseId]); // eslint-disable-line react-hooks/exhaustive-deps
 

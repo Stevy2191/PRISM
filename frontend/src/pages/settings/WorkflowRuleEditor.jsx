@@ -311,7 +311,7 @@ function TestRuleModal({ ruleId, onClose }) {
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    api.get('/tickets').then(({ data }) => setTickets(data.tickets.slice(0, 100))).catch(() => {});
+    api.get('/tickets', { params: { limit: 100 } }).then(({ data }) => setTickets(data.tickets)).catch(() => {});
   }, []);
 
   const run = async () => {

@@ -7,6 +7,7 @@ const {
   Ticket, Contact, User, Department,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
+const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
 const { logAssetActivity } = require('../services/assetActivity');
 const { suggestNextAssetTag } = require('../services/assetTagService');
@@ -24,6 +25,13 @@ const checkoutInclude = [
   { model: User, as: 'checkedOutByUser', attributes: userAttrs },
   { model: User, as: 'checkedInByUser', attributes: userAttrs },
 ];
+
+// Chunk size for the "load more" lists on an asset's detail page.
+const SUBLIST_LIMIT = 25;
+// The detail-page lists grow by "load more", which asks for a larger single
+// page rather than a second one — so their ceiling is higher than the shared
+// 200 used for browsable tables.
+const SUBLIST_MAX = 500;
 
 const assetInclude = [
   { model: AssetCategory, as: 'category' },
@@ -95,9 +103,9 @@ function assertNotFutureDate(value, label) {
   }
 }
 
-// GET /assets?search=&categoryId=&departmentId=&status=&assignedTo=
+// GET /assets?search=&categoryId=&departmentId=&status=&assignedTo=&quickFilter=
 const list = asyncHandler(async (req, res) => {
-  const { search, categoryId, departmentId, status, assignedTo } = req.query;
+  const { search, categoryId, departmentId, status, assignedTo, quickFilter } = req.query;
   const where = {};
   if (categoryId) where.categoryId = categoryId;
   if (departmentId) where.departmentId = departmentId;
@@ -121,10 +129,31 @@ const list = asyncHandler(async (req, res) => {
       ],
     });
   }
+  // Quick filters from the dashboard tiles. These used to be applied in the
+  // browser over the whole asset list; with one page loaded at a time they
+  // have to be part of the query or they would only filter the current page.
+  const today = new Date().toISOString().slice(0, 10);
+  if (quickFilter === 'dueForReplacement') {
+    const in90 = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+    andConditions.push({ replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90 } });
+  } else if (quickFilter === 'expiredWarranty') {
+    andConditions.push({ warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: today } });
+  }
+
   if (andConditions.length) where[Op.and] = andConditions;
 
-  const assets = await Asset.findAll({ where, include: assetInclude, order: [['assetTag', 'ASC']] });
-  res.json({ assets });
+  const { page, limit, offset } = parsePagination(req);
+  // assetInclude is belongsTo-only, so LIMIT and COUNT are both safe to apply
+  // directly here.
+  const { rows, count } = await Asset.findAndCountAll({
+    where,
+    include: assetInclude,
+    order: [['assetTag', 'ASC'], ['id', 'ASC']],
+    limit,
+    offset,
+    distinct: true,
+  });
+  res.json(paginated('assets', { rows, count }, { page, limit }));
 });
 
 // GET /assets/categories — includes a live "next tag" suggestion + the
@@ -347,18 +376,22 @@ const listTickets = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
 
-  const links = await AssetTicket.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows: links, count } = await AssetTicket.findAndCountAll({
     where: { assetId: asset.id },
     include: [{
       model: Ticket,
       as: 'ticket',
       include: [{ model: User, as: 'assignee', attributes: userAttrs }],
     }],
-    order: [['linkedAt', 'DESC']],
+    order: [['linkedAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
 
   res.json({
-    tickets: links.filter((l) => l.ticket).map((l) => ({
+    ...paginated('tickets', {
+      rows: links.filter((l) => l.ticket).map((l) => ({
       linkId: l.id,
       linkedAt: l.linkedAt,
       id: l.ticket.id,
@@ -368,7 +401,9 @@ const listTickets = asyncHandler(async (req, res) => {
       priority: l.ticket.priority,
       assignee: l.ticket.assignee ? { id: l.ticket.assignee.id, displayName: l.ticket.assignee.displayName } : null,
       createdAt: l.ticket.createdAt,
-    })),
+      })),
+      count,
+    }, { page, limit }),
   });
 });
 
@@ -414,12 +449,15 @@ const listActivity = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
 
-  const rows = await AssetActivity.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await AssetActivity.findAndCountAll({
     where: { assetId: asset.id },
     include: [{ model: User, as: 'user', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ activity: rows });
+  res.json(paginated('activity', { rows, count }, { page, limit }));
 });
 
 // ==================== Checkout / check-in ====================
@@ -430,12 +468,15 @@ const listCheckouts = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
 
-  const checkouts = await AssetCheckout.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await AssetCheckout.findAndCountAll({
     where: { assetId: asset.id },
     include: checkoutInclude,
-    order: [['checkedOutAt', 'DESC']],
+    order: [['checkedOutAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ checkouts });
+  res.json(paginated('checkouts', { rows, count }, { page, limit }));
 });
 
 // POST /assets/:id/checkouts — { contactId, checkedOutAt, notes, generateForm }
@@ -654,12 +695,15 @@ const listAttachments = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
 
-  const attachments = await AssetAttachment.findAll({
+  const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
+  const { rows, count } = await AssetAttachment.findAndCountAll({
     where: { assetId: asset.id },
     include: [{ model: User, as: 'uploadedBy', attributes: userAttrs }],
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    limit,
+    offset,
   });
-  res.json({ attachments });
+  res.json(paginated('attachments', { rows, count }, { page, limit }));
 });
 
 // POST /assets/:id/attachments — multipart/form-data (field: "file")

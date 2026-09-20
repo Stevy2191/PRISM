@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
+import { usePagination } from '../../hooks/usePagination';
+import Pagination from '../../components/Pagination';
 import { usePermission } from '../../context/AuthContext';
 import Spinner from '../../components/Spinner';
 import AssetsSubNav from '../../components/AssetsSubNav';
@@ -69,6 +71,9 @@ export default function Licenses() {
   const [departmentId, setDepartmentId] = useState('');
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
 
+  const filterKey = JSON.stringify([search, licenseType, departmentId, status]);
+  const pager = usePagination({ filterKey, storageKey: 'prism.licenses.pageSize' });
+
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -80,8 +85,8 @@ export default function Licenses() {
     if (licenseType) params.licenseType = licenseType;
     if (departmentId) params.departmentId = departmentId;
     if (status) params.status = status;
-    api.get('/licenses', { params })
-      .then(({ data }) => setLicenses(data.licenses))
+    api.get('/licenses', { params: { ...params, ...pager.params } })
+      .then(({ data }) => { setLicenses(data.licenses); pager.applyMeta(data); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
   };
@@ -94,7 +99,7 @@ export default function Licenses() {
     const t = setTimeout(load, search ? 300 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, licenseType, departmentId, status]);
+  }, [search, licenseType, departmentId, status, pager.page, pager.limit]);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -198,6 +203,19 @@ export default function Licenses() {
           </div>
         )}
       </div>
+
+      {!loading && licenses.length > 0 && (
+        <div style={{ backgroundColor: CARD_BG, flex: '0 0 auto' }}>
+          <Pagination
+            page={pager.page}
+            limit={pager.limit}
+            total={pager.total}
+            totalPages={pager.totalPages}
+            onPageChange={pager.setPage}
+            onLimitChange={pager.setLimit}
+          />
+        </div>
+      )}
 
       {showForm && (
         <LicenseFormModal

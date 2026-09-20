@@ -714,7 +714,10 @@ export default function Dashboard() {
     // scope=department: dept managers should only filter within their own
     // department; system admins (people.view_all) still see everyone — see
     // usersController.list.
-    api.get('/users', { params: { scope: 'department' } }).then(({ data: d }) => setUsers(d.users)).catch(() => {});
+    // limit=all rather than /users/directory: this dropdown must keep the
+    // scope=department semantics above, and it is an option list — a
+    // truncated picker silently hides people with no cue that it did.
+    api.get('/users', { params: { scope: 'department', limit: 'all' } }).then(({ data: d }) => setUsers(d.users)).catch(() => {});
   }, [canFilterByUser]);
 
   const load = useCallback(() => {

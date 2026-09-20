@@ -12,6 +12,8 @@ const manageWatchers = requirePermission('tickets.manage_watchers');
 // Tickets
 router.get('/', viewMin, ctrl.list);
 router.post('/', requirePermission('tickets.create'), ctrl.create);
+// Must precede '/:id' — otherwise 'board' is read as a ticket id.
+router.get('/board', viewMin, ctrl.board);
 router.get('/:id', viewMin, ctrl.get);
 router.patch('/:id', editMin, ctrl.update);
 router.delete('/:id', requirePermission('tickets.delete'), ctrl.remove);

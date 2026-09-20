@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
 
 const EMPTY_FORM = { username: '', displayName: '', email: '', departmentId: '', password: '' };
 
@@ -15,15 +17,23 @@ export default function AdminUsers() {
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const pager = usePagination({ storageKey: 'prism.adminUsers.pageSize' });
+
   useEffect(() => {
-    Promise.all([api.get('/users', { params: { scope: 'department' } }), api.get('/departments')])
+    setLoading(true);
+    Promise.all([
+      api.get('/users', { params: { scope: 'department', ...pager.params } }),
+      api.get('/departments'),
+    ])
       .then(([u, d]) => {
         setUsers(u.data.users);
+        pager.applyMeta(u.data);
         setDepartments(d.data.departments);
       })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pager.page, pager.limit]);
 
   const updateUser = async (id, changes) => {
     try {
@@ -211,6 +221,16 @@ export default function AdminUsers() {
             })}
           </tbody>
         </table>
+        {!loading && users.length > 0 && (
+          <Pagination
+            page={pager.page}
+            limit={pager.limit}
+            total={pager.total}
+            totalPages={pager.totalPages}
+            onPageChange={pager.setPage}
+            onLimitChange={pager.setLimit}
+          />
+        )}
       </div>
     </div>
   );

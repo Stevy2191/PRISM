@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
+import { usePagination } from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
 import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import AssetFormModal from '../components/AssetFormModal';
@@ -86,9 +88,13 @@ export default function Assets() {
   const [assignedTo, setAssignedTo] = useState('');
   const [view, setView] = useState('table');
   // Dashboard drill-down only, not a toolbar control: 'dueForReplacement' /
-  // 'expiredWarranty' — no backend query param for these (they're date-math,
-  // not a plain equality filter), so applied client-side after the fetch.
+  // 'expiredWarranty'. Passed through to the API as ?quickFilter — it used to
+  // be applied here after the fetch, which stopped being correct once the
+  // fetch returns one page instead of every asset.
   const quickFilter = searchParams.get('filter');
+
+  const filterKey = JSON.stringify([search, categoryId, departmentId, status, assignedTo, quickFilter]);
+  const pager = usePagination({ filterKey, storageKey: 'prism.assets.pageSize' });
 
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -103,8 +109,9 @@ export default function Assets() {
     if (departmentId) params.departmentId = departmentId;
     if (status) params.status = status;
     if (assignedTo) params.assignedTo = assignedTo;
-    api.get('/assets', { params })
-      .then(({ data }) => setAssets(data.assets))
+    if (quickFilter) params.quickFilter = quickFilter;
+    api.get('/assets', { params: { ...params, ...pager.params } })
+      .then(({ data }) => { setAssets(data.assets); pager.applyMeta(data); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
   };
@@ -118,7 +125,7 @@ export default function Assets() {
     const t = setTimeout(load, search ? 300 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, categoryId, departmentId, status, assignedTo]);
+  }, [search, categoryId, departmentId, status, assignedTo, quickFilter, pager.page, pager.limit]);
 
   const requestDelete = (asset) => {
     setDeleteTarget(asset);
@@ -147,14 +154,9 @@ export default function Assets() {
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
-  const filteredAssets = useMemo(() => {
-    if (!quickFilter) return assets;
-    const today = todayStr();
-    const in90 = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
-    if (quickFilter === 'dueForReplacement') return assets.filter((a) => a.replacementPlanDate && a.replacementPlanDate <= in90);
-    if (quickFilter === 'expiredWarranty') return assets.filter((a) => a.warrantyExpiryDate && a.warrantyExpiryDate < today);
-    return assets;
-  }, [assets, quickFilter]);
+  // The quick filters are resolved in SQL now, so the fetched page is already
+  // the filtered set.
+  const filteredAssets = assets;
 
   return (
     <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
@@ -285,6 +287,19 @@ export default function Assets() {
           </div>
         )}
       </div>
+
+      {!loading && filteredAssets.length > 0 && (
+        <div style={{ backgroundColor: CARD_BG, flex: '0 0 auto' }}>
+          <Pagination
+            page={pager.page}
+            limit={pager.limit}
+            total={pager.total}
+            totalPages={pager.totalPages}
+            onPageChange={pager.setPage}
+            onLimitChange={pager.setLimit}
+          />
+        </div>
+      )}
 
       {canCreate && (
         <button
