@@ -1,6 +1,39 @@
 # Upgrading PRISM
 
-## Unreleased — single sign-on
+Every released version gets a section here. Anything landed on `main` that no
+tag covers yet goes under `## Unreleased` at the top, and is folded into the
+version section when it is tagged — see RELEASING.md.
+
+To upgrade in place: set `IMAGE_TAG` in `.env` (or leave it at `latest`), then
+`docker compose pull && docker compose up -d`. Migrations run automatically on
+backend start.
+
+## v0.1.0
+
+The first tagged release, covering everything up to and including the
+pagination work. Marks a baseline for later versions to be compared against.
+
+### List endpoints are paginated — breaking for API consumers
+
+Every list endpoint now returns one page instead of the whole table. The
+collection keeps its key and gains metadata siblings:
+
+```json
+{ "tickets": [ ... ], "page": 1, "limit": 50, "total": 2431, "totalPages": 49 }
+```
+
+No change is needed in the PRISM web UI. **Anything else that calls the API —
+a script, an integration using an API key — will silently start seeing only
+the first 50 records.** Two ways to fix such a caller:
+
+- page through it: request `?page=2`, `?page=3` … until `page` reaches `totalPages`
+- or ask for everything in one response with `?limit=all` (capped at 5000 rows)
+
+Project expense and material endpoints also renamed one field: `total` used to
+be a money sum and is now the row count, with the money sum moved to
+`totalAmount`. Time entries gained `totalLaborCost` for the same reason.
+
+### Single sign-on
 
 Adds SAML 2.0 and OIDC single sign-on. **Run migrations before starting the
 new backend** (`npm run migrate`, or let the container entrypoint do it) —
@@ -10,7 +43,7 @@ Nothing changes for existing installs until an administrator configures a
 provider: no new required environment variables, and local and LDAP login are
 untouched.
 
-### One setting worth checking
+#### One setting worth checking
 
 Callback URLs handed to your identity provider are built from
 `PUBLIC_APP_URL`. It is derived from request headers nowhere, deliberately —
@@ -20,7 +53,7 @@ choosing. If `PUBLIC_APP_URL` is unset, PRISM falls back to
 `http://localhost:$APP_PORT`, which is fine for local testing and wrong for
 anything else.
 
-### If you intend to require SSO
+#### If you intend to require SSO
 
 Designate at least one **break-glass** account first (a user's page →
 *Break-glass access*). PRISM will not let you enable enforcement without one,
@@ -29,7 +62,7 @@ permanently.
 
 See the [SSO section of the README](README.md#single-sign-on-sso) for setup.
 
-### Fixed: migration rollback
+#### Fixed: migration rollback
 
 `sequelize-cli db:migrate:undo` previously failed with
 `Cannot delete property 'meta' of [object Array]`, and even when it did not,
@@ -49,13 +82,13 @@ const tables = (await queryInterface.showAllTables())
 
 ---
 
-## Unreleased — security hardening
+### Security hardening
 
 This release closes a privilege-escalation flaw and adopts fail-closed
 configuration. **Read the "Before you upgrade" section — an existing
 deployment will not start until its `.env` is updated.**
 
-### Before you upgrade
+#### Before you upgrade
 
 PRISM now refuses to start on an insecure configuration rather than warning
 and continuing. Previously the `SESSION_SECRET` check only ran when
@@ -79,7 +112,7 @@ Generate secrets with:
 openssl rand -hex 32
 ```
 
-### New: `ENCRYPTION_KEY` (recommended)
+#### New: `ENCRYPTION_KEY` (recommended)
 
 Credentials stored in the database — the LDAP bind password, license keys,
 calendar OAuth tokens — are encrypted with a key that was derived from
@@ -101,7 +134,7 @@ password and any stored license keys.
 
 Decryption failures are now logged explicitly instead of returning empty.
 
-### New: `TRUST_PROXY` (defaults to off)
+#### New: `TRUST_PROXY` (defaults to off)
 
 The backend used to trust `X-Forwarded-For` unconditionally. Rate limiting
 keys on the client IP, so a client that could reach the backend directly
@@ -120,7 +153,7 @@ backend port. **If you run your own reverse proxy, set `TRUST_PROXY=1` — and
 make sure the backend port is not reachable directly.** Leaving it unset
 behind a proxy is safe but means all clients share one rate-limit bucket.
 
-### Behaviour changes
+#### Behaviour changes
 
 **Authorization.** A set of endpoints was gated on the legacy `User.role`
 column, which only holds `admin` or `technician` and is `technician` for every
@@ -161,7 +194,7 @@ a single quote so spreadsheets treat them as text rather than formulas. A
 separate bug that double-quoted any cell containing a comma is also fixed, so
 exports that were previously mangled now open correctly.
 
-### Running the tests
+#### Running the tests
 
 The backend now has a test suite, and CI runs it before publishing images.
 

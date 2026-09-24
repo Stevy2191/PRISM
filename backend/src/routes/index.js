@@ -46,6 +46,8 @@ const kbPublicRoutes = require('./kbPublic');
 const ssoRoutes = require('./sso');
 const ssoAdminRoutes = require('./ssoAdmin');
 
+const { getVersionInfo } = require('../utils/version');
+
 const router = express.Router();
 
 router.get('/health', (req, res) => res.json({ ok: true, service: 'prism-backend' }));
@@ -70,6 +72,13 @@ router.use('/settings', settingsRoutes);
 // Protected routes. `guard` = authenticated AND (for local accounts) not pending a
 // forced password change AND under the generous per-user request-rate backstop.
 const guard = [authenticate, blockUntilPasswordChanged, globalLimiter];
+
+// Which build this instance is running. Behind `guard` on purpose, and kept off
+// the unauthenticated /health endpoint: an exact version handed to anonymous
+// callers is a list of known CVEs to try. Any logged-in user may read it —
+// it's the number you'd quote in a bug report, not privileged information.
+router.get('/version', guard, (req, res) => res.json(getVersionInfo()));
+
 router.use('/users', guard, usersRoutes);
 router.use('/roles', guard, rolesRoutes);
 router.use('/permissions', guard, permissionsRoutes);

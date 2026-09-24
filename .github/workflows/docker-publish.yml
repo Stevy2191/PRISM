@@ -76,5 +76,14 @@ jobs:
           push: true
           tags: ${{ steps.tags.outputs.tags }}
           labels: ${{ steps.tags.outputs.labels }}
+          # Stamps the running image so an instance can report what it is.
+          # `version` is metadata-action's primary version for the ref: the
+          # semver for a tag, the branch name for a branch push. The frontend
+          # image ignores both args; passing them to one Dockerfile that
+          # declares them and one that doesn't is harmless, and keeps the
+          # matrix from needing a per-service case.
+          build-args: |
+            APP_VERSION=${{ steps.tags.outputs.version }}
+            GIT_SHA=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

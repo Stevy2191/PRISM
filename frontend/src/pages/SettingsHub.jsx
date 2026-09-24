@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 
@@ -215,6 +216,34 @@ export default function SettingsHub() {
           </div>
         </div>
       ))}
+
+      <VersionFooter />
+    </div>
+  );
+}
+
+// Which build this instance is running. Reported by the backend rather than
+// baked into the bundle, so it describes the API actually serving this page —
+// the thing you'd want to know when an instance misbehaves.
+function VersionFooter() {
+  const [info, setInfo] = useState(null);
+
+  useEffect(() => {
+    // A failure here is not worth surfacing: the rest of the page is the point.
+    api.get('/version').then(({ data }) => setInfo(data)).catch(() => {});
+  }, []);
+
+  if (!info) return null;
+
+  return (
+    <div className="border-t border-navy-100 pt-4">
+      <p className="font-mono text-xs text-navy-400">
+        PRISM {info.version}
+        {info.gitSha !== 'unknown' && <> · {info.gitSha}</>}
+        {/* An untagged build is called out, so a dev image is never mistaken
+            for a release when someone reads this off a screenshot. */}
+        {!info.release && <> · unreleased build</>}
+      </p>
     </div>
   );
 }

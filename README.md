@@ -117,6 +117,18 @@ docker compose up -d
 docker compose pull && docker compose up -d
 ```
 
+By default a stack tracks `latest`, which follows released code. To run an exact
+version instead — to pin a deployment, or to roll back after a bad upgrade — set
+`IMAGE_TAG` in `.env` and pull again:
+
+```bash
+IMAGE_TAG=0.1.0
+```
+
+The running version is shown in the Settings page footer. See
+[RELEASING.md](RELEASING.md) for how versions are built, deployed and rolled
+back, and [UPGRADING.md](UPGRADING.md) for what changed between them.
+
 ### Manual setup (advanced)
 
 If you prefer to configure things yourself instead of running `setup.sh`:
