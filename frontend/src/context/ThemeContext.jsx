@@ -36,11 +36,16 @@ export function ThemeProvider({ children }) {
     }
   }, [theme]);
 
-  // Follow OS changes while in "system" mode.
+  // Follow OS changes while in "system" mode. The re-render (not just the DOM
+  // attribute) matters: resolvedTheme drives the nav's light/dark toggle icon.
+  const [, setOsChange] = useState(0);
   useEffect(() => {
     if (theme !== 'system' || !window.matchMedia) return undefined;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => applyDomTheme('system');
+    const handler = () => {
+      applyDomTheme('system');
+      setOsChange((n) => n + 1);
+    };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, [theme]);

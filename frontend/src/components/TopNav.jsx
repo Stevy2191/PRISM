@@ -7,6 +7,7 @@ import api from '../api/api';
 import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
 import NotificationsDropdown from './NotificationsDropdown';
 import GlobalSearch from './GlobalSearch';
+import ThemeToggle from './ThemeToggle';
 
 // Renders a nav item with `subItems` (currently just Assets: Assets/
 // Licenses/Contracts) as a click-to-open dropdown rather than a plain link —
@@ -204,6 +205,10 @@ export default function TopNav() {
           >
             <IconSettings size={18} stroke={1.8} />
           </Link>
+
+          {/* Visible at every width, unlike search/settings: on mobile it's
+              the only way to switch theme without digging into Preferences. */}
+          <ThemeToggle className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--color-hover)]" />
 
           <div className="relative ml-1 hidden md:block" ref={userMenuRef}>
             <button type="button" onClick={() => setUserMenuOpen((o) => !o)} title={user?.displayName}>

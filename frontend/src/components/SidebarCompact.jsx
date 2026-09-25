@@ -7,6 +7,7 @@ import api from '../api/api';
 import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
 import NotificationsDropdown from './NotificationsDropdown';
 import GlobalSearch from './GlobalSearch';
+import ThemeToggle from './ThemeToggle';
 
 // Icon-only alternative to the top bar (~60px wide), tooltip on hover,
 // for users who prefer a sidebar (Account Preferences -> Navigation style).
@@ -105,6 +106,11 @@ export default function SidebarCompact() {
             <IconSettings size={18} stroke={1.8} />
             <Tooltip label="Settings" />
           </Link>
+
+          <ThemeToggle
+            className="group relative flex h-11 w-11 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"
+            renderTooltip={(label) => <Tooltip label={label} />}
+          />
 
           <div className="relative" ref={userMenuRef}>
             <button type="button" onClick={() => setUserMenuOpen((o) => !o)} className="group relative flex h-11 w-11 items-center justify-center">
