@@ -9,7 +9,7 @@ a release goes wrong.
 |---|---|
 | `dev` | `:dev`, `:sha-<sha>` |
 | `main` | `:main`, `:latest`, `:sha-<sha>` |
-| tag `v0.2.0` | `:0.2.0`, `:0.2`, `:sha-<sha>` |
+| tag `v0.2.0` | `:0.2.0`, `:0.2`, `:sha-<sha>`, and a GitHub Release |
 
 Two properties worth knowing:
 
@@ -32,7 +32,12 @@ Work happens on `dev`. When it is ready, merge to `main` and tag.
        git tag -a v0.2.0 -m "Short summary of the release"
        git push origin v0.2.0
 
-   CI then publishes `:0.2.0` and `:0.2`.
+   CI then publishes `:0.2.0` and `:0.2` and, once both images are pushed,
+   a GitHub Release named `PRISM v0.2.0`. Its notes are the tag's own
+   `## v0.2.0` section of `UPGRADING.md` plus the image names, so step 2 is
+   required: without that section the release job fails rather than publish
+   an empty release. Edit the notes afterwards on GitHub if needed; re-running
+   the workflow for the tag overwrites them from `UPGRADING.md`.
 
 Version numbers are `MAJOR.MINOR.PATCH`. Bump MINOR for new features, PATCH for
 fixes alone, MAJOR for a change that requires the operator to do something

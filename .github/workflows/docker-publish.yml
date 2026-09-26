@@ -87,3 +87,57 @@ jobs:
             GIT_SHA=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # A version tag also gets a GitHub Release: a tag alone only appears under
+  # "Tags", not on the repo's Releases page. Runs last, so a release is only
+  # published once the suite passed and both images are in the registry.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The notes are the tag's own section of UPGRADING.md (from its
+      # "## vX.Y.Z" heading up to the next "## "), which RELEASING.md already
+      # requires writing before tagging. Failing on an empty section catches a
+      # tag cut without that step, rather than publishing a release with no notes.
+      - name: Write release notes
+        env:
+          TAG: ${{ github.ref_name }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          awk -v h="## ${TAG}" '$0 == h { f = 1; next } f && /^## / { exit } f' UPGRADING.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::UPGRADING.md has no '## ${TAG}' section to use as release notes"
+            exit 1
+          fi
+          owner="${OWNER,,}"
+          cat >> notes.md <<NOTES
+
+          ## Images
+
+          \`\`\`
+          ghcr.io/${owner}/prism-backend:${TAG#v}
+          ghcr.io/${owner}/prism-frontend:${TAG#v}
+          \`\`\`
+
+          To run this version, set \`IMAGE_TAG=${TAG#v}\` in \`.env\`, then \`docker compose pull && docker compose up -d\`. See RELEASING.md.
+          NOTES
+
+      # Re-running the workflow for a tag that already has a release updates its
+      # notes instead of failing.
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" --verify-tag --title "PRISM $TAG" --notes-file notes.md
+          fi
