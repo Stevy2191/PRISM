@@ -8,6 +8,22 @@ To upgrade in place: set `IMAGE_TAG` in `.env` (or leave it at `latest`), then
 `docker compose pull && docker compose up -d`. Migrations run automatically on
 backend start.
 
+## Unreleased
+
+Nothing here needs action before upgrading.
+
+- **`IMAGE_TAG` in `.env`** chooses which build `docker-compose.yml` pulls.
+  It defaults to `latest`, so a stack whose `.env` predates it is unaffected.
+  Set a version to pin or roll back — see RELEASING.md.
+- **Running version is visible.** `GET /api/v1/version` (any logged-in user)
+  and the Settings page footer report the build's version and commit. It is
+  not on the unauthenticated `/health` endpoint.
+- **Dependency security updates.** Backend: multer, ip-address, nodemailer,
+  csv-parse and others, all within existing version ranges. Frontend:
+  react-router and TipTap patch releases.
+- **Light/dark toggle** in the nav bar, next to the user menu. "System" is
+  still chosen in Account preferences.
+
 ## v0.1.0
 
 The first tagged release, covering everything up to and including the
