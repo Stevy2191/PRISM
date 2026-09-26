@@ -8,7 +8,7 @@ To upgrade in place: set `IMAGE_TAG` in `.env` (or leave it at `latest`), then
 `docker compose pull && docker compose up -d`. Migrations run automatically on
 backend start.
 
-## Unreleased
+## v0.2.0
 
 Nothing here needs action before upgrading.
 
@@ -23,6 +23,8 @@ Nothing here needs action before upgrading.
   react-router and TipTap patch releases.
 - **Light/dark toggle** in the nav bar, next to the user menu. "System" is
   still chosen in Account preferences.
+- **About PRISM** page under Settings -> My Account: version, commit,
+  license, and links to report an issue or star the project on GitHub.
 
 ## v0.1.0
 
