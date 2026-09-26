@@ -26,6 +26,16 @@ function issueUrl(info) {
   return `${REPO_URL}/issues/new?body=${encodeURIComponent(body)}`;
 }
 
+// The git ref this build was made from, so the source and license links show
+// this copy's code and the terms it was actually distributed under, not
+// whatever main says today. That is what the AGPL's offer of source to network
+// users points at. Falls back to main for a hand-built image with no stamp.
+function buildRef(info) {
+  if (info?.release) return `v${info.version}`;
+  if (info && info.gitSha !== 'unknown') return info.gitSha;
+  return 'main';
+}
+
 function Row({ label, children }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-2.5">
@@ -91,10 +101,10 @@ export default function About() {
             )}
           </Row>
           <Row label="Source code">
-            <ExternalLink href={REPO_URL}>github.com/Stevy2191/PRISM</ExternalLink>
+            <ExternalLink href={`${REPO_URL}/tree/${buildRef(info)}`}>github.com/Stevy2191/PRISM</ExternalLink>
           </Row>
           <Row label="License">
-            <ExternalLink href={`${REPO_URL}/blob/main/LICENSE`}>MIT License</ExternalLink>
+            <ExternalLink href={`${REPO_URL}/blob/${buildRef(info)}/LICENSE`}>GNU AGPL v3.0</ExternalLink>
           </Row>
         </dl>
       </div>
@@ -119,7 +129,9 @@ export default function About() {
       </div>
 
       <p className="text-xs text-navy-400">
-        PRISM is free software, distributed under the MIT License. Copyright © 2026 sstevens117.
+        PRISM is free software: you can redistribute it and/or modify it under the terms of the
+        GNU Affero General Public License, version 3. It comes with no warranty. The source code for
+        this version is available at the Source code link above. Copyright © 2026 sstevens117.
       </p>
     </div>
   );

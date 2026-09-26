@@ -547,3 +547,9 @@ prism/
 - **Sessions** are stored in MariaDB and survive backend restarts.
 - **Data integrity:** multi-step writes use Sequelize transactions; deleting a
   ticket cascades its comments, attachments, and time entries (and removes files).
+
+## License
+
+PRISM is licensed under the [GNU Affero General Public License v3.0](LICENSE)
+(`AGPL-3.0-only`). Versions up to and including v0.2.0 were released under
+the MIT License and remain available under it.

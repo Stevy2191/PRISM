@@ -8,6 +8,18 @@ To upgrade in place: set `IMAGE_TAG` in `.env` (or leave it at `latest`), then
 `docker compose pull && docker compose up -d`. Migrations run automatically on
 backend start.
 
+## Unreleased
+
+### License is now AGPL-3.0
+
+PRISM is relicensed from MIT to the GNU Affero General Public License v3.0
+(`AGPL-3.0-only`). Releases up to and including v0.2.0 stay under MIT.
+
+Nothing changes for running PRISM unmodified. If you **modify** PRISM and let
+users reach it over a network, the AGPL requires you to offer those users the
+source of your modified version. The About page in Settings links to the
+source for the build it's running, which is where users will look for it.
+
 ## v0.2.0
 
 Nothing here needs action before upgrading.
