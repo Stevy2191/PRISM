@@ -53,6 +53,7 @@ const SECTIONS = [
     title: 'My Account',
     items: [
       { label: 'Preferences', to: '/settings/preferences', desc: 'Your personal preferences', roles: ALL },
+      { label: 'About PRISM', to: '/settings/about', desc: 'Version, license, report an issue', roles: ALL },
     ],
   },
   {
@@ -243,6 +244,8 @@ function VersionFooter() {
         {/* An untagged build is called out, so a dev image is never mistaken
             for a release when someone reads this off a screenshot. */}
         {!info.release && <> · unreleased build</>}
+        {' · '}
+        <Link to="/settings/about" className="hover:text-prism hover:underline">About</Link>
       </p>
     </div>
   );

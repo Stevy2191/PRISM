@@ -42,6 +42,7 @@ import SettingsHolidays from './pages/settings/Holidays';
 import SettingsTeams from './pages/settings/Teams';
 import SettingsModules from './pages/settings/Modules';
 import SettingsPreferences from './pages/settings/Preferences';
+import SettingsAbout from './pages/settings/About';
 import SettingsLayouts from './pages/settings/Layouts';
 import SettingsAssetCategories from './pages/settings/AssetCategories';
 import SettingsAssetAlerts from './pages/settings/AssetAlerts';
@@ -143,6 +144,7 @@ export default function App() {
         {/* Settings hub + sections */}
         <Route path="/settings" element={<SettingsHub />} />
         <Route path="/settings/preferences" element={<SettingsPreferences />} />
+        <Route path="/settings/about" element={<SettingsAbout />} />
         <Route path="/settings/company" element={perm(<SettingsCompany />, BRANDING_KEYS)} />
         <Route path="/settings/branding" element={perm(<SettingsBranding />, BRANDING_KEYS)} />
         <Route path="/settings/statuses" element={perm(<SettingsStatuses />, STATUSES_KEYS)} />
