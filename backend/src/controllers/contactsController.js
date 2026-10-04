@@ -2,7 +2,7 @@ const { Op, fn, col } = require('sequelize');
 const { Contact, Ticket, Department, User, ContactActivity, sequelize } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
-const { hasPermission } = require('../services/permissionService');
+const { hasPermission, findAccessibleContact, parseRecordId } = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
@@ -255,15 +255,24 @@ const update = asyncHandler(async (req, res) => {
 // retroactively updates every existing ticket for this contact to match, so
 // their history stays consistent. Powers the inline "no department" prompt.
 const assignDepartment = asyncHandler(async (req, res) => {
-  const contact = await Contact.findByPk(req.params.id);
+  // This also moves every ticket the contact owns into the department, so it
+  // decides who can see those tickets: the caller must be able to see the
+  // contact (missing and out-of-scope look the same), and a caller without
+  // people.view_all may only assign their own department — otherwise a
+  // department-scoped user could pull another department's tickets into view.
+  const contact = await findAccessibleContact(req.user, req.params.id);
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
 
-  const { departmentId } = req.body || {};
-  if (!departmentId) {
+  const { departmentId: rawDepartmentId } = req.body || {};
+  if (!rawDepartmentId) {
     throw new ApiError(400, 'departmentId is required', 'VALIDATION_ERROR');
   }
-  const dept = await Department.findByPk(departmentId);
+  const dept = await Department.findByPk(parseRecordId(rawDepartmentId) || 0);
   if (!dept) throw new ApiError(400, 'Department does not exist', 'VALIDATION_ERROR');
+  const departmentId = dept.id;
+  if (departmentId !== req.user.departmentId && !(await hasPermission(req.user.id, 'people.view_all'))) {
+    throw new ApiError(403, 'You can only assign contacts to your own department', 'FORBIDDEN');
+  }
 
   const ticketCount = await sequelize.transaction(async (t) => {
     await contact.update({ departmentId }, { transaction: t });

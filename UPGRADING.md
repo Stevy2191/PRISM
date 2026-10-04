@@ -35,6 +35,11 @@ Nothing here needs action before upgrading.
   department, or a contact they just created on the new-ticket form.
   **Changed response:** a missing or hidden project or contact now returns
   `400 VALIDATION_ERROR` ("Project not found" / "Contact not found").
+- Assigning a contact to a department (which also moves that contact's
+  tickets) now needs access to the contact, and users without "view all
+  people" can only assign their own department. Before, any user who could
+  create tickets could move another department's contact, and its tickets,
+  into their own department and read them.
 
 ### Fixes
 
