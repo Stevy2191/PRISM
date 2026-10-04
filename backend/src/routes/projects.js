@@ -1,7 +1,7 @@
 const express = require('express');
 const ctrl = require('../controllers/projectsController');
 const { requirePermission } = require('../middleware/requirePermission');
-const { projectUpload, enforceMaxAttachmentSize } = require('../middleware/upload');
+const { projectUpload, enforceMaxAttachmentSize, verifyFileSignature } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -56,7 +56,7 @@ router.delete('/:id/members/:userId', requirePermission('projects.manage_members
 
 // Files
 router.get('/:id/files', ctrl.listFiles);
-router.post('/:id/files', editMin, projectUpload.single('file'), enforceMaxAttachmentSize, ctrl.uploadFile);
+router.post('/:id/files', editMin, projectUpload.single('file'), verifyFileSignature, enforceMaxAttachmentSize, ctrl.uploadFile);
 router.get('/:id/files/:fileId/download', ctrl.downloadFile);
 router.delete('/:id/files/:fileId', editMin, ctrl.removeFile);
 
