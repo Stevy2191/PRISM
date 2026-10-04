@@ -673,7 +673,12 @@ const renumberSubtask = asyncHandler(async (req, res) => {
 
 // DELETE /projects/:id/tasks/:taskId/subtasks/:subtaskId
 const removeSubtask = asyncHandler(async (req, res) => {
-  const subtask = await ProjectSubtask.findOne({ where: { id: req.params.subtaskId, taskId: req.params.taskId } });
+  // The task is loaded through the project first: access is checked on
+  // project :id, so a :taskId from another project must not be reachable
+  // through it.
+  const task = await ProjectTask.findOne({ where: { id: req.params.taskId, projectId: req.params.id } });
+  if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
+  const subtask = await ProjectSubtask.findOne({ where: { id: req.params.subtaskId, taskId: task.id } });
   if (!subtask) throw new ApiError(404, 'Subtask not found', 'NOT_FOUND');
   const project = await Project.findByPk(req.params.id);
   if (!project || !(await canAccessProject(req.user, project))) {
