@@ -165,6 +165,15 @@ describe('PATCH /projects/:id', () => {
     expect(project).toEqual(expect.objectContaining(changes));
   });
 
+  // Likely correct: 400 VALIDATION_ERROR, as on create. Expected to change in sub-project 3.
+  it('[quirk] Q38: update accepts a blank or whitespace name', async () => {
+    const p = await makeProject(tech.agent, { name: 'P', ownerDepartmentId: w.deptA.id });
+    for (const name of ['', '   ']) {
+      // eslint-disable-next-line no-await-in-loop
+      expect(expectOk(await tech.agent.patch(projUrl(p)).send({ name })).project.name).toBe(name);
+    }
+  });
+
   it('an empty tags list is stored as null', async () => {
     const p = await makeProject(tech.agent, { name: 'P', ownerDepartmentId: w.deptA.id, tags: ['x'] });
     expect(expectOk(await tech.agent.patch(projUrl(p)).send({ tags: [] })).project.tags).toBeNull();

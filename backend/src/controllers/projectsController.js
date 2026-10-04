@@ -33,7 +33,7 @@ const {
 const { computeProjectCompletion, isTaskComplete, subtaskCompletionPercent } = require('../services/projectCompletion');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const {
-  getUserProjectScope, canAccessProject, hasPermission, findAccessibleTicket,
+  getUserProjectScope, canAccessProject, hasPermission, findAccessibleTicket, parseTicketId,
 } = require('../services/permissionService');
 const { generateProjectCode, generateTaskCode, generateSubtaskCode, formatTaskCode, formatSubtaskCode } = require('../services/projectCodeService');
 
@@ -432,9 +432,13 @@ const createTask = asyncHandler(async (req, res) => {
 
   const { title, description, statusId, priority, assignedToUserId, dueDate, linkedTicketId } = req.body || {};
   if (!title || !title.trim()) throw new ApiError(400, 'Task title is required', 'VALIDATION_ERROR');
-  // Missing and out-of-scope tickets look the same (see findAccessibleTicket).
-  if (linkedTicketId && !(await findAccessibleTicket(req.user, linkedTicketId))) {
-    throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+  // Missing and out-of-scope tickets look the same (see findAccessibleTicket),
+  // and the checked ticket's own id is what gets stored.
+  let resolvedLinkedTicketId = null;
+  if (linkedTicketId) {
+    const linked = await findAccessibleTicket(req.user, linkedTicketId);
+    if (!linked) throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+    resolvedLinkedTicketId = linked.id;
   }
 
   let resolvedStatusId = statusId;
@@ -455,7 +459,7 @@ const createTask = asyncHandler(async (req, res) => {
     priority: priority || 'medium',
     assignedToUserId: assignedToUserId || null,
     dueDate: dueDate || null,
-    linkedTicketId: linkedTicketId || null,
+    linkedTicketId: resolvedLinkedTicketId,
     position: (Number.isFinite(maxPos) ? maxPos : 0) + 1,
     createdBy: req.user.id,
   });
@@ -479,11 +483,18 @@ const updateTask = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
-  // Only a link that changes is checked: re-sending the task's existing link
-  // (a client PATCHing the whole task back) reveals nothing new.
-  const relinking = changes.linkedTicketId && Number(changes.linkedTicketId) !== task.linkedTicketId;
-  if (relinking && !(await findAccessibleTicket(req.user, changes.linkedTicketId))) {
-    throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+  if (changes.linkedTicketId !== undefined) {
+    if (!changes.linkedTicketId) {
+      changes.linkedTicketId = null;
+    } else if (parseTicketId(changes.linkedTicketId) === task.linkedTicketId) {
+      // Re-sending the task's existing link (a client PATCHing the whole task
+      // back) reveals nothing new, so it isn't re-checked.
+      changes.linkedTicketId = task.linkedTicketId;
+    } else {
+      const linked = await findAccessibleTicket(req.user, changes.linkedTicketId);
+      if (!linked) throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+      changes.linkedTicketId = linked.id;
+    }
   }
 
   if (changes.statusId !== undefined && changes.statusId !== task.statusId) {

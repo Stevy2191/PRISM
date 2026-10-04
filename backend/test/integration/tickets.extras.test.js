@@ -48,6 +48,18 @@ describe('S3: links never reach a ticket the user cannot see', () => {
     expect(list.map((t) => t.title).sort()).toEqual(['Mine', 'Secret']);
   });
 
+  // Ticket links store the parsed id, but a non-integer id is still refused
+  // rather than quietly read as another ticket.
+  it.each([[1.6], ['1e1']])('refuses a linked ticket id that is not a plain integer (%p)', async (bad) => {
+    const rel = await staff.agent.post(`${API}/tickets/${mine.id}/relations`).send({ relatedTicketId: bad });
+    expect(rel.status).toBe(404);
+    const created = await staff.agent.post(`${API}/tickets`).send({
+      title: 'New', contactId: w.contact.id, departmentId: w.deptA.id, parentTicketId: bad,
+    });
+    expect(created.status).toBe(400);
+    expect(created.body.message).toBe('Linked ticket not found');
+  });
+
   it('create still links tickets the user can see', async () => {
     const res = await staff.agent.post(`${API}/tickets`).send({
       title: 'Child', contactId: w.contact.id, departmentId: w.deptA.id, parentTicketId: mine.id,

@@ -194,6 +194,15 @@ describe('PATCH /tickets/:id', () => {
     expect(expectOk(await tech.agent.get(`${API}/tickets/${t.id}`)).ticket).toEqual(expect.objectContaining(changes));
   });
 
+  // Likely correct: 400 VALIDATION_ERROR, as on create. Expected to change in sub-project 3.
+  it('[quirk] Q38: update accepts a blank or whitespace title', async () => {
+    const t = await makeTicket(tech.agent, base());
+    for (const title of ['', '   ']) {
+      // eslint-disable-next-line no-await-in-loop
+      expect(expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ title })).ticket.title).toBe(title);
+    }
+  });
+
   it('ignores fields that are not editable', async () => {
     const t = await makeTicket(tech.agent, base());
     const { ticket } = expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({

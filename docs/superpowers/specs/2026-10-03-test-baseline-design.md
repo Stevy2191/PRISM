@@ -151,7 +151,7 @@ the test stays as a guard and no code changes.
 |---|---|---|---|
 | S1 | `DELETE /projects/:id/tasks/:taskId/subtasks/:subtaskId` checks access to project `:id` but never that task `:taskId` belongs to it. | A user with access to project A can delete any subtask in project B. | Load the task with `{ id: taskId, projectId: id }` first and 404 if absent, as `updateSubtask` already does. |
 | S2 | `POST /timer/start` checks only that the ticket exists. | A user can run a timer on, and so log time to, a ticket they cannot see. | Check `canAccessTicket`; 403 as on every other ticket route. |
-| S3 | `POST /tickets/:id/relations`, and `parentTicketId` / `childTicketIds` / `relatedTicketIds` on ticket create, never scope-check the *other* ticket. | Linking to an arbitrary id and listing relations reveals that ticket's title, status and priority. | An out-of-scope target is treated exactly like a missing one: 404 `Related ticket not found` on the relation endpoint, 400 `VALIDATION_ERROR` 'Linked ticket not found' on create. Existence cannot be probed, so a *missing* linked ticket now gets that same 400 too (before: 400 `FK_CONSTRAINT`). |
+| S3 | `POST /tickets/:id/relations`, and `parentTicketId` / `childTicketIds` / `relatedTicketIds` on ticket create, never scope-check the *other* ticket. | Linking to an arbitrary id and listing relations reveals that ticket's title, status and priority. | An out-of-scope target is treated exactly like a missing one: 404 `Related ticket not found` on the relation endpoint, 400 `VALIDATION_ERROR` 'Linked ticket not found' on create. A link can't be used to read a hidden ticket's title, and the id is parsed strictly (only a plain positive integer; `"1e1"` or `1.6` are refused, never checked as one ticket and stored as another). A *missing* linked ticket now gets that same 400 too (before: 400 `FK_CONSTRAINT`). |
 | S4 | `linkedTicketId` on project task create and update is not scope-checked. | The task response includes the linked ticket's title. | Same rule as S3: 400 `VALIDATION_ERROR` 'Linked ticket not found' for out-of-scope and missing tickets alike (before: a missing one was stored as a dangling id). Re-sending a task's existing link unchanged is not re-checked. |
 | S5 | `POST /projects/:id/files` skips `verifyFileSignature`, which ticket attachments run. | A Windows executable renamed `.pdf` is stored on a project. | Add `verifyFileSignature` to the route. |
 
@@ -165,7 +165,7 @@ user-visible ones; they are recorded for `v0.4.0` in `UPGRADING.md`.
 
 ## Known quirks (pinned, not fixed)
 
-Q1–Q8 were found while designing; Q9–Q36 while planning; Q37 while writing the tests. Q17, Q18, Q19, Q21 and Q26 are access-flavoured: the user chose (2026-10-04) to pin them here and revisit them in sub-project 3.
+Q1–Q8 were found while designing; Q9–Q36 while planning; Q37 while writing the tests; Q38 in the final review. Note that `GET /tickets/:id` still answers 404 for a missing ticket and 403 for a hidden one, so ticket *existence* remains probeable there; sub-project 2's scope work revisits that. Q17, Q18, Q19, Q21 and Q26 are access-flavoured: the user chose (2026-10-04) to pin them here and revisit them in sub-project 3.
 
 | # | Quirk | Where | Likely fix in |
 |---|---|---|---|
@@ -206,6 +206,7 @@ Q1–Q8 were found while designing; Q9–Q36 while planning; Q37 while writing t
 | Q35 | Creating a ticket already closed bypasses `timeTracking.requireBeforeClose`. | `ticketsController.create` | 3 |
 | Q36 | A report `endDate` becomes the end of the *previous* local day west of UTC. | `reportsController.parseDateRange` | 3 |
 | Q37 | ~~Two projects created at the same moment in one department could fail (findOrCreate race on a department's first project; MariaDB 11 snapshot-isolation error 1020 after that).~~ **Fixed in sub-project 1** at the user's request: the counter is one atomic `INSERT … ON DUPLICATE KEY UPDATE` in a READ COMMITTED transaction. | `projectCodeService.nextProjectSequence` | 1 (fixed) |
+| Q38 | Updates accept a blank or whitespace-only ticket title, project name, or task/subtask title (create rejects them). | ticket/project/task/subtask update handlers | 3 |
 
 ## Done when
 

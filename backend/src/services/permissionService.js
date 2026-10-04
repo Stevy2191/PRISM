@@ -196,12 +196,23 @@ async function canAccessTicket(user, ticket) {
   return ticket.assigneeId === user.id;
 }
 
+// A ticket id from a request body, or null unless it is a plain positive
+// integer (a number, or a string of digits). parseInt is not enough: it reads
+// "1e1" and 1.6 as 1, while MariaDB stores the raw value as 10 and 2, so a
+// check on one ticket would link another.
+function parseTicketId(value) {
+  if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0 ? value : null;
+  if (typeof value === 'string' && /^[1-9]\d{0,14}$/.test(value)) return Number(value);
+  return null;
+}
+
 // Loads a ticket the caller may see, or null. A missing ticket and one out of
 // the caller's scope look identical, so a field that links to another ticket
-// (relations, a project task's linkedTicketId) can't be used to probe which
-// ticket ids exist or read their titles.
+// (relations, a project task's linkedTicketId) can't be used to read titles
+// of tickets the caller can't open. Callers store the returned ticket's id,
+// never the raw request value.
 async function findAccessibleTicket(user, ticketId) {
-  const id = parseInt(ticketId, 10);
+  const id = parseTicketId(ticketId);
   if (!id) return null;
   const ticket = await Ticket.findByPk(id);
   if (!ticket || !(await canAccessTicket(user, ticket))) return null;
@@ -259,6 +270,7 @@ module.exports = {
   getUserReportScope,
   canAccessTicket,
   findAccessibleTicket,
+  parseTicketId,
   canAccessProject,
   canModerateTicketContent,
   canModerateProjectContent,

@@ -45,7 +45,8 @@ const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { generateTicketReport } = require('../services/ticketReport');
 const {
-  getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent, findAccessibleTicket,
+  getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent,
+  findAccessibleTicket, parseTicketId,
 } = require('../services/permissionService');
 const { evaluateRules } = require('../services/workflowEngine');
 const { syncTicketToExternalCalendars, removeTicketFromExternalCalendars } = require('../services/calendarPush');
@@ -388,13 +389,16 @@ const create = asyncHandler(async (req, res) => {
   const watcherIdList = Array.isArray(watcherIds)
     ? [...new Set(watcherIds.map((id) => parseInt(id, 10)).filter(Boolean))]
     : [];
-  const childIdList = Array.isArray(childTicketIds)
-    ? [...new Set(childTicketIds.map((id) => parseInt(id, 10)).filter(Boolean))]
-    : [];
-  const relatedIdList = Array.isArray(relatedTicketIds)
-    ? [...new Set(relatedTicketIds.map((id) => parseInt(id, 10)).filter(Boolean))]
-    : [];
-  const parentId = parentTicketId ? parseInt(parentTicketId, 10) : null;
+  // Linked ticket ids must be plain integers: a value parseInt would read as
+  // a different number than the one supplied is refused, not truncated.
+  const parseLinked = (raw) => {
+    const id = parseTicketId(raw);
+    if (!id) throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+    return id;
+  };
+  const childIdList = Array.isArray(childTicketIds) ? [...new Set(childTicketIds.map(parseLinked))] : [];
+  const relatedIdList = Array.isArray(relatedTicketIds) ? [...new Set(relatedTicketIds.map(parseLinked))] : [];
+  const parentId = parentTicketId ? parseLinked(parentTicketId) : null;
   // Every ticket this one links to must be one the caller can see. Missing
   // and out-of-scope get the same answer, so the links can't probe ids.
   const linkedIds = [...new Set([parentId, ...childIdList, ...relatedIdList].filter(Boolean))];
@@ -1090,18 +1094,20 @@ const createRelation = asyncHandler(async (req, res) => {
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   const { relatedTicketId, relationType } = req.body || {};
-  const relId = parseInt(relatedTicketId, 10);
-  if (!relId) throw new ApiError(400, 'relatedTicketId is required', 'VALIDATION_ERROR');
-  if (relId === ticket.id) {
-    throw new ApiError(400, 'A ticket cannot be related to itself', 'VALIDATION_ERROR');
+  if (relatedTicketId === undefined || relatedTicketId === null || relatedTicketId === '') {
+    throw new ApiError(400, 'relatedTicketId is required', 'VALIDATION_ERROR');
   }
   // 'child' is a UI-only direction: the other ticket becomes a child of this
   // one, which is stored as a 'parent' row from the other ticket's side.
   if (relationType && !['related', 'caused_by', 'duplicates', 'parent', 'child'].includes(relationType)) {
     throw new ApiError(400, 'Invalid relation type', 'VALIDATION_ERROR');
   }
-  const related = await findAccessibleTicket(req.user, relId);
+  const related = await findAccessibleTicket(req.user, relatedTicketId);
   if (!related) throw new ApiError(404, 'Related ticket not found', 'NOT_FOUND');
+  const relId = related.id;
+  if (relId === ticket.id) {
+    throw new ApiError(400, 'A ticket cannot be related to itself', 'VALIDATION_ERROR');
+  }
 
   const isChild = relationType === 'child';
   const storedType = isChild ? 'parent' : (relationType || 'related');

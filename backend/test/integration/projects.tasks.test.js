@@ -85,6 +85,30 @@ describe('S4: linkedTicketId on project tasks', () => {
     expect(res.body.task.title).toBe('Renamed');
   });
 
+  // MariaDB converts a raw value differently from parseInt: "1e1" becomes 10
+  // and 1.6 rounds to 2. An id that is not a plain positive integer must be
+  // refused outright, never checked as one ticket and stored as another.
+  it.each([[1.6], ['1.6'], [1.5], ['1e1'], ['1x'], [-1], [true]])(
+    'refuses a linkedTicketId that is not a plain integer (%p)',
+    async (bad) => {
+      const created = await mgr.agent.post(`${API}/projects/${proj.id}/tasks`).send({ title: 'x', linkedTicketId: bad });
+      expect(created.status).toBe(400);
+      expect(created.body).toEqual(refused);
+      const task = await makeTask(mgr.agent, proj.id, { linkedTicketId: mine.id });
+      const patched = await mgr.agent.patch(`${API}/projects/${proj.id}/tasks/${task.id}`).send({ linkedTicketId: bad });
+      expect(patched.status).toBe(400);
+      expect(patched.body).toEqual(refused);
+      const tasks = expectOk(await mgr.agent.get(`${API}/projects/${proj.id}/tasks`)).tasks;
+      expect(tasks.map((t) => t.linkedTicketId)).toEqual([mine.id]);
+    }
+  );
+
+  it('accepts a visible ticket id sent as a numeric string, and stores the number', async () => {
+    const task = await makeTask(mgr.agent, proj.id, { linkedTicketId: String(mine.id) });
+    expect(task.linkedTicketId).toBe(mine.id);
+    expect(task.linkedTicket).toEqual({ id: mine.id, title: 'Visible' });
+  });
+
   it('a visible ticket links, and clearing the link with null still works', async () => {
     const task = await makeTask(mgr.agent, proj.id, { linkedTicketId: mine.id });
     expect(task.linkedTicket).toEqual({ id: mine.id, title: 'Visible' });
@@ -162,6 +186,18 @@ describe('tasks, subtasks, codes and rollups', () => {
       title: 'New', description: 'D', priority: 'urgent', assignedToUserId: mgr.user.id, dueDate: '2026-12-01', position: 7,
     };
     expect(await patchTask(t, changes)).toEqual(expect.objectContaining(changes));
+  });
+
+  // Likely correct: 400 VALIDATION_ERROR, as on create. Expected to change in sub-project 3.
+  it('[quirk] Q38: task and subtask updates accept a blank or whitespace title', async () => {
+    const t = await makeTask(mgr.agent, P.id);
+    const s = await makeSubtask(mgr.agent, P.id, t.id);
+    for (const title of ['', '   ']) {
+      // eslint-disable-next-line no-await-in-loop
+      expect((await patchTask(t, { title })).title).toBe(title);
+      // eslint-disable-next-line no-await-in-loop
+      expect((await patchSub(t, s, { title })).title).toBe(title);
+    }
   });
 
   it('closing stamps completedAt and logs task_closed; reopening clears it silently', async () => {
