@@ -132,8 +132,49 @@ async function makeWorld() {
   return { admin, deptA, deptB, contact };
 }
 
+// The shared time-and-money fixture for the reader suites. Every figure is a
+// whole number of 6-minute steps, so hours round the same way in every
+// reader: any disagreement between readers is a real difference.
+//   Ticket "Printer" (dept A, assigned Tina):
+//     Tina 90 min (minutes path, entryDate 2026-03-02)
+//     Carl 60 min (14:00–15:00Z on 2026-03-11)
+//   Project "Refresh" (dept A, lead Tina):
+//     Carl 30 min (15:00–15:30Z, entryDate 2026-03-11)
+//     Tina 120 min (13:00–15:00Z on 2026-03-10)
+//     expense 100.00; material 2 × 25.00
+// Carl is a contractor at $75/h. Totals: 5.0 h, of which contractor 1.5 h and
+// internal 3.5 h; labour $112.50 ($75.00 ticket + $37.50 project).
+// Call with the clock frozen at LEDGER_NOW (a Wednesday), so every loggedAt
+// and createdAt is that instant.
+const LEDGER_NOW = '2026-03-11T17:00:00Z';
+async function makeLedger(w) {
+  const tina = await makeTech('tina', w.deptA.id);
+  const carl = await makeContractor(w.admin, 'carl', w.deptA.id, { rate: 75 });
+  const ticket = await makeTicket(w.admin.agent, {
+    title: 'Printer', contactId: w.contact.id, departmentId: w.deptA.id, assigneeId: tina.user.id,
+  });
+  expectOk(await tina.agent.post(`${API}/tickets/${ticket.id}/time`).send({ minutes: 90, entryDate: '2026-03-02' }), 201);
+  expectOk(await carl.agent.post(`${API}/tickets/${ticket.id}/time`).send({
+    startTime: '2026-03-11T14:00:00Z', endTime: '2026-03-11T15:00:00Z', entryDate: '2026-03-11',
+  }), 201);
+  const project = await makeProject(w.admin.agent, {
+    name: 'Refresh', ownerDepartmentId: w.deptA.id, assignedToUserId: tina.user.id,
+  });
+  const pt = `${API}/projects/${project.id}/time-entries`;
+  expectOk(await carl.agent.post(pt).send({
+    startTime: '2026-03-11T15:00:00Z', endTime: '2026-03-11T15:30:00Z', entryDate: '2026-03-11',
+  }), 201);
+  expectOk(await tina.agent.post(pt).send({
+    startTime: '2026-03-10T13:00:00Z', endTime: '2026-03-10T15:00:00Z', entryDate: '2026-03-10',
+  }), 201);
+  expectOk(await w.admin.agent.post(`${API}/projects/${project.id}/expenses`).send({ description: 'Cables', amount: 100 }), 201);
+  expectOk(await w.admin.agent.post(`${API}/projects/${project.id}/materials`).send({ itemName: 'Switch', quantity: 2, unitCost: 25 }), 201);
+  return { tina, carl, ticket, project };
+}
+
 module.exports = {
   API, expectOk, makeAdmin, makeDept, makeUser, makeTech, makeManager, makeStaff, makeOwnTier,
   makeContractor, makeContact, makeTicket, makeProject, makeTask, makeSubtask, makeTeam,
   setSettings, projectStatusId, freezeClock, advanceClock, unfreezeClock, waitFor, makeWorld,
+  LEDGER_NOW, makeLedger,
 };
