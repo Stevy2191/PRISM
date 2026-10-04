@@ -40,3 +40,56 @@ describe('S1: DELETE /projects/:id/tasks/:taskId/subtasks/:subtaskId', () => {
     expect(tasks[0].subtasks).toEqual([]);
   });
 });
+
+describe('S4: linkedTicketId on project tasks', () => {
+  let mgr;
+  let proj;
+  let mine;
+  let hidden;
+  beforeEach(async () => {
+    // Can edit department A's projects, can see only department A's tickets.
+    mgr = await makeManager('mgr', w.deptA.id);
+    proj = await makeProject(w.admin.agent, { name: 'A', ownerDepartmentId: w.deptA.id });
+    mine = await makeTicket(w.admin.agent, { title: 'Visible', contactId: w.contact.id, departmentId: w.deptA.id });
+    hidden = await makeTicket(w.admin.agent, { title: 'Secret', contactId: w.contact.id, departmentId: w.deptB.id });
+  });
+
+  const refused = { error: true, message: 'Linked ticket not found', code: 'VALIDATION_ERROR' };
+
+  it('create: an out-of-scope ticket and a missing one get the same 400', async () => {
+    const out = await mgr.agent.post(`${API}/projects/${proj.id}/tasks`).send({ title: 'x', linkedTicketId: hidden.id });
+    const missing = await mgr.agent.post(`${API}/projects/${proj.id}/tasks`).send({ title: 'x', linkedTicketId: 99999 });
+    expect(out.status).toBe(400);
+    expect(out.body).toEqual(refused);
+    expect(missing.status).toBe(400);
+    expect(missing.body).toEqual(refused);
+    expect(expectOk(await mgr.agent.get(`${API}/projects/${proj.id}/tasks`)).tasks).toEqual([]);
+  });
+
+  it('update: same rule, and the task keeps its old link', async () => {
+    const task = await makeTask(mgr.agent, proj.id, { linkedTicketId: mine.id });
+    const out = await mgr.agent.patch(`${API}/projects/${proj.id}/tasks/${task.id}`).send({ linkedTicketId: hidden.id });
+    expect(out.status).toBe(400);
+    expect(out.body).toEqual(refused);
+    const [fresh] = expectOk(await mgr.agent.get(`${API}/projects/${proj.id}/tasks`)).tasks;
+    expect(fresh.linkedTicket).toEqual({ id: mine.id, title: 'Visible' });
+  });
+
+  it('re-sending a task\'s existing link unchanged is not a new link', async () => {
+    // An admin linked a ticket the manager can't see; a client that PATCHes
+    // the whole task back must not be refused for a link it didn't make.
+    const task = await makeTask(w.admin.agent, proj.id, { linkedTicketId: hidden.id });
+    const res = await mgr.agent.patch(`${API}/projects/${proj.id}/tasks/${task.id}`)
+      .send({ title: 'Renamed', linkedTicketId: hidden.id });
+    expect(res.status).toBe(200);
+    expect(res.body.task.title).toBe('Renamed');
+  });
+
+  it('a visible ticket links, and clearing the link with null still works', async () => {
+    const task = await makeTask(mgr.agent, proj.id, { linkedTicketId: mine.id });
+    expect(task.linkedTicket).toEqual({ id: mine.id, title: 'Visible' });
+    const cleared = expectOk(await mgr.agent.patch(`${API}/projects/${proj.id}/tasks/${task.id}`).send({ linkedTicketId: null })).task;
+    expect(cleared.linkedTicketId).toBeNull();
+    expect(cleared.linkedTicket).toBeNull();
+  });
+});

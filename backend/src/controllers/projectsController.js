@@ -30,7 +30,9 @@ const {
 } = require('../services/statusBehavior');
 const { computeProjectCompletion, isTaskComplete, subtaskCompletionPercent } = require('../services/projectCompletion');
 const { UPLOAD_ROOT } = require('../middleware/upload');
-const { getUserProjectScope, canAccessProject, hasPermission } = require('../services/permissionService');
+const {
+  getUserProjectScope, canAccessProject, hasPermission, findAccessibleTicket,
+} = require('../services/permissionService');
 const { generateProjectCode, generateTaskCode, generateSubtaskCode, formatTaskCode, formatSubtaskCode } = require('../services/projectCodeService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
@@ -425,6 +427,10 @@ const createTask = asyncHandler(async (req, res) => {
 
   const { title, description, statusId, priority, assignedToUserId, dueDate, linkedTicketId } = req.body || {};
   if (!title || !title.trim()) throw new ApiError(400, 'Task title is required', 'VALIDATION_ERROR');
+  // Missing and out-of-scope tickets look the same (see findAccessibleTicket).
+  if (linkedTicketId && !(await findAccessibleTicket(req.user, linkedTicketId))) {
+    throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+  }
 
   let resolvedStatusId = statusId;
   if (!resolvedStatusId) {
@@ -467,6 +473,12 @@ const updateTask = asyncHandler(async (req, res) => {
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
+  }
+  // Only a link that changes is checked: re-sending the task's existing link
+  // (a client PATCHing the whole task back) reveals nothing new.
+  const relinking = changes.linkedTicketId && Number(changes.linkedTicketId) !== task.linkedTicketId;
+  if (relinking && !(await findAccessibleTicket(req.user, changes.linkedTicketId))) {
+    throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
   }
 
   if (changes.statusId !== undefined && changes.statusId !== task.statusId) {
