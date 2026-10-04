@@ -67,7 +67,7 @@ consistent between tickets and projects, and covered by tests.
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
-| 1 | Test baseline — tests that pin down how tickets, projects and time behave today | Designing | [spec](superpowers/specs/2026-10-03-test-baseline-design.md) | — |
+| 1 | Test baseline — tests that pin down how tickets, projects and time behave today | Planned | [spec](superpowers/specs/2026-10-03-test-baseline-design.md) | [plan](superpowers/plans/2026-10-04-test-baseline.md) |
 | 2 | Client companies — companies, sites, contacts under companies; company on every record; vendors as companies | Not started | — | — |
 | 3 | One work model — tasks and subtasks on tickets and projects alike; one time ledger with time per task and subtask. Must resolve the [baseline's known quirks](superpowers/specs/2026-10-03-test-baseline-design.md#known-quirks-pinned-not-fixed) | Not started | — | — |
 | 4 | SLA engine — response and resolution clocks, business hours, pause, breach warnings, escalation | Not started | — | — |
