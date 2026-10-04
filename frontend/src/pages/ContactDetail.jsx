@@ -4,7 +4,8 @@ import api, { errMessage } from '../api/api';
 import LoadMore from '../components/LoadMore';
 import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
-import { useAnyPermission, usePermission } from '../context/AuthContext';
+import { useAnyPermission, useAuth, usePermission } from '../context/AuthContext';
+import { assignableContactDepartments } from '../utils/contactDepartments';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
@@ -427,6 +428,7 @@ export default function ContactDetail() {
   const navigate = useNavigate();
   const canEdit = useAnyPermission(['tickets.create', 'people.edit_users']);
   const canDelete = usePermission('people.edit_users');
+  const { user, hasPermission } = useAuth();
   const { showToast } = useToast();
 
   const [contact, setContact] = useState(null);
@@ -549,7 +551,7 @@ export default function ContactDetail() {
 
       <PropertiesPanel
         contact={contact}
-        departments={departments}
+        departments={assignableContactDepartments(departments, user, hasPermission, contact.departmentId)}
         assignableUsers={assignableUsers}
         canEdit={canEdit}
         onSave={saveContact}

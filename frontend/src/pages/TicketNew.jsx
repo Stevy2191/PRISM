@@ -5,6 +5,7 @@ import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
 import { useAuth } from '../context/AuthContext';
+import { assignableContactDepartments } from '../utils/contactDepartments';
 import TagInput from '../components/TagInput';
 import TimeDropdownPicker from '../components/TimeDropdownPicker';
 
@@ -524,7 +525,7 @@ function Dropzone({ files, onFiles, onRemove }) {
 }
 
 export default function TicketNew() {
-  const { isStaff } = useAuth();
+  const { isStaff, user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -816,7 +817,8 @@ export default function TicketNew() {
                         style={fieldStyle}
                       >
                         <option value="">Select department…</option>
-                        {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        {assignableContactDepartments(departments, user, hasPermission)
+                          .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                       <button
                         type="button"

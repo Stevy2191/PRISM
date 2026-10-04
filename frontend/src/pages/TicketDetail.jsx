@@ -10,6 +10,7 @@ import LoadMore from '../components/LoadMore';
 import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
 import { useAuth, usePermission } from '../context/AuthContext';
+import { assignableContactDepartments } from '../utils/contactDepartments';
 import { formatHMS } from '../context/TimerContext';
 import Spinner from '../components/Spinner';
 import TimeDropdownPicker from '../components/TimeDropdownPicker';
@@ -762,7 +763,7 @@ function Sidebar({
   assignableUsers, teams, directory, ticketStatuses,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
-  departments, contactDeptAssign, onContactDeptChange, onAssignContactDepartment,
+  contactDepartments, contactDeptAssign, onContactDeptChange, onAssignContactDepartment,
   customFieldDefs, onSaveCustomField,
   onLinkAsset, onUnlinkAsset,
   mobileSheet,
@@ -863,7 +864,7 @@ function Sidebar({
                       style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
                     >
                       <option value="">Select…</option>
-                      {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      {contactDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                     <button
                       type="button"
@@ -1928,7 +1929,7 @@ function ActivityTab({ activity, total, onLoadMore }) {
 
 export default function TicketDetail() {
   const { id } = useParams();
-  const { user, isStaff, canLogTimeForOthers } = useAuth();
+  const { user, isStaff, canLogTimeForOthers, hasPermission } = useAuth();
   const canAssign = usePermission('tickets.assign');
   const canViewPrivateComments = usePermission('tickets.view_private_comments');
   const fileRef = useRef(null);
@@ -2432,7 +2433,7 @@ export default function TicketDetail() {
             watchers={watchers}
             onAddWatcher={addWatcher}
             onRemoveWatcher={removeWatcher}
-            departments={departments}
+            contactDepartments={assignableContactDepartments(departments, user, hasPermission)}
             contactDeptAssign={contactDeptAssign}
             onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
             onAssignContactDepartment={assignContactDepartment}
@@ -2596,7 +2597,7 @@ export default function TicketDetail() {
                 watchers={watchers}
                 onAddWatcher={addWatcher}
                 onRemoveWatcher={removeWatcher}
-                departments={departments}
+                contactDepartments={assignableContactDepartments(departments, user, hasPermission)}
                 contactDeptAssign={contactDeptAssign}
                 onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
                 onAssignContactDepartment={assignContactDepartment}
