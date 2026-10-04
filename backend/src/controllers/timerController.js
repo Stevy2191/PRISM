@@ -7,6 +7,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { logActivity } = require('../services/ticketActivity');
 const { calculateLaborCost } = require('../utils/laborCost');
+const { canAccessTicket } = require('../services/permissionService');
 
 function shape(t) {
   return t ? { type: t.entityType, id: t.entityId, label: t.label, startedAt: t.startedAt } : null;
@@ -45,7 +46,13 @@ const start = asyncHandler(async (req, res) => {
   }
   const targetId = parseInt(id, 10);
   if (!targetId) throw new ApiError(400, 'A target id is required', 'VALIDATION_ERROR');
-  if (!(await Ticket.findByPk(targetId))) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  const ticket = await Ticket.findByPk(targetId);
+  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  // Same rule as every other ticket route: a timer logs time to the ticket
+  // when it stops, so starting one needs access to it.
+  if (!(await canAccessTicket(req.user, ticket))) {
+    throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  }
 
   const existing = await ActiveTimer.findOne({ where: { userId: req.user.id } });
   let logged = null;
