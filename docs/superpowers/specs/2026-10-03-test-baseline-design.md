@@ -205,7 +205,7 @@ Q1–Q8 were found while designing; Q9–Q36 while planning; Q37 while writing t
 | Q34 | A timer on a deleted ticket can't be stopped or replaced (400 `FK_CONSTRAINT`), only cancelled. | `timerController` | 3 |
 | Q35 | Creating a ticket already closed bypasses `timeTracking.requireBeforeClose`. | `ticketsController.create` | 3 |
 | Q36 | A report `endDate` becomes the end of the *previous* local day west of UTC. | `reportsController.parseDateRange` | 3 |
-| Q37 | Two projects created at the same moment in one department can fail: a department's first project races in `findOrCreate` (400 "departmentId must be unique"), and later ones hit MariaDB 11's snapshot-isolation error 1020 on the `FOR UPDATE` read (500). Codes are never duplicated. | `projectCodeService.nextProjectSequence` | 3 |
+| Q37 | ~~Two projects created at the same moment in one department could fail (findOrCreate race on a department's first project; MariaDB 11 snapshot-isolation error 1020 after that).~~ **Fixed in sub-project 1** at the user's request: the counter is one atomic `INSERT … ON DUPLICATE KEY UPDATE` in a READ COMMITTED transaction. | `projectCodeService.nextProjectSequence` | 1 (fixed) |
 
 ## Done when
 

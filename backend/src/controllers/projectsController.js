@@ -1,4 +1,6 @@
-const { Op, cast, col: sqlCol, where: sqlWhere } = require('sequelize');
+const {
+  Op, Transaction, cast, col: sqlCol, where: sqlWhere,
+} = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 const {
@@ -275,7 +277,10 @@ const create = asyncHandler(async (req, res) => {
     resolvedStatus = firstOpen ? firstOpen.name : 'Active';
   }
 
-  const project = await sequelize.transaction(async (t) => {
+  // READ COMMITTED, as nextProjectSequence requires: its row lock makes two
+  // concurrent creates queue rather than collide or fail.
+  const isolationLevel = Transaction.ISOLATION_LEVELS.READ_COMMITTED;
+  const project = await sequelize.transaction({ isolationLevel }, async (t) => {
     // Generated inside the transaction — nextProjectSequence row-locks the
     // department's counter so two concurrent creates never collide.
     const projectCode = await generateProjectCode(ownerDepartmentId, t);

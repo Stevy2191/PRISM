@@ -1,4 +1,5 @@
-const { resetData, closeDb, models } = require('./helpers');
+const { resetData, closeDb, models, sequelize } = require('./helpers');
+const { generateProjectCode } = require('../../src/services/projectCodeService');
 const {
   API, expectOk, makeWorld, makeTech, makeManager, makeStaff, makeOwnTier, makeTicket, makeProject,
   makeTask, makeTeam, projectStatusId, freezeClock, unfreezeClock,
@@ -48,29 +49,27 @@ describe('POST /projects', () => {
     expect(codes).toEqual(['SD-P00001', 'SD-P00002', 'FAC-P00001']);
   });
 
-  // Likely correct: both succeed with distinct codes. Today the per-department
-  // counter races: findOrCreate on a department's first project (400
-  // "departmentId must be unique"), and under MariaDB 11's
-  // innodb_snapshot_isolation the FOR UPDATE read fails with error 1020
-  // "Record has changed since last read" (500). Which of these happens depends
-  // on timing, so this pins the invariant that holds either way: no two
-  // projects ever share a code. Expected to change in sub-project 3.
-  it('[quirk] Q37: simultaneous creates in one department can fail, but never share a code', async () => {
+  // The per-department counter used to race: a department's first project
+  // lost a findOrCreate race (400), and later ones hit MariaDB 11's
+  // snapshot-isolation error 1020 on the FOR UPDATE read (500). Several
+  // rounds, including the very first project, so both paths are exercised.
+  it('simultaneous creates in one department all succeed with distinct codes', async () => {
     const send = (name) => tech.agent.post(`${API}/projects`).send({ name, ownerDepartmentId: w.deptA.id });
-    for (let round = 0; round < 2; round += 1) {
+    const codes = [];
+    for (let round = 0; round < 3; round += 1) {
       // eslint-disable-next-line no-await-in-loop
-      const results = await Promise.all([send('One'), send('Two')]);
-      const ok = results.filter((r) => r.status === 201);
-      expect(ok.length).toBeGreaterThanOrEqual(1);
-      results.filter((r) => r.status !== 201).forEach((r) => {
-        expect([400, 500]).toContain(r.status);
-        // A 500 must not leak the database error to the client.
-        if (r.status === 500) expect(r.body).toEqual({ error: true, message: 'Internal server error', code: 'INTERNAL_ERROR' });
-      });
+      const results = await Promise.all([send('One'), send('Two'), send('Three')]);
+      expect(results.map((r) => r.status)).toEqual([201, 201, 201]);
+      codes.push(...results.map((r) => r.body.project.projectCode));
     }
-    const { projects } = expectOk(await tech.agent.get(`${API}/projects`));
-    const codes = projects.map((p) => p.projectCode);
-    expect(new Set(codes).size).toBe(codes.length);
+    expect(codes.sort()).toEqual(Array.from({ length: 9 }, (_, i) => `SD-P0000${i + 1}`));
+  });
+
+  it('the counter refuses a transaction that would fail under concurrency', async () => {
+    // Guards future callers: under the default REPEATABLE READ, MariaDB 11
+    // fails concurrent increments instead of queueing them.
+    await expect(sequelize.transaction((t) => generateProjectCode(w.deptA.id, t)))
+      .rejects.toThrow('nextProjectSequence needs a READ COMMITTED transaction');
   });
 
   it('never reuses a deleted project\'s number', async () => {

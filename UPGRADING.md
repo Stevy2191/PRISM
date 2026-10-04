@@ -29,6 +29,11 @@ Nothing here needs action before upgrading.
 - Project file uploads now get the same content check as ticket attachments,
   so an executable renamed to a document extension is refused.
 
+### Fixes
+
+- Two people creating a project in the same department at the same moment
+  no longer get an error; both projects are created with their own numbers.
+
 ## v0.3.0
 
 Nothing here needs action before upgrading an unmodified install.

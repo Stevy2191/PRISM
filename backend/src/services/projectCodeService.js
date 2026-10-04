@@ -9,6 +9,7 @@
 // counter table, because those numbers can be freely renumbered later (see
 // renumberTaskCode/renumberSubtaskCode) — a persistent counter would drift out
 // of sync with manual renumbering, while "current max + 1" self-corrects.
+const { Transaction } = require('sequelize');
 const { Department, ProjectIdSequence, ProjectTask, ProjectSubtask } = require('../models');
 
 const DEFAULT_PREFIX = 'DEPT';
@@ -18,27 +19,32 @@ function pad(n, width) {
 }
 
 // Atomically increments (or creates) the department's project-number counter.
-// `transaction` is required (not optional) — the row lock below only
-// protects the read-increment-write cycle from a concurrent create for the
-// same department when it's held for the duration of that transaction.
+// `transaction` is required, and must be READ COMMITTED: the row lock below
+// only protects the increment when it's held for the whole
+// transaction, and under REPEATABLE READ MariaDB 11's innodb_snapshot_isolation
+// fails the locking write with error 1020 ("Record has changed since last
+// read") whenever a concurrent create committed after this transaction's
+// first read — so two simultaneous creates in one department would error
+// instead of queueing.
 async function nextProjectSequence(departmentId, transaction) {
-  await ProjectIdSequence.findOrCreate({
-    where: { departmentId },
-    defaults: { lastSequence: 0 },
-    transaction,
-  });
-  // Re-fetch with a row lock so two concurrent inserts for the same
-  // department can't both read the same lastSequence and produce a
-  // duplicate project number — the second transaction blocks here until
-  // the first commits its increment.
-  const row = await ProjectIdSequence.findOne({
-    where: { departmentId },
-    transaction,
-    lock: transaction.LOCK.UPDATE,
-  });
-  const next = row.lastSequence + 1;
-  await row.update({ lastSequence: next }, { transaction });
-  return next;
+  if (transaction?.options?.isolationLevel !== Transaction.ISOLATION_LEVELS.READ_COMMITTED) {
+    throw new Error('nextProjectSequence needs a READ COMMITTED transaction');
+  }
+  // One atomic statement, rather than findOrCreate + SELECT ... FOR UPDATE:
+  // two first-ever creates for a department would both miss the row and race
+  // to insert it, and a duplicate-key check takes a *shared* lock, so several
+  // creates holding shared locks and waiting to upgrade them deadlock. INSERT
+  // ... ON DUPLICATE KEY UPDATE takes the row's exclusive lock straight away;
+  // a concurrent create queues behind it until this transaction commits.
+  await ProjectIdSequence.sequelize.query(
+    'INSERT INTO `ProjectIdSequences` (`departmentId`, `lastSequence`, `createdAt`, `updatedAt`) '
+    + 'VALUES (:departmentId, 1, NOW(), NOW()) '
+    + 'ON DUPLICATE KEY UPDATE `lastSequence` = `lastSequence` + 1, `updatedAt` = NOW()',
+    { replacements: { departmentId }, transaction }
+  );
+  // This transaction now holds the row's lock, so this reads its own increment.
+  const row = await ProjectIdSequence.findOne({ where: { departmentId }, transaction });
+  return row.lastSequence;
 }
 
 async function generateProjectCode(departmentId, transaction) {
