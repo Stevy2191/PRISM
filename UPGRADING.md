@@ -8,6 +8,27 @@ To upgrade in place: set `IMAGE_TAG` in `.env` (or leave it at `latest`), then
 `docker compose pull && docker compose up -d`. Migrations run automatically on
 backend start.
 
+## Unreleased
+
+Nothing here needs action before upgrading.
+
+### Security fixes
+
+- Deleting a project subtask now checks that its task belongs to the project
+  in the URL. Before, a user who could edit one project could delete subtasks
+  in any other.
+- Starting a timer now needs access to the ticket, as every other ticket
+  action does.
+- Linking tickets (the Link ticket dialog, and parent/child/related tickets on
+  the new-ticket form) and linking a project task to a ticket now only reach
+  tickets you can see. A ticket you can't see gets the same "not found" answer
+  as one that doesn't exist. **Changed response:** a missing linked ticket on
+  ticket create now returns `400 VALIDATION_ERROR` instead of
+  `400 FK_CONSTRAINT`, and on project tasks it is now refused instead of
+  stored.
+- Project file uploads now get the same content check as ticket attachments,
+  so an executable renamed to a document extension is refused.
+
 ## v0.3.0
 
 Nothing here needs action before upgrading an unmodified install.

@@ -39,8 +39,8 @@ Surveyed at `c0a169f`:
 |---|---|
 | Test level | Backend integration tests through the HTTP API, using the existing Jest + supertest + MariaDB setup. No frontend tests. |
 | Approach | Behaviour tests with explicit assertions, grouped by area. Not snapshots (sub-project 3 changes response shapes on purpose, which would turn snapshots into noise that gets blindly re-accepted), not service unit tests with mocked models (the risk is in SQL, scope and wiring). |
-| Where assertions read from | The API wherever it exposes the result (GETs, activity timelines, `/audit-log`, `/notifications`, report endpoints, project stats). Direct database reads only for state no endpoint shows. This keeps the tests valid across the ledger merge, which is when they matter most. |
-| Bugs found while writing tests | Security and access bugs are fixed in this sub-project (S1–S4 below), each proven by a failing test first. Everything else is pinned as today's behaviour and tagged `[quirk]`. |
+| Where assertions read from | The API wherever it exposes the result (GETs, activity timelines, `/notifications`, report endpoints, project stats); `AuditLog` rows are read through the model, since no endpoint reads them (`/audit-log` reads `SystemAuditLogs`). Direct database reads only for state no endpoint shows. This keeps the tests valid across the ledger merge, which is when they matter most. |
+| Bugs found while writing tests | Security and access bugs are fixed in this sub-project (S1–S5 below), each proven by a failing test first. Everything else is pinned as today's behaviour and tagged `[quirk]`. |
 | Scope | Core endpoints plus all four extensions: time/task readers, side effects, project extras, ticket extras. |
 
 ## Layout
@@ -51,8 +51,10 @@ All new files are in `backend/test/integration/`. No file grows past roughly
 | File | Covers |
 |---|---|
 | `fixtures.js` | Builders shared by the files below (see Fixtures). |
+| `fixtures.test.js` | Guards for the harness itself: reset, pinned time zone, fixtures. |
 | `tickets.core.test.js` | Create (defaults, validation, source restriction, assignment rules), get, update (every allowed field, `dueTime` cleared with `dueDate`, resolution stamping, activity per tracked field), delete, list filters and sorting, board. |
-| `tickets.extras.test.js` | Comments (types, edit/delete by author vs moderator, reply email to the contact), attachments, relations (stored direction of parent/child, listing from both sides, duplicates rejected), watchers, custom field values. |
+| `tickets.comments.test.js` | Comments (types, edit/delete by author vs moderator, reply email to the contact) and attachments. Split from extras to stay under the size limit. |
+| `tickets.extras.test.js` | Relations (stored direction of parent/child, listing from both sides, duplicates rejected), watchers, custom field values, staff CSAT. |
 | `tickets.tasks.test.js` | Ticket checklist tasks: create, update (completed, assignee, description), list order, cross-ticket ids. |
 | `projects.core.test.js` | Create (project code per department, default status from status behaviour, members and lead), get, update, delete, list filters, tags, stats. Two concurrent creates in one department get distinct codes. |
 | `projects.tasks.test.js` | Tasks and subtasks: codes, renumbering and its conflicts, reorder, `completedAt` from status behaviour, completion rollups (task complete when all subtasks closed; percent), activity entries. |
@@ -70,9 +72,10 @@ All new files are in `backend/test/integration/`. No file grows past roughly
 so setup exercises the same code paths the tests check: `makeDept`,
 `makeTech`, `makeContractor({ rate })`, `makeContact`,
 `makeTicket(agent, overrides)`, `makeProject(agent, overrides)`, `makeTask`,
-`makeSubtask`. Each returns the response body. Records with no create
-endpoint (a team with a lead, a user's `userType`/`hourlyRate`) are created
-through the models, with a comment saying why.
+`makeSubtask`. Each returns the response body. Every fixture uses the API: teams via
+`POST /teams`, contractors via `PATCH /users/:id`, own-tier users via
+`POST /users/:id/overrides`. The shared time-and-money ledger the reader
+suites check (`makeLedger`) lives here too.
 
 ### Reset
 
@@ -127,7 +130,8 @@ cross-check is the main protection for the ledger merge.
 default) use Jest fake timers faking only `Date`, so the database driver's
 timers are unaffected, and are tested at fixed instants including one where
 the UTC date and the server's local date differ. `entryDate` is derived with
-`toISOString()` (UTC) today; that is pinned.
+`toISOString()` (UTC) today; that is pinned. The suite pins `TZ=America/Chicago`
+in Jest's globalSetup, so local and CI runs agree.
 
 **Quirks.** A test that pins behaviour which is probably wrong has a name
 starting `[quirk]` and a one-line comment giving the likely correct behaviour
@@ -135,11 +139,11 @@ and the sub-project expected to change it. When a later sub-project changes
 it, that commit flips the assertion and drops the tag. The full list is the
 quirk table below; sub-project 3's ROADMAP row links to it.
 
-## Security fixes (S1–S4)
+## Security fixes (S1–S5)
 
 A scan of every nested ticket and project route found expenses, materials,
 files, members, comments, attachments and watchers correctly checking the
-parent. Four gaps remain. Each is fixed test-first: write the test, see it
+parent. Four gaps remain, and writing the plan found a fifth (S5). Each is fixed test-first: write the test, see it
 fail (proving the gap), fix, see it pass. If a test shows a gap is not real,
 the test stays as a guard and no code changes.
 
@@ -147,43 +151,73 @@ the test stays as a guard and no code changes.
 |---|---|---|---|
 | S1 | `DELETE /projects/:id/tasks/:taskId/subtasks/:subtaskId` checks access to project `:id` but never that task `:taskId` belongs to it. | A user with access to project A can delete any subtask in project B. | Load the task with `{ id: taskId, projectId: id }` first and 404 if absent, as `updateSubtask` already does. |
 | S2 | `POST /timer/start` checks only that the ticket exists. | A user can run a timer on, and so log time to, a ticket they cannot see. | Check `canAccessTicket`; 403 as on every other ticket route. |
-| S3 | `POST /tickets/:id/relations`, and `parentTicketId` / `childTicketIds` / `relatedTicketIds` on ticket create, never scope-check the *other* ticket. | Linking to an arbitrary id and listing relations reveals that ticket's title, status and priority. | An out-of-scope target is treated exactly like a missing one: 404 `Related ticket not found` on the relation endpoint, 400 `VALIDATION_ERROR` on create. Existence cannot be probed. |
-| S4 | `linkedTicketId` on project task create and update is not scope-checked. | The task response includes the linked ticket's title. | Same rule as S3: 400 `VALIDATION_ERROR`, same as a missing ticket. |
+| S3 | `POST /tickets/:id/relations`, and `parentTicketId` / `childTicketIds` / `relatedTicketIds` on ticket create, never scope-check the *other* ticket. | Linking to an arbitrary id and listing relations reveals that ticket's title, status and priority. | An out-of-scope target is treated exactly like a missing one: 404 `Related ticket not found` on the relation endpoint, 400 `VALIDATION_ERROR` 'Linked ticket not found' on create. Existence cannot be probed, so a *missing* linked ticket now gets that same 400 too (before: 400 `FK_CONSTRAINT`). |
+| S4 | `linkedTicketId` on project task create and update is not scope-checked. | The task response includes the linked ticket's title. | Same rule as S3: 400 `VALIDATION_ERROR` 'Linked ticket not found' for out-of-scope and missing tickets alike (before: a missing one was stored as a dangling id). Re-sending a task's existing link unchanged is not re-checked. |
+| S5 | `POST /projects/:id/files` skips `verifyFileSignature`, which ticket attachments run. | A Windows executable renamed `.pdf` is stored on a project. | Add `verifyFileSignature` to the route. |
 
 Deliberately **not** changed: ticket and project delete do not re-check
 scope. The `tickets.delete` / `projects.delete` permissions are admin-tier;
 the baseline pins the current behaviour and sub-project 2's company scope
 revisits it.
 
-S1–S4 are the only behaviour changes in this sub-project and the only
+S1–S5 are the only behaviour changes in this sub-project and the only
 user-visible ones; they are recorded for `v0.4.0` in `UPGRADING.md`.
 
 ## Known quirks (pinned, not fixed)
 
-Found while designing; the plan adds any more found while writing tests.
+Q1–Q8 were found while designing; Q9–Q36 while planning; Q37 while writing the tests. Q17, Q18, Q19, Q21 and Q26 are access-flavoured: the user chose (2026-10-04) to pin them here and revisit them in sub-project 3.
 
 | # | Quirk | Where | Likely fix in |
 |---|---|---|---|
 | Q1 | Editing a project time entry's start/end recomputes `durationSeconds` but not `laborCost`. | `projectsController.updateTimeEntry` | 3 |
-| Q2 | Editing a project time entry writes no audit row (create and delete do). | `projectsController.updateTimeEntry` | 3 |
+| Q2 | Editing a project time entry writes no audit row. | `projectsController.updateTimeEntry` | 3 |
 | Q3 | Editing a project time entry accepts a future `entryDate`; creating one rejects it. | `projectsController.updateTimeEntry` | 3 |
-| Q4 | Ticket and project time store "who logged it" and "who it is for" in opposite columns: ticket `userId` = target, `loggedById` = logger; project `userId` = logger, `loggedForUserId` = target. So the "only remove your own entry" check means the target on tickets and the logger on projects. | `ticketsController.removeTime`, `projectsController.updateTimeEntry` / `removeTimeEntry` | 3 |
-| Q5 | Timer-created ticket time has no `entryDate`, `startTime`, `endTime` or `loggedById`; manually logged ticket time has all four. | `timerController.logTimer` | 3 |
-| Q6 | Time-entry edit and delete permission checks use the legacy `req.user.role === 'admin'` rather than a granular permission. | `ticketsController.removeTime`, `projectsController` time handlers, `canLogForOthers` | 3 |
-| Q7 | A project task or subtask PATCH whose `statusId` is the same id sent as a string (`"3"` vs `3`) is treated as a status change: an already-closed task's `completedAt` is reset to now. | `projectsController.updateTask` / `updateSubtask` | 3 |
-| Q8 | Ticket task create/update writes no activity entry and no audit row. | `ticketsController.createTask` / `updateTask` | 3 |
+| Q4 | Ticket time: `userId` = who it's for, `loggedById` = logger. Project time: `userId` = logger, `loggedForUserId` = who it's for. So "only your own entry" means the target on tickets and the logger on projects. | `ticketsController.removeTime`, `projectsController` time handlers | 3 |
+| Q5 | Timer-created ticket time has no `startTime`, `endTime` or `loggedById`. `loggedAt` is the timer's start, and `entryDate` is the UTC date the timer stopped. | `timerController.logTimer` | 3 |
+| Q6 | Logging for others, and editing or deleting others' time, check the legacy `User.role === 'admin'`, not a granular permission. | `canLogForOthers`, time handlers | 3 |
+| Q7 | A task or subtask PATCH whose `statusId` is the current id as a string counts as a status change: `completedAt` is re-stamped. | `projectsController.updateTask` / `updateSubtask` | 3 |
+| Q8 | Ticket task create/update writes no activity and no audit row. | `ticketsController.createTask` / `updateTask` | 3 |
+| Q9 | Time-billing filters and dates ticket time by `loggedAt` and project time by `createdAt`, never by `entryDate`. The custom report shows `entryDate` but filters the same way. | `reportsController.buildTimeBillingReport`, `customReportEngine.loadTimeEntryRecords` | 3 |
+| Q10 | Team performance "time logged" counts ticket time only. | `reportsController.buildTeamPerformanceReport` | 3 |
+| Q11 | Project total cost excludes labour in project stats and the projects report, but includes it in the custom report's projects source. | `buildProjectStats`, `buildProjectsReport`, `loadProjectRecords` | 3 |
+| Q12 | Dashboard hours count ticket time only, by `loggedAt`, Monday–Friday only, bucketed by UTC date. | `dashboardController.hoursForUser` | 3 |
+| Q13 | Deleting a project leaves its tasks, time entries and other child rows behind (no foreign keys). | `projectsController.remove` | 3 |
+| Q14 | "Today" for `entryDate` (default and future limit) is the UTC date. | ticket/project time create | 3 |
+| Q15 | Re-sending a closed `statusId` on a task logs another `task_closed`. | `projectsController.updateTask` | 3 |
+| Q16 | The `escalate_to_user` workflow action always fails: it sets priority `urgent`, which tickets don't have. | `workflowEngine.executeAction` | 3 |
+| Q17 | Any project editor can delete anyone's project file. `canModerateProjectContent` exists but is unused. | `projectsController.removeFile` | 3 |
+| Q18 | Relation lists show the title, status and priority of linked tickets the viewer can't open. | `ticketsController.listRelations` | 3 |
+| Q19 | Project task lists show a linked ticket's title to viewers who can't open it. | `projectsController.listTasks` | 3 |
+| Q20 | Renumbering a task leaves its subtasks' codes on the old task number. | `projectsController.renumberTask` | 3 |
+| Q21 | A lead of any team can log time for any user, teammate or not. | `canLogForOthers` | 3 |
+| Q22 | Editing project time accepts a `taskId` from another project. | `projectsController.updateTimeEntry` | 3 |
+| Q23 | Watchers, custom field values, project tasks/subtasks, expenses, materials, members and files are changed without audit rows. | those handlers | 3 |
+| Q24 | Two tickets can be linked twice, once in each direction. | `ticketsController.createRelation` | 3 |
+| Q25 | Ticket and project `status` accept any string, even one no status row has. | ticket/project create and update | 3 |
+| Q26 | Edit access follows the **view** tier: a user with `tickets.edit_own`/`projects.edit_own` can edit anything they can view. | `canAccessTicket` / `canAccessProject` used for writes | 3 |
+| Q27 | A `dueTime` sent alongside a cleared `dueDate` is kept. | `ticketsController.update` | 3 |
+| Q28 | Ticket and project delete don't re-check scope. | `ticketsController.remove`, `projectsController.remove` | 2 |
+| Q29 | Custom field values aren't checked against the field's type or options. | `syncCustomFieldValues` | 3 |
+| Q30 | Changing a project's lead doesn't update its members. | `projectsController.update` | 3 |
+| Q31 | A task created already closed has no `completedAt`. | `projectsController.createTask` | 3 |
+| Q32 | A partial reorder leaves duplicate positions. | `projectsController.reorderTasks` | 3 |
+| Q33 | Expense and material updates skip the create-time validation. | `updateExpense` / `updateMaterial` | 3 |
+| Q34 | A timer on a deleted ticket can't be stopped or replaced (400 `FK_CONSTRAINT`), only cancelled. | `timerController` | 3 |
+| Q35 | Creating a ticket already closed bypasses `timeTracking.requireBeforeClose`. | `ticketsController.create` | 3 |
+| Q36 | A report `endDate` becomes the end of the *previous* local day west of UTC. | `reportsController.parseDateRange` | 3 |
+| Q37 | Two projects created at the same moment in one department can fail: a department's first project races in `findOrCreate` (400 "departmentId must be unique"), and later ones hit MariaDB 11's snapshot-isolation error 1020 on the `FOR UPDATE` read (500). Codes are never duplicated. | `projectCodeService.nextProjectSequence` | 3 |
 
 ## Done when
 
 - Every endpoint in the four scope areas has tests covering the four
   questions above.
-- S1–S4 are fixed, each with a test that failed before its fix.
+- S1–S5 are fixed, each with a test that failed before its fix.
 - Every quirk has a `[quirk]` test and a row in the quirk table; sub-project
   3's ROADMAP row links to the table.
 - The whole suite passes on Node 24 locally and in CI. The CI workflow does
   not change.
 - No test file exceeds roughly 800 lines.
-- `docs/ROADMAP.md` marks sub-project 1 **Shipped**, and S1–S4 are noted for
+- `docs/ROADMAP.md` marks sub-project 1 **Shipped**, and S1–S5 are noted for
   the `v0.4.0` section of `UPGRADING.md`.
 
 Expected size: roughly 250–350 new tests, taking the suite from about 80
@@ -193,7 +227,7 @@ seconds to 3–5 minutes. Where tests only read, fixtures are created once per
 ## Out of scope
 
 - Frontend tests (no framework exists; adding one is its own decision).
-- Any behaviour change other than S1–S4.
+- Any behaviour change other than S1–S5.
 - Inbound email processing and the scheduled jobs (workflow scheduler, CSAT
   scheduler, calendar sync). The baseline asserts that ticket actions
   *trigger* rule evaluation and CSAT creation, not the schedulers.
