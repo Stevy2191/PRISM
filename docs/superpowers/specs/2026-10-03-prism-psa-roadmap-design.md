@@ -15,6 +15,8 @@ live status of the work is in [`docs/ROADMAP.md`](../../ROADMAP.md).
 | Build order | Foundation → RMM core → money → rest of RMM → docs and reporting (option B). RMM core comes early because the agent is the piece most likely to force changes elsewhere, and it is cheaper to learn that before billing exists. |
 | RMM scope | Built in. Inventory and monitoring, scripting and automation, patch management, remote access. |
 | Agent platforms | Windows first; the agent is written in Go so macOS and Linux are builds of the same code, not rewrites. |
+| Agent signing | No paid certificate. PRISM generates its own code-signing certificate; trust for it is pushed to managed machines by GPO/Intune, and the agent is deployed the same way (which also avoids SmartScreen's downloaded-file warning). Buying a certificate later is a drop-in change. |
+| Remote access | Built in, no third-party app. Remote shell and file transfer (18a) ship first; full remote desktop in the browser over WebRTC (18b) follows. |
 | Billing scope | Full billing in PRISM including online payments in the client portal. PRISM is not a general ledger; accounting packages are sync targets. |
 | Releases | One minor version per phase (`v0.4.0` = Phase 1 … `v0.8.0` = Phase 5); fixes from testing a phase are patch versions of it. |
 | Where planning lives | In the repo: `docs/ROADMAP.md`, one spec per sub-project in `docs/superpowers/specs/`, one plan per sub-project in `docs/superpowers/plans/`. |
@@ -123,8 +125,10 @@ single most valuable target on its users' networks. Non-negotiable:
   its own certificate (mutual TLS). Revoking a device revokes its
   certificate.
 - Agent binaries and update manifests are signed, and the agent verifies the
-  signature before installing an update. On Windows this needs a
-  code-signing certificate — a purchase decision for sub-project 8.
+  signature before installing an update. Two separate signatures: the
+  Windows (Authenticode) signature, made with a certificate PRISM generates
+  and admins push trust for; and PRISM's own update-manifest signature,
+  which only the agent checks. Neither needs a paid certificate.
 - Every remote action (script run, patch install, remote session) is
   permission-checked, attributed to a user, and written to the audit log.
 - A global kill switch can stop all remote execution at once.
@@ -172,7 +176,8 @@ two (3); how SLA clocks are computed and stored so reports are cheap (4).
 inventory and monitoring (9) feeding Assets and Tickets. Open questions:
 transport (WebSocket vs gRPC), how PRISM is reached by agents outside the
 LAN (public hostname, TLS termination, gateway port), metrics retention in
-MariaDB vs a separate store, and code-signing.
+MariaDB vs a separate store, and how the self-signed signing certificate is
+generated, stored, rotated and pushed to machines (GPO/Intune instructions).
 
 **Phase 3 — Money (`v0.6.0`).** Rates and timesheets (10), catalog and
 procurement (11), agreements (12), billing and payments (13), sales (14),
@@ -181,10 +186,14 @@ default assumption), accounting connectors (QuickBooks Online and Xero first),
 and how agreement coverage rules decide billable vs covered time.
 
 **Phase 4 — RMM, the rest (`v0.7.0`).** Scripting (16), patching (17),
-remote access (18), macOS and Linux (19). Remote access embeds an
-open-source engine rather than writing one; the candidates are RustDesk
-(AGPL-3.0, compatible with PRISM's licence) and MeshCentral (Apache-2.0).
-That choice is made in sub-project 18's spec.
+remote shell and file transfer (18a), remote desktop (18b), macOS and Linux
+(19). Remote access is PRISM's own code, using open-source libraries rather
+than a separate app: 18a runs over the agent's existing gateway connection;
+18b captures the screen with the Windows capture API, streams it to the
+technician's browser over WebRTC (Go's Pion library), and relays through the
+gateway when a direct connection fails. 18b's spec must settle the
+user-session helper (the agent service cannot see the desktop), login and
+UAC screens, multi-monitor, clipboard, and the end-user consent prompt.
 
 **Phase 5 — Docs and reporting (`v0.8.0`).** Client IT documentation and a
 credential vault (20, reusing `tokenCrypto`), MSP reporting (21) and
@@ -200,8 +209,13 @@ integrations (22).
   verified, and has a tested `down()`.
 - **Agent security.** Mitigated by the rules in §5 and a security review
   before Phase 2 ships.
-- **Windows code signing costs money and takes time** (certificate issuance).
-  Flagged now so it is not a surprise at sub-project 8.
+- **A self-signed agent can be flagged by antivirus**, and a hand-downloaded
+  installer on an unmanaged machine shows a SmartScreen warning.
+  Mitigation: deploy through GPO/Intune/scripts, submit each agent release
+  to Microsoft's free false-positive portal, and keep a paid certificate as
+  a drop-in fallback.
+- **Remote desktop (18b) is the hardest single piece.** It ships after 18a so
+  a useful remote tool exists even if 18b runs long.
 - **Scope creep inside each phase.** The specs keep a written out-of-scope
   list, and testing feedback goes through the phase's feedback list rather
   than straight into code.

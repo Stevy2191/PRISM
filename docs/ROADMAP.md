@@ -28,6 +28,8 @@ read that before designing any sub-project.
 | Build order | Option B: foundation first (desk and projects built sturdy), then RMM core, then money, then the rest of RMM, then docs/reporting. |
 | RMM | Built in, not integrated. A PRISM agent covering inventory and monitoring, scripting and automation, patch management, and remote access. |
 | Agent platforms | Windows first, written cross-platform (Go) so macOS and Linux follow. |
+| Agent signing | Free: PRISM signs the agent with its own certificate, and admins push trust for it (and the agent) via GPO/Intune. A paid code-signing certificate stays a drop-in option, not a requirement. |
+| Remote access | Built in, no third-party app: remote shell and file transfer first, then full remote desktop in the browser over WebRTC. |
 | Billing | Full billing inside PRISM, including online payments in the client portal. Accounting sync is a connector, not a replacement. |
 | Docs | Everything lives in this repo: this roadmap, one spec and one plan per sub-project, release notes in `UPGRADING.md`. |
 
@@ -103,7 +105,8 @@ consistent between tickets and projects, and covered by tests.
 |---|---|---|---|---|
 | 16 | Scripting and automation — script library, run on device or group, schedules, results | Not started | — | — |
 | 17 | Patch management — approval policies, maintenance windows, compliance | Not started | — | — |
-| 18 | Remote access — remote desktop and shell from PRISM, on an embedded open-source engine | Not started | — | — |
+| 18a | Remote shell and file transfer — live PowerShell/command prompt and file browse/upload/download from PRISM | Not started | — | — |
+| 18b | Remote desktop — screen and input in the browser over WebRTC, user-session helper, login/UAC screens, multi-monitor, clipboard, consent prompt, relay through the gateway | Not started | — | — |
 | 19 | macOS and Linux agents | Not started | — | — |
 
 **Testing feedback (Phase 4):** _none yet_
