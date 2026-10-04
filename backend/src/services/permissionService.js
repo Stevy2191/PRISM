@@ -9,7 +9,7 @@
 //   3. default: false
 const { Op } = require('sequelize');
 const {
-  User, UserRole, RolePermission, Permission, UserPermissionOverride, Role, ProjectMember,
+  User, UserRole, RolePermission, Permission, UserPermissionOverride, Role, ProjectMember, Ticket,
 } = require('../models');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -196,6 +196,18 @@ async function canAccessTicket(user, ticket) {
   return ticket.assigneeId === user.id;
 }
 
+// Loads a ticket the caller may see, or null. A missing ticket and one out of
+// the caller's scope look identical, so a field that links to another ticket
+// (relations, a project task's linkedTicketId) can't be used to probe which
+// ticket ids exist or read their titles.
+async function findAccessibleTicket(user, ticketId) {
+  const id = parseInt(ticketId, 10);
+  if (!id) return null;
+  const ticket = await Ticket.findByPk(id);
+  if (!ticket || !(await canAccessTicket(user, ticket))) return null;
+  return ticket;
+}
+
 async function canAccessProject(user, project) {
   const scope = await getUserProjectScope(user.id);
   if (scope === 'all') return true;
@@ -246,6 +258,7 @@ module.exports = {
   getUserProjectScope,
   getUserReportScope,
   canAccessTicket,
+  findAccessibleTicket,
   canAccessProject,
   canModerateTicketContent,
   canModerateProjectContent,

@@ -44,7 +44,9 @@ const { buildTicketMessageId } = require('../services/inboundEmailService');
 const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { generateTicketReport } = require('../services/ticketReport');
-const { getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent } = require('../services/permissionService');
+const {
+  getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent, findAccessibleTicket,
+} = require('../services/permissionService');
 const { evaluateRules } = require('../services/workflowEngine');
 const { syncTicketToExternalCalendars, removeTicketFromExternalCalendars } = require('../services/calendarPush');
 const { maybeCreateCsatSurvey } = require('../services/csatService');
@@ -393,6 +395,15 @@ const create = asyncHandler(async (req, res) => {
     ? [...new Set(relatedTicketIds.map((id) => parseInt(id, 10)).filter(Boolean))]
     : [];
   const parentId = parentTicketId ? parseInt(parentTicketId, 10) : null;
+  // Every ticket this one links to must be one the caller can see. Missing
+  // and out-of-scope get the same answer, so the links can't probe ids.
+  const linkedIds = [...new Set([parentId, ...childIdList, ...relatedIdList].filter(Boolean))];
+  for (const linkedId of linkedIds) {
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await findAccessibleTicket(req.user, linkedId))) {
+      throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+    }
+  }
   const assetIdList = Array.isArray(assetIds)
     ? [...new Set(assetIds.map((id) => parseInt(id, 10)).filter(Boolean))]
     : [];
@@ -1089,7 +1100,7 @@ const createRelation = asyncHandler(async (req, res) => {
   if (relationType && !['related', 'caused_by', 'duplicates', 'parent', 'child'].includes(relationType)) {
     throw new ApiError(400, 'Invalid relation type', 'VALIDATION_ERROR');
   }
-  const related = await Ticket.findByPk(relId);
+  const related = await findAccessibleTicket(req.user, relId);
   if (!related) throw new ApiError(404, 'Related ticket not found', 'NOT_FOUND');
 
   const isChild = relationType === 'child';
