@@ -46,7 +46,7 @@ const { parsePagination, paginated } = require('../utils/pagination');
 const { generateTicketReport } = require('../services/ticketReport');
 const {
   getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent,
-  findAccessibleTicket, parseTicketId,
+  findAccessibleTicket, parseTicketId, parseRecordId, findAccessibleProject, findAccessibleContact,
 } = require('../services/permissionService');
 const { evaluateRules } = require('../services/workflowEngine');
 const { syncTicketToExternalCalendars, removeTicketFromExternalCalendars } = require('../services/calendarPush');
@@ -412,6 +412,19 @@ const create = asyncHandler(async (req, res) => {
     ? [...new Set(assetIds.map((id) => parseInt(id, 10)).filter(Boolean))]
     : [];
 
+  // The contact and project must be ones the caller can see (S7, S6): the
+  // response carries the contact's email/phone and the project's name.
+  // Missing and out-of-scope get the same answer, and the checked record's
+  // own id is what gets stored.
+  const contact = await findAccessibleContact(req.user, contactId);
+  if (!contact) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
+  let resolvedProjectId = null;
+  if (projectId) {
+    const project = await findAccessibleProject(req.user, projectId);
+    if (!project) throw new ApiError(400, 'Project not found', 'VALIDATION_ERROR');
+    resolvedProjectId = project.id;
+  }
+
   // Simple auto-assignment (Settings -> Assignment Rules) only kicks in when
   // the caller didn't already pick an assignee/team explicitly — an
   // explicit choice on the new-ticket form always wins.
@@ -439,8 +452,8 @@ const create = asyncHandler(async (req, res) => {
       source: resolvedSource,
       assigneeId: assigneeId || ruleAssigneeId || null,
       teamId: teamId || ruleTeamId || null,
-      contactId,
-      projectId: projectId || null,
+      contactId: contact.id,
+      projectId: resolvedProjectId,
       departmentId: departmentId || null,
       dueDate: dueDate || null,
       dueTime: dueDate ? (dueTime || null) : null,
@@ -554,6 +567,27 @@ const update = asyncHandler(async (req, res) => {
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
+  }
+  // Same rules as create for the contact and project (S7, S6). Re-sending the
+  // ticket's current value unchanged (a client PATCHing the whole ticket
+  // back) reveals nothing new, so it isn't re-checked.
+  if (changes.contactId !== undefined && parseRecordId(changes.contactId) !== ticket.contactId) {
+    const contact = await findAccessibleContact(req.user, changes.contactId);
+    if (!contact) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
+    changes.contactId = contact.id;
+  } else if (changes.contactId !== undefined) {
+    changes.contactId = ticket.contactId;
+  }
+  if (changes.projectId !== undefined) {
+    if (!changes.projectId) {
+      changes.projectId = null;
+    } else if (parseRecordId(changes.projectId) === ticket.projectId) {
+      changes.projectId = ticket.projectId;
+    } else {
+      const project = await findAccessibleProject(req.user, changes.projectId);
+      if (!project) throw new ApiError(400, 'Project not found', 'VALIDATION_ERROR');
+      changes.projectId = project.id;
+    }
   }
   // A dueTime with no dueDate is meaningless — clearing the date always
   // clears any time set alongside it, even if the caller didn't say so.

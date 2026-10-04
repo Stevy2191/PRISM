@@ -28,6 +28,13 @@ Nothing here needs action before upgrading.
   stored.
 - Project file uploads now get the same content check as ticket attachments,
   so an executable renamed to a document extension is refused.
+- A ticket's project and contact (on the new-ticket form and when editing a
+  ticket) must now be ones you can see. Before, choosing them by id showed the
+  project's name and the contact's email and phone even when you had no access
+  to them. Users without "view all people" can use contacts from their own
+  department, or a contact they just created on the new-ticket form.
+  **Changed response:** a missing or hidden project or contact now returns
+  `400 VALIDATION_ERROR` ("Project not found" / "Contact not found").
 
 ### Fixes
 

@@ -9,7 +9,7 @@
 //   3. default: false
 const { Op } = require('sequelize');
 const {
-  User, UserRole, RolePermission, Permission, UserPermissionOverride, Role, ProjectMember, Ticket,
+  User, UserRole, RolePermission, Permission, UserPermissionOverride, Role, ProjectMember, Ticket, Project, Contact,
 } = require('../models');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -196,15 +196,16 @@ async function canAccessTicket(user, ticket) {
   return ticket.assigneeId === user.id;
 }
 
-// A ticket id from a request body, or null unless it is a plain positive
+// A record id from a request body, or null unless it is a plain positive
 // integer (a number, or a string of digits). parseInt is not enough: it reads
 // "1e1" and 1.6 as 1, while MariaDB stores the raw value as 10 and 2, so a
-// check on one ticket would link another.
-function parseTicketId(value) {
+// check on one record would link another.
+function parseRecordId(value) {
   if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0 ? value : null;
   if (typeof value === 'string' && /^[1-9]\d{0,14}$/.test(value)) return Number(value);
   return null;
 }
+const parseTicketId = parseRecordId;
 
 // Loads a ticket the caller may see, or null. A missing ticket and one out of
 // the caller's scope look identical, so a field that links to another ticket
@@ -217,6 +218,31 @@ async function findAccessibleTicket(user, ticketId) {
   const ticket = await Ticket.findByPk(id);
   if (!ticket || !(await canAccessTicket(user, ticket))) return null;
   return ticket;
+}
+
+// Same rule as findAccessibleTicket, for a ticket's projectId.
+async function findAccessibleProject(user, projectId) {
+  const id = parseRecordId(projectId);
+  if (!id) return null;
+  const project = await Project.findByPk(id);
+  if (!project || !(await canAccessProject(user, project))) return null;
+  return project;
+}
+
+// Same rule for a ticket's contactId — the ticket response carries the
+// contact's email and phone. Mirrors the contacts module's own scope
+// (people.view_all, or the caller's own department), plus contacts with no
+// department that the caller created: the new-ticket form's quick-create
+// makes exactly those, before a department is assigned.
+async function findAccessibleContact(user, contactId) {
+  const id = parseRecordId(contactId);
+  if (!id) return null;
+  const contact = await Contact.findByPk(id);
+  if (!contact) return null;
+  if (await hasPermission(user.id, 'people.view_all')) return contact;
+  if (contact.departmentId != null && contact.departmentId === user.departmentId) return contact;
+  if (contact.departmentId == null && contact.createdBy === user.id) return contact;
+  return null;
 }
 
 async function canAccessProject(user, project) {
@@ -271,6 +297,9 @@ module.exports = {
   canAccessTicket,
   findAccessibleTicket,
   parseTicketId,
+  parseRecordId,
+  findAccessibleProject,
+  findAccessibleContact,
   canAccessProject,
   canModerateTicketContent,
   canModerateProjectContent,

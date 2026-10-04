@@ -40,7 +40,7 @@ Surveyed at `c0a169f`:
 | Test level | Backend integration tests through the HTTP API, using the existing Jest + supertest + MariaDB setup. No frontend tests. |
 | Approach | Behaviour tests with explicit assertions, grouped by area. Not snapshots (sub-project 3 changes response shapes on purpose, which would turn snapshots into noise that gets blindly re-accepted), not service unit tests with mocked models (the risk is in SQL, scope and wiring). |
 | Where assertions read from | The API wherever it exposes the result (GETs, activity timelines, `/notifications`, report endpoints, project stats); `AuditLog` rows are read through the model, since no endpoint reads them (`/audit-log` reads `SystemAuditLogs`). Direct database reads only for state no endpoint shows. This keeps the tests valid across the ledger merge, which is when they matter most. |
-| Bugs found while writing tests | Security and access bugs are fixed in this sub-project (S1–S5 below), each proven by a failing test first. Everything else is pinned as today's behaviour and tagged `[quirk]`. |
+| Bugs found while writing tests | Security and access bugs are fixed in this sub-project (S1–S7 below), each proven by a failing test first. Everything else is pinned as today's behaviour and tagged `[quirk]`. |
 | Scope | Core endpoints plus all four extensions: time/task readers, side effects, project extras, ticket extras. |
 
 ## Layout
@@ -139,7 +139,7 @@ and the sub-project expected to change it. When a later sub-project changes
 it, that commit flips the assertion and drops the tag. The full list is the
 quirk table below; sub-project 3's ROADMAP row links to it.
 
-## Security fixes (S1–S5)
+## Security fixes (S1–S7)
 
 A scan of every nested ticket and project route found expenses, materials,
 files, members, comments, attachments and watchers correctly checking the
@@ -154,13 +154,15 @@ the test stays as a guard and no code changes.
 | S3 | `POST /tickets/:id/relations`, and `parentTicketId` / `childTicketIds` / `relatedTicketIds` on ticket create, never scope-check the *other* ticket. | Linking to an arbitrary id and listing relations reveals that ticket's title, status and priority. | An out-of-scope target is treated exactly like a missing one: 404 `Related ticket not found` on the relation endpoint, 400 `VALIDATION_ERROR` 'Linked ticket not found' on create. A link can't be used to read a hidden ticket's title, and the id is parsed strictly (only a plain positive integer; `"1e1"` or `1.6` are refused, never checked as one ticket and stored as another). A *missing* linked ticket now gets that same 400 too (before: 400 `FK_CONSTRAINT`). |
 | S4 | `linkedTicketId` on project task create and update is not scope-checked. | The task response includes the linked ticket's title. | Same rule as S3: 400 `VALIDATION_ERROR` 'Linked ticket not found' for out-of-scope and missing tickets alike (before: a missing one was stored as a dangling id). Re-sending a task's existing link unchanged is not re-checked. |
 | S5 | `POST /projects/:id/files` skips `verifyFileSignature`, which ticket attachments run. | A Windows executable renamed `.pdf` is stored on a project. | Add `verifyFileSignature` to the route. |
+| S6 | A ticket's `projectId` (create and update) is not scope-checked. Found in the final review. | Attaching a ticket to another department's project returns that project's name; a missing id answers `FK_CONSTRAINT`, so project ids can be probed. | `canAccessProject`; out-of-scope and missing both get 400 `VALIDATION_ERROR` 'Project not found'; the checked project's id is stored; re-sending the current value unchanged isn't re-checked. |
+| S7 | A ticket's `contactId` (create and update) is not scope-checked. Found in the final review. | The ticket response carries the contact's email and phone, so a department-scoped user could read any contact by walking ids. | The contacts module's own scope: `people.view_all`, or the caller's department, or a no-department contact the caller created (the new-ticket form's quick-create). Otherwise 400 `VALIDATION_ERROR` 'Contact not found', same as missing. |
 
 Deliberately **not** changed: ticket and project delete do not re-check
 scope. The `tickets.delete` / `projects.delete` permissions are admin-tier;
 the baseline pins the current behaviour and sub-project 2's company scope
 revisits it.
 
-S1–S5 are the only behaviour changes in this sub-project and the only
+S1–S7 are the only behaviour changes in this sub-project and the only
 user-visible ones; they are recorded for `v0.4.0` in `UPGRADING.md`.
 
 ## Known quirks (pinned, not fixed)
@@ -212,13 +214,13 @@ Q1–Q8 were found while designing; Q9–Q36 while planning; Q37 while writing t
 
 - Every endpoint in the four scope areas has tests covering the four
   questions above.
-- S1–S5 are fixed, each with a test that failed before its fix.
+- S1–S7 are fixed, each with a test that failed before its fix.
 - Every quirk has a `[quirk]` test and a row in the quirk table; sub-project
   3's ROADMAP row links to the table.
 - The whole suite passes on Node 24 locally and in CI. The CI workflow does
   not change.
 - No test file exceeds roughly 800 lines.
-- `docs/ROADMAP.md` marks sub-project 1 **Shipped**, and S1–S5 are noted for
+- `docs/ROADMAP.md` marks sub-project 1 **Shipped**, and S1–S7 are noted for
   the `v0.4.0` section of `UPGRADING.md`.
 
 Expected size: roughly 250–350 new tests, taking the suite from about 80
@@ -228,7 +230,7 @@ seconds to 3–5 minutes. Where tests only read, fixtures are created once per
 ## Out of scope
 
 - Frontend tests (no framework exists; adding one is its own decision).
-- Any behaviour change other than S1–S5.
+- Any behaviour change other than S1–S7.
 - Inbound email processing and the scheduled jobs (workflow scheduler, CSAT
   scheduler, calendar sync). The baseline asserts that ticket actions
   *trigger* rule evaluation and CSAT creation, not the schedulers.

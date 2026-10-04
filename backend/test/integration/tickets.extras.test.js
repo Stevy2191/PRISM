@@ -327,3 +327,100 @@ describe('staff-entered CSAT', () => {
     expect(expectOk(await tech.agent.get(url()))).toEqual({ csat: null });
   });
 });
+
+describe('S6: a ticket\'s project must be one the user can see', () => {
+  let staff;
+  let projA;
+  let projB;
+  const refused = { error: true, message: 'Project not found', code: 'VALIDATION_ERROR' };
+  beforeEach(async () => {
+    // Department Staff sees department A's projects only.
+    staff = await makeStaff('staff', w.deptA.id);
+    projA = (await expectOk(await w.admin.agent.post(`${API}/projects`).send({ name: 'Visible', ownerDepartmentId: w.deptA.id }), 201)).project;
+    projB = (await expectOk(await w.admin.agent.post(`${API}/projects`).send({ name: 'Secret B project', ownerDepartmentId: w.deptB.id }), 201)).project;
+  });
+  const base = () => ({ title: 'T', contactId: w.contact.id, departmentId: w.deptA.id });
+
+  it('create: an out-of-scope project and a missing one get the same 400, and nothing is created', async () => {
+    for (const projectId of [projB.id, 99999, '1e1', 1.6]) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await staff.agent.post(`${API}/tickets`).send({ ...base(), projectId });
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual(refused);
+    }
+    expect(expectOk(await w.admin.agent.get(`${API}/tickets`)).tickets).toEqual([]);
+  });
+
+  it('update: same rule, and the ticket keeps its project', async () => {
+    const t = await makeTicket(staff.agent, { ...base(), projectId: projA.id });
+    const res = await staff.agent.patch(`${API}/tickets/${t.id}`).send({ projectId: projB.id });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(refused);
+    expect(expectOk(await staff.agent.get(`${API}/tickets/${t.id}`)).ticket.project).toEqual({ id: projA.id, name: 'Visible' });
+  });
+
+  it('a visible project links (a numeric string is stored as the number), and null clears it', async () => {
+    const t = await makeTicket(staff.agent, { ...base(), projectId: String(projA.id) });
+    expect(t.projectId).toBe(projA.id);
+    expect(t.project).toEqual({ id: projA.id, name: 'Visible' });
+    const cleared = expectOk(await staff.agent.patch(`${API}/tickets/${t.id}`).send({ projectId: null })).ticket;
+    expect(cleared.projectId).toBeNull();
+  });
+
+  it('re-sending a ticket\'s existing project unchanged is not a new link', async () => {
+    const t = await makeTicket(w.admin.agent, { ...base(), projectId: projB.id });
+    const res = await staff.agent.patch(`${API}/tickets/${t.id}`).send({ title: 'Renamed', projectId: projB.id });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('S7: a ticket\'s contact must be one the user can see', () => {
+  let staff;
+  let contactB;
+  const refused = { error: true, message: 'Contact not found', code: 'VALIDATION_ERROR' };
+  beforeEach(async () => {
+    // Department Staff holds people.view_own_department, not people.view_all.
+    staff = await makeStaff('staff', w.deptA.id);
+    contactB = await makeContact(w.admin, { firstName: 'Bea', email: 'bea@example.com', phone: '5555550123', departmentId: w.deptB.id });
+  });
+  const create = (agent, contactId) => agent.post(`${API}/tickets`).send({ title: 'T', contactId, departmentId: w.deptA.id });
+
+  it('create: an out-of-scope contact and a missing one get the same 400, and nothing is created', async () => {
+    for (const contactId of [contactB.id, 99999, '1e1']) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await create(staff.agent, contactId);
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual(refused);
+    }
+    expect(expectOk(await w.admin.agent.get(`${API}/tickets`)).tickets).toEqual([]);
+  });
+
+  it('a contact in the user\'s own department is fine', async () => {
+    expect((await create(staff.agent, w.contact.id)).status).toBe(201);
+  });
+
+  it('a contact the user just quick-created, with no department yet, is fine', async () => {
+    const mine = expectOk(await staff.agent.post(`${API}/contacts`).send({ firstName: 'New', email: 'new@example.com' }), 201).contact;
+    expect(mine.departmentId).toBeNull();
+    expect((await create(staff.agent, mine.id)).status).toBe(201);
+  });
+
+  it('someone else\'s contact with no department is not', async () => {
+    const theirs = await makeContact(w.admin, { firstName: 'Loose', email: 'loose@example.com' });
+    expect((await create(staff.agent, theirs.id)).body).toEqual(refused);
+  });
+
+  it('update: same rule, the ticket keeps its contact, and an unchanged re-send is fine', async () => {
+    const t = await makeTicket(staff.agent, { title: 'T', contactId: w.contact.id, departmentId: w.deptA.id });
+    const res = await staff.agent.patch(`${API}/tickets/${t.id}`).send({ contactId: contactB.id });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(refused);
+    expect(expectOk(await staff.agent.get(`${API}/tickets/${t.id}`)).ticket.contactId).toBe(w.contact.id);
+    expect((await staff.agent.patch(`${API}/tickets/${t.id}`).send({ contactId: w.contact.id, title: 'x' })).status).toBe(200);
+  });
+
+  it('users who can view all people may use any contact', async () => {
+    const tech = await makeTech('tech', w.deptA.id);
+    expect((await create(tech.agent, contactB.id)).status).toBe(201);
+  });
+});

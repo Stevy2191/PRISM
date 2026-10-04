@@ -128,7 +128,9 @@ async function makeWorld() {
   const admin = await makeAdmin();
   const deptA = await makeDept(admin, 'Service Desk', 'SD');
   const deptB = await makeDept(admin, 'Facilities', 'FAC');
-  const contact = await makeContact(admin);
+  // In department A, as a contact normally is: department-level users can only
+  // put contacts from their own department on a ticket (S7).
+  const contact = await makeContact(admin, { departmentId: deptA.id });
   return { admin, deptA, deptB, contact };
 }
 
