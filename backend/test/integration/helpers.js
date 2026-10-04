@@ -101,12 +101,17 @@ async function resetData() {
   await ensureSchema();
   const tables = [
     'Comments', 'Attachments', 'TicketWatchers', 'TicketTasks', 'TicketActivities',
-    'TicketRelations', 'TimeEntries', 'Tickets', 'Contacts',
+    'TicketRelations', 'TicketFieldValues', 'TimeEntries', 'ActiveTimers',
+    'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'Tickets', 'Contacts',
     // Project child tables truncate with Projects: TRUNCATE resets
     // AUTO_INCREMENT, so a project created by the next test reuses id 1 and
     // would otherwise inherit the previous test's expenses/time/materials.
-    'ProjectExpenses', 'ProjectMaterials', 'ProjectTimeEntries',
-    'ProjectMembers', 'ProjectSubtasks', 'ProjectTasks', 'Projects',
+    'ProjectExpenses', 'ProjectMaterials', 'ProjectTimeEntries', 'ProjectFiles',
+    'ProjectActivities', 'ProjectMembers', 'ProjectSubtasks', 'ProjectTasks',
+    'ProjectIdSequences', 'Projects',
+    'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
+    'AssignmentRules', 'CustomFields', 'TeamMembers', 'Teams',
+    'AuditLogs', 'SystemAuditLogs',
     'SsoAuthRequests', 'SsoGroupMappings', 'SsoIdentities', 'SsoProviders',
     'UserRoles', 'UserPermissionOverrides', 'ApiKeys', 'Sessions', 'Users', 'Departments',
   ];
@@ -117,10 +122,13 @@ async function resetData() {
     await sequelize.query(`TRUNCATE TABLE \`${table}\``).catch(() => {});
   }
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
-  // SystemSettings is not truncated (migrations seed rows other code relies
-  // on), but settings a test flips must not leak into the next one — SSO
-  // enforcement in particular would fail every subsequent login.
-  await sequelize.query("DELETE FROM SystemSettings WHERE `key` LIKE 'sso.%'").catch(() => {});
+  // SystemSettings is not truncated (other code relies on any rows an
+  // install has), but settings a test flips must not leak into the next one —
+  // SSO enforcement in particular would fail every subsequent login.
+  await sequelize.query(
+    "DELETE FROM SystemSettings WHERE `key` LIKE 'sso.%' OR `key` LIKE 'timeTracking.%' "
+    + "OR `key` LIKE 'csat.%' OR `key` = 'notifications.enabledTypes'"
+  ).catch(() => {});
   invalidateAllPermissions();
   // Otherwise one case's login attempts rate-limit the next.
   resetRateLimits();

@@ -1,4 +1,4 @@
-// Runs once before the suite.
+// Runs once before the suite: pins the time zone, then checks the Node version.
 //
 // Several dependencies in the runtime graph are ESM-only (sanitize-html pulls
 // in htmlparser2; openid-client is ESM throughout). Jest can only `require()`
@@ -11,6 +11,12 @@
 const MINIMUM = [24, 9, 0];
 
 module.exports = async () => {
+  // Every suite runs in a fixed non-UTC zone so tests that depend on "the
+  // local date" behave the same on a developer machine and on the UTC CI
+  // runner. Set here, in globalSetup, because assigning TZ inside a test
+  // file's VM context does not reach Node's date handling; workers spawned
+  // after globalSetup inherit it.
+  process.env.TZ = 'America/Chicago';
   const actual = process.versions.node.split('.').map(Number);
   const tooOld = actual[0] < MINIMUM[0]
     || (actual[0] === MINIMUM[0] && actual[1] < MINIMUM[1]);
