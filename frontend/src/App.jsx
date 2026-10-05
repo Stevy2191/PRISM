@@ -14,7 +14,7 @@ import TicketNew from './pages/TicketNew';
 import TicketDetail from './pages/tickets/TicketDetail';
 import Projects from './pages/Projects';
 import ProjectNew from './pages/ProjectNew';
-import ProjectDetail from './pages/ProjectDetail';
+import ProjectDetail from './pages/projects/ProjectDetail';
 import Contacts from './pages/Contacts';
 import ContactDetail from './pages/ContactDetail';
 import CompaniesList from './pages/companies/CompaniesList';
