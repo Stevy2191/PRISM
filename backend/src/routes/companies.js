@@ -15,6 +15,7 @@ router.post('/', canManage, ctrl.create);
 router.get('/:id', canView, ctrl.get);
 router.patch('/:id', canManage, ctrl.update);
 router.delete('/:id', canManage, ctrl.remove);
+router.post('/:id/merge', canManage, ctrl.merge);
 router.post('/:id/domains', canManage, ctrl.addDomain);
 router.delete('/:id/domains/:domainId', canManage, ctrl.removeDomain);
 router.get('/:id/sites', canView, sites.list);

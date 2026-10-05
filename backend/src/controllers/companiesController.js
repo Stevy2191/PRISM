@@ -15,6 +15,7 @@ const {
 const { FREE_MAIL_DOMAINS } = require('../services/companyService');
 const { andWhere, isEmpty } = require('../services/recordScope');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
+const { mergeCounts, mergeCompanies } = require('../services/companyMerge');
 
 const NAME_MAX = 150;
 const WEBSITE_RE = /^https?:\/\/[^\s<>"]+$/i;
@@ -221,6 +222,31 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /companies/:id/merge { intoCompanyId } — merge :id (B) into A.
+// ?preview=true returns the per-table counts and changes nothing.
+const merge = asyncHandler(async (req, res) => {
+  const from = await loadAccessibleCompany(req);
+  if (from.isInternal) throw new ApiError(400, 'The internal company cannot be merged into another', 'VALIDATION_ERROR');
+  const into = await Company.findByPk(parseRecordId((req.body || {}).intoCompanyId) || 0);
+  // Missing and out-of-reach targets look the same.
+  if (!into || !(await canAccessCompany(req.user, into.id))) throw new ApiError(400, 'Unknown company', 'VALIDATION_ERROR');
+  if (into.id === from.id) throw new ApiError(400, 'A company cannot be merged into itself', 'VALIDATION_ERROR');
+  if (into.status !== 'active') throw new ApiError(400, 'Merge into an active company', 'VALIDATION_ERROR');
+
+  if (req.query.preview === 'true') {
+    res.json({ preview: true, counts: await mergeCounts(from.id) });
+    return;
+  }
+  const counts = await sequelize.transaction(async (transaction) => {
+    const moved = await mergeCounts(from.id, transaction);
+    await mergeCompanies(from, into, transaction);
+    return moved;
+  });
+  invalidateAllPermissions();
+  await writeAudit(req, 'company.merge', 'Company', into.id, { fromCompanyId: from.id, fromName: from.name, counts });
+  res.json({ company: await Company.findByPk(into.id, { include: companyInclude }), counts });
+});
+
 // POST /companies/:id/domains { domain }
 const addDomain = asyncHandler(async (req, res) => {
   const company = await loadAccessibleCompany(req);
@@ -246,5 +272,5 @@ const removeDomain = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  list, summary, vendors, get, create, update, remove, addDomain, removeDomain, loadAccessibleCompany,
+  list, summary, vendors, get, create, update, remove, merge, addDomain, removeDomain, loadAccessibleCompany,
 };
