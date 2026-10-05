@@ -1,13 +1,19 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
+import CompanyPicker from '../components/companies/CompanyPicker';
+import { useCompanySummary } from '../context/CompanyContext';
+import { useCompanyOptions } from '../hooks/useCompanyOptions';
 
-const EMPTY = { name: '', shortCode: '', description: '', defaultRoleId: '' };
+const EMPTY = { name: '', shortCode: '', description: '', defaultRoleId: '', companyId: '' };
 
 export default function AdminDepartments() {
   const { showToast } = useToast();
+  const { multiCompany } = useCompanySummary();
+  const companies = useCompanyOptions();
+  const internalId = companies.find((c) => c.isInternal)?.id;
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +60,9 @@ export default function AdminDepartments() {
   const submit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    const payload = { ...form, defaultRoleId: form.defaultRoleId || null };
+    // The company is chosen on create only; an edit can't move a department.
+    const { companyId, ...rest } = form;
+    const payload = { ...rest, defaultRoleId: form.defaultRoleId || null, ...(editingId === null && companyId ? { companyId } : {}) };
     setSaving(true);
     setFormError('');
     setShortCodeError('');
@@ -85,6 +93,8 @@ export default function AdminDepartments() {
       shortCode: d.shortCode || '',
       description: d.description || '',
       defaultRoleId: d.defaultRoleId || '',
+      // Kept so a client department's short code stays optional when editing.
+      companyId: d.companyId || '',
     });
     setFormError('');
     setShortCodeError('');
@@ -104,6 +114,14 @@ export default function AdminDepartments() {
     }
   };
 
+  // Grouped by company while company UI is on (spec: Settings → Departments).
+  const sorted = multiCompany
+    ? [...departments].sort((a, b) => (a.company?.name || '').localeCompare(b.company?.name || '') || a.name.localeCompare(b.name))
+    : departments;
+  const isInternalDept = (d) => !multiCompany || d.companyId === internalId;
+  // Only internal departments own projects, so only they need a short code.
+  const formIsInternal = !multiCompany || !form.companyId || Number(form.companyId) === internalId;
+
   if (loading) return <Spinner />;
 
   return (
@@ -120,20 +138,23 @@ export default function AdminDepartments() {
       {showForm && (
         <form onSubmit={submit} className="card space-y-4 p-5">
           {formError && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</div>}
+          {editingId === null && (
+            <CompanyPicker value={form.companyId} onChange={(v) => setForm((f) => ({ ...f, companyId: v }))} />
+          )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="label">Name</label>
               <input className="input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
             </div>
             <div>
-              <label className="label">Short code <span className="text-red-500">*</span></label>
+              <label className="label">Short code {formIsInternal && <span className="text-red-500">*</span>}</label>
               <input
                 className={`input uppercase ${shortCodeError ? 'border-red-400' : ''}`}
                 value={form.shortCode}
                 maxLength={6}
                 placeholder="e.g. IT, HR, MNT"
                 onChange={(e) => { setForm((f) => ({ ...f, shortCode: e.target.value.toUpperCase() })); setShortCodeError(''); }}
-                required
+                required={formIsInternal}
               />
               {shortCodeError ? (
                 <p className="mt-1 text-xs text-red-600">{shortCodeError}</p>
@@ -168,18 +189,22 @@ export default function AdminDepartments() {
       )}
 
       <div className="card divide-y divide-navy-100">
-        {departments.map((d) => (
-          <div key={d.id} className="flex items-center justify-between px-5 py-3">
+        {sorted.map((d, i) => (
+          <Fragment key={d.id}>
+          {multiCompany && d.companyId !== sorted[i - 1]?.companyId && (
+            <p className="eyebrow px-5 py-2" style={{ backgroundColor: 'var(--color-hover)' }}>{d.company?.name}</p>
+          )}
+          <div className="flex items-center justify-between px-5 py-3">
             <div>
               <div className="flex items-center gap-2">
                 <p className="font-medium text-navy-900">{d.name}</p>
                 {d.shortCode ? (
                   <span className="badge bg-navy-100 text-navy-700">{d.shortCode}</span>
-                ) : (
+                ) : isInternalDept(d) ? (
                   <span className="badge bg-amber-100 text-amber-800" title="Configure a short code so this department's project IDs use it instead of the generic fallback">
                     No short code — project IDs will use &quot;DEPT&quot; prefix
                   </span>
-                )}
+                ) : null}
               </div>
               {d.description && <p className="text-sm text-navy-500">{d.description}</p>}
               <p className="mt-0.5 text-xs text-navy-400">
@@ -192,6 +217,7 @@ export default function AdminDepartments() {
               <button onClick={() => remove(d)} className="text-xs text-red-500 hover:underline">delete</button>
             </div>
           </div>
+          </Fragment>
         ))}
         {departments.length === 0 && <p className="px-5 py-4 text-sm text-navy-400">No departments yet.</p>}
       </div>

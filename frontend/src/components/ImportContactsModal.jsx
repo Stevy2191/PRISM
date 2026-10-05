@@ -19,6 +19,7 @@ const FIELD_OPTIONS = [
   { value: 'phone', label: 'Phone' },
   { value: 'mobile', label: 'Mobile' },
   { value: 'department', label: 'Department' },
+  { value: 'company', label: 'Company' },
   { value: 'jobTitle', label: 'Job title' },
 ];
 
@@ -29,6 +30,7 @@ const FIELD_SYNONYMS = {
   phone: ['phone', 'phone number', 'telephone'],
   mobile: ['mobile', 'mobile number', 'cell', 'cell phone'],
   department: ['department', 'dept'],
+  company: ['company', 'organization', 'organisation', 'client', 'account'],
   jobTitle: ['jobtitle', 'job title', 'title', 'position'],
 };
 
@@ -318,7 +320,7 @@ export default function ImportContactsModal({ departments, onClose, onImported }
             <table className="min-w-full text-xs">
               <thead>
                 <tr>
-                  {['#', 'First name', 'Last name', 'Email', 'Department', 'Status', 'Issues'].map((h) => (
+                  {['#', 'First name', 'Last name', 'Email', 'Department', 'Company', 'Status', 'Issues'].map((h) => (
                     <th key={h} className="whitespace-nowrap px-3 py-2 text-left font-semibold" style={{ backgroundColor: 'var(--color-bg)', color: MUTED }}>{h}</th>
                   ))}
                 </tr>
@@ -337,6 +339,7 @@ export default function ImportContactsModal({ departments, onClose, onImported }
                       <td className="px-3 py-2" style={{ color: TEXT }}>{r.record.lastName || '—'}</td>
                       <td className="px-3 py-2" style={{ color: TEXT }}>{r.record.email || '—'}</td>
                       <td className="px-3 py-2" style={{ color: TEXT }}>{r.record.department || '—'}</td>
+                      <td className="px-3 py-2" style={{ color: TEXT }}>{r.record.company || '—'}</td>
                       <td className="px-3 py-2 font-medium" style={{ color: r.action === 'error' ? 'var(--color-danger)' : r.action === 'skip' ? MUTED : 'var(--color-success)' }}>
                         {r.action === 'error' ? 'Error' : r.action === 'skip' ? 'Skip' : 'Create'}
                       </td>
