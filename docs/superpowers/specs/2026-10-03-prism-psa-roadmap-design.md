@@ -17,6 +17,7 @@ live status of the work is in [`docs/ROADMAP.md`](../../ROADMAP.md).
 | Agent platforms | Windows first; the agent is written in Go so macOS and Linux are builds of the same code, not rewrites. |
 | Agent signing | No paid certificate. PRISM generates its own code-signing certificate; trust for it is pushed to managed machines by GPO/Intune, and the agent is deployed the same way (which also avoids SmartScreen's downloaded-file warning). Buying a certificate later is a drop-in change. |
 | Remote access | Built in, no third-party app. Remote shell and file transfer (18a) ship first; full remote desktop in the browser over WebRTC (18b) follows. |
+| End-user tray app | A per-user system-tray helper (9b), installed with the agent, lets end users submit a ticket in one click with their identity and the computer's details filled in, and see their open tickets. It talks to PRISM through the agent's connection, so there is no separate installer or login. Added 2026-10-05. |
 | Billing scope | Full billing in PRISM including online payments in the client portal. PRISM is not a general ledger; accounting packages are sync targets. |
 | Releases | One minor version per phase (`v0.4.0` = Phase 1 … `v0.8.0` = Phase 5); fixes from testing a phase are patch versions of it. |
 | Where planning lives | In the repo: `docs/ROADMAP.md`, one spec per sub-project in `docs/superpowers/specs/`, one plan per sub-project in `docs/superpowers/plans/`. |
@@ -173,11 +174,24 @@ on them. Open questions for the specs: how client subdivisions are modelled
 two (3); how SLA clocks are computed and stored so reports are cheap (4).
 
 **Phase 2 — RMM core (`v0.5.0`).** The gateway and Windows agent (8), then
-inventory and monitoring (9) feeding Assets and Tickets. Open questions:
-transport (WebSocket vs gRPC), how PRISM is reached by agents outside the
-LAN (public hostname, TLS termination, gateway port), metrics retention in
-MariaDB vs a separate store, and how the self-signed signing certificate is
-generated, stored, rotated and pushed to machines (GPO/Intune instructions).
+inventory and monitoring (9) feeding Assets and Tickets, then the end-user
+tray app (9b). Open questions: transport (WebSocket vs gRPC), how PRISM is
+reached by agents outside the LAN (public hostname, TLS termination, gateway
+port), metrics retention in MariaDB vs a separate store, and how the
+self-signed signing certificate is generated, stored, rotated and pushed to
+machines (GPO/Intune instructions).
+
+Inventory (9) makes every computer running the agent an Asset and tracks
+how long it has been owned and in service; its spec must define "in
+service" (from deployment to retirement, and whether repair time counts).
+The tray app (9b) is the first piece of agent code that runs in the user's
+session rather than as a service, so it introduces the user-session helper
+that remote desktop (18b) later reuses. Its spec must settle how the
+logged-in Windows user is matched to a contact (directory account or email,
+and what happens when there is no match), how the helper authenticates
+through the agent without a separate login, what the health snapshot
+contains, and screenshot privacy (taken only when the user asks, and shown
+to them before it is sent).
 
 **Phase 3 — Money (`v0.6.0`).** Rates and timesheets (10), catalog and
 procurement (11), agreements (12), billing and payments (13), sales (14),

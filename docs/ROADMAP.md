@@ -30,6 +30,7 @@ read that before designing any sub-project.
 | Agent platforms | Windows first, written cross-platform (Go) so macOS and Linux follow. |
 | Agent signing | Free: PRISM signs the agent with its own certificate, and admins push trust for it (and the agent) via GPO/Intune. A paid code-signing certificate stays a drop-in option, not a requirement. |
 | Remote access | Built in, no third-party app: remote shell and file transfer first, then full remote desktop in the browser over WebRTC. |
+| End-user tray app | A system-tray helper installed with the agent gives end users a one-click way to submit tickets, pre-filled with who they are and which computer they're on. No separate install or login. |
 | Billing | Full billing inside PRISM, including online payments in the client portal. Accounting sync is a connector, not a replacement. |
 | Docs | Everything lives in this repo: this roadmap, one spec and one plan per sub-project, release notes in `UPGRADING.md`. |
 
@@ -82,7 +83,8 @@ consistent between tickets and projects, and covered by tests.
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
 | 8 | Agent gateway and Windows agent — enrollment, mutual TLS, signed updates, Windows service, internet-facing gateway service | Not started | — | — |
-| 9 | Inventory and monitoring — automatic hardware/software inventory into Assets, heartbeats, checks, alerts that open tickets | Not started | — | — |
+| 9 | Inventory and monitoring — automatic hardware/software inventory into Assets (every computer running the agent becomes an Asset, with total owned time and in-service time), heartbeats, checks, alerts that open tickets | Not started | — | — |
+| 9b | Tray app — a per-user system-tray helper installed with the agent. One click opens a short ticket form pre-filled with the user's name, company and department and the computer's name, IP and MAC address; the ticket links the computer's Asset and carries a health snapshot (OS version, uptime, free disk, logged-in domain); an optional screenshot; a "My tickets" list showing the user's open tickets and their status | Not started | — | — |
 
 **Testing feedback (Phase 2):** _none yet_
 
