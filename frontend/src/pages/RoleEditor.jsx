@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import CompanyAccessPanel from '../components/companies/CompanyAccessPanel';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
@@ -261,6 +262,7 @@ export default function RoleEditor() {
           })}
         </div>
       </div>
+      {!isNew && <CompanyAccessPanel roleId={id} />}
     </div>
   );
 }

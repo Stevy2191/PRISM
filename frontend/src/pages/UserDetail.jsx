@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import CompanyAccessPanel from '../components/companies/CompanyAccessPanel';
 import { Link, useParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
@@ -911,7 +912,12 @@ export default function UserDetail() {
       </div>
 
       {tab === 'profile' && <ProfileTab user={user} departments={departments} onUpdate={updateUser} canManageContractor={canEditUsers} />}
-      {tab === 'access' && <RolesPermissionsTab userId={id} onPermissionsChanged={refreshPermissions} />}
+      {tab === 'access' && (
+        <>
+          <RolesPermissionsTab userId={id} onPermissionsChanged={refreshPermissions} />
+          <CompanyAccessPanel userId={id} />
+        </>
+      )}
       {tab === 'performance' && <PerformanceTab userId={id} />}
     </div>
   );
