@@ -113,6 +113,15 @@ function unfreezeClock() {
   jest.useRealTimers();
 }
 
+async function makeCompany(admin, fields = {}) {
+  const body = { name: 'Acme Corp', isClient: true, ...fields };
+  return expectOk(await admin.agent.post(`${API}/companies`).send(body), 201).company;
+}
+
+async function setCompanyAccess(admin, userId, access) {
+  return expectOk(await admin.agent.put(`${API}/users/${userId}/company-access`).send(access)).access;
+}
+
 // For fire-and-forget work (the reply email): polls until `predicate()` is
 // true, or throws after `timeoutMs`. Counts attempts rather than reading
 // Date.now(), which a frozen clock would stop.
@@ -178,5 +187,5 @@ module.exports = {
   API, expectOk, makeAdmin, makeDept, makeUser, makeTech, makeManager, makeStaff, makeOwnTier,
   makeContractor, makeContact, makeTicket, makeProject, makeTask, makeSubtask, makeTeam,
   setSettings, projectStatusId, freezeClock, advanceClock, unfreezeClock, waitFor, makeWorld,
-  LEDGER_NOW, makeLedger,
+  LEDGER_NOW, makeLedger, makeCompany, setCompanyAccess,
 };

@@ -112,6 +112,7 @@ async function resetData() {
     'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
     'AssignmentRules', 'CustomFields', 'TeamMembers', 'Teams',
     'AuditLogs', 'SystemAuditLogs',
+    'Sites', 'CompanyDomains', 'UserCompanyAccess', 'RoleCompanyAccess',
     'SsoAuthRequests', 'SsoGroupMappings', 'SsoIdentities', 'SsoProviders',
     'UserRoles', 'UserPermissionOverrides', 'ApiKeys', 'Sessions', 'Users', 'Departments',
   ];
@@ -122,6 +123,10 @@ async function resetData() {
     await sequelize.query(`TRUNCATE TABLE \`${table}\``).catch(() => {});
   }
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
+  // Companies is never truncated: the internal company (created by the
+  // migration) must keep its id, because model hooks and the company cache
+  // rely on it. Every other company goes.
+  await sequelize.query('DELETE FROM Companies WHERE isInternal = 0').catch(() => {});
   // SystemSettings is not truncated (other code relies on any rows an
   // install has), but settings a test flips must not leak into the next one —
   // SSO enforcement in particular would fail every subsequent login.

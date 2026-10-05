@@ -89,6 +89,11 @@ const ContractTicket = require('./ContractTicket')(sequelize);
 const KbCategory = require('./KbCategory')(sequelize);
 const KbArticle = require('./KbArticle')(sequelize);
 const KbAttachment = require('./KbAttachment')(sequelize);
+const Company = require('./Company')(sequelize);
+const CompanyDomain = require('./CompanyDomain')(sequelize);
+const Site = require('./Site')(sequelize);
+const UserCompanyAccess = require('./UserCompanyAccess')(sequelize);
+const RoleCompanyAccess = require('./RoleCompanyAccess')(sequelize);
 
 const db = {
   sequelize,
@@ -179,6 +184,11 @@ const db = {
   KbCategory,
   KbArticle,
   KbAttachment,
+  Company,
+  CompanyDomain,
+  Site,
+  UserCompanyAccess,
+  RoleCompanyAccess,
 };
 
 // ---- Associations ----
@@ -569,5 +579,26 @@ SsoGroupMapping.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
 
 SsoProvider.belongsTo(Role, { foreignKey: 'defaultRoleId', as: 'defaultRole' });
 SsoAuthRequest.belongsTo(SsoProvider, { foreignKey: 'providerId', as: 'provider' });
+
+// Client companies (sub-project 2)
+Company.hasMany(Site, { foreignKey: 'companyId', as: 'sites' });
+Site.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+Company.hasMany(CompanyDomain, { foreignKey: 'companyId', as: 'domains' });
+CompanyDomain.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+Company.belongsTo(User, { foreignKey: 'accountManagerId', as: 'accountManager' });
+[Department, Contact, Ticket, Project, Asset, License, Contract].forEach((M) => {
+  M.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+});
+Contact.belongsTo(Site, { foreignKey: 'siteId', as: 'site' });
+Asset.belongsTo(Site, { foreignKey: 'siteId', as: 'site' });
+[Asset, License, Contract, ProjectMaterial].forEach((M) => {
+  M.belongsTo(Company, { foreignKey: 'vendorCompanyId', as: 'vendorCompany' });
+});
+UserCompanyAccess.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+RoleCompanyAccess.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+
+require('./companyHooks')({
+  Contact, Ticket, Department, Project, Asset, License, Contract, Site,
+});
 
 module.exports = db;

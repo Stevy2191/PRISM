@@ -10,11 +10,13 @@ module.exports = (sequelize) => {
         primaryKey: true,
         autoIncrement: true,
       },
+      // Unique within a company (index departments_company_name), not
+      // across the install: a client may have its own "HR".
       name: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        unique: true,
       },
+      companyId: { type: DataTypes.INTEGER, allowNull: false },
       description: {
         type: DataTypes.TEXT,
         allowNull: true,

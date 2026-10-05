@@ -10,6 +10,7 @@ module.exports = (sequelize) => {
       taskId: { type: DataTypes.INTEGER, allowNull: true },
       itemName: { type: DataTypes.STRING(255), allowNull: false },
       vendor: { type: DataTypes.STRING(255), allowNull: true },
+      vendorCompanyId: { type: DataTypes.INTEGER, allowNull: true },
       modelNumber: { type: DataTypes.STRING(255), allowNull: true },
       // Array of serial number strings — a line item can represent several
       // physical units of the same product.

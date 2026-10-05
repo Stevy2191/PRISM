@@ -8,6 +8,7 @@ module.exports = (sequelize) => {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       name: { type: DataTypes.STRING(255), allowNull: false },
       vendor: { type: DataTypes.STRING(150), allowNull: true },
+      vendorCompanyId: { type: DataTypes.INTEGER, allowNull: true },
       contractType: {
         type: DataTypes.ENUM('support', 'maintenance', 'saas', 'lease', 'subscription', 'warranty', 'other'),
         allowNull: false,
@@ -25,6 +26,8 @@ module.exports = (sequelize) => {
       contactEmail: { type: DataTypes.STRING(150), allowNull: true },
       contactPhone: { type: DataTypes.STRING(20), allowNull: true },
       departmentId: { type: DataTypes.INTEGER, allowNull: true },
+      // The company this record belongs to (client companies, sub-project 2).
+      companyId: { type: DataTypes.INTEGER, allowNull: false },
       notes: { type: DataTypes.TEXT, allowNull: true },
       createdBy: { type: DataTypes.INTEGER, allowNull: true },
     },

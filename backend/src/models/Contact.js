@@ -26,6 +26,9 @@ module.exports = (sequelize) => {
       phone: { type: DataTypes.STRING(50), allowNull: true },
       mobile: { type: DataTypes.STRING(50), allowNull: true },
       departmentId: { type: DataTypes.INTEGER, allowNull: true },
+      // The company this record belongs to (client companies, sub-project 2).
+      companyId: { type: DataTypes.INTEGER, allowNull: false },
+      siteId: { type: DataTypes.INTEGER, allowNull: true },
       jobTitle: { type: DataTypes.STRING(150), allowNull: true },
       notes: { type: DataTypes.TEXT, allowNull: true },
       createdBy: { type: DataTypes.INTEGER, allowNull: true },

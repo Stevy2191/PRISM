@@ -21,6 +21,7 @@ module.exports = (sequelize) => {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       name: { type: DataTypes.STRING(255), allowNull: false },
       vendor: { type: DataTypes.STRING(150), allowNull: true },
+      vendorCompanyId: { type: DataTypes.INTEGER, allowNull: true },
       licenseType: {
         type: DataTypes.ENUM('per_seat', 'per_device', 'site_license', 'concurrent', 'subscription'),
         allowNull: false,
@@ -37,6 +38,8 @@ module.exports = (sequelize) => {
       annualCost: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
       autoRenews: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       departmentId: { type: DataTypes.INTEGER, allowNull: true },
+      // The company this record belongs to (client companies, sub-project 2).
+      companyId: { type: DataTypes.INTEGER, allowNull: false },
       notes: { type: DataTypes.TEXT, allowNull: true },
       createdBy: { type: DataTypes.INTEGER, allowNull: true },
     },

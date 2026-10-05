@@ -86,6 +86,8 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      // Always the contact's company — set by models/companyHooks.js.
+      companyId: { type: DataTypes.INTEGER, allowNull: false },
       departmentId: {
         type: DataTypes.INTEGER,
         allowNull: true,

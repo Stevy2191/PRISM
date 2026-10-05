@@ -32,6 +32,8 @@ module.exports = (sequelize) => {
       },
       // Free-form string matching a ProjectStatus row's `name` (see the
       // matching note on Ticket.status).
+      // The company this record belongs to (client companies, sub-project 2).
+      companyId: { type: DataTypes.INTEGER, allowNull: false },
       status: {
         type: DataTypes.STRING(100),
         allowNull: false,

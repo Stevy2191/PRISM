@@ -13,6 +13,9 @@ module.exports = (sequelize) => {
       model: { type: DataTypes.STRING(100), allowNull: true },
       serialNumber: { type: DataTypes.STRING(150), allowNull: true },
       departmentId: { type: DataTypes.INTEGER, allowNull: true },
+      // The company this record belongs to (client companies, sub-project 2).
+      companyId: { type: DataTypes.INTEGER, allowNull: false },
+      siteId: { type: DataTypes.INTEGER, allowNull: true },
       assignedToContactId: { type: DataTypes.INTEGER, allowNull: true },
       assignedToUserId: { type: DataTypes.INTEGER, allowNull: true },
       locationBuilding: { type: DataTypes.STRING(150), allowNull: true },
@@ -26,6 +29,7 @@ module.exports = (sequelize) => {
       purchaseDate: { type: DataTypes.DATEONLY, allowNull: true },
       purchasePrice: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
       vendorName: { type: DataTypes.STRING(150), allowNull: true },
+      vendorCompanyId: { type: DataTypes.INTEGER, allowNull: true },
       warrantyExpiryDate: { type: DataTypes.DATEONLY, allowNull: true },
       replacementPlanDate: { type: DataTypes.DATEONLY, allowNull: true },
       deployedDate: { type: DataTypes.DATEONLY, allowNull: true },

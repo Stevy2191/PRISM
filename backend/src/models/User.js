@@ -75,6 +75,8 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: 'technician',
       },
+      // false = only the companies in UserCompanyAccess / RoleCompanyAccess.
+      allCompanies: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       departmentId: {
         type: DataTypes.INTEGER,
         allowNull: true,
