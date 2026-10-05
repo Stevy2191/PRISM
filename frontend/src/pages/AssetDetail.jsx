@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { contactLabel } from '../utils/contactLabel';
+import { useCompanySummary } from '../context/CompanyContext';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { IconFile, IconUpload, IconTrash, IconDownload } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
@@ -980,6 +982,7 @@ function CheckInModal({ assetId, checkout, onClose, onCheckedIn }) {
 // record as the asset's active checkout (the backend rejects this if another
 // checkout is already active).
 function EditCheckoutModal({ assetId, checkout, onClose, onSaved }) {
+  const { multiCompany } = useCompanySummary();
   const [contact, setContact] = useState(checkout.contact || null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -1031,7 +1034,7 @@ function EditCheckoutModal({ assetId, checkout, onClose, onSaved }) {
             {contact ? (
               <div className="flex items-center justify-between rounded-md border p-2.5" style={{ borderColor: BORDER, backgroundColor: BG }}>
                 <div>
-                  <p className="text-sm font-medium" style={{ color: TEXT }}>{contact.displayName}</p>
+                  <p className="text-sm font-medium" style={{ color: TEXT }}>{contactLabel(contact, { multiCompany })}</p>
                   {contact.email && <p className="text-xs" style={{ color: MUTED }}>{contact.email}</p>}
                 </div>
                 <button type="button" onClick={() => setContact(null)} style={{ color: MUTED }}>✕</button>

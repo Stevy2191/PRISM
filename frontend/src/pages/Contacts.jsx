@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { usePagination } from '../hooks/usePagination';
 import Pagination from '../components/Pagination';
@@ -9,6 +9,9 @@ import { useAuth, useAnyPermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import ImportContactsModal from '../components/ImportContactsModal';
+import CompanyPicker from '../components/companies/CompanyPicker';
+import CompanyFilter from '../components/companies/CompanyFilter';
+import CompanyTag from '../components/companies/CompanyTag';
 
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
@@ -109,7 +112,7 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
 function NewContactModal({ departments, assignableUsers, currentUserId, onClose, onCreated }) {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '', mobile: '',
-    departmentId: '', jobTitle: '', assignedTo: String(currentUserId || ''), notes: '',
+    departmentId: '', jobTitle: '', assignedTo: String(currentUserId || ''), notes: '', companyId: '',
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -130,6 +133,7 @@ function NewContactModal({ departments, assignableUsers, currentUserId, onClose,
         phone: form.phone || null,
         mobile: form.mobile || null,
         departmentId: form.departmentId || null,
+        companyId: form.companyId || undefined,
         jobTitle: form.jobTitle || null,
         assignedTo: form.assignedTo || null,
         notes: form.notes || null,
@@ -146,7 +150,14 @@ function NewContactModal({ departments, assignableUsers, currentUserId, onClose,
     <Modal title="New contact" onClose={onClose} wide>
       <form onSubmit={submit} className="space-y-4">
         {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-        <ContactFormFields form={form} setForm={setForm} departments={departments} assignableUsers={assignableUsers} />
+        <CompanyPicker value={form.companyId} onChange={(v) => setForm((f) => ({ ...f, companyId: v, departmentId: '' }))} style={fieldStyle} />
+        {/* A contact's department belongs to its company (spec). */}
+        <ContactFormFields
+          form={form}
+          setForm={setForm}
+          departments={departments.filter((d) => !form.companyId || String(d.companyId) === String(form.companyId))}
+          assignableUsers={assignableUsers}
+        />
         <div className="flex justify-end gap-3 border-t pt-4" style={{ borderColor: BORDER }}>
           <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
           <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save'}</button>
@@ -169,6 +180,8 @@ export default function Contacts() {
 
   const [search, setSearch] = useState('');
   const [departmentId, setDepartmentId] = useState('');
+  const [searchParams] = useSearchParams();
+  const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
   const [assignedTo, setAssignedTo] = useState('');
   const [myContacts, setMyContacts] = useState(false);
   const [noDept, setNoDept] = useState(false);
@@ -186,13 +199,14 @@ export default function Contacts() {
   // filtered set, not the page in the browser.
   const [alphaIndex, setAlphaIndex] = useState({});
 
-  const filterKey = JSON.stringify([search, departmentId, assignedTo, myContacts, noDept, status, sortBy, sortDir]);
+  const filterKey = JSON.stringify([search, departmentId, companyId, assignedTo, myContacts, noDept, status, sortBy, sortDir]);
   const pager = usePagination({ filterKey, storageKey: 'prism.contacts.pageSize' });
 
   const filterParams = () => {
     const params = { sortBy, sortDir };
     if (search) params.search = search;
     if (departmentId) params.departmentId = departmentId;
+    if (companyId) params.companyId = companyId;
     if (assignedTo) params.assignedTo = assignedTo;
     if (myContacts) params.myContacts = 'true';
     if (noDept) params.noDept = 'true';
@@ -229,7 +243,7 @@ export default function Contacts() {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, departmentId, assignedTo, myContacts, noDept, status, sortBy, sortDir, pager.page, pager.limit]);
+  }, [search, departmentId, companyId, assignedTo, myContacts, noDept, status, sortBy, sortDir, pager.page, pager.limit]);
 
   const toggleSort = (col) => {
     if (sortBy === col) {
@@ -313,6 +327,7 @@ export default function Contacts() {
               <option value="">All departments</option>
               {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
+            <CompanyFilter value={companyId} onChange={setCompanyId} style={fieldStyle} />
             <select
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
@@ -459,6 +474,7 @@ export default function Contacts() {
                           <Link to={`/contacts/${c.id}`} className="font-semibold hover:underline" style={{ color: TEXT }}>
                             {c.displayName}
                           </Link>
+                          <CompanyTag company={c.company} />
                           {c.status === 'inactive' && (
                             <span
                               className="flex-shrink-0 rounded-[3px] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"

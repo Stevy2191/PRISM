@@ -6,6 +6,9 @@ import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
 import { useAuth } from '../context/AuthContext';
 import { assignableContactDepartments } from '../utils/contactDepartments';
+import { contactLabel } from '../utils/contactLabel';
+import { useCompanySummary } from '../context/CompanyContext';
+import CompanyPicker from '../components/companies/CompanyPicker';
 import TagInput from '../components/TagInput';
 import TimeDropdownPicker from '../components/TimeDropdownPicker';
 
@@ -95,6 +98,7 @@ const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var
 // hasn't been created yet) while the contact POST was still in flight —
 // that's what looked like the page "resetting."
 function ContactPicker({ selectedContact, onSelect }) {
+  const { multiCompany } = useCompanySummary();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
@@ -185,7 +189,8 @@ function ContactPicker({ selectedContact, onSelect }) {
                   className="block w-full px-3 py-2 text-left hover:bg-[var(--color-hover)]"
                 >
                   <p className="text-sm font-medium" style={{ color: TEXT }}>{c.displayName}</p>
-                  <p className="text-xs" style={{ color: MUTED }}>{c.department?.name || 'No department'}{c.email ? ` · ${c.email}` : ''}</p>
+                  {/* Company · Department under the name (spec: contact labels). */}
+                  <p className="text-xs" style={{ color: MUTED }}>{contactLabel(c, { multiCompany }).split(' · ').slice(1).join(' · ') || 'No department'}{c.email ? ` · ${c.email}` : ''}</p>
                 </button>
               ))}
               {results.length === 0 && (
@@ -237,6 +242,7 @@ function QuickCreateContact({ initialName, error, creating, onCancel, onCreate }
   const [lastName, setLastName] = useState(parts.slice(1).join(' '));
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [companyId, setCompanyId] = useState('');
   const [validationError, setValidationError] = useState('');
 
   const submit = (e) => {
@@ -246,7 +252,10 @@ function QuickCreateContact({ initialName, error, creating, onCancel, onCreate }
       return;
     }
     setValidationError('');
-    onCreate({ firstName: firstName.trim() || null, lastName: lastName.trim() || null, email: email || null, phone: phone || null });
+    onCreate({
+      firstName: firstName.trim() || null, lastName: lastName.trim() || null, email: email || null, phone: phone || null,
+      companyId: companyId || undefined,
+    });
   };
 
   return (
@@ -258,6 +267,7 @@ function QuickCreateContact({ initialName, error, creating, onCancel, onCreate }
         <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" className="input h-9 text-sm" style={fieldStyle} />
         <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" className="input h-9 text-sm" style={fieldStyle} />
       </div>
+      <CompanyPicker value={companyId} onChange={setCompanyId} style={fieldStyle} />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" className="input h-9 text-sm" style={fieldStyle} />
         <input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" className="input h-9 text-sm" style={fieldStyle} inputMode="tel" />

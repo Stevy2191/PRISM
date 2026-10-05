@@ -6,6 +6,7 @@ import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
 import { useAnyPermission, useAuth, usePermission } from '../context/AuthContext';
 import { assignableContactDepartments } from '../utils/contactDepartments';
+import ContactCompanyFields from '../components/companies/ContactCompanyFields';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
 import { formatTicketId } from '../utils/ticketId';
@@ -207,6 +208,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
             {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
+        <ContactCompanyFields contact={contact} canEdit={canEdit} onSave={onSave} />
         {contact.status === 'inactive' && (
           <span
             className="mt-2 rounded-[3px] px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide"
@@ -551,7 +553,7 @@ export default function ContactDetail() {
 
       <PropertiesPanel
         contact={contact}
-        departments={assignableContactDepartments(departments, user, hasPermission, contact.departmentId)}
+        departments={assignableContactDepartments(departments.filter((d) => d.companyId === contact.companyId), user, hasPermission, contact.departmentId)}
         assignableUsers={assignableUsers}
         canEdit={canEdit}
         onSave={saveContact}

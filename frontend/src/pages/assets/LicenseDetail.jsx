@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { contactLabel } from '../../utils/contactLabel';
+import { useCompanySummary } from '../../context/CompanyContext';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { IconFile, IconUpload, IconTrash, IconDownload, IconEye, IconEyeOff } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
@@ -322,6 +324,7 @@ function AssetsTab({ licenseId, canManage }) {
 }
 
 function ContactSearchPicker({ onPick, excludeIds }) {
+  const { multiCompany } = useCompanySummary();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
 
@@ -343,7 +346,7 @@ function ContactSearchPicker({ onPick, excludeIds }) {
         <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
           {results.map((c) => (
             <button key={c.id} type="button" onClick={() => { onPick(c); setQuery(''); setResults([]); }} className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-hover)]" style={{ color: TEXT }}>
-              {c.displayName}{c.email ? ` · ${c.email}` : ''}
+              {contactLabel(c, { multiCompany })}{c.email ? ` · ${c.email}` : ''}
             </button>
           ))}
         </div>

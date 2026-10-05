@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { contactLabel } from '../utils/contactLabel';
+import { useCompanySummary } from '../context/CompanyContext';
 import api, { errMessage } from '../api/api';
 import Modal from './Modal';
 
@@ -74,6 +76,7 @@ function CategoryFieldInput({ field, value, onChange }) {
 // like WatchersField) — there's no dedicated live-search user endpoint, so
 // the User side fetches /users/directory once and filters locally.
 function AssignedToPicker({ contact, user, onChangeContact, onChangeUser }) {
+  const { multiCompany } = useCompanySummary();
   const [mode, setMode] = useState(contact ? 'contact' : 'user');
   const [query, setQuery] = useState('');
   const [contactResults, setContactResults] = useState([]);
@@ -161,7 +164,7 @@ function AssignedToPicker({ contact, user, onChangeContact, onChangeUser }) {
                   onClick={() => (mode === 'contact' ? pickContact(r) : pickUser(r))}
                   className="block w-full px-3 py-2 text-left hover:bg-[var(--color-hover)]"
                 >
-                  <p className="text-sm font-medium" style={{ color: TEXT }}>{r.displayName}</p>
+                  <p className="text-sm font-medium" style={{ color: TEXT }}>{mode === 'contact' ? contactLabel(r, { multiCompany }) : r.displayName}</p>
                   {mode === 'contact' && <p className="text-xs" style={{ color: MUTED }}>{r.department?.name || 'No department'}{r.email ? ` · ${r.email}` : ''}</p>}
                 </button>
               ))}
