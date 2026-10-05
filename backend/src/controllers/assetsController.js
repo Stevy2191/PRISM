@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { Op } = require('sequelize');
+const { Op, col } = require('sequelize');
 const {
   Asset, AssetCategory, AssetTicket, AssetActivity, AssetCategoryField, AssetFieldValue,
   AssetCheckout, AssetAttachment, License, Contract,
@@ -41,7 +41,14 @@ const SUBLIST_MAX = 500;
 const assetInclude = [
   { model: AssetCategory, as: 'category' },
   { model: Department, as: 'department', attributes: ['id', 'name'] },
-  { model: Contact, as: 'assignedToContact', attributes: ['id', 'displayName', 'email'] },
+  // Only a contact in the asset's company: an assignment can outlive a move.
+  {
+    model: Contact,
+    as: 'assignedToContact',
+    attributes: ['id', 'displayName', 'email'],
+    where: { companyId: { [Op.eq]: col('Asset.companyId') } },
+    required: false,
+  },
   { model: User, as: 'assignedToUser', attributes: userAttrs },
   { model: Company, as: 'company', attributes: ['id', 'name'] },
   { model: Site, as: 'site', attributes: ['id', 'name'] },

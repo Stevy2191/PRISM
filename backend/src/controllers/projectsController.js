@@ -15,7 +15,9 @@ const { syncProjectToExternalCalendars, removeProjectFromExternalCalendars } = r
 const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { andWhere, projectScopeWhere } = require('../services/recordScope');
-const { getInternalCompanyId, findDepartmentInCompany, resolveRecordCompany } = require('../services/companyService');
+const {
+  getInternalCompanyId, findDepartmentInCompany, resolveRecordCompany, isCompanyChange,
+} = require('../services/companyService');
 
 // Chunk size for the "load more" lists on a project's detail page. Tasks are
 // deliberately excluded — they are drag-reorderable, and a reorder that can
@@ -36,6 +38,7 @@ const { computeProjectCompletion, isTaskComplete, subtaskCompletionPercent } = r
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const {
   getUserProjectScope, canAccessProject, hasPermission, findAccessibleTicket, parseTicketId, parseRecordId,
+  canAccessCompany,
 } = require('../services/permissionService');
 const { generateProjectCode, generateTaskCode, generateSubtaskCode, formatTaskCode, formatSubtaskCode } = require('../services/projectCodeService');
 
@@ -55,7 +58,8 @@ async function canLogForOthers(user) {
   return !!lead;
 }
 
-async function buildProjectStats(projectId) {
+async function buildProjectStats(project) {
+  const projectId = project.id;
   const [completion, timeSum, expenseSum, materialSum, ticketBuckets] = await Promise.all([
     computeProjectCompletion(projectId),
     ProjectTimeEntry.sum('durationSeconds', { where: { projectId } }),
@@ -63,7 +67,8 @@ async function buildProjectStats(projectId) {
     ProjectMaterial.sum('totalCost', { where: { projectId } }),
     getTicketStatusBuckets(),
   ]);
-  const openTicketsCount = await Ticket.count({ where: { projectId, status: { [Op.in]: ticketBuckets.open } } });
+  // Tickets in the project's company only (a link can outlive a move).
+  const openTicketsCount = await Ticket.count({ where: { projectId, companyId: project.companyId, status: { [Op.in]: ticketBuckets.open } } });
   return {
     completionPercent: completion.percent,
     totalTasks: completion.totalTasks,
@@ -86,7 +91,7 @@ async function getProjectWithDetail(id) {
     ],
   });
   if (!project) return null;
-  const stats = await buildProjectStats(project.id);
+  const stats = await buildProjectStats(project);
   const json = project.toJSON();
   json.stats = stats;
   return json;
@@ -360,7 +365,7 @@ const update = asyncHandler(async (req, res) => {
   // resulting "for" department must belong to it.
   const rawCompanyId = (req.body || {}).companyId;
   let targetCompanyId = project.companyId;
-  if (rawCompanyId !== undefined && parseRecordId(rawCompanyId) !== project.companyId) {
+  if (isCompanyChange(rawCompanyId, project.companyId)) {
     targetCompanyId = (await resolveRecordCompany(req.user, rawCompanyId)).id;
     changes.companyId = targetCompanyId;
   }
@@ -397,6 +402,9 @@ const update = asyncHandler(async (req, res) => {
 const remove = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  // The company fence applies to every write, deletes included. (The tier
+  // re-check is still missing here: quirk Q28, pinned until sub-project 3.)
+  if (!(await canAccessCompany(req.user, project.companyId))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
 
   const filesDir = path.join(UPLOAD_ROOT, 'projects', String(project.id));
   await project.destroy();
@@ -411,15 +419,19 @@ const getStats = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
-  res.json({ stats: await buildProjectStats(project.id) });
+  res.json({ stats: await buildProjectStats(project) });
 });
 
 // ==================== Tasks ====================
 
-const taskInclude = [
+// A task's linked ticket is shown only while it's in the project's company:
+// a link can outlive a move of the ticket (with its contact) or the project.
+const taskIncludeFor = (project) => [
   { model: User, as: 'assignee', attributes: userAttrs },
   { model: ProjectStatus, as: 'status' },
-  { model: Ticket, as: 'linkedTicket', attributes: ['id', 'title'] },
+  {
+    model: Ticket, as: 'linkedTicket', attributes: ['id', 'title'], where: { companyId: project.companyId }, required: false,
+  },
   { model: ProjectSubtask, as: 'subtasks', include: [{ model: User, as: 'assignee', attributes: userAttrs }, { model: ProjectStatus, as: 'status' }] },
 ];
 
@@ -432,7 +444,7 @@ const listTasks = asyncHandler(async (req, res) => {
   const statusIdBehavior = await getProjectStatusIdBehaviorMap();
   const tasks = await ProjectTask.findAll({
     where: { projectId: project.id },
-    include: taskInclude,
+    include: taskIncludeFor(project),
     order: [['position', 'ASC'], ['id', 'ASC']],
   });
 
@@ -459,7 +471,7 @@ const createTask = asyncHandler(async (req, res) => {
   let resolvedLinkedTicketId = null;
   if (linkedTicketId) {
     const linked = await findAccessibleTicket(req.user, linkedTicketId);
-    if (!linked) throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+    if (!linked || linked.companyId !== project.companyId) throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
     resolvedLinkedTicketId = linked.id;
   }
 
@@ -487,7 +499,7 @@ const createTask = asyncHandler(async (req, res) => {
   });
   await logProjectActivity(project.id, req.user.id, 'task_created', { taskId: task.id, title: task.title, taskCode: task.taskCode });
 
-  const fresh = await ProjectTask.findByPk(task.id, { include: taskInclude });
+  const fresh = await ProjectTask.findByPk(task.id, { include: taskIncludeFor(project) });
   res.status(201).json({ task: fresh });
 });
 
@@ -514,7 +526,7 @@ const updateTask = asyncHandler(async (req, res) => {
       changes.linkedTicketId = task.linkedTicketId;
     } else {
       const linked = await findAccessibleTicket(req.user, changes.linkedTicketId);
-      if (!linked) throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+      if (!linked || linked.companyId !== project.companyId) throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
       changes.linkedTicketId = linked.id;
     }
   }
@@ -533,7 +545,7 @@ const updateTask = asyncHandler(async (req, res) => {
     }
   }
 
-  const fresh = await ProjectTask.findByPk(task.id, { include: taskInclude });
+  const fresh = await ProjectTask.findByPk(task.id, { include: taskIncludeFor(project) });
   res.json({ task: fresh });
 });
 
@@ -605,7 +617,7 @@ const renumberTask = asyncHandler(async (req, res) => {
   }
 
   await task.update({ taskCode: newCode });
-  const fresh = await ProjectTask.findByPk(task.id, { include: taskInclude });
+  const fresh = await ProjectTask.findByPk(task.id, { include: taskIncludeFor(project) });
   res.json({ task: fresh });
 });
 

@@ -7,6 +7,7 @@ const { writeAudit } = require('../middleware/audit');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhoneLenient } = require('../utils/phone');
 const { toCsv } = require('../utils/csv');
+const { resolveRecordCompany } = require('../services/companyService');
 
 const IMPORT_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'mobile', 'department', 'jobTitle'];
 
@@ -49,10 +50,13 @@ function mapRow(row, mapping) {
   return record;
 }
 
-async function buildLookups() {
+// Imported contacts go in the internal company (which the importer must be
+// able to reach), so department names match that company's departments only.
+async function buildLookups(user) {
+  const company = await resolveRecordCompany(user, null);
   const [contacts, departments] = await Promise.all([
     Contact.findAll({ attributes: ['id', 'email'], where: { email: { [Op.ne]: null } }, raw: true }),
-    Department.findAll({ attributes: ['id', 'name'], raw: true }),
+    Department.findAll({ attributes: ['id', 'name'], where: { companyId: company.id }, raw: true }),
   ]);
   return {
     emailToId: new Map(contacts.map((c) => [c.email.toLowerCase(), c.id])),
@@ -111,7 +115,7 @@ const validate = asyncHandler(async (req, res) => {
   if (!Array.isArray(rows) || !rows.length) throw new ApiError(400, 'rows is required', 'VALIDATION_ERROR');
   requireMapping(mapping);
 
-  const lookups = await buildLookups();
+  const lookups = await buildLookups(req.user);
   const validated = validateRows(rows, mapping, lookups);
 
   res.json({
@@ -134,7 +138,7 @@ const commit = asyncHandler(async (req, res) => {
   if (!Array.isArray(rows) || !rows.length) throw new ApiError(400, 'rows is required', 'VALIDATION_ERROR');
   requireMapping(mapping);
 
-  const lookups = await buildLookups();
+  const lookups = await buildLookups(req.user);
   const validated = validateRows(rows, mapping, lookups);
 
   let created = 0;

@@ -2,6 +2,7 @@ const { AdSyncLog, AdGroupMapping, Department, SystemSettings } = require('../mo
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { runAdContactSync } = require('../services/adContactSync');
 const { isConfigured } = require('../config/ldap');
+const { findDepartmentInCompany, getInternalCompanyId } = require('../services/companyService');
 
 const SETTING_ENABLED = 'adsync.enabled';
 const SETTING_INTERVAL = 'adsync.intervalHours'; // 1 | 4 | 8 | 24 | 0 (0 = manual only)
@@ -74,10 +75,11 @@ const createMapping = asyncHandler(async (req, res) => {
   const { adGroupName, departmentId } = req.body || {};
   if (!adGroupName || !adGroupName.trim()) throw new ApiError(400, 'AD group name is required', 'VALIDATION_ERROR');
   if (!departmentId) throw new ApiError(400, 'Department is required', 'VALIDATION_ERROR');
-  const dept = await Department.findByPk(departmentId);
+  // AD-synced contacts are internal, so a group maps to an internal department.
+  const dept = await findDepartmentInCompany(departmentId, await getInternalCompanyId());
   if (!dept) throw new ApiError(404, 'Department not found', 'NOT_FOUND');
 
-  const mapping = await AdGroupMapping.create({ adGroupName: adGroupName.trim(), departmentId });
+  const mapping = await AdGroupMapping.create({ adGroupName: adGroupName.trim(), departmentId: dept.id });
   res.status(201).json({ mapping: { ...mapping.toJSON(), department: { id: dept.id, name: dept.name } } });
 });
 

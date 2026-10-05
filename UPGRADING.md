@@ -64,6 +64,19 @@ Until you add a client company, nothing behaves differently.
   ("Asset not found") instead of being skipped.
 - An asset, license or contract address with extra characters after the id
   (`/assets/12abc`) now answers "not found". Before, it opened record 12.
+- **Only a System Administrator can make someone a System Administrator.**
+  Before, anyone who could create or edit users (including the seeded
+  Department Manager role) could make themselves or a new account an
+  administrator, or reset an administrator's password. Now:
+  - choosing or changing a user's role needs "Manage roles"
+    (`people.manage_roles`), and setting a department's default role does too;
+  - nobody can change their own roles or permission overrides;
+  - only a System Administrator can grant System Administrator (directly, as
+    a department's default role, or through a new account) or reset a System
+    Administrator's password.
+  **Changed response:** these return `403 FORBIDDEN`. Department Managers can
+  still create ordinary accounts and reset ordinary passwords.
+- Deleting a ticket or project now checks that you can reach its company.
 
 ### Fixes
 

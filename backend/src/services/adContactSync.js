@@ -8,6 +8,7 @@ const {
 const { Contact, AdSyncLog, AdGroupMapping } = require('../models');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhoneLenient } = require('../utils/phone');
+const { getInternalCompanyId } = require('./companyService');
 
 // Resolves the department for an AD user from their group memberships —
 // the first `memberOf` group (in the order AD returns them) that has a
@@ -69,6 +70,10 @@ async function processEnabledUser(entry, groupMap, counters, config) {
 
   const departmentId = resolveDepartment(entry, groupMap);
   const existing = await findExistingContact(a.guid, a.email);
+  // The directory is the organization's own, so AD only manages internal
+  // contacts. A client's contact with the same email (emails are unique) is
+  // left alone rather than overwritten or pulled into the internal company.
+  if (existing && existing.companyId !== (await getInternalCompanyId())) return null;
 
   if (existing) {
     await existing.update({
@@ -139,7 +144,7 @@ async function runAdContactSync(triggeredBy = 'scheduled') {
         if (a.disabled) {
           // eslint-disable-next-line no-await-in-loop
           const existing = await findExistingContact(a.guid, a.email);
-          if (existing && existing.adSynced) {
+          if (existing && existing.adSynced && existing.companyId === (await getInternalCompanyId())) {
             // eslint-disable-next-line no-await-in-loop
             await deactivateContact(existing, counters);
             seenContactIds.add(existing.id);
@@ -156,7 +161,7 @@ async function runAdContactSync(triggeredBy = 'scheduled') {
 
     // Anyone previously synced from AD but absent from this run's results —
     // deleted from AD entirely (not just disabled, which is handled above).
-    const staleContacts = await Contact.findAll({ where: { adSynced: true, status: 'active' } });
+    const staleContacts = await Contact.findAll({ where: { adSynced: true, status: 'active', companyId: await getInternalCompanyId() } });
     // eslint-disable-next-line no-restricted-syntax
     for (const contact of staleContacts) {
       if (seenContactIds.has(contact.id)) continue; // eslint-disable-line no-continue
@@ -187,4 +192,5 @@ async function runAdContactSync(triggeredBy = 'scheduled') {
   return log;
 }
 
-module.exports = { runAdContactSync };
+// processEnabledUser is exported for the integration tests.
+module.exports = { runAdContactSync, processEnabledUser };

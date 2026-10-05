@@ -40,22 +40,32 @@ async function findSiteInCompany(siteId, companyId) {
   return site && site.companyId === companyId && site.status === 'active' ? site : null;
 }
 
+const isBlank = (value) => value === undefined || value === null || value === '';
+
 // The company a new or moved record goes in. Absent means the internal
-// company. Otherwise it must exist, be active, be a client or the internal
+// company. Either way it must exist, be active, be a client or the internal
 // company, and be reachable by the user — anything else (missing,
 // vendor-only, inactive, out of reach) gets the same 400, so the field can't
-// be used to probe which companies exist.
+// be used to probe which companies exist, and leaving it out can't place a
+// record in a company the user can't reach.
 async function resolveRecordCompany(user, rawCompanyId) {
   const { canAccessCompany, parseRecordId } = require('./permissionService'); // eslint-disable-line global-require
   const { ApiError } = require('../middleware/error'); // eslint-disable-line global-require
-  if (rawCompanyId === undefined || rawCompanyId === null || rawCompanyId === '') {
-    return Company.findByPk(await getInternalCompanyId());
-  }
-  const company = await Company.findByPk(parseRecordId(rawCompanyId) || 0);
+  const id = isBlank(rawCompanyId) ? await getInternalCompanyId() : parseRecordId(rawCompanyId);
+  const company = await Company.findByPk(id || 0);
   const usable = company && company.status === 'active' && (company.isClient || company.isInternal)
     && (await canAccessCompany(user, company.id));
   if (!usable) throw new ApiError(400, 'Unknown company', 'VALIDATION_ERROR');
   return company;
+}
+
+// Whether an update's companyId asks to move the record. Blank (absent, null
+// or '') means "leave it where it is": forms send null for an untouched
+// picker, and that must never move a record (and its tickets) to the
+// internal company.
+function isCompanyChange(rawCompanyId, currentCompanyId) {
+  const { parseRecordId } = require('./permissionService'); // eslint-disable-line global-require
+  return !isBlank(rawCompanyId) && parseRecordId(rawCompanyId) !== currentCompanyId;
 }
 
 // Company-bound fields of an asset, license or contract that the body sets,
@@ -71,7 +81,7 @@ async function resolvePlacement(user, body, record, fields = ['departmentId']) {
   const { ApiError } = require('../middleware/error'); // eslint-disable-line global-require
   const out = {};
   let companyId = record ? record.companyId : null;
-  const moving = !record || (body.companyId !== undefined && parseRecordId(body.companyId) !== record.companyId);
+  const moving = !record || isCompanyChange(body.companyId, record.companyId);
   if (moving) {
     companyId = (await resolveRecordCompany(user, body.companyId)).id;
     out.companyId = companyId;
@@ -90,6 +100,9 @@ async function resolvePlacement(user, body, record, fields = ['departmentId']) {
       if (record && moving && record[field] != null) out[field] = null;
     } else if (body[field] === null || body[field] === '') {
       out[field] = null;
+    } else if (record && !moving && parseRecordId(body[field]) === record[field]) {
+      // Re-sending the current value (forms send the whole record back)
+      // reveals and changes nothing, so it isn't re-checked.
     } else {
       const found = await find(body[field]); // eslint-disable-line no-await-in-loop
       if (!found) throw new ApiError(400, `${label} not found`, 'VALIDATION_ERROR');
@@ -101,5 +114,5 @@ async function resolvePlacement(user, body, record, fields = ['departmentId']) {
 
 module.exports = {
   getInternalCompanyId, FREE_MAIL_DOMAINS, findDepartmentInCompany, findSiteInCompany, resolveRecordCompany,
-  resolvePlacement,
+  resolvePlacement, isCompanyChange,
 };

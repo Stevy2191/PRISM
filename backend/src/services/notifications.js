@@ -6,7 +6,7 @@
 // user's notifications or dashboard are fetched, and idempotently inserts at
 // most one notification per ticket per type.
 const { Op } = require('sequelize');
-const { Notification, Ticket, TicketWatcher, SystemSettings } = require('../models');
+const { Notification, Ticket, TicketWatcher, SystemSettings, User } = require('../models');
 const { getTicketStatusBuckets } = require('./statusBehavior');
 
 const DUE_SOON_DAYS = 2;
@@ -30,9 +30,24 @@ async function isTypeEnabled(type) {
   }
 }
 
+// A notification about a ticket carries its title or comment text, so it only
+// goes to someone who can reach the ticket's company. An assignee or watcher
+// can end up outside it (a contact moving with its tickets, an assignment
+// made before their access changed).
+async function canReachTicket(userId, ticketId) {
+  // Lazy: permissionService requires the models this file is loaded beside.
+  const { canAccessCompany } = require('./permissionService'); // eslint-disable-line global-require
+  const [user, ticket] = await Promise.all([
+    User.findByPk(userId, { attributes: ['id', 'role', 'roleId', 'allCompanies'] }),
+    Ticket.findByPk(ticketId, { attributes: ['id', 'companyId'] }),
+  ]);
+  return !!(user && ticket && (await canAccessCompany(user, ticket.companyId)));
+}
+
 async function createNotification({ userId, type, message, ticketId = null }) {
   if (!userId) return null;
   if (!(await isTypeEnabled(type))) return null;
+  if (ticketId && !(await canReachTicket(userId, ticketId))) return null;
   return Notification.create({ userId, type, message, ticketId });
 }
 
@@ -94,11 +109,15 @@ async function syncDerivedNotifications(userId) {
   // closed AND archived tickets are both excluded, rather than a hardcoded
   // "not closed" name check that would incorrectly include archived ones.
   const buckets = await getTicketStatusBuckets();
+  const { companyScopeWhere } = require('./permissionService'); // eslint-disable-line global-require
+  const user = await User.findByPk(userId, { attributes: ['id', 'role', 'roleId', 'allCompanies'] });
+  if (!user) return;
   const candidates = await Ticket.findAll({
     where: {
       assigneeId: userId,
       status: { [Op.in]: buckets.open },
       dueDate: { [Op.ne]: null },
+      ...(await companyScopeWhere(user)),
     },
   });
 

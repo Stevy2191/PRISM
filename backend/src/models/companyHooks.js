@@ -1,6 +1,8 @@
 // Keeps every record in a company whatever code path creates it — HTTP
 // handlers, inbound email, AD sync, the schedulers, tests calling
 // Model.create. Registered from models/index.js once associations exist.
+const { Op } = require('sequelize');
+
 module.exports = function registerCompanyHooks(models) {
   const {
     Contact, Ticket, Department, Project, Asset, License, Contract, Site,
@@ -59,9 +61,21 @@ module.exports = function registerCompanyHooks(models) {
   Contact.addHook('afterUpdate', 'moveTickets', async (contact, options) => {
     // after* hooks run before Sequelize resets changed(), so this still sees the move.
     if (!contact.changed('companyId')) return;
+    // A ticket's department belongs to its company, so moved tickets take the
+    // contact's department (already cleared above if it was the old company's).
     await Ticket.update(
-      { companyId: contact.companyId },
+      { companyId: contact.companyId, departmentId: contact.departmentId || null },
       { where: { contactId: contact.id }, transaction: options.transaction, hooks: false }
+    );
+    // An asset's contact belongs to the asset's company: assets left behind
+    // in the old company are no longer assigned to this contact.
+    await Asset.update(
+      { assignedToContactId: null },
+      {
+        where: { assignedToContactId: contact.id, companyId: { [Op.ne]: contact.companyId } },
+        transaction: options.transaction,
+        hooks: false,
+      }
     );
   });
 };

@@ -1,10 +1,15 @@
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
-const { User, Department, Role, UserRole } = require('../models');
+const {
+  User, Department, Role, UserRole, UserCompanyAccess,
+} = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
-const { invalidateUserPermissions, hasPermission } = require('../services/permissionService');
+const {
+  invalidateUserPermissions, hasPermission, isUnfenceable, getUserCompanyIds,
+} = require('../services/permissionService');
+const { assertCanGrantRole, assertCanSetLegacyRole } = require('../services/roleGrant');
 const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
@@ -133,16 +138,33 @@ const create = asyncHandler(async (req, res) => {
   if (existing) {
     throw new ApiError(409, 'A user with this username already exists', 'USERNAME_TAKEN');
   }
+  let dept = null;
   if (departmentId) {
-    const dept = await Department.findByPk(departmentId);
+    dept = await Department.findByPk(departmentId);
     if (!dept) throw new ApiError(400, 'Department does not exist', 'VALIDATION_ERROR');
   }
-  // Validated before the account exists, so a bad roleId fails the request
-  // outright rather than leaving a user created with the wrong permissions.
+  // The role a new account starts with is a grant (S11). Choosing one beyond
+  // the default needs people.manage_roles; whichever it ends up being —
+  // chosen, or the department's default — must be one the creator may grant.
+  // Validated before the account exists, so a refused or bad role fails the
+  // request outright rather than leaving a user with the wrong permissions.
+  const choosesRole = (roleId !== undefined && roleId !== null && roleId !== '') || role === 'admin';
+  if (choosesRole && !(await hasPermission(req.user.id, 'people.manage_roles'))) {
+    throw new ApiError(403, 'Choosing a role needs people.manage_roles', 'FORBIDDEN');
+  }
   if (roleId !== undefined && roleId !== null && roleId !== '') {
     const requestedRole = await Role.findByPk(roleId);
     if (!requestedRole) throw new ApiError(400, 'Role does not exist', 'VALIDATION_ERROR');
+    await assertCanGrantRole(req.user, requestedRole);
+  } else if (dept && dept.defaultRoleId) {
+    const defaultRole = await Role.findByPk(dept.defaultRoleId);
+    if (defaultRole) await assertCanGrantRole(req.user, defaultRole);
+  } else {
+    await assertCanSetLegacyRole(req.user, role || 'technician');
   }
+  // A fenced creator can't make an account that reaches more than they do:
+  // it starts with the creator's own companies.
+  const creatorCompanyIds = await getUserCompanyIds(req.user);
 
   const passwordHash = await bcrypt.hash(password, 12);
   // System-wide time-tracking defaults (Settings -> Time Tracking) seed a
@@ -164,7 +186,11 @@ const create = asyncHandler(async (req, res) => {
     mustChangePassword: true,
     timerMode: ['manual', 'automatic'].includes(settings['timeTracking.defaultMode']) ? settings['timeTracking.defaultMode'] : 'manual',
     timerMinThreshold: Number(settings['timeTracking.defaultMinThreshold']) || 0,
+    allCompanies: creatorCompanyIds === null,
   });
+  if (creatorCompanyIds && creatorCompanyIds.length) {
+    await UserCompanyAccess.bulkCreate(creatorCompanyIds.map((companyId) => ({ userId: user.id, companyId })));
+  }
   await assignInitialRole(user, user.role, user.departmentId, req.user.id, roleId || null);
   await writeAudit(req, 'user.create_local', 'User', user.id, { username: user.username, role: user.role });
 
@@ -214,7 +240,15 @@ const update = asyncHandler(async (req, res) => {
     if (!['admin', 'technician'].includes(role)) {
       throw new ApiError(400, 'Invalid role', 'VALIDATION_ERROR');
     }
-    changes.role = role;
+    // A role change is a grant (S11). Re-sending the current role (the whole
+    // form comes back) isn't.
+    if (role !== user.role) {
+      if (!(await hasPermission(req.user.id, 'people.manage_roles'))) {
+        throw new ApiError(403, 'Changing a role needs people.manage_roles', 'FORBIDDEN');
+      }
+      await assertCanSetLegacyRole(req.user, role, user.id);
+      changes.role = role;
+    }
   }
   if (departmentId !== undefined) {
     if (departmentId !== null) {
@@ -228,6 +262,10 @@ const update = asyncHandler(async (req, res) => {
   if (password !== undefined) {
     if (!user.isLocalAccount) {
       throw new ApiError(400, 'Cannot set a password on a directory (AD) account', 'NOT_LOCAL_ACCOUNT');
+    }
+    // Resetting a password lets you sign in as that account (S11).
+    if ((await isUnfenceable(user)) && !(await isUnfenceable(req.user))) {
+      throw new ApiError(403, 'Only a System Administrator can reset a System Administrator\'s password', 'FORBIDDEN');
     }
     const resetPolicy = validatePassword(password, {
       username: user.username,

@@ -28,11 +28,24 @@ async function assertCanGrant(granter, companyIds) {
   }
 }
 
-async function describe(companyIds) {
-  const companies = companyIds.length
-    ? await Company.findAll({ where: { id: companyIds }, attributes: ['id', 'name'], order: [['name', 'ASC']] })
+// The list as `reader` may see it: companies they can't reach are left out,
+// so a fenced granter never learns another company's name.
+async function describe(companyIds, reader) {
+  const reachable = await getUserCompanyIds(reader);
+  const visible = reachable === null ? companyIds : companyIds.filter((id) => reachable.includes(id));
+  const companies = visible.length
+    ? await Company.findAll({ where: { id: visible }, attributes: ['id', 'name'], order: [['name', 'ASC']] })
     : [];
   return { companyIds: companies.map((c) => c.id), companies };
+}
+
+// What a save leaves in place: a fenced granter manages only the companies
+// they can reach, so the ones they can't see (and so can't have meant to
+// remove) are kept.
+async function mergeWithUnseen(granter, requested, before) {
+  const reachable = await getUserCompanyIds(granter);
+  if (reachable === null) return requested;
+  return [...new Set([...requested, ...before.filter((id) => !reachable.includes(id))])];
 }
 
 const getUserAccess = asyncHandler(async (req, res) => {
@@ -42,7 +55,7 @@ const getUserAccess = asyncHandler(async (req, res) => {
   res.json({
     access: {
       allCompanies: user.allCompanies,
-      ...(await describe(rows.map((r) => r.companyId))),
+      ...(await describe(rows.map((r) => r.companyId), req.user)),
       unfenceable: await isUnfenceable(user),
     },
   });
@@ -56,17 +69,16 @@ const putUserAccess = asyncHandler(async (req, res) => {
   if (!allCompanies && (await isUnfenceable(user))) {
     throw new ApiError(400, 'System Administrators always reach every company', 'VALIDATION_ERROR');
   }
-  const ids = allCompanies ? [] : await resolveCompanyIds(companyIds || []);
-  // Granting "all" is itself a grant of every company.
-  if (allCompanies) {
-    if ((await getUserCompanyIds(req.user)) !== null) {
-      throw new ApiError(403, 'You can only grant companies you can reach', 'FORBIDDEN');
-    }
-  } else {
-    await assertCanGrant(req.user, ids);
+  const requested = allCompanies ? [] : await resolveCompanyIds(companyIds || []);
+  await assertCanGrant(req.user, requested);
+  // "All companies" covers companies a fenced granter can't see, so only a
+  // granter who reaches every company may switch it either way.
+  if (allCompanies !== user.allCompanies && (await getUserCompanyIds(req.user)) !== null) {
+    throw new ApiError(403, 'Only a user who reaches every company can change "all companies"', 'FORBIDDEN');
   }
 
   const before = (await UserCompanyAccess.findAll({ where: { userId: user.id }, attributes: ['companyId'] })).map((r) => r.companyId);
+  const ids = allCompanies ? [] : await mergeWithUnseen(req.user, requested, before);
   await sequelize.transaction(async (t) => {
     await user.update({ allCompanies }, { transaction: t });
     await UserCompanyAccess.destroy({ where: { userId: user.id }, transaction: t });
@@ -80,28 +92,30 @@ const putUserAccess = asyncHandler(async (req, res) => {
   if (granted.length || allCompanies) await writeSystemAudit(req, 'company_access_granted', user.id, { allCompanies, companyIds: granted });
   if (revoked.length) await writeSystemAudit(req, 'company_access_revoked', user.id, { companyIds: revoked });
 
-  res.json({ access: { allCompanies, ...(await describe(ids)), unfenceable: await isUnfenceable(user) } });
+  res.json({ access: { allCompanies, ...(await describe(ids, req.user)), unfenceable: await isUnfenceable(user) } });
 });
 
 const getRoleAccess = asyncHandler(async (req, res) => {
   const role = await Role.findByPk(parseRecordId(req.params.id) || 0);
   if (!role) throw new ApiError(404, 'Role not found', 'NOT_FOUND');
   const rows = await RoleCompanyAccess.findAll({ where: { roleId: role.id }, attributes: ['companyId'] });
-  res.json({ access: await describe(rows.map((r) => r.companyId)) });
+  res.json({ access: await describe(rows.map((r) => r.companyId), req.user) });
 });
 
 const putRoleAccess = asyncHandler(async (req, res) => {
   const role = await Role.findByPk(parseRecordId(req.params.id) || 0);
   if (!role) throw new ApiError(404, 'Role not found', 'NOT_FOUND');
-  const ids = await resolveCompanyIds((req.body || {}).companyIds || []);
-  await assertCanGrant(req.user, ids);
+  const requested = await resolveCompanyIds((req.body || {}).companyIds || []);
+  await assertCanGrant(req.user, requested);
+  const before = (await RoleCompanyAccess.findAll({ where: { roleId: role.id }, attributes: ['companyId'] })).map((r) => r.companyId);
+  const ids = await mergeWithUnseen(req.user, requested, before);
   await sequelize.transaction(async (t) => {
     await RoleCompanyAccess.destroy({ where: { roleId: role.id }, transaction: t });
     if (ids.length) await RoleCompanyAccess.bulkCreate(ids.map((companyId) => ({ roleId: role.id, companyId })), { transaction: t });
   });
   invalidateAllPermissions();
   await writeAudit(req, 'role.company_access', 'Role', role.id, { companyIds: ids });
-  res.json({ access: await describe(ids) });
+  res.json({ access: await describe(ids, req.user) });
 });
 
 module.exports = {

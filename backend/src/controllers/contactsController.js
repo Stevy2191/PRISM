@@ -9,7 +9,9 @@ const {
 } = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { andWhere, contactScopeWhere } = require('../services/recordScope');
-const { findDepartmentInCompany, findSiteInCompany, resolveRecordCompany } = require('../services/companyService');
+const {
+  findDepartmentInCompany, findSiteInCompany, resolveRecordCompany, isCompanyChange,
+} = require('../services/companyService');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
 const { parsePagination, paginated } = require('../utils/pagination');
@@ -274,7 +276,7 @@ const update = asyncHandler(async (req, res) => {
   const fromCompanyId = contact.companyId;
   let targetCompanyId = fromCompanyId;
   const rawCompanyId = (req.body || {}).companyId;
-  if (rawCompanyId !== undefined && parseRecordId(rawCompanyId) !== fromCompanyId) {
+  if (isCompanyChange(rawCompanyId, fromCompanyId)) {
     if (!(await hasPermission(req.user.id, 'people.edit_users'))) {
       throw new ApiError(403, 'Moving a contact to another company needs people.edit_users', 'FORBIDDEN');
     }

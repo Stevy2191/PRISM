@@ -7,6 +7,7 @@ const {
 } = require('../services/permissionService');
 const { getInternalCompanyId } = require('../services/companyService');
 const { andWhere } = require('../services/recordScope');
+const { assertCanGrantRole } = require('../services/roleGrant');
 
 const departmentInclude = [
   { model: Role, as: 'defaultRole', attributes: ['id', 'name'] },
@@ -96,6 +97,19 @@ const list = asyncHandler(async (req, res) => {
   res.json({ departments: withCounts });
 });
 
+// A department's default role is handed to every account later created in it
+// (and to users whose primary role is removed), so setting one is
+// privilege-granting like assigning the role itself (S11).
+async function resolveDefaultRole(req, rawRoleId) {
+  const role = await Role.findByPk(parseRecordId(rawRoleId) || 0);
+  if (!role) throw new ApiError(400, 'Default role does not exist', 'VALIDATION_ERROR');
+  if (!(await hasPermission(req.user.id, 'people.manage_roles'))) {
+    throw new ApiError(403, 'Setting a default role needs people.manage_roles', 'FORBIDDEN');
+  }
+  await assertCanGrantRole(req.user, role);
+  return role.id;
+}
+
 // POST /departments
 const create = asyncHandler(async (req, res) => {
   const { name, description, shortCode, defaultRoleId } = req.body || {};
@@ -118,16 +132,13 @@ const create = asyncHandler(async (req, res) => {
   }
   await assertNameFreeInCompany(name.trim(), company.id);
   const normalizedShortCode = shortCode && shortCode.trim() ? await normalizeShortCode(shortCode) : null;
-  if (defaultRoleId) {
-    const role = await Role.findByPk(defaultRoleId);
-    if (!role) throw new ApiError(400, 'Default role does not exist', 'VALIDATION_ERROR');
-  }
+  const resolvedDefaultRoleId = defaultRoleId ? await resolveDefaultRole(req, defaultRoleId) : null;
   const department = await Department.create({
     companyId: company.id,
     name: name.trim(),
     description: description || null,
     shortCode: normalizedShortCode,
-    defaultRoleId: defaultRoleId || null,
+    defaultRoleId: resolvedDefaultRoleId,
   });
   await writeAudit(req, 'department.create', 'Department', department.id, { name: department.name });
 
@@ -159,11 +170,10 @@ const update = asyncHandler(async (req, res) => {
     changes.shortCode = shortCode ? await normalizeShortCode(shortCode, department.id) : null;
   }
   if (defaultRoleId !== undefined) {
-    if (defaultRoleId) {
-      const role = await Role.findByPk(defaultRoleId);
-      if (!role) throw new ApiError(400, 'Default role does not exist', 'VALIDATION_ERROR');
-    }
-    changes.defaultRoleId = defaultRoleId || null;
+    // Re-sending the current default (the whole form comes back) isn't a grant.
+    const unchanged = (parseRecordId(defaultRoleId) || null) === department.defaultRoleId;
+    if (!defaultRoleId) changes.defaultRoleId = null;
+    else if (!unchanged) changes.defaultRoleId = await resolveDefaultRole(req, defaultRoleId);
   }
 
   await department.update(changes);

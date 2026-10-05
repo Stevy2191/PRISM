@@ -4,6 +4,7 @@ const { User, Role, UserRole, Department, Permission, UserPermissionOverride } =
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, explainUserPermissions } = require('../services/permissionService');
+const { assertCanGrantRole } = require('../services/roleGrant');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -41,6 +42,7 @@ const assignRole = asyncHandler(async (req, res) => {
 
   const role = await Role.findByPk(roleId);
   if (!role) throw new ApiError(400, 'Role does not exist', 'VALIDATION_ERROR');
+  await assertCanGrantRole(req.user, role, user.id);
 
   let departmentId = null;
   if (role.scope === 'department') {
@@ -82,6 +84,9 @@ const assignRole = asyncHandler(async (req, res) => {
 // DELETE /users/:id/roles/:roleId
 const removeRole = asyncHandler(async (req, res) => {
   const user = await loadUser(req.params.id);
+  // Removing a primary role falls back to the department default, which can
+  // be a bigger role — so, like assigning, it's never done to yourself.
+  if (user.id === req.user.id) throw new ApiError(403, 'You cannot change your own roles', 'FORBIDDEN');
   const roleId = parseInt(req.params.roleId, 10);
   // Optional disambiguator: a department-scoped role can be assigned to the
   // same user for more than one department (e.g. Department Manager for
@@ -137,8 +142,15 @@ const listOverrides = asyncHandler(async (req, res) => {
 });
 
 // POST /users/:id/overrides — Body: { permissionKey, granted, reason?, expiresAt? }
+// Nobody overrides their own permissions: granting yourself one, or revoking
+// a deny that limits you, is self-escalation (S11).
+function assertNotOwnPermissions(req, user) {
+  if (user.id === req.user.id) throw new ApiError(403, 'You cannot change your own permissions', 'FORBIDDEN');
+}
+
 const createOverride = asyncHandler(async (req, res) => {
   const user = await loadUser(req.params.id);
+  assertNotOwnPermissions(req, user);
   const { permissionKey, granted, reason, expiresAt } = req.body || {};
 
   const permission = await Permission.findOne({ where: { key: permissionKey } });
@@ -176,6 +188,7 @@ const createOverride = asyncHandler(async (req, res) => {
 // DELETE /users/:id/overrides/:overrideId
 const revokeOverride = asyncHandler(async (req, res) => {
   const user = await loadUser(req.params.id);
+  assertNotOwnPermissions(req, user);
   const override = await UserPermissionOverride.findOne({ where: { id: req.params.overrideId, userId: user.id } });
   if (!override) throw new ApiError(404, 'Override not found', 'NOT_FOUND');
 

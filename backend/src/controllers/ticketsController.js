@@ -50,6 +50,7 @@ const { findDepartmentInCompany } = require('../services/companyService');
 const {
   getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent,
   findAccessibleTicket, parseTicketId, parseRecordId, findAccessibleProject, findAccessibleContact,
+  canAccessCompany,
 } = require('../services/permissionService');
 const { evaluateRules } = require('../services/workflowEngine');
 const { syncTicketToExternalCalendars, removeTicketFromExternalCalendars } = require('../services/calendarPush');
@@ -66,7 +67,14 @@ const ticketInclude = [
     include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
   },
   { model: Team, as: 'team', attributes: ['id', 'name'] },
-  { model: Project, as: 'project', attributes: ['id', 'name'] },
+  // Only a project in the ticket's company: a link can outlive a move.
+  {
+    model: Project,
+    as: 'project',
+    attributes: ['id', 'name'],
+    where: { companyId: { [Op.eq]: col('Ticket.companyId') } },
+    required: false,
+  },
   { model: Department, as: 'department', attributes: ['id', 'name'] },
   { model: Company, as: 'company', attributes: ['id', 'name'] },
   { model: User, as: 'resolutionUpdatedByUser', attributes: userAttrs },
@@ -405,12 +413,15 @@ const create = asyncHandler(async (req, res) => {
   const parentId = parentTicketId ? parseLinked(parentTicketId) : null;
   // Every ticket this one links to must be one the caller can see. Missing
   // and out-of-scope get the same answer, so the links can't probe ids.
+  // (They must also share the new ticket's company — checked below, once the
+  // contact is known.)
   const linkedIds = [...new Set([parentId, ...childIdList, ...relatedIdList].filter(Boolean))];
+  const linkedTickets = [];
   for (const linkedId of linkedIds) {
     // eslint-disable-next-line no-await-in-loop
-    if (!(await findAccessibleTicket(req.user, linkedId))) {
-      throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
-    }
+    const linked = await findAccessibleTicket(req.user, linkedId);
+    if (!linked) throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+    linkedTickets.push(linked);
   }
   const rawAssetIds = Array.isArray(assetIds) ? assetIds : [];
 
@@ -420,6 +431,10 @@ const create = asyncHandler(async (req, res) => {
   // own id is what gets stored.
   const contact = await findAccessibleContact(req.user, contactId);
   if (!contact) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
+  // Links stay inside one company: the new ticket's is its contact's.
+  if (linkedTickets.some((t) => t.companyId !== contact.companyId)) {
+    throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
+  }
   // Linked assets must be in the ticket's company, which is the contact's
   // (one the caller can see, so the company is reachable). Missing and
   // foreign get the same answer; the checked asset's own id is stored.
@@ -434,7 +449,7 @@ const create = asyncHandler(async (req, res) => {
   let resolvedProjectId = null;
   if (projectId) {
     const project = await findAccessibleProject(req.user, projectId);
-    if (!project) throw new ApiError(400, 'Project not found', 'VALIDATION_ERROR');
+    if (!project || project.companyId !== contact.companyId) throw new ApiError(400, 'Project not found', 'VALIDATION_ERROR');
     resolvedProjectId = project.id;
   }
   // The ticket's company is its contact's, and its department must belong to
@@ -625,7 +640,7 @@ const update = asyncHandler(async (req, res) => {
       changes.projectId = ticket.projectId;
     } else {
       const project = await findAccessibleProject(req.user, changes.projectId);
-      if (!project) throw new ApiError(400, 'Project not found', 'VALIDATION_ERROR');
+      if (!project || project.companyId !== targetCompanyId) throw new ApiError(400, 'Project not found', 'VALIDATION_ERROR');
       changes.projectId = project.id;
     }
   }
@@ -730,6 +745,9 @@ const update = asyncHandler(async (req, res) => {
 const remove = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  // The company fence applies to every write, deletes included. (The tier
+  // re-check is still missing here: quirk Q28, pinned until sub-project 3.)
+  if (!(await canAccessCompany(req.user, ticket.companyId))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   await sequelize.transaction(async (t) => {
     await ticket.destroy({ transaction: t });
@@ -1142,9 +1160,11 @@ const listRelations = asyncHandler(async (req, res) => {
 
   const rows = await TicketRelation.findAll({
     where: { [Op.or]: [{ ticketId: ticket.id }, { relatedTicketId: ticket.id }] },
+    // Only relations whose two tickets share a company: a relation can
+    // outlive a contact's move, and must not show the other company's ticket.
     include: [
-      { model: Ticket, as: 'ticket', attributes: relTicketAttrs },
-      { model: Ticket, as: 'relatedTicket', attributes: relTicketAttrs },
+      { model: Ticket, as: 'ticket', attributes: relTicketAttrs, where: { companyId: ticket.companyId }, required: true },
+      { model: Ticket, as: 'relatedTicket', attributes: relTicketAttrs, where: { companyId: ticket.companyId }, required: true },
     ],
     order: [['createdAt', 'DESC']],
   });
@@ -1178,6 +1198,7 @@ const createRelation = asyncHandler(async (req, res) => {
   }
   const related = await findAccessibleTicket(req.user, relatedTicketId);
   if (!related) throw new ApiError(404, 'Related ticket not found', 'NOT_FOUND');
+  if (related.companyId !== ticket.companyId) throw new ApiError(400, 'Related ticket not found', 'VALIDATION_ERROR');
   const relId = related.id;
   if (relId === ticket.id) {
     throw new ApiError(400, 'A ticket cannot be related to itself', 'VALIDATION_ERROR');
