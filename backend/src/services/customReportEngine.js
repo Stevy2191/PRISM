@@ -132,7 +132,9 @@ async function loadTicketRecords(req, filters) {
   where = rc.ticketScopeWhere(where, scope, req.user, filters.departmentId || null);
   if (filters.status) where.status = filters.status;
   if (filters.priority) where.priority = filters.priority;
-  if (filters.assigneeId) where.assigneeId = filters.assigneeId;
+  // ANDed, never assigned: 'own' scope puts its restriction on assigneeId,
+  // which a plain assignment would overwrite (S16).
+  if (filters.assigneeId) where = andWhere(where, { assigneeId: filters.assigneeId });
   if (filters.source) where.source = filters.source;
 
   const tickets = await Ticket.findAll({
@@ -200,7 +202,8 @@ async function loadProjectRecords(req, filters) {
   let where = rc.dateWhere(dateField, range);
   where = rc.projectScopeWhere(where, scope, req.user, filters.departmentId || null);
   if (filters.status) where.status = filters.status;
-  if (filters.assigneeId) where.assignedToUserId = filters.assigneeId;
+  // ANDed, never assigned — see loadTicketRecords (S16).
+  if (filters.assigneeId) where = andWhere(where, { assignedToUserId: filters.assigneeId });
 
   const projects = await Project.findAll({
     where: andWhere(where, await companyFilterWhere(req.user, filters.companyId)),
@@ -266,9 +269,10 @@ async function loadTimeEntryRecords(req, filters) {
     ticketWhere = { ...ticketWhere, '$ticket.departmentId$': filters.departmentId };
     projectWhere = { ...projectWhere, '$project.ownerDepartmentId$': filters.departmentId };
   }
+  // ANDed, never merged — see loadTicketRecords (S16).
   if (filters.assigneeId) {
-    ticketWhere = { ...ticketWhere, userId: filters.assigneeId };
-    projectWhere = { ...projectWhere, loggedForUserId: filters.assigneeId };
+    ticketWhere = andWhere(ticketWhere, { userId: filters.assigneeId });
+    projectWhere = andWhere(projectWhere, { loggedForUserId: filters.assigneeId });
   }
 
   // Time is fenced through its ticket or project (both included below).
@@ -332,6 +336,10 @@ async function loadExpenseMaterialRecords(req, filters) {
   if (scope === 'department') {
     expenseWhere = { ...expenseWhere, '$project.ownerDepartmentId$': req.user.departmentId };
     materialWhere = { ...materialWhere, '$project.ownerDepartmentId$': req.user.departmentId };
+  } else if (scope === 'own') {
+    // Own scope means the projects the reader leads, as in projectScopeWhere (S17).
+    expenseWhere = { ...expenseWhere, '$project.assignedToUserId$': req.user.id };
+    materialWhere = { ...materialWhere, '$project.assignedToUserId$': req.user.id };
   } else if (scope === 'all' && filters.departmentId) {
     expenseWhere = { ...expenseWhere, '$project.ownerDepartmentId$': filters.departmentId };
     materialWhere = { ...materialWhere, '$project.ownerDepartmentId$': filters.departmentId };

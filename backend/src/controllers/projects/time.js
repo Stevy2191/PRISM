@@ -6,7 +6,9 @@ const { logProjectActivity } = require('../../services/projectActivity');
 const { calculateLaborCost } = require('../../utils/laborCost');
 const { parsePagination, paginated } = require('../../utils/pagination');
 const { canAccessProject, hasPermission } = require('../../services/permissionService');
-const { SUBLIST_LIMIT, SUBLIST_MAX, userAttrs, canLogForOthers } = require('./shared');
+const {
+  SUBLIST_LIMIT, SUBLIST_MAX, userAttrs, canLogForOthers, resolveProjectTaskId,
+} = require('./shared');
 
 // ==================== Time entries ====================
 
@@ -62,10 +64,7 @@ const createTimeEntry = asyncHandler(async (req, res) => {
   const durationSeconds = Math.round((endDt.getTime() - startDt.getTime()) / 1000);
   if (durationSeconds <= 0) throw new ApiError(400, 'End time must be after start time', 'VALIDATION_ERROR');
 
-  if (taskId) {
-    const task = await ProjectTask.findOne({ where: { id: taskId, projectId: project.id } });
-    if (!task) throw new ApiError(400, 'Task does not belong to this project', 'VALIDATION_ERROR');
-  }
+  const resolvedTaskId = await resolveProjectTaskId(project, taskId);
 
   let targetUserId = req.user.id;
   let targetUser = req.user;
@@ -88,7 +87,7 @@ const createTimeEntry = asyncHandler(async (req, res) => {
 
   const entry = await ProjectTimeEntry.create({
     projectId: project.id,
-    taskId: taskId || null,
+    taskId: resolvedTaskId,
     userId: req.user.id,
     loggedForUserId: targetUserId,
     description: description || null,
@@ -120,7 +119,7 @@ const updateTimeEntry = asyncHandler(async (req, res) => {
   const { description, startTime, endTime, entryDate, taskId } = req.body || {};
   const changes = {};
   if (description !== undefined) changes.description = description;
-  if (taskId !== undefined) changes.taskId = taskId || null;
+  if (taskId !== undefined) changes.taskId = await resolveProjectTaskId(project, taskId);
   if (entryDate !== undefined) changes.entryDate = entryDate;
   if (startTime !== undefined && endTime !== undefined) {
     const startDt = new Date(startTime);

@@ -156,9 +156,10 @@ async function getUserPerformanceStats(userId, range = {}, companyWhere = {}) {
 // Per-tech CSAT + resolution-time breakdown for all active techs — used by
 // the admin dashboard's "Team Happiness" panel and the Customer Happiness
 // report's "score by tech" chart/table.
-async function getTeamHappiness({ range, departmentId, companyWhere = {} } = {}) {
+async function getTeamHappiness({ range, departmentId, userId, companyWhere = {} } = {}) {
   const userWhere = { role: { [Op.in]: ['admin', 'technician'] }, isActive: true };
   if (departmentId) userWhere.departmentId = departmentId;
+  if (userId) userWhere.id = userId;
   const techs = await User.findAll({ where: userWhere, attributes: ['id', 'displayName', 'departmentId'] });
   if (!techs.length) return [];
   const techIds = techs.map((t) => t.id);
@@ -231,7 +232,10 @@ async function getOverview({ range, userId, departmentId, companyWhere = {} } = 
 
   const sentWhere = { sentAt: { [Op.ne]: null }, ...dateWhere('sentAt', range) };
   if (userId) sentWhere.assignedToUserId = userId;
-  const sentCount = await CsatSurvey.count({ where: sentWhere, include: fencedTicket(companyWhere) });
+  // The sent count follows the same department filter as the responses, so
+  // a department-scoped reader doesn't learn other departments' volume.
+  const sentTicketWhere = andWhere(companyWhere, departmentId ? { departmentId } : {});
+  const sentCount = await CsatSurvey.count({ where: sentWhere, include: fencedTicket(sentTicketWhere) });
   const responseRate = sentCount ? Math.round((100 * overallCount) / sentCount) : null;
 
   const granularity = granularityFor(range);
@@ -293,9 +297,10 @@ async function getOverview({ range, userId, departmentId, companyWhere = {} } = 
   };
 }
 
-async function listResponses({ range, userId, companyWhere = {} }) {
+async function listResponses({ range, userId, departmentId, companyWhere = {} }) {
   const where = { status: 'responded', ...dateWhere('respondedAt', range) };
   if (userId) where.assignedToUserId = userId;
+  const ticketWhere = andWhere(companyWhere, departmentId ? { departmentId } : {});
   return CsatSurvey.findAll({
     where,
     include: [
@@ -303,7 +308,7 @@ async function listResponses({ range, userId, companyWhere = {} }) {
         model: Ticket,
         as: 'ticket',
         attributes: ['id', 'title'],
-        ...(isEmpty(companyWhere) ? {} : { where: companyWhere, required: true }),
+        ...(isEmpty(ticketWhere) ? {} : { where: ticketWhere, required: true }),
       },
       { model: Contact, as: 'contact', attributes: ['id', 'displayName'] },
       { model: User, as: 'assignedToUser', attributes: ['id', 'displayName'] },

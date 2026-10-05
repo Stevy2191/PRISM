@@ -331,6 +331,27 @@ lines each, plus browser smoke tests (`npm run test:smoke`).
   - the time-zone change;
   - that the legacy time and task tables go in the next release.
 
+## Security notes
+
+Found during plan 3a's review and fixed straight after it. All of them were
+older than the split.
+- **S12:** the customer-happiness report ignored the reader's report scope.
+- **S13:** project time entries (on update), expenses, materials and files
+  accepted a task from another project. That showed the other task's title.
+- **S14:** the time & billing report let `?assigneeId` replace an own-scope
+  reader's restriction.
+- **S15:** CSAT stats and responses let a department-scope reader see other
+  departments.
+- **S16:** the custom report builder had the same `assigneeId` override for
+  tickets, projects and time.
+- **S17:** custom expense and material reports had no own-scope
+  restriction.
+
+Plan 3b keeps these guarantees on the new tables:
+- a task named on a time entry, expense, material or file belongs to the same
+  ticket or project;
+- report filters are ANDed onto the reader's scope and never merged into it.
+
 ## Out of scope
 
 - Rates, timesheet approval and billing (Phase 3).

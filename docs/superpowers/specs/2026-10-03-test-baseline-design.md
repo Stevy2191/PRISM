@@ -194,7 +194,7 @@ Q1–Q8 were found while designing; Q9–Q36 while planning; Q37 while writing t
 | Q19 | Project task lists show a linked ticket's title to viewers who can't open it. | `projectsController.listTasks` | 3 |
 | Q20 | Renumbering a task leaves its subtasks' codes on the old task number. | `projectsController.renumberTask` | 3 |
 | Q21 | A lead of any team can log time for any user, teammate or not. | `canLogForOthers` | 3 |
-| Q22 | Editing project time accepts a `taskId` from another project. | `projectsController.updateTimeEntry` | 3 |
+| Q22 | Editing project time accepts a `taskId` from another project. | `projectsController.updateTimeEntry` | 3 (fixed early as S13) |
 | Q23 | Watchers, custom field values, project tasks/subtasks, expenses, materials, members and files are changed without audit rows. | those handlers | 3 |
 | Q24 | Two tickets can be linked twice, once in each direction. | `ticketsController.createRelation` | 3 |
 | Q25 | Ticket and project `status` accept any string, even one no status row has. | ticket/project create and update | 3 |

@@ -86,12 +86,20 @@ const csat = asyncHandler(async (req, res) => {
 
 async function buildCustomerHappinessReport(req) {
   const range = parseDateRange(req.query);
-  const deptId = parseDepartmentId(req.query);
+  // Scoped like every other report (S12): 'all' may pick a department,
+  // 'department' is pinned to the reader's own, 'own' sees only surveys on
+  // tickets assigned to the reader.
+  const scope = await getUserReportScope(req.user.id);
+  let deptId = null;
+  let userId = null;
+  if (scope === 'all') deptId = parseDepartmentId(req.query);
+  else if (scope === 'department') deptId = req.user.departmentId || -1; // no department -> match nothing
+  else userId = req.user.id;
 
   const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
   const [overview, byTech] = await Promise.all([
-    getOverview({ range, departmentId: deptId, companyWhere }),
-    getTeamHappiness({ range, departmentId: deptId, companyWhere }),
+    getOverview({ range, departmentId: deptId, userId, companyWhere }),
+    getTeamHappiness({ range, departmentId: deptId, userId, companyWhere }),
   ]);
 
   return {

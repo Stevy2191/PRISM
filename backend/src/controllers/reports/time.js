@@ -34,9 +34,11 @@ async function buildTimeBillingReport(req) {
     ticketWhere = { ...ticketWhere, '$ticket.departmentId$': deptId };
     projectWhere = { ...projectWhere, '$project.ownerDepartmentId$': deptId };
   }
+  // ANDed, never merged: under 'own' scope the scope itself sits on these
+  // same keys, and a merge would let ?assigneeId replace it (S14).
   if (assigneeId) {
-    ticketWhere = { ...ticketWhere, userId: assigneeId };
-    projectWhere = { ...projectWhere, loggedForUserId: assigneeId };
+    ticketWhere = andWhere(ticketWhere, { userId: assigneeId });
+    projectWhere = andWhere(projectWhere, { loggedForUserId: assigneeId });
   }
   // Time is fenced through its ticket or project (both are included below).
   ticketWhere = andWhere(ticketWhere, await companyFilterWhere(req.user, req.query.companyId, '$ticket.companyId$'));

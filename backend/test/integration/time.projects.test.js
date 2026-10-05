@@ -156,11 +156,13 @@ describe('editing', () => {
   });
 
   // Likely correct: 400 'Task does not belong to this project', as on create. Expected to change in sub-project 3.
-  it('[quirk] Q22: editing accepts another project\'s task', async () => {
+  // Q22, fixed early as security finding S13 (it showed the other task's title).
+  it('Q22: editing refuses another project\'s task', async () => {
     const q = await makeProject(w.admin.agent, { name: 'Q', ownerDepartmentId: w.deptA.id });
     const qTask = await makeTask(w.admin.agent, q.id);
     const e = await log(tech.agent, span('09:00', '10:00'));
-    expect(expectOk(await patch(tech.agent, e, { taskId: qTask.id })).entry.taskId).toBe(qTask.id);
+    const res = await patch(tech.agent, e, { taskId: qTask.id });
+    expect([res.status, res.body.message]).toEqual([400, 'Task does not belong to this project']);
   });
 
   it('edit validates a given span and ignores a half one', async () => {

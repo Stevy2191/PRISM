@@ -4,7 +4,9 @@ const { ApiError, asyncHandler } = require('../../middleware/error');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { parsePagination, paginated } = require('../../utils/pagination');
 const { canAccessProject } = require('../../services/permissionService');
-const { SUBLIST_LIMIT, SUBLIST_MAX, userAttrs } = require('./shared');
+const {
+  SUBLIST_LIMIT, SUBLIST_MAX, userAttrs, resolveProjectTaskId,
+} = require('./shared');
 
 // ==================== Expenses ====================
 
@@ -46,7 +48,7 @@ const createExpense = asyncHandler(async (req, res) => {
 
   const expense = await ProjectExpense.create({
     projectId: project.id,
-    taskId: taskId || null,
+    taskId: await resolveProjectTaskId(project, taskId),
     description: description.trim(),
     amount: amt,
     category: category || 'other',
@@ -73,6 +75,7 @@ const updateExpense = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
+  if (changes.taskId !== undefined) changes.taskId = await resolveProjectTaskId(project, changes.taskId);
   await expense.update(changes);
   const fresh = await ProjectExpense.findByPk(expense.id, { include: expenseInclude });
   res.json({ expense: fresh });

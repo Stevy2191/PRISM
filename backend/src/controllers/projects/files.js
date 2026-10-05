@@ -4,7 +4,7 @@ const { Project, ProjectFile, User } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { canAccessProject } = require('../../services/permissionService');
-const { userAttrs } = require('./shared');
+const { userAttrs, resolveProjectTaskId } = require('./shared');
 
 // ==================== Files ====================
 
@@ -36,9 +36,16 @@ const uploadFile = asyncHandler(async (req, res) => {
   }
 
   const { taskId } = req.body || {};
+  let resolvedTaskId;
+  try {
+    resolvedTaskId = await resolveProjectTaskId(project, taskId);
+  } catch (err) {
+    fs.rm(req.file.path, { force: true }, () => {});
+    throw err;
+  }
   const file = await ProjectFile.create({
     projectId: project.id,
-    taskId: taskId || null,
+    taskId: resolvedTaskId,
     filename: req.file.originalname,
     filepath: req.file.path,
     filesize: req.file.size,

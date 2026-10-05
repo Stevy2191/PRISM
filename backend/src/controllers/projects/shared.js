@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const {
   Project,
   ProjectMember,
+  ProjectTask,
   ProjectSubtask,
   ProjectTimeEntry,
   ProjectExpense,
@@ -15,6 +16,7 @@ const {
   TeamMember,
   Company,
 } = require('../../models');
+const { ApiError } = require('../../middleware/error');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
 const { computeProjectCompletion } = require('../../services/projectCompletion');
 
@@ -96,7 +98,19 @@ const taskIncludeFor = (project) => [
   { model: ProjectSubtask, as: 'subtasks', include: [{ model: User, as: 'assignee', attributes: userAttrs }, { model: ProjectStatus, as: 'status' }] },
 ];
 
+// A task named on a project record (time, expense, material, file) must
+// belong to that project (S13) — the record's include would otherwise show
+// another project's task title. Returns the task's id, or null when the
+// body clears the task.
+async function resolveProjectTaskId(project, taskId) {
+  if (taskId === undefined || taskId === null || taskId === '') return null;
+  const task = await ProjectTask.findOne({ where: { id: taskId, projectId: project.id } });
+  if (!task) throw new ApiError(400, 'Task does not belong to this project', 'VALIDATION_ERROR');
+  return task.id;
+}
+
 module.exports = {
+  resolveProjectTaskId,
   projectInclude,
   userAttrs,
   getProjectWithDetail,

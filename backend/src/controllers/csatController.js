@@ -2,6 +2,7 @@ const { asyncHandler, ApiError } = require('../middleware/error');
 const { getUserPerformanceStats, getTeamHappiness, listResponses } = require('../services/csatStatsService');
 const { getAllSettings } = require('./settingsController');
 const { getUserReportScope } = require('../services/permissionService');
+const { User } = require('../models');
 const { companyFilterWhere } = require('../services/recordScope');
 
 // Same reports.view_own/department/all family already used to gate every
@@ -10,12 +11,22 @@ const { companyFilterWhere } = require('../services/recordScope');
 // scope. Without this, any authenticated staff member could hit this
 // endpoint directly (bypassing the dashboard's own admin-only panel gating)
 // and see every other tech's rating.
+//
+// Department scope reaches only the reader's own department (S15): another
+// department's technician is refused, and the team and response lists are
+// narrowed. Returns the department to narrow by, or null for no narrowing.
+const CANT_VIEW = "You don't have permission to view other technicians' performance stats";
 async function assertCanView(req, targetUserId) {
-  if (targetUserId && targetUserId === req.user.id) return;
+  if (targetUserId && targetUserId === req.user.id) return null;
   const scope = await getUserReportScope(req.user.id);
-  if (scope === 'own') {
-    throw new ApiError(403, "You don't have permission to view other technicians' performance stats", 'FORBIDDEN');
+  if (scope === 'own') throw new ApiError(403, CANT_VIEW, 'FORBIDDEN');
+  if (scope === 'all') return null;
+  const departmentId = req.user.departmentId || -1; // no department -> match nothing
+  if (targetUserId) {
+    const target = await User.findByPk(targetUserId, { attributes: ['id', 'departmentId'] });
+    if (!target || target.departmentId !== departmentId) throw new ApiError(403, CANT_VIEW, 'FORBIDDEN');
   }
+  return departmentId;
 }
 
 function parseDateRange(query) {
@@ -50,8 +61,8 @@ const stats = asyncHandler(async (req, res) => {
     return res.json({ ...result, minTicketsToShowRating: minResponses, showRating: result.responseCount >= minResponses });
   }
 
-  await assertCanView(req, null);
-  const team = await getTeamHappiness({ range, companyWhere: await companyFilterWhere(req.user, req.query.companyId) });
+  const departmentId = await assertCanView(req, null);
+  const team = await getTeamHappiness({ range, departmentId, companyWhere: await companyFilterWhere(req.user, req.query.companyId) });
   return res.json({
     minTicketsToShowRating: minResponses,
     team: team.map((t) => ({ ...t, showRating: t.responseCount >= minResponses })),
@@ -62,8 +73,12 @@ const stats = asyncHandler(async (req, res) => {
 const responses = asyncHandler(async (req, res) => {
   const range = parseDateRange(req.query);
   const userId = req.query.userId ? parseInt(req.query.userId, 10) : null;
-  await assertCanView(req, userId);
-  const rows = await listResponses({ range, userId, companyWhere: await companyFilterWhere(req.user, req.query.companyId) });
+  const departmentId = await assertCanView(req, userId);
+  // One technician's list is theirs to see whole once they're reachable; the
+  // all-responses list narrows to the reader's department's tickets.
+  const rows = await listResponses({
+    range, userId, departmentId: userId ? null : departmentId, companyWhere: await companyFilterWhere(req.user, req.query.companyId),
+  });
   res.json({
     responses: rows.map((r) => ({
       id: r.id,

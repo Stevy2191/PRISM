@@ -5,7 +5,9 @@ const { logProjectActivity } = require('../../services/projectActivity');
 const { parsePagination, paginated } = require('../../utils/pagination');
 const { resolveVendorFields, hideUnreachableVendors } = require('../../services/companyService');
 const { canAccessProject } = require('../../services/permissionService');
-const { SUBLIST_LIMIT, SUBLIST_MAX, userAttrs } = require('./shared');
+const {
+  SUBLIST_LIMIT, SUBLIST_MAX, userAttrs, resolveProjectTaskId,
+} = require('./shared');
 
 // ==================== Materials ====================
 
@@ -56,7 +58,7 @@ const createMaterial = asyncHandler(async (req, res) => {
 
   const material = await ProjectMaterial.create({
     projectId: project.id,
-    taskId: taskId || null,
+    taskId: await resolveProjectTaskId(project, taskId),
     itemName: itemName.trim(),
     vendor: vendor || null,
     modelNumber: modelNumber || null,
@@ -90,6 +92,7 @@ const updateMaterial = asyncHandler(async (req, res) => {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
   if (Array.isArray(changes.serialNumber)) changes.serialNumber = changes.serialNumber.filter(Boolean);
+  if (changes.taskId !== undefined) changes.taskId = await resolveProjectTaskId(project, changes.taskId);
   Object.assign(changes, await resolveVendorFields(req.user, req.body, material, 'vendor'));
 
   const qty = changes.quantity !== undefined ? Number(changes.quantity) : Number(material.quantity);
