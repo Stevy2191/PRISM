@@ -9,13 +9,14 @@ const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const { Op } = require('sequelize');
 const {
-  Ticket, Contact, Comment, Attachment, User, EmailProcessingLog, SystemSettings,
+  Ticket, Contact, Comment, Attachment, User, EmailProcessingLog, SystemSettings, Company, CompanyDomain,
 } = require('../models');
 const { decryptToken } = require('../utils/tokenCrypto');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const { getFirstTicketStatusByBehavior } = require('./statusBehavior');
 const { getAllSettings } = require('../controllers/settingsController');
 const { sendMail } = require('./emailSender');
+const { FREE_MAIL_DOMAINS } = require('./companyService');
 const { notifyComment } = require('./notifications');
 
 const PROCESSED_FOLDER = 'PRISM Processed';
@@ -171,6 +172,20 @@ async function findOrCreateContact(fromEmail, fromName) {
   const existing = await Contact.findOne({ where: { email } });
   if (existing) return existing;
 
+  // Spec: match the sender's domain to an active client company; free-mail
+  // never matches; otherwise the model hook files the contact under the
+  // internal company. (A sender address can be forged, so this only decides
+  // which company's staff see the new contact and its tickets.)
+  const domain = email.slice(email.lastIndexOf('@') + 1);
+  let companyId;
+  if (domain && !FREE_MAIL_DOMAINS.has(domain)) {
+    const owner = await CompanyDomain.findOne({
+      where: { domain },
+      include: [{ model: Company, as: 'company', where: { status: 'active', isClient: true }, attributes: ['id'] }],
+    });
+    if (owner) companyId = owner.companyId;
+  }
+
   const parts = String(fromName || '').trim().split(/\s+/).filter(Boolean);
   const firstName = parts[0] || email.split('@')[0];
   const lastName = parts.slice(1).join(' ');
@@ -180,6 +195,7 @@ async function findOrCreateContact(fromEmail, fromName) {
     displayName: (fromName || '').trim() || email,
     email,
     status: 'active',
+    companyId,
   });
 }
 
@@ -367,5 +383,5 @@ async function pollInbox() {
 
 module.exports = {
   resolveInboundEmailConfig, readInboundEmailSettingsRows, isInboundConfigured,
-  testImapConnection, pollInbox, buildTicketMessageId,
+  testImapConnection, pollInbox, buildTicketMessageId, findOrCreateContact,
 };
