@@ -15,7 +15,7 @@ const {
   companyScopeWhere, canAccessCompany, parseRecordId, findAccessibleContact,
 } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
-const { resolvePlacement } = require('../services/companyService');
+const { resolvePlacement, resolveVendorFields } = require('../services/companyService');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -28,6 +28,7 @@ const SUBLIST_MAX = 500;
 const licenseInclude = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
   { model: Company, as: 'company', attributes: ['id', 'name'] },
+  { model: Company, as: 'vendorCompany', attributes: ['id', 'name'] },
   { model: User, as: 'creator', attributes: userAttrs },
 ];
 
@@ -83,8 +84,9 @@ const list = asyncHandler(async (req, res) => {
 
   const { page, limit, offset } = parsePagination(req);
   const companyFilter = companyId ? { companyId: parseRecordId(companyId) || -1 } : {};
+  const vendorFilter = req.query.vendorCompanyId ? { vendorCompanyId: parseRecordId(req.query.vendorCompanyId) || -1 } : {};
   const { rows, count } = await License.findAndCountAll({
-    where: andWhere(where, companyFilter, await companyScopeWhere(req.user)),
+    where: andWhere(where, companyFilter, vendorFilter, await companyScopeWhere(req.user)),
     include: licenseInclude,
     order: [['name', 'ASC'], ['id', 'ASC']],
     limit,
@@ -132,6 +134,7 @@ const create = asyncHandler(async (req, res) => {
   if (req.body.licenseKey) values.licenseKey = encryptToken(req.body.licenseKey);
 
   Object.assign(values, await resolvePlacement(req.user, req.body, null));
+  Object.assign(values, await resolveVendorFields(req.user, req.body, null, 'vendor'));
   const license = await License.create({ ...values, createdBy: req.user.id });
   await writeAudit(req, 'license.create', 'License', license.id, { name: license.name });
   await logLicenseActivity(license.id, req.user.id, 'created', { name: license.name });
@@ -157,6 +160,7 @@ const update = asyncHandler(async (req, res) => {
   }
 
   Object.assign(values, await resolvePlacement(req.user, req.body, license));
+  Object.assign(values, await resolveVendorFields(req.user, req.body, license, 'vendor'));
   await license.update(values);
   await writeAudit(req, 'license.update', 'License', license.id, { changes: Object.keys(values) });
   await logLicenseActivity(license.id, req.user.id, 'updated', { changes: Object.keys(values) });

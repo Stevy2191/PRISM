@@ -16,7 +16,7 @@ const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { andWhere, projectScopeWhere } = require('../services/recordScope');
 const {
-  getInternalCompanyId, findDepartmentInCompany, resolveRecordCompany, isCompanyChange,
+  getInternalCompanyId, findDepartmentInCompany, resolveRecordCompany, isCompanyChange, resolveVendorFields,
 } = require('../services/companyService');
 
 // Chunk size for the "load more" lists on a project's detail page. Tasks are
@@ -986,6 +986,7 @@ const removeExpense = asyncHandler(async (req, res) => {
 
 const materialInclude = [
   { model: User, as: 'addedByUser', attributes: userAttrs },
+  { model: Company, as: 'vendorCompany', attributes: ['id', 'name'] },
   { model: ProjectTask, as: 'task', attributes: ['id', 'title'] },
 ];
 
@@ -1039,6 +1040,7 @@ const createMaterial = asyncHandler(async (req, res) => {
     totalCost: Math.round(qty * cost * 100) / 100,
     notes: notes || null,
     addedBy: req.user.id,
+    ...(await resolveVendorFields(req.user, req.body, null, 'vendor')),
   });
   await logProjectActivity(project.id, req.user.id, 'material_added', { materialId: material.id, itemName: material.itemName });
 
@@ -1061,6 +1063,7 @@ const updateMaterial = asyncHandler(async (req, res) => {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
   if (Array.isArray(changes.serialNumber)) changes.serialNumber = changes.serialNumber.filter(Boolean);
+  Object.assign(changes, await resolveVendorFields(req.user, req.body, material, 'vendor'));
 
   const qty = changes.quantity !== undefined ? Number(changes.quantity) : Number(material.quantity);
   const cost = changes.unitCost !== undefined ? Number(changes.unitCost) : Number(material.unitCost);

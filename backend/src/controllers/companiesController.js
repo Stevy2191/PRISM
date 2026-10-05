@@ -13,6 +13,7 @@ const {
   canAccessCompany, companyScopeWhere, parseRecordId, invalidateAllPermissions,
 } = require('../services/permissionService');
 const { FREE_MAIL_DOMAINS } = require('../services/companyService');
+const { andWhere, isEmpty } = require('../services/recordScope');
 
 const NAME_MAX = 150;
 const WEBSITE_RE = /^https?:\/\/[^\s<>"]+$/i;
@@ -120,6 +121,20 @@ const summary = asyncHandler(async (req, res) => {
   res.json({ count, multiCompany: clients > 0 });
 });
 
+// GET /companies/vendors?search= — the vendor picker: shared vendor-only
+// companies, plus vendor companies the user can reach (see isSharedVendor).
+const vendors = asyncHandler(async (req, res) => {
+  const scope = await companyScopeWhere(req.user, 'id');
+  const and = [{ isVendor: true, status: 'active' }];
+  if (!isEmpty(scope)) and.push({ [Op.or]: [{ isClient: false, isInternal: false }, scope] });
+  const term = String(req.query.search || '').trim();
+  if (term) and.push({ name: { [Op.like]: `%${term}%` } });
+  const rows = await Company.findAll({
+    where: andWhere(...and), attributes: ['id', 'name'], order: [['name', 'ASC']], limit: 25,
+  });
+  res.json({ vendors: rows });
+});
+
 // GET /companies/:id
 const get = asyncHandler(async (req, res) => {
   const company = await loadAccessibleCompany(req);
@@ -198,5 +213,5 @@ const removeDomain = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  list, summary, get, create, update, remove, addDomain, removeDomain, loadAccessibleCompany,
+  list, summary, vendors, get, create, update, remove, addDomain, removeDomain, loadAccessibleCompany,
 };

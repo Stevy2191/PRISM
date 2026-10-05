@@ -21,7 +21,7 @@ const {
   companyScopeWhere, parseRecordId, findAccessibleTicket, findAccessibleContact,
 } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
-const { resolvePlacement } = require('../services/companyService');
+const { resolvePlacement, resolveVendorFields } = require('../services/companyService');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -51,6 +51,7 @@ const assetInclude = [
   },
   { model: User, as: 'assignedToUser', attributes: userAttrs },
   { model: Company, as: 'company', attributes: ['id', 'name'] },
+  { model: Company, as: 'vendorCompany', attributes: ['id', 'name'] },
   { model: Site, as: 'site', attributes: ['id', 'name'] },
 ];
 
@@ -162,12 +163,13 @@ const list = asyncHandler(async (req, res) => {
 
   if (andConditions.length) where[Op.and] = andConditions;
   const companyFilter = companyId ? { companyId: parseRecordId(companyId) || -1 } : {};
+  const vendorFilter = req.query.vendorCompanyId ? { vendorCompanyId: parseRecordId(req.query.vendorCompanyId) || -1 } : {};
 
   const { page, limit, offset } = parsePagination(req);
   // assetInclude is belongsTo-only, so LIMIT and COUNT are both safe to apply
   // directly here.
   const { rows, count } = await Asset.findAndCountAll({
-    where: andWhere(where, companyFilter, await companyScopeWhere(req.user)),
+    where: andWhere(where, companyFilter, vendorFilter, await companyScopeWhere(req.user)),
     include: assetInclude,
     order: [['assetTag', 'ASC'], ['id', 'ASC']],
     limit,
@@ -311,6 +313,7 @@ const create = asyncHandler(async (req, res) => {
     if (body[f] !== undefined) values[f] = body[f];
   });
   Object.assign(values, await resolvePlacement(req.user, body, null, PLACEMENT_FIELDS));
+  Object.assign(values, await resolveVendorFields(req.user, body, null, 'vendorName'));
   values.createdBy = req.user.id;
 
   const asset = await Asset.create(values);
@@ -333,6 +336,7 @@ const update = asyncHandler(async (req, res) => {
     if (body[f] !== undefined) changes[f] = body[f];
   });
   Object.assign(changes, await resolvePlacement(req.user, body, asset, PLACEMENT_FIELDS));
+  Object.assign(changes, await resolveVendorFields(req.user, body, asset, 'vendorName'));
 
   if (changes.assetTag !== undefined && changes.assetTag !== asset.assetTag) {
     if (!changes.assetTag.trim()) throw new ApiError(400, 'Asset tag cannot be blank', 'VALIDATION_ERROR');

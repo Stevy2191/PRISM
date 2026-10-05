@@ -112,7 +112,40 @@ async function resolvePlacement(user, body, record, fields = ['departmentId']) {
   return out;
 }
 
+// A vendor-only company (not a client, not internal) is shared reference
+// data: every vendor picker offers it, whatever the user's company access
+// (plan 2b decision). A company that is also a client — or the internal
+// company — is fenced like any client, so a picker can't reveal its name.
+const isSharedVendor = (company) => !!(company.isVendor && !company.isClient && !company.isInternal);
+
+// A record's vendor: an active vendor company the user may pick. Missing,
+// not a vendor, inactive and out of reach all get the same 400.
+async function resolveVendorCompany(user, rawVendorId) {
+  const { canAccessCompany, parseRecordId } = require('./permissionService'); // eslint-disable-line global-require
+  const { ApiError } = require('../middleware/error'); // eslint-disable-line global-require
+  const company = await Company.findByPk(parseRecordId(rawVendorId) || 0);
+  const usable = company && company.status === 'active' && company.isVendor
+    && (isSharedVendor(company) || (await canAccessCompany(user, company.id)));
+  if (!usable) throw new ApiError(400, 'Unknown vendor', 'VALIDATION_ERROR');
+  return company;
+}
+
+// The vendor fields a body sets on an asset, license, contract or project
+// material. `textColumn` is the old free-text vendor column, which mirrors
+// the company's name for one more release (spec: Vendor text), so reports
+// and alert tickets that still read it stay right. Re-sending the current
+// vendor isn't re-checked: forms send the whole record back, and the vendor
+// may have been deactivated since.
+async function resolveVendorFields(user, body, record, textColumn) {
+  if (body.vendorCompanyId === undefined) return {};
+  if (isBlank(body.vendorCompanyId)) return { vendorCompanyId: null };
+  const { parseRecordId } = require('./permissionService'); // eslint-disable-line global-require
+  if (record && parseRecordId(body.vendorCompanyId) === record.vendorCompanyId) return {};
+  const vendor = await resolveVendorCompany(user, body.vendorCompanyId);
+  return { vendorCompanyId: vendor.id, [textColumn]: vendor.name };
+}
+
 module.exports = {
   getInternalCompanyId, FREE_MAIL_DOMAINS, findDepartmentInCompany, findSiteInCompany, resolveRecordCompany,
-  resolvePlacement, isCompanyChange,
+  resolvePlacement, isCompanyChange, isSharedVendor, resolveVendorCompany, resolveVendorFields,
 };

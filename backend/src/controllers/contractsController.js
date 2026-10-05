@@ -14,7 +14,7 @@ const {
   companyScopeWhere, canAccessCompany, parseRecordId,
 } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
-const { resolvePlacement } = require('../services/companyService');
+const { resolvePlacement, resolveVendorFields } = require('../services/companyService');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -27,6 +27,7 @@ const SUBLIST_MAX = 500;
 const contractInclude = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
   { model: Company, as: 'company', attributes: ['id', 'name'] },
+  { model: Company, as: 'vendorCompany', attributes: ['id', 'name'] },
   { model: User, as: 'creator', attributes: userAttrs },
 ];
 
@@ -96,8 +97,9 @@ const list = asyncHandler(async (req, res) => {
 
   const { page, limit, offset } = parsePagination(req);
   const companyFilter = companyId ? { companyId: parseRecordId(companyId) || -1 } : {};
+  const vendorFilter = req.query.vendorCompanyId ? { vendorCompanyId: parseRecordId(req.query.vendorCompanyId) || -1 } : {};
   const { rows: contracts, count } = await Contract.findAndCountAll({
-    where: andWhere(where, companyFilter, await companyScopeWhere(req.user)),
+    where: andWhere(where, companyFilter, vendorFilter, await companyScopeWhere(req.user)),
     include: contractInclude,
     order: [['name', 'ASC'], ['id', 'ASC']],
     limit,
@@ -148,7 +150,12 @@ const get = asyncHandler(async (req, res) => {
 // POST /contracts
 const create = asyncHandler(async (req, res) => {
   if (!req.body.name || !req.body.name.trim()) throw new ApiError(400, 'Name is required', 'VALIDATION_ERROR');
-  if (!req.body.vendor || !req.body.vendor.trim()) throw new ApiError(400, 'Vendor is required', 'VALIDATION_ERROR');
+  // A contract needs a vendor: a vendor company, or (until the text column
+  // goes) a typed name.
+  const vendorFields = await resolveVendorFields(req.user, req.body, null, 'vendor');
+  if (!vendorFields.vendorCompanyId && (!req.body.vendor || !req.body.vendor.trim())) {
+    throw new ApiError(400, 'Vendor is required', 'VALIDATION_ERROR');
+  }
 
   const values = {};
   WRITABLE_FIELDS.forEach((f) => {
@@ -156,6 +163,7 @@ const create = asyncHandler(async (req, res) => {
   });
 
   Object.assign(values, await resolvePlacement(req.user, req.body, null));
+  Object.assign(values, vendorFields);
   const contract = await Contract.create({ ...values, createdBy: req.user.id });
   await writeAudit(req, 'contract.create', 'Contract', contract.id, { name: contract.name });
   await logContractActivity(contract.id, req.user.id, 'created', { name: contract.name });
@@ -175,6 +183,7 @@ const update = asyncHandler(async (req, res) => {
   });
 
   Object.assign(values, await resolvePlacement(req.user, req.body, contract));
+  Object.assign(values, await resolveVendorFields(req.user, req.body, contract, 'vendor'));
   await contract.update(values);
   await writeAudit(req, 'contract.update', 'Contract', contract.id, { changes: Object.keys(values) });
   await logContractActivity(contract.id, req.user.id, 'updated', { changes: Object.keys(values) });

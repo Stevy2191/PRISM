@@ -8,6 +8,8 @@ const canView = requirePermission('companies.view');
 const canManage = requirePermission('companies.manage');
 
 router.get('/summary', ctrl.summary); // before '/:id'; any staff user
+// Before '/:id'. Anyone who records purchases can pick a vendor.
+router.get('/vendors', requirePermission('assets.view', 'projects.manage_expenses', 'companies.view'), ctrl.vendors);
 router.get('/', canView, ctrl.list);
 router.post('/', canManage, ctrl.create);
 router.get('/:id', canView, ctrl.get);
