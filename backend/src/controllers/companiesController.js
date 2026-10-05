@@ -14,6 +14,7 @@ const {
 } = require('../services/permissionService');
 const { FREE_MAIL_DOMAINS } = require('../services/companyService');
 const { andWhere, isEmpty } = require('../services/recordScope');
+const { getTicketStatusBuckets } = require('../services/statusBehavior');
 
 const NAME_MAX = 150;
 const WEBSITE_RE = /^https?:\/\/[^\s<>"]+$/i;
@@ -106,16 +107,36 @@ const list = asyncHandler(async (req, res) => {
     limit,
     offset,
   });
-  res.json(paginated('companies', { rows, count }, { page, limit }));
+  // Per-row counts for the list (two grouped queries, not one per row).
+  const ids = rows.map((c) => c.id);
+  const buckets = await getTicketStatusBuckets();
+  const countBy = async (Model, extra = {}) => {
+    if (!ids.length) return new Map();
+    const counted = await Model.findAll({
+      where: { companyId: ids, ...extra },
+      attributes: ['companyId', [fn('COUNT', col('id')), 'n']],
+      group: ['companyId'],
+      raw: true,
+    });
+    return new Map(counted.map((r) => [r.companyId, Number(r.n)]));
+  };
+  const [contacts, openTickets] = await Promise.all([
+    countBy(Contact), countBy(Ticket, { status: { [Op.in]: buckets.open } }),
+  ]);
+  const withCounts = rows.map((c) => ({
+    ...c.toJSON(), contactCount: contacts.get(c.id) || 0, openTicketCount: openTickets.get(c.id) || 0,
+  }));
+  res.json(paginated('companies', { rows: withCounts, count }, { page, limit }));
 });
 
-// GET /companies/summary — unfenced on purpose: the frontend needs it before
-// anything else to decide whether to show company UI, and it reveals only
-// counts. multiCompany means "a client exists"; vendor companies (including
-// those the migration made from vendor text) never switch company UI on.
+// GET /companies/summary — any staff user: the frontend needs it before
+// anything else to decide whether to show company UI. `count` covers only
+// the companies the user can reach; multiCompany ("a client exists") stays
+// global, since it switches UI on for everyone and reveals only that. Vendor
+// companies (including those made from vendor text) never switch it on.
 const summary = asyncHandler(async (req, res) => {
   const [count, clients] = await Promise.all([
-    Company.count(),
+    Company.count({ where: await companyScopeWhere(req.user, 'id') }),
     Company.count({ where: { isClient: true } }),
   ]);
   res.json({ count, multiCompany: clients > 0 });
@@ -154,6 +175,18 @@ const create = asyncHandler(async (req, res) => {
 const update = asyncHandler(async (req, res) => {
   const company = await loadAccessibleCompany(req);
   const changes = await readFields(req.body || {}, company);
+  // A company that owns contacts, tickets or other records must stay a
+  // client: those records may only sit in a client (or the internal)
+  // company, and clearing the flag could also switch company UI off.
+  if (changes.isClient === false && company.isClient) {
+    const byCompany = { where: { companyId: company.id } };
+    const counts = await Promise.all(
+      [Contact, Ticket, Project, Department, Site, Asset, License, Contract].map((M) => M.count(byCompany))
+    );
+    if (counts.some((n) => n > 0)) {
+      throw new ApiError(409, 'This company still has client records. Merge it or move them before it stops being a client.', 'COMPANY_IN_USE');
+    }
+  }
   const becomesActive = (changes.status || company.status) === 'active';
   if (becomesActive && (changes.name !== undefined || changes.status === 'active')) {
     await assertNameFree(changes.name || company.name, company.id);
