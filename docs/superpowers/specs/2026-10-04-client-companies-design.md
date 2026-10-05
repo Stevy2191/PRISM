@@ -41,6 +41,7 @@ Made with the user while brainstorming, on 2026-10-04.
 | Projects | **`companyId` is the client.** "For department" belongs to that company. "Owned by" stays an internal-company department, and project codes keep its short code. |
 | Vendor text | **Migrated to vendor companies,** deduplicated ignoring case and surrounding spaces. A merge tool cleans up near-duplicates, and doubles as the general duplicate-company tool. |
 | Architecture | **A real `companyId` column plus central scope helpers** in `permissionService`, called explicitly by every handler. Not derived through joins, and not injected by global Sequelize hooks. |
+| Company UI switch | **`multiCompany` means at least one client company exists.** Vendor companies alone (including those the migration creates from vendor text) never turn on company pickers. *(Ruled in plan 2a.)* |
 | Large files | `TicketDetail.jsx`, `TicketNew.jsx`, `ProjectDetail.jsx`, `ticketsController.js` and `projectsController.js` are touched only lightly. Splitting them stays with sub-project 3, which rewrites them, as was ruled for sub-project 1. New code goes in new, small files. |
 
 ## Data model
@@ -102,8 +103,11 @@ safety net. The API stops writing them, and a later release drops them.
 - An asset's department and site belong to the asset's company.
 - `vendorCompanyId` only accepts a company with `isVendor` set. A record's
   `companyId` accepts a client company or the internal company.
-- An inactive company, site or department cannot be newly chosen. Existing
-  references stay.
+- An inactive company or site cannot be newly chosen. Existing references
+  stay. (Departments have no status column; adding one is out of scope.)
+- Moving an asset, license or contract to another company clears its
+  department, site and assigned contact unless new ones from the new company
+  are given. *(Ruled in plan 2a.)*
 
 ### Migration
 
@@ -160,6 +164,10 @@ write:
 - **Assets, licenses and contracts** get record-level scope for the first
   time: their fetch-by-id and mutate-by-id handlers check company access.
   Today they check only the module permission.
+- **Cross-module links** (asset ↔ ticket, license ↔ asset/contact,
+  contract ↔ asset, asset checkouts, assets on the new-ticket form) must point
+  at a visible record in the same company. A link made before a move is kept
+  but shown only while both ends are in the same company. *(Ruled in plan 2a.)*
 - **Tiers inside the fence:** "department" still means the user's own
   department, and "all" means all records in reachable companies. Contacts:
   `people.view_all` covers contacts in reachable companies, and "own
@@ -353,6 +361,14 @@ Integration tests in the sub-project 1 style, in new files under
 - `docs/ROADMAP.md` marks sub-project 2 **Shipped**. `UPGRADING.md` says that
   nothing changes until a second company is added, and that the old vendor
   text columns go in a later release.
+
+## Security notes
+
+Fixed while building plan 2a: **S9** (moving a contact to a department needed
+no access to the contact), **S10** (contact list filters replaced the scope
+instead of narrowing it), unchecked contact and asset ids on assets, asset
+checkouts and the new-ticket form, and `/assets/12abc`-style ids that the
+database read as record 12.
 
 ## Out of scope
 

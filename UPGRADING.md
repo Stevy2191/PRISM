@@ -12,6 +12,14 @@ backend start.
 
 Nothing here needs action before upgrading.
 
+### Client companies (backend)
+
+Upgrading creates one company for your organization and puts every existing
+department, contact, ticket, project, asset, license and contract under it.
+Free-text vendor names on assets, licenses, contracts and project materials
+become vendor companies (the original text is kept for one more release).
+Until you add a client company, nothing behaves differently.
+
 ### Security fixes
 
 - Deleting a project subtask now checks that its task belongs to the project
