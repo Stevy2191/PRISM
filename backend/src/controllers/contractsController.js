@@ -3,13 +3,18 @@ const path = require('path');
 const { Op } = require('sequelize');
 const {
   Contract, ContractAsset, ContractAttachment, ContractActivity,
-  Asset, AssetCategory, User, Department,
+  Asset, AssetCategory, Company, User, Department,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
 const { getAllSettings } = require('./settingsController');
 const { UPLOAD_ROOT } = require('../middleware/upload');
+const {
+  companyScopeWhere, canAccessCompany, parseRecordId,
+} = require('../services/permissionService');
+const { andWhere } = require('../services/recordScope');
+const { resolvePlacement } = require('../services/companyService');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -21,6 +26,7 @@ const SUBLIST_MAX = 500;
 
 const contractInclude = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
+  { model: Company, as: 'company', attributes: ['id', 'name'] },
   { model: User, as: 'creator', attributes: userAttrs },
 ];
 
@@ -44,7 +50,7 @@ function daysUntil(dateStr) {
 
 // GET /contracts?search=&contractType=&departmentId=&status=
 const list = asyncHandler(async (req, res) => {
-  const { search, contractType, departmentId, status } = req.query;
+  const { companyId, search, contractType, departmentId, status } = req.query;
   const where = {};
   if (contractType) where.contractType = contractType;
   if (departmentId) where.departmentId = departmentId;
@@ -89,8 +95,9 @@ const list = asyncHandler(async (req, res) => {
   }
 
   const { page, limit, offset } = parsePagination(req);
+  const companyFilter = companyId ? { companyId: parseRecordId(companyId) || -1 } : {};
   const { rows: contracts, count } = await Contract.findAndCountAll({
-    where,
+    where: andWhere(where, companyFilter, await companyScopeWhere(req.user)),
     include: contractInclude,
     order: [['name', 'ASC'], ['id', 'ASC']],
     limit,
@@ -148,6 +155,7 @@ const create = asyncHandler(async (req, res) => {
     if (req.body[f] !== undefined) values[f] = req.body[f] === '' ? null : req.body[f];
   });
 
+  Object.assign(values, await resolvePlacement(req.user, req.body, null));
   const contract = await Contract.create({ ...values, createdBy: req.user.id });
   await writeAudit(req, 'contract.create', 'Contract', contract.id, { name: contract.name });
   await logContractActivity(contract.id, req.user.id, 'created', { name: contract.name });
@@ -166,6 +174,7 @@ const update = asyncHandler(async (req, res) => {
     if (req.body[f] !== undefined) values[f] = req.body[f] === '' ? null : req.body[f];
   });
 
+  Object.assign(values, await resolvePlacement(req.user, req.body, contract));
   await contract.update(values);
   await writeAudit(req, 'contract.update', 'Contract', contract.id, { changes: Object.keys(values) });
   await logContractActivity(contract.id, req.user.id, 'updated', { changes: Object.keys(values) });
@@ -204,7 +213,11 @@ const listAssets = asyncHandler(async (req, res) => {
   const links = await ContractAsset.findAll({
     where: { contractId: contract.id },
     include: [
-      { model: Asset, as: 'asset', include: [{ model: AssetCategory, as: 'category' }] },
+      // Only assets in the contract's company (a link can outlive a move).
+      {
+        model: Asset, as: 'asset', where: { companyId: contract.companyId }, required: true,
+        include: [{ model: AssetCategory, as: 'category' }],
+      },
       { model: User, as: 'linkedByUser', attributes: userAttrs },
     ],
     order: [['linkedAt', 'DESC']],
@@ -216,10 +229,13 @@ const listAssets = asyncHandler(async (req, res) => {
 const linkAsset = asyncHandler(async (req, res) => {
   const contract = await Contract.findByPk(req.params.id);
   if (!contract) throw new ApiError(404, 'Contract not found', 'NOT_FOUND');
-  const assetId = parseInt(req.body.assetId, 10);
-  if (!Number.isFinite(assetId)) throw new ApiError(400, 'assetId is required', 'VALIDATION_ERROR');
-  const asset = await Asset.findByPk(assetId);
-  if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
+  if (!req.body.assetId) throw new ApiError(400, 'assetId is required', 'VALIDATION_ERROR');
+  // Missing and out-of-reach look the same; a reachable asset in another
+  // company is refused without saying more.
+  const asset = await Asset.findByPk(parseRecordId(req.body.assetId) || 0);
+  if (!asset || !(await canAccessCompany(req.user, asset.companyId))) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
+  if (asset.companyId !== contract.companyId) throw new ApiError(400, 'Asset not found', 'VALIDATION_ERROR');
+  const assetId = asset.id;
 
   const existing = await ContractAsset.findOne({ where: { contractId: contract.id, assetId } });
   if (existing) return res.json({ link: existing });

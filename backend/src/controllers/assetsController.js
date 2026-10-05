@@ -4,7 +4,7 @@ const { Op } = require('sequelize');
 const {
   Asset, AssetCategory, AssetTicket, AssetActivity, AssetCategoryField, AssetFieldValue,
   AssetCheckout, AssetAttachment, License, Contract,
-  Ticket, Contact, User, Department,
+  Ticket, Contact, User, Department, Company, Site,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
@@ -17,6 +17,11 @@ const { getSubscriptionRenewals } = require('../services/assetSubscriptionServic
 const { sendMail } = require('../services/emailSender');
 const { getAllSettings } = require('./settingsController');
 const { UPLOAD_ROOT } = require('../middleware/upload');
+const {
+  companyScopeWhere, parseRecordId, findAccessibleTicket, findAccessibleContact,
+} = require('../services/permissionService');
+const { andWhere } = require('../services/recordScope');
+const { resolvePlacement } = require('../services/companyService');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -38,7 +43,13 @@ const assetInclude = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
   { model: Contact, as: 'assignedToContact', attributes: ['id', 'displayName', 'email'] },
   { model: User, as: 'assignedToUser', attributes: userAttrs },
+  { model: Company, as: 'company', attributes: ['id', 'name'] },
+  { model: Site, as: 'site', attributes: ['id', 'name'] },
 ];
+
+// Company-bound fields, checked by resolvePlacement against the asset's
+// company rather than copied from the body.
+const PLACEMENT_FIELDS = ['departmentId', 'siteId', 'assignedToContactId'];
 
 // Fields the client may set on create/update — everything except id and the
 // auto-managed createdBy/createdAt/updatedAt.
@@ -105,7 +116,9 @@ function assertNotFutureDate(value, label) {
 
 // GET /assets?search=&categoryId=&departmentId=&status=&assignedTo=&quickFilter=
 const list = asyncHandler(async (req, res) => {
-  const { search, categoryId, departmentId, status, assignedTo, quickFilter } = req.query;
+  const {
+    search, categoryId, departmentId, status, assignedTo, quickFilter, companyId,
+  } = req.query;
   const where = {};
   if (categoryId) where.categoryId = categoryId;
   if (departmentId) where.departmentId = departmentId;
@@ -141,12 +154,13 @@ const list = asyncHandler(async (req, res) => {
   }
 
   if (andConditions.length) where[Op.and] = andConditions;
+  const companyFilter = companyId ? { companyId: parseRecordId(companyId) || -1 } : {};
 
   const { page, limit, offset } = parsePagination(req);
   // assetInclude is belongsTo-only, so LIMIT and COUNT are both safe to apply
   // directly here.
   const { rows, count } = await Asset.findAndCountAll({
-    where,
+    where: andWhere(where, companyFilter, await companyScopeWhere(req.user)),
     include: assetInclude,
     order: [['assetTag', 'ASC'], ['id', 'ASC']],
     limit,
@@ -180,11 +194,12 @@ const stats = asyncHandler(async (req, res) => {
   const todayStr = new Date().toISOString().slice(0, 10);
   const in90Str = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
 
+  const scope = await companyScopeWhere(req.user);
   const [dueForReplacement, expiredWarranty, totalActive, renewingSoon] = await Promise.all([
-    Asset.count({ where: { replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90Str } } }),
-    Asset.count({ where: { warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } } }),
-    Asset.count({ where: { status: 'active' } }),
-    getSubscriptionRenewals({ withinDays: 30 }),
+    Asset.count({ where: andWhere({ replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90Str } }, scope) }),
+    Asset.count({ where: andWhere({ warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } }, scope) }),
+    Asset.count({ where: andWhere({ status: 'active' }, scope) }),
+    getSubscriptionRenewals({ withinDays: 30, where: scope }),
   ]);
 
   res.json({ dueForReplacement, expiredWarranty, totalActive, subscriptionsRenewingSoon: renewingSoon.length });
@@ -203,6 +218,8 @@ const expirySummary = asyncHandler(async (req, res) => {
   const contractDays = Number(settings['contracts.renewalAlertDays']) || 60;
 
   const todayStr = new Date().toISOString().slice(0, 10);
+  const scope = await companyScopeWhere(req.user);
+  const scoped = (where) => ({ where: andWhere(where, scope) });
   const cutoff = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 
   const [
@@ -210,28 +227,24 @@ const expirySummary = asyncHandler(async (req, res) => {
     licensesExpiringSoon, licensesExpired,
     contractsRenewingSoon, contractsExpired,
   ] = await Promise.all([
-    Asset.count({ where: { replacementPlanDate: { [Op.ne]: null, [Op.lte]: cutoff(replacementDays) } } }),
-    Asset.count({ where: { warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } } }),
-    Asset.count({ where: { warrantyExpiryDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(warrantyDays) } } }),
-    getSubscriptionRenewals({ withinDays: subscriptionDays }),
-    License.count({ where: { expiryDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(licenseDays) } } }),
-    License.count({ where: { expiryDate: { [Op.ne]: null, [Op.lt]: todayStr } } }),
-    Contract.count({
-      where: {
-        [Op.or]: [
-          { renewalDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(contractDays) } },
-          { renewalDate: null, endDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(contractDays) } },
-        ],
-      },
-    }),
-    Contract.count({
-      where: {
-        [Op.or]: [
-          { renewalDate: { [Op.ne]: null, [Op.lt]: todayStr } },
-          { renewalDate: null, endDate: { [Op.ne]: null, [Op.lt]: todayStr } },
-        ],
-      },
-    }),
+    Asset.count(scoped({ replacementPlanDate: { [Op.ne]: null, [Op.lte]: cutoff(replacementDays) } })),
+    Asset.count(scoped({ warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } })),
+    Asset.count(scoped({ warrantyExpiryDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(warrantyDays) } })),
+    getSubscriptionRenewals({ withinDays: subscriptionDays, where: scope }),
+    License.count(scoped({ expiryDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(licenseDays) } })),
+    License.count(scoped({ expiryDate: { [Op.ne]: null, [Op.lt]: todayStr } })),
+    Contract.count(scoped({
+      [Op.or]: [
+        { renewalDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(contractDays) } },
+        { renewalDate: null, endDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: cutoff(contractDays) } },
+      ],
+    })),
+    Contract.count(scoped({
+      [Op.or]: [
+        { renewalDate: { [Op.ne]: null, [Op.lt]: todayStr } },
+        { renewalDate: null, endDate: { [Op.ne]: null, [Op.lt]: todayStr } },
+      ],
+    })),
   ]);
 
   res.json({
@@ -290,6 +303,7 @@ const create = asyncHandler(async (req, res) => {
     if (f === 'assetTag') return;
     if (body[f] !== undefined) values[f] = body[f];
   });
+  Object.assign(values, await resolvePlacement(req.user, body, null, PLACEMENT_FIELDS));
   values.createdBy = req.user.id;
 
   const asset = await Asset.create(values);
@@ -311,6 +325,7 @@ const update = asyncHandler(async (req, res) => {
   WRITABLE_FIELDS.forEach((f) => {
     if (body[f] !== undefined) changes[f] = body[f];
   });
+  Object.assign(changes, await resolvePlacement(req.user, body, asset, PLACEMENT_FIELDS));
 
   if (changes.assetTag !== undefined && changes.assetTag !== asset.assetTag) {
     if (!changes.assetTag.trim()) throw new ApiError(400, 'Asset tag cannot be blank', 'VALIDATION_ERROR');
@@ -379,9 +394,13 @@ const listTickets = asyncHandler(async (req, res) => {
   const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
   const { rows: links, count } = await AssetTicket.findAndCountAll({
     where: { assetId: asset.id },
+    // Only tickets in the asset's company: a link made before the asset or
+    // the ticket's contact moved company stays, but stays out of sight.
     include: [{
       model: Ticket,
       as: 'ticket',
+      where: { companyId: asset.companyId },
+      required: true,
       include: [{ model: User, as: 'assignee', attributes: userAttrs }],
     }],
     order: [['linkedAt', 'DESC'], ['id', 'DESC']],
@@ -412,10 +431,15 @@ const linkTicket = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
 
-  const ticketId = parseInt(req.body.ticketId, 10);
-  if (!Number.isFinite(ticketId)) throw new ApiError(400, 'ticketId is required', 'VALIDATION_ERROR');
-  const ticket = await Ticket.findByPk(ticketId);
+  if (req.body.ticketId === undefined || req.body.ticketId === null || req.body.ticketId === '') {
+    throw new ApiError(400, 'ticketId is required', 'VALIDATION_ERROR');
+  }
+  // Missing and hidden look the same; a visible ticket in another company is
+  // refused without saying more.
+  const ticket = await findAccessibleTicket(req.user, req.body.ticketId);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
+  if (ticket.companyId !== asset.companyId) throw new ApiError(400, 'Ticket not found', 'VALIDATION_ERROR');
+  const ticketId = ticket.id;
 
   const existing = await AssetTicket.findOne({ where: { assetId: asset.id, ticketId } });
   if (existing) return res.json({ link: existing });
@@ -462,6 +486,15 @@ const listActivity = asyncHandler(async (req, res) => {
 
 // ==================== Checkout / check-in ====================
 
+// A checkout's contact must be one the caller can see (404 otherwise, the
+// same as a missing one) in the asset's own company (400 otherwise).
+async function assertCheckoutContact(user, rawContactId, asset) {
+  const contact = await findAccessibleContact(user, rawContactId);
+  if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+  if (contact.companyId !== asset.companyId) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
+  return contact;
+}
+
 // GET /assets/:id/checkouts — history, most recent first. The frontend
 // treats the first row with no checkedInAt as "currently checked out."
 const listCheckouts = asyncHandler(async (req, res) => {
@@ -487,10 +520,9 @@ const createCheckout = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id, { include: assetInclude });
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
 
-  const contactId = parseInt(req.body.contactId, 10);
-  if (!Number.isFinite(contactId)) throw new ApiError(400, 'contactId is required', 'VALIDATION_ERROR');
+  if (!req.body.contactId) throw new ApiError(400, 'contactId is required', 'VALIDATION_ERROR');
+  const contactId = (await assertCheckoutContact(req.user, req.body.contactId, asset)).id;
   const contact = await Contact.findByPk(contactId, { include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] });
-  if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
 
   assertNotFutureDate(req.body.checkedOutAt, 'Checkout date');
   const checkedOutAt = req.body.checkedOutAt ? new Date(req.body.checkedOutAt) : new Date();
@@ -620,8 +652,7 @@ const updateCheckout = asyncHandler(async (req, res) => {
 
     if (hasContactId) {
       if (!req.body.contactId) throw new ApiError(400, 'Contact is required', 'VALIDATION_ERROR');
-      const contact = await Contact.findByPk(req.body.contactId);
-      if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+      const contact = await assertCheckoutContact(req.user, req.body.contactId, asset);
       updates.contactId = contact.id;
     }
 

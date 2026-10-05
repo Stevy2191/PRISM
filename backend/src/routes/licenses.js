@@ -1,9 +1,14 @@
 const express = require('express');
 const ctrl = require('../controllers/licensesController');
 const { requirePermission } = require('../middleware/requirePermission');
+const { fenceParam } = require('../middleware/companyFence');
+const { License } = require('../models');
 const { licenseUpload, verifyFileSignature } = require('../middleware/upload');
 
 const router = express.Router();
+
+// Every /:id route is refused for a license in a company the caller can't reach.
+router.param('id', fenceParam(License, 'license'));
 
 // Read access reuses assets.view (licenses are a sub-section of Assets);
 // write access uses the module-specific assets.manage_licenses.

@@ -3,7 +3,7 @@ const path = require('path');
 const { Op } = require('sequelize');
 const {
   License, LicenseAsset, LicenseContact, LicenseAttachment, LicenseActivity,
-  Asset, AssetCategory, Contact, User, Department,
+  Asset, AssetCategory, Company, Contact, User, Department,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
@@ -11,6 +11,11 @@ const { writeAudit } = require('../middleware/audit');
 const { encryptToken, decryptToken } = require('../utils/tokenCrypto');
 const { getAllSettings } = require('./settingsController');
 const { UPLOAD_ROOT } = require('../middleware/upload');
+const {
+  companyScopeWhere, canAccessCompany, parseRecordId, findAccessibleContact,
+} = require('../services/permissionService');
+const { andWhere } = require('../services/recordScope');
+const { resolvePlacement } = require('../services/companyService');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -22,6 +27,7 @@ const SUBLIST_MAX = 500;
 
 const licenseInclude = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
+  { model: Company, as: 'company', attributes: ['id', 'name'] },
   { model: User, as: 'creator', attributes: userAttrs },
 ];
 
@@ -53,7 +59,7 @@ function daysUntil(dateStr) {
 
 // GET /licenses?search=&licenseType=&departmentId=&status=
 const list = asyncHandler(async (req, res) => {
-  const { search, licenseType, departmentId, status } = req.query;
+  const { companyId, search, licenseType, departmentId, status } = req.query;
   const where = {};
   if (licenseType) where.licenseType = licenseType;
   if (departmentId) where.departmentId = departmentId;
@@ -76,8 +82,9 @@ const list = asyncHandler(async (req, res) => {
   }
 
   const { page, limit, offset } = parsePagination(req);
+  const companyFilter = companyId ? { companyId: parseRecordId(companyId) || -1 } : {};
   const { rows, count } = await License.findAndCountAll({
-    where,
+    where: andWhere(where, companyFilter, await companyScopeWhere(req.user)),
     include: licenseInclude,
     order: [['name', 'ASC'], ['id', 'ASC']],
     limit,
@@ -124,6 +131,7 @@ const create = asyncHandler(async (req, res) => {
   });
   if (req.body.licenseKey) values.licenseKey = encryptToken(req.body.licenseKey);
 
+  Object.assign(values, await resolvePlacement(req.user, req.body, null));
   const license = await License.create({ ...values, createdBy: req.user.id });
   await writeAudit(req, 'license.create', 'License', license.id, { name: license.name });
   await logLicenseActivity(license.id, req.user.id, 'created', { name: license.name });
@@ -148,6 +156,7 @@ const update = asyncHandler(async (req, res) => {
     values.licenseKey = encryptToken(req.body.licenseKey);
   }
 
+  Object.assign(values, await resolvePlacement(req.user, req.body, license));
   await license.update(values);
   await writeAudit(req, 'license.update', 'License', license.id, { changes: Object.keys(values) });
   await logLicenseActivity(license.id, req.user.id, 'updated', { changes: Object.keys(values) });
@@ -199,7 +208,11 @@ const listAssets = asyncHandler(async (req, res) => {
   const links = await LicenseAsset.findAll({
     where: { licenseId: license.id },
     include: [
-      { model: Asset, as: 'asset', include: [{ model: AssetCategory, as: 'category' }] },
+      // Only assets in the license's company (a link can outlive a move).
+      {
+        model: Asset, as: 'asset', where: { companyId: license.companyId }, required: true,
+        include: [{ model: AssetCategory, as: 'category' }],
+      },
       { model: User, as: 'assignedByUser', attributes: userAttrs },
     ],
     order: [['assignedAt', 'DESC']],
@@ -211,10 +224,13 @@ const listAssets = asyncHandler(async (req, res) => {
 const linkAsset = asyncHandler(async (req, res) => {
   const license = await License.findByPk(req.params.id);
   if (!license) throw new ApiError(404, 'License not found', 'NOT_FOUND');
-  const assetId = parseInt(req.body.assetId, 10);
-  if (!Number.isFinite(assetId)) throw new ApiError(400, 'assetId is required', 'VALIDATION_ERROR');
-  const asset = await Asset.findByPk(assetId);
-  if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
+  if (!req.body.assetId) throw new ApiError(400, 'assetId is required', 'VALIDATION_ERROR');
+  // Missing and out-of-reach look the same; a reachable asset in another
+  // company is refused without saying more.
+  const asset = await Asset.findByPk(parseRecordId(req.body.assetId) || 0);
+  if (!asset || !(await canAccessCompany(req.user, asset.companyId))) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
+  if (asset.companyId !== license.companyId) throw new ApiError(400, 'Asset not found', 'VALIDATION_ERROR');
+  const assetId = asset.id;
 
   const existing = await LicenseAsset.findOne({ where: { licenseId: license.id, assetId } });
   if (existing) return res.json({ link: existing });
@@ -246,7 +262,11 @@ const listContacts = asyncHandler(async (req, res) => {
   const links = await LicenseContact.findAll({
     where: { licenseId: license.id },
     include: [
-      { model: Contact, as: 'contact', attributes: ['id', 'displayName', 'email'] },
+      // Only contacts in the license's company (a link can outlive a move).
+      {
+        model: Contact, as: 'contact', attributes: ['id', 'displayName', 'email'],
+        where: { companyId: license.companyId }, required: true,
+      },
       { model: User, as: 'assignedByUser', attributes: userAttrs },
     ],
     order: [['assignedAt', 'DESC']],
@@ -258,10 +278,11 @@ const listContacts = asyncHandler(async (req, res) => {
 const assignContact = asyncHandler(async (req, res) => {
   const license = await License.findByPk(req.params.id);
   if (!license) throw new ApiError(404, 'License not found', 'NOT_FOUND');
-  const contactId = parseInt(req.body.contactId, 10);
-  if (!Number.isFinite(contactId)) throw new ApiError(400, 'contactId is required', 'VALIDATION_ERROR');
-  const contact = await Contact.findByPk(contactId);
+  if (!req.body.contactId) throw new ApiError(400, 'contactId is required', 'VALIDATION_ERROR');
+  const contact = await findAccessibleContact(req.user, req.body.contactId);
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+  if (contact.companyId !== license.companyId) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
+  const contactId = contact.id;
 
   const existing = await LicenseContact.findOne({ where: { licenseId: license.id, contactId } });
   if (!existing) {

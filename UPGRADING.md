@@ -46,6 +46,16 @@ Nothing here needs action before upgrading.
   people" can only assign their own department. Before, any user who could
   create tickets could move another department's contact, and its tickets,
   into their own department and read them.
+- Assets, licenses and contracts can now only be linked to tickets, contacts
+  and assets you can see, in the same company. This covers checking an asset
+  out to a contact, linking assets on the new-ticket form, linking an asset
+  to a ticket, and linking a license or contract to an asset or contact.
+  Before, a link could reach any ticket or contact by id and show its title
+  or name. **Changed response:** an asset id on the new-ticket form that
+  isn't a whole number, or is missing, now returns `400 VALIDATION_ERROR`
+  ("Asset not found") instead of being skipped.
+- An asset, license or contract address with extra characters after the id
+  (`/assets/12abc`) now answers "not found". Before, it opened record 12.
 
 ### Fixes
 

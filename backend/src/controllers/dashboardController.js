@@ -188,25 +188,24 @@ async function hoursForUser(userId) {
 // Small admin-dashboard "Assets" summary — same counts as GET /assets/stats,
 // duplicated here rather than imported (it's a 3-query helper, not worth a
 // shared service module for).
-async function assetsSummaryStats() {
+async function assetsSummaryStats(companyWhere = {}) {
+  const scoped = (where) => ({ where: andWhere(where, companyWhere) });
   const todayStr = new Date().toISOString().slice(0, 10);
   const in90Str = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
   const in30Str = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const in60Str = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
   const [dueForReplacement, expiredWarranty, totalActive, renewingSoon, licensesExpiringSoon, contractsRenewingSoon] = await Promise.all([
-    Asset.count({ where: { replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90Str } } }),
-    Asset.count({ where: { warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } } }),
-    Asset.count({ where: { status: 'active' } }),
-    getSubscriptionRenewals({ withinDays: 30 }),
-    License.count({ where: { expiryDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: in30Str } } }),
-    Contract.count({
-      where: {
-        [Op.or]: [
-          { renewalDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: in60Str } },
-          { renewalDate: null, endDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: in60Str } },
-        ],
-      },
-    }),
+    Asset.count(scoped({ replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90Str } })),
+    Asset.count(scoped({ warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } })),
+    Asset.count(scoped({ status: 'active' })),
+    getSubscriptionRenewals({ withinDays: 30, where: companyWhere }),
+    License.count(scoped({ expiryDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: in30Str } })),
+    Contract.count(scoped({
+      [Op.or]: [
+        { renewalDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: in60Str } },
+        { renewalDate: null, endDate: { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: in60Str } },
+      ],
+    })),
   ]);
   return {
     dueForReplacement, expiredWarranty, totalActive, subscriptionsRenewingSoon: renewingSoon.length,
@@ -452,7 +451,7 @@ const get = asyncHandler(async (req, res) => {
       teamWorkload(buckets, {}, companyWhere),
       activityFeed(buckets, companyWhere, companyWhere),
       getTeamHappiness({}),
-      assetsSummaryStats(),
+      assetsSummaryStats(companyWhere),
     ]);
     return res.json({
       mode: 'admin_system',

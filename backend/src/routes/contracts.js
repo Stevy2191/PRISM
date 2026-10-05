@@ -1,9 +1,14 @@
 const express = require('express');
 const ctrl = require('../controllers/contractsController');
 const { requirePermission } = require('../middleware/requirePermission');
+const { fenceParam } = require('../middleware/companyFence');
+const { Contract } = require('../models');
 const { contractUpload, verifyFileSignature } = require('../middleware/upload');
 
 const router = express.Router();
+
+// Every /:id route is refused for a contract in a company the caller can't reach.
+router.param('id', fenceParam(Contract, 'contract'));
 
 const canView = requirePermission('assets.view');
 const canManage = requirePermission('assets.manage_contracts');

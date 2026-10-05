@@ -2,9 +2,14 @@ const express = require('express');
 const ctrl = require('../controllers/assetsController');
 const categoriesCtrl = require('../controllers/assetCategoriesController');
 const { requirePermission } = require('../middleware/requirePermission');
+const { fenceParam } = require('../middleware/companyFence');
+const { Asset } = require('../models');
 const { assetUpload, verifyFileSignature } = require('../middleware/upload');
 
 const router = express.Router();
+
+// Every /:id route is refused for a asset in a company the caller can't reach.
+router.param('id', fenceParam(Asset, 'asset'));
 
 const canView = requirePermission('assets.view');
 const canCreate = requirePermission('assets.create');

@@ -26,7 +26,7 @@ const {
   Company,
   sequelize,
 } = require('../models');
-const { Op } = require('sequelize');
+const { Op, col } = require('sequelize');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
@@ -76,7 +76,16 @@ const ticketInclude = [
   // let any staff member who can view the ticket submit a fake response as
   // the customer. The ticket UI only ever reads status/rating/comment/sentAt.
   { model: CsatSurvey, as: 'csatSurvey', attributes: { exclude: ['surveyToken'] } },
-  { model: Asset, as: 'linkedAssets', through: { attributes: [] }, attributes: ['id', 'assetTag', 'name'] },
+  // Only assets in the ticket's company: a link can outlive a move of the
+  // asset (or of the ticket's contact), and must not show across companies.
+  {
+    model: Asset,
+    as: 'linkedAssets',
+    through: { attributes: [] },
+    attributes: ['id', 'assetTag', 'name'],
+    where: { companyId: { [Op.eq]: col('Ticket.companyId') } },
+    required: false,
+  },
   {
     model: TicketFieldValue,
     as: 'fieldValues',
@@ -403,9 +412,7 @@ const create = asyncHandler(async (req, res) => {
       throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
     }
   }
-  const assetIdList = Array.isArray(assetIds)
-    ? [...new Set(assetIds.map((id) => parseInt(id, 10)).filter(Boolean))]
-    : [];
+  const rawAssetIds = Array.isArray(assetIds) ? assetIds : [];
 
   // The contact and project must be ones the caller can see (S7, S6): the
   // response carries the contact's email/phone and the project's name.
@@ -413,6 +420,17 @@ const create = asyncHandler(async (req, res) => {
   // own id is what gets stored.
   const contact = await findAccessibleContact(req.user, contactId);
   if (!contact) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
+  // Linked assets must be in the ticket's company, which is the contact's
+  // (one the caller can see, so the company is reachable). Missing and
+  // foreign get the same answer; the checked asset's own id is stored.
+  const assetIdSet = new Set();
+  for (const rawId of rawAssetIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const asset = await Asset.findByPk(parseRecordId(rawId) || 0, { attributes: ['id', 'companyId'] });
+    if (!asset || asset.companyId !== contact.companyId) throw new ApiError(400, 'Asset not found', 'VALIDATION_ERROR');
+    assetIdSet.add(asset.id);
+  }
+  const assetIdList = [...assetIdSet];
   let resolvedProjectId = null;
   if (projectId) {
     const project = await findAccessibleProject(req.user, projectId);

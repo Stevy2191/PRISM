@@ -30,6 +30,8 @@ function cutoffStr(days) {
 // just assetId. Stored as an AssetActivity row rather than a dedicated
 // column since this is a one-off marker, same reasoning as every other
 // "did we already do X" check in this app that doesn't warrant a new table.
+// Alert tickets have no contact, so the ticket company hook keeps the
+// companyId passed here: each alert lands in its record's own company.
 async function alreadyAlertedByDate(assetId, action, dateStr) {
   const rows = await AssetActivity.findAll({ where: { assetId, action } });
   return rows.some((r) => r.detail?.date === dateStr || r.detail?.renewalDate === dateStr);
@@ -52,6 +54,7 @@ async function checkSubscriptionRenewals() {
       description: `Automated alert: the subscription for asset ${r.asset.assetTag} (${r.asset.name}) renews on ${r.renewalDate}.`,
       status: 'Open', priority: 'medium', type: 'request', source: 'manual',
       assigneeId: null, departmentId: r.asset.departmentId || null, contactId: null, createdBy: null,
+      companyId: r.asset.companyId,
     });
     // eslint-disable-next-line no-await-in-loop
     await AssetTicket.create({ assetId: r.asset.id, ticketId: ticket.id, linkedBy: null });
@@ -81,6 +84,7 @@ async function checkWarrantyExpiry() {
       description: `Automated alert: the warranty for asset ${asset.assetTag} (${asset.name}) expires on ${asset.warrantyExpiryDate}.`,
       status: 'Open', priority: 'medium', type: 'request', source: 'manual',
       assigneeId: null, departmentId: asset.departmentId || null, contactId: null, createdBy: null,
+      companyId: asset.companyId,
     });
     // eslint-disable-next-line no-await-in-loop
     await AssetTicket.create({ assetId: asset.id, ticketId: ticket.id, linkedBy: null });
@@ -110,6 +114,7 @@ async function checkReplacementDates() {
       description: `Automated alert: asset ${asset.assetTag} (${asset.name}) is due for replacement on ${asset.replacementPlanDate}.`,
       status: 'Open', priority: 'medium', type: 'request', source: 'manual',
       assigneeId: null, departmentId: asset.departmentId || null, contactId: null, createdBy: null,
+      companyId: asset.companyId,
     });
     // eslint-disable-next-line no-await-in-loop
     await AssetTicket.create({ assetId: asset.id, ticketId: ticket.id, linkedBy: null });
@@ -155,6 +160,7 @@ async function checkLicenseExpiry() {
       description: `The ${license.vendor || 'vendor'} license for ${license.name} expires on ${license.expiryDate}. ${seatsLine} Annual cost: ${costLine}. Auto-renews: ${license.autoRenews ? 'yes' : 'no'}. Action required: renew or purchase replacement.`,
       status: 'Open', priority, type: 'request', source: 'manual',
       assigneeId: null, departmentId: license.departmentId || null, contactId: null, createdBy: null,
+      companyId: license.companyId,
     });
     // eslint-disable-next-line no-await-in-loop
     await LicenseTicket.create({ licenseId: license.id, ticketId: ticket.id, linkedBy: null });
@@ -198,6 +204,7 @@ async function checkContractRenewals() {
       description: `The ${contract.vendor || 'vendor'} contract "${contract.name}" renews on ${renewsOn}. Vendor contact: ${contactLine}. Annual cost: ${costLine}. Assets covered: ${assetsCoveredCount}. Action required: review and confirm renewal or cancel.`,
       status: 'Open', priority, type: 'request', source: 'manual',
       assigneeId: null, departmentId: contract.departmentId || null, contactId: null, createdBy: null,
+      companyId: contract.companyId,
     });
     // eslint-disable-next-line no-await-in-loop
     await ContractTicket.create({ contractId: contract.id, ticketId: ticket.id, linkedBy: null });

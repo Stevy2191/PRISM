@@ -5,12 +5,14 @@
 // all four agree on the same underlying data.
 const { Op } = require('sequelize');
 const { Asset, AssetCategory, AssetCategoryField, AssetFieldValue, Department } = require('../models');
+const { isEmpty } = require('./recordScope');
 
 // Returns one row per asset that has a nextRenewalDate value, with the
 // renewal date and (if present) subscription provider name attached.
 // `withinDays`, if given, filters to renewalDate <= today+N (including
-// anything already past due — more urgent, not excluded).
-async function getSubscriptionRenewals({ withinDays } = {}) {
+// anything already past due — more urgent, not excluded). `where`, if given,
+// limits the assets (callers pass the viewer's company scope).
+async function getSubscriptionRenewals({ withinDays, where } = {}) {
   const trackedFields = await AssetCategoryField.findAll({
     where: { fieldKey: { [Op.in]: ['nextRenewalDate', 'subscriptionProvider'] } },
     attributes: ['id', 'fieldKey', 'categoryId'],
@@ -24,6 +26,7 @@ async function getSubscriptionRenewals({ withinDays } = {}) {
     include: [{
       model: Asset,
       as: 'asset',
+      ...(where && !isEmpty(where) ? { where, required: true } : {}),
       include: [
         { model: AssetCategory, as: 'category', attributes: ['id', 'name', 'color'] },
         { model: Department, as: 'department', attributes: ['id', 'name'] },

@@ -122,6 +122,19 @@ async function resetData() {
     // eslint-disable-next-line no-await-in-loop
     await sequelize.query(`TRUNCATE TABLE \`${table}\``).catch(() => {});
   }
+  // Asset, license and contract records are emptied with DELETE: a TRUNCATE
+  // costs a table rebuild even when empty, and these tables are empty for
+  // nearly every test. Their ids don't restart, which no test relies on.
+  // Asset categories (and their field definitions) can be seeded, so they stay.
+  const deleted = [
+    'AssetFieldValues', 'AssetCheckouts', 'AssetAttachments', 'AssetActivity', 'Assets',
+    'LicenseAssets', 'LicenseContacts', 'LicenseAttachments', 'LicenseActivity', 'LicenseTickets', 'Licenses',
+    'ContractAssets', 'ContractAttachments', 'ContractActivity', 'ContractTickets', 'Contracts',
+  ];
+  for (const table of deleted) {
+    // eslint-disable-next-line no-await-in-loop
+    await sequelize.query(`DELETE FROM \`${table}\``).catch(() => {});
+  }
   await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
   // Companies is never truncated: the internal company (created by the
   // migration) must keep its id, because model hooks and the company cache

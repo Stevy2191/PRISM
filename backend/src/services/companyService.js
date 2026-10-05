@@ -58,6 +58,48 @@ async function resolveRecordCompany(user, rawCompanyId) {
   return company;
 }
 
+// Company-bound fields of an asset, license or contract that the body sets,
+// checked against the record's company. `record` is null on create.
+// `fields` names which apply: departmentId always, siteId and
+// assignedToContactId for assets. Each one must sit in the record's company
+// (and a contact must be one the user can see); missing, foreign and hidden
+// all get the same 400. Moving company clears any of them the body doesn't
+// set again, since they belonged to the old company. Returns the values to
+// write, companyId included when it changes.
+async function resolvePlacement(user, body, record, fields = ['departmentId']) {
+  const { parseRecordId, findAccessibleContact } = require('./permissionService'); // eslint-disable-line global-require
+  const { ApiError } = require('../middleware/error'); // eslint-disable-line global-require
+  const out = {};
+  let companyId = record ? record.companyId : null;
+  const moving = !record || (body.companyId !== undefined && parseRecordId(body.companyId) !== record.companyId);
+  if (moving) {
+    companyId = (await resolveRecordCompany(user, body.companyId)).id;
+    out.companyId = companyId;
+  }
+  const finders = {
+    departmentId: ['Department', (id) => findDepartmentInCompany(id, companyId)],
+    siteId: ['Site', (id) => findSiteInCompany(id, companyId)],
+    assignedToContactId: ['Contact', async (id) => {
+      const contact = await findAccessibleContact(user, id);
+      return contact && contact.companyId === companyId ? contact : null;
+    }],
+  };
+  for (const field of fields) {
+    const [label, find] = finders[field];
+    if (body[field] === undefined) {
+      if (record && moving && record[field] != null) out[field] = null;
+    } else if (body[field] === null || body[field] === '') {
+      out[field] = null;
+    } else {
+      const found = await find(body[field]); // eslint-disable-line no-await-in-loop
+      if (!found) throw new ApiError(400, `${label} not found`, 'VALIDATION_ERROR');
+      out[field] = found.id;
+    }
+  }
+  return out;
+}
+
 module.exports = {
   getInternalCompanyId, FREE_MAIL_DOMAINS, findDepartmentInCompany, findSiteInCompany, resolveRecordCompany,
+  resolvePlacement,
 };

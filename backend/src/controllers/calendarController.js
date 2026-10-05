@@ -14,6 +14,7 @@ const { asyncHandler } = require('../middleware/error');
 const { andWhere, ticketScopeWhere, projectScopeWhere } = require('../services/recordScope');
 const { getTicketStatusBuckets, getProjectStatusBuckets, getProjectStatusIdBehaviorMap } = require('../services/statusBehavior');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
+const { companyScopeWhere } = require('../services/permissionService');
 
 const userAttrs = ['id', 'displayName'];
 
@@ -179,8 +180,12 @@ const listEvents = asyncHandler(async (req, res) => {
     }
   }
 
+  // Renewal events come from assets, licenses and contracts, fenced by the
+  // viewer's companies like the records themselves.
+  const assetScope = await companyScopeWhere(req.user);
+
   if (types.includes('subscriptions')) {
-    const renewals = await getSubscriptionRenewals({});
+    const renewals = await getSubscriptionRenewals({ where: assetScope });
     renewals.forEach((r) => {
       if (startDate && r.renewalDate < startDate) return;
       if (endDate && r.renewalDate > endDate) return;
@@ -208,7 +213,7 @@ const listEvents = asyncHandler(async (req, res) => {
     if (startDate) where.expiryDate = { ...where.expiryDate, [Op.gte]: startDate };
     if (endDate) where.expiryDate = { ...where.expiryDate, [Op.lte]: endDate };
     if (departmentId) where.departmentId = departmentId;
-    const licenses = await License.findAll({ where });
+    const licenses = await License.findAll({ where: andWhere(where, assetScope) });
     licenses.forEach((lic) => {
       events.push({
         id: `license-${lic.id}`,
@@ -236,7 +241,7 @@ const listEvents = asyncHandler(async (req, res) => {
       ],
     };
     if (departmentId) where.departmentId = departmentId;
-    const contracts = await Contract.findAll({ where });
+    const contracts = await Contract.findAll({ where: andWhere(where, assetScope) });
     contracts.forEach((c) => {
       const renewsOn = c.renewalDate || c.endDate;
       if (startDate && renewsOn < startDate) return;
