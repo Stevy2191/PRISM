@@ -7,7 +7,8 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { computeProjectCompletion } = require('../services/projectCompletion');
-const { hasPermission } = require('../services/permissionService');
+const { hasPermission, companyScopeWhere } = require('../services/permissionService');
+const { andWhere, isEmpty } = require('../services/recordScope');
 const { getUserPerformanceStats, getTeamHappiness } = require('../services/csatStatsService');
 const { getAllSettings } = require('./settingsController');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
@@ -70,29 +71,29 @@ async function projectHealthFor(projectWhere) {
   );
 }
 
-async function statsForUser(userId, scopeField, buckets) {
+async function statsForUser(userId, scopeField, buckets, companyWhere = {}) {
   const today = todayStr();
   const thisWeekStart = startOfWeek(new Date());
   const lastWeekStart = new Date(thisWeekStart);
   lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
   const [openTickets, overdueTickets, highPriorityOpen, closedThisWeek, closedLastWeek] = await Promise.all([
-    Ticket.count({ where: { [scopeField]: userId, status: { [Op.in]: buckets.open } } }),
+    Ticket.count({ where: andWhere({ [scopeField]: userId, status: { [Op.in]: buckets.open } }, companyWhere) }),
     Ticket.count({
       // Only OPEN tickets can be "overdue" — archived/closed tickets are
       // hidden from this count rather than lumped in via a NOT-closed check.
-      where: { [scopeField]: userId, status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } },
+      where: andWhere({ [scopeField]: userId, status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } }, companyWhere),
     }),
     Ticket.count({
-      where: {
+      where: andWhere({
         [scopeField]: userId,
         status: { [Op.in]: buckets.open },
         priority: { [Op.in]: ['high', 'critical'] },
-      },
+      }, companyWhere),
     }),
-    Ticket.count({ where: { [scopeField]: userId, resolvedAt: { [Op.gte]: thisWeekStart } } }),
+    Ticket.count({ where: andWhere({ [scopeField]: userId, resolvedAt: { [Op.gte]: thisWeekStart } }, companyWhere) }),
     Ticket.count({
-      where: { [scopeField]: userId, resolvedAt: { [Op.gte]: lastWeekStart, [Op.lt]: thisWeekStart } },
+      where: andWhere({ [scopeField]: userId, resolvedAt: { [Op.gte]: lastWeekStart, [Op.lt]: thisWeekStart } }, companyWhere),
     }),
   ]);
 
@@ -115,11 +116,11 @@ async function systemStats(buckets, extraWhere = {}) {
   lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
   const [openTickets, overdueTickets, unassignedTickets, closedThisWeek, closedLastWeek] = await Promise.all([
-    Ticket.count({ where: { ...extraWhere, status: { [Op.in]: buckets.open } } }),
-    Ticket.count({ where: { ...extraWhere, status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today } } }),
-    Ticket.count({ where: { ...extraWhere, assigneeId: null, status: { [Op.in]: buckets.open } } }),
-    Ticket.count({ where: { ...extraWhere, resolvedAt: { [Op.gte]: thisWeekStart } } }),
-    Ticket.count({ where: { ...extraWhere, resolvedAt: { [Op.gte]: lastWeekStart, [Op.lt]: thisWeekStart } } }),
+    Ticket.count({ where: andWhere(extraWhere, { status: { [Op.in]: buckets.open }  }) }),
+    Ticket.count({ where: andWhere(extraWhere, { status: { [Op.in]: buckets.open }, dueDate: { [Op.lt]: today }  }) }),
+    Ticket.count({ where: andWhere(extraWhere, { assigneeId: null, status: { [Op.in]: buckets.open }  }) }),
+    Ticket.count({ where: andWhere(extraWhere, { resolvedAt: { [Op.gte]: thisWeekStart }  }) }),
+    Ticket.count({ where: andWhere(extraWhere, { resolvedAt: { [Op.gte]: lastWeekStart, [Op.lt]: thisWeekStart }  }) }),
   ]);
 
   return {
@@ -132,9 +133,9 @@ async function systemStats(buckets, extraWhere = {}) {
   };
 }
 
-async function ticketsForUser(userId, scopeField, behaviorByName) {
+async function ticketsForUser(userId, scopeField, behaviorByName, companyWhere = {}) {
   const tickets = await Ticket.findAll({
-    where: { [scopeField]: userId },
+    where: andWhere({ [scopeField]: userId }, companyWhere),
     order: [['updatedAt', 'DESC']],
     limit: 20,
   });
@@ -213,7 +214,7 @@ async function assetsSummaryStats() {
   };
 }
 
-async function teamWorkload(buckets, extraUserWhere = {}) {
+async function teamWorkload(buckets, extraUserWhere = {}, companyWhere = {}) {
   const staffUsers = await User.findAll({
     where: { role: { [Op.in]: ['admin', 'technician'] }, ...extraUserWhere },
     attributes: ['id', 'displayName'],
@@ -222,7 +223,7 @@ async function teamWorkload(buckets, extraUserWhere = {}) {
     staffUsers.map(async (u) => ({
       userId: u.id,
       displayName: u.displayName,
-      openCount: await Ticket.count({ where: { assigneeId: u.id, status: { [Op.in]: buckets.open } } }),
+      openCount: await Ticket.count({ where: andWhere({ assigneeId: u.id, status: { [Op.in]: buckets.open } }, companyWhere) }),
     }))
   );
   return rows.sort((a, b) => b.openCount - a.openCount);
@@ -303,12 +304,12 @@ async function activityFeed(buckets, ticketWhere = {}, projectWhere = {}, { limi
   const fetchLimit = (limit + offset) * 3 + 30;
 
   let ticketIdSet = null;
-  if (Object.keys(ticketWhere).length > 0) {
+  if (!isEmpty(ticketWhere)) {
     const rows = await Ticket.findAll({ where: ticketWhere, attributes: ['id'], raw: true });
     ticketIdSet = new Set(rows.map((r) => r.id));
   }
   let projectIdSet = null;
-  if (Object.keys(projectWhere).length > 0) {
+  if (!isEmpty(projectWhere)) {
     const rows = await Project.findAll({ where: projectWhere, attributes: ['id'], raw: true });
     projectIdSet = new Set(rows.map((r) => r.id));
   }
@@ -419,6 +420,9 @@ const get = asyncHandler(async (req, res) => {
   const requestedUserId = req.query.userId ? parseInt(req.query.userId, 10) : null;
 
   const { isSystemView, isDepartmentView } = await resolveDashboardScope(req.user.id);
+  // The company fence follows the viewer: whatever dashboard is shown, it
+  // only counts records in companies the viewer can reach.
+  const companyWhere = await companyScopeWhere(req.user);
 
   if (requestedUserId && !isSystemView && !isDepartmentView) {
     throw new ApiError(403, "You don't have permission to view another user's dashboard", 'FORBIDDEN');
@@ -443,10 +447,10 @@ const get = asyncHandler(async (req, res) => {
     const settings = await getAllSettings();
     const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
     const [stats, projectHealth, workload, activity, teamHappiness, assetsSummary] = await Promise.all([
-      systemStats(buckets),
-      projectHealthFor({}),
-      teamWorkload(buckets),
-      activityFeed(buckets, {}, {}),
+      systemStats(buckets, companyWhere),
+      projectHealthFor(companyWhere),
+      teamWorkload(buckets, {}, companyWhere),
+      activityFeed(buckets, companyWhere, companyWhere),
       getTeamHappiness({}),
       assetsSummaryStats(),
     ]);
@@ -469,10 +473,10 @@ const get = asyncHandler(async (req, res) => {
     const settings = await getAllSettings();
     const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
     const [stats, projectHealth, workload, activity, teamHappiness] = await Promise.all([
-      systemStats(buckets, { departmentId: deptId }),
-      projectHealthFor(deptProjectWhere),
-      teamWorkload(buckets, { departmentId: deptId }),
-      activityFeed(buckets, { departmentId: deptId }, deptProjectWhere),
+      systemStats(buckets, andWhere({ departmentId: deptId }, companyWhere)),
+      projectHealthFor(andWhere(deptProjectWhere, companyWhere)),
+      teamWorkload(buckets, { departmentId: deptId }, companyWhere),
+      activityFeed(buckets, andWhere({ departmentId: deptId }, companyWhere), andWhere(deptProjectWhere, companyWhere)),
       getTeamHappiness({ departmentId: deptId }),
     ]);
     return res.json({
@@ -495,7 +499,7 @@ const get = asyncHandler(async (req, res) => {
   const scopeField = 'assigneeId';
 
   const taskProjectRows = await Ticket.findAll({
-    where: { [scopeField]: targetId, projectId: { [Op.ne]: null } },
+    where: andWhere({ [scopeField]: targetId, projectId: { [Op.ne]: null } }, companyWhere),
     attributes: ['projectId'],
     group: ['projectId'],
     raw: true,
@@ -503,10 +507,10 @@ const get = asyncHandler(async (req, res) => {
   const taskProjectIds = taskProjectRows.map((r) => r.projectId);
 
   const [stats, tickets, notifications, projectHealth, hours, myRatingsRaw, settings] = await Promise.all([
-    statsForUser(targetId, scopeField, buckets),
-    ticketsForUser(targetId, scopeField, behaviorByName),
+    statsForUser(targetId, scopeField, buckets, companyWhere),
+    ticketsForUser(targetId, scopeField, behaviorByName, companyWhere),
     notificationsForUser(targetId),
-    taskProjectIds.length ? projectHealthFor({ id: { [Op.in]: taskProjectIds } }) : [],
+    taskProjectIds.length ? projectHealthFor(andWhere({ id: { [Op.in]: taskProjectIds } }, companyWhere)) : [],
     hoursForUser(targetId),
     getUserPerformanceStats(targetId),
     getAllSettings(),
@@ -536,13 +540,14 @@ const activityMore = asyncHandler(async (req, res) => {
   }
 
   const buckets = await getTicketStatusBuckets();
+  const companyWhere = await companyScopeWhere(req.user);
   let activity;
   if (isSystemView) {
-    activity = await activityFeed(buckets, {}, {}, { offset });
+    activity = await activityFeed(buckets, companyWhere, companyWhere, { offset });
   } else {
     const deptId = req.user.departmentId;
     const deptProjectWhere = { [Op.or]: [{ ownerDepartmentId: deptId }, { forDepartmentId: deptId }] };
-    activity = await activityFeed(buckets, { departmentId: deptId }, deptProjectWhere, { offset });
+    activity = await activityFeed(buckets, andWhere({ departmentId: deptId }, companyWhere), andWhere(deptProjectWhere, companyWhere), { offset });
   }
   res.json({ activity: activity.events, activityHasMore: activity.hasMore });
 });

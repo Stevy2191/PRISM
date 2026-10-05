@@ -14,6 +14,7 @@ const { logProjectActivity } = require('../services/projectActivity');
 const { syncProjectToExternalCalendars, removeProjectFromExternalCalendars } = require('../services/calendarPush');
 const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
+const { andWhere, projectScopeWhere } = require('../services/recordScope');
 
 // Chunk size for the "load more" lists on a project's detail page. Tasks are
 // deliberately excluded — they are drag-reorderable, and a reorder that can
@@ -101,27 +102,10 @@ async function buildProjectListWhere(req) {
   const where = {};
   const { status, ownerDept, forDept, assignee, myProjects, myDepartment, overdue, search, tag } = req.query;
 
-  // Scope filtering from the resolved permission set (projects.view_all >
-  // projects.view_department > projects.view_own — see permissionService).
-  const scope = await getUserProjectScope(req.user.id);
-
-  if (scope === 'own') {
-    const memberships = await ProjectMember.findAll({ where: { userId: req.user.id }, attributes: ['projectId'], raw: true });
-    const memberProjectIds = memberships.map((m) => m.projectId);
-    if (memberProjectIds.length === 0) return { where, empty: true };
-    where.id = { [Op.in]: memberProjectIds };
-  } else if (scope === 'department') {
-    const memberships = await ProjectMember.findAll({ where: { userId: req.user.id }, attributes: ['projectId'], raw: true });
-    const memberProjectIds = memberships.map((m) => m.projectId);
-    const or = [{ ownerDepartmentId: req.user.departmentId }, { forDepartmentId: req.user.departmentId }];
-    if (memberProjectIds.length) or.push({ id: { [Op.in]: memberProjectIds } });
-    where[Op.and] = [{ [Op.or]: or }];
-    if (ownerDept) where.ownerDepartmentId = ownerDept;
-    if (forDept) where.forDepartmentId = forDept;
-  } else {
-    if (ownerDept) where.ownerDepartmentId = ownerDept;
-    if (forDept) where.forDepartmentId = forDept;
-  }
+  // Scope (company fence and tier) comes from recordScope and is ANDed in at
+  // the end, so these filters can only narrow it.
+  if (ownerDept) where.ownerDepartmentId = ownerDept;
+  if (forDept) where.forDepartmentId = forDept;
 
   // "My department" quick filter — narrows to the caller's own department
   // regardless of scope tier (meaningful for 'all'/'department' scopes; a
@@ -173,7 +157,7 @@ async function buildProjectListWhere(req) {
     where.id = { [Op.in]: ids };
   }
 
-  return { where, empty: false };
+  return { where: andWhere(where, await projectScopeWhere(req.user)), empty: false };
 }
 
 // GET /projects — paginated

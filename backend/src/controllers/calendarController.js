@@ -11,7 +11,7 @@ const {
   License, Contract,
 } = require('../models');
 const { asyncHandler } = require('../middleware/error');
-const { getUserTicketScope, getUserProjectScope } = require('../services/permissionService');
+const { andWhere, ticketScopeWhere, projectScopeWhere } = require('../services/recordScope');
 const { getTicketStatusBuckets, getProjectStatusBuckets, getProjectStatusIdBehaviorMap } = require('../services/statusBehavior');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 
@@ -24,38 +24,20 @@ function parseTypes(raw) {
   return all.filter((t) => requested.includes(t));
 }
 
+// Both build on the shared list scope (company fence + tier), ANDed with the
+// calendar's own filters so a filter can only narrow it.
 async function scopedTicketWhere(req, extraWhere) {
-  const scope = await getUserTicketScope(req.user.id);
-  let where = { ...extraWhere };
-  if (scope === 'department') {
-    where[Op.and] = [{ [Op.or]: [{ departmentId: req.user.departmentId }, { assigneeId: req.user.id }] }];
-  } else if (scope === 'own') {
-    where.assigneeId = req.user.id;
-  }
-  return where;
+  return andWhere(extraWhere, await ticketScopeWhere(req.user));
 }
 
 // Returns the where-clause for Project.findAll AND is reused to resolve
 // the set of in-scope project ids for tasks (which have no view-scope
 // concept of their own — they inherit their parent project's).
 async function scopedProjectWhere(req, requestedDepartmentId) {
-  const scope = await getUserProjectScope(req.user.id);
-  const where = {};
-  if (scope === 'own') {
-    const memberships = await ProjectMember.findAll({ where: { userId: req.user.id }, attributes: ['projectId'], raw: true });
-    const memberProjectIds = memberships.map((m) => m.projectId);
-    where.id = { [Op.in]: memberProjectIds.length ? memberProjectIds : [-1] };
-  } else if (scope === 'department') {
-    const memberships = await ProjectMember.findAll({ where: { userId: req.user.id }, attributes: ['projectId'], raw: true });
-    const memberProjectIds = memberships.map((m) => m.projectId);
-    const or = [{ ownerDepartmentId: req.user.departmentId }, { forDepartmentId: req.user.departmentId }];
-    if (memberProjectIds.length) or.push({ id: { [Op.in]: memberProjectIds } });
-    where[Op.and] = [{ [Op.or]: or }];
-  }
-  if (requestedDepartmentId) {
-    where[Op.and] = [...(where[Op.and] || []), { [Op.or]: [{ ownerDepartmentId: requestedDepartmentId }, { forDepartmentId: requestedDepartmentId }] }];
-  }
-  return where;
+  const departmentFilter = requestedDepartmentId
+    ? { [Op.or]: [{ ownerDepartmentId: requestedDepartmentId }, { forDepartmentId: requestedDepartmentId }] }
+    : {};
+  return andWhere(await projectScopeWhere(req.user), departmentFilter);
 }
 
 function ticketPriorityColor(priority) {

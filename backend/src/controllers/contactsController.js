@@ -6,6 +6,7 @@ const {
   hasPermission, findAccessibleContact, canAccessContact, parseRecordId,
 } = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
+const { andWhere, contactScopeWhere } = require('../services/recordScope');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
 const { parsePagination, paginated } = require('../utils/pagination');
@@ -16,13 +17,6 @@ const contactInclude = [
   { model: User, as: 'assignedToUser', attributes: userAttrs },
 ];
 const ticketAttrs = ['id', 'title', 'status', 'priority', 'type', 'dueDate', 'resolvedAt', 'createdAt', 'updatedAt'];
-
-// Department-scoped unless the caller holds people.view_all (mirrors
-// usersController.list's exact pattern).
-async function scopeWhere(req) {
-  const canViewAll = await hasPermission(req.user.id, 'people.view_all');
-  return canViewAll ? {} : { departmentId: req.user.departmentId };
-}
 
 // Chunk size for the "load more" lists on a contact's detail page.
 const SUBLIST_LIMIT = 25;
@@ -35,10 +29,13 @@ const SORTABLE_COLUMNS = ['firstName', 'lastName', 'displayName', 'email', 'crea
 
 // Builds the WHERE clause for a contact listing. Shared by the paginated
 // list and the A-Z index so the index always describes the list it sits above.
+// The caller's scope (recordScope.contactScopeWhere) is ANDed in last, so a
+// filter can only narrow it — it used to be merged, which let ?departmentId=
+// and ?noDept=true replace a department-scoped user's own department (S10).
 async function buildContactListWhere(req) {
   const { search, departmentId, assignedTo, myContacts, noDept, status } = req.query;
 
-  const where = await scopeWhere(req);
+  const where = {};
   if (departmentId) where.departmentId = departmentId;
   if (noDept === 'true') where.departmentId = null;
   if (assignedTo) where.assignedTo = assignedTo;
@@ -56,7 +53,7 @@ async function buildContactListWhere(req) {
       { mobile: { [Op.like]: `%${term}%` } },
     ];
   }
-  return where;
+  return andWhere(where, await contactScopeWhere(req.user));
 }
 
 function contactOrder(req) {

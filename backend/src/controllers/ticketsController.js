@@ -44,6 +44,7 @@ const { buildTicketMessageId } = require('../services/inboundEmailService');
 const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { generateTicketReport } = require('../services/ticketReport');
+const { andWhere, ticketScopeWhere } = require('../services/recordScope');
 const {
   getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent,
   findAccessibleTicket, parseTicketId, parseRecordId, findAccessibleProject, findAccessibleContact,
@@ -155,9 +156,11 @@ const SUBLIST_MAX = 500;
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
 
 // Builds the WHERE clause for a ticket listing from the query string plus the
-// caller's permission scope. Shared by the paginated table listing and the
-// board, so both honour exactly the same filters and scope rules.
-async function buildTicketListWhere(req) {
+// caller's scope (recordScope.ticketScopeWhere — company fence and tier).
+// Shared by the paginated table listing and the board, so both honour exactly
+// the same filters and scope rules. The board passes ignoreStatus: it pins
+// each column's status itself.
+async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   const where = {};
   const {
     status, priority, assignee, project, department, contactId, type, team, source,
@@ -167,7 +170,7 @@ async function buildTicketListWhere(req) {
   // "Closed" in the UI covers every status whose behaviorType is 'closed';
   // everything else maps to the matching column value directly.
   const buckets = await getTicketStatusBuckets();
-  if (status) where.status = status === 'closed' ? { [Op.in]: buckets.closed } : status;
+  if (status && !ignoreStatus) where.status = status === 'closed' ? { [Op.in]: buckets.closed } : status;
   if (priority) where.priority = priority;
   if (type) where.type = type;
   if (source) where.source = source;
@@ -193,29 +196,17 @@ async function buildTicketListWhere(req) {
     // Only imply "open" when the status dropdown isn't already set — this is
     // an independent quick-filter toggle, not a status override. Archived
     // tickets are excluded here too (an "open" check, not just "not closed").
-    if (!status) where.status = { [Op.in]: buckets.open };
+    if (!status && !ignoreStatus) where.status = { [Op.in]: buckets.open };
   }
   if (unassigned === 'true') where.assigneeId = null;
 
-  // Scope filtering from the resolved permission set (tickets.view_all >
-  // tickets.view_department > tickets.view_own — see permissionService).
-  const scope = await getUserTicketScope(req.user.id);
-
   // "My tickets" pins the view to the logged-in user regardless of any
-  // assignee filter that was also passed.
+  // assignee filter that was also passed ('own' scope already does).
+  const scope = await getUserTicketScope(req.user.id);
   if (myTickets === 'true' && scope !== 'own') where.assigneeId = req.user.id;
 
-  if (scope === 'department') {
-    where[Op.and] = [{ [Op.or]: [{ departmentId: req.user.departmentId }, { assigneeId: req.user.id }] }];
-  } else if (scope === 'own') {
-    // Own tickets = tickets assigned to me. (Not "requested by me" — that
-    // concept belonged to the retired requester role; contacts, who now
-    // hold that place, aren't PRISM users and can't be compared to
-    // req.user.id.)
-    where.assigneeId = req.user.id;
-  }
-
-  return where;
+  // Scope is ANDed, never merged in: a filter can only narrow it.
+  return andWhere(where, await ticketScopeWhere(req.user));
 }
 
 // Resolves a `?sortBy=cf:<fieldKey>` into the ORDER BY pieces needed to sort
@@ -329,7 +320,7 @@ const BOARD_COLUMN_LIMIT = 100;
 // GET /tickets/board — the same filters as GET /tickets, but grouped into one
 // bucket per ticket status and capped per bucket instead of paged.
 const board = asyncHandler(async (req, res) => {
-  const baseWhere = await buildTicketListWhere(req);
+  const baseWhere = await buildTicketListWhere(req, { ignoreStatus: true });
   const statuses = await TicketStatus.findAll({
     where: { behaviorType: { [Op.ne]: 'archived' } },
     order: [['position', 'ASC']],
@@ -340,7 +331,7 @@ const board = asyncHandler(async (req, res) => {
     // `status` from the query string is intentionally overridden: the board
     // shows every column, and the table's status dropdown is hidden in board
     // view.
-    const where = { ...baseWhere, status: s.name };
+    const where = andWhere(baseWhere, { status: s.name });
     const { tickets, count } = await fetchTicketPage(where, {
       limit: BOARD_COLUMN_LIMIT,
       offset: 0,
