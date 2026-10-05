@@ -536,6 +536,7 @@ function Dropzone({ files, onFiles, onRemove }) {
 
 export default function TicketNew() {
   const { isStaff, user, hasPermission } = useAuth();
+  const { multiCompany } = useCompanySummary();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -573,12 +574,23 @@ export default function TicketNew() {
 
   useEffect(() => {
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
-    api.get('/users/directory').then(({ data }) => setDirectory(data.users)).catch(() => {});
     if (isStaff) {
-      api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
       api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
     }
   }, [isStaff]);
+
+  // Assignees and watchers must reach the ticket's company (plan 2b): once a
+  // contact is picked, both lists narrow to that contact's company.
+  useEffect(() => {
+    const params = selectedContact ? { companyId: selectedContact.companyId } : {};
+    api.get('/users/directory', { params }).then(({ data }) => setDirectory(data.users)).catch(() => {});
+    if (isStaff) api.get('/users/assignable', { params }).then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
+  }, [isStaff, selectedContact?.companyId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A ticket's department belongs to its contact's company (spec).
+  const companyDepartments = selectedContact
+    ? departments.filter((d) => d.companyId === selectedContact.companyId)
+    : departments;
 
   // Additional Details section — active custom fields scoped to the
   // currently-selected ticket type. Re-fetched whenever type changes; values
@@ -633,6 +645,9 @@ export default function TicketNew() {
     }
     setContactId(contact.id);
     setSelectedContact(contact);
+    // The assignee and watchers are re-chosen from the new company's people.
+    setAssigneeId('');
+    setWatchers([]);
     if (contact.departmentId) {
       setCustomerDeptId(String(contact.departmentId));
       setAssignPrompt({ show: false, deptId: '', saving: false, done: false, doneText: '' });
@@ -810,6 +825,9 @@ export default function TicketNew() {
               <div>
                 <Label required>Customer</Label>
                 <ContactPicker selectedContact={selectedContact} onSelect={selectContact} />
+                {multiCompany && selectedContact?.company && (
+                  <p className="mt-1 text-xs" style={{ color: MUTED }}>Company: {selectedContact.company.name}</p>
+                )}
 
                 {assignPrompt.done && (
                   <p className="mt-2 text-sm font-medium" style={{ color: 'var(--color-success)' }}>{assignPrompt.doneText}</p>
@@ -827,7 +845,7 @@ export default function TicketNew() {
                         style={fieldStyle}
                       >
                         <option value="">Select department…</option>
-                        {assignableContactDepartments(departments, user, hasPermission)
+                        {assignableContactDepartments(companyDepartments, user, hasPermission)
                           .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                       <button
@@ -856,7 +874,7 @@ export default function TicketNew() {
                   style={fieldStyle}
                 >
                   <option value="">None</option>
-                  {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  {companyDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
             </>
@@ -872,7 +890,7 @@ export default function TicketNew() {
                 style={fieldStyle}
               >
                 <option value="">None</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                {companyDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
           )}

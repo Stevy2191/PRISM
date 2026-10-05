@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import CompanyTag from '../components/companies/CompanyTag';
 import { useParams, Link } from 'react-router-dom';
 import {
   IconPaperclip, IconAt, IconArrowUp, IconArrowDown, IconX, IconUpload,
@@ -843,7 +844,7 @@ function Sidebar({
                   <dt className="text-xs" style={{ color: MUTED }}>Name</dt>
                   <dd>
                     {ticket.contact ? (
-                      <Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link>
+                      <><Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link><CompanyTag company={ticket.company} /></>
                     ) : (
                       <span style={{ color: TEXT }}>—</span>
                     )}
@@ -2016,14 +2017,20 @@ export default function TicketDetail() {
   ), [id, activityLimit]);
 
   useEffect(() => {
-    api.get('/users/directory').then(({ data }) => setDirectory(data.users)).catch(() => {});
     api.get('/ticket-statuses').then(({ data }) => setTicketStatuses(data.statuses)).catch(() => {});
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
     if (isStaff) {
-      api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
       api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
     }
   }, [isStaff]);
+
+  // Assignees and watchers must reach the ticket's company (plan 2b).
+  useEffect(() => {
+    if (!ticket?.companyId) return;
+    const params = { companyId: ticket.companyId };
+    api.get('/users/directory', { params }).then(({ data }) => setDirectory(data.users)).catch(() => {});
+    if (isStaff) api.get('/users/assignable', { params }).then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
+  }, [isStaff, ticket?.companyId]);
 
   const assignContactDepartment = async () => {
     if (!contactDeptAssign.deptId || !ticket?.contact) return;
@@ -2384,7 +2391,7 @@ export default function TicketDetail() {
           <span>
             Customer:{' '}
             {ticket.contact ? (
-              <Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link>
+              <><Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link><CompanyTag company={ticket.company} /></>
             ) : (
               <span style={{ color: TEXT }}>—</span>
             )}
@@ -2433,7 +2440,7 @@ export default function TicketDetail() {
             watchers={watchers}
             onAddWatcher={addWatcher}
             onRemoveWatcher={removeWatcher}
-            contactDepartments={assignableContactDepartments(departments, user, hasPermission)}
+            contactDepartments={assignableContactDepartments(departments.filter((d) => d.companyId === ticket.companyId), user, hasPermission)}
             contactDeptAssign={contactDeptAssign}
             onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
             onAssignContactDepartment={assignContactDepartment}
@@ -2597,7 +2604,7 @@ export default function TicketDetail() {
                 watchers={watchers}
                 onAddWatcher={addWatcher}
                 onRemoveWatcher={removeWatcher}
-                contactDepartments={assignableContactDepartments(departments, user, hasPermission)}
+                contactDepartments={assignableContactDepartments(departments.filter((d) => d.companyId === ticket.companyId), user, hasPermission)}
                 contactDeptAssign={contactDeptAssign}
                 onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
                 onAssignContactDepartment={assignContactDepartment}
