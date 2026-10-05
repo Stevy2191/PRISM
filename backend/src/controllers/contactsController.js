@@ -7,6 +7,7 @@ const {
 } = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { andWhere, contactScopeWhere } = require('../services/recordScope');
+const { getInternalCompanyId, findDepartmentInCompany } = require('../services/companyService');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
 const { parsePagination, paginated } = require('../utils/pagination');
@@ -145,6 +146,14 @@ const create = asyncHandler(async (req, res) => {
     const existing = await Contact.findOne({ where: { email } });
     if (existing) throw new ApiError(409, 'A contact with this email already exists', 'EMAIL_TAKEN');
   }
+  // A contact's department belongs to the contact's company.
+  const contactCompanyId = await getInternalCompanyId();
+  let resolvedDepartmentId = null;
+  if (departmentId) {
+    const dept = await findDepartmentInCompany(departmentId, contactCompanyId);
+    if (!dept) throw new ApiError(400, 'Department not found', 'VALIDATION_ERROR');
+    resolvedDepartmentId = dept.id;
+  }
 
   const contact = await Contact.create({
     firstName: first,
@@ -153,7 +162,8 @@ const create = asyncHandler(async (req, res) => {
     email: email || null,
     phone: normalizePhone(phone),
     mobile: normalizePhone(mobile),
-    departmentId: departmentId || null,
+    companyId: contactCompanyId,
+    departmentId: resolvedDepartmentId,
     jobTitle: jobTitle || null,
     notes: notes || null,
     assignedTo: assignedTo || req.user.id,
@@ -237,6 +247,12 @@ const update = asyncHandler(async (req, res) => {
     if (existing) throw new ApiError(409, 'A contact with this email already exists', 'EMAIL_TAKEN');
   }
 
+  if (changes.departmentId) {
+    const dept = await findDepartmentInCompany(changes.departmentId, contact.companyId);
+    if (!dept) throw new ApiError(400, 'Department not found', 'VALIDATION_ERROR');
+    changes.departmentId = dept.id;
+  }
+
   const previousDepartmentId = contact.departmentId;
   await contact.update(changes);
   await writeAudit(req, 'contact.update', 'Contact', contact.id, changes);
@@ -270,6 +286,8 @@ const assignDepartment = asyncHandler(async (req, res) => {
   }
   const dept = await Department.findByPk(parseRecordId(rawDepartmentId) || 0);
   if (!dept) throw new ApiError(400, 'Department does not exist', 'VALIDATION_ERROR');
+  // The department must be one of the contact's own company's.
+  if (dept.companyId !== contact.companyId) throw new ApiError(400, 'Department does not exist', 'VALIDATION_ERROR');
   const departmentId = dept.id;
   if (departmentId !== req.user.departmentId && !(await hasPermission(req.user.id, 'people.view_all'))) {
     throw new ApiError(403, 'You can only assign contacts to your own department', 'FORBIDDEN');

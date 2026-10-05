@@ -4,12 +4,16 @@ const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
 
-// Any authenticated user can read departments (needed for dropdowns
-// throughout the app); only people.manage_departments can mutate.
+// Any authenticated user can read departments in companies they can reach
+// (needed for dropdowns throughout the app). Mutations need
+// people.manage_departments for the internal company's departments or
+// companies.manage for a client's — the gate admits either; the controller
+// decides which one applies.
+const canManage = requirePermission('people.manage_departments', 'companies.manage');
 router.get('/', ctrl.list);
 router.get('/:id', ctrl.get);
-router.post('/', requirePermission('people.manage_departments'), ctrl.create);
-router.patch('/:id', requirePermission('people.manage_departments'), ctrl.update);
-router.delete('/:id', requirePermission('people.manage_departments'), ctrl.remove);
+router.post('/', canManage, ctrl.create);
+router.patch('/:id', canManage, ctrl.update);
+router.delete('/:id', canManage, ctrl.remove);
 
 module.exports = router;

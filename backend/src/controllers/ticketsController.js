@@ -45,6 +45,7 @@ const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { generateTicketReport } = require('../services/ticketReport');
 const { andWhere, ticketScopeWhere } = require('../services/recordScope');
+const { findDepartmentInCompany } = require('../services/companyService');
 const {
   getUserTicketScope, hasPermission, canAccessTicket, canModerateTicketContent,
   findAccessibleTicket, parseTicketId, parseRecordId, findAccessibleProject, findAccessibleContact,
@@ -415,6 +416,14 @@ const create = asyncHandler(async (req, res) => {
     if (!project) throw new ApiError(400, 'Project not found', 'VALIDATION_ERROR');
     resolvedProjectId = project.id;
   }
+  // The ticket's company is its contact's, and its department must belong to
+  // that company (client companies, sub-project 2).
+  let resolvedDepartmentId = null;
+  if (departmentId) {
+    const dept = await findDepartmentInCompany(departmentId, contact.companyId);
+    if (!dept) throw new ApiError(400, 'Department not found', 'VALIDATION_ERROR');
+    resolvedDepartmentId = dept.id;
+  }
 
   // Simple auto-assignment (Settings -> Assignment Rules) only kicks in when
   // the caller didn't already pick an assignee/team explicitly — an
@@ -424,7 +433,7 @@ const create = asyncHandler(async (req, res) => {
   if (!assigneeId && !teamId) {
     const matched = await matchAssignmentRule({
       type: type || 'request',
-      departmentId: departmentId || null,
+      departmentId: resolvedDepartmentId,
       priority: priority || 'medium',
     });
     if (matched) {
@@ -445,7 +454,7 @@ const create = asyncHandler(async (req, res) => {
       teamId: teamId || ruleTeamId || null,
       contactId: contact.id,
       projectId: resolvedProjectId,
-      departmentId: departmentId || null,
+      departmentId: resolvedDepartmentId,
       dueDate: dueDate || null,
       dueTime: dueDate ? (dueTime || null) : null,
       blueprintId: blueprintId || null,
@@ -568,6 +577,25 @@ const update = asyncHandler(async (req, res) => {
     changes.contactId = contact.id;
   } else if (changes.contactId !== undefined) {
     changes.contactId = ticket.contactId;
+  }
+  // The department stays inside the ticket's company, which is its contact's
+  // (the model hook moves companyId with the contact). A contact change with
+  // no department given keeps the current one if it fits, else takes the new
+  // contact's.
+  const contactChanged = changes.contactId !== undefined && changes.contactId !== ticket.contactId;
+  const companyContact = contactChanged ? await Contact.findByPk(changes.contactId) : null;
+  const targetCompanyId = companyContact ? companyContact.companyId : ticket.companyId;
+  if (changes.departmentId) {
+    const dept = await findDepartmentInCompany(changes.departmentId, targetCompanyId);
+    if (!dept) throw new ApiError(400, 'Department not found', 'VALIDATION_ERROR');
+    changes.departmentId = dept.id;
+  } else if (changes.departmentId !== undefined) {
+    changes.departmentId = null;
+  } else if (contactChanged && ticket.departmentId) {
+    const current = await findDepartmentInCompany(ticket.departmentId, targetCompanyId);
+    if (!current) changes.departmentId = companyContact.departmentId || null;
+  } else if (contactChanged) {
+    changes.departmentId = companyContact.departmentId || null;
   }
   if (changes.projectId !== undefined) {
     if (!changes.projectId) {

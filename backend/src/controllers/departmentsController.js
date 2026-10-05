@@ -1,9 +1,50 @@
 const { fn, col, Op } = require('sequelize');
-const { Department, User, Role } = require('../models');
+const { Department, User, Role, Company } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const {
+  canAccessCompany, companyScopeWhere, hasPermission, parseRecordId,
+} = require('../services/permissionService');
+const { getInternalCompanyId } = require('../services/companyService');
+const { andWhere } = require('../services/recordScope');
 
-const departmentInclude = [{ model: Role, as: 'defaultRole', attributes: ['id', 'name'] }];
+const departmentInclude = [
+  { model: Role, as: 'defaultRole', attributes: ['id', 'name'] },
+  { model: Company, as: 'company', attributes: ['id', 'name'] },
+];
+
+// Departments belong to a company (client companies, sub-project 2). The
+// internal company's departments are the organization's own and stay under
+// people.manage_departments; a client's departments are company data and
+// need companies.manage.
+async function assertCanManageDepartmentsOf(user, company) {
+  const key = company.isInternal ? 'people.manage_departments' : 'companies.manage';
+  if (!(await hasPermission(user.id, key))) {
+    throw new ApiError(
+      403,
+      company.isInternal ? 'Managing departments needs people.manage_departments' : 'Managing a client company\'s departments needs companies.manage',
+      'FORBIDDEN'
+    );
+  }
+}
+
+async function assertNameFreeInCompany(name, companyId, excludeId) {
+  const where = { companyId, name };
+  if (excludeId) where.id = { [Op.ne]: excludeId };
+  if (await Department.findOne({ where })) {
+    throw new ApiError(409, 'This company already has a department with that name', 'DEPARTMENT_NAME_TAKEN');
+  }
+}
+
+// Loads :id, refusing a department in a company the caller can't reach.
+async function loadAccessibleDepartment(req, options = {}) {
+  const department = await Department.findByPk(parseRecordId(req.params.id) || 0, options);
+  if (!department) throw new ApiError(404, 'Department not found', 'NOT_FOUND');
+  if (!(await canAccessCompany(req.user, department.companyId))) {
+    throw new ApiError(403, 'You do not have access to this department', 'FORBIDDEN');
+  }
+  return department;
+}
 const SHORT_CODE_MAX = 6;
 
 // Normalizes + validates a short code (uppercase, max 6 chars, unique across
@@ -37,7 +78,14 @@ async function memberCounts() {
 // GET /departments
 const list = asyncHandler(async (req, res) => {
   const [departments, counts] = await Promise.all([
-    Department.findAll({ include: departmentInclude, order: [['name', 'ASC']] }),
+    Department.findAll({
+      where: andWhere(
+        await companyScopeWhere(req.user),
+        req.query.companyId ? { companyId: parseRecordId(req.query.companyId) || -1 } : {}
+      ),
+      include: departmentInclude,
+      order: [['name', 'ASC']],
+    }),
     memberCounts(),
   ]);
   const withCounts = departments.map((d) => {
@@ -51,18 +99,31 @@ const list = asyncHandler(async (req, res) => {
 // POST /departments
 const create = asyncHandler(async (req, res) => {
   const { name, description, shortCode, defaultRoleId } = req.body || {};
+  const rawCompanyId = (req.body || {}).companyId;
+  const company = await Company.findByPk(
+    rawCompanyId === undefined || rawCompanyId === null || rawCompanyId === ''
+      ? await getInternalCompanyId()
+      : (parseRecordId(rawCompanyId) || 0)
+  );
+  if (!company || !(await canAccessCompany(req.user, company.id))) {
+    throw new ApiError(400, 'Unknown company', 'VALIDATION_ERROR');
+  }
+  await assertCanManageDepartmentsOf(req.user, company);
   if (!name || !name.trim()) {
     throw new ApiError(400, 'Department name is required', 'VALIDATION_ERROR');
   }
-  if (!shortCode || !shortCode.trim()) {
+  // Only internal departments own projects, so only they need a short code.
+  if (company.isInternal && (!shortCode || !shortCode.trim())) {
     throw new ApiError(400, 'Short code is required (used to prefix this department\'s project IDs)', 'VALIDATION_ERROR');
   }
-  const normalizedShortCode = await normalizeShortCode(shortCode);
+  await assertNameFreeInCompany(name.trim(), company.id);
+  const normalizedShortCode = shortCode && shortCode.trim() ? await normalizeShortCode(shortCode) : null;
   if (defaultRoleId) {
     const role = await Role.findByPk(defaultRoleId);
     if (!role) throw new ApiError(400, 'Default role does not exist', 'VALIDATION_ERROR');
   }
   const department = await Department.create({
+    companyId: company.id,
     name: name.trim(),
     description: description || null,
     shortCode: normalizedShortCode,
@@ -76,20 +137,23 @@ const create = asyncHandler(async (req, res) => {
 
 // GET /departments/:id
 const get = asyncHandler(async (req, res) => {
-  const department = await Department.findByPk(req.params.id, { include: departmentInclude });
-  if (!department) throw new ApiError(404, 'Department not found', 'NOT_FOUND');
+  const department = await loadAccessibleDepartment(req, { include: departmentInclude });
   const memberCount = await User.count({ where: { departmentId: department.id } });
   res.json({ department: { ...department.toJSON(), memberCount } });
 });
 
 // PATCH /departments/:id
 const update = asyncHandler(async (req, res) => {
-  const department = await Department.findByPk(req.params.id);
-  if (!department) throw new ApiError(404, 'Department not found', 'NOT_FOUND');
+  const department = await loadAccessibleDepartment(req);
+  await assertCanManageDepartmentsOf(req.user, await Company.findByPk(department.companyId));
 
   const { name, description, shortCode, defaultRoleId } = req.body || {};
   const changes = {};
-  if (name !== undefined) changes.name = name.trim();
+  if (name !== undefined) {
+    if (!name || !name.trim()) throw new ApiError(400, 'Department name is required', 'VALIDATION_ERROR');
+    changes.name = name.trim();
+    await assertNameFreeInCompany(changes.name, department.companyId, department.id);
+  }
   if (description !== undefined) changes.description = description;
   if (shortCode !== undefined) {
     changes.shortCode = shortCode ? await normalizeShortCode(shortCode, department.id) : null;
@@ -112,8 +176,8 @@ const update = asyncHandler(async (req, res) => {
 
 // DELETE /departments/:id
 const remove = asyncHandler(async (req, res) => {
-  const department = await Department.findByPk(req.params.id);
-  if (!department) throw new ApiError(404, 'Department not found', 'NOT_FOUND');
+  const department = await loadAccessibleDepartment(req);
+  await assertCanManageDepartmentsOf(req.user, await Company.findByPk(department.companyId));
 
   await department.destroy();
   await writeAudit(req, 'department.delete', 'Department', department.id, { name: department.name });

@@ -1,7 +1,7 @@
 // Company helpers shared by controllers and services. The internal company is
 // created by the client-companies migration and can never be deleted, so its
 // id is cached for the life of the process.
-const { Company } = require('../models');
+const { Company, Department } = require('../models');
 
 let internalCompanyId = null;
 
@@ -20,4 +20,14 @@ const FREE_MAIL_DOMAINS = new Set([
   'gmx.com', 'gmx.net', 'mail.com', 'zoho.com', 'yandex.com', 'fastmail.com',
 ]);
 
-module.exports = { getInternalCompanyId, FREE_MAIL_DOMAINS };
+// A department that exists and belongs to companyId, or null. Missing and
+// foreign look the same, so callers answer both with one message.
+async function findDepartmentInCompany(departmentId, companyId) {
+  const { parseRecordId } = require('./permissionService'); // eslint-disable-line global-require
+  const id = parseRecordId(departmentId);
+  if (!id) return null;
+  const dept = await Department.findByPk(id);
+  return dept && dept.companyId === companyId ? dept : null;
+}
+
+module.exports = { getInternalCompanyId, FREE_MAIL_DOMAINS, findDepartmentInCompany };

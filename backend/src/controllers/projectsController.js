@@ -15,6 +15,7 @@ const { syncProjectToExternalCalendars, removeProjectFromExternalCalendars } = r
 const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { andWhere, projectScopeWhere } = require('../services/recordScope');
+const { getInternalCompanyId, findDepartmentInCompany } = require('../services/companyService');
 
 // Chunk size for the "load more" lists on a project's detail page. Tasks are
 // deliberately excluded — they are drag-reorderable, and a reorder that can
@@ -248,10 +249,16 @@ const create = asyncHandler(async (req, res) => {
   if (!name || !name.trim()) throw new ApiError(400, 'Project name is required', 'VALIDATION_ERROR');
   if (!ownerDepartmentId) throw new ApiError(400, 'Owned by department is required', 'VALIDATION_ERROR');
 
-  const ownerDept = await Department.findByPk(ownerDepartmentId);
+  // "Owned by" is one of the organization's own (internal) departments: that
+  // is who does the work, and its short code numbers the project. "For"
+  // belongs to the project's company (client companies, sub-project 2).
+  const internalCompanyId = await getInternalCompanyId();
+  const projectCompanyId = internalCompanyId;
+  const ownerDept = await findDepartmentInCompany(ownerDepartmentId, internalCompanyId);
   if (!ownerDept) throw new ApiError(400, 'Owned-by department does not exist', 'VALIDATION_ERROR');
+  let forDept = null;
   if (forDepartmentId) {
-    const forDept = await Department.findByPk(forDepartmentId);
+    forDept = await findDepartmentInCompany(forDepartmentId, projectCompanyId);
     if (!forDept) throw new ApiError(400, 'For-department does not exist', 'VALIDATION_ERROR');
   }
 
@@ -267,15 +274,18 @@ const create = asyncHandler(async (req, res) => {
   const project = await sequelize.transaction({ isolationLevel }, async (t) => {
     // Generated inside the transaction — nextProjectSequence row-locks the
     // department's counter so two concurrent creates never collide.
-    const projectCode = await generateProjectCode(ownerDepartmentId, t);
+    const projectCode = await generateProjectCode(ownerDept.id, t);
     return Project.create({
       name: name.trim(),
       projectCode,
       description: description || null,
       tags: Array.isArray(tags) && tags.length ? tags : null,
       status: resolvedStatus,
-      ownerDepartmentId,
-      forDepartmentId: forDepartmentId || ownerDepartmentId,
+      companyId: projectCompanyId,
+      ownerDepartmentId: ownerDept.id,
+      // An internal project is "for" its owner unless told otherwise; a
+      // client project's "for" is a client department or nobody.
+      forDepartmentId: forDept ? forDept.id : (projectCompanyId === internalCompanyId ? ownerDept.id : null),
       assignedToUserId: assignedToUserId || null,
       teamId: teamId || null,
       dueDate: dueDate || null,
@@ -335,6 +345,18 @@ const update = asyncHandler(async (req, res) => {
   }
   if (changes.tags !== undefined) {
     changes.tags = Array.isArray(changes.tags) && changes.tags.length ? changes.tags : null;
+  }
+  if (changes.ownerDepartmentId !== undefined) {
+    const ownerDept = await findDepartmentInCompany(changes.ownerDepartmentId, await getInternalCompanyId());
+    if (!ownerDept) throw new ApiError(400, 'Owned-by department does not exist', 'VALIDATION_ERROR');
+    changes.ownerDepartmentId = ownerDept.id;
+  }
+  if (changes.forDepartmentId) {
+    const forDept = await findDepartmentInCompany(changes.forDepartmentId, project.companyId);
+    if (!forDept) throw new ApiError(400, 'For-department does not exist', 'VALIDATION_ERROR');
+    changes.forDepartmentId = forDept.id;
+  } else if (changes.forDepartmentId !== undefined) {
+    changes.forDepartmentId = null;
   }
   const statusChanged = changes.status !== undefined && changes.status !== project.status;
   const previousStatus = project.status;
