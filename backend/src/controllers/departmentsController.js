@@ -110,6 +110,19 @@ async function resolveDefaultRole(req, rawRoleId) {
   return role.id;
 }
 
+// GET /departments/owners — the internal departments a project can be
+// "owned by". Every project creator needs them, including users fenced to
+// client companies who can't otherwise list internal departments (plan 2b
+// ruling: these are the organization's own teams, not client data).
+const owners = asyncHandler(async (req, res) => {
+  const departments = await Department.findAll({
+    where: { companyId: await getInternalCompanyId() },
+    attributes: ['id', 'name', 'shortCode'],
+    order: [['name', 'ASC']],
+  });
+  res.json({ departments });
+});
+
 // POST /departments
 const create = asyncHandler(async (req, res) => {
   const { name, description, shortCode, defaultRoleId } = req.body || {};
@@ -194,4 +207,6 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { list, create, get, update, remove };
+module.exports = {
+  list, owners, create, get, update, remove,
+};

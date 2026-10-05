@@ -42,6 +42,7 @@ const { getAllSettings } = require('./settingsController');
 const { matchAssignmentRule } = require('./assignmentRulesController');
 const { sendMail } = require('../services/emailSender');
 const { buildTicketMessageId } = require('../services/inboundEmailService');
+const { canWorkCompany, assertCanWorkTicket } = require('../services/ticketPeople');
 const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { generateTicketReport } = require('../services/ticketReport');
@@ -398,9 +399,6 @@ const create = asyncHandler(async (req, res) => {
   // same restriction the create-ticket form's dropdown itself enforces.
   const resolvedSource = ['manual', 'phone'].includes(source) ? source : 'manual';
 
-  const watcherIdList = Array.isArray(watcherIds)
-    ? [...new Set(watcherIds.map((id) => parseInt(id, 10)).filter(Boolean))]
-    : [];
   // Linked ticket ids must be plain integers: a value parseInt would read as
   // a different number than the one supplied is refused, not truncated.
   const parseLinked = (raw) => {
@@ -460,6 +458,17 @@ const create = asyncHandler(async (req, res) => {
     if (!dept) throw new ApiError(400, 'Department not found', 'VALIDATION_ERROR');
     resolvedDepartmentId = dept.id;
   }
+  // Spec: the department defaults to the contact's (which belongs to the
+  // contact's company by the contact integrity rule).
+  if (!departmentId && contact.departmentId) resolvedDepartmentId = contact.departmentId;
+
+  // Watchers and the assignee must reach the ticket's company (plan 2b).
+  const watcherIdList = [];
+  for (const raw of Array.isArray(watcherIds) ? watcherIds : []) {
+    // eslint-disable-next-line no-await-in-loop
+    const id = await assertCanWorkTicket(raw, contact.companyId, 'Watcher');
+    if (!watcherIdList.includes(id)) watcherIdList.push(id);
+  }
 
   // Simple auto-assignment (Settings -> Assignment Rules) only kicks in when
   // the caller didn't already pick an assignee/team explicitly — an
@@ -477,6 +486,13 @@ const create = asyncHandler(async (req, res) => {
       ruleTeamId = matched.teamId;
     }
   }
+  let resolvedAssigneeId = null;
+  if (assigneeId) {
+    resolvedAssigneeId = await assertCanWorkTicket(assigneeId, contact.companyId, 'Assignee');
+  } else if (ruleAssigneeId && (await canWorkCompany(ruleAssigneeId, contact.companyId))) {
+    // A rule's assignee who can't reach this company is skipped, not refused.
+    resolvedAssigneeId = ruleAssigneeId;
+  }
 
   const ticket = await sequelize.transaction(async (t) => {
     const created = await Ticket.create({
@@ -486,7 +502,7 @@ const create = asyncHandler(async (req, res) => {
       priority: priority || 'medium',
       type: type || 'request',
       source: resolvedSource,
-      assigneeId: assigneeId || ruleAssigneeId || null,
+      assigneeId: resolvedAssigneeId,
       teamId: teamId || ruleTeamId || null,
       contactId: contact.id,
       projectId: resolvedProjectId,
@@ -621,6 +637,9 @@ const update = asyncHandler(async (req, res) => {
   const contactChanged = changes.contactId !== undefined && changes.contactId !== ticket.contactId;
   const companyContact = contactChanged ? await Contact.findByPk(changes.contactId) : null;
   const targetCompanyId = companyContact ? companyContact.companyId : ticket.companyId;
+  if (changes.assigneeId && Number(changes.assigneeId) !== ticket.assigneeId) {
+    changes.assigneeId = await assertCanWorkTicket(changes.assigneeId, targetCompanyId, 'Assignee');
+  }
   if (changes.departmentId) {
     const dept = await findDepartmentInCompany(changes.departmentId, targetCompanyId);
     if (!dept) throw new ApiError(400, 'Department not found', 'VALIDATION_ERROR');
@@ -1324,8 +1343,8 @@ const addWatcher = asyncHandler(async (req, res) => {
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
-  const userId = parseInt(req.body?.userId, 10);
-  if (!userId) throw new ApiError(400, 'userId is required', 'VALIDATION_ERROR');
+  if (!req.body?.userId) throw new ApiError(400, 'userId is required', 'VALIDATION_ERROR');
+  const userId = await assertCanWorkTicket(req.body.userId, ticket.companyId, 'Watcher');
 
   const [watcher] = await TicketWatcher.findOrCreate({
     where: { ticketId: ticket.id, userId },
@@ -1375,7 +1394,7 @@ const createTask = asyncHandler(async (req, res) => {
   const task = await TicketTask.create({
     ticketId: ticket.id,
     description: description.trim(),
-    assigneeId: assigneeId || null,
+    assigneeId: assigneeId ? await assertCanWorkTicket(assigneeId, ticket.companyId, 'Assignee') : null,
   });
   const fresh = await TicketTask.findByPk(task.id, {
     include: [{ model: User, as: 'assignee', attributes: userAttrs }],
@@ -1394,7 +1413,11 @@ const updateTask = asyncHandler(async (req, res) => {
 
   const changes = {};
   if (req.body?.completed !== undefined) changes.completed = !!req.body.completed;
-  if (req.body?.assigneeId !== undefined) changes.assigneeId = req.body.assigneeId || null;
+  if (req.body?.assigneeId !== undefined) {
+    changes.assigneeId = req.body.assigneeId && Number(req.body.assigneeId) !== task.assigneeId
+      ? await assertCanWorkTicket(req.body.assigneeId, ticket.companyId, 'Assignee')
+      : (req.body.assigneeId || null);
+  }
   if (req.body?.description !== undefined && req.body.description.trim()) {
     changes.description = req.body.description.trim();
   }

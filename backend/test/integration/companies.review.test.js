@@ -217,8 +217,10 @@ describe('R6: saving company access keeps what the granter can\'t see', () => {
 describe('R7: notifications only reach people who can open the ticket', () => {
   it('an assignee or watcher who can\'t reach the ticket\'s company gets nothing', async () => {
     const outsider = await fencedTech('outsider', [internalId]);
-    expectOk(await a().patch(`${API}/tickets/${acmeTicket.id}`).send({ assigneeId: outsider.user.id }));
-    expectOk(await a().post(`${API}/tickets/${acmeTicket.id}/watchers`).send({ userId: outsider.user.id }), 201);
+    // Such assignments are refused since plan 2b; these stand in for ones
+    // made before that rule, or before the contact moved company.
+    await Ticket.update({ assigneeId: outsider.user.id }, { where: { id: acmeTicket.id }, hooks: false });
+    await models.TicketWatcher.create({ ticketId: acmeTicket.id, userId: outsider.user.id });
     expectOk(await a().post(`${API}/tickets/${acmeTicket.id}/comments`).send({ body: 'secret detail', type: 'reply' }), 201);
     await Ticket.update({ dueDate: '2020-01-01' }, { where: { id: acmeTicket.id }, hooks: false });
     expectOk(await outsider.agent.get(`${API}/notifications`));

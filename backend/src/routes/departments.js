@@ -11,6 +11,8 @@ const router = express.Router();
 // decides which one applies.
 const canManage = requirePermission('people.manage_departments', 'companies.manage');
 router.get('/', ctrl.list);
+// Before '/:id': the internal "owned by" departments for project creators.
+router.get('/owners', requirePermission('projects.create'), ctrl.owners);
 router.get('/:id', ctrl.get);
 router.post('/', canManage, ctrl.create);
 router.patch('/:id', canManage, ctrl.update);

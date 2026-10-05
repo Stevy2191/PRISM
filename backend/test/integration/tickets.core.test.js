@@ -28,9 +28,10 @@ const grantOverride = async (userId, permissionKey, granted) => expectOk(
 describe('POST /tickets', () => {
   it('applies defaults', async () => {
     const t = await makeTicket(tech.agent, { ...base(), title: '  Printer offline  ' });
+    // The department defaults to the contact's (spec; plan 2b task 8).
     expect(t).toEqual(expect.objectContaining({
       title: 'Printer offline', description: null, status: 'Open', priority: 'medium', type: 'request',
-      source: 'manual', assigneeId: null, teamId: null, departmentId: null, projectId: null,
+      source: 'manual', assigneeId: null, teamId: null, departmentId: w.deptA.id, projectId: null,
       dueDate: null, dueTime: null, tags: null, resolvedAt: null, resolution: null,
       createdBy: tech.user.id, contactId: w.contact.id, customFields: {}, ticketNumber: '00001',
     }));
@@ -251,7 +252,8 @@ describe('PATCH /tickets/:id', () => {
     const t = await makeTicket(tech.agent, base());
     expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({
       status: 'In Progress', priority: 'high', type: 'incident', assigneeId: tech.user.id, teamId: team.id,
-      departmentId: w.deptA.id, dueDate: '2026-12-01', dueTime: '09:00:00', title: 'Renamed',
+      // The ticket starts in the contact's department (A), so move it to B.
+      departmentId: w.deptB.id, dueDate: '2026-12-01', dueTime: '09:00:00', title: 'Renamed',
     }));
     const activity = await activityOf(tech.agent, t.id);
     expect(activity).toEqual(expect.arrayContaining([
@@ -261,7 +263,7 @@ describe('PATCH /tickets/:id', () => {
       ['type', 'request', 'incident'],
       ['assigneeId', null, 'Test tech'],
       ['teamId', null, 'Desk team'],
-      ['departmentId', null, 'Service Desk'],
+      ['departmentId', 'Service Desk', 'Facilities'],
       ['dueDate', null, '2026-12-01'],
       ['dueTime', null, '09:00:00'],
     ]));

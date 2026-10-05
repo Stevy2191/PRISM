@@ -7,7 +7,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
 const {
-  invalidateUserPermissions, hasPermission, isUnfenceable, getUserCompanyIds,
+  invalidateUserPermissions, hasPermission, isUnfenceable, getUserCompanyIds, canAccessCompany, parseRecordId,
 } = require('../services/permissionService');
 const { assertCanGrantRole, assertCanSetLegacyRole } = require('../services/roleGrant');
 const { computeDisplayName } = require('../utils/userDisplay');
@@ -91,13 +91,31 @@ const list = asyncHandler(async (req, res) => {
 // Deliberately NOT paginated, unlike GET /users. This is a dropdown's option
 // list: truncating it would silently hide assignees with no way for the user
 // to tell. It is bounded by staff headcount and carries two columns.
+// ?companyId= narrows a picker to people who can reach that company (an
+// assignee or watcher must be able to open the ticket — plan 2b). A company
+// the caller can't reach is refused like a missing one.
+async function narrowToCompany(req, users) {
+  const raw = req.query.companyId;
+  if (raw === undefined || raw === '') return users;
+  const companyId = parseRecordId(raw);
+  if (!companyId || !(await canAccessCompany(req.user, companyId))) {
+    throw new ApiError(400, 'Unknown company', 'VALIDATION_ERROR');
+  }
+  const full = await User.findAll({ where: { id: users.map((u) => u.id) }, attributes: ['id', 'role', 'roleId', 'allCompanies'] });
+  const reach = new Set();
+  for (const u of full) {
+    if (await canAccessCompany(u, companyId)) reach.add(u.id); // eslint-disable-line no-await-in-loop
+  }
+  return users.filter((u) => reach.has(u.id));
+}
+
 const listAssignable = asyncHandler(async (req, res) => {
   const users = await User.findAll({
     where: { role: { [Op.in]: ['admin', 'technician'] }, isActive: true },
     attributes: ['id', 'displayName'],
     order: [['displayName', 'ASC']],
   });
-  res.json({ users });
+  res.json({ users: await narrowToCompany(req, users) });
 });
 
 // GET /users/directory — any authenticated user. Every active user, minimal
@@ -109,7 +127,7 @@ const listDirectory = asyncHandler(async (req, res) => {
     attributes: ['id', 'displayName', 'username', 'role', 'departmentId'],
     order: [['displayName', 'ASC']],
   });
-  res.json({ users });
+  res.json({ users: await narrowToCompany(req, users) });
 });
 
 // POST /users — Admin only. Creates a LOCAL account (username/password).
