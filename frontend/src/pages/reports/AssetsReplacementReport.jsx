@@ -16,6 +16,7 @@ export default function AssetsReplacementReport({ filters, onForbidden }) {
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
     if (filters.departmentId) params.departmentId = filters.departmentId;
+    if (filters.companyId) params.companyId = filters.companyId;
     api.get('/reports/assets/replacement', { params })
       .then(({ data: d }) => setData(d))
       .catch((err) => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import CompanyFilter from '../components/companies/CompanyFilter';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { usePagination } from '../hooks/usePagination';
@@ -84,6 +85,7 @@ export default function Assets() {
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
+  const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [assignedTo, setAssignedTo] = useState('');
   const [view, setView] = useState('table');
@@ -93,7 +95,7 @@ export default function Assets() {
   // fetch returns one page instead of every asset.
   const quickFilter = searchParams.get('filter');
 
-  const filterKey = JSON.stringify([search, categoryId, departmentId, status, assignedTo, quickFilter]);
+  const filterKey = JSON.stringify([search, categoryId, departmentId, companyId, status, assignedTo, quickFilter]);
   const pager = usePagination({ filterKey, storageKey: 'prism.assets.pageSize' });
 
   const [showForm, setShowForm] = useState(false);
@@ -107,6 +109,7 @@ export default function Assets() {
     if (search.trim()) params.search = search.trim();
     if (categoryId) params.categoryId = categoryId;
     if (departmentId) params.departmentId = departmentId;
+    if (companyId) params.companyId = companyId;
     if (status) params.status = status;
     if (assignedTo) params.assignedTo = assignedTo;
     if (quickFilter) params.quickFilter = quickFilter;
@@ -125,7 +128,7 @@ export default function Assets() {
     const t = setTimeout(load, search ? 300 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, categoryId, departmentId, status, assignedTo, quickFilter, pager.page, pager.limit]);
+  }, [search, categoryId, departmentId, companyId, status, assignedTo, quickFilter, pager.page, pager.limit]);
 
   const requestDelete = (asset) => {
     setDeleteTarget(asset);
@@ -187,6 +190,7 @@ export default function Assets() {
             <option value="">All departments</option>
             {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
+          <CompanyFilter value={companyId} onChange={setCompanyId} style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} />
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="input h-9 flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT, maxWidth: '10rem' }}>
             <option value="">All statuses</option>
             <option value="active">Active</option>

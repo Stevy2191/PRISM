@@ -14,6 +14,7 @@ export default function AssetsInventoryReport({ filters, onForbidden }) {
     setError('');
     const params = {};
     if (filters.departmentId) params.departmentId = filters.departmentId;
+    if (filters.companyId) params.companyId = filters.companyId;
     api.get('/reports/assets/inventory', { params })
       .then(({ data: d }) => setData(d))
       .catch((err) => {

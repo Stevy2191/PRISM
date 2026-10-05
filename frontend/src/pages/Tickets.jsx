@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import CompanyFilter from '../components/companies/CompanyFilter';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { IconMail, IconPhone, IconWorld } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { initials } from '../utils/userDisplay';
@@ -451,11 +452,13 @@ export default function Tickets() {
   const [overdue, setOverdue] = useState(false);
   const [unassigned, setUnassigned] = useState(false);
   const [newFromEmail, setNewFromEmail] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
   const [sort, setSort] = useState({ key: 'updatedAt', dir: 'desc' });
 
   // Any change to a filter has to send the table back to page 1 — otherwise
   // narrowing the results while on page 5 shows an empty table.
-  const filterKey = JSON.stringify([search, status, priority, assignee, myTickets, overdue, unassigned, newFromEmail, sort]);
+  const filterKey = JSON.stringify([search, status, priority, assignee, companyId, myTickets, overdue, unassigned, newFromEmail, sort]);
   const pager = usePagination({ filterKey, storageKey: 'prism.tickets.pageSize' });
 
   const [view, setView] = useState('table');
@@ -526,6 +529,7 @@ export default function Tickets() {
     if (status) params.status = status;
     if (priority) params.priority = priority;
     if (assignee) params.assignee = assignee;
+    if (companyId) params.companyId = companyId;
     if (myTickets) params.myTickets = 'true';
     if (overdue) params.overdue = 'true';
     if (unassigned) params.unassigned = 'true';
@@ -537,7 +541,7 @@ export default function Tickets() {
     params.sortBy = sort.key.startsWith('cf:') ? sort.key : (SORTABLE_COLUMNS[sort.key] || 'updatedAt');
     params.sortDir = sort.dir;
     return params;
-  }, [search, status, priority, assignee, myTickets, overdue, unassigned, newFromEmail, sort]);
+  }, [search, status, priority, assignee, companyId, myTickets, overdue, unassigned, newFromEmail, sort]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -780,6 +784,7 @@ export default function Tickets() {
             >
               {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+            <CompanyFilter value={companyId} onChange={setCompanyId} style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} />
             <select
               value={assignee}
               onChange={(e) => setAssigneeTracked(e.target.value)}

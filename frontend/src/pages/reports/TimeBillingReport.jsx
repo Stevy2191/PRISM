@@ -16,6 +16,7 @@ export default function TimeBillingReport({ filters, onForbidden }) {
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
     if (filters.departmentId) params.departmentId = filters.departmentId;
+    if (filters.companyId) params.companyId = filters.companyId;
     if (filters.assigneeId) params.assigneeId = filters.assigneeId;
     api.get('/reports/time-billing', { params })
       .then(({ data: d }) => setData(d))

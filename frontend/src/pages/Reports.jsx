@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import CompanyFilter from '../components/companies/CompanyFilter';
+import { useCompanySummary } from '../context/CompanyContext';
 import api, { errMessage } from '../api/api';
 import { usePermission } from '../context/AuthContext';
 import AccessRestricted from '../components/AccessRestricted';
@@ -112,6 +114,8 @@ export default function Reports() {
   const [preset, setPreset] = useState('this_month');
   const [customRange, setCustomRange] = useState({ startDate: '', endDate: '' });
   const [departmentId, setDepartmentId] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  const { multiCompany } = useCompanySummary();
   const [assigneeId, setAssigneeId] = useState('');
   const [departments, setDepartments] = useState([]);
   const [assignableUsers, setAssignableUsers] = useState([]);
@@ -168,8 +172,10 @@ export default function Reports() {
     startDate: range.startDate || '',
     endDate: range.endDate || '',
     departmentId: canViewAll ? departmentId : '',
+    // Not gated by canViewAll: the company fence already limits it.
+    companyId,
     assigneeId: activeReport?.showAssignee ? assigneeId : '',
-  }), [range, canViewAll, departmentId, assigneeId, activeReport]);
+  }), [range, canViewAll, departmentId, companyId, assigneeId, activeReport]);
 
   const exportCsv = async () => {
     try {
@@ -177,6 +183,7 @@ export default function Reports() {
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
       if (filters.departmentId) params.departmentId = filters.departmentId;
+      if (filters.companyId) params.companyId = filters.companyId;
       if (filters.assigneeId) params.assigneeId = filters.assigneeId;
       const res = await api.get(`/reports/${activeReport.endpoint}/export`, { params, responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
@@ -198,7 +205,7 @@ export default function Reports() {
       await api.post('/reports/saved-views', {
         reportType: activeKey,
         name: saveViewName.trim(),
-        filters: { preset, customRange, departmentId, assigneeId },
+        filters: { preset, customRange, departmentId, companyId, assigneeId },
       });
       setSaveViewName('');
       setSaveViewOpen(false);
@@ -213,6 +220,7 @@ export default function Reports() {
     if (f.preset) setPreset(f.preset);
     if (f.customRange) setCustomRange(f.customRange);
     setDepartmentId(f.departmentId || '');
+    setCompanyId(f.companyId || '');
     setAssigneeId(f.assigneeId || '');
   };
 
@@ -366,6 +374,13 @@ export default function Reports() {
                 <option value="">All departments</option>
                 {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
+            </div>
+          )}
+
+          {multiCompany && (
+            <div>
+              <label className="label">Company</label>
+              <CompanyFilter value={companyId} onChange={setCompanyId} className="input h-9" />
             </div>
           )}
 

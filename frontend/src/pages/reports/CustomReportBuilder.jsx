@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import CompanyFilter from '../../components/companies/CompanyFilter';
+import { useCompanySummary } from '../../context/CompanyContext';
 import api, { errMessage } from '../../api/api';
 import { usePermission } from '../../context/AuthContext';
 import Spinner from '../../components/Spinner';
@@ -29,7 +31,7 @@ const DATE_FIELD_OPTIONS = {
 };
 
 const EMPTY_FILTERS = {
-  startDate: '', endDate: '', dateField: 'createdAt', departmentId: '', assigneeId: '',
+  startDate: '', endDate: '', dateField: 'createdAt', departmentId: '', companyId: '', assigneeId: '',
   status: '', priority: '', source: '', userType: '', tag: '', customFieldKey: '', customFieldValue: '',
 };
 
@@ -39,6 +41,7 @@ function filtersToPayload(filters) {
   if (filters.endDate) payload.endDate = filters.endDate;
   if (filters.dateField) payload.dateField = filters.dateField;
   if (filters.departmentId) payload.departmentId = filters.departmentId;
+  if (filters.companyId) payload.companyId = filters.companyId;
   if (filters.assigneeId) payload.assigneeId = filters.assigneeId;
   if (filters.status) payload.status = filters.status;
   if (filters.priority) payload.priority = filters.priority;
@@ -59,6 +62,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
 
   const [dataSource, setDataSource] = useState('tickets');
   const [selectedFields, setSelectedFields] = useState([]);
+  const { multiCompany } = useCompanySummary();
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [groupBy, setGroupBy] = useState('');
   const [visualization, setVisualization] = useState('table');
@@ -271,6 +275,12 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
                   <option value="">All departments</option>
                   {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
+              </div>
+            )}
+            {multiCompany && (
+              <div>
+                <label className="label">Company</label>
+                <CompanyFilter value={filters.companyId} onChange={(v) => setFilters((f) => ({ ...f, companyId: v }))} className="input h-9" />
               </div>
             )}
             {applicableFilters.includes('assignee') && (

@@ -13,6 +13,7 @@ export default function SoftwareSpendReport({ filters, onForbidden }) {
     setLoading(true); setError('');
     const params = {};
     if (filters.departmentId) params.departmentId = filters.departmentId;
+    if (filters.companyId) params.companyId = filters.companyId;
     api.get('/reports/licenses/spend', { params })
       .then(({ data: d }) => setData(d))
       .catch((err) => { if (isForbidden(err)) onForbidden?.(); else setError(errMessage(err)); })

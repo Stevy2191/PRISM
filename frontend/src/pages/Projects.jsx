@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import CompanyFilter from '../components/companies/CompanyFilter';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { usePagination } from '../hooks/usePagination';
@@ -209,7 +210,8 @@ export default function Projects() {
   // ever offer the tags that happen to be on the current page.
   const [allTags, setAllTags] = useState([]);
 
-  const filterKey = JSON.stringify([search, statusFilter, ownerDeptFilter, forDeptFilter, assigneeFilter, tagFilter, myProjects, myDepartment, overdue]);
+  const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
+  const filterKey = JSON.stringify([search, statusFilter, ownerDeptFilter, forDeptFilter, companyId, assigneeFilter, tagFilter, myProjects, myDepartment, overdue]);
   const pager = usePagination({ filterKey, storageKey: 'prism.projects.pageSize' });
 
   const load = () => {
@@ -219,6 +221,7 @@ export default function Projects() {
     if (statusFilter) params.status = statusFilter;
     if (ownerDeptFilter) params.ownerDept = ownerDeptFilter;
     if (forDeptFilter) params.forDept = forDeptFilter;
+    if (companyId) params.companyId = companyId;
     if (assigneeFilter) params.assignee = assigneeFilter;
     if (tagFilter) params.tag = tagFilter;
     if (myProjects) params.myProjects = 'true';
@@ -248,7 +251,7 @@ export default function Projects() {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusFilter, ownerDeptFilter, forDeptFilter, assigneeFilter, tagFilter, myProjects, myDepartment, overdue, pager.page, pager.limit]);
+  }, [search, statusFilter, ownerDeptFilter, forDeptFilter, companyId, assigneeFilter, tagFilter, myProjects, myDepartment, overdue, pager.page, pager.limit]);
 
   useEffect(() => {
     if (selectedIds.size > 0) {
@@ -353,6 +356,7 @@ export default function Projects() {
             <option value="">For (any dept)</option>
             {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
+          <CompanyFilter value={companyId} onChange={setCompanyId} style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} />
           {isStaff && (
             <select
               value={assigneeFilter}

@@ -15,6 +15,7 @@ export default function UpcomingRenewalsReport({ filters, onForbidden }) {
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
     if (filters.departmentId) params.departmentId = filters.departmentId;
+    if (filters.companyId) params.companyId = filters.companyId;
     api.get('/reports/licenses-contracts/upcoming-renewals', { params })
       .then(({ data: d }) => setData(d))
       .catch((err) => { if (isForbidden(err)) onForbidden?.(); else setError(errMessage(err)); })

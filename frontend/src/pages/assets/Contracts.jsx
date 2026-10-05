@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import CompanyFilter from '../../components/companies/CompanyFilter';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import { usePagination } from '../../hooks/usePagination';
@@ -76,9 +77,10 @@ export default function Contracts() {
   const [search, setSearch] = useState('');
   const [contractType, setContractType] = useState('');
   const [departmentId, setDepartmentId] = useState('');
+  const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
 
-  const filterKey = JSON.stringify([search, contractType, departmentId, status]);
+  const filterKey = JSON.stringify([search, contractType, departmentId, companyId, status]);
   const pager = usePagination({ filterKey, storageKey: 'prism.contracts.pageSize' });
 
   const [showForm, setShowForm] = useState(false);
@@ -91,6 +93,7 @@ export default function Contracts() {
     if (search.trim()) params.search = search.trim();
     if (contractType) params.contractType = contractType;
     if (departmentId) params.departmentId = departmentId;
+    if (companyId) params.companyId = companyId;
     if (status) params.status = status;
     api.get('/contracts', { params: { ...params, ...pager.params } })
       .then(({ data }) => { setContracts(data.contracts); pager.applyMeta(data); })
@@ -106,7 +109,7 @@ export default function Contracts() {
     const t = setTimeout(load, search ? 300 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, contractType, departmentId, status, pager.page, pager.limit]);
+  }, [search, contractType, departmentId, companyId, status, pager.page, pager.limit]);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -149,6 +152,7 @@ export default function Contracts() {
             <option value="">All departments</option>
             {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
+          <CompanyFilter value={companyId} onChange={setCompanyId} style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} />
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="input h-9 flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT, maxWidth: '11rem' }}>
             <option value="">All statuses</option>
             <option value="active">Active</option>
