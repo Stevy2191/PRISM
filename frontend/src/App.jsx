@@ -11,7 +11,7 @@ import SurveyPage from './pages/SurveyPage';
 import Dashboard from './pages/Dashboard';
 import Tickets from './pages/Tickets';
 import TicketNew from './pages/TicketNew';
-import TicketDetail from './pages/TicketDetail';
+import TicketDetail from './pages/tickets/TicketDetail';
 import Projects from './pages/Projects';
 import ProjectNew from './pages/ProjectNew';
 import ProjectDetail from './pages/ProjectDetail';
