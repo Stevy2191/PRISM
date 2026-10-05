@@ -1,7 +1,7 @@
 // Company helpers shared by controllers and services. The internal company is
 // created by the client-companies migration and can never be deleted, so its
 // id is cached for the life of the process.
-const { Company, Department } = require('../models');
+const { Company, Department, Site } = require('../models');
 
 let internalCompanyId = null;
 
@@ -30,4 +30,34 @@ async function findDepartmentInCompany(departmentId, companyId) {
   return dept && dept.companyId === companyId ? dept : null;
 }
 
-module.exports = { getInternalCompanyId, FREE_MAIL_DOMAINS, findDepartmentInCompany };
+// An active site that belongs to companyId, or null (missing, inactive and
+// foreign look the same).
+async function findSiteInCompany(siteId, companyId) {
+  const { parseRecordId } = require('./permissionService'); // eslint-disable-line global-require
+  const id = parseRecordId(siteId);
+  if (!id) return null;
+  const site = await Site.findByPk(id);
+  return site && site.companyId === companyId && site.status === 'active' ? site : null;
+}
+
+// The company a new or moved record goes in. Absent means the internal
+// company. Otherwise it must exist, be active, be a client or the internal
+// company, and be reachable by the user — anything else (missing,
+// vendor-only, inactive, out of reach) gets the same 400, so the field can't
+// be used to probe which companies exist.
+async function resolveRecordCompany(user, rawCompanyId) {
+  const { canAccessCompany, parseRecordId } = require('./permissionService'); // eslint-disable-line global-require
+  const { ApiError } = require('../middleware/error'); // eslint-disable-line global-require
+  if (rawCompanyId === undefined || rawCompanyId === null || rawCompanyId === '') {
+    return Company.findByPk(await getInternalCompanyId());
+  }
+  const company = await Company.findByPk(parseRecordId(rawCompanyId) || 0);
+  const usable = company && company.status === 'active' && (company.isClient || company.isInternal)
+    && (await canAccessCompany(user, company.id));
+  if (!usable) throw new ApiError(400, 'Unknown company', 'VALIDATION_ERROR');
+  return company;
+}
+
+module.exports = {
+  getInternalCompanyId, FREE_MAIL_DOMAINS, findDepartmentInCompany, findSiteInCompany, resolveRecordCompany,
+};

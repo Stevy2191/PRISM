@@ -1,5 +1,7 @@
 const { Op, fn, col } = require('sequelize');
-const { Contact, Ticket, Department, User, ContactActivity, sequelize } = require('../models');
+const {
+  Contact, Ticket, Department, User, ContactActivity, Company, Site, sequelize,
+} = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const {
@@ -7,7 +9,7 @@ const {
 } = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { andWhere, contactScopeWhere } = require('../services/recordScope');
-const { getInternalCompanyId, findDepartmentInCompany } = require('../services/companyService');
+const { findDepartmentInCompany, findSiteInCompany, resolveRecordCompany } = require('../services/companyService');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
 const { parsePagination, paginated } = require('../utils/pagination');
@@ -15,6 +17,8 @@ const { parsePagination, paginated } = require('../utils/pagination');
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const contactInclude = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
+  { model: Company, as: 'company', attributes: ['id', 'name'] },
+  { model: Site, as: 'site', attributes: ['id', 'name'] },
   { model: User, as: 'assignedToUser', attributes: userAttrs },
 ];
 const ticketAttrs = ['id', 'title', 'status', 'priority', 'type', 'dueDate', 'resolvedAt', 'createdAt', 'updatedAt'];
@@ -34,9 +38,12 @@ const SORTABLE_COLUMNS = ['firstName', 'lastName', 'displayName', 'email', 'crea
 // filter can only narrow it — it used to be merged, which let ?departmentId=
 // and ?noDept=true replace a department-scoped user's own department (S10).
 async function buildContactListWhere(req) {
-  const { search, departmentId, assignedTo, myContacts, noDept, status } = req.query;
+  const {
+    search, departmentId, assignedTo, myContacts, noDept, status, companyId,
+  } = req.query;
 
   const where = {};
+  if (companyId) where.companyId = parseRecordId(companyId) || -1;
   if (departmentId) where.departmentId = departmentId;
   if (noDept === 'true') where.departmentId = null;
   if (assignedTo) where.assignedTo = assignedTo;
@@ -136,7 +143,9 @@ const alphaIndex = asyncHandler(async (req, res) => {
 
 // POST /contacts
 const create = asyncHandler(async (req, res) => {
-  const { firstName, lastName, email, phone, mobile, departmentId, jobTitle, assignedTo, notes, displayName } = req.body || {};
+  const {
+    firstName, lastName, email, phone, mobile, departmentId, siteId, jobTitle, assignedTo, notes, displayName, companyId,
+  } = req.body || {};
   const first = (firstName || '').trim();
   const last = (lastName || '').trim();
   if (!first && !last) {
@@ -146,13 +155,21 @@ const create = asyncHandler(async (req, res) => {
     const existing = await Contact.findOne({ where: { email } });
     if (existing) throw new ApiError(409, 'A contact with this email already exists', 'EMAIL_TAKEN');
   }
-  // A contact's department belongs to the contact's company.
-  const contactCompanyId = await getInternalCompanyId();
+  // A contact belongs to one company (internal unless one is chosen); its
+  // department and site belong to that company.
+  const company = await resolveRecordCompany(req.user, companyId);
+  const contactCompanyId = company.id;
   let resolvedDepartmentId = null;
   if (departmentId) {
     const dept = await findDepartmentInCompany(departmentId, contactCompanyId);
     if (!dept) throw new ApiError(400, 'Department not found', 'VALIDATION_ERROR');
     resolvedDepartmentId = dept.id;
+  }
+  let resolvedSiteId = null;
+  if (siteId) {
+    const site = await findSiteInCompany(siteId, contactCompanyId);
+    if (!site) throw new ApiError(400, 'Site not found', 'VALIDATION_ERROR');
+    resolvedSiteId = site.id;
   }
 
   const contact = await Contact.create({
@@ -164,6 +181,7 @@ const create = asyncHandler(async (req, res) => {
     mobile: normalizePhone(mobile),
     companyId: contactCompanyId,
     departmentId: resolvedDepartmentId,
+    siteId: resolvedSiteId,
     jobTitle: jobTitle || null,
     notes: notes || null,
     assignedTo: assignedTo || req.user.id,
@@ -235,7 +253,9 @@ const update = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
   }
 
-  const allowed = ['firstName', 'lastName', 'displayName', 'email', 'phone', 'mobile', 'departmentId', 'jobTitle', 'assignedTo', 'notes'];
+  const allowed = [
+    'firstName', 'lastName', 'displayName', 'email', 'phone', 'mobile', 'departmentId', 'siteId', 'jobTitle', 'assignedTo', 'notes',
+  ];
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key] === '' ? null : req.body[key];
@@ -247,15 +267,39 @@ const update = asyncHandler(async (req, res) => {
     if (existing) throw new ApiError(409, 'A contact with this email already exists', 'EMAIL_TAKEN');
   }
 
+  // Moving to another company takes the contact's tickets with it (model
+  // hook), so it needs people.edit_users and access to both companies:
+  // canAccessContact above covered the current one, resolveRecordCompany
+  // covers the destination.
+  const fromCompanyId = contact.companyId;
+  let targetCompanyId = fromCompanyId;
+  const rawCompanyId = (req.body || {}).companyId;
+  if (rawCompanyId !== undefined && parseRecordId(rawCompanyId) !== fromCompanyId) {
+    if (!(await hasPermission(req.user.id, 'people.edit_users'))) {
+      throw new ApiError(403, 'Moving a contact to another company needs people.edit_users', 'FORBIDDEN');
+    }
+    targetCompanyId = (await resolveRecordCompany(req.user, rawCompanyId)).id;
+    changes.companyId = targetCompanyId;
+  }
+
   if (changes.departmentId) {
-    const dept = await findDepartmentInCompany(changes.departmentId, contact.companyId);
+    const dept = await findDepartmentInCompany(changes.departmentId, targetCompanyId);
     if (!dept) throw new ApiError(400, 'Department not found', 'VALIDATION_ERROR');
     changes.departmentId = dept.id;
   }
+  if (changes.siteId) {
+    const site = await findSiteInCompany(changes.siteId, targetCompanyId);
+    if (!site) throw new ApiError(400, 'Site not found', 'VALIDATION_ERROR');
+    changes.siteId = site.id;
+  }
 
+  const ticketsMoved = changes.companyId !== undefined ? await Ticket.count({ where: { contactId: contact.id } }) : 0;
   const previousDepartmentId = contact.departmentId;
   await contact.update(changes);
   await writeAudit(req, 'contact.update', 'Contact', contact.id, changes);
+  if (changes.companyId !== undefined) {
+    await writeAudit(req, 'contact.move', 'Contact', contact.id, { fromCompanyId, toCompanyId: targetCompanyId, ticketsMoved });
+  }
 
   if (changes.departmentId !== undefined && changes.departmentId !== previousDepartmentId) {
     const dept = changes.departmentId ? await Department.findByPk(changes.departmentId) : null;

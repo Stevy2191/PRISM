@@ -6,7 +6,7 @@ const path = require('path');
 const {
   Project, ProjectMember, ProjectTask, ProjectSubtask, ProjectTimeEntry,
   ProjectExpense, ProjectMaterial, ProjectFile, ProjectActivity, ProjectStatus,
-  Department, User, Ticket, Team, TeamMember, sequelize,
+  Department, User, Ticket, Team, TeamMember, Company, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -15,7 +15,7 @@ const { syncProjectToExternalCalendars, removeProjectFromExternalCalendars } = r
 const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { andWhere, projectScopeWhere } = require('../services/recordScope');
-const { getInternalCompanyId, findDepartmentInCompany } = require('../services/companyService');
+const { getInternalCompanyId, findDepartmentInCompany, resolveRecordCompany } = require('../services/companyService');
 
 // Chunk size for the "load more" lists on a project's detail page. Tasks are
 // deliberately excluded — they are drag-reorderable, and a reorder that can
@@ -35,7 +35,7 @@ const {
 const { computeProjectCompletion, isTaskComplete, subtaskCompletionPercent } = require('../services/projectCompletion');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const {
-  getUserProjectScope, canAccessProject, hasPermission, findAccessibleTicket, parseTicketId,
+  getUserProjectScope, canAccessProject, hasPermission, findAccessibleTicket, parseTicketId, parseRecordId,
 } = require('../services/permissionService');
 const { generateProjectCode, generateTaskCode, generateSubtaskCode, formatTaskCode, formatSubtaskCode } = require('../services/projectCodeService');
 
@@ -46,6 +46,7 @@ const projectInclude = [
   { model: Department, as: 'forDepartment', attributes: ['id', 'name'] },
   { model: User, as: 'lead', attributes: userAttrs },
   { model: Team, as: 'team', attributes: ['id', 'name'] },
+  { model: Company, as: 'company', attributes: ['id', 'name'] },
 ];
 
 async function canLogForOthers(user) {
@@ -101,7 +102,10 @@ async function getProjectWithDetail(id) {
 // rather than run a query with an impossible clause.
 async function buildProjectListWhere(req) {
   const where = {};
-  const { status, ownerDept, forDept, assignee, myProjects, myDepartment, overdue, search, tag } = req.query;
+  const {
+    status, ownerDept, forDept, assignee, myProjects, myDepartment, overdue, search, tag, companyId,
+  } = req.query;
+  if (companyId) where.companyId = parseRecordId(companyId) || -1;
 
   // Scope (company fence and tier) comes from recordScope and is ANDed in at
   // the end, so these filters can only narrow it.
@@ -243,7 +247,7 @@ const listTags = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const {
     name, description, status, ownerDepartmentId, forDepartmentId,
-    assignedToUserId, teamId, dueDate, memberIds, tags,
+    assignedToUserId, teamId, dueDate, memberIds, tags, companyId,
   } = req.body || {};
 
   if (!name || !name.trim()) throw new ApiError(400, 'Project name is required', 'VALIDATION_ERROR');
@@ -253,7 +257,7 @@ const create = asyncHandler(async (req, res) => {
   // is who does the work, and its short code numbers the project. "For"
   // belongs to the project's company (client companies, sub-project 2).
   const internalCompanyId = await getInternalCompanyId();
-  const projectCompanyId = internalCompanyId;
+  const projectCompanyId = (await resolveRecordCompany(req.user, companyId)).id;
   const ownerDept = await findDepartmentInCompany(ownerDepartmentId, internalCompanyId);
   if (!ownerDept) throw new ApiError(400, 'Owned-by department does not exist', 'VALIDATION_ERROR');
   let forDept = null;
@@ -351,12 +355,24 @@ const update = asyncHandler(async (req, res) => {
     if (!ownerDept) throw new ApiError(400, 'Owned-by department does not exist', 'VALIDATION_ERROR');
     changes.ownerDepartmentId = ownerDept.id;
   }
+  // Moving a project to another company: the destination must be usable and
+  // reachable (canAccessProject above covered the current one), and the
+  // resulting "for" department must belong to it.
+  const rawCompanyId = (req.body || {}).companyId;
+  let targetCompanyId = project.companyId;
+  if (rawCompanyId !== undefined && parseRecordId(rawCompanyId) !== project.companyId) {
+    targetCompanyId = (await resolveRecordCompany(req.user, rawCompanyId)).id;
+    changes.companyId = targetCompanyId;
+  }
   if (changes.forDepartmentId) {
-    const forDept = await findDepartmentInCompany(changes.forDepartmentId, project.companyId);
+    const forDept = await findDepartmentInCompany(changes.forDepartmentId, targetCompanyId);
     if (!forDept) throw new ApiError(400, 'For-department does not exist', 'VALIDATION_ERROR');
     changes.forDepartmentId = forDept.id;
   } else if (changes.forDepartmentId !== undefined) {
     changes.forDepartmentId = null;
+  } else if (changes.companyId !== undefined && project.forDepartmentId
+    && !(await findDepartmentInCompany(project.forDepartmentId, targetCompanyId))) {
+    throw new ApiError(400, 'For-department does not exist', 'VALIDATION_ERROR');
   }
   const statusChanged = changes.status !== undefined && changes.status !== project.status;
   const previousStatus = project.status;

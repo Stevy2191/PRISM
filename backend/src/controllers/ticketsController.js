@@ -23,6 +23,7 @@ const {
   Department,
   SystemSettings,
   TicketStatus,
+  Company,
   sequelize,
 } = require('../models');
 const { Op } = require('sequelize');
@@ -67,6 +68,7 @@ const ticketInclude = [
   { model: Team, as: 'team', attributes: ['id', 'name'] },
   { model: Project, as: 'project', attributes: ['id', 'name'] },
   { model: Department, as: 'department', attributes: ['id', 'name'] },
+  { model: Company, as: 'company', attributes: ['id', 'name'] },
   { model: User, as: 'resolutionUpdatedByUser', attributes: userAttrs },
   { model: CsatResponse, as: 'csat' },
   // surveyToken excluded — it's the sole credential for the fully public,
@@ -165,7 +167,7 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   const where = {};
   const {
     status, priority, assignee, project, department, contactId, type, team, source,
-    search, myTickets, overdue, unassigned,
+    search, myTickets, overdue, unassigned, companyId,
   } = req.query;
 
   // "Closed" in the UI covers every status whose behaviorType is 'closed';
@@ -180,6 +182,7 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   if (department) where.departmentId = department;
   if (contactId) where.contactId = contactId;
   if (team) where.teamId = team;
+  if (companyId) where.companyId = parseRecordId(companyId) || -1;
 
   if (search && search.trim()) {
     const term = search.trim();
