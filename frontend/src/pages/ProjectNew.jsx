@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import CompanyPicker from '../components/companies/CompanyPicker';
 import { useNavigate, Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import TagInput from '../components/TagInput';
@@ -11,12 +12,20 @@ export default function ProjectNew() {
     status: '',
     ownerDepartmentId: '',
     forDepartmentId: '',
+    companyId: '',
     assignedToUserId: '',
     teamId: '',
     dueDate: '',
   });
   const [tags, setTags] = useState([]);
-  const [departments, setDepartments] = useState([]);
+  const [ownerDepartments, setOwnerDepartments] = useState([]);
+  // "For department" belongs to the project's company (spec); "Owned by" is
+  // always an internal department (from /departments/owners).
+  const [forDepartments, setForDepartments] = useState([]);
+  useEffect(() => {
+    const params = form.companyId ? { companyId: form.companyId } : {};
+    api.get('/departments', { params }).then(({ data }) => setForDepartments(data.departments)).catch(() => {});
+  }, [form.companyId]);
   const [statuses, setStatuses] = useState([]);
   const [assignableUsers, setAssignableUsers] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -27,7 +36,7 @@ export default function ProjectNew() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
+    api.get('/departments/owners').then(({ data }) => setOwnerDepartments(data.departments)).catch(() => {});
     api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
     api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
     api.get('/users/directory').then(({ data }) => setDirectory(data.users)).catch(() => {});
@@ -57,6 +66,7 @@ export default function ProjectNew() {
         status: form.status || undefined,
         ownerDepartmentId: form.ownerDepartmentId,
         forDepartmentId: form.forDepartmentId || undefined,
+        companyId: form.companyId || undefined,
         assignedToUserId: form.assignedToUserId || null,
         teamId: form.teamId || null,
         dueDate: form.dueDate || null,
@@ -73,7 +83,7 @@ export default function ProjectNew() {
   };
 
   const memberCandidates = directory.filter((u) => u.displayName.toLowerCase().includes(memberSearch.toLowerCase()));
-  const ownerDepartment = departments.find((d) => String(d.id) === String(form.ownerDepartmentId));
+  const ownerDepartment = ownerDepartments.find((d) => String(d.id) === String(form.ownerDepartmentId));
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -109,12 +119,13 @@ export default function ProjectNew() {
             <input type="date" className="input" value={form.dueDate} onChange={set('dueDate')} />
           </div>
         </div>
+        <CompanyPicker value={form.companyId} onChange={(v) => setForm((f) => ({ ...f, companyId: v, forDepartmentId: '' }))} />
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label">Owned by department <span className="text-red-500">*</span></label>
             <select className="input" value={form.ownerDepartmentId} onChange={set('ownerDepartmentId')} required>
               <option value="">Select department…</option>
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              {ownerDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
             <p className="mt-1 text-xs text-navy-400">Which team does the work.</p>
           </div>
@@ -122,7 +133,7 @@ export default function ProjectNew() {
             <label className="label">For department</label>
             <select className="input" value={form.forDepartmentId} onChange={set('forDepartmentId')}>
               <option value="">Same as owned by</option>
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              {forDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
             <p className="mt-1 text-xs text-navy-400">Which department benefits.</p>
           </div>

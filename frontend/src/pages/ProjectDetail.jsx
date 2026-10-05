@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import CompanyTag from '../components/companies/CompanyTag';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   IconUpload, IconFile, IconTrash, IconPlus, IconX, IconGripVertical,
@@ -444,6 +445,7 @@ export default function ProjectDetail() {
             </span>
           </div>
           <p className="mt-1 text-sm" style={{ color: MUTED }}>
+            <CompanyTag company={project.company} />
             {project.ownerDepartment?.name && (
               <span className="rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
                 {project.ownerDepartment.name}
