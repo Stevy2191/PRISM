@@ -12,13 +12,26 @@ backend start.
 
 Nothing here needs action before upgrading.
 
-### Client companies (backend)
+### Client companies
 
 Upgrading creates one company for your organization and puts every existing
 department, contact, ticket, project, asset, license and contract under it.
 Free-text vendor names on assets, licenses, contracts and project materials
 become vendor companies (the original text is kept for one more release).
 Until you add a client company, nothing behaves differently.
+
+Once you add a client company, PRISM shows a Companies tab, company pickers
+on contacts, tickets, projects and assets, and company filters on lists and
+reports. Settings → Companies is always there, also for managing vendors.
+
+- Assignees and watchers must be able to see a ticket's company. **Changed
+  response:** assigning one who can't returns `400 VALIDATION_ERROR`.
+- A new ticket without a department now takes its contact's department.
+- A company can't stop being a client while it still has contacts, tickets
+  or other records (`409 COMPANY_IN_USE`).
+- The CSV contact import takes an optional "Company" column.
+- Old free-text vendor columns stay for one more release; vendor companies
+  now fill them.
 
 ### Security fixes
 

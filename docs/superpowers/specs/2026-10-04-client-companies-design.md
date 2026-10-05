@@ -42,6 +42,9 @@ Made with the user while brainstorming, on 2026-10-04.
 | Vendor text | **Migrated to vendor companies,** deduplicated ignoring case and surrounding spaces. A merge tool cleans up near-duplicates, and doubles as the general duplicate-company tool. |
 | Architecture | **A real `companyId` column plus central scope helpers** in `permissionService`, called explicitly by every handler. Not derived through joins, and not injected by global Sequelize hooks. |
 | Company UI switch | **`multiCompany` means at least one client company exists.** Vendor companies alone (including those the migration creates from vendor text) never turn on company pickers. *(Ruled in plan 2a.)* |
+| Vendor pickers | **Vendor-only companies are shared.** A company that is only a vendor shows in every vendor picker; one that is also a client shows only to users who can reach it. *(Plan 2b.)* |
+| Ticket people | **Assignees and watchers must reach the ticket's company.** Pickers list only people who can; assignments made before a move stay. *(Plan 2b.)* |
+| Screen tests | **A browser smoke suite** (`npm run test:smoke`) verifies each screen against the real API. *(Plan 2b.)* |
 | Large files | `TicketDetail.jsx`, `TicketNew.jsx`, `ProjectDetail.jsx`, `ticketsController.js` and `projectsController.js` are touched only lightly. Splitting them stays with sub-project 3, which rewrites them, as was ruled for sub-project 1. New code goes in new, small files. |
 
 ## Data model
@@ -108,6 +111,8 @@ safety net. The API stops writing them, and a later release drops them.
 - Moving an asset, license or contract to another company clears its
   department, site and assigned contact unless new ones from the new company
   are given. *(Ruled in plan 2a.)*
+- An assignee or watcher can reach the ticket's company. Assignments made
+  before a move stay. *(Plan 2b.)*
 
 ### Migration
 
@@ -317,6 +322,10 @@ New screens go in new files under `frontend/src/pages/companies/` and
 
 ## Testing
 
+Browser smoke tests (`npm run test:smoke`, `backend/test/smoke/`) cover each
+screen against the real API and the built frontend. They run locally, not in
+CI yet. *(Plan 2b.)*
+
 Integration tests in the sub-project 1 style, in new files under
 `backend/test/integration/`, each under about 800 lines:
 
@@ -368,7 +377,15 @@ Fixed while building plan 2a: **S9** (moving a contact to a department needed
 no access to the contact), **S10** (contact list filters replaced the scope
 instead of narrowing it), unchecked contact and asset ids on assets, asset
 checkouts and the new-ticket form, and `/assets/12abc`-style ids that the
-database read as record 12.
+database read as record 12. Plan 2a's final pass also fixed **S11**: user
+administrators could grant System Administrator, which no company fence
+applies to.
+
+Known and accepted: unique values (a contact's email, a company's name, an
+email domain) answer `409` whether or not the clash is with a record the
+user can see. The answer carries no details, but the conflict itself shows
+that the value exists. Closing that fully needs per-company uniqueness,
+which conflicts with inbound email, where one address must have one owner.
 
 ## Out of scope
 
