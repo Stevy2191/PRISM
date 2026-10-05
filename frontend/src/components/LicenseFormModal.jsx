@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import api, { errMessage } from '../api/api';
 import Modal from './Modal';
+import { useCompanySummary } from '../context/CompanyContext';
+import CompanyPicker from './companies/CompanyPicker';
+import VendorPicker from './companies/VendorPicker';
 import { LICENSE_TYPE_LABELS } from '../pages/assets/Licenses';
 
 const TEXT = 'var(--color-text-primary)';
@@ -17,7 +20,7 @@ function Label({ children, required }) {
 const DEFAULT_FORM = {
   name: '', vendor: '', licenseType: 'per_seat', totalSeats: '', licenseKey: '',
   purchaseDate: '', expiryDate: '', renewalDate: '', annualCost: '', autoRenews: false,
-  departmentId: '', notes: '',
+  departmentId: '', companyId: '', notes: '',
 };
 
 // Create/edit form for a License record — new (no `license` prop) or edit
@@ -35,6 +38,8 @@ export default function LicenseFormModal({ license, departments, onClose, onSave
     });
     return f;
   });
+  const { multiCompany } = useCompanySummary();
+  const [vendor, setVendor] = useState(license?.vendorCompany || null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -57,9 +62,11 @@ export default function LicenseFormModal({ license, departments, onClose, onSave
         annualCost: form.annualCost === '' ? null : Number(form.annualCost),
         autoRenews: !!form.autoRenews,
         departmentId: form.departmentId || null,
+        companyId: form.companyId || undefined,
         notes: form.notes || null,
       };
       if (form.licenseKey) payload.licenseKey = form.licenseKey;
+      if (multiCompany) payload.vendorCompanyId = vendor ? vendor.id : null;
 
       const { data } = isEdit
         ? await api.patch(`/licenses/${license.id}`, payload)
@@ -84,7 +91,9 @@ export default function LicenseFormModal({ license, departments, onClose, onSave
           </div>
           <div>
             <Label>Vendor</Label>
-            <input className="input" style={fieldStyle} value={form.vendor} onChange={set('vendor')} />
+            {multiCompany
+              ? <VendorPicker value={vendor} onChange={setVendor} style={fieldStyle} />
+              : <input className="input" style={fieldStyle} value={form.vendor} onChange={set('vendor')} />}
           </div>
         </div>
 
@@ -128,11 +137,12 @@ export default function LicenseFormModal({ license, departments, onClose, onSave
             <Label>Annual cost ($)</Label>
             <input type="number" min="0" step="0.01" className="input" style={fieldStyle} value={form.annualCost} onChange={set('annualCost')} />
           </div>
+          <CompanyPicker value={String(form.companyId || '')} style={fieldStyle} onChange={(v) => setForm((f) => ({ ...f, companyId: v, departmentId: '' }))} />
           <div>
             <Label>Department</Label>
             <select className="input" style={fieldStyle} value={form.departmentId} onChange={set('departmentId')}>
               <option value="">None</option>
-              {(departments || []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              {(departments || []).filter((d) => !multiCompany || String(d.companyId) === String(form.companyId)).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
         </div>

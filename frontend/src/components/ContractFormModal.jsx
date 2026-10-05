@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import api, { errMessage } from '../api/api';
 import Modal from './Modal';
+import { useCompanySummary } from '../context/CompanyContext';
+import CompanyPicker from './companies/CompanyPicker';
+import VendorPicker from './companies/VendorPicker';
 import { CONTRACT_TYPE_LABELS } from '../pages/assets/Contracts';
 
 const TEXT = 'var(--color-text-primary)';
@@ -19,7 +22,7 @@ const DEFAULT_FORM = {
   startDate: '', endDate: '', renewalDate: '',
   annualCost: '', totalValue: '', autoRenews: false,
   contactPerson: '', contactEmail: '', contactPhone: '',
-  departmentId: '', notes: '',
+  departmentId: '', companyId: '', notes: '',
 };
 
 export default function ContractFormModal({ contract, departments, onClose, onSaved }) {
@@ -30,6 +33,8 @@ export default function ContractFormModal({ contract, departments, onClose, onSa
     Object.keys(f).forEach((k) => { if (contract[k] !== undefined && contract[k] !== null) f[k] = contract[k]; });
     return f;
   });
+  const { multiCompany } = useCompanySummary();
+  const [vendor, setVendor] = useState(contract?.vendorCompany || null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -38,13 +43,14 @@ export default function ContractFormModal({ contract, departments, onClose, onSa
   const submit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) { setError('Name is required'); return; }
-    if (!form.vendor.trim()) { setError('Vendor is required'); return; }
+    if (multiCompany ? !vendor : !form.vendor.trim()) { setError('Vendor is required'); return; }
     setError('');
     setSaving(true);
     try {
       const payload = {
         name: form.name.trim(),
-        vendor: form.vendor.trim(),
+        // With a vendor company, the server fills the vendor text from it.
+        vendor: multiCompany ? undefined : form.vendor.trim(),
         contractType: form.contractType,
         startDate: form.startDate || null,
         endDate: form.endDate || null,
@@ -56,8 +62,10 @@ export default function ContractFormModal({ contract, departments, onClose, onSa
         contactEmail: form.contactEmail || null,
         contactPhone: form.contactPhone || null,
         departmentId: form.departmentId || null,
+        companyId: form.companyId || undefined,
         notes: form.notes || null,
       };
+      if (multiCompany) payload.vendorCompanyId = vendor ? vendor.id : null;
 
       const { data } = isEdit
         ? await api.patch(`/contracts/${contract.id}`, payload)
@@ -82,7 +90,9 @@ export default function ContractFormModal({ contract, departments, onClose, onSa
           </div>
           <div>
             <Label required>Vendor</Label>
-            <input className="input" style={fieldStyle} value={form.vendor} onChange={set('vendor')} />
+            {multiCompany
+              ? <VendorPicker value={vendor} onChange={setVendor} style={fieldStyle} />
+              : <input className="input" style={fieldStyle} value={form.vendor} onChange={set('vendor')} />}
           </div>
         </div>
 
@@ -142,11 +152,12 @@ export default function ContractFormModal({ contract, departments, onClose, onSa
           </div>
         </div>
 
+        <CompanyPicker value={String(form.companyId || '')} style={fieldStyle} onChange={(v) => setForm((f) => ({ ...f, companyId: v, departmentId: '' }))} />
         <div>
           <Label>Department</Label>
           <select className="input max-w-xs" style={fieldStyle} value={form.departmentId} onChange={set('departmentId')}>
             <option value="">None</option>
-            {(departments || []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            {(departments || []).filter((d) => !multiCompany || String(d.companyId) === String(form.companyId)).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
 

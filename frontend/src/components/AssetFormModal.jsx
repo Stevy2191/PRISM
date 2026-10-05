@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { contactLabel } from '../utils/contactLabel';
 import { useCompanySummary } from '../context/CompanyContext';
+import CompanyPicker from './companies/CompanyPicker';
+import VendorPicker from './companies/VendorPicker';
+import SitePicker from './companies/SitePicker';
 import api, { errMessage } from '../api/api';
 import Modal from './Modal';
 
@@ -75,7 +78,7 @@ function CategoryFieldInput({ field, value, onChange }) {
 // ContactPicker) and Users (client-side filter over the full directory,
 // like WatchersField) — there's no dedicated live-search user endpoint, so
 // the User side fetches /users/directory once and filters locally.
-function AssignedToPicker({ contact, user, onChangeContact, onChangeUser }) {
+function AssignedToPicker({ contact, user, onChangeContact, onChangeUser, companyId }) {
   const { multiCompany } = useCompanySummary();
   const [mode, setMode] = useState(contact ? 'contact' : 'user');
   const [query, setQuery] = useState('');
@@ -91,12 +94,14 @@ function AssignedToPicker({ contact, user, onChangeContact, onChangeUser }) {
   useEffect(() => {
     if (mode !== 'contact' || !query.trim()) { setContactResults([]); return; }
     const t = setTimeout(() => {
-      api.get('/contacts', { params: { search: query.trim() } })
+      // An asset's contact belongs to the asset's company (plan 2a), so the
+      // search only offers that company's contacts.
+      api.get('/contacts', { params: { search: query.trim(), ...(multiCompany && companyId ? { companyId } : {}) } })
         .then(({ data }) => setContactResults(data.contacts.slice(0, 8)))
         .catch(() => setContactResults([]));
     }, 250);
     return () => clearTimeout(t);
-  }, [mode, query]);
+  }, [mode, query, companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function handleOutside(e) {
@@ -184,7 +189,7 @@ const DEFAULT_FORM = {
   make: '', model: '', serialNumber: '',
   operatingSystem: '', osVersion: '', processor: '', ram: '', storage: '',
   ipAddress: '', macAddress: '', firmwareVersion: '', deployedDate: '',
-  departmentId: '', locationBuilding: '', locationFloor: '', locationRoom: '',
+  departmentId: '', companyId: '', siteId: '', locationBuilding: '', locationFloor: '', locationRoom: '',
   purchaseDate: '', purchasePrice: '', vendorName: '', warrantyExpiryDate: '', replacementPlanDate: '',
   notes: '',
 };
@@ -197,6 +202,8 @@ export default function AssetFormModal({ asset, categories, departments, onClose
     Object.keys(f).forEach((k) => { if (asset[k] !== undefined && asset[k] !== null) f[k] = asset[k]; });
     return f;
   });
+  const { multiCompany } = useCompanySummary();
+  const [vendor, setVendor] = useState(asset?.vendorCompany || null);
   const [contact, setContact] = useState(asset?.assignedToContact || null);
   const [user, setUser] = useState(asset?.assignedToUser || null);
   const [tagTouched, setTagTouched] = useState(isEdit);
@@ -241,6 +248,7 @@ export default function AssetFormModal({ asset, categories, departments, onClose
       payload.assignedToContactId = contact?.id || null;
       payload.assignedToUserId = user?.id || null;
       payload.fieldValues = fieldValues;
+      if (multiCompany) payload.vendorCompanyId = vendor ? vendor.id : null;
 
       const { data } = isEdit
         ? await api.patch(`/assets/${asset.id}`, payload)
@@ -355,13 +363,31 @@ export default function AssetFormModal({ asset, categories, departments, onClose
         )}
 
         <Section title="Assignment">
-          <AssignedToPicker contact={contact} user={user} onChangeContact={setContact} onChangeUser={setUser} />
-          <div>
-            <Label>Department</Label>
-            <select className="input" style={fieldStyle} value={form.departmentId} onChange={set('departmentId')}>
-              <option value="">None</option>
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
+          <CompanyPicker
+            value={String(form.companyId || '')}
+            style={fieldStyle}
+            onChange={(v) => {
+              // Department, site and contact belong to the asset's company.
+              setForm((f) => ({ ...f, companyId: v, departmentId: '', siteId: '' }));
+              if (String(v) !== String(form.companyId || '')) setContact(null);
+            }}
+          />
+          <AssignedToPicker contact={contact} user={user} onChangeContact={setContact} onChangeUser={setUser} companyId={form.companyId} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Department</Label>
+              <select className="input" style={fieldStyle} value={form.departmentId} onChange={set('departmentId')}>
+                <option value="">None</option>
+                {departments.filter((d) => !multiCompany || String(d.companyId) === String(form.companyId))
+                  .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            {multiCompany && (
+              <div>
+                <Label>Site</Label>
+                <SitePicker companyId={form.companyId} value={form.siteId} onChange={(v) => setForm((f) => ({ ...f, siteId: v }))} style={fieldStyle} />
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div><Label>Building</Label><input className="input" style={fieldStyle} value={form.locationBuilding} onChange={set('locationBuilding')} /></div>
@@ -374,7 +400,12 @@ export default function AssetFormModal({ asset, categories, departments, onClose
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div><Label>Purchase date</Label><input type="date" className="input" style={fieldStyle} value={form.purchaseDate || ''} onChange={set('purchaseDate')} /></div>
             <div><Label>Purchase price</Label><input type="number" min="0" step="0.01" className="input" style={fieldStyle} value={form.purchasePrice} onChange={set('purchasePrice')} /></div>
-            <div><Label>Vendor name</Label><input className="input" style={fieldStyle} value={form.vendorName} onChange={set('vendorName')} /></div>
+            <div>
+              <Label>Vendor</Label>
+              {multiCompany
+                ? <VendorPicker value={vendor} onChange={setVendor} style={fieldStyle} />
+                : <input className="input" style={fieldStyle} value={form.vendorName} onChange={set('vendorName')} />}
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><Label>Warranty expiry date</Label><input type="date" className="input" style={fieldStyle} value={form.warrantyExpiryDate || ''} onChange={set('warrantyExpiryDate')} /></div>
