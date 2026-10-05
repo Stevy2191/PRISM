@@ -35,6 +35,9 @@ Nothing here needs action before upgrading.
   department, or a contact they just created on the new-ticket form.
   **Changed response:** a missing or hidden project or contact now returns
   `400 VALIDATION_ERROR` ("Project not found" / "Contact not found").
+- Editing or deleting a contact now needs access to that contact (your own
+  department, a contact you created, or "view all people"). Before, anyone who
+  could create tickets could edit any contact.
 - Assigning a contact to a department (which also moves that contact's
   tickets) now needs access to the contact, and users without "view all
   people" can only assign their own department. Before, any user who could

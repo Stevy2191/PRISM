@@ -2,7 +2,9 @@ const { Op, fn, col } = require('sequelize');
 const { Contact, Ticket, Department, User, ContactActivity, sequelize } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
-const { hasPermission, findAccessibleContact, parseRecordId } = require('../services/permissionService');
+const {
+  hasPermission, findAccessibleContact, canAccessContact, parseRecordId,
+} = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
@@ -173,8 +175,7 @@ const get = asyncHandler(async (req, res) => {
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
   // Route-level viewMin only checked "has EITHER view tier" — a
   // department-scoped user could otherwise read any contact by id.
-  const canViewAll = await hasPermission(req.user.id, 'people.view_all');
-  if (!canViewAll && contact.departmentId !== req.user.departmentId) {
+  if (!(await canAccessContact(req.user, contact))) {
     throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
   }
 
@@ -223,6 +224,9 @@ const get = asyncHandler(async (req, res) => {
 const update = asyncHandler(async (req, res) => {
   const contact = await Contact.findByPk(req.params.id);
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+  if (!(await canAccessContact(req.user, contact))) {
+    throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
+  }
 
   const allowed = ['firstName', 'lastName', 'displayName', 'email', 'phone', 'mobile', 'departmentId', 'jobTitle', 'assignedTo', 'notes'];
   const changes = {};
@@ -295,6 +299,9 @@ const assignDepartment = asyncHandler(async (req, res) => {
 const remove = asyncHandler(async (req, res) => {
   const contact = await Contact.findByPk(req.params.id);
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+  if (!(await canAccessContact(req.user, contact))) {
+    throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
+  }
 
   if (req.query.force !== 'true') {
     const buckets = await getTicketStatusBuckets();
@@ -322,8 +329,7 @@ const remove = asyncHandler(async (req, res) => {
 const listTickets = asyncHandler(async (req, res) => {
   const contact = await Contact.findByPk(req.params.id);
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
-  const canViewAllContacts = await hasPermission(req.user.id, 'people.view_all');
-  if (!canViewAllContacts && contact.departmentId !== req.user.departmentId) {
+  if (!(await canAccessContact(req.user, contact))) {
     throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
   }
 
@@ -342,8 +348,7 @@ const listTickets = asyncHandler(async (req, res) => {
 const listActivity = asyncHandler(async (req, res) => {
   const contact = await Contact.findByPk(req.params.id);
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
-  const canViewAllContacts = await hasPermission(req.user.id, 'people.view_all');
-  if (!canViewAllContacts && contact.departmentId !== req.user.departmentId) {
+  if (!(await canAccessContact(req.user, contact))) {
     throw new ApiError(403, 'You do not have access to this contact', 'FORBIDDEN');
   }
 

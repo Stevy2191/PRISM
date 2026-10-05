@@ -229,20 +229,24 @@ async function findAccessibleProject(user, projectId) {
   return project;
 }
 
-// Same rule for a ticket's contactId — the ticket response carries the
-// contact's email and phone. Mirrors the contacts module's own scope
-// (people.view_all, or the caller's own department), plus contacts with no
-// department that the caller created: the new-ticket form's quick-create
-// makes exactly those, before a department is assigned.
+// The one rule for "may this user see/act on this contact": people.view_all,
+// or a contact in the user's own department, or a contact with no department
+// that the user created (the new-ticket form's quick-create makes those).
+// Task 5 of the client-companies plan adds the company fence in front.
+async function canAccessContact(user, contact) {
+  if (await hasPermission(user.id, 'people.view_all')) return true;
+  if (contact.departmentId != null) return contact.departmentId === user.departmentId;
+  return contact.createdBy === user.id;
+}
+
+// Same rule as findAccessibleTicket, for a ticket's contactId — the ticket
+// response carries the contact's email and phone.
 async function findAccessibleContact(user, contactId) {
   const id = parseRecordId(contactId);
   if (!id) return null;
   const contact = await Contact.findByPk(id);
-  if (!contact) return null;
-  if (await hasPermission(user.id, 'people.view_all')) return contact;
-  if (contact.departmentId != null && contact.departmentId === user.departmentId) return contact;
-  if (contact.departmentId == null && contact.createdBy === user.id) return contact;
-  return null;
+  if (!contact || !(await canAccessContact(user, contact))) return null;
+  return contact;
 }
 
 async function canAccessProject(user, project) {
@@ -300,6 +304,7 @@ module.exports = {
   parseRecordId,
   findAccessibleProject,
   findAccessibleContact,
+  canAccessContact,
   canAccessProject,
   canModerateTicketContent,
   canModerateProjectContent,

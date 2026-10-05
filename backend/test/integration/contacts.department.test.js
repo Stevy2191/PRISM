@@ -1,6 +1,6 @@
 const { resetData, closeDb } = require('./helpers');
 const {
-  API, expectOk, makeWorld, makeTech, makeStaff, makeContact, makeTicket,
+  API, expectOk, makeWorld, makeTech, makeStaff, makeManager, makeContact, makeTicket,
 } = require('./fixtures');
 
 // S8: assigning a contact's department also moves every ticket that contact
@@ -66,5 +66,34 @@ describe('S8: PATCH /contacts/:id/department', () => {
     expect((await assign(staff.agent, w.contact, undefined)).body.message).toBe('departmentId is required');
     const tech = await makeTech('tech', w.deptA.id);
     expect((await assign(tech.agent, w.contact, 99999)).body.message).toBe('Department does not exist');
+  });
+});
+
+describe('S9: editing and deleting a contact checks scope', () => {
+  it('refuses to edit another department\'s contact', async () => {
+    const res = await staff.agent.patch(`${API}/contacts/${contactB.id}`).send({ email: 'hijack@example.com' });
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: true, message: 'You do not have access to this contact', code: 'FORBIDDEN' });
+    expect(expectOk(await w.admin.agent.get(`${API}/contacts/${contactB.id}`)).contact.email).not.toBe('hijack@example.com');
+  });
+
+  it('refuses to delete another department\'s contact', async () => {
+    // Department Manager holds people.edit_users (the delete route's gate) but
+    // only people.view_own_department.
+    const mgr = await makeManager('mgr', w.deptA.id);
+    const res = await mgr.agent.delete(`${API}/contacts/${contactB.id}?force=true`);
+    expect(res.status).toBe(403);
+    expect((await w.admin.agent.get(`${API}/contacts/${contactB.id}`)).status).toBe(200);
+  });
+
+  it('still lets users edit contacts in their own department, and ones they created', async () => {
+    expect((await staff.agent.patch(`${API}/contacts/${w.contact.id}`).send({ jobTitle: 'Clerk' })).status).toBe(200);
+    const mine = expectOk(await staff.agent.post(`${API}/contacts`).send({ firstName: 'Mine', email: 'mine@example.com' }), 201).contact;
+    expect((await staff.agent.patch(`${API}/contacts/${mine.id}`).send({ jobTitle: 'Clerk' })).status).toBe(200);
+    expect((await staff.agent.get(`${API}/contacts/${mine.id}`)).status).toBe(200);
+  });
+
+  it('a missing contact is still a 404', async () => {
+    expect((await staff.agent.patch(`${API}/contacts/99999`).send({ jobTitle: 'x' })).status).toBe(404);
   });
 });
