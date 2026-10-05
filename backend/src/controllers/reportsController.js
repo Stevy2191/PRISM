@@ -6,8 +6,8 @@ const {
 } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/error');
 const { toCsv } = require('../utils/csv');
-const { getUserReportScope, companyScopeWhere } = require('../services/permissionService');
-const { andWhere, isEmpty } = require('../services/recordScope');
+const { getUserReportScope } = require('../services/permissionService');
+const { andWhere, companyFilterWhere, isEmpty } = require('../services/recordScope');
 const { getTicketStatusBuckets, getProjectStatusBuckets } = require('../services/statusBehavior');
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { getOverview, getTeamHappiness } = require('../services/csatStatsService');
@@ -150,7 +150,7 @@ async function buildTicketVolumeReport(req) {
   const deptId = parseDepartmentId(req.query);
   const assigneeId = parseAssigneeId(req.query);
 
-  const companyWhere = await companyScopeWhere(req.user);
+  const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
   let where = ticketScopeWhere(dateWhere('createdAt', range), scope, req.user, deptId, companyWhere);
   if (assigneeId) where = andWhere(where, { assigneeId });
 
@@ -244,7 +244,7 @@ async function buildTicketTrendsReport(req) {
   const deptId = parseDepartmentId(req.query);
   const granularity = granularityFor(range) === 'day' ? 'week' : granularityFor(range); // trends read better weekly minimum
 
-  const companyWhere = await companyScopeWhere(req.user);
+  const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
   const createdWhere = ticketScopeWhere(dateWhere('createdAt', range), scope, req.user, deptId, companyWhere);
   const closedWhere = ticketScopeWhere(dateWhere('resolvedAt', range), scope, req.user, deptId, companyWhere);
 
@@ -358,7 +358,7 @@ async function buildTeamPerformanceReport(req) {
 
   const buckets = await getTicketStatusBuckets();
   const todayStr = new Date().toISOString().slice(0, 10);
-  const companyWhere = await companyScopeWhere(req.user);
+  const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
   const fenced = (where) => andWhere(where, companyWhere);
   // Time is fenced through its ticket.
   const timeTicketInclude = isEmpty(companyWhere)
@@ -480,7 +480,7 @@ async function buildSlaComplianceReport(req) {
   const range = parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
-  const companyWhere = await companyScopeWhere(req.user);
+  const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
   const closedWithDueDate = await Ticket.findAll({
     where: ticketScopeWhere({ resolvedAt: { [Op.ne]: null }, dueDate: { [Op.ne]: null }, ...dateWhere('resolvedAt', range) }, scope, req.user, deptId, companyWhere),
     attributes: ['id', 'title', 'dueDate', 'resolvedAt', 'assigneeId', 'departmentId'],
@@ -596,8 +596,8 @@ async function buildTimeBillingReport(req) {
     projectWhere = { ...projectWhere, loggedForUserId: assigneeId };
   }
   // Time is fenced through its ticket or project (both are included below).
-  ticketWhere = andWhere(ticketWhere, await companyScopeWhere(req.user, '$ticket.companyId$'));
-  projectWhere = andWhere(projectWhere, await companyScopeWhere(req.user, '$project.companyId$'));
+  ticketWhere = andWhere(ticketWhere, await companyFilterWhere(req.user, req.query.companyId, '$ticket.companyId$'));
+  projectWhere = andWhere(projectWhere, await companyFilterWhere(req.user, req.query.companyId, '$project.companyId$'));
 
   const [ticketEntries, projectEntries] = await Promise.all([
     TimeEntry.findAll({
@@ -726,7 +726,7 @@ async function buildProjectsReport(req) {
   const range = parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
-  const where = projectScopeWhere({}, scope, req.user, deptId, await companyScopeWhere(req.user));
+  const where = projectScopeWhere({}, scope, req.user, deptId, await companyFilterWhere(req.user, req.query.companyId));
   const projects = await Project.findAll({
     where,
     include: [
@@ -844,7 +844,7 @@ async function buildContactsReport(req) {
   const range = parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
-  const contactWhere = contactDeptWhere({}, scope, req.user, deptId, await companyScopeWhere(req.user));
+  const contactWhere = contactDeptWhere({}, scope, req.user, deptId, await companyFilterWhere(req.user, req.query.companyId));
   const contacts = await Contact.findAll({
     where: contactWhere,
     include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
@@ -969,7 +969,7 @@ const ticketsExport = asyncHandler(async (req, res) => {
   const range = parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
-  const where = ticketScopeWhere(dateWhere('createdAt', range), scope, req.user, deptId, await companyScopeWhere(req.user));
+  const where = ticketScopeWhere(dateWhere('createdAt', range), scope, req.user, deptId, await companyFilterWhere(req.user, req.query.companyId));
   const tickets = await Ticket.findAll({
     where,
     include: [
@@ -1018,7 +1018,7 @@ const csat = asyncHandler(async (req, res) => {
   }
 
   // Fenced through the ticket (included below).
-  where = andWhere(where, await companyScopeWhere(req.user, '$ticket.companyId$'));
+  where = andWhere(where, await companyFilterWhere(req.user, req.query.companyId, '$ticket.companyId$'));
 
   const responses = await CsatResponse.findAll({
     where,
@@ -1078,7 +1078,7 @@ async function buildCustomerHappinessReport(req) {
   const range = parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
-  const companyWhere = await companyScopeWhere(req.user);
+  const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
   const [overview, byTech] = await Promise.all([
     getOverview({ range, departmentId: deptId, companyWhere }),
     getTeamHappiness({ range, departmentId: deptId, companyWhere }),
@@ -1157,7 +1157,7 @@ async function buildAssetsReplacementReport(req) {
     where.replacementPlanDate[Op.lte] = in90;
   }
 
-  const assets = await Asset.findAll({ where: andWhere(where, await companyScopeWhere(req.user)), include: assetInclude, order: [['replacementPlanDate', 'ASC']] });
+  const assets = await Asset.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: assetInclude, order: [['replacementPlanDate', 'ASC']] });
   const todayStr = new Date().toISOString().slice(0, 10);
   const overdue = assets.filter((a) => a.replacementPlanDate < todayStr).length;
 
@@ -1188,7 +1188,7 @@ async function buildAssetsWarrantyReport(req) {
     Object.assign(where, dateWhere('warrantyExpiryDate', parseDateRange(req.query)));
   }
 
-  const assets = await Asset.findAll({ where: andWhere(where, await companyScopeWhere(req.user)), include: assetInclude, order: [['warrantyExpiryDate', 'ASC']] });
+  const assets = await Asset.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: assetInclude, order: [['warrantyExpiryDate', 'ASC']] });
   const todayStr = new Date().toISOString().slice(0, 10);
   const in90Str = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
   const expired = assets.filter((a) => a.warrantyExpiryDate < todayStr).length;
@@ -1221,7 +1221,7 @@ async function buildAssetsInventoryReport(req) {
   if (req.query.categoryId) where.categoryId = req.query.categoryId;
   if (req.query.status) where.status = req.query.status;
 
-  const assets = await Asset.findAll({ where: andWhere(where, await companyScopeWhere(req.user)), include: assetInclude, order: [['assetTag', 'ASC']] });
+  const assets = await Asset.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: assetInclude, order: [['assetTag', 'ASC']] });
   const byCategory = new Map();
   const byStatus = new Map();
   assets.forEach((a) => {
@@ -1267,7 +1267,7 @@ async function buildAssetsTicketHistoryReport(req) {
       model: Asset,
       as: 'asset',
       required: true,
-      where: andWhere(deptId ? { departmentId: deptId } : {}, await companyScopeWhere(req.user)),
+      where: andWhere(deptId ? { departmentId: deptId } : {}, await companyFilterWhere(req.user, req.query.companyId)),
       include: assetInclude,
     }],
   });
@@ -1345,7 +1345,7 @@ async function buildLicensesInventoryReport(req) {
   if (deptId) where.departmentId = deptId;
   if (req.query.licenseType) where.licenseType = req.query.licenseType;
 
-  const licenses = await License.findAll({ where: andWhere(where, await companyScopeWhere(req.user)), include: licenseInclude, order: [['name', 'ASC']] });
+  const licenses = await License.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: licenseInclude, order: [['name', 'ASC']] });
   const totalAnnualCost = licenses.reduce((sum, l) => sum + (l.annualCost ? Number(l.annualCost) : 0), 0);
   const totalSeats = licenses.reduce((sum, l) => sum + (l.totalSeats || 0), 0);
   const usedSeats = licenses.reduce((sum, l) => sum + (l.usedSeats || 0), 0);
@@ -1377,7 +1377,7 @@ async function buildContractsSummaryReport(req) {
   if (deptId) where.departmentId = deptId;
   if (req.query.contractType) where.contractType = req.query.contractType;
 
-  const contracts = await Contract.findAll({ where: andWhere(where, await companyScopeWhere(req.user)), include: contractIncludeReport, order: [['name', 'ASC']] });
+  const contracts = await Contract.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: contractIncludeReport, order: [['name', 'ASC']] });
   const assetCounts = await ContractAsset.findAll({ where: { contractId: { [Op.in]: contracts.map((c) => c.id) } }, attributes: ['contractId'] });
   const countByContract = new Map();
   assetCounts.forEach((r) => countByContract.set(r.contractId, (countByContract.get(r.contractId) || 0) + 1));
@@ -1412,7 +1412,7 @@ async function buildSoftwareSpendReport(req) {
   const where = {};
   if (deptId) where.departmentId = deptId;
 
-  const licenses = await License.findAll({ where: andWhere(where, await companyScopeWhere(req.user)), include: licenseInclude });
+  const licenses = await License.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: licenseInclude });
   const byDept = new Map();
   licenses.forEach((l) => {
     const name = l.department?.name || 'Unassigned';
@@ -1448,7 +1448,7 @@ async function buildContractSpendReport(req) {
   const where = {};
   if (deptId) where.departmentId = deptId;
 
-  const contracts = await Contract.findAll({ where: andWhere(where, await companyScopeWhere(req.user)), include: contractIncludeReport });
+  const contracts = await Contract.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: contractIncludeReport });
   const byDept = new Map();
   contracts.forEach((c) => {
     const name = c.department?.name || 'Unassigned';
@@ -1497,7 +1497,7 @@ async function buildUpcomingRenewalsReport(req) {
     ],
   };
   if (deptId) contractWhere.departmentId = deptId;
-  const companyWhere = await companyScopeWhere(req.user);
+  const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
 
   const [licenses, contracts] = await Promise.all([
     License.findAll({ where: andWhere(licenseWhere, companyWhere), include: licenseInclude }),

@@ -5,7 +5,7 @@
 const { Op } = require('sequelize');
 const { ProjectMember } = require('../models');
 const {
-  getUserTicketScope, getUserProjectScope, hasPermission, companyScopeWhere,
+  getUserTicketScope, getUserProjectScope, hasPermission, companyScopeWhere, parseRecordId,
 } = require('./permissionService');
 
 function isEmpty(where) {
@@ -49,6 +49,16 @@ async function contactScopeWhere(user) {
   return andWhere(company, viewAll ? {} : { departmentId: user.departmentId });
 }
 
+// The viewer's company fence, narrowed to one company when a filter names
+// one (?companyId= on reports). A filter only ever narrows: a junk id
+// matches nothing, and an unreachable company ANDs to nothing.
+async function companyFilterWhere(user, rawCompanyId, column = 'companyId') {
+  const fence = await companyScopeWhere(user, column);
+  if (rawCompanyId === undefined || rawCompanyId === null || rawCompanyId === '') return fence;
+  return andWhere(fence, { [column]: parseRecordId(rawCompanyId) || -1 });
+}
+
 module.exports = {
+  companyFilterWhere,
   isEmpty, andWhere, ticketScopeWhere, projectScopeWhere, contactScopeWhere,
 };
