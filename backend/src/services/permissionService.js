@@ -10,6 +10,7 @@
 const { Op } = require('sequelize');
 const {
   User, UserRole, RolePermission, Permission, UserPermissionOverride, Role, ProjectMember, Ticket, Project, Contact,
+  UserCompanyAccess, RoleCompanyAccess,
 } = require('../models');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -29,12 +30,14 @@ function getCached(userId) {
 // role_permissions edit, override create/update/delete).
 function invalidateUserPermissions(userId) {
   cache.delete(userId);
+  companyCache.delete(userId); // eslint-disable-line no-use-before-define
 }
 
 // Call whenever a role's permission grants change — affects every user
 // holding that role, and we don't track that reverse mapping in-cache.
 function invalidateAllPermissions() {
   cache.clear();
+  companyCache.clear(); // eslint-disable-line no-use-before-define
 }
 
 async function resolveUserPermissions(userId) {
@@ -180,6 +183,54 @@ async function explainUserPermissions(userId) {
   });
 }
 
+// ---- Company access (client companies, sub-project 2) ----
+// A user reaches every company (allCompanies, the default) or a list: their
+// own UserCompanyAccess rows plus the RoleCompanyAccess rows of every role
+// they hold. System Administrators always reach everything.
+const companyCache = new Map(); // userId -> { ids: null | number[], expiresAt }
+
+async function isUnfenceable(user) {
+  if (user.role === 'admin') return true;
+  const adminRole = await Role.findOne({ where: { name: 'System Administrator' }, attributes: ['id'] });
+  if (!adminRole) return false;
+  if (user.roleId === adminRole.id) return true;
+  return !!(await UserRole.findOne({ where: { userId: user.id, roleId: adminRole.id }, attributes: ['userId'] }));
+}
+
+async function getUserCompanyIds(user) {
+  const cached = companyCache.get(user.id);
+  if (cached && cached.expiresAt > Date.now()) return cached.ids;
+
+  // Fail closed: a user object loaded without the column is re-read, and an
+  // unknown user reaches nothing.
+  let all = user.allCompanies;
+  if (all === undefined) all = (await User.findByPk(user.id, { attributes: ['allCompanies'] }))?.allCompanies ?? false;
+
+  let ids = null;
+  if (!all && !(await isUnfenceable(user))) {
+    const roleIds = new Set((await UserRole.findAll({ where: { userId: user.id }, attributes: ['roleId'] })).map((r) => r.roleId));
+    if (user.roleId) roleIds.add(user.roleId);
+    const [own, viaRoles] = await Promise.all([
+      UserCompanyAccess.findAll({ where: { userId: user.id }, attributes: ['companyId'] }),
+      roleIds.size ? RoleCompanyAccess.findAll({ where: { roleId: [...roleIds] }, attributes: ['companyId'] }) : [],
+    ]);
+    ids = [...new Set([...own, ...viaRoles].map((r) => r.companyId))];
+  }
+  companyCache.set(user.id, { ids, expiresAt: Date.now() + CACHE_TTL_MS });
+  return ids;
+}
+
+async function canAccessCompany(user, companyId) {
+  const ids = await getUserCompanyIds(user);
+  return ids === null || ids.includes(Number(companyId));
+}
+
+async function companyScopeWhere(user, column = 'companyId') {
+  const ids = await getUserCompanyIds(user);
+  if (ids === null) return {};
+  return { [column]: { [Op.in]: ids.length ? ids : [-1] } };
+}
+
 // Record-level access checks — the list endpoints (GET /tickets, GET
 // /projects) already filter by scope via a `where` clause, but the
 // single-record endpoints (GET /tickets/:id, GET /projects/:id and their
@@ -190,6 +241,7 @@ async function explainUserPermissions(userId) {
 // mirror the exact same scope semantics as the list `where` clauses above,
 // applied to one already-fetched record instead of a query.
 async function canAccessTicket(user, ticket) {
+  if (!(await canAccessCompany(user, ticket.companyId))) return false;
   const scope = await getUserTicketScope(user.id);
   if (scope === 'all') return true;
   if (scope === 'department') return ticket.departmentId === user.departmentId || ticket.assigneeId === user.id;
@@ -234,6 +286,7 @@ async function findAccessibleProject(user, projectId) {
 // that the user created (the new-ticket form's quick-create makes those).
 // Task 5 of the client-companies plan adds the company fence in front.
 async function canAccessContact(user, contact) {
+  if (!(await canAccessCompany(user, contact.companyId))) return false;
   if (await hasPermission(user.id, 'people.view_all')) return true;
   if (contact.departmentId != null) return contact.departmentId === user.departmentId;
   return contact.createdBy === user.id;
@@ -250,6 +303,7 @@ async function findAccessibleContact(user, contactId) {
 }
 
 async function canAccessProject(user, project) {
+  if (!(await canAccessCompany(user, project.companyId))) return false;
   const scope = await getUserProjectScope(user.id);
   if (scope === 'all') return true;
   const isMember = !!(await ProjectMember.findOne({ where: { projectId: project.id, userId: user.id } }));
@@ -292,6 +346,10 @@ async function canModerateProjectContent(user, project) {
 }
 
 module.exports = {
+  getUserCompanyIds,
+  canAccessCompany,
+  companyScopeWhere,
+  isUnfenceable,
   resolveUserPermissions,
   hasPermission,
   hasAnyPermission,

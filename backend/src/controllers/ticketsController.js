@@ -1398,7 +1398,7 @@ const listActivity = asyncHandler(async (req, res) => {
 
 // GET /tickets/:id/report — streams a generated PDF report for this ticket.
 const generateReport = asyncHandler(async (req, res) => {
-  const ticket = await Ticket.findByPk(req.params.id, { attributes: ['id', 'departmentId', 'assigneeId'] });
+  const ticket = await Ticket.findByPk(req.params.id, { attributes: ['id', 'departmentId', 'assigneeId', 'companyId'] });
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
   const ok = await generateTicketReport(ticket.id, res);

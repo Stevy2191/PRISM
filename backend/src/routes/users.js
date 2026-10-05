@@ -7,6 +7,11 @@ const { requirePermission } = require('../middleware/requirePermission');
 // All routes here are already behind `authenticate` (mounted in routes/index.js).
 const router = express.Router();
 
+const companyAccess = require('../controllers/companyAccessController');
+const manageCompanyAccess = requirePermission('companies.manage_access');
+router.get('/:id/company-access', manageCompanyAccess, companyAccess.getUserAccess);
+router.put('/:id/company-access', manageCompanyAccess, companyAccess.putUserAccess);
+
 const manageRoles = requirePermission('people.manage_roles');
 const manageOverrides = requirePermission('people.manage_permission_overrides');
 const viewAccess = requirePermission('people.manage_roles', 'people.manage_permission_overrides', 'people.edit_users');

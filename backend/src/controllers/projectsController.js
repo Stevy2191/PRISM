@@ -1190,7 +1190,7 @@ const listActivity = asyncHandler(async (req, res) => {
 
 // GET /projects/:id/report — streams a generated PDF report for this project.
 const generateReport = asyncHandler(async (req, res) => {
-  const project = await Project.findByPk(req.params.id, { attributes: ['id', 'ownerDepartmentId', 'forDepartmentId'] });
+  const project = await Project.findByPk(req.params.id, { attributes: ['id', 'ownerDepartmentId', 'forDepartmentId', 'companyId'] });
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   const ok = await generateProjectReport(project.id, res);
