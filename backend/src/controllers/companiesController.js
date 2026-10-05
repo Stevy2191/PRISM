@@ -7,10 +7,10 @@ const {
   ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
-const { writeAudit } = require('../middleware/audit');
+const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { parsePagination, paginated } = require('../utils/pagination');
 const {
-  canAccessCompany, companyScopeWhere, parseRecordId, invalidateAllPermissions,
+  canAccessCompany, companyScopeWhere, parseRecordId, invalidateAllPermissions, hasPermission,
 } = require('../services/permissionService');
 const { FREE_MAIL_DOMAINS } = require('../services/companyService');
 const { andWhere, isEmpty } = require('../services/recordScope');
@@ -237,6 +237,14 @@ const merge = asyncHandler(async (req, res) => {
     res.json({ preview: true, counts: await mergeCounts(from.id) });
     return;
   }
+  // Moving B's access grants to A widens what those users and roles reach, so
+  // a merge that moves any is a company-access change: it needs
+  // companies.manage_access, as granting does, and is on the access audit.
+  const before = await mergeCounts(from.id);
+  if (before.userAccess + before.roleAccess > 0 && !(await hasPermission(req.user.id, 'companies.manage_access'))) {
+    throw new ApiError(403, 'This merge moves company access grants, which needs companies.manage_access', 'FORBIDDEN');
+  }
+  const grantedUserIds = (await UserCompanyAccess.findAll({ where: { companyId: from.id }, attributes: ['userId'] })).map((r) => r.userId);
   const counts = await sequelize.transaction(async (transaction) => {
     const moved = await mergeCounts(from.id, transaction);
     await mergeCompanies(from, into, transaction);
@@ -244,6 +252,10 @@ const merge = asyncHandler(async (req, res) => {
   });
   invalidateAllPermissions();
   await writeAudit(req, 'company.merge', 'Company', into.id, { fromCompanyId: from.id, fromName: from.name, counts });
+  for (const userId of grantedUserIds) {
+    // eslint-disable-next-line no-await-in-loop
+    await writeSystemAudit(req, 'company_access_granted', userId, { companyIds: [into.id], viaMergeFrom: from.id });
+  }
   res.json({ company: await Company.findByPk(into.id, { include: companyInclude }), counts });
 });
 

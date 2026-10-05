@@ -14,7 +14,7 @@ const {
   companyScopeWhere, canAccessCompany, parseRecordId,
 } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
-const { resolvePlacement, resolveVendorFields } = require('../services/companyService');
+const { resolvePlacement, resolveVendorFields, hideUnreachableVendors } = require('../services/companyService');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -115,6 +115,7 @@ const list = asyncHandler(async (req, res) => {
   const countByContract = new Map();
   assetCounts.forEach((r) => countByContract.set(r.contractId, (countByContract.get(r.contractId) || 0) + 1));
 
+  await hideUnreachableVendors(req.user, contracts);
   res.json(paginated(
     'contracts',
     {
@@ -135,6 +136,7 @@ const get = asyncHandler(async (req, res) => {
     ContractAttachment.count({ where: { contractId: contract.id } }),
   ]);
 
+  await hideUnreachableVendors(req.user, contract);
   res.json({
     contract,
     stats: {
@@ -169,6 +171,7 @@ const create = asyncHandler(async (req, res) => {
   await logContractActivity(contract.id, req.user.id, 'created', { name: contract.name });
 
   const fresh = await Contract.findByPk(contract.id, { include: contractInclude });
+  await hideUnreachableVendors(req.user, fresh);
   res.status(201).json({ contract: fresh });
 });
 
@@ -189,6 +192,7 @@ const update = asyncHandler(async (req, res) => {
   await logContractActivity(contract.id, req.user.id, 'updated', { changes: Object.keys(values) });
 
   const fresh = await Contract.findByPk(contract.id, { include: contractInclude });
+  await hideUnreachableVendors(req.user, fresh);
   res.json({ contract: fresh });
 });
 

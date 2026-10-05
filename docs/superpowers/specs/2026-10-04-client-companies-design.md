@@ -94,7 +94,10 @@ list lives in one module, so it is easy to extend.
 All `companyId`, `siteId` and `vendorCompanyId` columns are indexed.
 The old free-text vendor columns (`Assets.vendorName`, `Licenses.vendor`,
 `Contracts.vendor`, `ProjectMaterials.vendor`) stay for one release as a
-safety net. The API stops writing them, and a later release drops them.
+safety net, and a later release drops them. Until then the API keeps them
+in step with the vendor company: choosing a vendor company fills the text,
+and changing only the text (a one-company install has no vendor picker)
+links the vendor company of that name, or none. *(Ruled in plan 2b.)*
 
 ### Integrity rules (enforced in handlers, tested)
 

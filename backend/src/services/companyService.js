@@ -1,6 +1,9 @@
 // Company helpers shared by controllers and services. The internal company is
 // created by the client-companies migration and can never be deleted, so its
 // id is cached for the life of the process.
+const {
+  Op, fn, col, where: sqlWhere,
+} = require('sequelize');
 const { Company, Department, Site } = require('../models');
 
 let internalCompanyId = null;
@@ -137,7 +140,7 @@ async function resolveVendorCompany(user, rawVendorId) {
 // vendor isn't re-checked: forms send the whole record back, and the vendor
 // may have been deactivated since.
 async function resolveVendorFields(user, body, record, textColumn) {
-  if (body.vendorCompanyId === undefined) return {};
+  if (body.vendorCompanyId === undefined) return linkVendorText(user, body, record, textColumn);
   if (isBlank(body.vendorCompanyId)) return { vendorCompanyId: null };
   const { parseRecordId } = require('./permissionService'); // eslint-disable-line global-require
   if (record && parseRecordId(body.vendorCompanyId) === record.vendorCompanyId) return {};
@@ -145,7 +148,49 @@ async function resolveVendorFields(user, body, record, textColumn) {
   return { vendorCompanyId: vendor.id, [textColumn]: vendor.name };
 }
 
+const normalizeVendorText = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+
+// When only the free text changes (a one-company install's form has no
+// vendor picker), the vendor company follows it: the active vendor company
+// of that name the user may pick, else none — so the text and the company
+// never disagree (plan 2b review F6). Unchanged text changes nothing.
+async function linkVendorText(user, body, record, textColumn) {
+  if (body[textColumn] === undefined) return {};
+  const text = normalizeVendorText(body[textColumn]);
+  if (record && text.toLowerCase() === normalizeVendorText(record[textColumn]).toLowerCase()) return {};
+  if (!text) return { vendorCompanyId: null };
+  const { canAccessCompany } = require('./permissionService'); // eslint-disable-line global-require
+  const matches = await Company.findAll({
+    where: { isVendor: true, status: 'active', [Op.and]: [sqlWhere(fn('LOWER', col('name')), text.toLowerCase())] },
+  });
+  for (const company of matches) {
+    // eslint-disable-next-line no-await-in-loop
+    if (isSharedVendor(company) || (await canAccessCompany(user, company.id))) return { vendorCompanyId: company.id };
+  }
+  return { vendorCompanyId: null };
+}
+
+// Responses name a record's vendor company only if the viewer may see it:
+// a shared vendor-only company, or one they can reach. A company that is
+// also a client the viewer can't reach is left out (plan 2b review F8).
+// Works on Sequelize instances (single or array) carrying `vendorCompany`.
+async function hideUnreachableVendors(user, rows) {
+  const { getUserCompanyIds } = require('./permissionService'); // eslint-disable-line global-require
+  const list = (Array.isArray(rows) ? rows : [rows]).filter(Boolean);
+  const reachable = await getUserCompanyIds(user);
+  if (reachable === null) return rows;
+  const ids = [...new Set(list.map((r) => r.vendorCompany && r.vendorCompany.id).filter(Boolean))];
+  if (!ids.length) return rows;
+  const shared = new Set((await Company.findAll({ where: { id: ids }, attributes: ['id', 'isVendor', 'isClient', 'isInternal'] }))
+    .filter(isSharedVendor).map((c) => c.id));
+  list.forEach((r) => {
+    const v = r.vendorCompany;
+    if (v && !shared.has(v.id) && !reachable.includes(v.id)) r.setDataValue('vendorCompany', null);
+  });
+  return rows;
+}
+
 module.exports = {
   getInternalCompanyId, FREE_MAIL_DOMAINS, findDepartmentInCompany, findSiteInCompany, resolveRecordCompany,
-  resolvePlacement, isCompanyChange, isSharedVendor, resolveVendorCompany, resolveVendorFields,
+  resolvePlacement, isCompanyChange, isSharedVendor, resolveVendorCompany, resolveVendorFields, hideUnreachableVendors,
 };

@@ -253,6 +253,9 @@ async function createTicketFromEmail({ contact, subject, textBody }) {
     type: 'request',
     source: 'email',
     contactId: contact.id,
+    // Spec: the department defaults to the contact's (it is in the
+    // contact's company, as the ticket will be).
+    departmentId: contact.departmentId || null,
     assigneeId: null,
     createdBy: null,
   });
@@ -384,4 +387,5 @@ async function pollInbox() {
 module.exports = {
   resolveInboundEmailConfig, readInboundEmailSettingsRows, isInboundConfigured,
   testImapConnection, pollInbox, buildTicketMessageId, findOrCreateContact,
+  createTicketFromEmail, // exported for the integration tests
 };

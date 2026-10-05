@@ -21,7 +21,7 @@ const {
   companyScopeWhere, parseRecordId, findAccessibleTicket, findAccessibleContact,
 } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
-const { resolvePlacement, resolveVendorFields } = require('../services/companyService');
+const { resolvePlacement, resolveVendorFields, hideUnreachableVendors } = require('../services/companyService');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -176,6 +176,7 @@ const list = asyncHandler(async (req, res) => {
     offset,
     distinct: true,
   });
+  await hideUnreachableVendors(req.user, rows);
   res.json(paginated('assets', { rows, count }, { page, limit }));
 });
 
@@ -276,6 +277,7 @@ const get = asyncHandler(async (req, res) => {
     AssetTicket.count({ where: { assetId: asset.id }, include: [{ model: Ticket, as: 'ticket', where: { status: { [Op.in]: buckets.open } }, attributes: [] }] }),
   ]);
 
+  await hideUnreachableVendors(req.user, asset);
   res.json({
     asset,
     stats: {
@@ -322,6 +324,7 @@ const create = asyncHandler(async (req, res) => {
   await writeAudit(req, 'asset.create', 'Asset', asset.id, { assetTag: asset.assetTag });
 
   const fresh = await Asset.findByPk(asset.id, { include: assetInclude });
+  await hideUnreachableVendors(req.user, fresh);
   res.status(201).json({ asset: fresh });
 });
 
@@ -372,6 +375,7 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const fresh = await Asset.findByPk(asset.id, { include: assetInclude });
+  await hideUnreachableVendors(req.user, fresh);
   res.json({ asset: fresh });
 });
 

@@ -15,7 +15,9 @@ export default function CompanyPicker({ value, onChange, label = 'Company', disa
     onChange(String(fallback.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [multiCompany, value, companies]);
-  if (!multiCompany) return null;
+  // Without companies.view the list is empty: show nothing, and the record
+  // goes to the server's default company.
+  if (!multiCompany || !companies.length) return null;
   return (
     <div>
       <label className="label" htmlFor="company-picker">{label}</label>

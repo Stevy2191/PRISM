@@ -463,8 +463,12 @@ const create = asyncHandler(async (req, res) => {
   if (!departmentId && contact.departmentId) resolvedDepartmentId = contact.departmentId;
 
   // Watchers and the assignee must reach the ticket's company (plan 2b).
+  // De-duplicated and capped before any are checked: each check is a few
+  // queries, and the list comes straight from the request body.
+  const rawWatcherIds = Array.isArray(watcherIds) ? [...new Set(watcherIds.map((id) => String(id)))] : [];
+  if (rawWatcherIds.length > 100) throw new ApiError(400, 'A ticket can have at most 100 watchers', 'VALIDATION_ERROR');
   const watcherIdList = [];
-  for (const raw of Array.isArray(watcherIds) ? watcherIds : []) {
+  for (const raw of rawWatcherIds) {
     // eslint-disable-next-line no-await-in-loop
     const id = await assertCanWorkTicket(raw, contact.companyId, 'Watcher');
     if (!watcherIdList.includes(id)) watcherIdList.push(id);

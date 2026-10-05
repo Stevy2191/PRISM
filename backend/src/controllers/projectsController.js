@@ -16,7 +16,7 @@ const { calculateLaborCost } = require('../utils/laborCost');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { andWhere, projectScopeWhere } = require('../services/recordScope');
 const {
-  getInternalCompanyId, findDepartmentInCompany, resolveRecordCompany, isCompanyChange, resolveVendorFields,
+  getInternalCompanyId, findDepartmentInCompany, resolveRecordCompany, isCompanyChange, resolveVendorFields, hideUnreachableVendors,
 } = require('../services/companyService');
 
 // Chunk size for the "load more" lists on a project's detail page. Tasks are
@@ -1007,6 +1007,7 @@ const listMaterials = asyncHandler(async (req, res) => {
   // Named `totalAmount`, not `total` — `total` is the row count that every
   // paginated response carries, and the money sum would otherwise clobber it.
   const totalAmount = Number(await ProjectMaterial.sum('totalCost', { where: { projectId: project.id } })) || 0;
+  await hideUnreachableVendors(req.user, rows);
   res.json({ ...paginated('materials', { rows, count }, { page, limit }), totalAmount });
 });
 
@@ -1045,6 +1046,7 @@ const createMaterial = asyncHandler(async (req, res) => {
   await logProjectActivity(project.id, req.user.id, 'material_added', { materialId: material.id, itemName: material.itemName });
 
   const fresh = await ProjectMaterial.findByPk(material.id, { include: materialInclude });
+  await hideUnreachableVendors(req.user, fresh);
   res.status(201).json({ material: fresh });
 });
 
@@ -1073,6 +1075,7 @@ const updateMaterial = asyncHandler(async (req, res) => {
 
   await material.update(changes);
   const fresh = await ProjectMaterial.findByPk(material.id, { include: materialInclude });
+  await hideUnreachableVendors(req.user, fresh);
   res.json({ material: fresh });
 });
 

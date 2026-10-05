@@ -70,7 +70,13 @@ async function mergeCompanies(from, into, transaction) {
   await moveGrants(UserCompanyAccess, 'userId', from.id, into.id, transaction);
   await moveGrants(RoleCompanyAccess, 'roleId', from.id, into.id, transaction);
   await CompanyDomain.update({ companyId: into.id }, { where: { companyId: from.id }, transaction });
-  await into.update({ isClient: into.isClient || from.isClient, isVendor: into.isVendor || from.isVendor }, { transaction });
+  // The flags are unioned, except that the internal company never becomes a
+  // client: multiCompany means "a client exists", and the internal company
+  // can't drop the flag again once it owns records.
+  await into.update({
+    isClient: !into.isInternal && (into.isClient || from.isClient),
+    isVendor: into.isVendor || from.isVendor,
+  }, { transaction });
   await from.destroy({ transaction });
 }
 

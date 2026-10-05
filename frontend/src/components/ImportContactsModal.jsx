@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useCompanySummary } from '../context/CompanyContext';
 import { IconUpload, IconAlertTriangle } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 
@@ -30,15 +31,21 @@ const FIELD_SYNONYMS = {
   phone: ['phone', 'phone number', 'telephone'],
   mobile: ['mobile', 'mobile number', 'cell', 'cell phone'],
   department: ['department', 'dept'],
-  company: ['company', 'organization', 'organisation', 'client', 'account'],
+  company: ['company', 'organization', 'organisation'],
   jobTitle: ['jobtitle', 'job title', 'title', 'position'],
 };
 
-function autoDetectMapping(headers) {
+// The Company field exists only while company UI is on: a one-company
+// install's "Company" column (an Outlook export's employer name, say) is
+// skipped as it always was, rather than failing every row.
+const fieldsFor = (multiCompany) => FIELD_OPTIONS.filter((o) => multiCompany || o.value !== 'company');
+
+function autoDetectMapping(headers, multiCompany) {
   const mapping = {};
   headers.forEach((h) => {
     const norm = h.toLowerCase().trim();
-    const match = Object.entries(FIELD_SYNONYMS).find(([, syns]) => syns.includes(norm));
+    const match = Object.entries(FIELD_SYNONYMS)
+      .find(([field, syns]) => (multiCompany || field !== 'company') && syns.includes(norm));
     mapping[h] = match ? match[0] : 'skip';
   });
   return mapping;
@@ -95,6 +102,7 @@ function StepIndicator({ step }) {
 }
 
 export default function ImportContactsModal({ departments, onClose, onImported }) {
+  const { multiCompany } = useCompanySummary();
   const [step, setStep] = useState('upload');
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -146,7 +154,7 @@ export default function ImportContactsModal({ departments, onClose, onImported }
       const { data } = await api.post('/contacts/import/parse', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setHeaders(data.headers);
       setRows(data.rows);
-      setMapping(autoDetectMapping(data.headers));
+      setMapping(autoDetectMapping(data.headers, multiCompany));
       setStep('mapping');
     } catch (err) {
       setUploadError(errMessage(err));
@@ -265,7 +273,7 @@ export default function ImportContactsModal({ departments, onClose, onImported }
                     value={mapping[h] || 'skip'}
                     onChange={(e) => setMapping((m) => ({ ...m, [h]: e.target.value }))}
                   >
-                    {FIELD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {fieldsFor(multiCompany).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
               ))}

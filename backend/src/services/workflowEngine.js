@@ -9,6 +9,7 @@ const {
   WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog,
 } = require('../models');
 const { createNotification } = require('./notifications');
+const { assertCanWorkTicket } = require('./ticketPeople');
 
 const ticketEvalInclude = [
   { model: Contact, as: 'contact', include: [{ model: Department, as: 'department' }] },
@@ -146,6 +147,9 @@ async function executeAction(ticket, action, rule) {
   const v = action.actionValue || {};
   switch (action.actionType) {
     case 'assign_to_user': {
+      // Throws for someone who can't reach the ticket's company (plan 2b);
+      // the rule runner logs it and skips the action.
+      await assertCanWorkTicket(v.userId, ticket.companyId, 'Assignee');
       await ticket.update({ assigneeId: v.userId });
       return `assigned to user #${v.userId}`;
     }
@@ -156,6 +160,7 @@ async function executeAction(ticket, action, rule) {
     case 'assign_round_robin': {
       const userId = await pickRoundRobinAssignee(v.teamId);
       if (!userId) throw new Error(`Team #${v.teamId} has no members for round robin`);
+      await assertCanWorkTicket(userId, ticket.companyId, 'Assignee');
       await ticket.update({ assigneeId: userId, teamId: v.teamId });
       return `round-robin assigned to user #${userId}`;
     }
@@ -218,6 +223,7 @@ async function executeAction(ticket, action, rule) {
       return 'private comment added';
     }
     case 'escalate_to_user': {
+      await assertCanWorkTicket(v.userId, ticket.companyId, 'Assignee');
       await ticket.update({ assigneeId: v.userId, priority: 'urgent' });
       return `escalated to user #${v.userId} (priority: urgent)`;
     }
@@ -349,6 +355,8 @@ function describeAction(action, ticket) {
 }
 
 module.exports = {
+  // executeAction is exported for the integration tests.
+  executeAction,
   evaluateRules,
   testRule,
   evaluateConditions,

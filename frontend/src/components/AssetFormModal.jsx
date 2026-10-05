@@ -378,7 +378,7 @@ export default function AssetFormModal({ asset, categories, departments, onClose
               <Label>Department</Label>
               <select className="input" style={fieldStyle} value={form.departmentId} onChange={set('departmentId')}>
                 <option value="">None</option>
-                {departments.filter((d) => !multiCompany || String(d.companyId) === String(form.companyId))
+                {departments.filter((d) => !multiCompany || !form.companyId || String(d.companyId) === String(form.companyId))
                   .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>

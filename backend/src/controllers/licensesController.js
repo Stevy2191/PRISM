@@ -15,7 +15,7 @@ const {
   companyScopeWhere, canAccessCompany, parseRecordId, findAccessibleContact,
 } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
-const { resolvePlacement, resolveVendorFields } = require('../services/companyService');
+const { resolvePlacement, resolveVendorFields, hideUnreachableVendors } = require('../services/companyService');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -93,6 +93,7 @@ const list = asyncHandler(async (req, res) => {
     offset,
     distinct: true,
   });
+  await hideUnreachableVendors(req.user, rows);
   res.json(paginated('licenses', { rows, count }, { page, limit }));
 });
 
@@ -107,6 +108,7 @@ const get = asyncHandler(async (req, res) => {
     LicenseAttachment.count({ where: { licenseId: license.id } }),
   ]);
 
+  await hideUnreachableVendors(req.user, license);
   res.json({
     license,
     stats: {
@@ -140,6 +142,7 @@ const create = asyncHandler(async (req, res) => {
   await logLicenseActivity(license.id, req.user.id, 'created', { name: license.name });
 
   const fresh = await License.findByPk(license.id, { include: licenseInclude });
+  await hideUnreachableVendors(req.user, fresh);
   res.status(201).json({ license: fresh });
 });
 
@@ -166,6 +169,7 @@ const update = asyncHandler(async (req, res) => {
   await logLicenseActivity(license.id, req.user.id, 'updated', { changes: Object.keys(values) });
 
   const fresh = await License.findByPk(license.id, { include: licenseInclude });
+  await hideUnreachableVendors(req.user, fresh);
   res.json({ license: fresh });
 });
 
