@@ -6,7 +6,8 @@ const {
   Ticket, TimeEntry, ProjectTimeEntry, User, Team, Project, ProjectExpense, ProjectMaterial,
   Department, Contact, CustomField, TicketFieldValue,
 } = require('../models');
-const { getUserReportScope } = require('./permissionService');
+const { getUserReportScope, companyScopeWhere } = require('./permissionService');
+const { andWhere } = require('./recordScope');
 const { getTicketStatusBuckets } = require('./statusBehavior');
 const { computeProjectCompletion } = require('./projectCompletion');
 const rc = require('../controllers/reportsController'); // reuse scope/date-range helpers, not routes
@@ -135,7 +136,8 @@ async function loadTicketRecords(req, filters) {
   if (filters.source) where.source = filters.source;
 
   const tickets = await Ticket.findAll({
-    where,
+    // The company fence is ANDed last, so no filter above can replace it.
+    where: andWhere(where, await companyScopeWhere(req.user)),
     include: [
       { model: User, as: 'assignee', attributes: userAttrs },
       { model: Contact, as: 'contact', attributes: ['id', 'displayName'], include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] },
@@ -201,7 +203,7 @@ async function loadProjectRecords(req, filters) {
   if (filters.assigneeId) where.assignedToUserId = filters.assigneeId;
 
   const projects = await Project.findAll({
-    where,
+    where: andWhere(where, await companyScopeWhere(req.user)),
     include: [
       { model: Department, as: 'ownerDepartment', attributes: ['id', 'name'] },
       { model: Department, as: 'forDepartment', attributes: ['id', 'name'] },
@@ -269,6 +271,10 @@ async function loadTimeEntryRecords(req, filters) {
     projectWhere = { ...projectWhere, loggedForUserId: filters.assigneeId };
   }
 
+  // Time is fenced through its ticket or project (both included below).
+  ticketWhere = andWhere(ticketWhere, await companyScopeWhere(req.user, '$ticket.companyId$'));
+  projectWhere = andWhere(projectWhere, await companyScopeWhere(req.user, '$project.companyId$'));
+
   const [ticketEntries, projectEntries] = await Promise.all([
     TimeEntry.findAll({
       where: ticketWhere,
@@ -331,6 +337,11 @@ async function loadExpenseMaterialRecords(req, filters) {
     materialWhere = { ...materialWhere, '$project.ownerDepartmentId$': filters.departmentId };
   }
 
+  // Fenced through the project (included below).
+  const projectFence = await companyScopeWhere(req.user, '$project.companyId$');
+  expenseWhere = andWhere(expenseWhere, projectFence);
+  materialWhere = andWhere(materialWhere, projectFence);
+
   const [expenses, materials] = await Promise.all([
     ProjectExpense.findAll({
       where: expenseWhere,
@@ -382,7 +393,7 @@ async function loadContactRecords(req, filters) {
   if (filters.status) contactWhere.status = filters.status;
 
   const contacts = await Contact.findAll({
-    where: contactWhere,
+    where: andWhere(contactWhere, await companyScopeWhere(req.user)),
     include: [
       { model: Department, as: 'department', attributes: ['id', 'name'] },
       { model: User, as: 'assignedToUser', attributes: userAttrs },

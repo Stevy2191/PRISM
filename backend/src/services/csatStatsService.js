@@ -11,6 +11,14 @@
 // one-liners, not worth the fragility.
 const { Op, fn, col } = require('sequelize');
 const { CsatSurvey, Ticket, Comment, User, Department, Contact } = require('../models');
+const { andWhere, isEmpty } = require('./recordScope');
+
+// Every function below takes the viewer's company fence (a where on
+// companyId, empty for "all companies"). Ticket queries apply it directly;
+// survey queries apply it through the survey's ticket.
+function fencedTicket(companyWhere, extra = {}) {
+  return isEmpty(companyWhere) ? [] : [{ model: Ticket, as: 'ticket', attributes: [], ...extra, where: companyWhere, required: true }];
+}
 
 function dateWhere(field, range) {
   const clause = {};
@@ -54,17 +62,17 @@ function round1(n) {
 // user ids, optionally scoped to a date range (applied to createdAt for
 // "assigned" tickets and resolvedAt for "closed" ones, same as
 // reportsController.js's team-performance report).
-async function responseAndResolutionStats(userIds, range) {
+async function responseAndResolutionStats(userIds, range, companyWhere = {}) {
   if (!userIds.length) return new Map();
 
   const [assignedTickets, closedTickets] = await Promise.all([
     Ticket.findAll({
-      where: { assigneeId: { [Op.in]: userIds }, ...dateWhere('createdAt', range) },
+      where: andWhere({ assigneeId: { [Op.in]: userIds }, ...dateWhere('createdAt', range) }, companyWhere),
       attributes: ['id', 'assigneeId', 'createdAt'],
       raw: true,
     }),
     Ticket.findAll({
-      where: { assigneeId: { [Op.in]: userIds }, resolvedAt: { [Op.ne]: null }, ...dateWhere('resolvedAt', range) },
+      where: andWhere({ assigneeId: { [Op.in]: userIds }, resolvedAt: { [Op.ne]: null }, ...dateWhere('resolvedAt', range) }, companyWhere),
       attributes: ['id', 'assigneeId', 'createdAt', 'resolvedAt'],
       raw: true,
     }),
@@ -110,13 +118,13 @@ async function responseAndResolutionStats(userIds, range) {
   return result;
 }
 
-async function ticketsClosedCounts(userId) {
+async function ticketsClosedCounts(userId, companyWhere = {}) {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
   const [thisMonth, thisYear] = await Promise.all([
-    Ticket.count({ where: { assigneeId: userId, resolvedAt: { [Op.gte]: monthStart } } }),
-    Ticket.count({ where: { assigneeId: userId, resolvedAt: { [Op.gte]: yearStart } } }),
+    Ticket.count({ where: andWhere({ assigneeId: userId, resolvedAt: { [Op.gte]: monthStart } }, companyWhere) }),
+    Ticket.count({ where: andWhere({ assigneeId: userId, resolvedAt: { [Op.gte]: yearStart } }, companyWhere) }),
   ]);
   return { ticketsClosedThisMonth: thisMonth, ticketsClosedThisYear: thisYear };
 }
@@ -124,15 +132,16 @@ async function ticketsClosedCounts(userId) {
 // Full performance stat block for one tech — CSAT + response/resolution
 // time + closed-ticket counts. Used by UserDetail's Performance tab and the
 // dashboard's "My Ratings" panel.
-async function getUserPerformanceStats(userId, range = {}) {
+async function getUserPerformanceStats(userId, range = {}, companyWhere = {}) {
   const [ratingRows, resolutionMap, closedCounts] = await Promise.all([
     CsatSurvey.findAll({
       where: { assignedToUserId: userId, status: 'responded', ...dateWhere('respondedAt', range) },
+      include: fencedTicket(companyWhere),
       attributes: ['rating'],
       raw: true,
     }),
-    responseAndResolutionStats([userId], range),
-    ticketsClosedCounts(userId),
+    responseAndResolutionStats([userId], range, companyWhere),
+    ticketsClosedCounts(userId, companyWhere),
   ]);
 
   const responseCount = ratingRows.length;
@@ -147,7 +156,7 @@ async function getUserPerformanceStats(userId, range = {}) {
 // Per-tech CSAT + resolution-time breakdown for all active techs — used by
 // the admin dashboard's "Team Happiness" panel and the Customer Happiness
 // report's "score by tech" chart/table.
-async function getTeamHappiness({ range, departmentId } = {}) {
+async function getTeamHappiness({ range, departmentId, companyWhere = {} } = {}) {
   const userWhere = { role: { [Op.in]: ['admin', 'technician'] }, isActive: true };
   if (departmentId) userWhere.departmentId = departmentId;
   const techs = await User.findAll({ where: userWhere, attributes: ['id', 'displayName', 'departmentId'] });
@@ -157,10 +166,11 @@ async function getTeamHappiness({ range, departmentId } = {}) {
   const [ratingRows, resolutionMap] = await Promise.all([
     CsatSurvey.findAll({
       where: { assignedToUserId: { [Op.in]: techIds }, status: 'responded', ...dateWhere('respondedAt', range) },
+      include: fencedTicket(companyWhere),
       attributes: ['assignedToUserId', 'rating'],
       raw: true,
     }),
-    responseAndResolutionStats(techIds, range),
+    responseAndResolutionStats(techIds, range, companyWhere),
   ]);
 
   const byUser = new Map(techIds.map((id) => [id, { sum: 0, count: 0 }]));
@@ -190,14 +200,20 @@ async function getTeamHappiness({ range, departmentId } = {}) {
 // score, response rate, trend over time, score by tech, score by
 // department, recent comments, and the raw response list. Feeds both
 // GET /csat/stats + GET /reports/customer-happiness.
-async function getOverview({ range, userId, departmentId } = {}) {
+async function getOverview({ range, userId, departmentId, companyWhere = {} } = {}) {
   const where = { status: 'responded', ...dateWhere('respondedAt', range) };
   if (userId) where.assignedToUserId = userId;
 
   const responses = await CsatSurvey.findAll({
     where,
     include: [
-      { model: Ticket, as: 'ticket', attributes: ['id', 'title', 'departmentId'], include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] },
+      {
+        model: Ticket,
+        as: 'ticket',
+        attributes: ['id', 'title', 'departmentId'],
+        include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
+        ...(isEmpty(companyWhere) ? {} : { where: companyWhere, required: true }),
+      },
       { model: Contact, as: 'contact', attributes: ['id', 'firstName', 'lastName', 'displayName'] },
       { model: User, as: 'assignedToUser', attributes: ['id', 'displayName'] },
     ],
@@ -215,7 +231,7 @@ async function getOverview({ range, userId, departmentId } = {}) {
 
   const sentWhere = { sentAt: { [Op.ne]: null }, ...dateWhere('sentAt', range) };
   if (userId) sentWhere.assignedToUserId = userId;
-  const sentCount = await CsatSurvey.count({ where: sentWhere });
+  const sentCount = await CsatSurvey.count({ where: sentWhere, include: fencedTicket(companyWhere) });
   const responseRate = sentCount ? Math.round((100 * overallCount) / sentCount) : null;
 
   const granularity = granularityFor(range);
@@ -277,13 +293,18 @@ async function getOverview({ range, userId, departmentId } = {}) {
   };
 }
 
-async function listResponses({ range, userId }) {
+async function listResponses({ range, userId, companyWhere = {} }) {
   const where = { status: 'responded', ...dateWhere('respondedAt', range) };
   if (userId) where.assignedToUserId = userId;
   return CsatSurvey.findAll({
     where,
     include: [
-      { model: Ticket, as: 'ticket', attributes: ['id', 'title'] },
+      {
+        model: Ticket,
+        as: 'ticket',
+        attributes: ['id', 'title'],
+        ...(isEmpty(companyWhere) ? {} : { where: companyWhere, required: true }),
+      },
       { model: Contact, as: 'contact', attributes: ['id', 'displayName'] },
       { model: User, as: 'assignedToUser', attributes: ['id', 'displayName'] },
     ],

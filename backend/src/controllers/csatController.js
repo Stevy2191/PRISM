@@ -1,7 +1,7 @@
 const { asyncHandler, ApiError } = require('../middleware/error');
 const { getUserPerformanceStats, getTeamHappiness, listResponses } = require('../services/csatStatsService');
 const { getAllSettings } = require('./settingsController');
-const { getUserReportScope } = require('../services/permissionService');
+const { getUserReportScope, companyScopeWhere } = require('../services/permissionService');
 
 // Same reports.view_own/department/all family already used to gate every
 // other report — a technician can always see their own numbers (self-view),
@@ -45,12 +45,12 @@ const stats = asyncHandler(async (req, res) => {
     const userId = parseInt(req.query.userId, 10);
     if (!Number.isFinite(userId)) throw new ApiError(400, 'Invalid userId', 'INVALID_USER_ID');
     await assertCanView(req, userId);
-    const result = await getUserPerformanceStats(userId, range);
+    const result = await getUserPerformanceStats(userId, range, await companyScopeWhere(req.user));
     return res.json({ ...result, minTicketsToShowRating: minResponses, showRating: result.responseCount >= minResponses });
   }
 
   await assertCanView(req, null);
-  const team = await getTeamHappiness({ range });
+  const team = await getTeamHappiness({ range, companyWhere: await companyScopeWhere(req.user) });
   return res.json({
     minTicketsToShowRating: minResponses,
     team: team.map((t) => ({ ...t, showRating: t.responseCount >= minResponses })),
@@ -62,7 +62,7 @@ const responses = asyncHandler(async (req, res) => {
   const range = parseDateRange(req.query);
   const userId = req.query.userId ? parseInt(req.query.userId, 10) : null;
   await assertCanView(req, userId);
-  const rows = await listResponses({ range, userId });
+  const rows = await listResponses({ range, userId, companyWhere: await companyScopeWhere(req.user) });
   res.json({
     responses: rows.map((r) => ({
       id: r.id,

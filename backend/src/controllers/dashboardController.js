@@ -450,7 +450,7 @@ const get = asyncHandler(async (req, res) => {
       projectHealthFor(companyWhere),
       teamWorkload(buckets, {}, companyWhere),
       activityFeed(buckets, companyWhere, companyWhere),
-      getTeamHappiness({}),
+      getTeamHappiness({ companyWhere }),
       assetsSummaryStats(companyWhere),
     ]);
     return res.json({
@@ -476,7 +476,7 @@ const get = asyncHandler(async (req, res) => {
       projectHealthFor(andWhere(deptProjectWhere, companyWhere)),
       teamWorkload(buckets, { departmentId: deptId }, companyWhere),
       activityFeed(buckets, andWhere({ departmentId: deptId }, companyWhere), andWhere(deptProjectWhere, companyWhere)),
-      getTeamHappiness({ departmentId: deptId }),
+      getTeamHappiness({ departmentId: deptId, companyWhere }),
     ]);
     return res.json({
       mode: 'admin_department',
@@ -511,7 +511,7 @@ const get = asyncHandler(async (req, res) => {
     notificationsForUser(targetId),
     taskProjectIds.length ? projectHealthFor(andWhere({ id: { [Op.in]: taskProjectIds } }, companyWhere)) : [],
     hoursForUser(targetId),
-    getUserPerformanceStats(targetId),
+    getUserPerformanceStats(targetId, {}, companyWhere),
     getAllSettings(),
   ]);
   const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
