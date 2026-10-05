@@ -1,20 +1,23 @@
 const path = require('path');
 const { parse: parseCsv } = require('csv-parse/sync');
 const { Op } = require('sequelize');
-const { Contact, Department } = require('../models');
+const { Contact, Department, Company } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhoneLenient } = require('../utils/phone');
 const { toCsv } = require('../utils/csv');
-const { resolveRecordCompany } = require('../services/companyService');
+const { getInternalCompanyId } = require('../services/companyService');
+const { companyScopeWhere } = require('../services/permissionService');
+const { andWhere } = require('../services/recordScope');
 
-const IMPORT_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'mobile', 'department', 'jobTitle'];
+const IMPORT_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'mobile', 'department', 'jobTitle', 'company'];
 
 // GET /contacts/import/sample — a template CSV with the expected headers.
 const sample = asyncHandler(async (req, res) => {
   const csv = toCsv(IMPORT_FIELDS, [
-    ['Jane', 'Doe', 'jane.doe@example.com', '555-0100', '555-0101', 'IT Support', 'Systems Analyst'],
+    // A blank company means the organization itself (the internal company).
+    ['Jane', 'Doe', 'jane.doe@example.com', '555-0100', '555-0101', 'IT Support', 'Systems Analyst', ''],
   ]);
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="prism-contacts-import-sample.csv"');
@@ -50,19 +53,34 @@ function mapRow(row, mapping) {
   return record;
 }
 
-// Imported contacts go in the internal company (which the importer must be
-// able to reach), so department names match that company's departments only.
+// Contacts can go in any active client company the importer can reach, or
+// the internal company (blank Company cell). Department names match within
+// the row's company only.
 async function buildLookups(user) {
-  const company = await resolveRecordCompany(user, null);
-  const [contacts, departments] = await Promise.all([
+  const internalId = await getInternalCompanyId();
+  const [contacts, companies] = await Promise.all([
     Contact.findAll({ attributes: ['id', 'email'], where: { email: { [Op.ne]: null } }, raw: true }),
-    Department.findAll({ attributes: ['id', 'name'], where: { companyId: company.id }, raw: true }),
+    Company.findAll({
+      where: andWhere(
+        { status: 'active', [Op.or]: [{ isClient: true }, { isInternal: true }] },
+        await companyScopeWhere(user, 'id')
+      ),
+      attributes: ['id', 'name'],
+      raw: true,
+    }),
   ]);
+  const companyIds = companies.map((c) => c.id);
+  const departments = companyIds.length
+    ? await Department.findAll({ where: { companyId: companyIds }, attributes: ['id', 'name', 'companyId'], raw: true })
+    : [];
   return {
     emailToId: new Map(contacts.map((c) => [c.email.toLowerCase(), c.id])),
-    deptNameToId: new Map(departments.map((d) => [d.name.toLowerCase(), d.id])),
+    companyByName: new Map(companies.map((c) => [c.name.toLowerCase(), c.id])),
+    defaultCompanyId: companyIds.includes(internalId) ? internalId : null,
+    deptByKey: new Map(departments.map((d) => [`${d.companyId}:${d.name.toLowerCase()}`, d.id])),
   };
 }
+const deptKey = (companyId, name) => `${companyId}:${name.toLowerCase()}`;
 
 // Shared by /validate and the actual /import commit — classifies each row as
 // 'create' | 'skip' (duplicate email) | 'error' (missing required fields),
@@ -90,7 +108,17 @@ function validateRows(rows, mapping, lookups) {
         }
         seenEmails.add(emailLower);
       }
-      if (record.department && !lookups.deptNameToId.has(record.department.toLowerCase())) {
+      // The company is checked last and wins over a duplicate-email skip: a
+      // row that can't be placed is an error to fix, not a row to skip.
+      const companyName = (record.company || '').trim();
+      record.companyId = companyName
+        ? lookups.companyByName.get(companyName.toLowerCase()) || null
+        : lookups.defaultCompanyId;
+      if (!record.companyId) {
+        issues.push({ type: 'error', message: companyName ? `"${companyName}" does not match any company` : 'Choose a company for this contact' });
+        action = 'error';
+      }
+      if (record.department && record.companyId && !lookups.deptByKey.has(deptKey(record.companyId, record.department))) {
         issues.push({ type: 'warning', message: `"${record.department}" does not match any existing department` });
       }
     }
@@ -156,7 +184,7 @@ const commit = asyncHandler(async (req, res) => {
       continue; // eslint-disable-line no-continue
     }
     const rec = r.record;
-    const deptId = rec.department ? lookups.deptNameToId.get(rec.department.toLowerCase()) || null : null;
+    const deptId = rec.department ? lookups.deptByKey.get(deptKey(rec.companyId, rec.department)) || null : null;
     try {
       // eslint-disable-next-line no-await-in-loop
       const contact = await Contact.create({
@@ -166,6 +194,7 @@ const commit = asyncHandler(async (req, res) => {
         email: rec.email || null,
         phone: normalizePhoneLenient(rec.phone),
         mobile: normalizePhoneLenient(rec.mobile),
+        companyId: rec.companyId,
         departmentId: deptId,
         jobTitle: rec.jobTitle || null,
         assignedTo: req.user.id,
