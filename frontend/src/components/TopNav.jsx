@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import api from '../api/api';
 import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
+import { useCompanySummary } from '../context/CompanyContext';
 import NotificationsDropdown from './NotificationsDropdown';
 import GlobalSearch from './GlobalSearch';
 import ThemeToggle from './ThemeToggle';
@@ -105,7 +106,8 @@ export default function TopNav() {
 
   useGlobalSearchShortcut(() => setSearchOpen(true));
 
-  const items = visibleNavItems({ visibility, user, hasAnyPermission });
+  const { multiCompany } = useCompanySummary();
+  const items = visibleNavItems({ visibility, user, hasAnyPermission, multiCompany });
 
   const handleLogout = async () => {
     await logout();

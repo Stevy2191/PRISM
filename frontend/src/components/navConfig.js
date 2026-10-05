@@ -17,7 +17,7 @@ export const KNOWLEDGE_PERMISSION_KEYS = ['kb.view'];
 export const SETTINGS_PERMISSION_KEYS = [
   'settings.manage_statuses', 'settings.manage_business_hours', 'settings.manage_branding',
   'settings.manage_system', 'settings.view_audit_log',
-  'people.manage_roles', 'people.manage_departments', 'people.view_all',
+  'people.manage_roles', 'people.manage_departments', 'people.view_all', 'companies.view',
 ];
 
 // Nav modules. `key` matches a ModuleVisibility.moduleName row. `subItems`
@@ -28,6 +28,7 @@ export const NAV = [
   { key: 'dashboard', to: '/dashboard', label: 'Dashboard', icon: '◧' },
   { key: 'tickets', to: '/tickets', label: 'Tickets', icon: '🎫' },
   { key: 'contacts', to: '/contacts', label: 'Contacts', icon: '👤' },
+  { key: 'companies', to: '/companies', label: 'Companies', icon: '🏢' },
   {
     key: 'assets',
     to: '/assets',
@@ -51,6 +52,7 @@ export const DEFAULT_ROLES = {
   dashboard: ['admin', 'technician'],
   tickets: ['admin', 'technician'],
   contacts: ['admin', 'technician'],
+  companies: ['admin', 'technician'],
   assets: ['admin', 'technician'],
   projects: ['admin', 'technician'],
   reports: ['admin', 'technician'],
@@ -67,6 +69,7 @@ export function permissionGate(key, hasAnyPermission) {
   // who can view either, not just ticket viewers.
   if (key === 'calendar') return hasAnyPermission([...TICKETS_PERMISSION_KEYS, ...PROJECTS_PERMISSION_KEYS]);
   if (key === 'contacts') return hasAnyPermission(CONTACTS_PERMISSION_KEYS);
+  if (key === 'companies') return hasAnyPermission(['companies.view']);
   if (key === 'assets') return hasAnyPermission(ASSETS_PERMISSION_KEYS);
   if (key === 'projects') return hasAnyPermission(PROJECTS_PERMISSION_KEYS);
   if (key === 'reports') return hasAnyPermission(REPORTS_PERMISSION_KEYS);
@@ -75,9 +78,12 @@ export function permissionGate(key, hasAnyPermission) {
   return true;
 }
 
-export function visibleNavItems({ visibility, user, hasAnyPermission }) {
+// `multiCompany` hides the Companies tab until a client company exists
+// (spec: the only new UI of a one-company install is Settings → Companies).
+export function visibleNavItems({ visibility, user, hasAnyPermission, multiCompany = false }) {
   const rolesFor = (key) => (visibility && visibility[key]) || DEFAULT_ROLES[key] || [];
-  return NAV.filter((n) => rolesFor(n.key).includes(user?.role) && permissionGate(n.key, hasAnyPermission));
+  return NAV.filter((n) => (n.key !== 'companies' || multiCompany)
+    && rolesFor(n.key).includes(user?.role) && permissionGate(n.key, hasAnyPermission));
 }
 
 // Fixed palette for department-colored avatars — hashed by departmentId so

@@ -60,6 +60,7 @@ const SECTIONS = [
     title: 'Organization',
     items: [
       { label: 'Company', to: '/settings/company', desc: 'Name, logo, timezone, locale', permission: BRANDING_KEYS },
+      { label: 'Companies', to: '/settings/companies', desc: 'Clients, vendors, sites and domains', permission: ['companies.view'] },
       { label: 'Branding', to: '/settings/branding', desc: 'App name, logo, and login page', permission: BRANDING_KEYS },
       { label: 'Business Hours', to: '/settings/business-hours', desc: 'Work schedules', permission: BUSINESS_HOURS_KEYS },
       { label: 'Holiday Lists', to: '/settings/holidays', desc: 'Holidays that pause SLAs', permission: BUSINESS_HOURS_KEYS },

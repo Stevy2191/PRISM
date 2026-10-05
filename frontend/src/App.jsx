@@ -17,6 +17,8 @@ import ProjectNew from './pages/ProjectNew';
 import ProjectDetail from './pages/ProjectDetail';
 import Contacts from './pages/Contacts';
 import ContactDetail from './pages/ContactDetail';
+import CompaniesList from './pages/companies/CompaniesList';
+import CompanyPage from './pages/companies/CompanyPage';
 import Assets from './pages/Assets';
 import AssetDetail from './pages/AssetDetail';
 import Licenses from './pages/assets/Licenses';
@@ -99,6 +101,7 @@ const BUSINESS_HOURS_KEYS = ['settings.manage_business_hours'];
 const STATUSES_KEYS = ['settings.manage_statuses'];
 const SYSTEM_KEYS = ['settings.manage_system'];
 const AUDIT_LOG_KEYS = ['settings.view_audit_log'];
+const COMPANIES_KEYS = ['companies.view'];
 
 export default function App() {
   return (
@@ -121,6 +124,10 @@ export default function App() {
 
         <Route path="/contacts" element={perm(<Contacts />, CONTACTS_KEYS)} />
         <Route path="/contacts/:id" element={perm(<ContactDetail />, CONTACTS_KEYS)} />
+
+        <Route path="/companies" element={perm(<CompaniesList />, COMPANIES_KEYS)} />
+        <Route path="/companies/:id" element={perm(<CompanyPage />, COMPANIES_KEYS)} />
+        <Route path="/settings/companies" element={perm(<CompaniesList inSettings />, COMPANIES_KEYS)} />
 
         <Route path="/assets" element={perm(<Assets />, ASSETS_KEYS)} />
         <Route path="/assets/licenses" element={perm(<Licenses />, ASSETS_KEYS)} />

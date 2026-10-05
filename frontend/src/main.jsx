@@ -8,6 +8,7 @@ import { TimerProvider } from './context/TimerContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NavStyleProvider } from './context/NavStyleContext';
 import { ToastProvider } from './context/ToastContext';
+import { CompanyProvider } from './context/CompanyContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -18,9 +19,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <ToastProvider>
             <SettingsProvider>
               <AuthProvider>
-                <TimerProvider>
-                  <App />
-                </TimerProvider>
+                <CompanyProvider>
+                  <TimerProvider>
+                    <App />
+                  </TimerProvider>
+                </CompanyProvider>
               </AuthProvider>
             </SettingsProvider>
           </ToastProvider>
