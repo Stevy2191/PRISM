@@ -73,6 +73,21 @@ describe('a user administrator who isn\'t a System Administrator', () => {
   });
 });
 
+it('a role manager who isn\'t a System Administrator can\'t slip role "admin" in beside a roleId or a department default', async () => {
+  expectOk(await a().post(`${API}/users/${mgr.user.id}/overrides`).send({ permissionKey: 'people.manage_roles', granted: true }), 201);
+  const staff = await Role.findOne({ where: { name: 'Department Staff' } });
+  expectErr(
+    await newUser(mgr.agent, { role: 'admin', roleId: staff.id }),
+    403, 'FORBIDDEN', 'Only a System Administrator can grant the System Administrator role'
+  );
+  expectOk(await a().patch(`${API}/departments/${w.deptB.id}`).send({ defaultRoleId: staff.id }));
+  expectErr(
+    await newUser(mgr.agent, { role: 'admin', departmentId: w.deptB.id }),
+    403, 'FORBIDDEN', 'Only a System Administrator can grant the System Administrator role'
+  );
+  expect(await User.count({ where: { role: 'admin' } })).toBe(1);
+});
+
 describe('a System Administrator', () => {
   it('can still make someone an administrator, but not change their own role or permissions', async () => {
     expectOk(await a().patch(`${API}/users/${tech.user.id}`).send({ role: 'admin' }));

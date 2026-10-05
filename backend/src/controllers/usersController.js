@@ -152,6 +152,10 @@ const create = asyncHandler(async (req, res) => {
   if (choosesRole && !(await hasPermission(req.user.id, 'people.manage_roles'))) {
     throw new ApiError(403, 'Choosing a role needs people.manage_roles', 'FORBIDDEN');
   }
+  // The legacy role is stored on the account whatever role row it gets, and
+  // 'admin' alone makes it a System Administrator — so it's checked on its
+  // own, never skipped because a roleId or department default also applies.
+  await assertCanSetLegacyRole(req.user, role || 'technician');
   if (roleId !== undefined && roleId !== null && roleId !== '') {
     const requestedRole = await Role.findByPk(roleId);
     if (!requestedRole) throw new ApiError(400, 'Role does not exist', 'VALIDATION_ERROR');
@@ -159,8 +163,6 @@ const create = asyncHandler(async (req, res) => {
   } else if (dept && dept.defaultRoleId) {
     const defaultRole = await Role.findByPk(dept.defaultRoleId);
     if (defaultRole) await assertCanGrantRole(req.user, defaultRole);
-  } else {
-    await assertCanSetLegacyRole(req.user, role || 'technician');
   }
   // A fenced creator can't make an account that reaches more than they do:
   // it starts with the creator's own companies.
