@@ -26,7 +26,7 @@ const expectErr = (res, status, code, message) => {
 describe('S14: the time & billing report keeps the reader\'s scope under ?assigneeId', () => {
   beforeEach(async () => {
     const t = await makeTicket(w.admin.agent, { title: 'Printer', contactId: w.contact.id, assigneeId: tina.user.id });
-    expectOk(await tina.agent.post(`${API}/tickets/${t.id}/time`).send({ minutes: 90 }), 201);
+    expectOk(await tina.agent.post(`${API}/tickets/${t.id}/time`).send({ durationMinutes: 90 }), 201);
   });
 
   it('an own-scope reader asking for someone else\'s time gets nothing', async () => {
@@ -38,7 +38,7 @@ describe('S14: the time & billing report keeps the reader\'s scope under ?assign
   it('an own-scope reader filtering on themselves still sees their own time', async () => {
     const staff = await makeStaff('staff', w.deptA.id);
     const t = await makeTicket(w.admin.agent, { title: 'Mine', contactId: w.contact.id });
-    expectOk(await staff.agent.post(`${API}/tickets/${t.id}/time`).send({ minutes: 30 }), 201);
+    expectOk(await staff.agent.post(`${API}/tickets/${t.id}/time`).send({ durationMinutes: 30 }), 201);
     const { summary } = await get(staff.agent, `/reports/time-billing?assigneeId=${staff.user.id}`);
     expect(summary).toEqual(expect.objectContaining({ entryCount: 1, totalHours: 0.5 }));
   });
@@ -163,7 +163,7 @@ describe('S16 and S17: the custom report builder keeps the reader\'s scope', () 
   beforeEach(async () => {
     const a = w.admin.agent;
     const t = await makeTicket(a, { title: `${MARK} ticket`, contactId: w.contact.id, assigneeId: tina.user.id });
-    expectOk(await tina.agent.post(`${API}/tickets/${t.id}/time`).send({ minutes: 30, note: `${MARK} time` }), 201);
+    expectOk(await tina.agent.post(`${API}/tickets/${t.id}/time`).send({ durationMinutes: 30, note: `${MARK} time` }), 201);
     const p = await makeProject(a, { name: `${MARK} project`, ownerDepartmentId: w.deptA.id, assignedToUserId: tina.user.id });
     expectOk(await a.post(`${API}/projects/${p.id}/expenses`).send({ description: `${MARK} expense`, amount: 5 }), 201);
     expectOk(await a.post(`${API}/projects/${p.id}/materials`).send({ itemName: `${MARK} material` }), 201);

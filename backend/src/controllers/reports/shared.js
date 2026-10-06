@@ -2,25 +2,26 @@
 const { Op } = require('sequelize');
 const { toCsv } = require('../../utils/csv');
 const { getUserReportScope } = require('../../services/permissionService');
-const { andWhere } = require('../../services/recordScope');
+const { andWhere, companyFilterWhere, isEmpty } = require('../../services/recordScope');
+const {
+  orgTimeZone, zoneDayStart, zoneDayEnd, toDateString,
+} = require('../../utils/orgTime');
 
 // ==================== Shared helpers ====================
 
-function parseDateRange(query) {
-  let start = null;
-  let end = null;
-  if (query.startDate) {
-    const d = new Date(query.startDate);
-    if (!Number.isNaN(d.getTime())) start = d;
-  }
-  if (query.endDate) {
-    const d = new Date(query.endDate);
-    if (!Number.isNaN(d.getTime())) {
-      d.setHours(23, 59, 59, 999);
-      end = d;
-    }
-  }
-  return { start, end };
+// Report date ranges are whole days in the organization's time zone (Q36):
+// from startDate's local midnight to the last moment of endDate. The date
+// strings come along for DATEONLY columns (work dates, due dates).
+async function parseDateRange(query) {
+  const tz = await orgTimeZone();
+  const startDate = toDateString(query.startDate);
+  const endDate = toDateString(query.endDate);
+  return {
+    start: startDate ? zoneDayStart(startDate, tz) : null,
+    end: endDate ? zoneDayEnd(endDate, tz) : null,
+    startDate,
+    endDate,
+  };
 }
 
 function dateWhere(field, range) {
@@ -29,6 +30,30 @@ function dateWhere(field, range) {
   if (range.end) clause[Op.lte] = range.end;
   // Op.gte/Op.lte are Symbol keys — Object.keys() can't see them.
   return Object.getOwnPropertySymbols(clause).length ? { [field]: clause } : {};
+}
+
+// The same range on a DATEONLY column.
+function dateOnlyWhere(field, range) {
+  const clause = {};
+  if (range.startDate) clause[Op.gte] = range.startDate;
+  if (range.endDate) clause[Op.lte] = range.endDate;
+  return Object.getOwnPropertySymbols(clause).length ? { [field]: clause } : {};
+}
+
+// Time is fenced through its ticket or its project, whichever it's on. The
+// query must include both as `ticket` and `project`.
+async function ledgerCompanyWhere(user, companyId) {
+  const [onTicket, onProject] = await Promise.all([
+    companyFilterWhere(user, companyId, '$ticket.companyId$'),
+    companyFilterWhere(user, companyId, '$project.companyId$'),
+  ]);
+  if (isEmpty(onTicket) && isEmpty(onProject)) return {};
+  return {
+    [Op.or]: [
+      andWhere({ ticketId: { [Op.ne]: null } }, onTicket),
+      andWhere({ projectId: { [Op.ne]: null } }, onProject),
+    ],
+  };
 }
 
 function parseDepartmentId(query) {
@@ -138,6 +163,8 @@ const userAttrs = ['id', 'displayName', 'username'];
 module.exports = {
   parseDateRange,
   dateWhere,
+  dateOnlyWhere,
+  ledgerCompanyWhere,
   parseDepartmentId,
   parseAssigneeId,
   granularityFor,

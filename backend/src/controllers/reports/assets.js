@@ -6,6 +6,7 @@ const { andWhere, companyFilterWhere } = require('../../services/recordScope');
 const {
   parseDateRange,
   dateWhere,
+  dateOnlyWhere,
   parseDepartmentId,
   resolveReportDeptId,
   sendCsv,
@@ -40,7 +41,7 @@ async function buildAssetsReplacementReport(req) {
   if (deptId) where.departmentId = deptId;
 
   if (req.query.startDate || req.query.endDate) {
-    Object.assign(where, dateWhere('replacementPlanDate', parseDateRange(req.query)));
+    Object.assign(where, dateOnlyWhere('replacementPlanDate', await parseDateRange(req.query)));
   } else {
     const in90 = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
     where.replacementPlanDate[Op.lte] = in90;
@@ -76,7 +77,7 @@ async function buildAssetsWarrantyReport(req) {
   const where = { warrantyExpiryDate: { [Op.ne]: null } };
   if (deptId) where.departmentId = deptId;
   if (req.query.startDate || req.query.endDate) {
-    Object.assign(where, dateWhere('warrantyExpiryDate', parseDateRange(req.query)));
+    Object.assign(where, dateOnlyWhere('warrantyExpiryDate', await parseDateRange(req.query)));
   }
 
   const assets = await Asset.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: assetInclude, order: [['warrantyExpiryDate', 'ASC']] });
@@ -151,7 +152,7 @@ const assetsInventoryExport = asyncHandler(async (req, res) => {
 // GET /reports/assets/ticket-history — which assets generate the most tickets.
 async function buildAssetsTicketHistoryReport(req) {
   const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
 
   const linkWhere = {};
   if (range.start || range.end) Object.assign(linkWhere, dateWhere('linkedAt', range));

@@ -36,7 +36,7 @@ describe('POST /projects', () => {
     }));
     expect(p.ownerDepartment).toEqual({ id: w.deptA.id, name: 'Service Desk' });
     expect(p.stats).toEqual({
-      completionPercent: 0, totalTasks: 0, closedTasks: 0, totalTimeSeconds: 0, totalCost: 0, openTicketsCount: 0,
+      completionPercent: 0, totalTasks: 0, closedTasks: 0, totalTimeSeconds: 0, laborCost: 0, totalCost: 0, openTicketsCount: 0,
     });
   });
 
@@ -240,8 +240,8 @@ describe('DELETE /projects/:id', () => {
     }), 201);
     expectOk(await w.admin.agent.delete(projUrl(p)));
     // No endpoint lists a deleted project's rows.
-    expect(await models.ProjectTask.count({ where: { projectId: p.id } })).toBe(1);
-    expect(await models.ProjectTimeEntry.count({ where: { projectId: p.id } })).toBe(1);
+    expect(await models.Task.count({ where: { projectId: p.id } })).toBe(1);
+    expect(await models.TimeEntry.count({ where: { projectId: p.id } })).toBe(1);
   });
 
   // Likely correct: refused like GET for a project out of scope. Expected to change in sub-project 2.
@@ -352,7 +352,7 @@ describe('stats', () => {
     await makeTicket(a, { title: 'Open one', contactId: w.contact.id, projectId: p.id });
     await makeTicket(a, { title: 'Done one', contactId: w.contact.id, projectId: p.id, status: 'Resolved' });
     const expected = {
-      completionPercent: 50, totalTasks: 2, closedTasks: 1, totalTimeSeconds: 5400, totalCost: 150, openTicketsCount: 1,
+      completionPercent: 50, totalTasks: 2, closedTasks: 1, totalTimeSeconds: 5400, laborCost: 0, totalCost: 150, openTicketsCount: 1,
     };
     expect(expectOk(await a.get(projUrl(p))).project.stats).toEqual(expected);
     expect(expectOk(await a.get(`${projUrl(p)}/stats`)).stats).toEqual(expected);

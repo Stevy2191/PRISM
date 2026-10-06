@@ -7,6 +7,7 @@ const shared = require('./reports/shared');
 const PUBLIC_HELPERS = [
   'parseDateRange', 'dateWhere', 'parseDepartmentId', 'parseAssigneeId', 'granularityFor', 'bucketKey',
   'ticketScopeWhere', 'projectScopeWhere', 'contactDeptWhere', 'sendCsv', 'hoursBetween', 'userAttrs',
+  'dateOnlyWhere', 'ledgerCompanyWhere',
 ];
 
 module.exports = {

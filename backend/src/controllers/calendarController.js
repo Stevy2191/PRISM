@@ -7,12 +7,13 @@
 // and a simpler "own" definition.
 const { Op } = require('sequelize');
 const {
-  Ticket, Project, ProjectTask, ProjectMember, ProjectStatus, TicketStatus, User,
+  Ticket, Project, Task, ProjectMember, ProjectStatus, TaskStatus, TicketStatus, User,
   License, Contract,
 } = require('../models');
 const { asyncHandler } = require('../middleware/error');
 const { andWhere, ticketScopeWhere, projectScopeWhere } = require('../services/recordScope');
-const { getTicketStatusBuckets, getProjectStatusBuckets, getProjectStatusIdBehaviorMap } = require('../services/statusBehavior');
+const { getTicketStatusBuckets, getProjectStatusBuckets } = require('../services/statusBehavior');
+const { taskStatusBehaviorMap } = require('../services/tasks/statuses');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 const { companyScopeWhere } = require('../services/permissionService');
 
@@ -46,7 +47,7 @@ function ticketPriorityColor(priority) {
   return { critical: '#dc2626', high: '#d97706', medium: '#2563eb', low: '#64748b' }[priority] || '#64748b';
 }
 function taskPriorityColor(priority) {
-  // ProjectTask uses 'urgent' where Ticket uses 'critical' — same meaning.
+  // Tasks use 'urgent' where tickets use 'critical' — same meaning.
   return { urgent: '#dc2626', high: '#d97706', medium: '#2563eb', low: '#64748b' }[priority] || '#64748b';
 }
 
@@ -141,19 +142,21 @@ const listEvents = asyncHandler(async (req, res) => {
     }
 
     if (types.includes('tasks')) {
-      const statusIdBehavior = await getProjectStatusIdBehaviorMap();
-      const statusRows = await ProjectStatus.findAll();
+      const statusIdBehavior = await taskStatusBehaviorMap();
+      const statusRows = await TaskStatus.findAll({ where: { scope: 'project' } });
       const colorByStatusId = new Map(statusRows.map((s) => [s.id, s.color]));
       const nameByStatusId = new Map(statusRows.map((s) => [s.id, s.name]));
       const projectById = new Map(inScopeProjects.map((p) => [p.id, p]));
 
-      const where = { projectId: { [Op.in]: scopedProjectIds.length ? scopedProjectIds : [-1] }, dueDate: { ...dateWhere, [Op.ne]: null } };
-      if (assigneeId) where.assignedToUserId = assigneeId;
+      const where = {
+        projectId: { [Op.in]: scopedProjectIds.length ? scopedProjectIds : [-1] }, parentTaskId: null, dueDate: { ...dateWhere, [Op.ne]: null },
+      };
+      if (assigneeId) where.assigneeId = assigneeId;
 
-      const tasks = await ProjectTask.findAll({
+      const tasks = await Task.findAll({
         where,
         include: [{ model: User, as: 'assignee', attributes: userAttrs }],
-        attributes: ['id', 'title', 'projectId', 'dueDate', 'statusId', 'priority', 'assignedToUserId'],
+        attributes: ['id', 'title', 'projectId', 'dueDate', 'statusId', 'priority', 'assigneeId'],
       });
       tasks.forEach((task) => {
         const behavior = statusIdBehavior.get(task.statusId);
@@ -170,7 +173,7 @@ const listEvents = asyncHandler(async (req, res) => {
           statusColor: colorByStatusId.get(task.statusId) || '#0891b2',
           priority: task.priority,
           priorityColor: taskPriorityColor(task.priority),
-          assigneeId: task.assignedToUserId,
+          assigneeId: task.assigneeId,
           assigneeName: task.assignee?.displayName || null,
           departmentIds: project ? [project.ownerDepartmentId, project.forDepartmentId].filter(Boolean) : [],
           projectCode: project?.projectCode || null,

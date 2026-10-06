@@ -17,7 +17,7 @@ const { parseDateRange, dateWhere, parseDepartmentId, sendCsv } = require('./sha
 const csat = asyncHandler(async (req, res) => {
   const scope = await getUserReportScope(req.user.id);
   const requestedDepartmentId = parseDepartmentId(req.query);
-  const respondedRange = parseDateRange({ startDate: req.query.from, endDate: req.query.to });
+  const respondedRange = await parseDateRange({ startDate: req.query.from, endDate: req.query.to });
   let where = dateWhere('respondedAt', respondedRange);
   if (scope === 'department') {
     where = { ...where, '$ticket.departmentId$': req.user.departmentId };
@@ -85,7 +85,7 @@ const csat = asyncHandler(async (req, res) => {
 // from contacts' own 1-5 star survey responses.
 
 async function buildCustomerHappinessReport(req) {
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
   // Scoped like every other report (S12): 'all' may pick a department,
   // 'department' is pinned to the reader's own, 'own' sees only surveys on
   // tickets assigned to the reader.

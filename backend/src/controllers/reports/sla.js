@@ -21,7 +21,7 @@ const {
 
 async function buildSlaComplianceReport(req) {
   const scope = await getUserReportScope(req.user.id);
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
   const companyWhere = await companyFilterWhere(req.user, req.query.companyId);

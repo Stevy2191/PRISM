@@ -46,7 +46,7 @@ describe('expenses', () => {
     expect(e).toEqual(expect.objectContaining({
       description: 'Cables', amount: 12.5, category: 'materials', entryDate: '2026-01-05', loggedBy: tech.user.id,
     }));
-    expect(e.task).toEqual({ id: t.id, title: 'Rack' });
+    expect(e.task).toEqual({ id: t.id, title: 'Rack', code: t.code });
     const { activity } = expectOk(await tech.agent.get(purl('activity')));
     expect(activity.map((a) => [a.action, a.detail])).toContainEqual(
       ['expense_added', { expenseId: e.id, description: 'Cables', amount: 12.5 }]

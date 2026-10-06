@@ -1,6 +1,6 @@
 // Projects report.
 const {
-  ProjectTimeEntry,
+  TimeEntry,
   Project,
   ProjectExpense,
   ProjectMaterial,
@@ -17,7 +17,7 @@ const { parseDateRange, parseDepartmentId, projectScopeWhere, sendCsv } = requir
 
 async function buildProjectsReport(req) {
   const scope = await getUserReportScope(req.user.id);
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
   const where = projectScopeWhere({}, scope, req.user, deptId, await companyFilterWhere(req.user, req.query.companyId));
@@ -37,14 +37,16 @@ async function buildProjectsReport(req) {
   );
 
   const rows = await Promise.all(projects.map(async (p) => {
-    const [completion, timeSum, expenseSum, materialSum] = await Promise.all([
+    const [completion, timeSum, laborSum, expenseSum, materialSum] = await Promise.all([
       computeProjectCompletion(p.id),
-      ProjectTimeEntry.sum('durationSeconds', { where: { projectId: p.id } }),
+      TimeEntry.sum('durationSeconds', { where: { projectId: p.id } }),
+      TimeEntry.sum('laborCost', { where: { projectId: p.id } }),
       ProjectExpense.sum('amount', { where: { projectId: p.id } }),
       ProjectMaterial.sum('totalCost', { where: { projectId: p.id } }),
     ]);
     const materials = Number(materialSum) || 0;
     const expenses = Number(expenseSum) || 0;
+    const labor = Number(laborSum) || 0;
     return {
       id: p.id,
       projectCode: p.projectCode,
@@ -57,14 +59,18 @@ async function buildProjectsReport(req) {
       timeLoggedHours: Math.round(((Number(timeSum) || 0) / 3600) * 10) / 10,
       materialsCost: materials,
       expensesCost: expenses,
-      totalCost: Math.round((materials + expenses) * 100) / 100,
+      // Q11: labour is part of a project's cost, as everywhere else.
+      laborCost: Math.round(labor * 100) / 100,
+      totalCost: Math.round((materials + expenses + labor) * 100) / 100,
     };
   }));
   let totalMaterialsCost = 0;
   let totalExpensesCost = 0;
+  let totalLaborCost = 0;
   rows.forEach((r) => {
     totalMaterialsCost += r.materialsCost;
     totalExpensesCost += r.expensesCost;
+    totalLaborCost += r.laborCost;
   });
 
   const byStatus = new Map();
@@ -100,6 +106,7 @@ async function buildProjectsReport(req) {
       avgCompletion,
       totalMaterialsCost: Math.round(totalMaterialsCost * 100) / 100,
       totalExpensesCost: Math.round(totalExpensesCost * 100) / 100,
+      totalLaborCost: Math.round(totalLaborCost * 100) / 100,
     },
     chartData: {
       byStatus: [...byStatus.values()],
@@ -118,6 +125,7 @@ async function buildProjectsReport(req) {
         { key: 'timeLoggedHours', label: 'Time logged (hrs)' },
         { key: 'materialsCost', label: 'Materials cost' },
         { key: 'expensesCost', label: 'Expenses cost' },
+        { key: 'laborCost', label: 'Labor cost' },
         { key: 'totalCost', label: 'Total cost' },
       ],
       rows,

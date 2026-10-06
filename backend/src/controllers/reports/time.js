@@ -1,11 +1,13 @@
 // Time and billing report.
-const { Ticket, TimeEntry, ProjectTimeEntry, User, Project, Department } = require('../../models');
+const { Op } = require('sequelize');
+const { Ticket, TimeEntry, User, Project, Department } = require('../../models');
 const { asyncHandler } = require('../../middleware/error');
 const { getUserReportScope } = require('../../services/permissionService');
-const { andWhere, companyFilterWhere } = require('../../services/recordScope');
+const { andWhere } = require('../../services/recordScope');
 const {
   parseDateRange,
-  dateWhere,
+  dateOnlyWhere,
+  ledgerCompanyWhere,
   parseDepartmentId,
   parseAssigneeId,
   granularityFor,
@@ -18,69 +20,52 @@ const {
 
 async function buildTimeBillingReport(req) {
   const scope = await getUserReportScope(req.user.id);
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
   const assigneeId = parseAssigneeId(req.query);
 
-  let ticketWhere = dateWhere('loggedAt', range);
-  let projectWhere = dateWhere('createdAt', range);
-  if (scope === 'department') {
-    ticketWhere = { ...ticketWhere, '$ticket.departmentId$': req.user.departmentId };
-    projectWhere = { ...projectWhere, '$project.ownerDepartmentId$': req.user.departmentId };
-  } else if (scope === 'own') {
-    ticketWhere = { ...ticketWhere, userId: req.user.id };
-    projectWhere = { ...projectWhere, loggedForUserId: req.user.id };
-  } else if (scope === 'all' && deptId) {
-    ticketWhere = { ...ticketWhere, '$ticket.departmentId$': deptId };
-    projectWhere = { ...projectWhere, '$project.ownerDepartmentId$': deptId };
-  }
-  // ANDed, never merged: under 'own' scope the scope itself sits on these
-  // same keys, and a merge would let ?assigneeId replace it (S14).
-  if (assigneeId) {
-    ticketWhere = andWhere(ticketWhere, { userId: assigneeId });
-    projectWhere = andWhere(projectWhere, { loggedForUserId: assigneeId });
-  }
-  // Time is fenced through its ticket or project (both are included below).
-  ticketWhere = andWhere(ticketWhere, await companyFilterWhere(req.user, req.query.companyId, '$ticket.companyId$'));
-  projectWhere = andWhere(projectWhere, await companyFilterWhere(req.user, req.query.companyId, '$project.companyId$'));
+  // Q9: time is dated and filtered by its work date.
+  let where = dateOnlyWhere('entryDate', range);
+  const deptOf = (id) => ({ [Op.or]: [{ '$ticket.departmentId$': id }, { '$project.ownerDepartmentId$': id }] });
+  if (scope === 'department') where = andWhere(where, deptOf(req.user.departmentId));
+  else if (scope === 'own') where = andWhere(where, { userId: req.user.id });
+  else if (scope === 'all' && deptId) where = andWhere(where, deptOf(deptId));
+  // ANDed, never merged: under 'own' scope the scope itself is on userId (S14).
+  if (assigneeId) where = andWhere(where, { userId: assigneeId });
+  where = andWhere(where, await ledgerCompanyWhere(req.user, req.query.companyId));
 
-  const [ticketEntries, projectEntries] = await Promise.all([
-    TimeEntry.findAll({
-      where: ticketWhere,
-      include: [
-        { model: User, as: 'user', attributes: userAttrs },
-        {
-          model: Ticket, as: 'ticket', attributes: ['id', 'title', 'type', 'departmentId'],
-          include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
-        },
-      ],
-      order: [['loggedAt', 'DESC']],
-    }),
-    ProjectTimeEntry.findAll({
-      where: projectWhere,
-      include: [
-        { model: User, as: 'loggedFor', attributes: userAttrs },
-        {
-          model: Project, as: 'project', attributes: ['id', 'name'],
-          include: [{ model: Department, as: 'ownerDepartment', attributes: ['id', 'name'] }],
-        },
-      ],
-      order: [['createdAt', 'DESC']],
-    }),
-  ]);
+  const entries = await TimeEntry.findAll({
+    where,
+    include: [
+      { model: User, as: 'user', attributes: userAttrs },
+      {
+        model: Ticket, as: 'ticket', attributes: ['id', 'title', 'type', 'departmentId'], required: false,
+        include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
+      },
+      {
+        model: Project, as: 'project', attributes: ['id', 'name'], required: false,
+        include: [{ model: Department, as: 'ownerDepartment', attributes: ['id', 'name'] }],
+      },
+    ],
+    order: [['entryDate', 'DESC'], ['createdAt', 'DESC'], ['id', 'DESC']],
+  });
 
-  const normalized = [
-    ...ticketEntries.map((e) => ({
-      date: e.loggedAt, user: e.user, minutes: e.minutes, isProject: false, ticketType: e.ticket?.type || null,
-      reference: e.ticket ? `#${String(e.ticket.id).padStart(5, '0')} ${e.ticket.title}` : '',
-      department: e.ticket?.department || null, note: e.note, laborCost: e.laborCost,
-    })),
-    ...projectEntries.map((e) => ({
-      date: e.createdAt, user: e.loggedFor, minutes: Math.max(1, Math.round((e.durationSeconds || 0) / 60)), isProject: true, ticketType: null,
-      reference: e.project ? `Project: ${e.project.name}` : 'Project',
-      department: e.project?.ownerDepartment || null, note: e.description, laborCost: e.laborCost,
-    })),
-  ];
+  const normalized = entries.map((e) => {
+    const isProject = e.projectId != null;
+    return {
+      date: e.entryDate,
+      user: e.user,
+      minutes: e.durationSeconds / 60,
+      isProject,
+      ticketType: isProject ? null : e.ticket?.type || null,
+      reference: isProject
+        ? (e.project ? `Project: ${e.project.name}` : 'Project')
+        : (e.ticket ? `#${String(e.ticket.id).padStart(5, '0')} ${e.ticket.title}` : ''),
+      department: isProject ? e.project?.ownerDepartment || null : e.ticket?.department || null,
+      note: e.note,
+      laborCost: e.laborCost,
+    };
+  });
 
   const granularity = granularityFor(range);
   const byTech = new Map();
@@ -150,7 +135,7 @@ async function buildTimeBillingReport(req) {
         techName: e.user?.displayName || 'Unknown',
         reference: e.reference,
         note: e.note || '',
-        date: e.date ? new Date(e.date).toISOString().slice(0, 10) : '',
+        date: e.date || '',
         hours: toHours(e.minutes),
         laborCost: e.laborCost != null ? Number(e.laborCost) : '',
       })),

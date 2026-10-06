@@ -62,7 +62,7 @@ describe('fixtures', () => {
     const w = await makeWorld();
     const ctr = await makeContractor(w.admin, 'ctr', w.deptA.id, { rate: 60 });
     const t = await makeTicket(w.admin.agent, { title: 'T', contactId: w.contact.id, departmentId: w.deptA.id });
-    const entry = expectOk(await ctr.agent.post(`${API}/tickets/${t.id}/time`).send({ minutes: 30 }), 201).entry;
+    const entry = expectOk(await ctr.agent.post(`${API}/tickets/${t.id}/time`).send({ durationMinutes: 30 }), 201).entry;
     expect(entry.laborCost).toBe(30);
   });
 

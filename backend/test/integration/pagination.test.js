@@ -215,20 +215,21 @@ describe('ticket sub-list pagination', () => {
     expect(p2.body.comments.at(-1).body).toBe('c04');
   });
 
-  test('time entry totalMinutes covers the ticket, not just the page', async () => {
+  test('time entry totalSeconds covers the ticket, not just the page', async () => {
     const [t] = await makeTickets(1);
-    const { TimeEntry } = models;
+    const { TimeEntry, WorkType } = models;
+    const workType = await WorkType.findOne({ where: { name: 'Remote support' } });
     for (let i = 0; i < 30; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       await TimeEntry.create({
         ticketId: t.id, userId: admin.user.id, loggedById: admin.user.id,
-        minutes: 10, loggedAt: new Date(),
+        entryDate: '2026-03-10', durationSeconds: 600, workTypeId: workType.id,
       });
     }
     const res = await admin.agent.get(`${API}/tickets/${t.id}/time`);
     expect(res.body.entries).toHaveLength(25);
     expect(res.body.total).toBe(30);
-    expect(res.body.totalMinutes).toBe(300);
+    expect(res.body.totalSeconds).toBe(18000);
   });
 });
 
@@ -260,12 +261,13 @@ describe('sub-list totals do not collide with the row count', () => {
     const project = await Project.create({
       name: 'Contracted', status: 'Planning', ownerDepartmentId: dept.id, createdBy: admin.user.id,
     });
-    const { ProjectTimeEntry } = models;
+    const { TimeEntry, WorkType } = models;
+    const workType = await WorkType.findOne({ where: { name: 'Project work' } });
     for (let i = 0; i < 30; i += 1) {
       // eslint-disable-next-line no-await-in-loop
-      await ProjectTimeEntry.create({
-        projectId: project.id, userId: admin.user.id, loggedBy: admin.user.id, loggedForUserId: admin.user.id,
-        entryDate: '2026-01-01', durationSeconds: 60, laborCost: 5,
+      await TimeEntry.create({
+        projectId: project.id, userId: admin.user.id, loggedById: admin.user.id,
+        entryDate: '2026-01-01', durationSeconds: 60, laborCost: 5, workTypeId: workType.id,
       });
     }
     const res = await admin.agent.get(`${API}/projects/${project.id}/time-entries`);

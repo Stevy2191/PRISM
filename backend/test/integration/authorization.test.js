@@ -57,12 +57,12 @@ describe('the legacy role enum does not grant permissions', () => {
   });
 
   it('denies creating a ticket task', async () => {
-    const res = await readOnly.agent.post(`/api/v1/tickets/${ticket.id}/tasks`).send({ description: 'do a thing' });
+    const res = await readOnly.agent.post(`/api/v1/tickets/${ticket.id}/tasks`).send({ title: 'do a thing' });
     expect(res.status).toBe(403);
   });
 
   it('denies logging time on a ticket', async () => {
-    const res = await readOnly.agent.post(`/api/v1/tickets/${ticket.id}/time`).send({ minutes: 30, description: 'x' });
+    const res = await readOnly.agent.post(`/api/v1/tickets/${ticket.id}/time`).send({ durationMinutes: 30, note: 'x' });
     expect(res.status).toBe(403);
   });
 

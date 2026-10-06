@@ -46,13 +46,13 @@ describe('a System Technician can still do their job', () => {
   });
 
   it('adds a ticket task', async () => {
-    const res = await tech.agent.post(`/api/v1/tickets/${ticket.id}/tasks`).send({ description: 'Swap toner' });
+    const res = await tech.agent.post(`/api/v1/tickets/${ticket.id}/tasks`).send({ title: 'Swap toner' });
     expect(res.status).toBe(201);
   });
 
   it('logs time against a ticket', async () => {
     const res = await tech.agent.post(`/api/v1/tickets/${ticket.id}/time`)
-      .send({ minutes: 45, description: 'Replaced fuser' });
+      .send({ durationMinutes: 45, note: 'Replaced fuser' });
     expect([200, 201]).toContain(res.status);
   });
 

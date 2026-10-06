@@ -20,7 +20,7 @@ const {
 
 async function buildContactsReport(req) {
   const scope = await getUserReportScope(req.user.id);
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
   const contactWhere = contactDeptWhere({}, scope, req.user, deptId, await companyFilterWhere(req.user, req.query.companyId));

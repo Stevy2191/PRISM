@@ -1,13 +1,17 @@
 // Team performance report.
 const { Op, fn, col } = require('sequelize');
-const { Ticket, TimeEntry, User, Department, Comment } = require('../../models');
+const {
+  Ticket, TimeEntry, User, Department, Comment, Project,
+} = require('../../models');
 const { asyncHandler } = require('../../middleware/error');
 const { getUserReportScope } = require('../../services/permissionService');
-const { andWhere, companyFilterWhere, isEmpty } = require('../../services/recordScope');
+const { andWhere, companyFilterWhere } = require('../../services/recordScope');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
 const {
   parseDateRange,
   dateWhere,
+  dateOnlyWhere,
+  ledgerCompanyWhere,
   parseDepartmentId,
   sendCsv,
   hoursBetween,
@@ -18,7 +22,7 @@ const {
 
 async function buildTeamPerformanceReport(req) {
   const scope = await getUserReportScope(req.user.id);
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
   const userWhere = { role: { [Op.in]: ['admin', 'technician'] }, isActive: true };
@@ -47,19 +51,23 @@ async function buildTeamPerformanceReport(req) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
   const fenced = (where) => andWhere(where, companyWhere);
-  // Time is fenced through its ticket.
-  const timeTicketInclude = isEmpty(companyWhere)
-    ? []
-    : [{ model: Ticket, as: 'ticket', attributes: [], where: companyWhere, required: true }];
 
   const [assignedTickets, closedTickets, workloadCounts, timeEntries] = await Promise.all([
     Ticket.findAll({ where: fenced({ assigneeId: { [Op.in]: techIds }, ...dateWhere('createdAt', range) }), attributes: ['id', 'assigneeId', 'createdAt'], raw: true }),
     Ticket.findAll({ where: fenced({ assigneeId: { [Op.in]: techIds }, resolvedAt: { [Op.ne]: null }, ...dateWhere('resolvedAt', range) }), attributes: ['id', 'assigneeId', 'createdAt', 'resolvedAt'], raw: true }),
     Ticket.findAll({ where: fenced({ assigneeId: { [Op.in]: techIds }, status: { [Op.in]: buckets.open } }), attributes: ['assigneeId', [fn('COUNT', col('id')), 'count']], group: ['assigneeId'], raw: true }),
+    // Q10: all of a person's time in the ledger, by work date, fenced
+    // through its ticket or project.
     TimeEntry.findAll({
-      where: { userId: { [Op.in]: techIds }, ...dateWhere('loggedAt', range) },
-      include: timeTicketInclude,
-      attributes: ['userId', [fn('SUM', col('TimeEntry.minutes')), 'minutes']],
+      where: andWhere(
+        { userId: { [Op.in]: techIds }, ...dateOnlyWhere('entryDate', range) },
+        await ledgerCompanyWhere(req.user, req.query.companyId)
+      ),
+      include: [
+        { model: Ticket, as: 'ticket', attributes: [], required: false },
+        { model: Project, as: 'project', attributes: [], required: false },
+      ],
+      attributes: ['userId', [fn('SUM', col('TimeEntry.durationSeconds')), 'seconds']],
       group: ['TimeEntry.userId'],
       raw: true,
     }),
@@ -105,7 +113,7 @@ async function buildTeamPerformanceReport(req) {
 
   const overdueByTech = new Map(overdueCounts.map((r) => [r.assigneeId, Number(r.count)]));
   const workloadByTech = new Map(workloadCounts.map((r) => [r.assigneeId, Number(r.count)]));
-  const timeByTech = new Map(timeEntries.map((r) => [r.userId, Number(r.minutes) || 0]));
+  const timeByTech = new Map(timeEntries.map((r) => [r.userId, (Number(r.seconds) || 0) / 60]));
 
   const rows = techs.map((tech) => {
     const closed = closedByTech.get(tech.id) || { count: 0, totalHours: 0 };

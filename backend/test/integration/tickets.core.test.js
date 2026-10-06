@@ -285,7 +285,7 @@ describe('PATCH /tickets/:id', () => {
 describe('DELETE /tickets/:id', () => {
   it('admin deletes a ticket and its time with it', async () => {
     const t = await makeTicket(w.admin.agent, base());
-    expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/time`).send({ minutes: 30 }), 201);
+    expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/time`).send({ durationMinutes: 30 }), 201);
     expect(expectOk(await w.admin.agent.delete(`${API}/tickets/${t.id}`))).toEqual({ ok: true });
     expect((await w.admin.agent.get(`${API}/tickets/${t.id}`)).status).toBe(404);
     expect((await w.admin.agent.get(`${API}/tickets/${t.id}/time`)).status).toBe(404);

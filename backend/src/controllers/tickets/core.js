@@ -180,11 +180,11 @@ async function timeLoggedByTicket(ticketIds) {
   if (!ticketIds.length) return new Map();
   const totals = await TimeEntry.findAll({
     where: { ticketId: { [Op.in]: ticketIds } },
-    attributes: ['ticketId', [sequelize.fn('SUM', sequelize.col('minutes')), 'total']],
+    attributes: ['ticketId', [sequelize.fn('SUM', sequelize.col('durationSeconds')), 'total']],
     group: ['ticketId'],
     raw: true,
   });
-  return new Map(totals.map((r) => [r.ticketId, Number(r.total) || 0]));
+  return new Map(totals.map((r) => [r.ticketId, Math.round((Number(r.total) || 0) / 60)]));
 }
 
 // GET /tickets — with filters, paginated

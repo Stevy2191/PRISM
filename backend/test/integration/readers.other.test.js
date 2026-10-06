@@ -47,9 +47,7 @@ describe('over the ledger', () => {
   });
 
   // The main protection for the ledger merge (sub-project 3): every reader of
-  // time and labour must agree on the same ledger. Team performance (Q10) and
-  // the dashboard (Q12) are left out on purpose: they disagree today, and
-  // their own quirk tests pin by how much.
+  // time and labour must agree on the same ledger.
   it('every reader agrees on the ledger', async () => {
     const a = w.admin.agent;
     const ticketTime = expectOk(await a.get(`${API}/tickets/${L.ticket.id}/time`));
@@ -65,8 +63,8 @@ describe('over the ledger', () => {
     const projectPdf = await loadProjectReportData(L.project.id);
 
     const ticketHours = [
-      ticketTime.totalMinutes / 60, ticketList.timeLoggedMinutes / 60, customTicket.timeLoggedHours,
-      sum(ticketPdf.timeEntries, (e) => e.minutes) / 60,
+      ticketTime.totalSeconds / 3600, ticketList.timeLoggedMinutes / 60, customTicket.timeLoggedHours,
+      sum(ticketPdf.timeEntries, (e) => e.durationSeconds) / 3600,
     ];
     const projectHours = [
       projectTime.totalSeconds / 3600, projectStats.totalTimeSeconds / 3600, projectsReport.timeLoggedHours,
@@ -82,39 +80,35 @@ describe('over the ledger', () => {
     expect(customTime.total_durationHours).toBe(5);
     expect(billing.totalLaborCost).toBe(112.5);
     expect(customTime.total_laborCost).toBe(112.5);
+    const team = expectOk(await a.get(`${API}/reports/team-performance`)).tableData.rows;
+    expect(team.find((r) => r.name === 'Test tina').totalHoursLogged).toBe(3.5);
   });
 
   describe('dashboard', () => {
     const hoursFor = async (userId) => expectOk(await w.admin.agent.get(`${API}/dashboard?userId=${userId}`));
-    const week = (wed, thu = 0) => [
-      { day: 'Mon', hours: 0 }, { day: 'Tue', hours: 0 }, { day: 'Wed', hours: wed },
-      { day: 'Thu', hours: thu }, { day: 'Fri', hours: 0 },
-    ];
+    const week = (byDay = {}) => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => ({ day, hours: byDay[day] || 0 }));
 
-    // Likely correct: all of the user's time, project time included. Expected to change in sub-project 3.
-    it('[quirk] Q12: dashboard hours are ticket time only', async () => {
+    it('Q12: dashboard hours are all of this week\'s time, by work date', async () => {
       const dash = await hoursFor(L.tina.user.id);
       expect(dash.mode).toBe('admin_filtered');
-      expect(dash.hours).toEqual({ total: 1.5, byDay: week(1.5) }); // Tina's 2 h of project time is absent
+      // Her 2 h of project time is on Tuesday the 10th; her ticket time is dated the 2nd, last week.
+      expect(dash.hours).toEqual({ total: 2, byDay: week({ Tue: 2 }) });
     });
 
-    // Likely correct: every day of the week, bucketed by the user's local date. Expected to change in sub-project 3.
-    it('[quirk] Q12: dashboard hours drop the weekend and bucket by UTC date', async () => {
+    it('Q12: the weekend counts, and days follow the work date', async () => {
       const url = `${API}/tickets/${L.ticket.id}/time`;
-      const sat = expectOk(await L.tina.agent.post(url).send({ minutes: 60 }), 201).entry;
-      const wedNight = expectOk(await L.tina.agent.post(url).send({ minutes: 30 }), 201).entry;
-      // No endpoint sets loggedAt.
-      await models.TimeEntry.update({ loggedAt: new Date('2026-03-14T17:00:00Z') }, { where: { id: sat.id } });
-      await models.TimeEntry.update({ loggedAt: new Date('2026-03-12T02:00:00Z') }, { where: { id: wedNight.id } });
-      // Wednesday 21:00 in Chicago lands on Thursday; Saturday lands nowhere.
-      expect((await hoursFor(L.tina.user.id)).hours).toEqual({ total: 2, byDay: week(1.5, 0.5) });
+      const sat = expectOk(await L.tina.agent.post(url).send({ durationMinutes: 60 }), 201).entry;
+      expectOk(await L.tina.agent.post(url).send({ durationMinutes: 30 }), 201);
+      // No endpoint takes a future work date; move one to Saturday directly.
+      await models.TimeEntry.update({ entryDate: '2026-03-14' }, { where: { id: sat.id } });
+      expect((await hoursFor(L.tina.user.id)).hours).toEqual({ total: 3.5, byDay: week({ Tue: 2, Wed: 0.5, Sat: 1 }) });
     });
 
     it('own-tier users get the personal dashboard', async () => {
       const own = await makeOwnTier(w.admin, 'own', w.deptA.id);
       const dash = expectOk(await own.agent.get(`${API}/dashboard`));
       expect(dash.mode).toBe('tech');
-      expect(dash.hours).toEqual({ total: 0, byDay: week(0) });
+      expect(dash.hours).toEqual({ total: 0, byDay: week() });
     });
 
     it('own-tier users can\'t view someone else\'s dashboard', async () => {
@@ -132,10 +126,11 @@ describe('over the ledger', () => {
         id, date, techName, userType, ticketNumber, projectCode, description: '', durationHours, laborCost,
       });
       expect(report.tableData.rows).toEqual(expect.arrayContaining([
-        row('t1', '2026-03-02', 'Test tina', 'Internal', '#00001', '', 1.5, null),
-        row('t2', '2026-03-11', 'Test carl', 'Contractor', '#00001', '', 1, 75),
-        row('p1', '2026-03-11', 'Test carl', 'Contractor', '', 'SD-P00001', 0.5, 37.5),
-        row('p2', '2026-03-10', 'Test tina', 'Internal', '', 'SD-P00001', 2, null),
+        // One ledger: rows carry the entry's own id (makeLedger's creation order).
+        row(1, '2026-03-02', 'Test tina', 'Internal', '#00001', '', 1.5, null),
+        row(2, '2026-03-11', 'Test carl', 'Contractor', '#00001', '', 1, 75),
+        row(3, '2026-03-11', 'Test carl', 'Contractor', '', 'SD-P00001', 0.5, 37.5),
+        row(4, '2026-03-10', 'Test tina', 'Internal', '', 'SD-P00001', 2, null),
       ]));
       expect(report.tableData.rows).toHaveLength(4);
       expect(report.summary).toEqual({ totalRecords: 4, total_durationHours: 5, total_laborCost: 112.5 });
@@ -166,13 +161,13 @@ describe('over the ledger', () => {
 
     it('filters', async () => {
       const ids = async (filters) => (await custom({ dataSource: 'time_entries', filters })).tableData.rows.map((r) => r.id).sort();
-      expect(await ids({ userType: 'contractor' })).toEqual(['p1', 't2']);
-      expect(await ids({ assigneeId: L.tina.user.id })).toEqual(['p2', 't1']);
+      expect(await ids({ userType: 'contractor' })).toEqual([2, 3]);
+      expect(await ids({ assigneeId: L.tina.user.id })).toEqual([1, 4]);
     });
 
     // Likely correct: one definition of total cost everywhere (the projects
     // report and project stats leave labour out). Expected to change in sub-project 3.
-    it('[quirk] Q11: the custom projects source counts labour in total cost', async () => {
+    it('the custom projects source counts labour in total cost', async () => {
       const [row] = (await custom({ dataSource: 'projects' })).tableData.rows;
       expect(row).toEqual(expect.objectContaining({
         totalTimeLoggedHours: 2.5, laborCost: 37.5, expensesTotal: 100, materialsTotal: 50, totalCost: 187.5,
@@ -219,7 +214,7 @@ describe('over the ledger', () => {
       expectOk(await L.tina.agent.post(url).send({ body: 'note', type: 'comment_private' }), 201);
       const data = await loadTicketReportData(L.ticket.id);
       expect(data.comments.map((c) => c.type)).toEqual(['reply']);
-      expect(data.timeEntries.map((e) => e.minutes)).toEqual([90, 60]);
+      expect(data.timeEntries.map((e) => e.durationSeconds)).toEqual([5400, 3600]);
       expect(data.activity.map((a) => a.action)).toEqual(['created']);
     });
 

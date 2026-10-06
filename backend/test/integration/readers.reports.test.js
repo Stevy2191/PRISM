@@ -1,6 +1,6 @@
 const { resetData, closeDb } = require('./helpers');
 const {
-  API, expectOk, makeWorld, makeStaff, makeManager, makeTicket, makeProject, makeTech,
+  API, expectOk, makeWorld, makeStaff, makeManager, makeTicket, makeProject, makeTech, setSettings,
   freezeClock, advanceClock, unfreezeClock, LEDGER_NOW, makeLedger,
 } = require('./fixtures');
 
@@ -25,7 +25,7 @@ describe('an empty install', () => {
     expect((await get(w.admin.agent, 'team-performance')).summary)
       .toEqual({ techCount: 1, totalClosed: 0, avgResolutionHours: null });
     expect((await get(w.admin.agent, 'projects')).summary).toEqual({
-      totalActive: 0, totalCompletedInPeriod: 0, avgCompletion: 0, totalMaterialsCost: 0, totalExpensesCost: 0,
+      totalActive: 0, totalCompletedInPeriod: 0, avgCompletion: 0, totalMaterialsCost: 0, totalExpensesCost: 0, totalLaborCost: 0,
     });
   });
 });
@@ -43,7 +43,7 @@ describe('over the ledger', () => {
   });
   const boiler = async () => {
     const t = await makeTicket(w.admin.agent, { title: 'Boiler', contactId: w.contact.id, departmentId: w.deptB.id });
-    expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/time`).send({ minutes: 30 }), 201);
+    expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/time`).send({ durationMinutes: 30 }), 201);
   };
 
   describe('time-billing', () => {
@@ -54,35 +54,40 @@ describe('over the ledger', () => {
         internalHours: 3.5, contractorHours: 1.5, totalLaborCost: 112.5,
       });
       expect(chartData.byTech).toEqual([{ name: 'Test tina', hours: 3.5 }, { name: 'Test carl', hours: 1.5 }]);
-      expect(chartData.byType).toEqual([{ name: 'request', hours: 2.5 }, { name: 'Project work', hours: 2.5 }]);
+      // Newest work date first, so project work (the 11th) comes before the ticket's first entry.
+      expect(chartData.byType).toEqual([{ name: 'Project work', hours: 2.5 }, { name: 'request', hours: 2.5 }]);
       expect(chartData.byDepartment).toEqual([{ name: 'Service Desk', hours: 5 }]);
-      expect(chartData.overTime).toEqual([{ date: '2026-03-11', hours: 5 }]);
+      // Bucketed by work date (Q9).
+      expect(chartData.overTime).toEqual([
+        { date: '2026-03-02', hours: 1.5 }, { date: '2026-03-10', hours: 2 }, { date: '2026-03-11', hours: 1.5 },
+      ]);
       expect(chartData.granularity).toBe('day');
     });
 
     it('one row per entry', async () => {
       const { rows } = (await get(w.admin.agent, 'time-billing')).tableData;
-      const row = (techName, reference, hours, laborCost) => ({ techName, reference, note: '', date: '2026-03-11', hours, laborCost });
-      expect(rows.map(({ id, ...rest }) => rest)).toEqual(expect.arrayContaining([
-        row('Test tina', '#00001 Printer', 1.5, ''),
-        row('Test carl', '#00001 Printer', 1, 75),
-        row('Test carl', 'Project: Refresh', 0.5, 37.5),
-        row('Test tina', 'Project: Refresh', 2, ''),
-      ]));
+      // Dated by work date (Q9).
+      const row = (techName, reference, hours, laborCost, date) => ({ techName, reference, note: '', date, hours, laborCost });
+      expect(rows.map(({ id, ...rest }) => rest)).toEqual([
+        row('Test carl', 'Project: Refresh', 0.5, 37.5, '2026-03-11'),
+        row('Test carl', '#00001 Printer', 1, 75, '2026-03-11'),
+        row('Test tina', 'Project: Refresh', 2, '', '2026-03-10'),
+        row('Test tina', '#00001 Printer', 1.5, '', '2026-03-02'),
+      ]);
       expect(rows).toHaveLength(4);
     });
 
-    // Likely correct: dates and date filters use entryDate, the work date. Expected to change in sub-project 3.
-    it('[quirk] Q9: dates and date filters use when time was recorded, not the work date', async () => {
-      // Tina's ticket entry has entryDate 2026-03-02, but was recorded on 2026-03-11.
+    it('Q9: time is dated and filtered by its work date', async () => {
       const { summary } = await get(w.admin.agent, 'time-billing?startDate=2026-03-01&endDate=2026-03-05');
-      expect(summary.entryCount).toBe(0);
+      expect(summary).toEqual(expect.objectContaining({ entryCount: 1, totalHours: 1.5 }));
     });
 
-    // Likely correct: an endDate covers the whole of that date. Expected to change in sub-project 3.
-    it('[quirk] Q36: an endDate means the end of the previous local day west of UTC', async () => {
-      expect((await get(w.admin.agent, 'time-billing?startDate=2026-03-11&endDate=2026-03-11')).summary.entryCount).toBe(0);
-      expect((await get(w.admin.agent, 'time-billing?startDate=2026-03-11&endDate=2026-03-12')).summary.entryCount).toBe(4);
+    it('Q36: report days are whole days in the organization\'s time zone', async () => {
+      // The ledger's ticket was created at 17:00 UTC on the 11th: 02:00 on the 12th in Tokyo.
+      const created = async (day) => (await get(w.admin.agent, `ticket-volume?startDate=${day}&endDate=${day}`)).summary.totalCreated;
+      expect(await created('2026-03-11')).toBe(1);
+      await setSettings(w.admin, { 'company.timezone': 'Asia/Tokyo' });
+      expect([await created('2026-03-11'), await created('2026-03-12')]).toEqual([0, 1]);
     });
 
     it('filters by the person the time is for', async () => {
@@ -98,7 +103,7 @@ describe('over the ledger', () => {
 
     it('reports.view_own sees only their own time', async () => {
       const staff = await makeStaff('staff', w.deptA.id);
-      expectOk(await staff.agent.post(`${API}/tickets/${L.ticket.id}/time`).send({ minutes: 30 }), 201);
+      expectOk(await staff.agent.post(`${API}/tickets/${L.ticket.id}/time`).send({ durationMinutes: 30 }), 201);
       const { summary } = await get(staff.agent, 'time-billing');
       expect(summary).toEqual(expect.objectContaining({ entryCount: 1, totalHours: 0.5 }));
     });
@@ -124,11 +129,10 @@ describe('over the ledger', () => {
   describe('team performance', () => {
     const rowFor = (body, name) => body.tableData.rows.find((r) => r.name === name);
 
-    // Likely correct: time logged counts project time too. Expected to change in sub-project 3.
-    it('[quirk] Q10: team performance counts ticket time only', async () => {
+    it('Q10: team performance counts all of a person\'s time', async () => {
       const body = await get(w.admin.agent, 'team-performance');
-      expect(rowFor(body, 'Test tina').totalHoursLogged).toBe(1.5); // her 2 h of project time is missing
-      expect(rowFor(body, 'Test carl').totalHoursLogged).toBe(1);
+      expect(rowFor(body, 'Test tina').totalHoursLogged).toBe(3.5);
+      expect(rowFor(body, 'Test carl').totalHoursLogged).toBe(1.5);
     });
 
     it('one row per technician', async () => {
@@ -154,19 +158,18 @@ describe('over the ledger', () => {
   });
 
   describe('projects report', () => {
-    // Likely correct: one definition of total cost everywhere (the custom
-    // report includes labour; this doesn't). Expected to change in sub-project 3.
-    it('[quirk] Q11: the projects report\'s total cost leaves out labour', async () => {
+    it('Q11: the projects report\'s total cost includes labour', async () => {
       const [row] = (await get(w.admin.agent, 'projects')).tableData.rows;
       expect(row).toEqual({
         id: L.project.id, projectCode: 'SD-P00001', name: 'Refresh', ownedBy: 'Service Desk', forDept: 'Service Desk',
-        status: 'Active', completion: 0, dueDate: '', timeLoggedHours: 2.5, materialsCost: 50, expensesCost: 100, totalCost: 150,
+        status: 'Active', completion: 0, dueDate: '', timeLoggedHours: 2.5, materialsCost: 50, expensesCost: 100,
+        laborCost: 37.5, totalCost: 187.5,
       });
     });
 
     it('projects report summary', async () => {
       expect((await get(w.admin.agent, 'projects')).summary).toEqual({
-        totalActive: 1, totalCompletedInPeriod: 0, avgCompletion: 0, totalMaterialsCost: 50, totalExpensesCost: 100,
+        totalActive: 1, totalCompletedInPeriod: 0, avgCompletion: 0, totalMaterialsCost: 50, totalExpensesCost: 100, totalLaborCost: 37.5,
       });
     });
 
@@ -187,7 +190,7 @@ describe('over the ledger', () => {
     it('exports the projects report as CSV', async () => {
       const res = await w.admin.agent.get(`${API}/reports/projects/export`);
       expect(res.text.split('\r\n')[0]).toBe(
-        'Project,Name,Owned by,For dept,Status,Completion %,Due date,Time logged (hrs),Materials cost,Expenses cost,Total cost'
+        'Project,Name,Owned by,For dept,Status,Completion %,Due date,Time logged (hrs),Materials cost,Expenses cost,Labor cost,Total cost'
       );
     });
   });

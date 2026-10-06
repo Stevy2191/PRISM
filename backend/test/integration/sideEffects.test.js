@@ -33,7 +33,7 @@ describe('audit rows', () => {
   const comment = () => ok(tech.agent.post(tUrl('/comments')).send({ body: 'hi' }), 201).then((b) => b.comment);
   const attachment = () => ok(tech.agent.post(tUrl('/attachments')).attach('file', Buffer.from('hello'), 'notes.txt'), 201)
     .then((b) => b.attachment);
-  const ticketTime = () => ok(tech.agent.post(tUrl('/time')).send({ minutes: 45 }), 201).then((b) => b.entry);
+  const ticketTime = () => ok(tech.agent.post(tUrl('/time')).send({ durationMinutes: 45 }), 201).then((b) => b.entry);
   const projectTime = (p) => ok(tech.agent.post(`${API}/projects/${p.id}/time-entries`)
     .send({ startTime: '2026-01-05T09:00:00Z', endTime: '2026-01-05T10:00:00Z' }), 201).then((b) => b.entry);
 
@@ -76,13 +76,12 @@ describe('audit rows', () => {
     }],
     ['time.create', async () => {
       const e = await ticketTime();
-      return { actor: tech, entityType: 'TimeEntry', entityId: e.id, meta: { ticketId: t.id, minutes: 45 } };
+      return { actor: tech, entityType: 'TimeEntry', entityId: e.id, meta: { ticketId: t.id, durationSeconds: 2700 } };
     }],
     ['time.delete', async () => {
       const e = await ticketTime();
       await ok(tech.agent.delete(tUrl(`/time/${e.id}`)));
-      // The route parameter, so a string.
-      return { actor: tech, entityType: 'TimeEntry', entityId: e.id, meta: { ticketId: String(t.id) } };
+      return { actor: tech, entityType: 'TimeEntry', entityId: e.id, meta: { ticketId: t.id, durationSeconds: 2700 } };
     }],
     ['relation.create', async () => {
       const t2 = await makeTicket(w.admin.agent, { title: 'Other', contactId: w.contact.id });
@@ -106,7 +105,7 @@ describe('audit rows', () => {
     ['timer.log', async () => {
       await ok(tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: t.id }), 201);
       const { entry } = await ok(tech.agent.post(`${API}/timer/stop`).send({}));
-      return { actor: tech, entityType: 'TimeEntry', entityId: entry.id, meta: { ticketId: t.id, minutes: 1 } };
+      return { actor: tech, entityType: 'TimeEntry', entityId: entry.id, meta: { ticketId: t.id, durationSeconds: 1 } };
     }],
     ['project.create', async () => {
       const p = await project();
@@ -122,16 +121,16 @@ describe('audit rows', () => {
       await ok(w.admin.agent.delete(`${API}/projects/${p.id}`));
       return { actor: w.admin, entityType: 'Project', entityId: p.id, meta: { name: 'Refresh' } };
     }],
-    ['project_time.create', async () => {
+    ['time.create', async () => { // on a project
       const p = await project();
       const e = await projectTime(p);
-      return { actor: tech, entityType: 'ProjectTimeEntry', entityId: e.id, meta: { projectId: p.id, durationSeconds: 3600 } };
+      return { actor: tech, entityType: 'TimeEntry', entityId: e.id, meta: { projectId: p.id, durationSeconds: 3600 } };
     }],
-    ['project_time.delete', async () => {
+    ['time.delete', async () => { // on a project
       const p = await project();
       const e = await projectTime(p);
       await ok(tech.agent.delete(`${API}/projects/${p.id}/time-entries/${e.id}`));
-      return { actor: tech, entityType: 'ProjectTimeEntry', entityId: e.id, meta: { projectId: String(p.id) } };
+      return { actor: tech, entityType: 'TimeEntry', entityId: e.id, meta: { projectId: p.id, durationSeconds: 3600 } };
     }],
   ];
 
@@ -155,39 +154,6 @@ describe('audit rows', () => {
     ['custom field values', async () => {
       await ok(w.admin.agent.post(`${API}/custom-fields`).send({ label: 'Tag', fieldKey: 'tag', fieldType: 'text' }), 201);
       return () => ok(tech.agent.patch(tUrl('/custom-field-values')).send({ values: { tag: 'x' } }));
-    }],
-    ['project task create', async () => { const p = await proj(); return () => makeTask(w.admin.agent, p.id); }],
-    ['project task update', async () => {
-      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
-      return () => ok(w.admin.agent.patch(pUrl(p, `tasks/${k.id}`)).send({ title: 'x' }));
-    }],
-    ['project task delete', async () => {
-      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
-      return () => ok(w.admin.agent.delete(pUrl(p, `tasks/${k.id}`)));
-    }],
-    ['project task reorder', async () => {
-      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
-      return () => ok(w.admin.agent.patch(pUrl(p, 'tasks/reorder')).send({ order: [k.id] }));
-    }],
-    ['project task renumber', async () => {
-      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
-      return () => ok(w.admin.agent.patch(pUrl(p, `tasks/${k.id}/code`)).send({ number: 5 }));
-    }],
-    ['subtask create', async () => {
-      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
-      return () => makeSubtask(w.admin.agent, p.id, k.id);
-    }],
-    ['subtask update', async () => {
-      const p = await proj(); const k = await makeTask(w.admin.agent, p.id); const s = await makeSubtask(w.admin.agent, p.id, k.id);
-      return () => ok(w.admin.agent.patch(pUrl(p, `tasks/${k.id}/subtasks/${s.id}`)).send({ title: 'x' }));
-    }],
-    ['subtask delete', async () => {
-      const p = await proj(); const k = await makeTask(w.admin.agent, p.id); const s = await makeSubtask(w.admin.agent, p.id, k.id);
-      return () => ok(w.admin.agent.delete(pUrl(p, `tasks/${k.id}/subtasks/${s.id}`)));
-    }],
-    ['subtask renumber', async () => {
-      const p = await proj(); const k = await makeTask(w.admin.agent, p.id); const s = await makeSubtask(w.admin.agent, p.id, k.id);
-      return () => ok(w.admin.agent.patch(pUrl(p, `tasks/${k.id}/subtasks/${s.id}/code`)).send({ number: 5 }));
     }],
     ['expense create', async () => {
       const p = await proj();
@@ -236,6 +202,50 @@ describe('audit rows', () => {
       return () => ok(w.admin.agent.delete(pUrl(p, `files/${file.id}`)));
     }],
   ];
+
+  // Q23, fixed for tasks in plan 3b-1: every task and subtask change writes one audit row.
+  const audited = [
+    ['project task create', async () => { const p = await proj(); return () => makeTask(w.admin.agent, p.id); }],
+    ['project task update', async () => {
+      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
+      return () => ok(w.admin.agent.patch(pUrl(p, `tasks/${k.id}`)).send({ title: 'x' }));
+    }],
+    ['project task delete', async () => {
+      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
+      return () => ok(w.admin.agent.delete(pUrl(p, `tasks/${k.id}`)));
+    }],
+    ['project task reorder', async () => {
+      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
+      return () => ok(w.admin.agent.patch(pUrl(p, 'tasks/reorder')).send({ order: [k.id] }));
+    }],
+    ['project task renumber', async () => {
+      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
+      return () => ok(w.admin.agent.patch(pUrl(p, `tasks/${k.id}/code`)).send({ number: 5 }));
+    }],
+    ['subtask create', async () => {
+      const p = await proj(); const k = await makeTask(w.admin.agent, p.id);
+      return () => makeSubtask(w.admin.agent, p.id, k.id);
+    }],
+    ['subtask update', async () => {
+      const p = await proj(); const k = await makeTask(w.admin.agent, p.id); const s = await makeSubtask(w.admin.agent, p.id, k.id);
+      return () => ok(w.admin.agent.patch(pUrl(p, `tasks/${k.id}/subtasks/${s.id}`)).send({ title: 'x' }));
+    }],
+    ['subtask delete', async () => {
+      const p = await proj(); const k = await makeTask(w.admin.agent, p.id); const s = await makeSubtask(w.admin.agent, p.id, k.id);
+      return () => ok(w.admin.agent.delete(pUrl(p, `tasks/${k.id}/subtasks/${s.id}`)));
+    }],
+    ['subtask renumber', async () => {
+      const p = await proj(); const k = await makeTask(w.admin.agent, p.id); const s = await makeSubtask(w.admin.agent, p.id, k.id);
+      return () => ok(w.admin.agent.patch(pUrl(p, `tasks/${k.id}/subtasks/${s.id}/code`)).send({ number: 5 }));
+    }],
+  ];
+
+  it.each(audited)('Q23: %s writes an audit row', async (_label, setup) => {
+    const perform = await setup();
+    const before = await auditCount();
+    await perform();
+    expect(await auditCount()).toBe(before + 1);
+  });
 
   // Likely correct: every mutating endpoint is audited (roadmap rule 6). Expected to change in sub-project 3.
   it.each(unaudited)('[quirk] Q23: %s writes no audit row', async (_label, setup) => {
@@ -443,7 +453,7 @@ describe('time before close', () => {
 
   it('requireBeforeClose allows closing once time is logged', async () => {
     await requireTime();
-    await ok(tech.agent.post(tUrl('/time')).send({ minutes: 5 }), 201);
+    await ok(tech.agent.post(tUrl('/time')).send({ durationMinutes: 5 }), 201);
     expect((await tech.agent.patch(tUrl()).send({ status: 'Resolved' })).status).toBe(200);
   });
 

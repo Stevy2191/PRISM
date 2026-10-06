@@ -37,13 +37,6 @@ async function getProjectStatusBehaviorMap() {
   return new Map(rows.map((r) => [r.name, r.behaviorType]));
 }
 
-// ProjectTask/ProjectSubtask.statusId is an integer FK (unlike Project.status),
-// so completion logic there needs behaviorType keyed by id, not name.
-async function getProjectStatusIdBehaviorMap() {
-  const rows = await ProjectStatus.findAll({ attributes: ['id', 'behaviorType'] });
-  return new Map(rows.map((r) => [r.id, r.behaviorType]));
-}
-
 // The row a task/project should move to when auto-completed or auto-closed
 // (e.g. the checkbox on a task, or "Close project" on the all-tasks-done
 // prompt) — the first status row with the given behaviorType, ordered by
@@ -65,7 +58,6 @@ module.exports = {
   getTicketStatusBehaviorMap,
   getProjectStatusBuckets,
   getProjectStatusBehaviorMap,
-  getProjectStatusIdBehaviorMap,
   getFirstProjectStatusByBehavior,
   getFirstTicketStatusByBehavior,
 };

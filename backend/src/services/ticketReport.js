@@ -63,7 +63,7 @@ async function loadTicketReportData(ticketId) {
     TimeEntry.findAll({
       where: { ticketId },
       include: [{ model: User, as: 'user', attributes: userAttrs }],
-      order: [['entryDate', 'ASC'], ['loggedAt', 'ASC']],
+      order: [['entryDate', 'ASC'], ['createdAt', 'ASC'], ['id', 'ASC']],
     }),
     Attachment.findAll({ where: { ticketId }, order: [['createdAt', 'ASC']] }),
     TicketActivity.findAll({
@@ -125,11 +125,11 @@ async function renderTicketReportPdf(doc, data) {
     { key: 'tech', label: 'Tech', width: 110, render: (e) => e.user?.displayName || 'Unknown' },
     { key: 'date', label: 'Date', width: 75, render: (e) => e.entryDate || '' },
     { key: 'note', label: 'Description', width: hasCost ? 187 : 247, render: (e) => e.note || '' },
-    { key: 'duration', label: 'Duration', width: 70, render: (e) => fmtDuration(e.durationSeconds != null ? e.durationSeconds : (e.minutes || 0) * 60), align: 'right' },
+    { key: 'duration', label: 'Duration', width: 70, render: (e) => fmtDuration(e.durationSeconds), align: 'right' },
     ...(hasCost ? [{ key: 'cost', label: 'Cost', width: 70, render: (e) => fmtCost(e.laborCost), align: 'right' }] : []),
   ], timeEntries);
 
-  const totalSeconds = timeEntries.reduce((sum, e) => sum + (e.durationSeconds != null ? e.durationSeconds : (e.minutes || 0) * 60), 0);
+  const totalSeconds = timeEntries.reduce((sum, e) => sum + e.durationSeconds, 0);
   const totalCost = timeEntries.reduce((sum, e) => sum + (e.laborCost != null ? Number(e.laborCost) : 0), 0);
   ensureSpace(doc, 26);
   doc.fontSize(9).fillColor(TEXT).text(`Total time: ${fmtDuration(totalSeconds)}`, PAGE_MARGIN, doc.y, { width: CONTENT_WIDTH, align: 'right', height: 12, ellipsis: true });

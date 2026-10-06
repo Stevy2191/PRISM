@@ -171,7 +171,7 @@ async function makeLedger(w) {
   const ticket = await makeTicket(w.admin.agent, {
     title: 'Printer', contactId: w.contact.id, departmentId: w.deptA.id, assigneeId: tina.user.id,
   });
-  expectOk(await tina.agent.post(`${API}/tickets/${ticket.id}/time`).send({ minutes: 90, entryDate: '2026-03-02' }), 201);
+  expectOk(await tina.agent.post(`${API}/tickets/${ticket.id}/time`).send({ durationMinutes: 90, entryDate: '2026-03-02' }), 201);
   expectOk(await carl.agent.post(`${API}/tickets/${ticket.id}/time`).send({
     startTime: '2026-03-11T14:00:00Z', endTime: '2026-03-11T15:00:00Z', entryDate: '2026-03-11',
   }), 201);

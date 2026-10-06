@@ -4,6 +4,7 @@ const { Department, License, Contract, ContractAsset } = require('../../models')
 const { asyncHandler } = require('../../middleware/error');
 const { andWhere, companyFilterWhere } = require('../../services/recordScope');
 const { parseDateRange, parseDepartmentId, resolveReportDeptId, sendCsv } = require('./shared');
+const { orgTimeZone, todayInZone, addDays } = require('../../utils/orgTime');
 
 // ==================== Licenses & Contracts ====================
 
@@ -195,9 +196,11 @@ const contractSpendExport = asyncHandler(async (req, res) => {
 // given defaults to "within the next 90 days".
 async function buildUpcomingRenewalsReport(req) {
   const deptId = await resolveReportDeptId(req, parseDepartmentId(req.query));
-  const range = parseDateRange(req.query);
-  const startStr = range.start ? range.start.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
-  const endStr = range.end ? range.end.toISOString().slice(0, 10) : new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  const range = await parseDateRange(req.query);
+  // Expiry and renewal dates are DATEONLY: compare as the organization's dates.
+  const today = todayInZone(await orgTimeZone());
+  const startStr = range.startDate || today;
+  const endStr = range.endDate || addDays(today, 90);
 
   const licenseWhere = { expiryDate: { [Op.ne]: null, [Op.gte]: startStr, [Op.lte]: endStr } };
   if (deptId) licenseWhere.departmentId = deptId;

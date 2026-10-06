@@ -6,6 +6,7 @@ const {
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
+const { orgTimeZone, todayInZone, addDays } = require('../utils/orgTime');
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { hasPermission, companyScopeWhere } = require('../services/permissionService');
 const { andWhere, isEmpty } = require('../services/recordScope');
@@ -13,7 +14,7 @@ const { getUserPerformanceStats, getTeamHappiness } = require('../services/csatS
 const { getAllSettings } = require('./settingsController');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -160,27 +161,20 @@ async function notificationsForUser(userId) {
   });
 }
 
+// This week's hours (Monday first) on the organization's calendar, by work
+// date, every day — ticket and project time alike (Q12).
 async function hoursForUser(userId) {
-  const weekStart = startOfWeek(new Date());
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
-
+  const today = todayInZone(await orgTimeZone());
+  const sinceMonday = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const days = WEEKDAYS.map((label, i) => ({ label, date: addDays(today, i - sinceMonday) }));
   const entries = await TimeEntry.findAll({
-    where: { userId, loggedAt: { [Op.gte]: weekStart, [Op.lt]: weekEnd } },
-    attributes: ['minutes', 'loggedAt'],
-    raw: true,
+    where: { userId, entryDate: { [Op.gte]: days[0].date, [Op.lte]: days[6].date } },
+    attributes: ['entryDate', 'durationSeconds'],
   });
-
-  const byDay = WEEKDAYS.map((label, i) => {
-    const dayDate = new Date(weekStart);
-    dayDate.setDate(dayDate.getDate() + i);
-    const dayStr = dayDate.toISOString().slice(0, 10);
-    const minutes = entries
-      .filter((e) => new Date(e.loggedAt).toISOString().slice(0, 10) === dayStr)
-      .reduce((sum, e) => sum + e.minutes, 0);
-    return { day: label, hours: Math.round((minutes / 60) * 10) / 10 };
+  const byDay = days.map(({ label, date }) => {
+    const seconds = entries.filter((e) => e.entryDate === date).reduce((sum, e) => sum + e.durationSeconds, 0);
+    return { day: label, hours: Math.round((seconds / 3600) * 10) / 10 };
   });
-
   const total = Math.round(byDay.reduce((sum, d) => sum + d.hours, 0) * 10) / 10;
   return { total, byDay };
 }

@@ -40,9 +40,10 @@ const projectInclude = [
 
 async function buildProjectStats(project) {
   const projectId = project.id;
-  const [completion, timeSum, expenseSum, materialSum, ticketBuckets] = await Promise.all([
+  const [completion, timeSum, laborSum, expenseSum, materialSum, ticketBuckets] = await Promise.all([
     computeProjectCompletion(projectId),
     TimeEntry.sum('durationSeconds', { where: { projectId } }),
+    TimeEntry.sum('laborCost', { where: { projectId } }),
     ProjectExpense.sum('amount', { where: { projectId } }),
     ProjectMaterial.sum('totalCost', { where: { projectId } }),
     getTicketStatusBuckets(),
@@ -54,7 +55,9 @@ async function buildProjectStats(project) {
     totalTasks: completion.totalTasks,
     closedTasks: completion.closedTasks,
     totalTimeSeconds: Number(timeSum || 0),
-    totalCost: Number(expenseSum || 0) + Number(materialSum || 0),
+    // Q11: labour is part of the cost, as in every report.
+    laborCost: Number(laborSum || 0),
+    totalCost: Number(expenseSum || 0) + Number(materialSum || 0) + Number(laborSum || 0),
     openTicketsCount,
   };
 }

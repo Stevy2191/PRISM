@@ -3,7 +3,7 @@
 // optionally group/aggregate) instead of 5 bespoke hand-rolled reports.
 const { Op } = require('sequelize');
 const {
-  Ticket, TimeEntry, ProjectTimeEntry, User, Team, Project, ProjectExpense, ProjectMaterial,
+  Ticket, TimeEntry, User, Team, Project, ProjectExpense, ProjectMaterial,
   Department, Contact, CustomField, TicketFieldValue,
 } = require('../models');
 const { getUserReportScope } = require('./permissionService');
@@ -125,7 +125,7 @@ async function getSourceMetadata() {
 async function loadTicketRecords(req, filters) {
   const scope = await getUserReportScope(req.user.id);
   const dateField = filters.dateField && ['createdAt', 'closedAt', 'dueDate'].includes(filters.dateField) ? filters.dateField : 'createdAt';
-  const range = { start: filters.startDate ? new Date(filters.startDate) : null, end: filters.endDate ? new Date(`${filters.endDate}T23:59:59`) : null };
+  const range = await rc.parseDateRange(filters);
   const modelDateField = dateField === 'closedAt' ? 'resolvedAt' : dateField;
 
   let where = rc.dateWhere(modelDateField, range);
@@ -152,10 +152,10 @@ async function loadTicketRecords(req, filters) {
 
   const ticketIds = tickets.map((t) => t.id);
   const timeTotals = ticketIds.length
-    ? await TimeEntry.findAll({ where: { ticketId: { [Op.in]: ticketIds } }, attributes: ['ticketId', 'minutes'], raw: true })
+    ? await TimeEntry.findAll({ where: { ticketId: { [Op.in]: ticketIds } }, attributes: ['ticketId', 'durationSeconds'], raw: true })
     : [];
   const minutesByTicket = new Map();
-  timeTotals.forEach((r) => minutesByTicket.set(r.ticketId, (minutesByTicket.get(r.ticketId) || 0) + r.minutes));
+  timeTotals.forEach((r) => minutesByTicket.set(r.ticketId, (minutesByTicket.get(r.ticketId) || 0) + r.durationSeconds / 60));
 
   let records = tickets.map((t) => {
     const resolutionHours = t.resolvedAt ? Math.round(((new Date(t.resolvedAt) - new Date(t.createdAt)) / 3600000) * 10) / 10 : null;
@@ -196,7 +196,7 @@ async function loadTicketRecords(req, filters) {
 
 async function loadProjectRecords(req, filters) {
   const scope = await getUserReportScope(req.user.id);
-  const range = { start: filters.startDate ? new Date(filters.startDate) : null, end: filters.endDate ? new Date(`${filters.endDate}T23:59:59`) : null };
+  const range = await rc.parseDateRange(filters);
   const dateField = filters.dateField === 'closedAt' ? 'closedAt' : (filters.dateField === 'dueDate' ? 'dueDate' : 'createdAt');
 
   let where = rc.dateWhere(dateField, range);
@@ -218,8 +218,8 @@ async function loadProjectRecords(req, filters) {
   let records = await Promise.all(projects.map(async (p) => {
     const [completion, timeSum, laborSum, expenseSum, materialSum] = await Promise.all([
       computeProjectCompletion(p.id),
-      ProjectTimeEntry.sum('durationSeconds', { where: { projectId: p.id } }),
-      ProjectTimeEntry.sum('laborCost', { where: { projectId: p.id } }),
+      TimeEntry.sum('durationSeconds', { where: { projectId: p.id } }),
+      TimeEntry.sum('laborCost', { where: { projectId: p.id } }),
       ProjectExpense.sum('amount', { where: { projectId: p.id } }),
       ProjectMaterial.sum('totalCost', { where: { projectId: p.id } }),
     ]);
@@ -255,81 +255,47 @@ async function loadProjectRecords(req, filters) {
 
 async function loadTimeEntryRecords(req, filters) {
   const scope = await getUserReportScope(req.user.id);
-  const range = { start: filters.startDate ? new Date(filters.startDate) : null, end: filters.endDate ? new Date(`${filters.endDate}T23:59:59`) : null };
+  const range = await rc.parseDateRange(filters);
+  // Q9: by work date. Filters are ANDed onto the reader's scope (S16).
+  let where = rc.dateOnlyWhere('entryDate', range);
+  const deptOf = (id) => ({ [Op.or]: [{ '$ticket.departmentId$': id }, { '$project.ownerDepartmentId$': id }] });
+  if (scope === 'department') where = andWhere(where, deptOf(req.user.departmentId));
+  else if (scope === 'own') where = andWhere(where, { userId: req.user.id });
+  else if (scope === 'all' && filters.departmentId) where = andWhere(where, deptOf(filters.departmentId));
+  if (filters.assigneeId) where = andWhere(where, { userId: filters.assigneeId });
+  where = andWhere(where, await rc.ledgerCompanyWhere(req.user, filters.companyId));
 
-  let ticketWhere = rc.dateWhere('loggedAt', range);
-  let projectWhere = rc.dateWhere('createdAt', range);
-  if (scope === 'department') {
-    ticketWhere = { ...ticketWhere, '$ticket.departmentId$': req.user.departmentId };
-    projectWhere = { ...projectWhere, '$project.ownerDepartmentId$': req.user.departmentId };
-  } else if (scope === 'own') {
-    ticketWhere = { ...ticketWhere, userId: req.user.id };
-    projectWhere = { ...projectWhere, loggedForUserId: req.user.id };
-  } else if (scope === 'all' && filters.departmentId) {
-    ticketWhere = { ...ticketWhere, '$ticket.departmentId$': filters.departmentId };
-    projectWhere = { ...projectWhere, '$project.ownerDepartmentId$': filters.departmentId };
-  }
-  // ANDed, never merged — see loadTicketRecords (S16).
-  if (filters.assigneeId) {
-    ticketWhere = andWhere(ticketWhere, { userId: filters.assigneeId });
-    projectWhere = andWhere(projectWhere, { loggedForUserId: filters.assigneeId });
-  }
+  const entries = await TimeEntry.findAll({
+    where,
+    include: [
+      { model: User, as: 'user', attributes: [...userAttrs, 'userType'] },
+      { model: Ticket, as: 'ticket', attributes: ['id', 'title', 'departmentId'], required: false },
+      { model: Project, as: 'project', attributes: ['id', 'projectCode', 'ownerDepartmentId'], required: false },
+    ],
+    order: [['entryDate', 'DESC'], ['createdAt', 'DESC'], ['id', 'DESC']],
+  });
 
-  // Time is fenced through its ticket or project (both included below).
-  ticketWhere = andWhere(ticketWhere, await companyFilterWhere(req.user, filters.companyId, '$ticket.companyId$'));
-  projectWhere = andWhere(projectWhere, await companyFilterWhere(req.user, filters.companyId, '$project.companyId$'));
-
-  const [ticketEntries, projectEntries] = await Promise.all([
-    TimeEntry.findAll({
-      where: ticketWhere,
-      include: [{ model: User, as: 'user', attributes: [...userAttrs, 'userType'] }, { model: Ticket, as: 'ticket', attributes: ['id', 'title'] }],
-      order: [['loggedAt', 'DESC']],
-    }),
-    ProjectTimeEntry.findAll({
-      where: projectWhere,
-      include: [{ model: User, as: 'loggedFor', attributes: [...userAttrs, 'userType'] }, { model: Project, as: 'project', attributes: ['id', 'projectCode'] }],
-      order: [['createdAt', 'DESC']],
-    }),
-  ]);
-
-  let records = [
-    ...ticketEntries.map((e) => ({
-      id: `t${e.id}`,
-      date: e.entryDate || (e.loggedAt ? e.loggedAt.toISOString().slice(0, 10) : ''),
-      techName: e.user?.displayName || 'Unknown',
-      userType: e.user?.userType === 'contractor' ? 'Contractor' : 'Internal',
-      ticketNumber: e.ticket ? `#${String(e.ticket.id).padStart(5, '0')}` : '',
-      projectCode: '',
-      description: e.note || '',
-      durationHours: Math.round(((e.durationSeconds != null ? e.durationSeconds : e.minutes * 60) / 3600) * 10) / 10,
-      laborCost: e.laborCost != null ? Number(e.laborCost) : null,
-      _userTypeRaw: e.user?.userType || 'internal',
-      _techId: e.user?.id ?? 'unknown',
-      _month: (e.entryDate || '').slice(0, 7),
-    })),
-    ...projectEntries.map((e) => ({
-      id: `p${e.id}`,
-      date: e.entryDate || (e.createdAt ? e.createdAt.toISOString().slice(0, 10) : ''),
-      techName: e.loggedFor?.displayName || 'Unknown',
-      userType: e.loggedFor?.userType === 'contractor' ? 'Contractor' : 'Internal',
-      ticketNumber: '',
-      projectCode: e.project?.projectCode || '',
-      description: e.description || '',
-      durationHours: Math.round(((e.durationSeconds || 0) / 3600) * 10) / 10,
-      laborCost: e.laborCost != null ? Number(e.laborCost) : null,
-      _userTypeRaw: e.loggedFor?.userType || 'internal',
-      _techId: e.loggedFor?.id ?? 'unknown',
-      _month: (e.entryDate || '').slice(0, 7),
-    })),
-  ];
-
+  let records = entries.map((e) => ({
+    id: e.id,
+    date: e.entryDate,
+    techName: e.user?.displayName || 'Unknown',
+    userType: e.user?.userType === 'contractor' ? 'Contractor' : 'Internal',
+    ticketNumber: e.ticket ? `#${String(e.ticket.id).padStart(5, '0')}` : '',
+    projectCode: e.project?.projectCode || '',
+    description: e.note || '',
+    durationHours: Math.round((e.durationSeconds / 3600) * 10) / 10,
+    laborCost: e.laborCost != null ? Number(e.laborCost) : null,
+    _userTypeRaw: e.user?.userType || 'internal',
+    _techId: e.user?.id ?? 'unknown',
+    _month: (e.entryDate || '').slice(0, 7),
+  }));
   if (filters.userType) records = records.filter((r) => r._userTypeRaw === filters.userType);
   return records;
 }
 
 async function loadExpenseMaterialRecords(req, filters) {
   const scope = await getUserReportScope(req.user.id);
-  const range = { start: filters.startDate ? new Date(filters.startDate) : null, end: filters.endDate ? new Date(`${filters.endDate}T23:59:59`) : null };
+  const range = await rc.parseDateRange(filters);
 
   let expenseWhere = rc.dateWhere('entryDate', range);
   let materialWhere = rc.dateWhere('createdAt', range);
@@ -395,7 +361,7 @@ async function loadExpenseMaterialRecords(req, filters) {
 
 async function loadContactRecords(req, filters) {
   const scope = await getUserReportScope(req.user.id);
-  const range = { start: filters.startDate ? new Date(filters.startDate) : null, end: filters.endDate ? new Date(`${filters.endDate}T23:59:59`) : null };
+  const range = await rc.parseDateRange(filters);
   let contactWhere = rc.dateWhere('createdAt', range);
   contactWhere = rc.contactDeptWhere(contactWhere, scope, req.user, filters.departmentId || null);
   if (filters.status) contactWhere.status = filters.status;

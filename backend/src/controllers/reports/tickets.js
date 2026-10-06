@@ -22,7 +22,7 @@ const {
 
 async function buildTicketVolumeReport(req) {
   const scope = await getUserReportScope(req.user.id);
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
   const assigneeId = parseAssigneeId(req.query);
 
@@ -117,7 +117,7 @@ const ticketVolumeExport = asyncHandler(async (req, res) => {
 
 async function buildTicketTrendsReport(req) {
   const scope = await getUserReportScope(req.user.id);
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
   const granularity = granularityFor(range) === 'day' ? 'week' : granularityFor(range); // trends read better weekly minimum
 
@@ -225,7 +225,7 @@ const TICKET_EXPORT_COLUMNS = [
 
 const ticketsExport = asyncHandler(async (req, res) => {
   const scope = await getUserReportScope(req.user.id);
-  const range = parseDateRange(req.query);
+  const range = await parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
 
   const where = ticketScopeWhere(dateWhere('createdAt', range), scope, req.user, deptId, await companyFilterWhere(req.user, req.query.companyId));

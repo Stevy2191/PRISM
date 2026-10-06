@@ -30,7 +30,7 @@ beforeAll(async () => {
   tina = await makeTech('tina', w.deptA.id);
 
   acmeTicket = await makeTicket(a, { title: `${MARK} ticket`, contactId: ann.id, assigneeId: tina.user.id, dueDate: day(-3) });
-  expectOk(await a.post(`${API}/tickets/${acmeTicket.id}/time`).send({ minutes: 30, note: `${MARK} work` }), 201);
+  expectOk(await a.post(`${API}/tickets/${acmeTicket.id}/time`).send({ durationMinutes: 30, note: `${MARK} work` }), 201);
   expectOk(await a.patch(`${API}/tickets/${acmeTicket.id}`).send({ status: 'Closed' }));
   expectOk(await a.post(`${API}/tickets/${acmeTicket.id}/csat`).send({ rating: 'happy' }), 201);
   const now = new Date();
@@ -45,7 +45,7 @@ beforeAll(async () => {
 
   acmeProject = await makeProject(a, { name: `${MARK} project`, companyId: acme.id, ownerDepartmentId: w.deptA.id, assignedToUserId: tina.user.id });
   expectOk(await a.post(`${API}/projects/${acmeProject.id}/time-entries`).send({
-    startTime: `${day(0)}T10:00:00Z`, endTime: `${day(0)}T11:00:00Z`, entryDate: day(0), loggedForUserId: tina.user.id,
+    startTime: `${day(0)}T10:00:00Z`, endTime: `${day(0)}T11:00:00Z`, entryDate: day(0), userId: tina.user.id,
     description: `${MARK} build`,
   }), 201);
   expectOk(await a.post(`${API}/projects/${acmeProject.id}/expenses`).send({ description: `${MARK} cables`, amount: 100 }), 201);
@@ -104,9 +104,9 @@ const AGGREGATES = [
   ['/reports/ticket-trends/export', (t) => lines(t).length, 2, 1],
   ['/reports/licenses/spend/export', (t) => lines(t).length, 2, 1],
   ['/reports/contracts/spend/export', (t) => lines(t).length, 2, 1],
-  // The admin's 30 minutes and Tina's closed ticket are Acme's.
+  // The admin's 30 minutes, Tina's closed ticket and her hour of project time are Acme's.
   ['/reports/team-performance/export', (t) => lines(t).filter((l) => /^Test (admin|tina),/.test(l)).sort(),
-    ['Test admin,—,0,0,0,,0.5,', 'Test tina,Service Desk,1,1,0,0,0,'],
+    ['Test admin,—,0,0,0,,0.5,', 'Test tina,Service Desk,1,1,0,0,1,'],
     ['Test admin,—,0,0,0,,0,', 'Test tina,Service Desk,0,0,0,,0,']],
   // Ann is the only contact with no department.
   ['/reports/contacts/export', (t) => lines(t).some((l) => l.startsWith('No department,')), true, false],

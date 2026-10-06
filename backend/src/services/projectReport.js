@@ -1,9 +1,9 @@
 const {
-  Project, ProjectMember, ProjectTask, ProjectSubtask, ProjectTimeEntry, ProjectExpense,
-  ProjectMaterial, ProjectActivity, ProjectStatus, User, Department, Team,
+  Project, ProjectMember, Task, TaskStatus, TimeEntry, ProjectExpense,
+  ProjectMaterial, ProjectActivity, User, Department, Team,
 } = require('../models');
 const { computeProjectCompletion, isTaskComplete, subtaskCompletionPercent } = require('./projectCompletion');
-const { getProjectStatusIdBehaviorMap } = require('./statusBehavior');
+const { taskStatusBehaviorMap } = require('./tasks/statuses');
 const {
   newDocument, drawHeader, sectionTitle, fieldGrid, paragraph, table, streamPdfResponse, ensureSpace,
   MUTED, TEXT, CONTENT_WIDTH, PAGE_MARGIN,
@@ -43,24 +43,26 @@ async function loadProjectReportData(projectId) {
   });
   if (!project) return null;
 
-  const statusIdBehavior = await getProjectStatusIdBehaviorMap();
+  const statusIdBehavior = await taskStatusBehaviorMap();
+  // Fresh include objects per level: Sequelize mutates them while resolving.
+  const assignee = () => ({ model: User, as: 'assignee', attributes: userAttrs });
+  const status = () => ({ model: TaskStatus, as: 'status' });
 
   const [completion, members, tasks, timeEntries, expenses, materials, activity] = await Promise.all([
     computeProjectCompletion(project.id),
     ProjectMember.findAll({ where: { projectId: project.id }, include: [{ model: User, as: 'user', attributes: [...userAttrs, 'userType', 'hourlyRate'] }] }),
-    ProjectTask.findAll({
-      where: { projectId: project.id },
+    Task.findAll({
+      where: { projectId: project.id, parentTaskId: null },
       include: [
-        { model: User, as: 'assignee', attributes: userAttrs },
-        { model: ProjectStatus, as: 'status' },
-        { model: ProjectSubtask, as: 'subtasks', include: [{ model: User, as: 'assignee', attributes: userAttrs }, { model: ProjectStatus, as: 'status' }] },
+        assignee(), status(),
+        { model: Task, as: 'subtasks', separate: true, order: [['position', 'ASC'], ['id', 'ASC']], include: [assignee(), status()] },
       ],
       order: [['position', 'ASC'], ['id', 'ASC']],
     }),
-    ProjectTimeEntry.findAll({
+    TimeEntry.findAll({
       where: { projectId: project.id },
-      include: [{ model: User, as: 'loggedFor', attributes: [...userAttrs, 'userType'] }, { model: ProjectTask, as: 'task', attributes: ['id', 'title'] }],
-      order: [['entryDate', 'ASC'], ['createdAt', 'ASC']],
+      include: [{ model: User, as: 'user', attributes: [...userAttrs, 'userType'] }, { model: Task, as: 'task', attributes: ['id', 'title', 'code'] }],
+      order: [['entryDate', 'ASC'], ['createdAt', 'ASC'], ['id', 'ASC']],
     }),
     ProjectExpense.findAll({ where: { projectId: project.id }, include: [{ model: User, as: 'loggedByUser', attributes: userAttrs }], order: [['entryDate', 'ASC']] }),
     ProjectMaterial.findAll({ where: { projectId: project.id }, include: [{ model: User, as: 'addedByUser', attributes: userAttrs }], order: [['createdAt', 'ASC']] }),
@@ -88,7 +90,7 @@ async function loadProjectReportData(projectId) {
 function timeByTech(timeEntries) {
   const map = new Map();
   timeEntries.forEach((e) => {
-    const user = e.loggedFor;
+    const user = e.user;
     const key = user ? user.id : 'unknown';
     if (!map.has(key)) map.set(key, { user, entries: [], seconds: 0, cost: 0 });
     const bucket = map.get(key);
@@ -197,14 +199,14 @@ function renderTasks(doc, tasks) {
   tasks.forEach((t) => {
     ensureSpace(doc, 16);
     doc.fontSize(8.5).fillColor(TEXT).text(
-      `${t.taskCode}  ${t.title}  —  ${t.status?.name || 'No status'}  —  ${t.assignee?.displayName || 'Unassigned'}  —  Due ${fmtDate(t.dueDate)}  —  ${t.subtaskPercent}% complete`,
+      `${t.code}  ${t.title}  —  ${t.status?.name || 'No status'}  —  ${t.assignee?.displayName || 'Unassigned'}  —  Due ${fmtDate(t.dueDate)}  —  ${t.subtaskPercent}% complete`,
       PAGE_MARGIN, doc.y, { width: CONTENT_WIDTH, height: 12, ellipsis: true },
     );
     doc.y += 15;
     (t.subtasks || []).forEach((s) => {
       ensureSpace(doc, 14);
       doc.fontSize(8).fillColor(MUTED).text(
-        `    ${s.subtaskCode}  ${s.title}  —  ${s.status?.name || 'No status'}  —  ${s.assignee?.displayName || 'Unassigned'}  —  Due ${fmtDate(s.dueDate)}`,
+        `    ${s.code}  ${s.title}  —  ${s.status?.name || 'No status'}  —  ${s.assignee?.displayName || 'Unassigned'}  —  Due ${fmtDate(s.dueDate)}`,
         PAGE_MARGIN, doc.y, { width: CONTENT_WIDTH, height: 11, ellipsis: true },
       );
       doc.y += 13;
@@ -236,7 +238,7 @@ function renderTimeEntries(doc, teamByTech) {
     doc.y += 15;
     table(doc, [
       { key: 'date', label: 'Date', width: 75, render: (e) => e.entryDate || '' },
-      { key: 'description', label: 'Description', width: hasAnyCost(bucket.entries) ? 267 : 337, render: (e) => e.description || '' },
+      { key: 'description', label: 'Description', width: hasAnyCost(bucket.entries) ? 267 : 337, render: (e) => e.note || '' },
       { key: 'duration', label: 'Duration', width: 85, align: 'right', render: (e) => fmtDuration(e.durationSeconds) },
       ...(hasAnyCost(bucket.entries) ? [{ key: 'cost', label: 'Cost', width: 85, align: 'right', render: (e) => (e.laborCost != null ? fmtCost(e.laborCost) : '—') }] : []),
     ], bucket.entries, { rowHeight: 16 });
