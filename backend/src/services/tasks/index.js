@@ -10,7 +10,9 @@ const { writeAudit } = require('../../middleware/audit');
 const { logActivity } = require('../ticketActivity');
 const { logProjectActivity } = require('../projectActivity');
 const { canWorkCompany } = require('../ticketPeople');
-const { parseRecordId, findAccessibleTicket, parseTicketId } = require('../permissionService');
+const {
+  parseRecordId, findAccessibleTicket, parseTicketId, canAccessTicket,
+} = require('../permissionService');
 const { defaultTaskStatus, findTaskStatus, taskStatusBehaviorMap } = require('./statuses');
 const {
   formatTaskCode, formatSubtaskCode, trailingNumber, nextCode, pad2,
@@ -41,7 +43,7 @@ function taskIncludes(parent) {
   const status = () => ({ model: TaskStatus, as: 'status' });
   const assignee = () => ({ model: User, as: 'assignee', attributes: userAttrs });
   const linked = parent.kind === 'project'
-    ? [{ model: Ticket, as: 'linkedTicket', attributes: ['id', 'title'], where: { companyId: parent.companyId }, required: false }]
+    ? [{ model: Ticket, as: 'linkedTicket', attributes: ['id', 'title', 'departmentId', 'assigneeId', 'companyId'], where: { companyId: parent.companyId }, required: false }]
     : [];
   return [
     assignee(), status(), ...linked,
@@ -54,24 +56,33 @@ async function findTask(parent, rawId) {
   return id ? Task.findOne({ where: { id, ...parent.where } }) : null;
 }
 
-function annotate(task, behavior) {
+// A linked ticket the viewer can't open shows only its id (Q19).
+async function shownLinkedTicket(viewer, linked) {
+  if (!linked) return linked;
+  if (viewer && await canAccessTicket(viewer, linked)) return { id: linked.id, title: linked.title };
+  return { id: linked.id, restricted: true };
+}
+
+async function annotate(task, behavior, viewer) {
   const json = task.toJSON();
   if (json.parentTaskId === null) {
     json.isComplete = isTaskComplete(task, task.subtasks || [], behavior);
     json.subtaskPercent = subtaskCompletionPercent(task.subtasks || [], behavior);
   }
+  if (json.linkedTicket !== undefined) json.linkedTicket = await shownLinkedTicket(viewer, task.linkedTicket);
   return json;
 }
 
-async function loadTask(parent, id) {
+// viewer: the user the task is shown to, for the linked ticket (Q19).
+async function loadTask(parent, id, viewer) {
   const task = await Task.findByPk(id, { include: taskIncludes(parent) });
-  return annotate(task, await taskStatusBehaviorMap());
+  return annotate(task, await taskStatusBehaviorMap(), viewer);
 }
 
-async function listTasks(parent) {
+async function listTasks(parent, viewer) {
   const tasks = await Task.findAll({ where: { ...parent.where, parentTaskId: null }, include: taskIncludes(parent), order: ORDER });
   const behavior = await taskStatusBehaviorMap();
-  return tasks.map((t) => annotate(t, behavior));
+  return Promise.all(tasks.map((t) => annotate(t, behavior, viewer)));
 }
 
 // ---- Field rules ----
@@ -190,7 +201,7 @@ async function createTask(req, parent, body = {}) {
   });
   await recordTaskEvent(req, parent, task, 'created');
   await audit(req, parent, 'create', task, { title: task.title, code: task.code });
-  return loadTask(parent, task.id);
+  return loadTask(parent, task.id, req.user);
 }
 
 const sameDate = (a, b) => (a || null) === (b || null);
@@ -227,7 +238,7 @@ async function updateTask(req, parent, task, body = {}) {
   // A status change that stays on the same side (To do -> In progress) is an
   // ordinary edit; crossing into or out of closed has its own event.
   const fields = Object.keys(changes).filter((k) => k !== 'completedAt' && !(k === 'statusId' && statusEvent));
-  if (!Object.keys(changes).length) return loadTask(parent, task.id);
+  if (!Object.keys(changes).length) return loadTask(parent, task.id, req.user);
 
   await task.update(changes);
   if (statusEvent) await recordTaskEvent(req, parent, task, statusEvent);
@@ -235,7 +246,7 @@ async function updateTask(req, parent, task, body = {}) {
     await recordTaskEvent(req, parent, task, 'updated', { from: null, to: fields.join(', '), detail: { fields } });
   }
   await audit(req, parent, 'update', task, { fields: Object.keys(changes) });
-  return loadTask(parent, task.id);
+  return loadTask(parent, task.id, req.user);
 }
 
 // The task and its subtasks go; their time, expenses, materials, files and
@@ -294,7 +305,7 @@ async function renumberTask(req, parent, task, rawNumber) {
   }
   const parentTask = sub ? await Task.findByPk(task.parentTaskId) : null;
   const newCode = sub ? formatSubtaskCode(parentTask.code, number) : formatTaskCode(parent, number);
-  if (newCode === task.code) return loadTask(parent, task.id);
+  if (newCode === task.code) return loadTask(parent, task.id, req.user);
   if (await Task.findOne({ where: { code: newCode, id: { [Op.ne]: task.id } } })) {
     throw sub
       ? new ApiError(409, `Subtask S${pad2(number)} already exists in this task. Choose a different number.`, 'SUBTASK_CODE_CONFLICT')
@@ -313,7 +324,7 @@ async function renumberTask(req, parent, task, rawNumber) {
   });
   await recordTaskEvent(req, parent, task, 'renumbered', { from: oldCode, to: newCode, detail: { fromCode: oldCode } });
   await audit(req, parent, 'renumber', task, { from: oldCode, to: newCode });
-  return loadTask(parent, task.id);
+  return loadTask(parent, task.id, req.user);
 }
 
 module.exports = {

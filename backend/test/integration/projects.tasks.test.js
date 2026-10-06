@@ -561,10 +561,12 @@ describe('tasks, subtasks, codes and rollups', () => {
     expect((await mgr.agent.patch(`${API}/projects/${P.id}/tasks/xyz`).send({ title: 'x' })).status).toBe(404);
   });
 
-  // Likely correct: a linked ticket the viewer can't open is hidden or redacted. Expected to change in sub-project 3.
-  it('[quirk] Q19: task lists show a linked ticket the viewer can\'t open', async () => {
+  it('Q19: a linked ticket the viewer can\'t open is shown as restricted, in the list and on the task', async () => {
     const secret = await makeTicket(w.admin.agent, { title: 'Secret', contactId: w.contact.id, departmentId: w.deptB.id });
-    await makeTask(w.admin.agent, P.id, { linkedTicketId: secret.id });
-    expect((await listTasks())[0].linkedTicket).toEqual({ id: secret.id, title: 'Secret' });
+    const t = await makeTask(w.admin.agent, P.id, { linkedTicketId: secret.id });
+    expect((await listTasks())[0].linkedTicket).toEqual({ id: secret.id, restricted: true });
+    const patched = expectOk(await mgr.agent.patch(taskUrl(t)).send({ title: 'Renamed' })).task;
+    expect(patched.linkedTicket).toEqual({ id: secret.id, restricted: true });
+    expect(expectOk(await w.admin.agent.get(`${API}/projects/${P.id}/tasks`)).tasks[0].linkedTicket).toEqual({ id: secret.id, title: 'Secret' });
   });
 });

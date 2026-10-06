@@ -23,7 +23,7 @@ async function taskFor(parent, rawId) {
 
 // GET /tickets/:id/tasks — top-level tasks with their subtasks
 const listTasks = asyncHandler(async (req, res) => {
-  res.json({ tasks: await tasks.listTasks(await ticketFor(req, { edit: false })) });
+  res.json({ tasks: await tasks.listTasks(await ticketFor(req, { edit: false }), req.user) });
 });
 
 // POST /tickets/:id/tasks — { title, description?, statusId?, priority?, assigneeId?, dueDate?, estimateMinutes?, parentTaskId? }

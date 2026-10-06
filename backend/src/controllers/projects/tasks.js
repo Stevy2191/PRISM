@@ -32,7 +32,7 @@ async function subtaskFor(parent, req) {
 
 // GET /projects/:id/tasks — top-level tasks with their subtasks
 const listTasks = asyncHandler(async (req, res) => {
-  res.json({ tasks: await tasks.listTasks(await projectFor(req, { edit: false })) });
+  res.json({ tasks: await tasks.listTasks(await projectFor(req, { edit: false }), req.user) });
 });
 
 // POST /projects/:id/tasks — { title, description?, statusId?, priority?, assigneeId?, dueDate?, estimateMinutes?, parentTaskId?, linkedTicketId? }

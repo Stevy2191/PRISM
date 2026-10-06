@@ -179,12 +179,15 @@ describe('relations', () => {
     expect(view).toEqual([[A.id, 'parent', 'outgoing'], [B.id, 'parent', 'incoming'], [C.id, 'related', 'outgoing']]);
   });
 
-  // Likely correct: hide or redact links to tickets the viewer can't open. Expected to change in sub-project 3.
-  it('[quirk] Q18: relation lists show linked tickets the viewer cannot open', async () => {
+  it('Q18: a linked ticket the viewer can\'t open is shown as restricted', async () => {
     const staff = await makeStaff('staff', w.deptA.id);
     const S = await makeTicket(w.admin.agent, { title: 'Secret', contactId: w.contact.id, departmentId: w.deptB.id });
     expectOk(await link(A, { relatedTicketId: S.id }, w.admin.agent), 201);
-    expect(await listOf(A, staff.agent)).toEqual([expect.objectContaining({ ticket: relTicket(S) })]);
+    expect((await listOf(A, staff.agent))[0].ticket).toEqual({ id: S.id, restricted: true });
+    expect((await listOf(A, w.admin.agent))[0].ticket).toEqual(relTicket(S));
+    // Once it moves into their department, it shows in full.
+    expectOk(await w.admin.agent.patch(`${API}/tickets/${S.id}`).send({ departmentId: w.deptA.id }));
+    expect((await listOf(A, staff.agent))[0].ticket).toEqual(relTicket(S));
   });
 });
 

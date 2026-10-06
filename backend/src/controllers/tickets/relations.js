@@ -10,6 +10,15 @@ const { assertCanEditTicket } = require('./shared');
 // ---- Related tickets ----
 
 const relTicketAttrs = ['id', 'title', 'status', 'priority', 'type'];
+// The access check also needs these; they are not shown.
+const relQueryAttrs = [...relTicketAttrs, 'departmentId', 'assigneeId', 'companyId'];
+
+// A linked ticket the viewer can't open shows only that it exists (Q18).
+async function shownTicket(user, t) {
+  if (!(await canAccessTicket(user, t))) return { id: t.id, restricted: true };
+  const { departmentId, assigneeId, companyId, ...shown } = t.toJSON();
+  return shown;
+}
 
 // GET /tickets/:id/relations
 // Returns relations where this ticket is on either side, normalized so each item
@@ -24,21 +33,21 @@ const listRelations = asyncHandler(async (req, res) => {
     // Only relations whose two tickets share a company: a relation can
     // outlive a contact's move, and must not show the other company's ticket.
     include: [
-      { model: Ticket, as: 'ticket', attributes: relTicketAttrs, where: { companyId: ticket.companyId }, required: true },
-      { model: Ticket, as: 'relatedTicket', attributes: relTicketAttrs, where: { companyId: ticket.companyId }, required: true },
+      { model: Ticket, as: 'ticket', attributes: relQueryAttrs, where: { companyId: ticket.companyId }, required: true },
+      { model: Ticket, as: 'relatedTicket', attributes: relQueryAttrs, where: { companyId: ticket.companyId }, required: true },
     ],
     order: [['createdAt', 'DESC']],
   });
 
-  const relations = rows.map((r) => {
+  const relations = await Promise.all(rows.map(async (r) => {
     const outgoing = r.ticketId === ticket.id;
     return {
       id: r.id,
       relationType: r.relationType,
       direction: outgoing ? 'outgoing' : 'incoming',
-      ticket: outgoing ? r.relatedTicket : r.ticket,
+      ticket: await shownTicket(req.user, outgoing ? r.relatedTicket : r.ticket),
     };
-  });
+  }));
   res.json({ relations });
 });
 
