@@ -9,9 +9,10 @@ async function listTaskStatuses(scope) {
   return TaskStatus.findAll({ where: scope ? { scope } : {}, order: ORDER });
 }
 
-// What a new task gets when no status is sent: the scope's first open status.
+// What a new task gets when no status is sent: the scope's default status
+// (Settings), else its first open status.
 async function defaultTaskStatus(scope) {
-  return TaskStatus.findOne({ where: { scope, behaviorType: 'open' }, order: ORDER });
+  return TaskStatus.findOne({ where: { scope, behaviorType: 'open' }, order: [['isDefault', 'DESC'], ...ORDER] });
 }
 
 // A status in the given scope, or null (a missing id, another scope's id, or
