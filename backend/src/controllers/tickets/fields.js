@@ -1,6 +1,7 @@
 // Ticket custom field values: read and update.
 const { Ticket, CustomField, TicketFieldValue, sequelize } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
+const { writeAudit } = require('../../middleware/audit');
 const { logActivity } = require('../../services/ticketActivity');
 const { canAccessTicket } = require('../../services/permissionService');
 const { syncCustomFieldValues, buildCustomFieldsObject, assertCanEditTicket } = require('./shared');
@@ -30,6 +31,7 @@ const updateCustomFieldValues = asyncHandler(async (req, res) => {
   }
 
   await sequelize.transaction((t) => syncCustomFieldValues(ticket.id, values, t));
+  await writeAudit(req, 'ticket.custom_fields', 'Ticket', ticket.id, { keys: Object.keys(values) });
   await logActivity(ticket.id, req.user.id, 'custom_fields', null, null);
 
   const fresh = await Ticket.findByPk(ticket.id, {

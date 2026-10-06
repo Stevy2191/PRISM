@@ -191,12 +191,34 @@ describe('PATCH /projects/:id', () => {
     expect((await patch('Active')).closedAt).toBeNull();
   });
 
-  // Likely correct: the new lead becomes a lead member. Expected to change in sub-project 3.
-  it('[quirk] Q30: changing the lead does not change membership', async () => {
+  it('the lead must be an active user who can work for the project\'s company (create and update)', async () => {
+    const gone = await makeTech('gone', w.deptA.id);
+    await models.User.update({ isActive: false }, { where: { id: gone.user.id } });
+    const refusedLead = { error: true, message: 'Lead can\'t work for this company', code: 'VALIDATION_ERROR' };
+    const refusedMember = { error: true, message: 'Member can\'t work for this company', code: 'VALIDATION_ERROR' };
+    const p = await makeProject(tech.agent, { name: 'P', ownerDepartmentId: w.deptA.id });
+    for (const lead of [99999, '12abc', gone.user.id]) {
+      // eslint-disable-next-line no-await-in-loop
+      expect((await tech.agent.patch(projUrl(p)).send({ assignedToUserId: lead })).body).toEqual(refusedLead);
+      // eslint-disable-next-line no-await-in-loop
+      expect((await tech.agent.post(`${API}/projects`).send({ name: 'Q', ownerDepartmentId: w.deptA.id, assignedToUserId: lead })).body)
+        .toEqual(refusedLead);
+      // eslint-disable-next-line no-await-in-loop
+      expect((await tech.agent.post(`${API}/projects`).send({ name: 'Q', ownerDepartmentId: w.deptA.id, memberIds: [lead] })).body)
+        .toEqual(refusedMember);
+    }
+    expect(await models.ProjectMember.count({ where: { userId: [99999, 12, gone.user.id] } })).toBe(0);
+  });
+
+  it('Q30: a new lead becomes a member with the lead role; the old lead stays a member', async () => {
     const mgr = await makeManager('mgr', w.deptA.id);
     const p = await makeProject(tech.agent, { name: 'P', ownerDepartmentId: w.deptA.id, assignedToUserId: tech.user.id });
     const { project } = expectOk(await tech.agent.patch(projUrl(p)).send({ assignedToUserId: mgr.user.id }));
-    expect(project.members.map((m) => [m.userId, m.role])).toEqual([[tech.user.id, 'lead']]);
+    const roles = (members) => members.map((m) => [m.userId, m.role]).sort((a, b) => a[0] - b[0]);
+    expect(roles(project.members)).toEqual(roles([{ userId: tech.user.id, role: 'member' }, { userId: mgr.user.id, role: 'lead' }]));
+    // Clearing the lead leaves everyone a plain member.
+    const cleared = expectOk(await w.admin.agent.patch(projUrl(p)).send({ assignedToUserId: null })).project;
+    expect(cleared.members.map((m) => m.role)).toEqual(['member', 'member']);
   });
 
   it('Q25: refuses a status no ProjectStatus row has', async () => {

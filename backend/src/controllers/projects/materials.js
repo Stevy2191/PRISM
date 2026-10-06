@@ -1,6 +1,7 @@
 // Project materials: list, add, edit, delete.
 const { Project, Task, ProjectMaterial, User, Company } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
+const { writeAudit } = require('../../middleware/audit');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { parsePagination, paginated } = require('../../utils/pagination');
 const { resolveVendorFields, hideUnreachableVendors } = require('../../services/companyService');
@@ -72,6 +73,7 @@ const createMaterial = asyncHandler(async (req, res) => {
     addedBy: req.user.id,
     ...(await resolveVendorFields(req.user, req.body, null, 'vendor')),
   });
+  await writeAudit(req, 'material.create', 'ProjectMaterial', material.id, { projectId: project.id, itemName: material.itemName });
   await logProjectActivity(project.id, req.user.id, 'material_added', { materialId: material.id, itemName: material.itemName });
 
   const fresh = await ProjectMaterial.findByPk(material.id, { include: materialInclude });
@@ -94,6 +96,20 @@ const updateMaterial = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
+  // Edits run the create validation (Q33).
+  if (changes.itemName !== undefined) {
+    if (typeof changes.itemName !== 'string' || !changes.itemName.trim()) throw new ApiError(400, 'Item name is required', 'VALIDATION_ERROR');
+    changes.itemName = changes.itemName.trim();
+  }
+  const asNumber = (v) => (v === null || v === '' ? NaN : Number(v));
+  if (changes.quantity !== undefined) {
+    changes.quantity = asNumber(changes.quantity);
+    if (!Number.isFinite(changes.quantity) || changes.quantity < 1) throw new ApiError(400, 'Quantity must be a positive number', 'VALIDATION_ERROR');
+  }
+  if (changes.unitCost !== undefined) {
+    changes.unitCost = asNumber(changes.unitCost);
+    if (!Number.isFinite(changes.unitCost) || changes.unitCost < 0) throw new ApiError(400, 'Unit cost must be a non-negative number', 'VALIDATION_ERROR');
+  }
   if (Array.isArray(changes.serialNumber)) changes.serialNumber = changes.serialNumber.filter(Boolean);
   if (changes.taskId !== undefined) changes.taskId = await resolveProjectTaskId(project, changes.taskId);
   Object.assign(changes, await resolveVendorFields(req.user, req.body, material, 'vendor'));
@@ -105,6 +121,7 @@ const updateMaterial = asyncHandler(async (req, res) => {
   }
 
   await material.update(changes);
+  await writeAudit(req, 'material.update', 'ProjectMaterial', material.id, { projectId: project.id, fields: Object.keys(changes) });
   const fresh = await ProjectMaterial.findByPk(material.id, { include: materialInclude });
   await hideUnreachableVendors(req.user, fresh);
   res.json({ material: fresh });
@@ -120,6 +137,7 @@ const removeMaterial = asyncHandler(async (req, res) => {
   }
   await assertCanEditProject(req.user, project);
   await material.destroy();
+  await writeAudit(req, 'material.delete', 'ProjectMaterial', material.id, { projectId: project.id, itemName: material.itemName });
   res.json({ ok: true });
 });
 

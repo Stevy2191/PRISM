@@ -41,6 +41,7 @@ const {
   parseRecordId,
 } = require('../../services/permissionService');
 const { generateProjectCode } = require('../../services/projectCodeService');
+const { canWorkCompany } = require('../../services/ticketPeople');
 const {
   userAttrs, projectInclude, buildProjectStats, getProjectWithDetail, assertCanEditProject,
 } = require('./shared');
@@ -197,6 +198,15 @@ const listTags = asyncHandler(async (req, res) => {
 });
 
 // POST /projects — Admin/Technician
+// The lead and members are active users who can work for the project's
+// company; a lead is also a member (Q30), so it is checked like one. The same
+// answer for a missing, inactive or fenced-off user.
+async function assertCanWorkProject(rawUserId, companyId, label) {
+  const user = await canWorkCompany(rawUserId, companyId);
+  if (!user) throw new ApiError(400, `${label} can't work for this company`, 'VALIDATION_ERROR');
+  return user.id;
+}
+
 // A status must be one of the configured project statuses (Q25).
 async function assertProjectStatus(name) {
   if (typeof name !== 'string' || !(await ProjectStatus.findOne({ where: { name } }))) {
@@ -226,6 +236,13 @@ const create = asyncHandler(async (req, res) => {
     if (!forDept) throw new ApiError(400, 'For-department does not exist', 'VALIDATION_ERROR');
   }
 
+  const leadId = assignedToUserId ? await assertCanWorkProject(assignedToUserId, projectCompanyId, 'Lead') : null;
+  const memberSet = new Set();
+  for (const raw of Array.isArray(memberIds) ? memberIds : []) {
+    memberSet.add(await assertCanWorkProject(raw, projectCompanyId, 'Member')); // eslint-disable-line no-await-in-loop
+  }
+  if (leadId) memberSet.add(leadId);
+
   let resolvedStatus = status;
   if (resolvedStatus) await assertProjectStatus(resolvedStatus);
   if (!resolvedStatus) {
@@ -251,21 +268,19 @@ const create = asyncHandler(async (req, res) => {
       // An internal project is "for" its owner unless told otherwise; a
       // client project's "for" is a client department or nobody.
       forDepartmentId: forDept ? forDept.id : (projectCompanyId === internalCompanyId ? ownerDept.id : null),
-      assignedToUserId: assignedToUserId || null,
+      assignedToUserId: leadId,
       teamId: teamId || null,
       dueDate: dueDate || null,
       createdBy: req.user.id,
     }, { transaction: t });
   });
 
-  const memberSet = new Set((Array.isArray(memberIds) ? memberIds : []).map(Number));
-  if (assignedToUserId) memberSet.add(Number(assignedToUserId));
   await Promise.all(
     [...memberSet].map((userId) =>
       ProjectMember.create({
         projectId: project.id,
         userId,
-        role: Number(userId) === Number(assignedToUserId) ? 'lead' : 'member',
+        role: userId === leadId ? 'lead' : 'member',
       })
     )
   );
@@ -343,11 +358,26 @@ const update = asyncHandler(async (req, res) => {
     && !(await findDepartmentInCompany(project.forDepartmentId, targetCompanyId))) {
     throw new ApiError(400, 'For-department does not exist', 'VALIDATION_ERROR');
   }
+  if (changes.assignedToUserId) {
+    changes.assignedToUserId = await assertCanWorkProject(changes.assignedToUserId, targetCompanyId, 'Lead');
+  } else if (changes.assignedToUserId !== undefined) {
+    changes.assignedToUserId = null;
+  }
   const statusChanged = changes.status !== undefined && changes.status !== project.status;
   const previousStatus = project.status;
   const previousLeadId = project.assignedToUserId;
 
   await project.update(changes);
+  if (changes.assignedToUserId !== undefined && project.assignedToUserId !== previousLeadId) {
+    // Q30: the new lead is a member with the lead role; the old lead stays a member.
+    if (previousLeadId) await ProjectMember.update({ role: 'member' }, { where: { projectId: project.id, userId: previousLeadId } });
+    if (project.assignedToUserId) {
+      const [member] = await ProjectMember.findOrCreate({
+        where: { projectId: project.id, userId: project.assignedToUserId }, defaults: { role: 'lead' },
+      });
+      if (member.role !== 'lead') await member.update({ role: 'lead' });
+    }
+  }
   await writeAudit(req, 'project.update', 'Project', project.id, changes);
   if (statusChanged) {
     await logProjectActivity(project.id, req.user.id, 'status_changed', { from: previousStatus, to: changes.status });

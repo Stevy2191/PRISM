@@ -148,7 +148,8 @@ describe('audit rows', () => {
   // setup (which may audit, e.g. creating the project) and the one request.
   const proj = () => makeProject(w.admin.agent, { name: 'P', ownerDepartmentId: w.deptA.id });
   const pUrl = (p, path) => `${API}/projects/${p.id}/${path}`;
-  const unaudited = [
+  // Q23, fixed in plan 3b-2: the rest of the ticket and project mutations.
+  const elsewhere = [
     ['watcher add', async () => () => ok(tech.agent.post(tUrl('/watchers')).send({ userId: tech.user.id }), 201)],
     ['watcher remove', async () => {
       await ok(tech.agent.post(tUrl('/watchers')).send({ userId: tech.user.id }), 201);
@@ -243,20 +244,13 @@ describe('audit rows', () => {
     }],
   ];
 
-  it.each(audited)('Q23: %s writes an audit row', async (_label, setup) => {
+  it.each([...elsewhere, ...audited])('Q23: %s writes an audit row', async (_label, setup) => {
     const perform = await setup();
     const before = await auditCount();
     await perform();
     expect(await auditCount()).toBe(before + 1);
   });
 
-  // Likely correct: every mutating endpoint is audited (roadmap rule 6). Expected to change in sub-project 3.
-  it.each(unaudited)('[quirk] Q23: %s writes no audit row', async (_label, setup) => {
-    const perform = await setup();
-    const before = await auditCount();
-    await perform();
-    expect(await auditCount()).toBe(before);
-  });
 });
 
 describe('notifications', () => {

@@ -2,6 +2,7 @@
 const fs = require('fs');
 const { Project, ProjectFile, User } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
+const { writeAudit } = require('../../middleware/audit');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { canAccessProject, canModerateProjectContent } = require('../../services/permissionService');
 const { userAttrs, resolveProjectTaskId } = require('./shared');
@@ -55,6 +56,7 @@ const uploadFile = asyncHandler(async (req, res) => {
     filesize: req.file.size,
     uploadedBy: req.user.id,
   });
+  await writeAudit(req, 'project_file.upload', 'ProjectFile', file.id, { projectId: project.id, filename: file.filename });
   await logProjectActivity(project.id, req.user.id, 'file_uploaded', { fileId: file.id, filename: file.filename });
 
   const fresh = await ProjectFile.findByPk(file.id, {
@@ -89,6 +91,7 @@ const removeFile = asyncHandler(async (req, res) => {
   }
   await file.destroy();
   fs.rm(file.filepath, { force: true }, () => {});
+  await writeAudit(req, 'project_file.delete', 'ProjectFile', file.id, { projectId: project.id, filename: file.filename });
   res.json({ ok: true });
 });
 

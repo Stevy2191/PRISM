@@ -1,6 +1,7 @@
 // Project expenses: list, add, edit, delete.
 const { Project, Task, ProjectExpense, User } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
+const { writeAudit } = require('../../middleware/audit');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { parsePagination, paginated } = require('../../utils/pagination');
 const { canAccessProject } = require('../../services/permissionService');
@@ -57,6 +58,7 @@ const createExpense = asyncHandler(async (req, res) => {
     entryDate: entryDate || new Date().toISOString().slice(0, 10),
     loggedBy: req.user.id,
   });
+  await writeAudit(req, 'expense.create', 'ProjectExpense', expense.id, { projectId: project.id, description: expense.description, amount: amt });
   await logProjectActivity(project.id, req.user.id, 'expense_added', { expenseId: expense.id, description: expense.description, amount: amt });
 
   const fresh = await ProjectExpense.findByPk(expense.id, { include: expenseInclude });
@@ -78,8 +80,19 @@ const updateExpense = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
+  // Edits run the create validation (Q33).
+  if (changes.description !== undefined) {
+    if (typeof changes.description !== 'string' || !changes.description.trim()) throw new ApiError(400, 'Description is required', 'VALIDATION_ERROR');
+    changes.description = changes.description.trim();
+  }
+  if (changes.amount !== undefined) {
+    const amt = changes.amount === null || changes.amount === '' ? NaN : Number(changes.amount);
+    if (!Number.isFinite(amt) || amt < 0) throw new ApiError(400, 'Amount must be a non-negative number', 'VALIDATION_ERROR');
+    changes.amount = amt;
+  }
   if (changes.taskId !== undefined) changes.taskId = await resolveProjectTaskId(project, changes.taskId);
   await expense.update(changes);
+  await writeAudit(req, 'expense.update', 'ProjectExpense', expense.id, { projectId: project.id, ...changes });
   const fresh = await ProjectExpense.findByPk(expense.id, { include: expenseInclude });
   res.json({ expense: fresh });
 });
@@ -94,6 +107,7 @@ const removeExpense = asyncHandler(async (req, res) => {
   }
   await assertCanEditProject(req.user, project);
   await expense.destroy();
+  await writeAudit(req, 'expense.delete', 'ProjectExpense', expense.id, { projectId: project.id, description: expense.description, amount: expense.amount });
   res.json({ ok: true });
 });
 

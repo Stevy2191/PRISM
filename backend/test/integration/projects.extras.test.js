@@ -89,10 +89,16 @@ describe('expenses', () => {
     expect(expectOk(await tech.agent.patch(`${purl('expenses')}/${e.id}`).send(changes)).expense).toEqual(expect.objectContaining(changes));
   });
 
-  // Likely correct: 400 as on create. Expected to change in sub-project 3.
-  it('[quirk] Q33: expense update skips the create-time validation', async () => {
+  it('Q33: expense edits run the create validation', async () => {
     const e = await create({ description: 'x', amount: 1 });
-    expect(expectOk(await tech.agent.patch(`${purl('expenses')}/${e.id}`).send({ amount: -5 })).expense.amount).toBe(-5);
+    for (const [body, message] of [
+      [{ amount: -5 }, 'Amount must be a non-negative number'], [{ amount: 'abc' }, 'Amount must be a non-negative number'],
+      [{ description: '  ' }, 'Description is required'], [{ description: null }, 'Description is required'],
+    ]) {
+      // eslint-disable-next-line no-await-in-loop
+      expect((await tech.agent.patch(`${purl('expenses')}/${e.id}`).send(body)).body).toEqual({ error: true, message, code: 'VALIDATION_ERROR' });
+    }
+    expect(expectOk(await tech.agent.patch(`${purl('expenses')}/${e.id}`).send({ description: ' y ' })).expense.description).toBe('y');
   });
 
   it('deletes an expense', async () => {
@@ -158,10 +164,19 @@ describe('materials', () => {
     expect((await patch(m, { notes: 'z' })).totalCost).toBe(10);
   });
 
-  // Likely correct: 400 as on create. Expected to change in sub-project 3.
-  it('[quirk] Q33: material update skips validation', async () => {
+  it('Q33: material edits run the create validation', async () => {
     const m = await create({ itemName: 'Switch', quantity: 2, unitCost: 5 });
-    expect(await patch(m, { quantity: 0 })).toEqual(expect.objectContaining({ quantity: 0, totalCost: 0 }));
+    const cases = [
+      [{ quantity: 0 }, 'Quantity must be a positive number'],
+      [{ quantity: 'abc' }, 'Quantity must be a positive number'],
+      [{ unitCost: -1 }, 'Unit cost must be a non-negative number'],
+      [{ itemName: ' ' }, 'Item name is required'],
+    ];
+    for (const [body, message] of cases) {
+      // eslint-disable-next-line no-await-in-loop
+      expect((await tech.agent.patch(`${purl('materials')}/${m.id}`).send(body)).body).toEqual({ error: true, message, code: 'VALIDATION_ERROR' });
+    }
+    expect(await patch(m, { itemName: ' Router ' })).toEqual(expect.objectContaining({ itemName: 'Router', quantity: 2, totalCost: 10 }));
   });
 
   it('lists materials with a whole-project total', async () => {

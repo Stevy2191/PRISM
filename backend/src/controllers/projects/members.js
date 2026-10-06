@@ -1,6 +1,7 @@
 // Project members: list, add, remove.
 const { Project, ProjectMember, User } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
+const { writeAudit } = require('../../middleware/audit');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { canAccessProject } = require('../../services/permissionService');
 const { userAttrs, assertCanEditProject } = require('./shared');
@@ -41,6 +42,7 @@ const addMember = asyncHandler(async (req, res) => {
     userId,
     role: role === 'lead' ? 'lead' : 'member',
   });
+  await writeAudit(req, 'project_member.add', 'Project', project.id, { userId: member.userId, role: member.role });
   await logProjectActivity(project.id, req.user.id, 'member_added', { userId, displayName: user.displayName });
 
   const fresh = await ProjectMember.findByPk(member.id, { include: [{ model: User, as: 'user', attributes: userAttrs }] });
@@ -57,6 +59,7 @@ const removeMember = asyncHandler(async (req, res) => {
   }
   await assertCanEditProject(req.user, project);
   await member.destroy();
+  await writeAudit(req, 'project_member.remove', 'Project', project.id, { userId: member.userId });
   res.json({ ok: true });
 });
 
