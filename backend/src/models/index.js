@@ -6,9 +6,9 @@ const User = require('./User')(sequelize);
 const Department = require('./Department')(sequelize);
 const Project = require('./Project')(sequelize);
 const ProjectMember = require('./ProjectMember')(sequelize);
-const ProjectTask = require('./ProjectTask')(sequelize);
-const ProjectSubtask = require('./ProjectSubtask')(sequelize);
-const ProjectTimeEntry = require('./ProjectTimeEntry')(sequelize);
+const Task = require('./Task')(sequelize);
+const TaskStatus = require('./TaskStatus')(sequelize);
+const WorkType = require('./WorkType')(sequelize);
 const ProjectExpense = require('./ProjectExpense')(sequelize);
 const ProjectMaterial = require('./ProjectMaterial')(sequelize);
 const ProjectFile = require('./ProjectFile')(sequelize);
@@ -35,7 +35,6 @@ const ActiveTimer = require('./ActiveTimer')(sequelize);
 const Notification = require('./Notification')(sequelize);
 const SavedFilter = require('./SavedFilter')(sequelize);
 const TicketWatcher = require('./TicketWatcher')(sequelize);
-const TicketTask = require('./TicketTask')(sequelize);
 const TicketActivity = require('./TicketActivity')(sequelize);
 const TicketStatus = require('./TicketStatus')(sequelize);
 const ProjectStatus = require('./ProjectStatus')(sequelize);
@@ -118,9 +117,6 @@ const db = {
   CalendarEventCache,
   Project,
   ProjectMember,
-  ProjectTask,
-  ProjectSubtask,
-  ProjectTimeEntry,
   ProjectExpense,
   ProjectMaterial,
   ProjectFile,
@@ -129,6 +125,9 @@ const db = {
   Comment,
   Attachment,
   TimeEntry,
+  Task,
+  TaskStatus,
+  WorkType,
   ApiKey,
   AuditLog,
   Blueprint,
@@ -147,7 +146,6 @@ const db = {
   Notification,
   SavedFilter,
   TicketWatcher,
-  TicketTask,
   TicketActivity,
   TicketStatus,
   ProjectStatus,
@@ -216,38 +214,17 @@ ProjectMember.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 ProjectMember.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(ProjectMember, { foreignKey: 'userId', as: 'projectMemberships' });
 
-// Project <-> ProjectTask <-> ProjectSubtask
-Project.hasMany(ProjectTask, { foreignKey: 'projectId', as: 'tasks', onDelete: 'CASCADE' });
-ProjectTask.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
-ProjectTask.belongsTo(User, { foreignKey: 'assignedToUserId', as: 'assignee' });
-ProjectTask.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
-ProjectTask.belongsTo(ProjectStatus, { foreignKey: 'statusId', as: 'status' });
-ProjectTask.belongsTo(Ticket, { foreignKey: 'linkedTicketId', as: 'linkedTicket' });
-ProjectTask.hasMany(ProjectSubtask, { foreignKey: 'taskId', as: 'subtasks', onDelete: 'CASCADE' });
-ProjectSubtask.belongsTo(ProjectTask, { foreignKey: 'taskId', as: 'task' });
-ProjectSubtask.belongsTo(User, { foreignKey: 'assignedToUserId', as: 'assignee' });
-ProjectSubtask.belongsTo(ProjectStatus, { foreignKey: 'statusId', as: 'status' });
-
-// Project time entries / expenses / materials / files / activity
-Project.hasMany(ProjectTimeEntry, { foreignKey: 'projectId', as: 'timeEntries', onDelete: 'CASCADE' });
-ProjectTimeEntry.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
-ProjectTimeEntry.belongsTo(ProjectTask, { foreignKey: 'taskId', as: 'task' });
-ProjectTimeEntry.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-ProjectTimeEntry.belongsTo(User, { foreignKey: 'loggedForUserId', as: 'loggedFor' });
-
+// Project expenses / materials / files / activity
 Project.hasMany(ProjectExpense, { foreignKey: 'projectId', as: 'expenses', onDelete: 'CASCADE' });
 ProjectExpense.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
-ProjectExpense.belongsTo(ProjectTask, { foreignKey: 'taskId', as: 'task' });
 ProjectExpense.belongsTo(User, { foreignKey: 'loggedBy', as: 'loggedByUser' });
 
 Project.hasMany(ProjectMaterial, { foreignKey: 'projectId', as: 'materials', onDelete: 'CASCADE' });
 ProjectMaterial.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
-ProjectMaterial.belongsTo(ProjectTask, { foreignKey: 'taskId', as: 'task' });
 ProjectMaterial.belongsTo(User, { foreignKey: 'addedBy', as: 'addedByUser' });
 
 Project.hasMany(ProjectFile, { foreignKey: 'projectId', as: 'files', onDelete: 'CASCADE' });
 ProjectFile.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
-ProjectFile.belongsTo(ProjectTask, { foreignKey: 'taskId', as: 'task' });
 ProjectFile.belongsTo(User, { foreignKey: 'uploadedBy', as: 'uploadedByUser' });
 
 Project.hasMany(ProjectActivity, { foreignKey: 'projectId', as: 'activity', onDelete: 'CASCADE' });
@@ -309,12 +286,33 @@ Ticket.hasMany(Attachment, { foreignKey: 'ticketId', as: 'attachments', onDelete
 Attachment.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 Attachment.belongsTo(User, { foreignKey: 'uploadedById', as: 'uploadedBy' });
 
-// Ticket <-> TimeEntry
-Ticket.hasMany(TimeEntry, { foreignKey: 'ticketId', as: 'timeEntries', onDelete: 'CASCADE' });
+// One task model for tickets and projects; subtasks are tasks with parentTaskId.
+Ticket.hasMany(Task, { foreignKey: 'ticketId', as: 'tasks' });
+Project.hasMany(Task, { foreignKey: 'projectId', as: 'tasks' });
+Task.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+Task.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+Task.belongsTo(Task, { foreignKey: 'parentTaskId', as: 'parentTask' });
+Task.hasMany(Task, { foreignKey: 'parentTaskId', as: 'subtasks' });
+Task.belongsTo(TaskStatus, { foreignKey: 'statusId', as: 'status' });
+Task.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
+Task.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+Task.belongsTo(Ticket, { foreignKey: 'linkedTicketId', as: 'linkedTicket' });
+ProjectExpense.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
+ProjectMaterial.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
+ProjectFile.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
+
+// The one time ledger. No database cascades: deleting a ticket removes its
+// time and tasks in code (tickets/core remove); a deleted user's time stays.
+Ticket.hasMany(TimeEntry, { foreignKey: 'ticketId', as: 'timeEntries' });
+Project.hasMany(TimeEntry, { foreignKey: 'projectId', as: 'timeEntries' });
+User.hasMany(TimeEntry, { foreignKey: 'userId', as: 'timeEntries' });
 TimeEntry.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+TimeEntry.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+TimeEntry.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
 TimeEntry.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 TimeEntry.belongsTo(User, { foreignKey: 'loggedById', as: 'loggedBy' });
-User.hasMany(TimeEntry, { foreignKey: 'userId', as: 'timeEntries' });
+TimeEntry.belongsTo(WorkType, { foreignKey: 'workTypeId', as: 'workType' });
+ActiveTimer.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
 
 // Blueprint
 Blueprint.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
@@ -485,11 +483,6 @@ TicketFieldValue.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 // Active timer (one per user)
 User.hasOne(ActiveTimer, { foreignKey: 'userId', as: 'activeTimer', onDelete: 'CASCADE' });
 ActiveTimer.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-
-// Ticket tasks (checklist)
-Ticket.hasMany(TicketTask, { foreignKey: 'ticketId', as: 'tasks', onDelete: 'CASCADE' });
-TicketTask.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
-TicketTask.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
 
 // Ticket activity (per-ticket timeline)
 Ticket.hasMany(TicketActivity, { foreignKey: 'ticketId', as: 'activity', onDelete: 'CASCADE' });

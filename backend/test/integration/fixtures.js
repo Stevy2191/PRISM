@@ -94,6 +94,13 @@ async function projectStatusId(agent, name) {
   return found.id;
 }
 
+async function taskStatusId(agent, scope, name) {
+  const { statuses } = expectOk(await agent.get(`${API}/task-statuses?scope=${scope}`));
+  const found = statuses.find((s) => s.name === name);
+  if (!found) throw new Error(`${scope} task status "${name}" not seeded`);
+  return found.id;
+}
+
 // Fakes Date and nothing else: the MariaDB driver and supertest need real
 // timers. Only freeze to instants earlier than the real clock, and don't
 // reuse an agent after unfreezing: the session cookie is rolling, so a
@@ -186,6 +193,6 @@ async function makeLedger(w) {
 module.exports = {
   API, expectOk, makeAdmin, makeDept, makeUser, makeTech, makeManager, makeStaff, makeOwnTier,
   makeContractor, makeContact, makeTicket, makeProject, makeTask, makeSubtask, makeTeam,
-  setSettings, projectStatusId, freezeClock, advanceClock, unfreezeClock, waitFor, makeWorld,
+  setSettings, projectStatusId, taskStatusId, freezeClock, advanceClock, unfreezeClock, waitFor, makeWorld,
   LEDGER_NOW, makeLedger, makeCompany, setCompanyAccess,
 };

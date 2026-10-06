@@ -1,84 +1,34 @@
 const { DataTypes, Model } = require('sequelize');
 
+// The one time ledger (sub-project 3): every minute of work, on a ticket or a
+// project, lives here. Exactly one of ticketId / projectId is set (a database
+// check enforces it). userId is who the time is FOR; loggedById is who
+// entered it. "When it was entered" is createdAt; entryDate is the work date
+// in the organization's time zone.
 module.exports = (sequelize) => {
   class TimeEntry extends Model {}
 
   TimeEntry.init(
     {
-      id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-      },
-      // Ticket-scoped time only — project time entries live in their own
-      // ProjectTimeEntry table (see migration 19 / ProjectTimeEntry.js).
-      ticketId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      userId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      // Who actually created the record — usually the same as userId, but an
-      // admin/team lead can log time attributed to a different tech.
-      loggedById: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      minutes: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        validate: { min: 1 },
-      },
-      note: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-      },
-      // The date the work was actually done — editable by the tech,
-      // independent of loggedAt (when the record itself was created).
-      entryDate: {
-        type: DataTypes.DATEONLY,
-        allowNull: false,
-        defaultValue: () => new Date().toISOString().slice(0, 10),
-      },
-      // Set when the entry was created via the start/end time picker; left
-      // null for legacy duration-only entries, which keep displaying from
-      // `minutes` instead.
-      startTime: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
-      endTime: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
-      // Precise duration in seconds (endTime - startTime) when available;
-      // `minutes` stays populated too (rounded) so existing reports/dashboard
-      // aggregation elsewhere in the app keeps working unchanged.
-      durationSeconds: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      loggedAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
-      },
-      // Set at creation time from the entry's userId (the contractor doing
-      // the work, not loggedById) — see utils/laborCost.js. Null for
-      // internal staff, not 0.
-      laborCost: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: true,
-      },
+      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      ticketId: { type: DataTypes.INTEGER, allowNull: true },
+      projectId: { type: DataTypes.INTEGER, allowNull: true },
+      taskId: { type: DataTypes.INTEGER, allowNull: true },
+      userId: { type: DataTypes.INTEGER, allowNull: false },
+      loggedById: { type: DataTypes.INTEGER, allowNull: true },
+      entryDate: { type: DataTypes.DATEONLY, allowNull: false },
+      // Set when known (timer, start/end picker); null for a plain duration.
+      startTime: { type: DataTypes.DATE, allowNull: true },
+      endTime: { type: DataTypes.DATE, allowNull: true },
+      durationSeconds: { type: DataTypes.INTEGER, allowNull: false },
+      billable: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      workTypeId: { type: DataTypes.INTEGER, allowNull: false },
+      note: { type: DataTypes.TEXT, allowNull: true },
+      // From userId's contractor rate (utils/laborCost.js); null for internal
+      // staff, not 0. Recomputed whenever the duration or userId changes.
+      laborCost: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
     },
-    {
-      sequelize,
-      modelName: 'TimeEntry',
-      tableName: 'TimeEntries',
-      timestamps: false,
-    }
+    { sequelize, modelName: 'TimeEntry', tableName: 'TimeEntries', timestamps: true }
   );
 
   return TimeEntry;
