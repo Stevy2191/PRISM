@@ -47,6 +47,7 @@ it('validates input', async () => {
   await bad({ name: 'x' }, 'scope must be ticket or project');
   await bad({ scope: 'ticket', name: ' ' }, 'Status name is required');
   await bad({ scope: 'ticket', name: { x: 1 } }, 'Status name is required');
+  await bad({ scope: 'ticket', name: 'x'.repeat(101) }, 'Status name must be 100 characters or fewer');
   await bad({ scope: 'ticket', name: 'x', behaviorType: 'weird' }, 'Invalid behaviorType');
   await bad({ scope: 'ticket', name: 'x', color: 'red;}' }, 'Color must be a hex color like #3b82f6');
   await bad({ scope: 'ticket', name: 'To do' }, 'A ticket task status with that name already exists');

@@ -14,7 +14,11 @@ const SCOPE_LABEL = { ticket: 'ticket task', project: 'project task' };
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const ORDER = [['position', 'ASC'], ['id', 'ASC']];
 const bad = (message, code = 'VALIDATION_ERROR') => new ApiError(400, message, code);
+const NAME_MAX = 100;
 const cleanName = (name) => (typeof name === 'string' ? name.trim() : '');
+function checkNameLength(name) {
+  if (name.length > NAME_MAX) throw bad(`Status name must be ${NAME_MAX} characters or fewer`);
+}
 
 async function statusFor(rawId) {
   const id = parseRecordId(rawId);
@@ -45,6 +49,7 @@ const create = asyncHandler(async (req, res) => {
   if (!SCOPES.includes(scope)) throw bad('scope must be ticket or project');
   const name = cleanName(req.body?.name);
   if (!name) throw bad('Status name is required');
+  checkNameLength(name);
   if (behaviorType !== undefined && !BEHAVIORS.includes(behaviorType)) throw bad('Invalid behaviorType');
   if (color !== undefined) checkColor(color);
   await assertNameFree(scope, name);
@@ -65,6 +70,7 @@ const update = asyncHandler(async (req, res) => {
   if (req.body?.name !== undefined) {
     const name = cleanName(req.body.name);
     if (!name) throw bad('Status name is required');
+    checkNameLength(name);
     if (name !== status.name) { await assertNameFree(status.scope, name, status.id); changes.name = name; }
   }
   if (color !== undefined) { checkColor(color); changes.color = color; }
