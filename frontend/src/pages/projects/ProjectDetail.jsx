@@ -99,11 +99,14 @@ function GenerateProjectReportModal({ projectId, projectCode, onClose }) {
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const { isAdmin, isStaff, user, hasAnyPermission } = useAuth();
+  const { isStaff, user, hasAnyPermission, canLogTimeForOthers } = useAuth();
   const canDeleteProjects = usePermission('projects.delete');
   const canManageMembers = usePermission('projects.manage_members');
   const canManageExpenses = usePermission('projects.manage_expenses');
-  const canLogTime = usePermission('projects.log_time');
+  // Project time needs time.log and, until plan 3b-2, projects.log_time (as the server does).
+  const hasTimeLog = usePermission('time.log');
+  const hasProjectLogTime = usePermission('projects.log_time');
+  const canLogTime = hasTimeLog && hasProjectLogTime;
   const canEditProjectContent = hasAnyPermission(['projects.edit_own', 'projects.edit_department', 'projects.edit_all']);
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -462,7 +465,7 @@ export default function ProjectDetail() {
           isStaff={isStaff}
           canLogTime={canLogTime}
           user={user}
-          isAdmin={isAdmin}
+          canManageOthers={canLogTimeForOthers}
           tasks={tasks}
           onAdd={() => setShowAddTime(true)}
           onDelete={async (entryId) => {
@@ -555,7 +558,7 @@ export default function ProjectDetail() {
       {showAddTime && (
         <AddTimeModal
           tasks={tasks}
-          isAdmin={isAdmin}
+          canManageOthers={canLogTimeForOthers}
           assignableUsers={assignableUsers}
           onClose={() => setShowAddTime(false)}
           onSave={async (payload) => {

@@ -131,3 +131,34 @@ it('the session flag reflects the permission or a team lead role', async () => {
   const flag = async (u) => expectOk(await u.agent.get(`${API}/auth/me`)).user.canLogTimeForOthers;
   expect([await flag(mgr), await flag(lead), await flag(tech)]).toEqual([true, true, false]);
 });
+
+// Final review I2: until plan 3b-2 checks the edit tier, each side keeps the
+// gate it had before time.log existed — ticket time needs a ticket edit
+// permission, project time needs projects.log_time — so time.log alone
+// doesn't open a domain a role never could log in.
+describe('interim domain gates', () => {
+  const deny = async (u, permissionKey) => expectOk(
+    await w.admin.agent.post(`${API}/users/${u.user.id}/overrides`).send({ permissionKey, granted: false }), 201
+  );
+  let ticket;
+  let project;
+  beforeEach(async () => {
+    ticket = await KINDS.ticket.make();
+    project = await KINDS.project.make();
+  });
+  const logOn = (u, kind, parent) => u.agent.post(KINDS[kind].url(parent)).send({ durationMinutes: 5 });
+
+  it('ticket time also needs a ticket edit permission', async () => {
+    for (const key of ['tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all']) await deny(tech, key); // eslint-disable-line no-await-in-loop
+    expect((await logOn(tech, 'ticket', ticket)).status).toBe(403);
+    expect((await logOn(tech, 'project', project)).status).toBe(201);
+    expect((await tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: ticket.id })).status).toBe(403);
+  });
+
+  it('project time also needs projects.log_time', async () => {
+    await deny(tech, 'projects.log_time');
+    expect((await logOn(tech, 'project', project)).status).toBe(403);
+    expect((await logOn(tech, 'ticket', ticket)).status).toBe(201);
+    expect((await tech.agent.post(`${API}/timer/start`).send({ type: 'project', id: project.id })).status).toBe(403);
+  });
+});

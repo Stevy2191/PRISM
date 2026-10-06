@@ -1,5 +1,6 @@
 // Time Entries tab and the Log time modal.
 import { useState } from 'react';
+import { useOrgToday } from '../../../utils/orgDate';
 import LoadMore from '../../../components/LoadMore';
 import {
   CARD_BG,
@@ -10,7 +11,6 @@ import {
   fieldStyle,
   formatSeconds,
   formatCost,
-  todayStr,
 } from '../theme';
 import { Modal } from './Modal';
 import { TimeEntryFields } from './TimeFields';
@@ -27,7 +27,7 @@ function buildLocalDateTime(dateStr, minutesOfDay) {
 }
 
 // ==================== Time entries tab ====================
-export function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete, onLoadMore }) {
+export function TimeTab({ data, canLogTime, user, canManageOthers, onAdd, onDelete, onLoadMore }) {
   return (
     <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
@@ -52,7 +52,7 @@ export function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete, onLo
               <td className="table-td font-medium" style={{ color: TEXT }}>{formatSeconds(e.durationSeconds)}</td>
               <td className="table-td" style={{ color: e.laborCost != null ? TEXT : MUTED }}>{e.laborCost != null ? formatCost(e.laborCost) : '—'}</td>
               <td className="table-td">
-                {(e.userId === user.id || isAdmin) && (
+                {(e.userId === user.id || e.loggedById === user.id || canManageOthers) && (
                   <button onClick={() => onDelete(e.id)} className="text-xs" style={{ color: 'var(--color-danger)' }}>delete</button>
                 )}
               </td>
@@ -74,11 +74,12 @@ export function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete, onLo
   );
 }
 
-export function AddTimeModal({ tasks, isAdmin, assignableUsers, onClose, onSave }) {
+export function AddTimeModal({ tasks, canManageOthers, assignableUsers, onClose, onSave }) {
   const [taskId, setTaskId] = useState('');
   const [description, setDescription] = useState('');
   const [loggedForUserId, setLoggedForUserId] = useState('');
-  const [entryDate, setEntryDate] = useState(todayStr());
+  const today = useOrgToday();
+  const [entryDate, setEntryDate] = useState(today);
   const [startMinutes, setStartMinutes] = useState(roundToNearest5(new Date()) - 60);
   const [endMinutes, setEndMinutes] = useState(roundToNearest5(new Date()));
   const [saving, setSaving] = useState(false);
@@ -102,13 +103,13 @@ export function AddTimeModal({ tasks, isAdmin, assignableUsers, onClose, onSave 
 
   return (
     <Modal title="Log time" onClose={onClose}>
-      <TimeEntryFields entryDate={entryDate} onEntryDateChange={setEntryDate} startMinutes={startMinutes} onStartMinutesChange={setStartMinutes} endMinutes={endMinutes} onEndMinutesChange={setEndMinutes} todayStr={todayStr()} />
+      <TimeEntryFields entryDate={entryDate} onEntryDateChange={setEntryDate} startMinutes={startMinutes} onStartMinutesChange={setStartMinutes} endMinutes={endMinutes} onEndMinutesChange={setEndMinutes} todayStr={today} />
       <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Task (optional)</label>
       <select className="input mb-3" style={fieldStyle} value={taskId} onChange={(e) => setTaskId(e.target.value)}>
         <option value="">No specific task</option>
         {tasks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
       </select>
-      {isAdmin && (
+      {canManageOthers && (
         <>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Logged for</label>
           <select className="input mb-3" style={fieldStyle} value={loggedForUserId} onChange={(e) => setLoggedForUserId(e.target.value)}>

@@ -5,7 +5,9 @@ const { projectUpload, enforceMaxAttachmentSize, verifyFileSignature } = require
 
 const router = express.Router();
 
-const logTime = requirePermission('time.log');
+// Project time needs time.log and, until plan 3b-2 checks the edit tier, the
+// projects.log_time it always needed.
+const logTime = [requirePermission('time.log'), requirePermission('projects.log_time')];
 const viewMin = requirePermission('projects.view_own', 'projects.view_department', 'projects.view_all');
 const editMin = requirePermission('projects.edit_own', 'projects.edit_department', 'projects.edit_all');
 

@@ -1,6 +1,7 @@
 // The ticket timer: persisted state, the header widget, and the
 // other-ticket-running banner.
 import { useCallback, useEffect, useState } from 'react';
+import { useOrgToday } from '../../../utils/orgDate';
 import {
   IconPlayerPlayFilled,
   IconPlayerStopFilled,
@@ -141,7 +142,8 @@ export function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, ca
   const { timerState, elapsedSeconds, start, pause, resume, stopToIdle, restore } = ticketTimer;
   const [modalOpen, setModalOpen] = useState(false);
   const [description, setDescription] = useState('');
-  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const todayStr = useOrgToday();
+  const [entryDate, setEntryDate] = useState(todayStr);
   const [startMinutes, setStartMinutes] = useState(0);
   const [endMinutes, setEndMinutes] = useState(30);
   const [loggedForId, setLoggedForId] = useState(currentUser.id);
@@ -151,7 +153,6 @@ export function TimerWidget({ ticket, ticketTimer, onLogged, assignableUsers, ca
   // which needs to know exactly where to resume from) reads these instead.
   const [stoppedSeconds, setStoppedSeconds] = useState(0);
   const [preStopState, setPreStopState] = useState('running');
-  const todayStr = new Date().toISOString().slice(0, 10);
 
   const threshold = currentUser.timerMinThreshold || 0;
   const belowThreshold = modalOpen && stoppedSeconds < threshold;

@@ -10,6 +10,7 @@ const { orgTimeZone, todayInZone, addDays } = require('../utils/orgTime');
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { hasPermission, companyScopeWhere } = require('../services/permissionService');
 const { andWhere, isEmpty } = require('../services/recordScope');
+const { ledgerCompanyWhere } = require('./reports/shared');
 const { getUserPerformanceStats, getTeamHappiness } = require('../services/csatStatsService');
 const { getAllSettings } = require('./settingsController');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
@@ -163,12 +164,20 @@ async function notificationsForUser(userId) {
 
 // This week's hours (Monday first) on the organization's calendar, by work
 // date, every day — ticket and project time alike (Q12).
-async function hoursForUser(userId) {
+// Fenced to the companies the viewer can reach, through each entry's ticket or project.
+async function hoursForUser(userId, viewer) {
   const today = todayInZone(await orgTimeZone());
   const sinceMonday = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7;
   const days = WEEKDAYS.map((label, i) => ({ label, date: addDays(today, i - sinceMonday) }));
   const entries = await TimeEntry.findAll({
-    where: { userId, entryDate: { [Op.gte]: days[0].date, [Op.lte]: days[6].date } },
+    where: andWhere(
+      { userId, entryDate: { [Op.gte]: days[0].date, [Op.lte]: days[6].date } },
+      await ledgerCompanyWhere(viewer),
+    ),
+    include: [
+      { model: Ticket, as: 'ticket', attributes: [], required: false },
+      { model: Project, as: 'project', attributes: [], required: false },
+    ],
     attributes: ['entryDate', 'durationSeconds'],
   });
   const byDay = days.map(({ label, date }) => {
@@ -504,7 +513,7 @@ const get = asyncHandler(async (req, res) => {
     ticketsForUser(targetId, scopeField, behaviorByName, companyWhere),
     notificationsForUser(targetId),
     taskProjectIds.length ? projectHealthFor(andWhere({ id: { [Op.in]: taskProjectIds } }, companyWhere)) : [],
-    hoursForUser(targetId),
+    hoursForUser(targetId, req.user),
     getUserPerformanceStats(targetId, {}, companyWhere),
     getAllSettings(),
   ]);

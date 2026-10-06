@@ -54,6 +54,8 @@ describe('the timer', () => {
     const otherTask = expectOk(await w.admin.agent.post(`${API}/tickets/${T2.id}/tasks`).send({ title: 'x' }), 201).task;
     const cases = [
       [{ type: 'asset', id: T.id }, 400, 'Invalid timer type', 'VALIDATION_ERROR'],
+      [{ type: '__proto__', id: T.id }, 400, 'Invalid timer type', 'VALIDATION_ERROR'],
+      [{ type: 'constructor', id: T.id }, 400, 'Invalid timer type', 'VALIDATION_ERROR'],
       [{ type: 'ticket' }, 400, 'A target id is required', 'VALIDATION_ERROR'],
       [{ type: 'ticket', id: '1abc' }, 400, 'A target id is required', 'VALIDATION_ERROR'],
       [{ type: 'ticket', id: 99999 }, 404, 'Ticket not found', 'NOT_FOUND'],

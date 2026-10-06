@@ -1,6 +1,6 @@
 const Sequelize = require('sequelize');
-const { sequelize, closeDb, resetData, models } = require('./helpers');
-const { makeWorld, makeTicket } = require('./fixtures');
+const { sequelize, closeDb, resetData, models, ROLE } = require('./helpers');
+const { makeWorld, makeTicket, makeTech, makeUser } = require('./fixtures');
 
 const migration = require('../../migrations/20260101000050-one-work-model');
 
@@ -143,15 +143,68 @@ describe('the one-work-model migration', () => {
     expect(await holders('time.manage_others')).toEqual(['Department Manager', 'System Administrator']);
   });
 
+  it('copes with the rows real installs have, and carries user overrides (final review)', async () => {
+    await migration.down(qi(), Sequelize);
+    const u = w.admin.user.id;
+    // Another project's task (id 5): subtask offsets now start above 5, so a
+    // reference to a deleted task 6 would otherwise land on subtask 1.
+    const other = await models.Project.create({ name: 'Other', projectCode: 'SD-P00002', ownerDepartmentId: w.deptA.id, status: 'Active' });
+    await run(`INSERT INTO ProjectTasks (id, projectId, taskCode, title, statusId, priority, position, createdBy, createdAt, updatedAt)
+      VALUES (5, :o, 'SD-P00002-T01', 'Theirs', :active, 'medium', 1, :u, NOW(), NOW())`, { o: other.id, active: statuses.Active, u });
+    // Project time logged in the ticket table before migration 19 and never removed: no ticket.
+    await sequelize.transaction(async (transaction) => {
+      await sequelize.query('SET FOREIGN_KEY_CHECKS = 0', { transaction });
+      await sequelize.query(`INSERT INTO TimeEntries (id, ticketId, userId, loggedById, minutes, note, loggedAt, entryDate)
+        VALUES (50, NULL, :u, :u, 15, 'pre-19 project time', '2025-01-01 10:00:00', '2025-01-01')`, { replacements: { u }, transaction });
+      await sequelize.query('SET FOREIGN_KEY_CHECKS = 1', { transaction });
+    });
+    // References to a deleted task (6) and to another project's task (5).
+    await run(`INSERT INTO ProjectTimeEntries (id, projectId, taskId, userId, loggedForUserId, description, durationSeconds, entryDate, createdAt) VALUES
+      (10, :p, 6, :u, :u, 'deleted task', 600, '2026-03-10', '2026-03-10 10:00:00'),
+      (11, :p, 5, :u, :u, 'other project task', 600, '2026-03-10', '2026-03-10 10:00:00')`, { p: project.id, u });
+    await run(`INSERT INTO ProjectExpenses (projectId, taskId, description, amount, category, entryDate, loggedBy, createdAt)
+      VALUES (:p, 6, 'dangling', 1, 'other', '2026-03-10', :u, NOW())`, { p: project.id, u });
+    // Overrides: one user denied every way of logging time, one Read Only
+    // user granted ticket edit, one denied project logging only.
+    const denied = await makeTech('denied', w.deptA.id);
+    const granted = await makeUser('granted', ROLE.READ_ONLY, w.deptA.id);
+    const ticketOnly = await makeTech('ticketonly', w.deptA.id);
+    const override = (userId, key, on) => run(
+      'INSERT INTO UserPermissionOverrides (userId, permissionKey, granted, createdAt) VALUES (:userId, :key, :on, NOW())', { userId, key, on }
+    );
+    for (const key of ['projects.log_time', 'tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all']) {
+      await override(denied.user.id, key, 0); // eslint-disable-line no-await-in-loop
+    }
+    await override(granted.user.id, 'tickets.edit_own', 1);
+    await override(ticketOnly.user.id, 'projects.log_time', 0);
+
+    await migration.up(qi(), Sequelize);
+
+    expect(Number((await one("SELECT COUNT(*) AS n FROM TimeEntries WHERE note = 'pre-19 project time'")).n)).toBe(0);
+    expect(Number((await one('SELECT COUNT(*) AS n FROM legacy_TimeEntries WHERE id = 50')).n)).toBe(1);
+    expect(await q("SELECT note, taskId FROM TimeEntries WHERE note IN ('deleted task', 'other project task') ORDER BY note")).toEqual([
+      { note: 'deleted task', taskId: null }, { note: 'other project task', taskId: null },
+    ]);
+    expect((await one("SELECT taskId FROM ProjectExpenses WHERE description = 'dangling'")).taskId).toBeNull();
+    const timeLog = async (userId) => (await q(
+      "SELECT granted FROM UserPermissionOverrides WHERE userId = :userId AND permissionKey = 'time.log'", { userId }
+    )).map((r) => Number(r.granted));
+    expect(await timeLog(denied.user.id)).toEqual([0]);
+    expect(await timeLog(granted.user.id)).toEqual([1]);
+    expect(await timeLog(ticketOnly.user.id)).toEqual([]); // still logs ticket time; project time keeps its own gate
+  });
+
   it('round-trips through down() while nothing new exists', async () => {
     const before = await totals();
     await migration.down(qi(), Sequelize);
     expect(Number((await one('SELECT COUNT(*) AS n FROM TicketTasks WHERE ticketId = :t', { t: ticket.id })).n)).toBe(2);
-    expect(await q('SELECT id, taskCode FROM ProjectTasks ORDER BY id')).toEqual([
+    expect(await q('SELECT id, taskCode FROM ProjectTasks WHERE projectId = :p ORDER BY id', { p: project.id })).toEqual([
       { id: 1, taskCode: 'SD-P00001-T01' }, { id: 2, taskCode: 'SD-P00001-T02' },
     ]);
-    expect((await q('SELECT id, subtaskCode FROM ProjectSubtasks ORDER BY id')).map((s) => s.id)).toEqual([1, 2]);
-    expect(await q('SELECT id, loggedForUserId FROM ProjectTimeEntries ORDER BY id')).toEqual([
+    // The orphan subtask (3) was never migrated, and down() leaves it alone.
+    expect((await q('SELECT id, subtaskCode FROM ProjectSubtasks ORDER BY id')).map((s) => s.id)).toEqual([1, 2, 3]);
+    expect(Number((await one('SELECT COUNT(*) AS n FROM TimeEntries WHERE id = 50')).n)).toBe(1);
+    expect(await q('SELECT id, loggedForUserId FROM ProjectTimeEntries WHERE id IN (1, 2) ORDER BY id')).toEqual([
       { id: 1, loggedForUserId: w.admin.user.id }, { id: 2, loggedForUserId: w.admin.user.id },
     ]);
     const [act] = await q("SELECT detail FROM ProjectActivities WHERE action = 'subtask_closed'");

@@ -47,10 +47,15 @@ reports. Settings → Companies is always there, also for managing vendors.
   tasks.
 - **New permissions:**
   - `time.log` lets you log your own time. It's granted to every role that
-    could log time before (`projects.log_time` or any ticket edit permission).
-    `projects.log_time` no longer gates anything.
+    could log time before (`projects.log_time` or any ticket edit permission),
+    and per-user overrides carry across: anyone who could log time keeps it,
+    anyone who couldn't doesn't gain it. Until the next part of this work
+    checks the edit tier, ticket time also still needs a ticket edit
+    permission, and project time (and a project timer) still needs
+    `projects.log_time`, exactly as before.
   - `time.manage_others` lets you log, edit and delete time for other people.
-    It's granted to System Administrator and Department Manager. A team lead
+    It's granted to the seeded System Administrator and Department Manager
+    roles. A team lead
     without it may do so for members of their own teams only. The legacy
     `admin` user role no longer decides this.
 - **API field names (API-key users):**

@@ -128,7 +128,8 @@ async function loadTicketRecords(req, filters) {
   const range = await rc.parseDateRange(filters);
   const modelDateField = dateField === 'closedAt' ? 'resolvedAt' : dateField;
 
-  let where = rc.dateWhere(modelDateField, range);
+  // dueDate is a calendar date: compare it as dates, not as zone instants.
+  let where = modelDateField === 'dueDate' ? rc.dateOnlyWhere('dueDate', range) : rc.dateWhere(modelDateField, range);
   where = rc.ticketScopeWhere(where, scope, req.user, filters.departmentId || null);
   if (filters.status) where.status = filters.status;
   if (filters.priority) where.priority = filters.priority;
@@ -199,7 +200,7 @@ async function loadProjectRecords(req, filters) {
   const range = await rc.parseDateRange(filters);
   const dateField = filters.dateField === 'closedAt' ? 'closedAt' : (filters.dateField === 'dueDate' ? 'dueDate' : 'createdAt');
 
-  let where = rc.dateWhere(dateField, range);
+  let where = dateField === 'dueDate' ? rc.dateOnlyWhere('dueDate', range) : rc.dateWhere(dateField, range);
   where = rc.projectScopeWhere(where, scope, req.user, filters.departmentId || null);
   if (filters.status) where.status = filters.status;
   // ANDed, never assigned — see loadTicketRecords (S16).
@@ -297,7 +298,7 @@ async function loadExpenseMaterialRecords(req, filters) {
   const scope = await getUserReportScope(req.user.id);
   const range = await rc.parseDateRange(filters);
 
-  let expenseWhere = rc.dateWhere('entryDate', range);
+  let expenseWhere = rc.dateOnlyWhere('entryDate', range);
   let materialWhere = rc.dateWhere('createdAt', range);
   if (scope === 'department') {
     expenseWhere = { ...expenseWhere, '$project.ownerDepartmentId$': req.user.departmentId };

@@ -1,5 +1,6 @@
 // Time Entries tab.
 import { useState } from 'react';
+import { useOrgToday } from '../../../utils/orgDate';
 import { errMessage } from '../../../api/api';
 import {
   CARD_BG,
@@ -27,7 +28,7 @@ function roundDownTo5(date) {
 // ---- Time entries tab ----
 
 export function TimeEntriesTab({ entries, totalSeconds, onAdd, assignableUsers, canLogTimeForOthers, currentUser }) {
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = useOrgToday();
   const [modalOpen, setModalOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [entryDate, setEntryDate] = useState(todayStr);

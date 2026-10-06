@@ -1,6 +1,6 @@
 const { resetData, closeDb } = require('../integration/helpers');
 const {
-  API, expectOk, makeWorld, makeTicket, makeProject, makeTask, makeSubtask,
+  API, expectOk, makeWorld, makeTicket, makeProject, makeTask, makeSubtask, setSettings,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
 
@@ -63,4 +63,25 @@ it('a project subtask toggles closed from the task list', async () => {
   await clickAndWait(page, page.locator('input[type=checkbox]').filter({ visible: true }).last(), '/subtasks/');
   const after = expectOk(await w.admin.agent.get(`${API}/projects/${project.id}/tasks`)).tasks[0].subtasks[0];
   expect([before.completedAt, typeof after.completedAt]).toEqual([null, 'string']);
+});
+
+// Final review I4: the server refuses a work date after the organization's
+// today, so the form must default to that date, not the UTC one.
+it('the default work date is the organization\'s today', async () => {
+  const dateIn = (timeZone) => new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  // One of UTC-12 and UTC+14 is always on a different date from UTC.
+  const zone = dateIn('Etc/GMT+12') !== dateIn('UTC') ? 'Etc/GMT+12' : 'Pacific/Kiritimati';
+  await setSettings(w.admin, { 'company.timezone': zone });
+  try {
+    const page = await smoke.pageAs('admin');
+    await page.goto(`/tickets/${ticket.id}`);
+    await tab(page, /^Time Entries/);
+    await page.getByRole('button', { name: 'Add manual time entry' }).filter({ visible: true }).first().click();
+    // The modal renders last; the sidebar has its own (empty) due-date input.
+    expect(await page.locator('input[type=date]').filter({ visible: true }).last().inputValue()).toBe(dateIn(zone));
+  } finally {
+    await setSettings(w.admin, { 'company.timezone': 'UTC' });
+  }
 });

@@ -213,6 +213,15 @@ module.exports = {
       const ticketTaskOffset = subOffset + (await max('legacy_ProjectSubtasks'));
       const projectTimeOffset = await max('legacy_TimeEntries');
 
+      // A task reference that isn't a task of the same project (a deleted task,
+      // or — before S13 — another project's) is dropped: the new ids below
+      // would otherwise land it on somebody else's subtask.
+      for (const table of ['ProjectExpenses', 'ProjectMaterials', 'ProjectFiles']) {
+        // eslint-disable-next-line no-await-in-loop
+        await run(`UPDATE \`${table}\` x SET x.taskId = NULL WHERE x.taskId IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM legacy_ProjectTasks k WHERE k.id = x.taskId AND k.projectId = x.projectId)`, {}, t);
+      }
+
       // Project tasks keep their ids, codes and statuses.
       await run(`INSERT INTO Tasks (${TASK_COLUMNS})
         SELECT id, NULL, projectId, NULL, taskCode, title, description, statusId, priority, assignedToUserId, dueDate, NULL,
@@ -242,11 +251,14 @@ module.exports = {
       { ticketTaskOffset, doneId, todoId }, t);
 
       // Project tasks and subtasks that never got a code get the next free one.
-      const uncoded = await select(`SELECT k.id, k.projectId, k.parentTaskId, p.projectCode, parent.code AS parentCode
-        FROM Tasks k JOIN Projects p ON p.id = k.projectId LEFT JOIN Tasks parent ON parent.id = k.parentTaskId
+      const uncoded = await select(`SELECT k.id, k.projectId, k.parentTaskId, p.projectCode
+        FROM Tasks k JOIN Projects p ON p.id = k.projectId
         WHERE k.code IS NULL ORDER BY k.parentTaskId IS NOT NULL, k.position, k.id`, {}, t);
       for (const task of uncoded) {
-        const prefix = task.parentTaskId ? `${task.parentCode}-S` : `${task.projectCode}-T`;
+        // Read per row: a parent that was uncoded too got its code just above.
+        // eslint-disable-next-line no-await-in-loop
+        const parent = task.parentTaskId ? await one('SELECT code FROM Tasks WHERE id = :id', { id: task.parentTaskId }, t) : null;
+        const prefix = parent ? `${parent.code}-S` : `${task.projectCode}-T`;
         // eslint-disable-next-line no-await-in-loop
         const used = await select('SELECT code FROM Tasks WHERE code LIKE :like', { like: `${prefix.replace(/[\\%_]/g, '\\$&')}%` }, t);
         const next = used.reduce((m, r) => Math.max(m, parseInt(r.code.slice(prefix.length), 10) || 0), 0) + 1;
@@ -259,13 +271,17 @@ module.exports = {
       await run(`INSERT INTO TimeEntries (${TIME_COLUMNS})
         SELECT id, ticketId, NULL, NULL, userId, loggedById, entryDate, startTime, endTime, COALESCE(durationSeconds, minutes * 60),
           1, :remoteId, note, laborCost, loggedAt, loggedAt
-        FROM legacy_TimeEntries`, { remoteId }, t);
+        FROM legacy_TimeEntries
+        -- Rows with no ticket are project time logged here before migration 19,
+        -- which copied them to ProjectTimeEntries but never removed them.
+        WHERE ticketId IS NOT NULL`, { remoteId }, t);
       await run(`INSERT INTO TimeEntryIdMap (oldTable, oldId, newId)
         SELECT 'ProjectTimeEntries', id, id + :projectTimeOffset FROM legacy_ProjectTimeEntries`, { projectTimeOffset }, t);
       await run(`INSERT INTO TimeEntries (${TIME_COLUMNS})
-        SELECT id + :projectTimeOffset, NULL, projectId, taskId, COALESCE(loggedForUserId, userId), userId, entryDate, startTime, endTime,
+        SELECT id + :projectTimeOffset, NULL, projectId, IF(EXISTS(SELECT 1 FROM legacy_ProjectTasks k WHERE k.id = taskId AND k.projectId = x.projectId), taskId, NULL),
+          COALESCE(loggedForUserId, userId), userId, entryDate, startTime, endTime,
           COALESCE(durationSeconds, TIMESTAMPDIFF(SECOND, startTime, endTime), 0), 1, :projectWorkId, description, laborCost, createdAt, createdAt
-        FROM legacy_ProjectTimeEntries`, { projectTimeOffset, projectWorkId }, t);
+        FROM legacy_ProjectTimeEntries x`, { projectTimeOffset, projectWorkId }, t);
 
       // Activity rows that name a subtask point at its new id.
       await run(`UPDATE ProjectActivities a JOIN TaskIdMap m
@@ -286,26 +302,56 @@ module.exports = {
           AND NOT EXISTS (SELECT 1 FROM RolePermissions x WHERE x.roleId = rp.roleId AND x.permissionId = :logId)`,
       { logId, sources: LOG_TIME_SOURCES }, t);
       await run(`INSERT INTO RolePermissions (roleId, permissionId, granted)
-        SELECT r.id, :manageId, 1 FROM Roles r WHERE r.name IN (:names)
+        SELECT r.id, :manageId, 1 FROM Roles r WHERE r.name IN (:names) AND r.isSystemRole = 1
           AND NOT EXISTS (SELECT 1 FROM RolePermissions x WHERE x.roleId = r.id AND x.permissionId = :manageId)`,
       { manageId, names: MANAGE_OTHERS_ROLES }, t);
 
-      // Per-user overrides carry across: a projects.log_time override decides;
-      // otherwise a granted ticket-edit override grants time.log.
-      const overrides = await select(`SELECT userId, permissionKey, granted, reason, expiresAt, grantedBy FROM UserPermissionOverrides
-        WHERE permissionKey IN (:sources)`, { sources: LOG_TIME_SOURCES }, t);
+      // Per-user overrides: time.log is what the user could do before — any of
+      // the source permissions in effect, an active override beating their
+      // roles. Where that differs from what their roles now grant, a time.log
+      // override records it (expiring when the deciding overrides would).
+      const sourceOverrides = await select(`SELECT userId, permissionKey, granted, reason, expiresAt, grantedBy
+        FROM UserPermissionOverrides WHERE permissionKey IN (:sources) AND (expiresAt IS NULL OR expiresAt > NOW())`,
+      { sources: LOG_TIME_SOURCES }, t);
       const already = new Set((await select("SELECT userId FROM UserPermissionOverrides WHERE permissionKey = 'time.log'", {}, t)).map((r) => r.userId));
-      const decided = new Map();
-      for (const o of overrides) {
-        if (already.has(o.userId)) continue; // eslint-disable-line no-continue
-        if (o.permissionKey === 'projects.log_time') decided.set(o.userId, { ...o, fromLogTime: true });
-        else if (o.granted && !decided.get(o.userId)?.fromLogTime) decided.set(o.userId, { ...o, fromLogTime: false });
-      }
-      if (decided.size) {
-        await queryInterface.bulkInsert('UserPermissionOverrides', [...decided.values()].map((o) => ({
-          userId: o.userId, permissionKey: 'time.log', granted: !!o.granted, reason: o.reason, expiresAt: o.expiresAt,
-          grantedBy: o.grantedBy, createdAt: new Date(),
-        })), { transaction: t });
+      const byUser = new Map();
+      sourceOverrides.filter((o) => !already.has(o.userId)).forEach((o) => {
+        if (!byUser.has(o.userId)) byUser.set(o.userId, []);
+        byUser.get(o.userId).push(o);
+      });
+      if (byUser.size) {
+        const userIds = [...byUser.keys()];
+        const roleKeys = await select(`SELECT ur.userId, p.\`key\` AS k FROM (
+            SELECT id AS userId, roleId FROM Users WHERE id IN (:userIds) AND roleId IS NOT NULL
+            UNION SELECT userId, roleId FROM UserRoles WHERE userId IN (:userIds)) ur
+          JOIN RolePermissions rp ON rp.roleId = ur.roleId AND rp.granted = 1
+          JOIN Permissions p ON p.id = rp.permissionId
+          WHERE p.\`key\` IN (:keys)`, { userIds, keys: [...LOG_TIME_SOURCES, 'time.log'] }, t);
+        const rolesOf = new Map();
+        roleKeys.forEach((r) => {
+          if (!rolesOf.has(r.userId)) rolesOf.set(r.userId, new Set());
+          rolesOf.get(r.userId).add(r.k);
+        });
+        const rows = [];
+        for (const [userId, overrides] of byUser) {
+          const roles = rolesOf.get(userId) || new Set();
+          const byKey = new Map(overrides.map((o) => [o.permissionKey, o]));
+          const effective = (k) => (byKey.has(k) ? !!Number(byKey.get(k).granted) : roles.has(k));
+          const before = LOG_TIME_SOURCES.some(effective);
+          if (before === roles.has('time.log')) continue; // eslint-disable-line no-continue
+          const deciding = overrides.filter((o) => !!Number(o.granted) === before);
+          const dated = deciding.map((o) => o.expiresAt).filter(Boolean).map((d) => new Date(d).getTime());
+          // A grant lasts while any granting override does; a denial ends when
+          // the first denying override does.
+          let expiresAt = null;
+          if (before && dated.length === deciding.length) expiresAt = new Date(Math.max(...dated));
+          if (!before && dated.length) expiresAt = new Date(Math.min(...dated));
+          rows.push({
+            userId, permissionKey: 'time.log', granted: before, reason: deciding[0].reason, expiresAt,
+            grantedBy: deciding[0].grantedBy, createdAt: new Date(),
+          });
+        }
+        if (rows.length) await queryInterface.bulkInsert('UserPermissionOverrides', rows, { transaction: t });
       }
     });
   },
@@ -334,50 +380,60 @@ module.exports = {
     // since get fresh ones (inserted second, so they can't collide).
     await db.transaction(async (t) => {
       await run('SET FOREIGN_KEY_CHECKS = 0', {}, t);
-      for (const [, legacy] of RENAMES) await run(`DELETE FROM \`${legacy}\``, {}, t); // eslint-disable-line no-await-in-loop
-      await run(`INSERT INTO legacy_ProjectTasks (id, projectId, taskCode, title, description, statusId, priority, assignedToUserId, dueDate,
-          linkedTicketId, position, completedAt, createdBy, createdAt, updatedAt)
-        SELECT id, projectId, code, title, description, statusId, priority, assigneeId, dueDate, linkedTicketId, position, completedAt,
-          createdBy, createdAt, updatedAt
-        FROM Tasks WHERE projectId IS NOT NULL AND parentTaskId IS NULL`, {}, t);
-      const subtaskCols = 'taskId, subtaskCode, title, statusId, assignedToUserId, dueDate, completedAt, position, createdAt, updatedAt';
-      const subtaskVals = 'k.parentTaskId, k.code, k.title, k.statusId, k.assigneeId, k.dueDate, k.completedAt, k.position, k.createdAt, k.updatedAt';
-      await run(`INSERT INTO legacy_ProjectSubtasks (id, ${subtaskCols}) SELECT m.oldId, ${subtaskVals}
-        FROM Tasks k JOIN TaskIdMap m ON m.oldTable = 'ProjectSubtasks' AND m.newId = k.id
-        WHERE k.projectId IS NOT NULL AND k.parentTaskId IS NOT NULL`, {}, t);
-      await run(`INSERT INTO legacy_ProjectSubtasks (${subtaskCols}) SELECT ${subtaskVals} FROM Tasks k
-        WHERE k.projectId IS NOT NULL AND k.parentTaskId IS NOT NULL
-          AND NOT EXISTS (SELECT 1 FROM TaskIdMap m WHERE m.oldTable = 'ProjectSubtasks' AND m.newId = k.id)`, {}, t);
-      const checklistVals = "k.ticketId, k.title, s.behaviorType = 'closed', k.assigneeId, k.createdAt, k.updatedAt";
-      await run(`INSERT INTO legacy_TicketTasks (id, ticketId, description, completed, assigneeId, createdAt, updatedAt)
-        SELECT m.oldId, ${checklistVals} FROM Tasks k JOIN TaskStatuses s ON s.id = k.statusId
-          JOIN TaskIdMap m ON m.oldTable = 'TicketTasks' AND m.newId = k.id
-        WHERE k.ticketId IS NOT NULL`, {}, t);
-      await run(`INSERT INTO legacy_TicketTasks (ticketId, description, completed, assigneeId, createdAt, updatedAt)
-        SELECT ${checklistVals} FROM Tasks k JOIN TaskStatuses s ON s.id = k.statusId
-        WHERE k.ticketId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM TaskIdMap m WHERE m.oldTable = 'TicketTasks' AND m.newId = k.id)`, {}, t);
-      await run(`INSERT INTO legacy_TimeEntries (id, ticketId, userId, loggedById, minutes, note, loggedAt, entryDate, startTime, endTime,
-          durationSeconds, laborCost)
-        SELECT id, ticketId, userId, loggedById, GREATEST(1, ROUND(durationSeconds / 60)), note, createdAt, entryDate, startTime, endTime,
-          durationSeconds, laborCost
-        FROM TimeEntries WHERE ticketId IS NOT NULL`, {}, t);
-      const projectTimeCols = 'projectId, taskId, userId, loggedForUserId, description, startTime, endTime, durationSeconds, entryDate, createdAt, laborCost';
-      const projectTimeVals = 'e.projectId, e.taskId, COALESCE(e.loggedById, e.userId), e.userId, e.note, e.startTime, e.endTime, e.durationSeconds, e.entryDate, e.createdAt, e.laborCost';
-      await run(`INSERT INTO legacy_ProjectTimeEntries (id, ${projectTimeCols}) SELECT m.oldId, ${projectTimeVals}
-        FROM TimeEntries e JOIN TimeEntryIdMap m ON m.oldTable = 'ProjectTimeEntries' AND m.newId = e.id WHERE e.projectId IS NOT NULL`, {}, t);
-      await run(`INSERT INTO legacy_ProjectTimeEntries (${projectTimeCols}) SELECT ${projectTimeVals} FROM TimeEntries e
-        WHERE e.projectId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM TimeEntryIdMap m WHERE m.oldTable = 'ProjectTimeEntries' AND m.newId = e.id)`, {}, t);
-      await run(`UPDATE ProjectActivities a JOIN TaskIdMap m
-          ON m.oldTable = 'ProjectSubtasks' AND m.newId = CAST(JSON_VALUE(a.detail, '$.subtaskId') AS INTEGER)
-        SET a.detail = JSON_SET(a.detail, '$.subtaskId', m.oldId)
-        WHERE a.action LIKE 'subtask%' AND JSON_VALUE(a.detail, '$.subtaskId') IS NOT NULL`, {}, t);
-      const perms = await select("SELECT id FROM Permissions WHERE `key` IN ('time.log', 'time.manage_others')", {}, t);
-      if (perms.length) {
-        await run('DELETE FROM RolePermissions WHERE permissionId IN (:ids)', { ids: perms.map((p) => p.id) }, t);
-        await run('DELETE FROM Permissions WHERE id IN (:ids)', { ids: perms.map((p) => p.id) }, t);
+      try {
+        // Only the rows the upgrade migrated are rebuilt: orphan subtasks and
+        // ticketless time it left behind stay where they are.
+        await run('DELETE s FROM legacy_ProjectSubtasks s JOIN legacy_ProjectTasks p ON p.id = s.taskId', {}, t);
+        await run('DELETE FROM legacy_TimeEntries WHERE ticketId IS NOT NULL', {}, t);
+        for (const legacy of ['legacy_ProjectTasks', 'legacy_TicketTasks', 'legacy_ProjectTimeEntries']) {
+          await run(`DELETE FROM \`${legacy}\``, {}, t); // eslint-disable-line no-await-in-loop
+        }
+        await run(`INSERT INTO legacy_ProjectTasks (id, projectId, taskCode, title, description, statusId, priority, assignedToUserId, dueDate,
+            linkedTicketId, position, completedAt, createdBy, createdAt, updatedAt)
+          SELECT id, projectId, code, title, description, statusId, priority, assigneeId, dueDate, linkedTicketId, position, completedAt,
+            createdBy, createdAt, updatedAt
+          FROM Tasks WHERE projectId IS NOT NULL AND parentTaskId IS NULL`, {}, t);
+        const subtaskCols = 'taskId, subtaskCode, title, statusId, assignedToUserId, dueDate, completedAt, position, createdAt, updatedAt';
+        const subtaskVals = 'k.parentTaskId, k.code, k.title, k.statusId, k.assigneeId, k.dueDate, k.completedAt, k.position, k.createdAt, k.updatedAt';
+        await run(`INSERT INTO legacy_ProjectSubtasks (id, ${subtaskCols}) SELECT m.oldId, ${subtaskVals}
+          FROM Tasks k JOIN TaskIdMap m ON m.oldTable = 'ProjectSubtasks' AND m.newId = k.id
+          WHERE k.projectId IS NOT NULL AND k.parentTaskId IS NOT NULL`, {}, t);
+        await run(`INSERT INTO legacy_ProjectSubtasks (${subtaskCols}) SELECT ${subtaskVals} FROM Tasks k
+          WHERE k.projectId IS NOT NULL AND k.parentTaskId IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM TaskIdMap m WHERE m.oldTable = 'ProjectSubtasks' AND m.newId = k.id)`, {}, t);
+        const checklistVals = "k.ticketId, k.title, s.behaviorType = 'closed', k.assigneeId, k.createdAt, k.updatedAt";
+        await run(`INSERT INTO legacy_TicketTasks (id, ticketId, description, completed, assigneeId, createdAt, updatedAt)
+          SELECT m.oldId, ${checklistVals} FROM Tasks k JOIN TaskStatuses s ON s.id = k.statusId
+            JOIN TaskIdMap m ON m.oldTable = 'TicketTasks' AND m.newId = k.id
+          WHERE k.ticketId IS NOT NULL`, {}, t);
+        await run(`INSERT INTO legacy_TicketTasks (ticketId, description, completed, assigneeId, createdAt, updatedAt)
+          SELECT ${checklistVals} FROM Tasks k JOIN TaskStatuses s ON s.id = k.statusId
+          WHERE k.ticketId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM TaskIdMap m WHERE m.oldTable = 'TicketTasks' AND m.newId = k.id)`, {}, t);
+        await run(`INSERT INTO legacy_TimeEntries (id, ticketId, userId, loggedById, minutes, note, loggedAt, entryDate, startTime, endTime,
+            durationSeconds, laborCost)
+          SELECT id, ticketId, userId, loggedById, GREATEST(1, ROUND(durationSeconds / 60)), note, createdAt, entryDate, startTime, endTime,
+            durationSeconds, laborCost
+          FROM TimeEntries WHERE ticketId IS NOT NULL`, {}, t);
+        const projectTimeCols = 'projectId, taskId, userId, loggedForUserId, description, startTime, endTime, durationSeconds, entryDate, createdAt, laborCost';
+        const projectTimeVals = 'e.projectId, e.taskId, COALESCE(e.loggedById, e.userId), e.userId, e.note, e.startTime, e.endTime, e.durationSeconds, e.entryDate, e.createdAt, e.laborCost';
+        await run(`INSERT INTO legacy_ProjectTimeEntries (id, ${projectTimeCols}) SELECT m.oldId, ${projectTimeVals}
+          FROM TimeEntries e JOIN TimeEntryIdMap m ON m.oldTable = 'ProjectTimeEntries' AND m.newId = e.id WHERE e.projectId IS NOT NULL`, {}, t);
+        await run(`INSERT INTO legacy_ProjectTimeEntries (${projectTimeCols}) SELECT ${projectTimeVals} FROM TimeEntries e
+          WHERE e.projectId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM TimeEntryIdMap m WHERE m.oldTable = 'ProjectTimeEntries' AND m.newId = e.id)`, {}, t);
+        await run(`UPDATE ProjectActivities a JOIN TaskIdMap m
+            ON m.oldTable = 'ProjectSubtasks' AND m.newId = CAST(JSON_VALUE(a.detail, '$.subtaskId') AS INTEGER)
+          SET a.detail = JSON_SET(a.detail, '$.subtaskId', m.oldId)
+          WHERE a.action LIKE 'subtask%' AND JSON_VALUE(a.detail, '$.subtaskId') IS NOT NULL`, {}, t);
+        const perms = await select("SELECT id FROM Permissions WHERE `key` IN ('time.log', 'time.manage_others')", {}, t);
+        if (perms.length) {
+          await run('DELETE FROM RolePermissions WHERE permissionId IN (:ids)', { ids: perms.map((p) => p.id) }, t);
+          await run('DELETE FROM Permissions WHERE id IN (:ids)', { ids: perms.map((p) => p.id) }, t);
+        }
+        await run("DELETE FROM UserPermissionOverrides WHERE permissionKey IN ('time.log', 'time.manage_others')", {}, t);
+      } finally {
+        // Never hand the pooled connection back with foreign keys off.
+        await run('SET FOREIGN_KEY_CHECKS = 1', {}, t);
       }
-      await run("DELETE FROM UserPermissionOverrides WHERE permissionKey IN ('time.log', 'time.manage_others')", {}, t);
-      await run('SET FOREIGN_KEY_CHECKS = 1', {}, t);
     });
 
     if ((await queryInterface.describeTable('ActiveTimers')).taskId) await queryInterface.removeColumn('ActiveTimers', 'taskId');

@@ -203,7 +203,8 @@ async function updateEntry(req, parent, entry, body = {}) {
   const duration = readDuration(body, false);
   if (duration) Object.assign(changes, duration);
   let target = null;
-  if (body.userId !== undefined && parseRecordId(body.userId) !== entry.userId) {
+  // null or '' is "no change", never "move it to me".
+  if (given(body.userId) && parseRecordId(body.userId) !== entry.userId) {
     target = await resolveTarget(req, parent, body.userId);
     changes.userId = target.id;
   }
