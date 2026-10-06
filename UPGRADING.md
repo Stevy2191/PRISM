@@ -49,10 +49,8 @@ reports. Settings → Companies is always there, also for managing vendors.
   - `time.log` lets you log your own time. It's granted to every role that
     could log time before (`projects.log_time` or any ticket edit permission),
     and per-user overrides carry across: anyone who could log time keeps it,
-    anyone who couldn't doesn't gain it. Until the next part of this work
-    checks the edit tier, ticket time also still needs a ticket edit
-    permission, and project time (and a project timer) still needs
-    `projects.log_time`, exactly as before.
+    anyone who couldn't doesn't gain it. Logging your own time needs view
+    access to the ticket or project; `projects.log_time` is gone (part 2).
   - `time.manage_others` lets you log, edit and delete time for other people.
     It's granted to the seeded System Administrator and Department Manager
     roles. A team lead
@@ -82,8 +80,68 @@ reports. Settings → Companies is always there, also for managing vendors.
   Deleting a user keeps their time in the ledger; it used to delete their
   ticket time.
 
+### One work model, part 2: who may change what
+
+- **The edit tier.** Changing a ticket's or project's own data now checks the
+  edit permission against that record, as the permission names say. That
+  covers its fields, tasks, links, custom field values, members, expenses,
+  materials, and deleting it:
+  - `tickets.edit_own` means tickets assigned to you, `edit_department` your
+    department's (or assigned to you), and `edit_all` any you can see.
+  - `projects.edit_own` means projects you belong to or lead,
+    `edit_department` your department's, and `edit_all` any you can see.
+  - Commenting, attachments, project files, watchers and your own time still
+    need only view access.
+  - Deleting also needs `tickets.delete` / `projects.delete`, as before.
+- **Seeded roles.**
+  - System Technician is granted `tickets.edit_all` and `projects.edit_all`, so
+    it edits everything it could before. With `edit_all` it is now also a
+    moderator: it can edit or delete other people's comments and attachments,
+    and delete other people's project files.
+  - **Department Staff** can now edit only tickets assigned to them. They can
+    still see, comment on and log time on the rest of their department's.
+- **Logging your own time** needs `time.log` and view access to the ticket or
+  project, so you can log time on a ticket you helped with. **`projects.log_time`
+  is removed**; every role that had it has `time.log`.
+- **Linked tickets you can't open** show as "Restricted ticket" (id only) in a
+  ticket's links and on a project task.
+- **Deleting a project** now deletes its tasks, time, expenses, materials,
+  files (also on disk), members and activity. It used to leave them behind.
+- **Project files** can be deleted by the person who uploaded them or a
+  project moderator (`projects.edit_all`, or `projects.edit_department` for
+  your department's projects).
+- **Task statuses and work types are editable** through the API:
+  - `POST/PATCH/DELETE /task-statuses` and `PUT /task-statuses/reorder` need
+    `settings.manage_statuses`;
+  - `POST/PATCH/DELETE /work-types` need `settings.manage_system`;
+  - the Settings screens come in the next update.
+- **Smaller fixes:**
+  - Custom field values must fit the field (a number, a real date, one of the
+    options). **Changed response:** `400 "<label>" doesn't accept that value`.
+  - Ticket and project statuses must exist (`400 Unknown ticket status`).
+  - A blank title or name is refused on edit, as on create.
+  - A new project lead becomes a member with the lead role; the old lead stays
+    a member. The lead, and members named when creating a project, must be
+    active users who can work for the project's company.
+  - The "escalate" workflow action sets priority to critical (it used to fail
+    every time).
+  - A ticket created already closed obeys "require time before close".
+  - Two tickets can be linked only once, whichever direction.
+  - Clearing a ticket's due date always clears its due time.
+  - Expense and material edits check their values, as creating them does.
+  - Watchers, custom field values, expenses, materials, members and project
+    files are now in the audit log.
+- **Rolling back** this part's migration takes `tickets.edit_all` and
+  `projects.edit_all` back from System Technician, even if you had granted them
+  yourself before upgrading, and gives `projects.log_time` back to every role
+  with `time.log`.
+
 ### Security fixes
 
+- A department-level user with no department could see every ticket, project
+  and contact that had no department, and the same in reports, the dashboard
+  and the people list. A user with no department now matches no department.
+- Project file responses no longer include the file's path on the server.
 - Deleting a project subtask now checks that its task belongs to the project
   in the URL. Before, a user who could edit one project could delete subtasks
   in any other.

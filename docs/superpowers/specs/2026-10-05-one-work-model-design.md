@@ -199,6 +199,8 @@ release's first migration drops them.
 ### Permissions
 
 - **`time.log`:** log your own time on anything you can edit.
+  **Changed by the user on 2026-10-06:** logging your own time needs view
+  access, not the edit tier — people log time on tickets they helped with.
 - **Logging, editing or deleting someone else's time** (Q6, Q21) needs one
   of:
   - `time.manage_others` (the other person must be someone you can see);
