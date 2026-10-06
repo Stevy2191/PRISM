@@ -173,27 +173,27 @@ Q1–Q8 were found while designing; Q9–Q36 while planning; Q37 while writing t
 
 | # | Quirk | Where | Likely fix in |
 |---|---|---|---|
-| Q1 | Editing a project time entry's start/end recomputes `durationSeconds` but not `laborCost`. | `projectsController.updateTimeEntry` | 3 |
-| Q2 | Editing a project time entry writes no audit row. | `projectsController.updateTimeEntry` | 3 |
-| Q3 | Editing a project time entry accepts a future `entryDate`; creating one rejects it. | `projectsController.updateTimeEntry` | 3 |
-| Q4 | Ticket time: `userId` = who it's for, `loggedById` = logger. Project time: `userId` = logger, `loggedForUserId` = who it's for. So "only your own entry" means the target on tickets and the logger on projects. | `ticketsController.removeTime`, `projectsController` time handlers | 3 |
-| Q5 | Timer-created ticket time has no `startTime`, `endTime` or `loggedById`. `loggedAt` is the timer's start, and `entryDate` is the UTC date the timer stopped. | `timerController.logTimer` | 3 |
-| Q6 | Logging for others, and editing or deleting others' time, check the legacy `User.role === 'admin'`, not a granular permission. | `canLogForOthers`, time handlers | 3 |
-| Q7 | A task or subtask PATCH whose `statusId` is the current id as a string counts as a status change: `completedAt` is re-stamped. | `projectsController.updateTask` / `updateSubtask` | 3 |
+| Q1 | Editing a project time entry's start/end recomputes `durationSeconds` but not `laborCost`. | `projectsController.updateTimeEntry` | 3 (fixed in plan 3b-1) |
+| Q2 | Editing a project time entry writes no audit row. | `projectsController.updateTimeEntry` | 3 (fixed in plan 3b-1) |
+| Q3 | Editing a project time entry accepts a future `entryDate`; creating one rejects it. | `projectsController.updateTimeEntry` | 3 (fixed in plan 3b-1) |
+| Q4 | Ticket time: `userId` = who it's for, `loggedById` = logger. Project time: `userId` = logger, `loggedForUserId` = who it's for. So "only your own entry" means the target on tickets and the logger on projects. | `ticketsController.removeTime`, `projectsController` time handlers | 3 (fixed in plan 3b-1) |
+| Q5 | Timer-created ticket time has no `startTime`, `endTime` or `loggedById`. `loggedAt` is the timer's start, and `entryDate` is the UTC date the timer stopped. | `timerController.logTimer` | 3 (fixed in plan 3b-1) |
+| Q6 | Logging for others, and editing or deleting others' time, check the legacy `User.role === 'admin'`, not a granular permission. | `canLogForOthers`, time handlers | 3 (fixed in plan 3b-1) |
+| Q7 | A task or subtask PATCH whose `statusId` is the current id as a string counts as a status change: `completedAt` is re-stamped. | `projectsController.updateTask` / `updateSubtask` | 3 (fixed in plan 3b-1) |
 | Q8 | Ticket task create/update writes no activity and no audit row. | `ticketsController.createTask` / `updateTask` | 3 |
-| Q9 | Time-billing filters and dates ticket time by `loggedAt` and project time by `createdAt`, never by `entryDate`. The custom report shows `entryDate` but filters the same way. | `reportsController.buildTimeBillingReport`, `customReportEngine.loadTimeEntryRecords` | 3 |
-| Q10 | Team performance "time logged" counts ticket time only. | `reportsController.buildTeamPerformanceReport` | 3 |
-| Q11 | Project total cost excludes labour in project stats and the projects report, but includes it in the custom report's projects source. | `buildProjectStats`, `buildProjectsReport`, `loadProjectRecords` | 3 |
-| Q12 | Dashboard hours count ticket time only, by `loggedAt`, Monday–Friday only, bucketed by UTC date. | `dashboardController.hoursForUser` | 3 |
+| Q9 | Time-billing filters and dates ticket time by `loggedAt` and project time by `createdAt`, never by `entryDate`. The custom report shows `entryDate` but filters the same way. | `reportsController.buildTimeBillingReport`, `customReportEngine.loadTimeEntryRecords` | 3 (fixed in plan 3b-1) |
+| Q10 | Team performance "time logged" counts ticket time only. | `reportsController.buildTeamPerformanceReport` | 3 (fixed in plan 3b-1) |
+| Q11 | Project total cost excludes labour in project stats and the projects report, but includes it in the custom report's projects source. | `buildProjectStats`, `buildProjectsReport`, `loadProjectRecords` | 3 (fixed in plan 3b-1) |
+| Q12 | Dashboard hours count ticket time only, by `loggedAt`, Monday–Friday only, bucketed by UTC date. | `dashboardController.hoursForUser` | 3 (fixed in plan 3b-1) |
 | Q13 | Deleting a project leaves its tasks, time entries and other child rows behind (no foreign keys). | `projectsController.remove` | 3 |
-| Q14 | "Today" for `entryDate` (default and future limit) is the UTC date. | ticket/project time create | 3 |
-| Q15 | Re-sending a closed `statusId` on a task logs another `task_closed`. | `projectsController.updateTask` | 3 |
+| Q14 | "Today" for `entryDate` (default and future limit) is the UTC date. | ticket/project time create | 3 (fixed in plan 3b-1) |
+| Q15 | Re-sending a closed `statusId` on a task logs another `task_closed`. | `projectsController.updateTask` | 3 (fixed in plan 3b-1) |
 | Q16 | The `escalate_to_user` workflow action always fails: it sets priority `urgent`, which tickets don't have. | `workflowEngine.executeAction` | 3 |
 | Q17 | Any project editor can delete anyone's project file. `canModerateProjectContent` exists but is unused. | `projectsController.removeFile` | 3 |
 | Q18 | Relation lists show the title, status and priority of linked tickets the viewer can't open. | `ticketsController.listRelations` | 3 |
 | Q19 | Project task lists show a linked ticket's title to viewers who can't open it. | `projectsController.listTasks` | 3 |
-| Q20 | Renumbering a task leaves its subtasks' codes on the old task number. | `projectsController.renumberTask` | 3 |
-| Q21 | A lead of any team can log time for any user, teammate or not. | `canLogForOthers` | 3 |
+| Q20 | Renumbering a task leaves its subtasks' codes on the old task number. | `projectsController.renumberTask` | 3 (fixed in plan 3b-1) |
+| Q21 | A lead of any team can log time for any user, teammate or not. | `canLogForOthers` | 3 (fixed in plan 3b-1) |
 | Q22 | Editing project time accepts a `taskId` from another project. | `projectsController.updateTimeEntry` | 3 (fixed early as S13) |
 | Q23 | Watchers, custom field values, project tasks/subtasks, expenses, materials, members and files are changed without audit rows. | those handlers | 3 |
 | Q24 | Two tickets can be linked twice, once in each direction. | `ticketsController.createRelation` | 3 |
@@ -203,14 +203,16 @@ Q1–Q8 were found while designing; Q9–Q36 while planning; Q37 while writing t
 | Q28 | Ticket and project delete don't re-check scope. | `ticketsController.remove`, `projectsController.remove` | 2 |
 | Q29 | Custom field values aren't checked against the field's type or options. | `syncCustomFieldValues` | 3 |
 | Q30 | Changing a project's lead doesn't update its members. | `projectsController.update` | 3 |
-| Q31 | A task created already closed has no `completedAt`. | `projectsController.createTask` | 3 |
-| Q32 | A partial reorder leaves duplicate positions. | `projectsController.reorderTasks` | 3 |
+| Q31 | A task created already closed has no `completedAt`. | `projectsController.createTask` | 3 (fixed in plan 3b-1) |
+| Q32 | A partial reorder leaves duplicate positions. | `projectsController.reorderTasks` | 3 (fixed in plan 3b-1) |
 | Q33 | Expense and material updates skip the create-time validation. | `updateExpense` / `updateMaterial` | 3 |
-| Q34 | A timer on a deleted ticket can't be stopped or replaced (400 `FK_CONSTRAINT`), only cancelled. | `timerController` | 3 |
+| Q34 | A timer on a deleted ticket can't be stopped or replaced (400 `FK_CONSTRAINT`), only cancelled. | `timerController` | 3 (fixed in plan 3b-1) |
 | Q35 | Creating a ticket already closed bypasses `timeTracking.requireBeforeClose`. | `ticketsController.create` | 3 |
-| Q36 | A report `endDate` becomes the end of the *previous* local day west of UTC. | `reportsController.parseDateRange` | 3 |
+| Q36 | A report `endDate` becomes the end of the *previous* local day west of UTC. | `reportsController.parseDateRange` | 3 (fixed in plan 3b-1) |
 | Q37 | ~~Two projects created at the same moment in one department could fail (findOrCreate race on a department's first project; MariaDB 11 snapshot-isolation error 1020 after that).~~ **Fixed in sub-project 1** at the user's request: the counter is one atomic `INSERT … ON DUPLICATE KEY UPDATE` in a READ COMMITTED transaction. | `projectCodeService.nextProjectSequence` | 1 (fixed) |
 | Q38 | Updates accept a blank or whitespace-only ticket title, project name, or task/subtask title (create rejects them). | ticket/project/task/subtask update handlers | 3 |
+
+Q8, Q23, Q25 and Q38 are fixed for tasks in plan 3b-1. Their ticket and project halves follow in 3b-2.
 
 ## Done when
 

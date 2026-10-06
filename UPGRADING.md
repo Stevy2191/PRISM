@@ -33,6 +33,50 @@ reports. Settings → Companies is always there, also for managing vendors.
 - Old free-text vendor columns stay for one more release; vendor companies
   now fill them.
 
+### One work model, part 1: tasks and the time ledger
+
+- **Data move.** Ticket checklist items, project tasks and project subtasks are
+  now one `Tasks` table, and ticket time and project time one `TimeEntries`
+  ledger. The migration copies everything; the old tables are kept, renamed
+  `legacy_*`, for one release and are dropped by the next release's first
+  migration. Rolling the migration back works until something exists that the
+  old tables can't hold (for example, a subtask on a ticket task); it then
+  refuses with a list.
+- **Ticket tasks are real tasks:** statuses (To do, In progress, Done),
+  subtasks, codes (`#00012-T01`), reorder and renumber, the same as project
+  tasks.
+- **New permissions:**
+  - `time.log` lets you log your own time. It's granted to every role that
+    could log time before (`projects.log_time` or any ticket edit permission).
+    `projects.log_time` no longer gates anything.
+  - `time.manage_others` lets you log, edit and delete time for other people.
+    It's granted to System Administrator and Department Manager. A team lead
+    without it may do so for members of their own teams only. The legacy
+    `admin` user role no longer decides this.
+- **API field names (API-key users):**
+  - Tasks use `title`, `statusId` (from `GET /task-statuses?scope=ticket|project`),
+    `assigneeId`, `dueDate`, `estimateMinutes`, `parentTaskId` and `code`. A
+    ticket task's old `description`/`completed` fields and a project task's
+    `assignedToUserId`/`taskCode`/`subtaskCode` are gone.
+  - Time takes `durationMinutes` **or** `startTime` + `endTime`, plus
+    `entryDate`, `note`, `taskId`, `workTypeId` (from `GET /work-types`),
+    `billable` and `userId` (who it's for). The old `minutes`, `description`
+    and `loggedForUserId` are not read.
+  - Time responses carry `user` (who it's for) and `loggedBy` (who entered it).
+    Time lists return `totalSeconds` and `totalLaborCost`. Ticket time can now
+    be edited (`PATCH /tickets/:id/time/:entryId`).
+  - The project subtask URLs (`/projects/:id/tasks/:taskId/subtasks…`) still
+    work for this release.
+- **Time zone.** "Today" for a work date, a timer's work date and report date
+  ranges now follow Settings → Company → time zone (`company.timezone`,
+  default UTC), not the server's.
+- **Reports.** Time is dated and filtered by its work date. Team performance
+  and the dashboard count project time too. Project cost includes labour
+  everywhere. The dashboard's hours cover all seven days of the week.
+- **Deletes.** Deleting a ticket deletes its tasks and time, as before.
+  Deleting a user keeps their time in the ledger; it used to delete their
+  ticket time.
+
 ### Security fixes
 
 - Deleting a project subtask now checks that its task belongs to the project
@@ -90,6 +134,14 @@ reports. Settings → Companies is always there, also for managing vendors.
   **Changed response:** these return `403 FORBIDDEN`. Department Managers can
   still create ordinary accounts and reset ordinary passwords.
 - Deleting a ticket or project now checks that you can reach its company.
+- Reports now keep to your report scope everywhere. Before, an "own records"
+  user could add `?assigneeId=` to the time & billing report or the custom
+  report builder to see anyone's time and labour cost; the customer-happiness
+  report and the CSAT stats and responses showed every department to a
+  department-scoped user; and custom expense and material reports weren't
+  scoped at all.
+- Project time, expenses, materials and files only take a task from the same
+  project. Before, another project's task id was accepted, and its title shown.
 
 ### Fixes
 
