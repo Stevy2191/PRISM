@@ -4,9 +4,8 @@ const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
 
-// The timer exists to produce time entries, so it requires the same
-// permission as logging time directly.
-router.use(requirePermission('projects.log_time'));
+// The timer exists to produce time entries, so it needs time.log.
+router.use(requirePermission('time.log'));
 
 router.get('/', ctrl.get);
 router.post('/start', ctrl.start);

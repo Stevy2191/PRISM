@@ -1,75 +1,80 @@
-// Ticket-only — project time logging now goes through the dedicated
-// Time Entries tab (POST /projects/:id/time-entries), which supports task
-// links and logging-for-another-user; this single-active-timer system
-// predates that and no longer has a project-side counterpart.
-const { ActiveTimer, TimeEntry, Ticket } = require('../models');
+// The running timer: one per user, on a ticket or a project, optionally on
+// one of its tasks. Stopping or switching writes the elapsed time to the
+// ledger through services/time.
+const { ActiveTimer, Ticket, Project, Task } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
-const { writeAudit } = require('../middleware/audit');
-const { logActivity } = require('../services/ticketActivity');
-const { calculateLaborCost } = require('../utils/laborCost');
-const { canAccessTicket } = require('../services/permissionService');
+const { canAccessTicket, canAccessProject, parseRecordId } = require('../services/permissionService');
+const { ticketParent, projectParent } = require('../services/tasks');
+const time = require('../services/time');
+
+const KINDS = {
+  ticket: { Model: Ticket, toParent: ticketParent, canAccess: canAccessTicket, label: 'Ticket' },
+  project: { Model: Project, toParent: projectParent, canAccess: canAccessProject, label: 'Project' },
+};
+const DISCARDED = {
+  gone: 'The ticket or project this timer was running on has been deleted, so its time was discarded.',
+  denied: 'You no longer have access to what this timer was running on, so its time was discarded.',
+};
 
 function shape(t) {
-  return t ? { type: t.entityType, id: t.entityId, label: t.label, startedAt: t.startedAt } : null;
+  return t ? {
+    type: t.entityType, id: t.entityId, taskId: t.taskId ?? null, label: t.label, startedAt: t.startedAt,
+  } : null;
 }
 
-// Convert a running timer into a TimeEntry (logged against its start time).
+// Writes the running timer to the ledger. A parent that was deleted, or that
+// the user can no longer open, can't take the time: it's discarded, with the
+// reason (Q34).
 async function logTimer(req, timer, note) {
-  const seconds = Math.max(0, Math.floor((Date.now() - new Date(timer.startedAt).getTime()) / 1000));
-  const minutes = Math.max(1, Math.round(seconds / 60));
-  const entry = await TimeEntry.create({
-    userId: req.user.id,
-    minutes,
-    durationSeconds: seconds,
-    note: note || 'Timer',
-    loggedAt: timer.startedAt,
-    ticketId: timer.entityId,
-    laborCost: calculateLaborCost(req.user, { durationSeconds: seconds }),
+  const kind = KINDS[timer.entityType];
+  const record = kind && await kind.Model.findByPk(timer.entityId);
+  if (!record) return { entry: null, discarded: DISCARDED.gone };
+  if (!(await kind.canAccess(req.user, record))) return { entry: null, discarded: DISCARDED.denied };
+  const entry = await time.logTimerEntry(req, kind.toParent(record), {
+    startedAt: timer.startedAt, endedAt: new Date(), taskId: timer.taskId, note,
   });
-  await writeAudit(req, 'timer.log', 'TimeEntry', entry.id, { ticketId: timer.entityId, minutes });
-  await logActivity(timer.entityId, req.user.id, 'time_logged', null, `${minutes}m`);
-  return entry;
+  return { entry, discarded: null };
 }
 
 // GET /timer — the current user's running timer (or null).
 const get = asyncHandler(async (req, res) => {
-  const t = await ActiveTimer.findOne({ where: { userId: req.user.id } });
-  res.json({ timer: shape(t) });
+  res.json({ timer: shape(await ActiveTimer.findOne({ where: { userId: req.user.id } })) });
 });
 
-// POST /timer/start { type, id, label }
+// POST /timer/start { type: 'ticket' | 'project', id, taskId?, label? }
 // Starting while another timer runs logs that one first.
 const start = asyncHandler(async (req, res) => {
-  const { type, id, label } = req.body || {};
-  if (type !== 'ticket') {
-    throw new ApiError(400, 'Invalid timer type', 'VALIDATION_ERROR');
-  }
-  const targetId = parseInt(id, 10);
+  const { type, label } = req.body || {};
+  const kind = KINDS[type];
+  if (!kind) throw new ApiError(400, 'Invalid timer type', 'VALIDATION_ERROR');
+  const targetId = parseRecordId(req.body?.id);
   if (!targetId) throw new ApiError(400, 'A target id is required', 'VALIDATION_ERROR');
-  const ticket = await Ticket.findByPk(targetId);
-  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  // Same rule as every other ticket route: a timer logs time to the ticket
-  // when it stops, so starting one needs access to it.
-  if (!(await canAccessTicket(req.user, ticket))) {
-    throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  const record = await kind.Model.findByPk(targetId);
+  if (!record) throw new ApiError(404, `${kind.label} not found`, 'NOT_FOUND');
+  // A timer logs time there when it stops, so starting one needs access to it.
+  if (!(await kind.canAccess(req.user, record))) throw new ApiError(403, `You do not have access to this ${type}`, 'FORBIDDEN');
+
+  let taskId = null;
+  const rawTask = req.body?.taskId;
+  if (rawTask !== undefined && rawTask !== null && rawTask !== '') {
+    const id = parseRecordId(rawTask);
+    const task = id && await Task.findOne({ where: { id, ...kind.toParent(record).where }, attributes: ['id'] });
+    if (!task) throw new ApiError(400, `Task does not belong to this ${type}`, 'VALIDATION_ERROR');
+    taskId = task.id;
   }
 
   const existing = await ActiveTimer.findOne({ where: { userId: req.user.id } });
   let logged = null;
   if (existing) {
-    if (existing.entityType === type && existing.entityId === targetId) {
+    if (existing.entityType === type && existing.entityId === targetId && (existing.taskId ?? null) === taskId) {
       return res.json({ timer: shape(existing), logged: null });
     }
-    logged = await logTimer(req, existing);
+    ({ entry: logged } = await logTimer(req, existing));
     await existing.destroy();
   }
 
   const created = await ActiveTimer.create({
-    userId: req.user.id,
-    entityType: type,
-    entityId: targetId,
-    label: label || null,
-    startedAt: new Date(),
+    userId: req.user.id, entityType: type, entityId: targetId, taskId, label: label || null, startedAt: new Date(),
   });
   res.status(201).json({ timer: shape(created), logged });
 });
@@ -78,9 +83,9 @@ const start = asyncHandler(async (req, res) => {
 const stop = asyncHandler(async (req, res) => {
   const existing = await ActiveTimer.findOne({ where: { userId: req.user.id } });
   if (!existing) return res.json({ timer: null, entry: null });
-  const entry = await logTimer(req, existing, req.body?.note);
+  const { entry, discarded } = await logTimer(req, existing, req.body?.note);
   await existing.destroy();
-  res.json({ timer: null, entry });
+  res.json(discarded ? { timer: null, entry: null, discarded: true, message: discarded } : { timer: null, entry });
 });
 
 // DELETE /timer — discards the running timer without logging.
