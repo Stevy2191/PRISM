@@ -6,7 +6,7 @@ const {
 // Findings from plan 2a's final and security reviews (R1–R8 in the ledger).
 
 const {
-  Company, Contact, Ticket, TicketRelation, ProjectTask, Asset, Notification, Role, RoleCompanyAccess, UserCompanyAccess,
+  Company, Contact, Ticket, TicketRelation, Task, Asset, Notification, Role, RoleCompanyAccess, UserCompanyAccess,
 } = models;
 
 let w;
@@ -121,7 +121,7 @@ describe('R3: links stay inside one company', () => {
       await a().patch(`${API}/projects/${acmeProject.id}/tasks/${task.id}`).send({ linkedTicketId: homeTicket.id }),
       400, 'VALIDATION_ERROR', 'Linked ticket not found'
     );
-    await ProjectTask.update({ linkedTicketId: homeTicket.id }, { where: { id: task.id } });
+    await Task.update({ linkedTicketId: homeTicket.id }, { where: { id: task.id } });
     const { tasks } = expectOk(await a().get(`${API}/projects/${acmeProject.id}/tasks`));
     expect(tasks.find((x) => x.id === task.id).linkedTicket).toBeNull();
   });

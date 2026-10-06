@@ -1,9 +1,9 @@
 // Completion rollup for the Projects module. Every "is this closed?" check
-// here goes through ProjectStatuses.behaviorType (via statusBehavior.js) —
+// here goes through TaskStatuses.behaviorType (via tasks/statuses.js) —
 // never a hardcoded status name — so a custom/renamed status is honored
 // immediately.
-const { ProjectTask, ProjectSubtask } = require('../models');
-const { getProjectStatusIdBehaviorMap } = require('./statusBehavior');
+const { Task } = require('../models');
+const { taskStatusBehaviorMap } = require('./tasks/statuses');
 
 // A task with subtasks is complete when every subtask is closed-behavior;
 // with none, it's complete when its own status is closed-behavior.
@@ -25,11 +25,11 @@ function subtaskCompletionPercent(subtasks, statusIdBehavior) {
 // returns { percent, totalTasks, closedTasks, tasks: [{ task, isComplete,
 // subtaskPercent }] }. Tasks are pre-sorted by position (drag order).
 async function computeProjectCompletion(projectId) {
-  const statusIdBehavior = await getProjectStatusIdBehaviorMap();
-  const tasks = await ProjectTask.findAll({
-    where: { projectId },
-    include: [{ model: ProjectSubtask, as: 'subtasks', order: [['position', 'ASC']] }],
-    order: [['position', 'ASC']],
+  const statusIdBehavior = await taskStatusBehaviorMap();
+  const tasks = await Task.findAll({
+    where: { projectId, parentTaskId: null },
+    include: [{ model: Task, as: 'subtasks', separate: true, order: [['position', 'ASC'], ['id', 'ASC']] }],
+    order: [['position', 'ASC'], ['id', 'ASC']],
   });
 
   let closedTasks = 0;

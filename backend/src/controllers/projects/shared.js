@@ -3,12 +3,10 @@ const { Op } = require('sequelize');
 const {
   Project,
   ProjectMember,
-  ProjectTask,
-  ProjectSubtask,
-  ProjectTimeEntry,
+  Task,
+  TimeEntry,
   ProjectExpense,
   ProjectMaterial,
-  ProjectStatus,
   Department,
   User,
   Ticket,
@@ -17,6 +15,7 @@ const {
   Company,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
+const { parseRecordId } = require('../../services/permissionService');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
 const { computeProjectCompletion } = require('../../services/projectCompletion');
 
@@ -50,7 +49,7 @@ async function buildProjectStats(project) {
   const projectId = project.id;
   const [completion, timeSum, expenseSum, materialSum, ticketBuckets] = await Promise.all([
     computeProjectCompletion(projectId),
-    ProjectTimeEntry.sum('durationSeconds', { where: { projectId } }),
+    TimeEntry.sum('durationSeconds', { where: { projectId } }),
     ProjectExpense.sum('amount', { where: { projectId } }),
     ProjectMaterial.sum('totalCost', { where: { projectId } }),
     getTicketStatusBuckets(),
@@ -85,26 +84,14 @@ async function getProjectWithDetail(id) {
   return json;
 }
 
-// ==================== Tasks ====================
-
-// A task's linked ticket is shown only while it's in the project's company:
-// a link can outlive a move of the ticket (with its contact) or the project.
-const taskIncludeFor = (project) => [
-  { model: User, as: 'assignee', attributes: userAttrs },
-  { model: ProjectStatus, as: 'status' },
-  {
-    model: Ticket, as: 'linkedTicket', attributes: ['id', 'title'], where: { companyId: project.companyId }, required: false,
-  },
-  { model: ProjectSubtask, as: 'subtasks', include: [{ model: User, as: 'assignee', attributes: userAttrs }, { model: ProjectStatus, as: 'status' }] },
-];
-
 // A task named on a project record (time, expense, material, file) must
 // belong to that project (S13) — the record's include would otherwise show
 // another project's task title. Returns the task's id, or null when the
 // body clears the task.
 async function resolveProjectTaskId(project, taskId) {
   if (taskId === undefined || taskId === null || taskId === '') return null;
-  const task = await ProjectTask.findOne({ where: { id: taskId, projectId: project.id } });
+  const id = parseRecordId(taskId);
+  const task = id && await Task.findOne({ where: { id, projectId: project.id } });
   if (!task) throw new ApiError(400, 'Task does not belong to this project', 'VALIDATION_ERROR');
   return task.id;
 }
@@ -115,7 +102,6 @@ module.exports = {
   userAttrs,
   getProjectWithDetail,
   buildProjectStats,
-  taskIncludeFor,
   SUBLIST_LIMIT,
   SUBLIST_MAX,
   canLogForOthers,

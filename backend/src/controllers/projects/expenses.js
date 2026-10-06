@@ -1,5 +1,5 @@
 // Project expenses: list, add, edit, delete.
-const { Project, ProjectTask, ProjectExpense, User } = require('../../models');
+const { Project, Task, ProjectExpense, User } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { parsePagination, paginated } = require('../../utils/pagination');
@@ -12,7 +12,7 @@ const {
 
 const expenseInclude = [
   { model: User, as: 'loggedByUser', attributes: userAttrs },
-  { model: ProjectTask, as: 'task', attributes: ['id', 'title'] },
+  { model: Task, as: 'task', attributes: ['id', 'title', 'code'] },
 ];
 
 // GET /projects/:id/expenses

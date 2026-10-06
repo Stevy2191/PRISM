@@ -1,5 +1,5 @@
 // Project materials: list, add, edit, delete.
-const { Project, ProjectTask, ProjectMaterial, User, Company } = require('../../models');
+const { Project, Task, ProjectMaterial, User, Company } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { parsePagination, paginated } = require('../../utils/pagination');
@@ -14,7 +14,7 @@ const {
 const materialInclude = [
   { model: User, as: 'addedByUser', attributes: userAttrs },
   { model: Company, as: 'vendorCompany', attributes: ['id', 'name'] },
-  { model: ProjectTask, as: 'task', attributes: ['id', 'title'] },
+  { model: Task, as: 'task', attributes: ['id', 'title', 'code'] },
 ];
 
 // GET /projects/:id/materials
