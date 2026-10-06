@@ -282,10 +282,34 @@ describe('custom field values', () => {
     expect(t.customFields).toEqual({ asset_tag: 'Y2' });
   });
 
-  // Likely correct: 400 for a non-number or an option the field doesn't have. Expected to change in sub-project 3.
-  it('[quirk] Q29: stores values the field\'s type or options don\'t allow', async () => {
-    expectOk(await w.admin.agent.post(`${API}/custom-fields`).send({ label: 'Rank', fieldKey: 'rank', fieldType: 'number' }), 201);
-    expect(await set({ rank: 'abc', systems: ['Z'] })).toEqual({ rank: 'abc', systems: ['Z'] });
+  it('Q29: values must fit the field\'s type and options', async () => {
+    const field = async (body) => expectOk(await w.admin.agent.post(`${API}/custom-fields`).send(body), 201);
+    await field({ label: 'Rank', fieldKey: 'rank', fieldType: 'number' });
+    await field({ label: 'When', fieldKey: 'when', fieldType: 'date' });
+    await field({ label: 'At', fieldKey: 'at', fieldType: 'datetime' });
+    await field({ label: 'Mail', fieldKey: 'mail', fieldType: 'email' });
+    await field({ label: 'Site', fieldKey: 'site', fieldType: 'url' });
+    await field({ label: 'Done', fieldKey: 'done', fieldType: 'checkbox' });
+    await field({ label: 'Tier', fieldKey: 'tier', fieldType: 'dropdown', options: ['Gold', 'Silver'] });
+    const bad = async (values, label) => {
+      const res = await tech.agent.patch(url()).send({ values });
+      expect([label, res.body]).toEqual([label, { error: true, message: `"${label}" doesn't accept that value`, code: 'VALIDATION_ERROR' }]);
+    };
+    for (const [values, label] of [
+      [{ rank: 'abc' }, 'Rank'], [{ rank: '0x10' }, 'Rank'], [{ when: '2026-02-30' }, 'When'], [{ at: '5' }, 'At'],
+      [{ mail: 'not-an-email' }, 'Mail'], [{ site: 'javascript:alert(1)' }, 'Site'], [{ done: 'maybe' }, 'Done'],
+      [{ tier: 'Bronze' }, 'Tier'], [{ systems: ['Z'] }, 'Systems'], [{ systems: 'A' }, 'Systems'], [{ asset_tag: { x: 1 } }, 'Asset tag'],
+    ]) {
+      await bad(values, label); // eslint-disable-line no-await-in-loop
+    }
+    expect(await set({
+      rank: '-4.5', when: '2026-03-01', at: '2026-03-01T09:30', mail: 'a@b.co', site: 'https://example.com', done: 'true', tier: 'Gold', systems: ['A'],
+    })).toEqual({
+      rank: '-4.5', when: '2026-03-01', at: '2026-03-01T09:30', mail: 'a@b.co', site: 'https://example.com', done: 'true', tier: 'Gold', systems: ['A'],
+    });
+    // A refused value changes nothing, at create too.
+    const res = await tech.agent.post(`${API}/tickets`).send({ title: 'T', contactId: w.contact.id, customFieldValues: { rank: 'abc' } });
+    expect(res.body.message).toBe('"Rank" doesn\'t accept that value');
   });
 
   it('own-tier users can\'t read or set values on others\' tickets', async () => {

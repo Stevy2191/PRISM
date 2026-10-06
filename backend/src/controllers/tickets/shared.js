@@ -14,6 +14,7 @@ const {
 } = require('../../models');
 const { Op, col } = require('sequelize');
 const { ApiError } = require('../../middleware/error');
+const { toDateString } = require('../../utils/orgTime');
 const { canEditTicket } = require('../../services/permissionService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
@@ -63,6 +64,30 @@ const ticketInclude = [
 
 // Upsert/remove a ticket's admin-defined custom field values.
 // values: { fieldKey: value, ... } — an empty/null value deletes the row.
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NUMBER = /^-?\d+(\.\d+)?$/;
+const DATETIME = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
+const isScalar = (v) => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+
+// A value must fit its field (Q29): numbers are numbers, dates real dates,
+// choices among the options, links http(s). Empty clears the value, as before.
+function fitsField(field, raw) {
+  const options = Array.isArray(field.options) ? field.options.map(String) : [];
+  if (field.fieldType === 'multiselect') return Array.isArray(raw) && raw.every((v) => isScalar(v) && options.includes(String(v)));
+  if (!isScalar(raw)) return false;
+  const v = String(raw).trim();
+  switch (field.fieldType) {
+    case 'number': return NUMBER.test(v);
+    case 'date': return v.length === 10 && toDateString(v) === v;
+    case 'datetime': return DATETIME.test(v) && !Number.isNaN(new Date(v).getTime()) && !!toDateString(v);
+    case 'dropdown': return options.includes(String(raw));
+    case 'checkbox': return v === 'true' || v === 'false';
+    case 'email': return EMAIL.test(v);
+    case 'url': return /^https?:\/\/\S+$/i.test(v);
+    default: return true;
+  }
+}
+
 async function syncCustomFieldValues(ticketId, values, t) {
   if (!values || typeof values !== 'object') return;
   const keys = Object.keys(values);
@@ -75,6 +100,10 @@ async function syncCustomFieldValues(ticketId, values, t) {
     const field = fieldByKey.get(key);
     if (!field) continue; // eslint-disable-line no-continue
     const raw = values[key];
+    const empty = raw === undefined || raw === null || raw === '' || (Array.isArray(raw) && !raw.length);
+    if (!empty && !fitsField(field, raw)) {
+      throw new ApiError(400, `"${field.label}" doesn't accept that value`, 'VALIDATION_ERROR');
+    }
     const value = raw === undefined || raw === null ? '' : (Array.isArray(raw) ? JSON.stringify(raw) : String(raw));
     if (value === '') {
       // eslint-disable-next-line no-await-in-loop
