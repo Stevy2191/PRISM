@@ -3,7 +3,7 @@ const fs = require('fs');
 const { Project, ProjectFile, User } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { logProjectActivity } = require('../../services/projectActivity');
-const { canAccessProject } = require('../../services/permissionService');
+const { canAccessProject, canModerateProjectContent } = require('../../services/permissionService');
 const { userAttrs, resolveProjectTaskId } = require('./shared');
 
 // ==================== Files ====================
@@ -75,6 +75,11 @@ const removeFile = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project || !(await canAccessProject(req.user, project))) {
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
+  // Q17: the uploader, or a project moderator (edit_all, or edit_department
+  // for a project owned by or for the user's department).
+  if (file.uploadedBy !== req.user.id && !(await canModerateProjectContent(req.user, project))) {
+    throw new ApiError(403, 'Only the uploader or a project moderator can delete this file', 'FORBIDDEN');
   }
   await file.destroy();
   fs.rm(file.filepath, { force: true }, () => {});

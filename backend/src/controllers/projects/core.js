@@ -8,6 +8,10 @@ const {
   ProjectExpense,
   ProjectMaterial,
   ProjectStatus,
+  ProjectFile,
+  ProjectActivity,
+  Task,
+  TimeEntry,
   User,
   sequelize,
 } = require('../../models');
@@ -352,10 +356,22 @@ const remove = asyncHandler(async (req, res) => {
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   await assertCanEditProject(req.user, project);
 
-  const filesDir = path.join(UPLOAD_ROOT, 'projects', String(project.id));
-  await project.destroy();
-  fs.rm(filesDir, { recursive: true, force: true }, () => {});
-  await writeAudit(req, 'project.delete', 'Project', project.id, { name: project.name });
+  const where = { projectId: project.id };
+  const files = await ProjectFile.findAll({ where, attributes: ['filepath'] });
+  const counts = {};
+  await sequelize.transaction(async (transaction) => {
+    // No database cascades (Q13): everything that belongs to the project goes
+    // with it. A running timer stays, and says so when it stops (Q34).
+    for (const [label, M] of [['tasks', Task], ['timeEntries', TimeEntry], ['expenses', ProjectExpense],
+      ['materials', ProjectMaterial], ['files', ProjectFile], ['members', ProjectMember], ['activity', ProjectActivity]]) {
+      counts[label] = await M.destroy({ where, transaction }); // eslint-disable-line no-await-in-loop
+    }
+    await project.destroy({ transaction });
+    await writeAudit(req, 'project.delete', 'Project', project.id, { name: project.name, ...counts }, { transaction });
+  });
+  // The disk after the rows commit: a failed delete leaves the files with their rows.
+  for (const file of files) fs.rm(file.filepath, { force: true }, () => {});
+  fs.rm(path.join(UPLOAD_ROOT, 'projects', String(project.id)), { recursive: true, force: true }, () => {});
   removeProjectFromExternalCalendars(project.id, project.assignedToUserId);
   res.json({ ok: true });
 });

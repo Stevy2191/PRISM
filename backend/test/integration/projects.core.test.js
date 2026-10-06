@@ -237,17 +237,31 @@ describe('DELETE /projects/:id', () => {
     expect((await w.admin.agent.get(projUrl(p))).status).toBe(404);
   });
 
-  // Likely correct: a project's tasks and time go with it. Expected to change in sub-project 3.
-  it('[quirk] Q13: deleting a project leaves its tasks and time behind', async () => {
-    const p = await makeProject(tech.agent, { name: 'P', ownerDepartmentId: w.deptA.id });
+  it('Q13: deleting a project deletes its tasks, time, expenses, materials, files, members and activity', async () => {
+    const fs = require('fs'); // eslint-disable-line global-require
+    const p = await makeProject(tech.agent, { name: 'P', ownerDepartmentId: w.deptA.id, assignedToUserId: tech.user.id });
     await makeTask(tech.agent, p.id);
-    expectOk(await tech.agent.post(`${projUrl(p)}/time-entries`).send({
-      startTime: '2026-01-05T15:00:00Z', endTime: '2026-01-05T16:00:00Z',
-    }), 201);
+    expectOk(await tech.agent.post(`${projUrl(p)}/time-entries`).send({ durationMinutes: 30 }), 201);
+    expectOk(await tech.agent.post(`${projUrl(p)}/expenses`).send({ description: 'x', amount: 1 }), 201);
+    expectOk(await tech.agent.post(`${projUrl(p)}/materials`).send({ itemName: 'x' }), 201);
+    const { file } = expectOk(await tech.agent.post(`${projUrl(p)}/files`).attach('file', Buffer.from('hello'), 'notes.txt'), 201);
+    const { filepath } = await models.ProjectFile.findByPk(file.id);
+    expect(fs.existsSync(filepath)).toBe(true);
+    const other = await makeProject(tech.agent, { name: 'Other', ownerDepartmentId: w.deptA.id });
+    await makeTask(tech.agent, other.id);
     expectOk(await w.admin.agent.delete(projUrl(p)));
-    // No endpoint lists a deleted project's rows.
-    expect(await models.Task.count({ where: { projectId: p.id } })).toBe(1);
-    expect(await models.TimeEntry.count({ where: { projectId: p.id } })).toBe(1);
+    const {
+      Task, TimeEntry, ProjectExpense, ProjectMaterial, ProjectFile, ProjectMember, ProjectActivity, AuditLog,
+    } = models;
+    for (const M of [Task, TimeEntry, ProjectExpense, ProjectMaterial, ProjectFile, ProjectMember, ProjectActivity]) {
+      // eslint-disable-next-line no-await-in-loop
+      expect([M.name, await M.count({ where: { projectId: p.id } })]).toEqual([M.name, 0]);
+    }
+    expect(await Task.count({ where: { projectId: other.id } })).toBe(1);
+    await new Promise((r) => { setTimeout(r, 100); }); // the folder is removed after commit
+    expect(fs.existsSync(filepath)).toBe(false);
+    const audit = await AuditLog.findOne({ where: { action: 'project.delete', entityId: p.id } });
+    expect(audit.meta).toEqual(expect.objectContaining({ name: 'P', tasks: 1, timeEntries: 1, files: 1, expenses: 1, materials: 1 }));
   });
 
   it('Q28: delete re-checks access and the edit tier', async () => {

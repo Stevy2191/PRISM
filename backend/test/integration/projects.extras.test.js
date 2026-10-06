@@ -264,11 +264,17 @@ describe('files', () => {
     }
   });
 
-  // Likely correct: only the uploader or a moderator, as on tickets. Expected to change in sub-project 3.
-  it('[quirk] Q17: any project editor can delete anyone\'s file', async () => {
-    const mgr = await makeManager('mgr', w.deptA.id);
-    const f = await upload();
-    expect((await mgr.agent.delete(`${purl('files')}/${f.id}`)).status).toBe(200);
+  it('Q17: a file is deleted by its uploader or a project moderator, not by any editor', async () => {
+    const editor = await makeTech('editor2', w.deptA.id);
+    expectOk(await w.admin.agent.post(`${API}/users/${editor.user.id}/overrides`).send({ permissionKey: 'projects.edit_all', granted: false }), 201);
+    expectOk(await w.admin.agent.post(purl('members')).send({ userId: editor.user.id }), 201); // edit_own as a member
+    const f = await upload(); // uploaded by tech
+    const refused = await editor.agent.delete(`${purl('files')}/${f.id}`);
+    expect(refused.body).toEqual({ error: true, message: 'Only the uploader or a project moderator can delete this file', code: 'FORBIDDEN' });
+    const mine = await upload(editor.agent);
+    expectOk(await editor.agent.delete(`${purl('files')}/${mine.id}`));
+    const mgr = await makeManager('mgr', w.deptA.id); // projects.edit_department in the owning department
+    expectOk(await mgr.agent.delete(`${purl('files')}/${f.id}`));
   });
 });
 
