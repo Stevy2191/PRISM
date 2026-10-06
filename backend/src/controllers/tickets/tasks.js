@@ -4,11 +4,14 @@ const { Ticket } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { canAccessTicket } = require('../../services/permissionService');
 const tasks = require('../../services/tasks');
+const { assertCanEditTicket } = require('./shared');
 
-async function ticketFor(req) {
+// Reading needs view access; changing tasks needs the edit tier (Q26).
+async function ticketFor(req, { edit = true } = {}) {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  if (edit) await assertCanEditTicket(req.user, ticket);
   return tasks.ticketParent(ticket);
 }
 
@@ -20,7 +23,7 @@ async function taskFor(parent, rawId) {
 
 // GET /tickets/:id/tasks — top-level tasks with their subtasks
 const listTasks = asyncHandler(async (req, res) => {
-  res.json({ tasks: await tasks.listTasks(await ticketFor(req)) });
+  res.json({ tasks: await tasks.listTasks(await ticketFor(req, { edit: false })) });
 });
 
 // POST /tickets/:id/tasks — { title, description?, statusId?, priority?, assigneeId?, dueDate?, estimateMinutes?, parentTaskId? }

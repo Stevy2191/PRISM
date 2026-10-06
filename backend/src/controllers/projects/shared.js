@@ -14,7 +14,7 @@ const {
   Company,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
-const { parseRecordId } = require('../../services/permissionService');
+const { parseRecordId, canEditProject } = require('../../services/permissionService');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
 const { computeProjectCompletion } = require('../../services/projectCompletion');
 
@@ -92,7 +92,14 @@ async function resolveProjectTaskId(project, taskId) {
   return task.id;
 }
 
+// Changing a project's own data needs the edit tier on it (Q26); call after
+// the view check, which answers "can't see it" first.
+async function assertCanEditProject(user, project) {
+  if (!(await canEditProject(user, project))) throw new ApiError(403, 'You do not have permission to edit this project', 'FORBIDDEN');
+}
+
 module.exports = {
+  assertCanEditProject,
   resolveProjectTaskId,
   projectInclude,
   userAttrs,

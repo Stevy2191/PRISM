@@ -39,7 +39,6 @@ const {
   parseRecordId,
   findAccessibleProject,
   findAccessibleContact,
-  canAccessCompany,
 } = require('../../services/permissionService');
 const { evaluateRules } = require('../../services/workflowEngine');
 const {
@@ -48,7 +47,9 @@ const {
 } = require('../../services/calendarPush');
 const { maybeCreateCsatSurvey } = require('../../services/csatService');
 const { logAssetActivity } = require('../../services/assetActivity');
-const { ticketInclude, syncCustomFieldValues, withCustomFields } = require('./shared');
+const {
+  ticketInclude, syncCustomFieldValues, withCustomFields, assertCanEditTicket,
+} = require('./shared');
 
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
 
@@ -474,6 +475,7 @@ const update = asyncHandler(async (req, res) => {
   if (!(await canAccessTicket(req.user, ticket))) {
     throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
   }
+  await assertCanEditTicket(req.user, ticket);
 
   // Every PRISM user is staff now (the requester tier moved to Contacts,
   // who don't call this API), so there's one edit surface — resolution
@@ -644,9 +646,10 @@ const update = asyncHandler(async (req, res) => {
 const remove = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  // The company fence applies to every write, deletes included. (The tier
-  // re-check is still missing here: quirk Q28, pinned until sub-project 3.)
-  if (!(await canAccessCompany(req.user, ticket.companyId))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  // Deletes need the edit tier on the record (Q28) as well as the delete
+  // permission the route checks, and the company fence inside canAccess.
+  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  await assertCanEditTicket(req.user, ticket);
 
   await sequelize.transaction(async (t) => {
     // The ledger and tasks have no database cascade (sub-project 3): a

@@ -1,5 +1,5 @@
 // Read-only lists for task and time forms: task statuses (per scope) and work
-// types. Editing them belongs to Settings (plan 3b-2).
+// types. Editing them is taskStatusesController and workTypesController.
 const { WorkType } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { listTaskStatuses } = require('../services/tasks/statuses');

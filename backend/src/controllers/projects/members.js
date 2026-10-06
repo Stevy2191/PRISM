@@ -3,7 +3,7 @@ const { Project, ProjectMember, User } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { canAccessProject } = require('../../services/permissionService');
-const { userAttrs } = require('./shared');
+const { userAttrs, assertCanEditProject } = require('./shared');
 
 // ==================== Members ====================
 
@@ -26,6 +26,7 @@ const addMember = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  await assertCanEditProject(req.user, project);
 
   const { userId, role } = req.body || {};
   if (!userId) throw new ApiError(400, 'userId is required', 'VALIDATION_ERROR');
@@ -54,6 +55,7 @@ const removeMember = asyncHandler(async (req, res) => {
   if (!project || !(await canAccessProject(req.user, project))) {
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   }
+  await assertCanEditProject(req.user, project);
   await member.destroy();
   res.json({ ok: true });
 });

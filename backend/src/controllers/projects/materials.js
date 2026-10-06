@@ -7,6 +7,7 @@ const { resolveVendorFields, hideUnreachableVendors } = require('../../services/
 const { canAccessProject } = require('../../services/permissionService');
 const {
   SUBLIST_LIMIT, SUBLIST_MAX, userAttrs, resolveProjectTaskId,
+  assertCanEditProject,
 } = require('./shared');
 
 // ==================== Materials ====================
@@ -43,6 +44,7 @@ const createMaterial = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  await assertCanEditProject(req.user, project);
 
   const { itemName, vendor, modelNumber, serialNumber, quantity, unitCost, taskId, notes } = req.body || {};
   if (!itemName || !itemName.trim()) throw new ApiError(400, 'Item name is required', 'VALIDATION_ERROR');
@@ -85,6 +87,7 @@ const updateMaterial = asyncHandler(async (req, res) => {
   if (!project || !(await canAccessProject(req.user, project))) {
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   }
+  await assertCanEditProject(req.user, project);
 
   const allowed = ['itemName', 'vendor', 'modelNumber', 'serialNumber', 'quantity', 'unitCost', 'taskId', 'notes'];
   const changes = {};
@@ -115,6 +118,7 @@ const removeMaterial = asyncHandler(async (req, res) => {
   if (!project || !(await canAccessProject(req.user, project))) {
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   }
+  await assertCanEditProject(req.user, project);
   await material.destroy();
   res.json({ ok: true });
 });

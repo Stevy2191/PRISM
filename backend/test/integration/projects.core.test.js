@@ -205,10 +205,16 @@ describe('PATCH /projects/:id', () => {
     expect(expectOk(await tech.agent.patch(projUrl(p)).send({ status: 'Bogus' })).project.status).toBe('Bogus');
   });
 
-  // Likely correct: projects.edit_own limits edits to the user's own projects. Expected to change in sub-project 3.
-  it('[quirk] Q26: edit access follows the view tier', async () => {
-    const p = await makeProject(w.admin.agent, { name: 'B project', ownerDepartmentId: w.deptB.id });
-    expect((await tech.agent.patch(projUrl(p)).send({ name: 'Edited' })).status).toBe(200);
+  it('Q26: edit access follows the edit tier', async () => {
+    const staff = await makeStaff('staff', w.deptA.id); // projects view_department, no edit tier
+    await grantOverride(staff.user.id, 'projects.edit_own', true);
+    const p = await makeProject(w.admin.agent, { name: 'A project', ownerDepartmentId: w.deptA.id });
+    expect((await staff.agent.get(projUrl(p))).status).toBe(200);
+    const res = await staff.agent.patch(projUrl(p)).send({ name: 'Edited' });
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: true, message: 'You do not have permission to edit this project', code: 'FORBIDDEN' });
+    await addMember(p, staff.user.id, 'member');
+    expect((await staff.agent.patch(projUrl(p)).send({ name: 'Edited' })).status).toBe(200);
   });
 
   it('own-tier users can\'t update others\' projects', async () => {
@@ -244,13 +250,15 @@ describe('DELETE /projects/:id', () => {
     expect(await models.TimeEntry.count({ where: { projectId: p.id } })).toBe(1);
   });
 
-  // Likely correct: refused like GET for a project out of scope. Expected to change in sub-project 2.
-  it('[quirk] Q28: delete does not re-check scope', async () => {
+  it('Q28: delete re-checks access and the edit tier', async () => {
     const staff = await makeStaff('staff', w.deptA.id);
     await grantOverride(staff.user.id, 'projects.delete', true);
-    const p = await makeProject(w.admin.agent, { name: 'B project', ownerDepartmentId: w.deptB.id });
-    expect((await staff.agent.get(projUrl(p))).status).toBe(403);
-    expect((await staff.agent.delete(projUrl(p))).status).toBe(200);
+    const hidden = await makeProject(w.admin.agent, { name: 'B project', ownerDepartmentId: w.deptB.id });
+    expect((await staff.agent.delete(projUrl(hidden))).body)
+      .toEqual({ error: true, message: 'You do not have access to this project', code: 'FORBIDDEN' });
+    const seen = await makeProject(w.admin.agent, { name: 'A project', ownerDepartmentId: w.deptA.id });
+    expect((await staff.agent.delete(projUrl(seen))).body)
+      .toEqual({ error: true, message: 'You do not have permission to edit this project', code: 'FORBIDDEN' });
   });
 });
 

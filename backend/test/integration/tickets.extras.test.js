@@ -18,7 +18,7 @@ describe('S3: links never reach a ticket the user cannot see', () => {
   let hidden;
   beforeEach(async () => {
     staff = await makeStaff('staff', w.deptA.id);
-    mine = await makeTicket(w.admin.agent, { title: 'Mine', contactId: w.contact.id, departmentId: w.deptA.id });
+    mine = await makeTicket(w.admin.agent, { title: 'Mine', contactId: w.contact.id, departmentId: w.deptA.id, assigneeId: staff.user.id });
     hidden = await makeTicket(w.admin.agent, { title: 'Secret', contactId: w.contact.id, departmentId: w.deptB.id });
   });
 
@@ -353,6 +353,7 @@ describe('S6: a ticket\'s project must be one the user can see', () => {
 
   it('update: same rule, and the ticket keeps its project', async () => {
     const t = await makeTicket(staff.agent, { ...base(), projectId: projA.id });
+    await models.Ticket.update({ assigneeId: staff.user.id }, { where: { id: t.id } }); // edit_own edits assigned tickets (Q26)
     const res = await staff.agent.patch(`${API}/tickets/${t.id}`).send({ projectId: projB.id });
     expect(res.status).toBe(400);
     expect(res.body).toEqual(refused);
@@ -361,6 +362,7 @@ describe('S6: a ticket\'s project must be one the user can see', () => {
 
   it('a visible project links (a numeric string is stored as the number), and null clears it', async () => {
     const t = await makeTicket(staff.agent, { ...base(), projectId: String(projA.id) });
+    await models.Ticket.update({ assigneeId: staff.user.id }, { where: { id: t.id } }); // edit_own edits assigned tickets (Q26)
     expect(t.projectId).toBe(projA.id);
     expect(t.project).toEqual({ id: projA.id, name: 'Visible' });
     const cleared = expectOk(await staff.agent.patch(`${API}/tickets/${t.id}`).send({ projectId: null })).ticket;
@@ -368,7 +370,7 @@ describe('S6: a ticket\'s project must be one the user can see', () => {
   });
 
   it('re-sending a ticket\'s existing project unchanged is not a new link', async () => {
-    const t = await makeTicket(w.admin.agent, { ...base(), projectId: projB.id });
+    const t = await makeTicket(w.admin.agent, { ...base(), projectId: projB.id, assigneeId: staff.user.id });
     const res = await staff.agent.patch(`${API}/tickets/${t.id}`).send({ title: 'Renamed', projectId: projB.id });
     expect(res.status).toBe(200);
   });
@@ -412,6 +414,7 @@ describe('S7: a ticket\'s contact must be one the user can see', () => {
 
   it('update: same rule, the ticket keeps its contact, and an unchanged re-send is fine', async () => {
     const t = await makeTicket(staff.agent, { title: 'T', contactId: w.contact.id, departmentId: w.deptA.id });
+    await models.Ticket.update({ assigneeId: staff.user.id }, { where: { id: t.id } }); // edit_own edits assigned tickets (Q26)
     const res = await staff.agent.patch(`${API}/tickets/${t.id}`).send({ contactId: contactB.id });
     expect(res.status).toBe(400);
     expect(res.body).toEqual(refused);

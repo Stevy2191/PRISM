@@ -132,13 +132,12 @@ it('the session flag reflects the permission or a team lead role', async () => {
   expect([await flag(mgr), await flag(lead), await flag(tech)]).toEqual([true, true, false]);
 });
 
-// Final review I2: until plan 3b-2 checks the edit tier, each side keeps the
-// gate it had before time.log existed — ticket time needs a ticket edit
-// permission, project time needs projects.log_time — so time.log alone
-// doesn't open a domain a role never could log in.
-describe('interim domain gates', () => {
-  const deny = async (u, permissionKey) => expectOk(
-    await w.admin.agent.post(`${API}/users/${u.user.id}/overrides`).send({ permissionKey, granted: false }), 201
+// Your own time needs time.log and view access to the ticket or project —
+// people log time on tickets they helped with (user decision 2026-10-06).
+// No ticket or project edit permission is involved, and projects.log_time is gone.
+describe('time needs time.log and view access', () => {
+  const setOverride = async (u, permissionKey, granted) => expectOk(
+    await w.admin.agent.post(`${API}/users/${u.user.id}/overrides`).send({ permissionKey, granted }), 201
   );
   let ticket;
   let project;
@@ -148,17 +147,19 @@ describe('interim domain gates', () => {
   });
   const logOn = (u, kind, parent) => u.agent.post(KINDS[kind].url(parent)).send({ durationMinutes: 5 });
 
-  it('ticket time also needs a ticket edit permission', async () => {
-    for (const key of ['tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all']) await deny(tech, key); // eslint-disable-line no-await-in-loop
-    expect((await logOn(tech, 'ticket', ticket)).status).toBe(403);
+  it('no edit permission is needed: logging and the timer work on view access', async () => {
+    for (const key of ['tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all', 'projects.edit_own', 'projects.edit_all']) {
+      await setOverride(tech, key, false); // eslint-disable-line no-await-in-loop
+    }
+    expect((await logOn(tech, 'ticket', ticket)).status).toBe(201);
     expect((await logOn(tech, 'project', project)).status).toBe(201);
-    expect((await tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: ticket.id })).status).toBe(403);
+    expect((await tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: ticket.id })).status).toBe(201);
+    expect((await tech.agent.post(`${API}/timer/start`).send({ type: 'project', id: project.id })).status).toBe(201);
   });
 
-  it('project time also needs projects.log_time', async () => {
-    await deny(tech, 'projects.log_time');
+  it('denying time.log stops logging on both sides', async () => {
+    await setOverride(tech, 'time.log', false);
+    expect((await logOn(tech, 'ticket', ticket)).status).toBe(403);
     expect((await logOn(tech, 'project', project)).status).toBe(403);
-    expect((await logOn(tech, 'ticket', ticket)).status).toBe(201);
-    expect((await tech.agent.post(`${API}/timer/start`).send({ type: 'project', id: project.id })).status).toBe(403);
   });
 });

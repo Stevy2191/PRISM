@@ -6,6 +6,7 @@ const { parsePagination, paginated } = require('../../utils/pagination');
 const { canAccessProject } = require('../../services/permissionService');
 const {
   SUBLIST_LIMIT, SUBLIST_MAX, userAttrs, resolveProjectTaskId,
+  assertCanEditProject,
 } = require('./shared');
 
 // ==================== Expenses ====================
@@ -40,6 +41,7 @@ const createExpense = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  await assertCanEditProject(req.user, project);
 
   const { description, amount, category, entryDate, taskId } = req.body || {};
   if (!description || !description.trim()) throw new ApiError(400, 'Description is required', 'VALIDATION_ERROR');
@@ -69,6 +71,7 @@ const updateExpense = asyncHandler(async (req, res) => {
   if (!project || !(await canAccessProject(req.user, project))) {
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   }
+  await assertCanEditProject(req.user, project);
 
   const allowed = ['description', 'amount', 'category', 'entryDate', 'taskId'];
   const changes = {};
@@ -89,6 +92,7 @@ const removeExpense = asyncHandler(async (req, res) => {
   if (!project || !(await canAccessProject(req.user, project))) {
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   }
+  await assertCanEditProject(req.user, project);
   await expense.destroy();
   res.json({ ok: true });
 });

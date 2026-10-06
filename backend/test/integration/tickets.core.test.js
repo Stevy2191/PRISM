@@ -170,12 +170,13 @@ describe('GET /tickets/:id and scope', () => {
     expect((await staff.agent.get(`${API}/tickets/${inBMine.id}`)).status).toBe(200);
   });
 
-  // Likely correct: tickets.edit_own limits edits to the user's own tickets. Expected to change in sub-project 3.
-  it('[quirk] Q26: edit access follows the view tier, not the edit tier', async () => {
-    const t = await makeTicket(w.admin.agent, { ...base(), departmentId: w.deptB.id });
-    const res = await tech.agent.patch(`${API}/tickets/${t.id}`).send({ priority: 'low' });
-    expect(res.status).toBe(200);
-    expect(res.body.ticket.priority).toBe('low');
+  it('Q26: edit access follows the edit tier', async () => {
+    const staff = await makeStaff('staff', w.deptA.id); // tickets view_department + edit_own
+    const t = await makeTicket(w.admin.agent, { ...base(), departmentId: w.deptA.id });
+    expect((await staff.agent.get(`${API}/tickets/${t.id}`)).status).toBe(200);
+    const res = await staff.agent.patch(`${API}/tickets/${t.id}`).send({ priority: 'low' });
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: true, message: 'You do not have permission to edit this ticket', code: 'FORBIDDEN' });
   });
 });
 
@@ -297,13 +298,16 @@ describe('DELETE /tickets/:id', () => {
     expect(res.body.message).toBe('Ticket not found');
   });
 
-  // Likely correct: refused like GET for a ticket out of the caller's scope. Expected to change in sub-project 2.
-  it('[quirk] Q28: delete does not re-check scope', async () => {
+  it('Q28: delete re-checks access and the edit tier', async () => {
     const staff = await makeStaff('staff', w.deptA.id);
     await grantOverride(staff.user.id, 'tickets.delete', true);
-    const t = await makeTicket(w.admin.agent, { ...base(), departmentId: w.deptB.id });
-    expect((await staff.agent.get(`${API}/tickets/${t.id}`)).status).toBe(403);
-    expect((await staff.agent.delete(`${API}/tickets/${t.id}`)).status).toBe(200);
+    const hidden = await makeTicket(w.admin.agent, { ...base(), departmentId: w.deptB.id });
+    expect((await staff.agent.delete(`${API}/tickets/${hidden.id}`)).body)
+      .toEqual({ error: true, message: 'You do not have access to this ticket', code: 'FORBIDDEN' });
+    const seen = await makeTicket(w.admin.agent, { ...base(), departmentId: w.deptA.id });
+    expect((await staff.agent.delete(`${API}/tickets/${seen.id}`)).body)
+      .toEqual({ error: true, message: 'You do not have permission to edit this ticket', code: 'FORBIDDEN' });
+    expect((await w.admin.agent.get(`${API}/tickets/${seen.id}`)).status).toBe(200);
   });
 });
 

@@ -3,7 +3,7 @@ const { Ticket, CustomField, TicketFieldValue, sequelize } = require('../../mode
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { logActivity } = require('../../services/ticketActivity');
 const { canAccessTicket } = require('../../services/permissionService');
-const { syncCustomFieldValues, buildCustomFieldsObject } = require('./shared');
+const { syncCustomFieldValues, buildCustomFieldsObject, assertCanEditTicket } = require('./shared');
 
 // ---- Custom field values (admin-defined, Settings -> Layouts & Fields) ----
 
@@ -22,6 +22,7 @@ const updateCustomFieldValues = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  await assertCanEditTicket(req.user, ticket);
 
   const values = req.body?.values;
   if (!values || typeof values !== 'object' || Array.isArray(values)) {

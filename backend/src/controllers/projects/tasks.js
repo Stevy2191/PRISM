@@ -5,11 +5,14 @@ const { Project } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { canAccessProject } = require('../../services/permissionService');
 const tasks = require('../../services/tasks');
+const { assertCanEditProject } = require('./shared');
 
-async function projectFor(req) {
+// Reading needs view access; changing tasks needs the edit tier (Q26).
+async function projectFor(req, { edit = true } = {}) {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  if (edit) await assertCanEditProject(req.user, project);
   return tasks.projectParent(project);
 }
 
@@ -29,7 +32,7 @@ async function subtaskFor(parent, req) {
 
 // GET /projects/:id/tasks — top-level tasks with their subtasks
 const listTasks = asyncHandler(async (req, res) => {
-  res.json({ tasks: await tasks.listTasks(await projectFor(req)) });
+  res.json({ tasks: await tasks.listTasks(await projectFor(req, { edit: false })) });
 });
 
 // POST /projects/:id/tasks — { title, description?, statusId?, priority?, assigneeId?, dueDate?, estimateMinutes?, parentTaskId?, linkedTicketId? }

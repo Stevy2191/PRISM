@@ -13,6 +13,8 @@ const {
   Company,
 } = require('../../models');
 const { Op, col } = require('sequelize');
+const { ApiError } = require('../../middleware/error');
+const { canEditTicket } = require('../../services/permissionService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 
@@ -124,7 +126,14 @@ const SUBLIST_LIMIT = 25;
 // 200 used for browsable tables.
 const SUBLIST_MAX = 500;
 
+// Changing a ticket's own data needs the edit tier on it (Q26); call after
+// the view check, which answers "can't see it" first.
+async function assertCanEditTicket(user, ticket) {
+  if (!(await canEditTicket(user, ticket))) throw new ApiError(403, 'You do not have permission to edit this ticket', 'FORBIDDEN');
+}
+
 module.exports = {
+  assertCanEditTicket,
   ticketInclude,
   withCustomFields,
   syncCustomFieldValues,

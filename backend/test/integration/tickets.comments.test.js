@@ -109,8 +109,9 @@ describe('comments', () => {
 
   it('edit_own users cannot edit others\' comments', async () => {
     const mgr2 = await makeManager('mgr2', w.deptA.id);
+    const staff = await makeStaff('staff', w.deptA.id); // edit_own (System Technician holds edit_all since plan 3b-2)
     const c = await post(mgr2.agent, { body: 'theirs' });
-    const res = await tech.agent.patch(`${commentsUrl()}/${c.id}`).send({ body: 'mine now' });
+    const res = await staff.agent.patch(`${commentsUrl()}/${c.id}`).send({ body: 'mine now' });
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: true, message: 'You can only edit your own comments', code: 'FORBIDDEN' });
   });
@@ -124,8 +125,9 @@ describe('comments', () => {
 
   it('edit_own users cannot delete others\' comments', async () => {
     const mgr = await makeManager('mgr', w.deptA.id);
+    const staff = await makeStaff('staff', w.deptA.id); // edit_own
     const c = await post(mgr.agent, { body: 'theirs' });
-    const res = await tech.agent.delete(`${commentsUrl()}/${c.id}`);
+    const res = await staff.agent.delete(`${commentsUrl()}/${c.id}`);
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('You can only delete your own comments');
   });
@@ -229,7 +231,8 @@ describe('attachments', () => {
     const own = await upload(tech.agent, 'own.txt');
     expect((await tech.agent.delete(`${attachUrl()}/${own.id}`)).status).toBe(200);
     const mgrs = await upload(mgr.agent, 'mgr.txt');
-    const refused = await tech.agent.delete(`${attachUrl()}/${mgrs.id}`);
+    const staff = await makeStaff('staff', w.deptA.id); // edit_own (System Technician holds edit_all since plan 3b-2)
+    const refused = await staff.agent.delete(`${attachUrl()}/${mgrs.id}`);
     expect(refused.status).toBe(403);
     expect(refused.body.message).toBe('You can only remove your own attachments');
     const techs = await upload(tech.agent, 'tech.txt');

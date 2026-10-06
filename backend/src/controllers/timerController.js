@@ -3,22 +3,15 @@
 // ledger through services/time.
 const { ActiveTimer, Ticket, Project, Task } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
-const {
-  canAccessTicket, canAccessProject, parseRecordId, hasAnyPermission,
-} = require('../services/permissionService');
+const { canAccessTicket, canAccessProject, parseRecordId } = require('../services/permissionService');
 const { ticketParent, projectParent } = require('../services/tasks');
 const time = require('../services/time');
 
-// gate: what logging time there needs besides time.log, until plan 3b-2's
-// edit tier — the same keys as the ticket and project time routes.
+// A timer logs your own time, which needs time.log (the route) and view
+// access to the ticket or project (user decision 2026-10-06).
 const KINDS = {
-  ticket: {
-    Model: Ticket, toParent: ticketParent, canAccess: canAccessTicket, label: 'Ticket',
-    gate: ['tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all'],
-  },
-  project: {
-    Model: Project, toParent: projectParent, canAccess: canAccessProject, label: 'Project', gate: ['projects.log_time'],
-  },
+  ticket: { Model: Ticket, toParent: ticketParent, canAccess: canAccessTicket, label: 'Ticket' },
+  project: { Model: Project, toParent: projectParent, canAccess: canAccessProject, label: 'Project' },
 };
 const kindOf = (type) => (Object.hasOwn(KINDS, type) ? KINDS[type] : null); // never Object.prototype's keys
 const DISCARDED = {
@@ -39,7 +32,7 @@ async function logTimer(req, timer, note) {
   const kind = kindOf(timer.entityType);
   const record = kind && await kind.Model.findByPk(timer.entityId);
   if (!record) return { entry: null, discarded: DISCARDED.gone };
-  if (!(await kind.canAccess(req.user, record)) || !(await hasAnyPermission(req.user.id, kind.gate))) {
+  if (!(await kind.canAccess(req.user, record))) {
     return { entry: null, discarded: DISCARDED.denied };
   }
   const entry = await time.logTimerEntry(req, kind.toParent(record), {
@@ -59,7 +52,6 @@ const start = asyncHandler(async (req, res) => {
   const { type, label } = req.body || {};
   const kind = kindOf(type);
   if (!kind) throw new ApiError(400, 'Invalid timer type', 'VALIDATION_ERROR');
-  if (!(await hasAnyPermission(req.user.id, kind.gate))) throw new ApiError(403, 'Insufficient permissions', 'FORBIDDEN');
   const targetId = parseRecordId(req.body?.id);
   if (!targetId) throw new ApiError(400, 'A target id is required', 'VALIDATION_ERROR');
   const record = await kind.Model.findByPk(targetId);

@@ -35,10 +35,11 @@ const { UPLOAD_ROOT } = require('../../middleware/upload');
 const {
   canAccessProject,
   parseRecordId,
-  canAccessCompany,
 } = require('../../services/permissionService');
 const { generateProjectCode } = require('../../services/projectCodeService');
-const { userAttrs, projectInclude, buildProjectStats, getProjectWithDetail } = require('./shared');
+const {
+  userAttrs, projectInclude, buildProjectStats, getProjectWithDetail, assertCanEditProject,
+} = require('./shared');
 
 // ==================== Projects ====================
 
@@ -286,6 +287,7 @@ const update = asyncHandler(async (req, res) => {
   if (!(await canAccessProject(req.user, project))) {
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   }
+  await assertCanEditProject(req.user, project);
 
   const allowed = [
     'name', 'description', 'status', 'ownerDepartmentId', 'forDepartmentId',
@@ -345,9 +347,10 @@ const update = asyncHandler(async (req, res) => {
 const remove = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
-  // The company fence applies to every write, deletes included. (The tier
-  // re-check is still missing here: quirk Q28, pinned until sub-project 3.)
-  if (!(await canAccessCompany(req.user, project.companyId))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  // Deletes need the edit tier on the record (Q28) as well as the delete
+  // permission the route checks, and the company fence inside canAccess.
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  await assertCanEditProject(req.user, project);
 
   const filesDir = path.join(UPLOAD_ROOT, 'projects', String(project.id));
   await project.destroy();

@@ -8,9 +8,10 @@ const router = express.Router();
 const viewMin = requirePermission('tickets.view_own', 'tickets.view_department', 'tickets.view_all');
 const editMin = requirePermission('tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all');
 const manageWatchers = requirePermission('tickets.manage_watchers');
-// Ticket time needs time.log and, until plan 3b-2 checks the edit tier, the
-// ticket edit permission it always needed.
-const logTime = [requirePermission('time.log'), editMin];
+// Your own time needs time.log and view access, which the controller
+// checks (user decision 2026-10-06); someone else's needs
+// time.manage_others or leading their team (services/time).
+const logTime = requirePermission('time.log');
 
 // Tickets
 router.get('/', viewMin, ctrl.list);

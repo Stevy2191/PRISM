@@ -314,6 +314,31 @@ async function canAccessProject(user, project) {
 }
 
 
+// The edit tier (Q26): writes to a record's own data check *.edit_* against
+// that record, on top of being able to see it. The tiers mirror the view
+// tiers. A department match needs a real department on both sides.
+const sameDept = (a, b) => a != null && b != null && a === b;
+
+async function canEditTicket(user, ticket) {
+  if (!(await canAccessTicket(user, ticket))) return false;
+  const p = await resolveUserPermissions(user.id);
+  if (p['tickets.edit_all']) return true;
+  if (p['tickets.edit_department'] && sameDept(ticket.departmentId, user.departmentId)) return true;
+  return !!(p['tickets.edit_department'] || p['tickets.edit_own']) && ticket.assigneeId === user.id;
+}
+
+async function canEditProject(user, project) {
+  if (!(await canAccessProject(user, project))) return false;
+  const p = await resolveUserPermissions(user.id);
+  if (p['projects.edit_all']) return true;
+  const isMember = !!(await ProjectMember.findOne({ where: { projectId: project.id, userId: user.id } }));
+  if (p['projects.edit_department']
+    && (sameDept(project.ownerDepartmentId, user.departmentId) || sameDept(project.forDepartmentId, user.departmentId) || isMember)) {
+    return true;
+  }
+  return !!(p['projects.edit_department'] || p['projects.edit_own']) && (isMember || project.assignedToUserId === user.id);
+}
+
 // Authority over content someone else created on a ticket (editing or
 // deleting another user's comment or attachment). This used to be an
 // isStaff() test against the legacy User.role enum — but that enum is
@@ -357,6 +382,8 @@ module.exports = {
   getUserProjectScope,
   getUserReportScope,
   canAccessTicket,
+  canEditTicket,
+  canEditProject,
   findAccessibleTicket,
   parseTicketId,
   parseRecordId,

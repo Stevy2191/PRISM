@@ -103,10 +103,8 @@ export default function ProjectDetail() {
   const canDeleteProjects = usePermission('projects.delete');
   const canManageMembers = usePermission('projects.manage_members');
   const canManageExpenses = usePermission('projects.manage_expenses');
-  // Project time needs time.log and, until plan 3b-2, projects.log_time (as the server does).
-  const hasTimeLog = usePermission('time.log');
-  const hasProjectLogTime = usePermission('projects.log_time');
-  const canLogTime = hasTimeLog && hasProjectLogTime;
+  // Your own time needs time.log and view access, which being here means (as the server does).
+  const canLogTime = usePermission('time.log');
   const canEditProjectContent = hasAnyPermission(['projects.edit_own', 'projects.edit_department', 'projects.edit_all']);
   const navigate = useNavigate();
   const { showToast } = useToast();

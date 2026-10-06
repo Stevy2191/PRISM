@@ -5,6 +5,7 @@ const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { logActivity } = require('../../services/ticketActivity');
 const { canAccessTicket, findAccessibleTicket } = require('../../services/permissionService');
+const { assertCanEditTicket } = require('./shared');
 
 // ---- Related tickets ----
 
@@ -46,6 +47,7 @@ const createRelation = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  await assertCanEditTicket(req.user, ticket);
 
   const { relatedTicketId, relationType } = req.body || {};
   if (relatedTicketId === undefined || relatedTicketId === null || relatedTicketId === '') {
@@ -109,6 +111,7 @@ const removeRelation = asyncHandler(async (req, res) => {
   if (!ticket || !(await canAccessTicket(req.user, ticket))) {
     throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
   }
+  await assertCanEditTicket(req.user, ticket);
   await relation.destroy();
   await writeAudit(req, 'relation.delete', 'TicketRelation', relation.id, { ticketId: req.params.id });
   res.json({ ok: true });
