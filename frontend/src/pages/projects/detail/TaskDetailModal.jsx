@@ -11,7 +11,7 @@ export function TaskDetailModal({ projectId, task, statuses, assignableUsers, on
   const [description, setDescription] = useState(task.description || '');
   const [statusId, setStatusId] = useState(task.statusId);
   const [priority, setPriority] = useState(task.priority);
-  const [assignedToUserId, setAssignedToUserId] = useState(task.assignedToUserId || '');
+  const [assignedToUserId, setAssignedToUserId] = useState(task.assigneeId || '');
   const [dueDate, setDueDate] = useState(task.dueDate || '');
   const [subtasks, setSubtasks] = useState(task.subtasks || []);
   const [newSubtask, setNewSubtask] = useState('');
@@ -21,7 +21,7 @@ export function TaskDetailModal({ projectId, task, statuses, assignableUsers, on
     setSaving(true);
     try {
       await api.patch(`/projects/${projectId}/tasks/${task.id}`, {
-        title, description, statusId, priority, assignedToUserId: assignedToUserId || null, dueDate: dueDate || null,
+        title, description, statusId, priority, assigneeId: assignedToUserId || null, dueDate: dueDate || null,
       });
       await onChanged();
       onClose();
@@ -65,9 +65,9 @@ export function TaskDetailModal({ projectId, task, statuses, assignableUsers, on
 
   return (
     <Modal title="Task details" onClose={onClose} wide>
-      {task.taskCode && (
+      {task.code && (
         <div className="mb-3">
-          <EditableCode code={task.taskCode} letter="T" onRename={renumberTask} />
+          <EditableCode code={task.code} letter="T" onRename={renumberTask} />
         </div>
       )}
       <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Title</label>
@@ -108,7 +108,7 @@ export function TaskDetailModal({ projectId, task, statuses, assignableUsers, on
           {subtasks.map((st) => (
             <li key={st.id} className="flex flex-wrap items-center gap-2 text-sm">
               <input type="checkbox" checked={!!st.completedAt} onChange={() => toggleSubtask(st)} className="h-4 w-4" />
-              {st.subtaskCode && <EditableCode code={st.subtaskCode} letter="S" onRename={(n) => renumberSubtask(st, n)} />}
+              {st.code && <EditableCode code={st.code} letter="S" onRename={(n) => renumberSubtask(st, n)} />}
               <span className="flex-1" style={{ color: st.completedAt ? MUTED : TEXT, textDecoration: st.completedAt ? 'line-through' : 'none' }}>{st.title}</span>
               <button onClick={() => removeSubtask(st.id)} style={{ color: 'var(--color-danger)' }}><IconX size={14} /></button>
             </li>

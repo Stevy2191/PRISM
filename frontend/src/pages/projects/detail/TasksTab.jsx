@@ -116,8 +116,8 @@ export function TasksTab({ tasks, isStaff, canEdit, statuses, assignableUsers, o
                 />
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onOpenTask(task)}>
                   <div className="flex flex-wrap items-center gap-2">
-                    {task.taskCode && (
-                      <EditableCode code={task.taskCode} letter="T" disabled={!canEdit} onRename={(n) => renumberTask(task, n)} />
+                    {task.code && (
+                      <EditableCode code={task.code} letter="T" disabled={!canEdit} onRename={(n) => renumberTask(task, n)} />
                     )}
                     <span className="font-medium" style={{ color: task.isComplete ? MUTED : TEXT, textDecoration: task.isComplete ? 'line-through' : 'none' }}>
                       {task.title}
@@ -159,8 +159,8 @@ export function TasksTab({ tasks, isStaff, canEdit, statuses, assignableUsers, o
                       {subtasks.map((st) => (
                         <li key={st.id} className="flex flex-wrap items-center gap-2 text-sm">
                           <input type="checkbox" checked={!!st.completedAt} onChange={() => onToggleSubtask(task, st)} className="h-3.5 w-3.5" />
-                          {st.subtaskCode && (
-                            <EditableCode code={st.subtaskCode} letter="S" disabled={!canEdit} onRename={(n) => renumberSubtask(task, st, n)} />
+                          {st.code && (
+                            <EditableCode code={st.code} letter="S" disabled={!canEdit} onRename={(n) => renumberSubtask(task, st, n)} />
                           )}
                           <span style={{ color: st.completedAt ? MUTED : TEXT, textDecoration: st.completedAt ? 'line-through' : 'none' }}>{st.title}</span>
                           <Avatar name={st.assignee?.displayName} size={16} />
@@ -217,7 +217,7 @@ export function AddTaskModal({ statuses, assignableUsers, onClose, onSave }) {
     if (!title.trim()) return;
     setSaving(true);
     try {
-      await onSave({ title, description, statusId: statusId || undefined, priority, assignedToUserId: assignedToUserId || null, dueDate: dueDate || null });
+      await onSave({ title, description, statusId: statusId || undefined, priority, assigneeId: assignedToUserId || null, dueDate: dueDate || null });
     } finally {
       setSaving(false);
     }

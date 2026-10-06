@@ -110,6 +110,8 @@ export default function ProjectDetail() {
 
   const [project, setProject] = useState(null);
   const [statuses, setStatuses] = useState([]);
+  // Project tasks have their own status list (sub-project 3), separate from the project's.
+  const [taskStatuses, setTaskStatuses] = useState([]);
   const [assignableUsers, setAssignableUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -182,6 +184,7 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     api.get('/project-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
+    api.get('/task-statuses', { params: { scope: 'project' } }).then(({ data }) => setTaskStatuses(data.statuses)).catch(() => {});
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
     api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
     api.get('/users/directory').then(({ data }) => setDirectory(data.users)).catch(() => {});
@@ -258,8 +261,8 @@ export default function ProjectDetail() {
   };
 
   const toggleTaskComplete = async (task) => {
-    const closedStatus = statuses.find((s) => s.behaviorType === 'closed');
-    const openStatus = statuses.find((s) => s.behaviorType === 'open');
+    const closedStatus = taskStatuses.find((s) => s.behaviorType === 'closed');
+    const openStatus = taskStatuses.find((s) => s.behaviorType === 'open');
     const target = task.isComplete ? openStatus : closedStatus;
     if (!target) return;
     await api.patch(`/projects/${id}/tasks/${task.id}`, { statusId: target.id });
@@ -269,9 +272,9 @@ export default function ProjectDetail() {
   };
 
   const toggleSubtaskComplete = async (task, subtask) => {
-    const closedStatus = statuses.find((s) => s.behaviorType === 'closed');
-    const openStatus = statuses.find((s) => s.behaviorType === 'open');
-    const isClosed = statuses.find((s) => s.id === subtask.statusId)?.behaviorType === 'closed';
+    const closedStatus = taskStatuses.find((s) => s.behaviorType === 'closed');
+    const openStatus = taskStatuses.find((s) => s.behaviorType === 'open');
+    const isClosed = taskStatuses.find((s) => s.id === subtask.statusId)?.behaviorType === 'closed';
     const target = isClosed ? openStatus : closedStatus;
     if (!target) return;
     await api.patch(`/projects/${id}/tasks/${task.id}/subtasks/${subtask.id}`, { statusId: target.id });
@@ -442,7 +445,7 @@ export default function ProjectDetail() {
           tasks={tasks}
           isStaff={isStaff}
           canEdit={canEditProjectContent}
-          statuses={statuses}
+          statuses={taskStatuses}
           assignableUsers={assignableUsers}
           onOpenTask={setOpenTask}
           onAdd={() => setShowAddTask(true)}
@@ -525,7 +528,7 @@ export default function ProjectDetail() {
       {/* ---- Modals ---- */}
       {showAddTask && (
         <AddTaskModal
-          statuses={statuses}
+          statuses={taskStatuses}
           assignableUsers={assignableUsers}
           onClose={() => setShowAddTask(false)}
           onSave={async (payload) => {
@@ -541,7 +544,7 @@ export default function ProjectDetail() {
         <TaskDetailModal
           projectId={id}
           task={openTask}
-          statuses={statuses}
+          statuses={taskStatuses}
           assignableUsers={assignableUsers}
           onClose={() => setOpenTask(null)}
           onChanged={async () => { await reloadTasks(); await reloadProject(); await reloadActivity(); }}

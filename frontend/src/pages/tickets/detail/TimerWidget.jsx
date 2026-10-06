@@ -331,7 +331,7 @@ export function OtherTicketTimerBanner({ otherTicket, now, onCleared }) {
     setBusy(true);
     try {
       const minutes = Math.max(1, Math.round(seconds / 60));
-      await api.post(`/tickets/${otherTicket.ticketId}/time`, { minutes });
+      await api.post(`/tickets/${otherTicket.ticketId}/time`, { durationMinutes: minutes });
       onCleared();
     } catch (err) {
       alert(errMessage(err));

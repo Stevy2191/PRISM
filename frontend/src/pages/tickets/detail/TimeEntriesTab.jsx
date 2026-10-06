@@ -26,7 +26,7 @@ function roundDownTo5(date) {
 
 // ---- Time entries tab ----
 
-export function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, canLogTimeForOthers, currentUser }) {
+export function TimeEntriesTab({ entries, totalSeconds, onAdd, assignableUsers, canLogTimeForOthers, currentUser }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const [modalOpen, setModalOpen] = useState(false);
   const [description, setDescription] = useState('');
@@ -80,7 +80,7 @@ export function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, 
         <ul className="divide-y" style={{ borderColor: BORDER }}>
           {entries.map((e) => {
             const loggedByOther = e.loggedById && e.userId != null && e.loggedById !== e.userId;
-            const displayMinutes = e.durationSeconds != null ? Math.round(e.durationSeconds / 60) : e.minutes;
+            const displayMinutes = Math.round(e.durationSeconds / 60);
             return (
               <li key={e.id} className="flex items-center justify-between px-4 py-3">
                 <div>
@@ -104,7 +104,7 @@ export function TimeEntriesTab({ entries, totalMinutes, onAdd, assignableUsers, 
         </ul>
       </div>
       <div className="mt-3 text-right text-sm font-semibold" style={{ color: TEXT }}>
-        Total: {formatMinutes(totalMinutes)}
+        Total: {formatMinutes(Math.round(totalSeconds / 60))}
       </div>
 
       {modalOpen && (

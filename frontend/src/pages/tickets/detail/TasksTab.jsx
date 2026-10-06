@@ -9,14 +9,17 @@ export function TasksTab({ tasks, assignableUsers, onToggle, onReassign, onAdd }
   return (
     <div>
       <ul className="space-y-2">
-        {tasks.map((t) => (
+        {tasks.map((t) => {
+          const done = t.status?.behaviorType === 'closed';
+          return (
           <li key={t.id} className="flex items-center gap-3 rounded-[10px] border p-3" style={{ borderColor: BORDER, backgroundColor: CARD_BG }}>
-            <input type="checkbox" checked={t.completed} onChange={() => onToggle(t)} className="h-4 w-4 accent-blue-500" />
+            <input type="checkbox" checked={done} onChange={() => onToggle(t)} className="h-4 w-4 accent-blue-500" />
             <span
               className="flex-1 text-sm"
-              style={{ color: t.completed ? MUTED : TEXT, textDecoration: t.completed ? 'line-through' : 'none' }}
+              style={{ color: done ? MUTED : TEXT, textDecoration: done ? 'line-through' : 'none' }}
             >
-              {t.description}
+              {t.code && <span className="mr-2 font-mono text-xs" style={{ color: MUTED }}>{t.code}</span>}
+              {t.title}
             </span>
             <select
               value={t.assigneeId || ''}
@@ -28,7 +31,8 @@ export function TasksTab({ tasks, assignableUsers, onToggle, onReassign, onAdd }
               {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
             </select>
           </li>
-        ))}
+          );
+        })}
         {tasks.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No tasks yet.</p>}
       </ul>
       <input

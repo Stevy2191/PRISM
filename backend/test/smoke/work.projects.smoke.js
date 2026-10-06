@@ -20,7 +20,7 @@ beforeAll(async () => {
   const task = await makeTask(a, project.id, { title: 'Seeded project task' });
   await makeSubtask(a, project.id, task.id, { title: 'Seeded subtask' });
   expectOk(await a.post(`${API}/projects/${project.id}/time-entries`).send({
-    startTime: '2026-03-10T13:00:00Z', endTime: '2026-03-10T14:00:00Z', entryDate: '2026-03-10', description: 'Seeded project time',
+    startTime: '2026-03-10T13:00:00Z', endTime: '2026-03-10T14:00:00Z', entryDate: '2026-03-10', note: 'Seeded project time',
   }), 201);
   expectOk(await a.post(`${API}/projects/${project.id}/expenses`).send({ description: 'Seeded expense', amount: 12 }), 201);
   expectOk(await a.post(`${API}/projects/${project.id}/materials`).send({ itemName: 'Seeded material', quantity: 1, unitCost: 3 }), 201);

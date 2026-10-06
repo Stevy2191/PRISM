@@ -33,6 +33,13 @@ function activityDescription(a) {
   if (a.action === 'attachment_added') return `${actor} added attachment "${a.toValue}"`;
   if (a.action === 'relation_added') return `${actor} linked ${a.toValue}`;
   if (a.action === 'custom_fields') return `${actor} updated a custom field`;
+  if (a.action === 'task_created' || a.action === 'subtask_created') return `${actor} added task ${a.toValue}`;
+  if (a.action === 'task_closed' || a.action === 'subtask_closed') return `${actor} completed task ${a.toValue}`;
+  if (a.action === 'task_reopened' || a.action === 'subtask_reopened') return `${actor} reopened task ${a.toValue}`;
+  if (a.action === 'task_updated' || a.action === 'subtask_updated') return `${actor} edited a task (${a.toValue})`;
+  if (a.action === 'task_deleted' || a.action === 'subtask_deleted') return `${actor} deleted task ${a.toValue}`;
+  if (a.action === 'task_renumbered' || a.action === 'subtask_renumbered') return `${actor} renumbered task ${a.fromValue} to ${a.toValue}`;
+  if (a.action === 'tasks_reordered') return `${actor} reordered the tasks`;
   if (ACTIVITY_FIELD_LABEL[a.action]) {
     return `${actor} changed ${ACTIVITY_FIELD_LABEL[a.action]} from ${a.fromValue || 'none'} to ${a.toValue || 'none'}`;
   }

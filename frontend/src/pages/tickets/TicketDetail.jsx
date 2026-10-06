@@ -86,10 +86,11 @@ export default function TicketDetail() {
   const [commentLimit, setCommentLimit] = useState(SUBLIST_STEP);
   const [commentTotal, setCommentTotal] = useState(0);
   const [attachments, setAttachments] = useState([]);
-  const [time, setTime] = useState({ entries: [], totalMinutes: 0 });
+  const [time, setTime] = useState({ entries: [], totalSeconds: 0 });
   const [relations, setRelations] = useState([]);
   const [watchers, setWatchers] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [taskStatuses, setTaskStatuses] = useState([]);
   const [activity, setActivity] = useState([]);
   const [activityLimit, setActivityLimit] = useState(SUBLIST_STEP);
   const [activityTotal, setActivityTotal] = useState(0);
@@ -121,7 +122,7 @@ export default function TicketDetail() {
     setLoading(true);
     setError('');
     try {
-      const [t, c, a, tm, rel, w, tk, act] = await Promise.all([
+      const [t, c, a, tm, rel, w, tk, act, ts] = await Promise.all([
         api.get(`/tickets/${id}`),
         api.get(`/tickets/${id}/comments`, { params: { limit: commentLimit } }),
         api.get(`/tickets/${id}/attachments`, { params: { limit: 'all' } }),
@@ -130,6 +131,7 @@ export default function TicketDetail() {
         api.get(`/tickets/${id}/watchers`),
         api.get(`/tickets/${id}/tasks`),
         api.get(`/tickets/${id}/activity`, { params: { limit: activityLimit } }),
+        api.get('/task-statuses', { params: { scope: 'ticket' } }),
       ]);
       setTicket(t.data.ticket);
       setComments(c.data.comments);
@@ -139,6 +141,7 @@ export default function TicketDetail() {
       setRelations(rel.data.relations);
       setWatchers(w.data.watchers);
       setTasks(tk.data.tasks);
+      setTaskStatuses(ts.data.statuses);
       setActivity(act.data.activity);
       setActivityTotal(act.data.total);
     } catch (err) {
@@ -214,7 +217,7 @@ export default function TicketDetail() {
       const minutes = Math.max(1, Math.round(seconds / 60));
       navigator.sendBeacon(
         `/api/v1/tickets/${ticket.id}/time`,
-        new Blob([JSON.stringify({ minutes })], { type: 'application/json' })
+        new Blob([JSON.stringify({ durationMinutes: minutes })], { type: 'application/json' })
       );
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -234,14 +237,14 @@ export default function TicketDetail() {
         if (window.confirm(
           `This entry is ${formatHMS(seconds)} — below your minimum threshold of ${formatHMS(user.timerMinThreshold)}. Log it anyway?`
         )) {
-          api.post(`/tickets/${ticket.id}/time`, { minutes }).catch(() => {});
+          api.post(`/tickets/${ticket.id}/time`, { durationMinutes: minutes }).catch(() => {});
         }
       } else if (user.timerPromptBeforeLog) {
         if (window.confirm(`Log ${formatHMS(seconds)} of time to this ticket before leaving?`)) {
-          api.post(`/tickets/${ticket.id}/time`, { minutes }).catch(() => {});
+          api.post(`/tickets/${ticket.id}/time`, { durationMinutes: minutes }).catch(() => {});
         }
       } else {
-        api.post(`/tickets/${ticket.id}/time`, { minutes }).catch(() => {});
+        api.post(`/tickets/${ticket.id}/time`, { durationMinutes: minutes }).catch(() => {});
       }
       t.stopToIdle();
     };
@@ -297,7 +300,7 @@ export default function TicketDetail() {
   // "Close without resolution" falls through into that second check rather
   // than skipping it.
   const applyStatusChange = (status) => {
-    if (closedStatusNames.includes(status) && time.totalMinutes === 0) {
+    if (closedStatusNames.includes(status) && time.totalSeconds === 0) {
       setNoTimeWarning(status);
     } else {
       patchTicket({ status });
@@ -398,17 +401,21 @@ export default function TicketDetail() {
     }
   };
 
-  const addTask = async (description) => {
+  const addTask = async (title) => {
     try {
-      const { data } = await api.post(`/tickets/${id}/tasks`, { description });
+      const { data } = await api.post(`/tickets/${id}/tasks`, { title });
       setTasks((prev) => [...prev, data.task]);
     } catch (err) {
       alert(errMessage(err));
     }
   };
+  // The checkbox moves a task between the first open and first closed status.
   const toggleTask = async (task) => {
+    const closed = task.status?.behaviorType === 'closed';
+    const next = taskStatuses.find((st) => st.behaviorType === (closed ? 'open' : 'closed'));
+    if (!next) return;
     try {
-      const { data } = await api.patch(`/tickets/${id}/tasks/${task.id}`, { completed: !task.completed });
+      const { data } = await api.patch(`/tickets/${id}/tasks/${task.id}`, { statusId: next.id });
       setTasks((prev) => prev.map((t) => (t.id === task.id ? data.task : t)));
     } catch (err) {
       alert(errMessage(err));
@@ -431,7 +438,7 @@ export default function TicketDetail() {
       entryDate,
       userId: loggedForId,
     });
-    setTime((t) => ({ entries: [data.entry, ...t.entries], totalMinutes: t.totalMinutes + data.entry.minutes }));
+    setTime((t) => ({ entries: [data.entry, ...t.entries], totalSeconds: t.totalSeconds + data.entry.durationSeconds }));
     reloadActivity();
   };
 
@@ -628,7 +635,7 @@ export default function TicketDetail() {
             {activeTab === 'time' && (
               <TimeEntriesTab
                 entries={time.entries}
-                totalMinutes={time.totalMinutes}
+                totalSeconds={time.totalSeconds}
                 onAdd={addManualTime}
                 assignableUsers={assignableUsers}
                 canLogTimeForOthers={canLogTimeForOthers}

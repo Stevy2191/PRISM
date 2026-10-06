@@ -25,8 +25,8 @@ beforeAll(async () => {
   const other = await makeTicket(w.admin.agent, { title: 'Toner order', contactId: w.contact.id });
   const a = w.admin.agent;
   expectOk(await a.post(`${API}/tickets/${ticket.id}/comments`).send({ body: 'Seeded note text', type: 'comment_private' }), 201);
-  expectOk(await a.post(`${API}/tickets/${ticket.id}/time`).send({ minutes: 45, note: 'Seeded time note' }), 201);
-  expectOk(await a.post(`${API}/tickets/${ticket.id}/tasks`).send({ description: 'Seeded checklist item' }), 201);
+  expectOk(await a.post(`${API}/tickets/${ticket.id}/time`).send({ durationMinutes: 45, note: 'Seeded time note' }), 201);
+  expectOk(await a.post(`${API}/tickets/${ticket.id}/tasks`).send({ title: 'Seeded checklist item' }), 201);
   expectOk(await a.post(`${API}/tickets/${ticket.id}/relations`).send({ relatedTicketId: other.id, relationType: 'related' }), 201);
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });

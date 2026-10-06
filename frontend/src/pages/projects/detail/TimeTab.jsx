@@ -45,9 +45,9 @@ export function TimeTab({ data, canLogTime, user, isAdmin, onAdd, onDelete, onLo
         <tbody>
           {data.entries.map((e) => (
             <tr key={e.id}>
-              <td className="table-td" style={{ color: TEXT }}>{e.description || '—'}</td>
+              <td className="table-td" style={{ color: TEXT }}>{e.note || '—'}</td>
               <td className="table-td" style={{ color: MUTED }}>{e.task?.title || '—'}</td>
-              <td className="table-td" style={{ color: MUTED }}>{e.loggedFor?.displayName || '—'}</td>
+              <td className="table-td" style={{ color: MUTED }}>{e.user?.displayName || '—'}</td>
               <td className="table-td" style={{ color: MUTED }}>{e.entryDate}</td>
               <td className="table-td font-medium" style={{ color: TEXT }}>{formatSeconds(e.durationSeconds)}</td>
               <td className="table-td" style={{ color: e.laborCost != null ? TEXT : MUTED }}>{e.laborCost != null ? formatCost(e.laborCost) : '—'}</td>
@@ -89,8 +89,8 @@ export function AddTimeModal({ tasks, isAdmin, assignableUsers, onClose, onSave 
     try {
       await onSave({
         taskId: taskId || null,
-        description,
-        loggedForUserId: loggedForUserId || undefined,
+        note: description || undefined,
+        userId: loggedForUserId || undefined,
         entryDate,
         startTime: buildLocalDateTime(entryDate, startMinutes),
         endTime: buildLocalDateTime(entryDate, endMinutes),
