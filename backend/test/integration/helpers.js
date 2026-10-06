@@ -100,14 +100,14 @@ async function createUserAndLogin(options) {
 async function resetData() {
   await ensureSchema();
   const tables = [
-    'Comments', 'Attachments', 'TicketWatchers', 'TicketTasks', 'TicketActivities',
+    'Comments', 'Attachments', 'TicketWatchers', 'Tasks', 'TicketActivities',
     'TicketRelations', 'TicketFieldValues', 'TimeEntries', 'ActiveTimers',
     'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'Tickets', 'Contacts',
     // Project child tables truncate with Projects: TRUNCATE resets
     // AUTO_INCREMENT, so a project created by the next test reuses id 1 and
     // would otherwise inherit the previous test's expenses/time/materials.
-    'ProjectExpenses', 'ProjectMaterials', 'ProjectTimeEntries', 'ProjectFiles',
-    'ProjectActivities', 'ProjectMembers', 'ProjectSubtasks', 'ProjectTasks',
+    'ProjectExpenses', 'ProjectMaterials', 'ProjectFiles',
+    'ProjectActivities', 'ProjectMembers',
     'ProjectIdSequences', 'Projects',
     'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
     'AssignmentRules', 'CustomFields', 'TeamMembers', 'Teams',
@@ -130,6 +130,8 @@ async function resetData() {
     'AssetFieldValues', 'AssetCheckouts', 'AssetAttachments', 'AssetActivity', 'Assets',
     'LicenseAssets', 'LicenseContacts', 'LicenseAttachments', 'LicenseActivity', 'LicenseTickets', 'Licenses',
     'ContractAssets', 'ContractAttachments', 'ContractActivity', 'ContractTickets', 'Contracts',
+    'TaskIdMap', 'TimeEntryIdMap',
+    'legacy_TimeEntries', 'legacy_ProjectTimeEntries', 'legacy_TicketTasks', 'legacy_ProjectTasks', 'legacy_ProjectSubtasks',
   ];
   for (const table of deleted) {
     // eslint-disable-next-line no-await-in-loop
