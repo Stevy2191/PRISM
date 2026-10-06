@@ -27,7 +27,7 @@ async function buildTimeBillingReport(req) {
   // Q9: time is dated and filtered by its work date.
   let where = dateOnlyWhere('entryDate', range);
   const deptOf = (id) => ({ [Op.or]: [{ '$ticket.departmentId$': id }, { '$project.ownerDepartmentId$': id }] });
-  if (scope === 'department') where = andWhere(where, deptOf(req.user.departmentId));
+  if (scope === 'department') where = andWhere(where, deptOf(req.user.departmentId || -1)); // no department -> match nothing, not everything
   else if (scope === 'own') where = andWhere(where, { userId: req.user.id });
   else if (scope === 'all' && deptId) where = andWhere(where, deptOf(deptId));
   // ANDed, never merged: under 'own' scope the scope itself is on userId (S14).

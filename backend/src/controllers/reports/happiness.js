@@ -20,7 +20,7 @@ const csat = asyncHandler(async (req, res) => {
   const respondedRange = await parseDateRange({ startDate: req.query.from, endDate: req.query.to });
   let where = dateWhere('respondedAt', respondedRange);
   if (scope === 'department') {
-    where = { ...where, '$ticket.departmentId$': req.user.departmentId };
+    where = { ...where, '$ticket.departmentId$': req.user.departmentId || -1 }; // no department -> match nothing, not everything
   } else if (scope === 'own') {
     where = { ...where, '$ticket.assigneeId$': req.user.id };
   } else if (scope === 'all' && requestedDepartmentId) {

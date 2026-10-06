@@ -240,11 +240,15 @@ async function companyScopeWhere(user, column = 'companyId') {
 // ticket/project in the system just by knowing (or guessing) its id. These
 // mirror the exact same scope semantics as the list `where` clauses above,
 // applied to one already-fetched record instead of a query.
+// A department match needs a real department on both sides: a user with no
+// department is in no department, not in every department-less record's.
+const sameDept = (a, b) => a != null && b != null && a === b;
+
 async function canAccessTicket(user, ticket) {
   if (!(await canAccessCompany(user, ticket.companyId))) return false;
   const scope = await getUserTicketScope(user.id);
   if (scope === 'all') return true;
-  if (scope === 'department') return ticket.departmentId === user.departmentId || ticket.assigneeId === user.id;
+  if (scope === 'department') return sameDept(ticket.departmentId, user.departmentId) || ticket.assigneeId === user.id;
   return ticket.assigneeId === user.id;
 }
 
@@ -308,7 +312,7 @@ async function canAccessProject(user, project) {
   if (scope === 'all') return true;
   const isMember = !!(await ProjectMember.findOne({ where: { projectId: project.id, userId: user.id } }));
   if (scope === 'department') {
-    return project.ownerDepartmentId === user.departmentId || project.forDepartmentId === user.departmentId || isMember;
+    return sameDept(project.ownerDepartmentId, user.departmentId) || sameDept(project.forDepartmentId, user.departmentId) || isMember;
   }
   return isMember;
 }
@@ -316,8 +320,7 @@ async function canAccessProject(user, project) {
 
 // The edit tier (Q26): writes to a record's own data check *.edit_* against
 // that record, on top of being able to see it. The tiers mirror the view
-// tiers. A department match needs a real department on both sides.
-const sameDept = (a, b) => a != null && b != null && a === b;
+// tiers.
 
 async function canEditTicket(user, ticket) {
   if (!(await canAccessTicket(user, ticket))) return false;

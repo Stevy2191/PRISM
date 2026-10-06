@@ -111,7 +111,7 @@ function ticketScopeWhere(where, scope, user, requestedDepartmentId, companyWher
   if (scope === 'all') {
     scoped = requestedDepartmentId ? { ...where, departmentId: requestedDepartmentId } : where;
   } else if (scope === 'department') {
-    scoped = { ...where, [Op.and]: [{ [Op.or]: [{ departmentId: user.departmentId }, { assigneeId: user.id }] }] };
+    scoped = { ...where, [Op.and]: [{ [Op.or]: [{ departmentId: user.departmentId || -1 }, { assigneeId: user.id }] }] };
   } else {
     scoped = { ...where, assigneeId: user.id };
   }
@@ -125,7 +125,7 @@ function projectScopeWhere(where, scope, user, requestedDepartmentId, companyWhe
       ? { ...where, [Op.or]: [{ ownerDepartmentId: requestedDepartmentId }, { forDepartmentId: requestedDepartmentId }] }
       : where;
   } else if (scope === 'department') {
-    scoped = { ...where, [Op.or]: [{ ownerDepartmentId: user.departmentId }, { forDepartmentId: user.departmentId }] };
+    scoped = { ...where, [Op.or]: [{ ownerDepartmentId: user.departmentId || -1 }, { forDepartmentId: user.departmentId || -1 }] };
   } else {
     scoped = { ...where, assignedToUserId: user.id };
   }
@@ -137,7 +137,7 @@ function contactDeptWhere(where, scope, user, requestedDepartmentId, companyWher
   if (scope === 'all') {
     scoped = requestedDepartmentId ? { ...where, departmentId: requestedDepartmentId } : where;
   } else {
-    scoped = { ...where, departmentId: user.departmentId };
+    scoped = { ...where, departmentId: user.departmentId || -1 }; // no department -> match nothing, not everything
   }
   return andWhere(scoped, companyWhere);
 }

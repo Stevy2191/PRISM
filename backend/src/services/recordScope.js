@@ -23,7 +23,7 @@ function andWhere(...parts) {
 async function ticketScopeWhere(user) {
   const [company, scope] = await Promise.all([companyScopeWhere(user), getUserTicketScope(user.id)]);
   let tier = {};
-  if (scope === 'department') tier = { [Op.or]: [{ departmentId: user.departmentId }, { assigneeId: user.id }] };
+  if (scope === 'department') tier = { [Op.or]: [{ departmentId: user.departmentId || -1 }, { assigneeId: user.id }] }; // no department -> match nothing, not everything
   else if (scope === 'own') tier = { assigneeId: user.id };
   return andWhere(company, tier);
 }
@@ -35,7 +35,8 @@ async function projectScopeWhere(user) {
   const memberIds = memberships.map((m) => m.projectId);
   let tier;
   if (scope === 'department') {
-    const or = [{ ownerDepartmentId: user.departmentId }, { forDepartmentId: user.departmentId }];
+    const dept = user.departmentId || -1; // no department -> match nothing, not everything
+    const or = [{ ownerDepartmentId: dept }, { forDepartmentId: dept }];
     if (memberIds.length) or.push({ id: { [Op.in]: memberIds } });
     tier = { [Op.or]: or };
   } else {
@@ -46,7 +47,7 @@ async function projectScopeWhere(user) {
 
 async function contactScopeWhere(user) {
   const [company, viewAll] = await Promise.all([companyScopeWhere(user), hasPermission(user.id, 'people.view_all')]);
-  return andWhere(company, viewAll ? {} : { departmentId: user.departmentId });
+  return andWhere(company, viewAll ? {} : { departmentId: user.departmentId || -1 }); // no department -> match nothing, not everything
 }
 
 // The viewer's company fence, narrowed to one company when a filter names

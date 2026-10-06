@@ -29,7 +29,7 @@ async function buildTeamPerformanceReport(req) {
   if (scope === 'all') {
     if (deptId) userWhere.departmentId = deptId;
   } else if (scope === 'department') {
-    userWhere.departmentId = req.user.departmentId;
+    userWhere.departmentId = req.user.departmentId || -1; // no department -> match nothing, not everything
   } else {
     userWhere.id = req.user.id;
   }

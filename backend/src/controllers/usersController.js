@@ -71,7 +71,7 @@ const list = asyncHandler(async (req, res) => {
   let where = {};
   if (req.query.scope === 'department') {
     const canViewAll = await hasPermission(req.user.id, 'people.view_all');
-    where = canViewAll ? {} : { departmentId: req.user.departmentId };
+    where = canViewAll ? {} : { departmentId: req.user.departmentId || -1 }; // no department -> match nothing, not everything
   }
   const { page, limit, offset } = parsePagination(req);
   const { rows, count } = await User.findAndCountAll({

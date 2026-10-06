@@ -260,7 +260,7 @@ async function loadTimeEntryRecords(req, filters) {
   // Q9: by work date. Filters are ANDed onto the reader's scope (S16).
   let where = rc.dateOnlyWhere('entryDate', range);
   const deptOf = (id) => ({ [Op.or]: [{ '$ticket.departmentId$': id }, { '$project.ownerDepartmentId$': id }] });
-  if (scope === 'department') where = andWhere(where, deptOf(req.user.departmentId));
+  if (scope === 'department') where = andWhere(where, deptOf(req.user.departmentId || -1)); // no department -> match nothing, not everything
   else if (scope === 'own') where = andWhere(where, { userId: req.user.id });
   else if (scope === 'all' && filters.departmentId) where = andWhere(where, deptOf(filters.departmentId));
   if (filters.assigneeId) where = andWhere(where, { userId: filters.assigneeId });
@@ -301,8 +301,8 @@ async function loadExpenseMaterialRecords(req, filters) {
   let expenseWhere = rc.dateOnlyWhere('entryDate', range);
   let materialWhere = rc.dateWhere('createdAt', range);
   if (scope === 'department') {
-    expenseWhere = { ...expenseWhere, '$project.ownerDepartmentId$': req.user.departmentId };
-    materialWhere = { ...materialWhere, '$project.ownerDepartmentId$': req.user.departmentId };
+    expenseWhere = { ...expenseWhere, '$project.ownerDepartmentId$': req.user.departmentId || -1 }; // no department -> match nothing, not everything
+    materialWhere = { ...materialWhere, '$project.ownerDepartmentId$': req.user.departmentId || -1 };
   } else if (scope === 'own') {
     // Own scope means the projects the reader leads, as in projectScopeWhere (S17).
     expenseWhere = { ...expenseWhere, '$project.assignedToUserId$': req.user.id };

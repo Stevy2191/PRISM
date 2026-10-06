@@ -440,7 +440,7 @@ const get = asyncHandler(async (req, res) => {
 
   if (requestedUserId && isDepartmentView) {
     const targetCheck = await User.findByPk(requestedUserId, { attributes: ['id', 'departmentId'] });
-    if (!targetCheck || targetCheck.departmentId !== req.user.departmentId) {
+    if (!targetCheck || targetCheck.departmentId == null || targetCheck.departmentId !== req.user.departmentId) {
       throw new ApiError(403, 'You can only view dashboards for users in your department', 'FORBIDDEN');
     }
   }
@@ -470,7 +470,7 @@ const get = asyncHandler(async (req, res) => {
   }
 
   if (isDepartmentView && !requestedUserId) {
-    const deptId = req.user.departmentId;
+    const deptId = req.user.departmentId || -1; // no department -> match nothing, not everything
     const deptProjectWhere = { [Op.or]: [{ ownerDepartmentId: deptId }, { forDepartmentId: deptId }] };
     const settings = await getAllSettings();
     const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
@@ -547,7 +547,7 @@ const activityMore = asyncHandler(async (req, res) => {
   if (isSystemView) {
     activity = await activityFeed(buckets, companyWhere, companyWhere, { offset });
   } else {
-    const deptId = req.user.departmentId;
+    const deptId = req.user.departmentId || -1; // no department -> match nothing, not everything
     const deptProjectWhere = { [Op.or]: [{ ownerDepartmentId: deptId }, { forDepartmentId: deptId }] };
     activity = await activityFeed(buckets, andWhere({ departmentId: deptId }, companyWhere), andWhere(deptProjectWhere, companyWhere), { offset });
   }
