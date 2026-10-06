@@ -8,6 +8,7 @@ const router = express.Router();
 const viewMin = requirePermission('tickets.view_own', 'tickets.view_department', 'tickets.view_all');
 const editMin = requirePermission('tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all');
 const manageWatchers = requirePermission('tickets.manage_watchers');
+const logTime = requirePermission('time.log');
 
 // Tickets
 router.get('/', viewMin, ctrl.list);
@@ -32,8 +33,9 @@ router.delete('/:id/attachments/:attachmentId', editMin, ctrl.removeAttachment);
 
 // Time entries (requires an edit permission on tickets)
 router.get('/:id/time', ctrl.listTime);
-router.post('/:id/time', editMin, ctrl.createTime);
-router.delete('/:id/time/:entryId', editMin, ctrl.removeTime);
+router.post('/:id/time', logTime, ctrl.createTime);
+router.patch('/:id/time/:entryId', logTime, ctrl.updateTime);
+router.delete('/:id/time/:entryId', logTime, ctrl.removeTime);
 
 // Related tickets (requires an edit permission on tickets)
 router.get('/:id/relations', ctrl.listRelations);

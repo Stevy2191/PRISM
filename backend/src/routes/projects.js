@@ -5,7 +5,7 @@ const { projectUpload, enforceMaxAttachmentSize, verifyFileSignature } = require
 
 const router = express.Router();
 
-const logTime = requirePermission('projects.log_time');
+const logTime = requirePermission('time.log');
 const viewMin = requirePermission('projects.view_own', 'projects.view_department', 'projects.view_all');
 const editMin = requirePermission('projects.edit_own', 'projects.edit_department', 'projects.edit_all');
 
@@ -31,9 +31,9 @@ router.patch('/:id/tasks/:taskId/subtasks/:subtaskId', editMin, ctrl.updateSubta
 router.delete('/:id/tasks/:taskId/subtasks/:subtaskId', editMin, ctrl.removeSubtask);
 router.patch('/:id/tasks/:taskId/subtasks/:subtaskId/code', editMin, ctrl.renumberSubtask);
 
-// Time entries (requires projects.log_time, matching tickets)
+// Time entries (time.log; the same rules as ticket time)
 router.get('/:id/time-entries', ctrl.listTimeEntries);
-router.post('/:id/time-entries', requirePermission('projects.log_time'), ctrl.createTimeEntry);
+router.post('/:id/time-entries', logTime, ctrl.createTimeEntry);
 router.patch('/:id/time-entries/:entryId', logTime, ctrl.updateTimeEntry);
 router.delete('/:id/time-entries/:entryId', logTime, ctrl.removeTimeEntry);
 

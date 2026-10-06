@@ -147,7 +147,7 @@ async function resetData() {
   // SSO enforcement in particular would fail every subsequent login.
   await sequelize.query(
     "DELETE FROM SystemSettings WHERE `key` LIKE 'sso.%' OR `key` LIKE 'timeTracking.%' "
-    + "OR `key` LIKE 'csat.%' OR `key` = 'notifications.enabledTypes'"
+    + "OR `key` LIKE 'csat.%' OR `key` = 'notifications.enabledTypes' OR `key` = 'company.timezone'"
   ).catch(() => {});
   invalidateAllPermissions();
   // Otherwise one case's login attempts rate-limit the next.

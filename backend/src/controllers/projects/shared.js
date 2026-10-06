@@ -11,7 +11,6 @@ const {
   User,
   Ticket,
   Team,
-  TeamMember,
   Company,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
@@ -38,12 +37,6 @@ const projectInclude = [
   { model: Team, as: 'team', attributes: ['id', 'name'] },
   { model: Company, as: 'company', attributes: ['id', 'name'] },
 ];
-
-async function canLogForOthers(user) {
-  if (user.role === 'admin') return true;
-  const lead = await TeamMember.findOne({ where: { userId: user.id, isLead: true } });
-  return !!lead;
-}
 
 async function buildProjectStats(project) {
   const projectId = project.id;
@@ -104,5 +97,4 @@ module.exports = {
   buildProjectStats,
   SUBLIST_LIMIT,
   SUBLIST_MAX,
-  canLogForOthers,
 };

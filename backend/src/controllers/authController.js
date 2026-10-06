@@ -5,16 +5,17 @@ const { User, TeamMember, Role, sequelize } = require('../models');
 const { authenticate: ldapAuthenticate, isConfigured: isLdapConfigured } = require('../config/ldap');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
-const { resolveUserPermissions } = require('../services/permissionService');
+const { resolveUserPermissions, hasPermission } = require('../services/permissionService');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
 
 const primaryRoleInclude = [{ model: Role, as: 'primaryRole' }];
 
-// Admins and team leads may log time on tickets against another tech's name.
+// Whether the user may log time for other people: time.manage_others, or
+// leading a team (services/time decides per person; this only shows the field).
 async function serializeUserWithFlags(user) {
-  const canLogTimeForOthers =
-    user.role === 'admin' || !!(await TeamMember.findOne({ where: { userId: user.id, isLead: true } }));
+  const canLogTimeForOthers = (await hasPermission(user.id, 'time.manage_others'))
+    || !!(await TeamMember.findOne({ where: { userId: user.id, isLead: true } }));
   return { ...user.toJSON(), canLogTimeForOthers };
 }
 

@@ -4,6 +4,7 @@ const path = require('path');
 const {
   Ticket,
   TimeEntry,
+  Task,
   TicketRelation,
   TicketWatcher,
   AssetTicket,
@@ -648,6 +649,10 @@ const remove = asyncHandler(async (req, res) => {
   if (!(await canAccessCompany(req.user, ticket.companyId))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
 
   await sequelize.transaction(async (t) => {
+    // The ledger and tasks have no database cascade (sub-project 3): a
+    // ticket's time and tasks go with it, as the old foreign keys did.
+    await TimeEntry.destroy({ where: { ticketId: ticket.id }, transaction: t });
+    await Task.destroy({ where: { ticketId: ticket.id }, transaction: t });
     await ticket.destroy({ transaction: t });
     await writeAudit(req, 'ticket.delete', 'Ticket', ticket.id, { title: ticket.title }, { transaction: t });
   });

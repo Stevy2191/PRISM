@@ -4,7 +4,6 @@ const {
   CsatSurvey,
   Asset,
   Team,
-  TeamMember,
   CustomField,
   TicketFieldValue,
   User,
@@ -115,13 +114,6 @@ function withCustomFields(ticket) {
   return json;
 }
 
-// Admins and team leads may log time attributed to another tech.
-async function canLogForOthers(user) {
-  if (user.role === 'admin') return true;
-  const lead = await TeamMember.findOne({ where: { userId: user.id, isLead: true } });
-  return !!lead;
-}
-
 // Default page size for the per-record lists on a ticket's detail page
 // (comments, attachments, time entries, activity). They use a "load more"
 // control rather than numbered pages, so this is the chunk size.
@@ -139,6 +131,5 @@ module.exports = {
   SUBLIST_LIMIT,
   SUBLIST_MAX,
   userAttrs,
-  canLogForOthers,
   buildCustomFieldsObject,
 };
