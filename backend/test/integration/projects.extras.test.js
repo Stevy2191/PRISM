@@ -264,6 +264,14 @@ describe('files', () => {
     }
   });
 
+  it('never sends the file\'s path on the server', async () => {
+    const f = await upload();
+    expect(f).not.toHaveProperty('filepath');
+    const { files } = expectOk(await tech.agent.get(purl('files')));
+    expect(files[0]).not.toHaveProperty('filepath');
+    expect(files[0]).toEqual(expect.objectContaining({ id: f.id, filename: f.filename }));
+  });
+
   it('Q17: a file is deleted by its uploader or a project moderator, not by any editor', async () => {
     const editor = await makeTech('editor2', w.deptA.id);
     expectOk(await w.admin.agent.post(`${API}/users/${editor.user.id}/overrides`).send({ permissionKey: 'projects.edit_all', granted: false }), 201);

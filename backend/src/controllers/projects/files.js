@@ -6,6 +6,9 @@ const { logProjectActivity } = require('../../services/projectActivity');
 const { canAccessProject, canModerateProjectContent } = require('../../services/permissionService');
 const { userAttrs, resolveProjectTaskId } = require('./shared');
 
+// The stored path is the server's business, never the client's.
+const fileAttrs = { exclude: ['filepath'] };
+
 // ==================== Files ====================
 
 // GET /projects/:id/files
@@ -16,6 +19,7 @@ const listFiles = asyncHandler(async (req, res) => {
 
   const files = await ProjectFile.findAll({
     where: { projectId: project.id },
+    attributes: fileAttrs,
     include: [{ model: User, as: 'uploadedByUser', attributes: userAttrs }],
     order: [['createdAt', 'DESC']],
   });
@@ -53,7 +57,9 @@ const uploadFile = asyncHandler(async (req, res) => {
   });
   await logProjectActivity(project.id, req.user.id, 'file_uploaded', { fileId: file.id, filename: file.filename });
 
-  const fresh = await ProjectFile.findByPk(file.id, { include: [{ model: User, as: 'uploadedByUser', attributes: userAttrs }] });
+  const fresh = await ProjectFile.findByPk(file.id, {
+    attributes: fileAttrs, include: [{ model: User, as: 'uploadedByUser', attributes: userAttrs }],
+  });
   res.status(201).json({ file: fresh });
 });
 
