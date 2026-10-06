@@ -52,7 +52,10 @@ router.delete('/:id/watchers/:userId', manageWatchers, ctrl.removeWatcher);
 // Tasks (per-ticket checklist)
 router.get('/:id/tasks', ctrl.listTasks);
 router.post('/:id/tasks', editMin, ctrl.createTask);
+router.patch('/:id/tasks/reorder', editMin, ctrl.reorderTasks); // must precede /:taskId
 router.patch('/:id/tasks/:taskId', editMin, ctrl.updateTask);
+router.delete('/:id/tasks/:taskId', editMin, ctrl.removeTask);
+router.patch('/:id/tasks/:taskId/code', editMin, ctrl.renumberTask);
 
 // Custom field values (Settings -> Layouts & Fields)
 router.get('/:id/custom-field-values', viewMin, ctrl.getCustomFieldValues);

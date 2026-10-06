@@ -96,10 +96,10 @@ it('project creators fenced to a client can list the internal "owned by" departm
 it('a ticket task can\'t be assigned to someone who can\'t reach the ticket\'s company', async () => {
   const t = await makeTicket(a(), { title: 'with task', contactId: ann.id });
   expectErr(
-    await a().post(`${API}/tickets/${t.id}/tasks`).send({ description: 'step', assigneeId: outsider.user.id }),
+    await a().post(`${API}/tickets/${t.id}/tasks`).send({ title: 'step', assigneeId: outsider.user.id }),
     400, 'VALIDATION_ERROR', 'Assignee can\'t see tickets for this company'
   );
-  const task = expectOk(await a().post(`${API}/tickets/${t.id}/tasks`).send({ description: 'step' }), 201).task;
+  const task = expectOk(await a().post(`${API}/tickets/${t.id}/tasks`).send({ title: 'step' }), 201).task;
   expectErr(
     await a().patch(`${API}/tickets/${t.id}/tasks/${task.id}`).send({ assigneeId: outsider.user.id }),
     400, 'VALIDATION_ERROR', 'Assignee can\'t see tickets for this company'

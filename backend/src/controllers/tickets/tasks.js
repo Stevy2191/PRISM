@@ -1,76 +1,63 @@
-// Ticket tasks (checklist): list, add, update.
-const { Ticket, TicketTask, User } = require('../../models');
+// Ticket tasks: thin wrappers over services/tasks (the same rules as
+// project tasks — statuses, subtasks, codes, reorder, renumber).
+const { Ticket } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
-const { assertCanWorkTicket } = require('../../services/ticketPeople');
 const { canAccessTicket } = require('../../services/permissionService');
-const { userAttrs } = require('./shared');
+const tasks = require('../../services/tasks');
 
-// ---- Tasks (per-ticket checklist) ----
-
-// GET /tickets/:id/tasks
-const listTasks = asyncHandler(async (req, res) => {
+async function ticketFor(req) {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  return tasks.ticketParent(ticket);
+}
 
-  const tasks = await TicketTask.findAll({
-    where: { ticketId: ticket.id },
-    include: [{ model: User, as: 'assignee', attributes: userAttrs }],
-    order: [['createdAt', 'ASC']],
-  });
-  res.json({ tasks });
-});
-
-// POST /tickets/:id/tasks { description, assigneeId? }
-const createTask = asyncHandler(async (req, res) => {
-  const ticket = await Ticket.findByPk(req.params.id);
-  if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
-  if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
-
-  const { description, assigneeId } = req.body || {};
-  if (!description || !description.trim()) {
-    throw new ApiError(400, 'Task description is required', 'VALIDATION_ERROR');
-  }
-  const task = await TicketTask.create({
-    ticketId: ticket.id,
-    description: description.trim(),
-    assigneeId: assigneeId ? await assertCanWorkTicket(assigneeId, ticket.companyId, 'Assignee') : null,
-  });
-  const fresh = await TicketTask.findByPk(task.id, {
-    include: [{ model: User, as: 'assignee', attributes: userAttrs }],
-  });
-  res.status(201).json({ task: fresh });
-});
-
-// PATCH /tickets/:id/tasks/:taskId { completed?, assigneeId?, description? }
-const updateTask = asyncHandler(async (req, res) => {
-  const task = await TicketTask.findOne({ where: { id: req.params.taskId, ticketId: req.params.id } });
+async function taskFor(parent, rawId) {
+  const task = await tasks.findTask(parent, rawId);
   if (!task) throw new ApiError(404, 'Task not found', 'NOT_FOUND');
-  const ticket = await Ticket.findByPk(req.params.id);
-  if (!ticket || !(await canAccessTicket(req.user, ticket))) {
-    throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
-  }
+  return task;
+}
 
-  const changes = {};
-  if (req.body?.completed !== undefined) changes.completed = !!req.body.completed;
-  if (req.body?.assigneeId !== undefined) {
-    changes.assigneeId = req.body.assigneeId && Number(req.body.assigneeId) !== task.assigneeId
-      ? await assertCanWorkTicket(req.body.assigneeId, ticket.companyId, 'Assignee')
-      : (req.body.assigneeId || null);
-  }
-  if (req.body?.description !== undefined && req.body.description.trim()) {
-    changes.description = req.body.description.trim();
-  }
-  await task.update(changes);
+// GET /tickets/:id/tasks — top-level tasks with their subtasks
+const listTasks = asyncHandler(async (req, res) => {
+  res.json({ tasks: await tasks.listTasks(await ticketFor(req)) });
+});
 
-  const fresh = await TicketTask.findByPk(task.id, {
-    include: [{ model: User, as: 'assignee', attributes: userAttrs }],
-  });
-  res.json({ task: fresh });
+// POST /tickets/:id/tasks — { title, description?, statusId?, priority?, assigneeId?, dueDate?, estimateMinutes?, parentTaskId? }
+const createTask = asyncHandler(async (req, res) => {
+  res.status(201).json({ task: await tasks.createTask(req, await ticketFor(req), req.body) });
+});
+
+// PATCH /tickets/:id/tasks/:taskId
+const updateTask = asyncHandler(async (req, res) => {
+  const parent = await ticketFor(req);
+  res.json({ task: await tasks.updateTask(req, parent, await taskFor(parent, req.params.taskId), req.body) });
+});
+
+// DELETE /tickets/:id/tasks/:taskId
+const removeTask = asyncHandler(async (req, res) => {
+  const parent = await ticketFor(req);
+  await tasks.deleteTask(req, parent, await taskFor(parent, req.params.taskId));
+  res.json({ ok: true });
+});
+
+// PATCH /tickets/:id/tasks/reorder — { order: [taskId, ...], parentTaskId? }
+const reorderTasks = asyncHandler(async (req, res) => {
+  await tasks.reorderTasks(req, await ticketFor(req), req.body);
+  res.json({ ok: true });
+});
+
+// PATCH /tickets/:id/tasks/:taskId/code — { number }
+const renumberTask = asyncHandler(async (req, res) => {
+  const parent = await ticketFor(req);
+  res.json({ task: await tasks.renumberTask(req, parent, await taskFor(parent, req.params.taskId), req.body?.number) });
 });
 
 module.exports = {
   listTasks,
   createTask,
   updateTask,
+  removeTask,
+  reorderTasks,
+  renumberTask,
 };
