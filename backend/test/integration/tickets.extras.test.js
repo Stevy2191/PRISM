@@ -150,11 +150,12 @@ describe('relations', () => {
     expect((await link(C, { relatedTicketId: A.id })).status).toBe(409);
   });
 
-  // Likely correct: one link per pair of tickets, whatever the direction. Expected to change in sub-project 3.
-  it('[quirk] Q24: links the same two tickets again in the opposite direction', async () => {
+  it('Q24: two tickets are linked once, whichever direction', async () => {
     expectOk(await link(A, { relatedTicketId: B.id }), 201);
-    expect((await link(B, { relatedTicketId: A.id })).status).toBe(201);
-    expect(await listOf(A)).toHaveLength(2);
+    for (const res of [await link(B, { relatedTicketId: A.id }), await link(A, { relatedTicketId: B.id, relationType: 'caused_by' })]) {
+      expect(res.body).toEqual({ error: true, message: 'These tickets are already linked', code: 'DUPLICATE_RELATION' });
+    }
+    expect(await listOf(A)).toHaveLength(1);
   });
 
   it('removes a relation from either side', async () => {

@@ -119,7 +119,10 @@ describe('audit rows', () => {
     ['project.delete', async () => {
       const p = await project();
       await ok(w.admin.agent.delete(`${API}/projects/${p.id}`));
-      return { actor: w.admin, entityType: 'Project', entityId: p.id, meta: { name: 'Refresh' } };
+      return {
+        actor: w.admin, entityType: 'Project', entityId: p.id,
+        meta: { name: 'Refresh', tasks: 0, timeEntries: 0, expenses: 0, materials: 0, files: 0, members: 0, activity: 1 },
+      };
     }],
     ['time.create', async () => { // on a project
       const p = await project();
@@ -388,17 +391,15 @@ describe('workflow rules', () => {
     expect(await logsOf(rule)).toEqual([]);
   });
 
-  // Likely correct: the ticket is escalated (ticket priorities have no
-  // "urgent", so the whole update fails). Expected to change in sub-project 3.
-  it('[quirk] Q16: escalate_to_user always fails', async () => {
+  it('Q16: escalate_to_user assigns and raises priority to critical', async () => {
     const rule = await makeRule({
       triggerEvent: 'ticket_created', actions: [{ actionType: 'escalate_to_user', actionValue: { userId: tech.user.id } }],
     });
     const n = await makeTicket(w.admin.agent, { title: 'Escalate me', contactId: w.contact.id });
-    expect(n).toEqual(expect.objectContaining({ assigneeId: null, priority: 'medium' }));
+    const fresh = (await ok(w.admin.agent.get(`${API}/tickets/${n.id}`))).ticket;
+    expect([fresh.assigneeId, fresh.priority]).toEqual([tech.user.id, 'critical']);
     const [log] = await logsOf(rule);
-    expect(log).toEqual(expect.objectContaining({ conditionsMet: true, actionsExecuted: null }));
-    expect(log.notes).toContain("Data truncated for column 'priority'");
+    expect(log).toEqual(expect.objectContaining({ conditionsMet: true, actionsExecuted: ['escalate_to_user'] }));
   });
 });
 
@@ -458,17 +459,17 @@ describe('time before close', () => {
   });
 
   it('requireBeforeClose ignores closed→closed and non-status edits', async () => {
-    await requireTime();
     const x = await makeTicket(tech.agent, { title: 'X', contactId: w.contact.id, status: 'Resolved' });
+    await requireTime();
     expect((await tech.agent.patch(tUrl('', x)).send({ status: 'Closed' })).status).toBe(200);
     expect((await tech.agent.patch(tUrl()).send({ priority: 'low' })).status).toBe(200);
   });
 
-  // Likely correct: 400 TIME_REQUIRED_BEFORE_CLOSE, as on update. Expected to change in sub-project 3.
-  it('[quirk] Q35: creating a ticket already closed bypasses requireBeforeClose', async () => {
+  it('Q35: creating a ticket already closed obeys requireBeforeClose', async () => {
     await requireTime();
     const res = await tech.agent.post(`${API}/tickets`).send({ title: 'Closed', contactId: w.contact.id, status: 'Closed' });
-    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ error: true, message: 'Log time on this ticket before closing it', code: 'TIME_REQUIRED_BEFORE_CLOSE' });
+    expect((await tech.agent.post(`${API}/tickets`).send({ title: 'Open', contactId: w.contact.id })).status).toBe(201);
   });
 
   it('with the setting off, tickets close freely', async () => {

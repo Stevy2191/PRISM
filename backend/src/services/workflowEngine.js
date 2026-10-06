@@ -224,8 +224,9 @@ async function executeAction(ticket, action, rule) {
     }
     case 'escalate_to_user': {
       await assertCanWorkTicket(v.userId, ticket.companyId, 'Assignee');
-      await ticket.update({ assigneeId: v.userId, priority: 'urgent' });
-      return `escalated to user #${v.userId} (priority: urgent)`;
+      // Ticket priorities top out at critical (Q16).
+      await ticket.update({ assigneeId: v.userId, priority: 'critical' });
+      return `escalated to user #${v.userId} (priority: critical)`;
     }
     default:
       throw new Error(`Unknown action type "${action.actionType}"`);
@@ -349,7 +350,7 @@ function describeAction(action, ticket) {
     case 'set_due_date': return { actionType: action.actionType, description: `Set due date to +${v.amount} ${v.unit}` };
     case 'send_notification': return { actionType: action.actionType, description: `Notify ${v.recipient}: "${renderTemplate(v.message, ticket) || '(default message)'}"` };
     case 'add_private_comment': return { actionType: action.actionType, description: `Add private comment: "${renderTemplate(v.text, ticket) || ''}"` };
-    case 'escalate_to_user': return { actionType: action.actionType, description: `Escalate to user #${v.userId} (priority: urgent)` };
+    case 'escalate_to_user': return { actionType: action.actionType, description: `Escalate to user #${v.userId} (priority: critical)` };
     default: return { actionType: action.actionType, description: 'Unknown action' };
   }
 }

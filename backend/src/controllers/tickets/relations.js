@@ -80,8 +80,14 @@ const createRelation = asyncHandler(async (req, res) => {
   const storedTicketId = isChild ? relId : ticket.id;
   const storedRelatedId = isChild ? ticket.id : relId;
 
+  // Two tickets are linked once, whichever direction (Q24).
   const existing = await TicketRelation.findOne({
-    where: { ticketId: storedTicketId, relatedTicketId: storedRelatedId },
+    where: {
+      [Op.or]: [
+        { ticketId: storedTicketId, relatedTicketId: storedRelatedId },
+        { ticketId: storedRelatedId, relatedTicketId: storedTicketId },
+      ],
+    },
   });
   if (existing) throw new ApiError(409, 'These tickets are already linked', 'DUPLICATE_RELATION');
 

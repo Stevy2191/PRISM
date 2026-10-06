@@ -275,6 +275,16 @@ const create = asyncHandler(async (req, res) => {
   // this HTTP endpoint) — a caller of this API can only pick manual/phone,
   // same restriction the create-ticket form's dropdown itself enforces.
   const resolvedSource = ['manual', 'phone'].includes(source) ? source : 'manual';
+  const resolvedStatus = status || 'Open';
+  if (status) await assertTicketStatus(status);
+  // Q35: creating a ticket already closed obeys "require time before close";
+  // a new ticket has no time yet.
+  if ((await getTicketStatusBehaviorMap()).get(resolvedStatus) === 'closed') {
+    const settings = await getAllSettings();
+    if (settings['timeTracking.requireBeforeClose'] === 'true') {
+      throw new ApiError(400, 'Log time on this ticket before closing it', 'TIME_REQUIRED_BEFORE_CLOSE');
+    }
+  }
 
   // Linked ticket ids must be plain integers: a value parseInt would read as
   // a different number than the one supplied is refused, not truncated.
@@ -379,7 +389,7 @@ const create = asyncHandler(async (req, res) => {
     const created = await Ticket.create({
       title: title.trim(),
       description: description || null,
-      status: status || 'Open',
+      status: resolvedStatus,
       priority: priority || 'medium',
       type: type || 'request',
       source: resolvedSource,
@@ -465,6 +475,13 @@ const get = asyncHandler(async (req, res) => {
   res.json({ ticket: withCustomFields(ticket) });
 });
 
+// A status must be one of the configured ticket statuses (Q25).
+async function assertTicketStatus(name) {
+  if (typeof name !== 'string' || !(await TicketStatus.findOne({ where: { name } }))) {
+    throw new ApiError(400, 'Unknown ticket status', 'VALIDATION_ERROR');
+  }
+}
+
 // PATCH /tickets/:id
 const update = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
@@ -502,6 +519,13 @@ const update = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
+  if (changes.title !== undefined) {
+    if (typeof changes.title !== 'string' || !changes.title.trim()) {
+      throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
+    }
+    changes.title = changes.title.trim();
+  }
+  if (changes.status !== undefined) await assertTicketStatus(changes.status);
   // Same rules as create for the contact and project (S7, S6). Re-sending the
   // ticket's current value unchanged (a client PATCHing the whole ticket
   // back) reveals nothing new, so it isn't re-checked.
@@ -546,8 +570,9 @@ const update = asyncHandler(async (req, res) => {
     }
   }
   // A dueTime with no dueDate is meaningless — clearing the date always
-  // clears any time set alongside it, even if the caller didn't say so.
-  if (changes.dueDate === null && changes.dueTime === undefined) {
+  // clears the time, whatever the caller sent alongside it (Q27).
+  if (changes.dueDate === null || changes.dueDate === '') {
+    changes.dueDate = null;
     changes.dueTime = null;
   }
   if (changes.resolution !== undefined) {

@@ -165,12 +165,12 @@ describe('PATCH /projects/:id', () => {
     expect(project).toEqual(expect.objectContaining(changes));
   });
 
-  // Likely correct: 400 VALIDATION_ERROR, as on create. Expected to change in sub-project 3.
-  it('[quirk] Q38: update accepts a blank or whitespace name', async () => {
+  it('Q38: update refuses a blank or whitespace name', async () => {
     const p = await makeProject(tech.agent, { name: 'P', ownerDepartmentId: w.deptA.id });
-    for (const name of ['', '   ']) {
+    for (const name of ['', '   ', null]) {
       // eslint-disable-next-line no-await-in-loop
-      expect(expectOk(await tech.agent.patch(projUrl(p)).send({ name })).project.name).toBe(name);
+      expect((await tech.agent.patch(projUrl(p)).send({ name })).body)
+        .toEqual({ error: true, message: 'Project name is required', code: 'VALIDATION_ERROR' });
     }
   });
 
@@ -199,10 +199,12 @@ describe('PATCH /projects/:id', () => {
     expect(project.members.map((m) => [m.userId, m.role])).toEqual([[tech.user.id, 'lead']]);
   });
 
-  // Likely correct: 400 for a status no ProjectStatus row has. Expected to change in sub-project 3.
-  it('[quirk] Q25: accepts a status no ProjectStatus row has', async () => {
+  it('Q25: refuses a status no ProjectStatus row has', async () => {
     const p = await makeProject(tech.agent, { name: 'P', ownerDepartmentId: w.deptA.id });
-    expect(expectOk(await tech.agent.patch(projUrl(p)).send({ status: 'Bogus' })).project.status).toBe('Bogus');
+    expect((await tech.agent.patch(projUrl(p)).send({ status: 'Bogus' })).body)
+      .toEqual({ error: true, message: 'Unknown project status', code: 'VALIDATION_ERROR' });
+    expect((await tech.agent.post(`${API}/projects`).send({ name: 'Q', ownerDepartmentId: w.deptA.id, status: 'Bogus' })).body)
+      .toEqual({ error: true, message: 'Unknown project status', code: 'VALIDATION_ERROR' });
   });
 
   it('Q26: edit access follows the edit tier', async () => {

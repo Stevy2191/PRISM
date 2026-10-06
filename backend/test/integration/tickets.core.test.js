@@ -83,14 +83,12 @@ describe('POST /tickets', () => {
     expect(typeof t.resolvedAt).toBe('string');
   });
 
-  // Likely correct: 400 for a status no TicketStatus row has. Expected to change in sub-project 3.
-  it('[quirk] Q25: accepts a status no TicketStatus row has', async () => {
+  it('Q25: refuses a status no TicketStatus row has', async () => {
     const res = await tech.agent.post(`${API}/tickets`).send({ ...base(), status: 'Bogus' });
-    expect(res.status).toBe(201);
-    expect(res.body.ticket).toEqual(expect.objectContaining({ status: 'Bogus', resolvedAt: null }));
-    const { columns } = expectOk(await tech.agent.get(`${API}/tickets/board`));
-    const onBoard = columns.flatMap((c) => c.tickets.map((t) => t.id));
-    expect(onBoard).not.toContain(res.body.ticket.id);
+    expect(res.body).toEqual({ error: true, message: 'Unknown ticket status', code: 'VALIDATION_ERROR' });
+    const t = await makeTicket(tech.agent, base());
+    expect((await tech.agent.patch(`${API}/tickets/${t.id}`).send({ status: 'Bogus' })).body)
+      .toEqual({ error: true, message: 'Unknown ticket status', code: 'VALIDATION_ERROR' });
   });
 
   describe('assignment rules', () => {
@@ -196,13 +194,14 @@ describe('PATCH /tickets/:id', () => {
     expect(expectOk(await tech.agent.get(`${API}/tickets/${t.id}`)).ticket).toEqual(expect.objectContaining(changes));
   });
 
-  // Likely correct: 400 VALIDATION_ERROR, as on create. Expected to change in sub-project 3.
-  it('[quirk] Q38: update accepts a blank or whitespace title', async () => {
+  it('Q38: update refuses a blank or whitespace title, and trims a real one', async () => {
     const t = await makeTicket(tech.agent, base());
-    for (const title of ['', '   ']) {
+    for (const title of ['', '   ', null]) {
       // eslint-disable-next-line no-await-in-loop
-      expect(expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ title })).ticket.title).toBe(title);
+      expect((await tech.agent.patch(`${API}/tickets/${t.id}`).send({ title })).body)
+        .toEqual({ error: true, message: 'Ticket title is required', code: 'VALIDATION_ERROR' });
     }
+    expect(expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ title: '  New  ' })).ticket.title).toBe('New');
   });
 
   it('ignores fields that are not editable', async () => {
@@ -222,11 +221,10 @@ describe('PATCH /tickets/:id', () => {
     expect(await activityOf(tech.agent, t.id)).toEqual(expect.arrayContaining([['dueTime', '09:00:00', null]]));
   });
 
-  // Likely correct: a time without a date is cleared. Expected to change in sub-project 3.
-  it('[quirk] Q27: keeps a dueTime sent alongside a cleared dueDate', async () => {
+  it('Q27: clearing dueDate clears dueTime even when one is sent', async () => {
     const t = await makeTicket(tech.agent, { ...base(), dueDate: '2026-12-01', dueTime: '09:00:00' });
     const { ticket } = expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ dueDate: null, dueTime: '10:00:00' }));
-    expect(ticket).toEqual(expect.objectContaining({ dueDate: null, dueTime: '10:00:00' }));
+    expect(ticket).toEqual(expect.objectContaining({ dueDate: null, dueTime: null }));
   });
 
   it('stamps who set the resolution and when', async () => {

@@ -197,6 +197,13 @@ const listTags = asyncHandler(async (req, res) => {
 });
 
 // POST /projects — Admin/Technician
+// A status must be one of the configured project statuses (Q25).
+async function assertProjectStatus(name) {
+  if (typeof name !== 'string' || !(await ProjectStatus.findOne({ where: { name } }))) {
+    throw new ApiError(400, 'Unknown project status', 'VALIDATION_ERROR');
+  }
+}
+
 const create = asyncHandler(async (req, res) => {
   const {
     name, description, status, ownerDepartmentId, forDepartmentId,
@@ -220,6 +227,7 @@ const create = asyncHandler(async (req, res) => {
   }
 
   let resolvedStatus = status;
+  if (resolvedStatus) await assertProjectStatus(resolvedStatus);
   if (!resolvedStatus) {
     const firstOpen = await getFirstProjectStatusByBehavior('open');
     resolvedStatus = firstOpen ? firstOpen.name : 'Active';
@@ -301,6 +309,13 @@ const update = asyncHandler(async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
+  if (changes.name !== undefined) {
+    if (typeof changes.name !== 'string' || !changes.name.trim()) {
+      throw new ApiError(400, 'Project name is required', 'VALIDATION_ERROR');
+    }
+    changes.name = changes.name.trim();
+  }
+  if (changes.status !== undefined) await assertProjectStatus(changes.status);
   if (changes.tags !== undefined) {
     changes.tags = Array.isArray(changes.tags) && changes.tags.length ? changes.tags : null;
   }
