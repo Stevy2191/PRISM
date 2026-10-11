@@ -142,6 +142,12 @@ async function explainUserPermissions(userId) {
   if (user && user.roleId) roleIds.add(user.roleId);
   const roles = roleIds.size ? await Role.findAll({ where: { id: [...roleIds] } }) : [];
   const roleNameById = new Map(roles.map((r) => [r.id, r.name]));
+  // An Owner holds everything, whatever an override says (as resolveUserPermissions).
+  if (roles.some((r) => r.name === 'Owner' && r.isSystemRole)) {
+    return allPermissions.map((p) => ({
+      key: p.key, category: p.category, label: p.label, description: p.description, granted: true, source: 'Role: Owner',
+    }));
+  }
 
   const permByIdKey = new Map(allPermissions.map((p) => [p.id, p.key]));
   const rolePermissions = roleIds.size

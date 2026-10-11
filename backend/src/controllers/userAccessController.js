@@ -101,6 +101,12 @@ const removeRole = asyncHandler(async (req, res) => {
   if (!userRole) throw new ApiError(404, 'Role assignment not found', 'NOT_FOUND');
   const roleName = userRole.role?.name;
   if (roleName === 'Owner' && userRole.role?.isSystemRole) await assertKeepsAnOwner(user.id);
+  // Removing the main role hands out the department default: the remover
+  // must be able to hand that out too (Owner review M1).
+  if (user.roleId === roleId && user.department?.defaultRoleId) {
+    const fallback = await Role.findByPk(user.department.defaultRoleId);
+    if (fallback) await assertCanHandOutRole(req.user, fallback, user.id);
+  }
   await userRole.destroy();
 
   // Removing the primary role falls back to the user's department default,

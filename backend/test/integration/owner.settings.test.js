@@ -33,7 +33,7 @@ it('a System Administrator is refused every Owner-only setting; an Owner is not'
 it('integration secrets in the general settings need an Owner; other settings do not', async () => {
   const refused = await sysadmin.agent.put(`${API}/settings`).send({ settings: { 'integrations.googleClientSecret': 'evil' } });
   expect([refused.status, refused.body.code]).toEqual([403, 'OWNER_ONLY']);
-  expectOk(await sysadmin.agent.put(`${API}/settings`).send({ settings: { 'company.name': 'Acme' } }));
+  expectOk(await sysadmin.agent.put(`${API}/settings`).send({ settings: { 'csat.expiryDays': '14' } })); // not company.name: it renames the internal company
   expectOk(await w.admin.agent.put(`${API}/settings`).send({ settings: { 'integrations.googleClientId': 'mine' } }));
 });
 

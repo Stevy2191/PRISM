@@ -9,6 +9,17 @@ const { encryptToken } = require('../utils/tokenCrypto');
 const { getAllSettings } = require('./settingsController');
 const { callbackUrlFor } = require('./ssoController');
 const { clearDiscoveryCache } = require('../services/sso/oidc');
+const { isTopRole } = require('../services/ownership');
+
+// Single sign-on never grants the top roles: an identity provider's group
+// would otherwise decide who is an administrator or Owner (Owner review L4).
+async function ssoGrantableRole(rawId, notFound) {
+  const role = await Role.findByPk(rawId);
+  if (!role) throw new ApiError(400, notFound, 'VALIDATION_ERROR');
+  if (isTopRole(role)) throw new ApiError(400, 'Single sign-on can\'t grant the System Administrator or Owner role', 'VALIDATION_ERROR');
+  return role;
+}
+
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$/;
 
@@ -75,9 +86,7 @@ const createProvider = asyncHandler(async (req, res) => {
   if (await SsoProvider.findOne({ where: { slug: normalizedSlug } })) {
     throw new ApiError(409, 'A provider with this slug already exists', 'SLUG_TAKEN');
   }
-  if (defaultRoleId && !(await Role.findByPk(defaultRoleId))) {
-    throw new ApiError(400, 'Default role does not exist', 'VALIDATION_ERROR');
-  }
+  if (defaultRoleId) await ssoGrantableRole(defaultRoleId, 'Default role does not exist');
 
   const provider = await SsoProvider.create({
     name: String(name).trim(),
@@ -121,9 +130,7 @@ const updateProvider = asyncHandler(async (req, res) => {
   if (allowJit !== undefined) changes.allowJit = !!allowJit;
   if (isEnabled !== undefined) changes.isEnabled = !!isEnabled;
   if (defaultRoleId !== undefined) {
-    if (defaultRoleId && !(await Role.findByPk(defaultRoleId))) {
-      throw new ApiError(400, 'Default role does not exist', 'VALIDATION_ERROR');
-    }
+    if (defaultRoleId) await ssoGrantableRole(defaultRoleId, 'Default role does not exist');
     changes.defaultRoleId = defaultRoleId || null;
   }
 
@@ -169,7 +176,7 @@ const createMapping = asyncHandler(async (req, res) => {
   if (!claimValue || !String(claimValue).trim()) {
     throw new ApiError(400, 'Group claim value is required', 'VALIDATION_ERROR');
   }
-  if (!(await Role.findByPk(roleId))) throw new ApiError(400, 'Role does not exist', 'VALIDATION_ERROR');
+  await ssoGrantableRole(roleId, 'Role does not exist');
 
   const value = String(claimValue).trim();
   if (await SsoGroupMapping.findOne({ where: { providerId: provider.id, claimValue: value } })) {

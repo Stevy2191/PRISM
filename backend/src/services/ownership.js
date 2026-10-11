@@ -16,6 +16,10 @@ async function holdsSystemRole(user, name) {
 
 const isOwner = (user) => holdsSystemRole(user, OWNER);
 
+// The Owner and System Administrator roles: handed out only by an Owner, and
+// never automatically (a department default, single sign-on).
+const isTopRole = (role) => !!role && [OWNER, SYSTEM_ADMIN].includes(role.name);
+
 // An Owner or a System Administrator (the legacy 'admin' role included).
 async function isAdministrator(user) {
   return user.role === 'admin' || (await isOwner(user)) || holdsSystemRole(user, SYSTEM_ADMIN);
@@ -56,5 +60,5 @@ async function assertKeepsAnOwner(targetUserId) {
 }
 
 module.exports = {
-  OWNER, SYSTEM_ADMIN, isOwner, isAdministrator, assertOwner, requireOwner, assertCanManageAccount, assertKeepsAnOwner,
+  OWNER, SYSTEM_ADMIN, isOwner, isAdministrator, isTopRole, assertOwner, requireOwner, assertCanManageAccount, assertKeepsAnOwner,
 };

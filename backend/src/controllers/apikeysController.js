@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { ApiKey, User } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const { assertCanManageAccount } = require('../services/ownership');
 
 // GET /apikeys — own keys; Admin sees all
 const list = asyncHandler(async (req, res) => {
@@ -49,6 +50,12 @@ const remove = asyncHandler(async (req, res) => {
   if (!apiKey) throw new ApiError(404, 'API key not found', 'NOT_FOUND');
   if (apiKey.userId !== req.user.id && req.user.role !== 'admin') {
     throw new ApiError(403, 'You can only revoke your own API keys', 'FORBIDDEN');
+  }
+  // Someone else's key belongs to their account: an administrator's only an
+  // Owner may revoke (Owner review L2).
+  if (apiKey.userId !== req.user.id) {
+    const keyOwner = await User.findByPk(apiKey.userId);
+    if (keyOwner) await assertCanManageAccount(req.user, keyOwner);
   }
   await apiKey.destroy();
   await writeAudit(req, 'apikey.delete', 'ApiKey', apiKey.id, { name: apiKey.name });

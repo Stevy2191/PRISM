@@ -1,0 +1,113 @@
+const bcrypt = require('bcryptjs');
+const Sequelize = require('sequelize');
+const {
+  resetData, closeDb, models, sequelize, ROLE, createUserAndLogin,
+} = require('./helpers');
+const {
+  API, expectOk, makeWorld, makeStaff, makeUser,
+} = require('./fixtures');
+const migration = require('../../migrations/20260101000055-owner-role');
+
+// The Owner role's security review: the findings fixed in its one fix pass.
+
+let w;
+let roles;
+const roleId = (name) => roles.find((r) => r.name === name).id;
+const ownerOnly = (what) => ({ error: true, message: `${what} needs an Owner`, code: 'OWNER_ONLY' });
+// A System Administrator who is not an Owner, with the legacy 'admin' role too
+// (some older gates still read it).
+const makeSysadmin = () => createUserAndLogin({ username: 'sysadmin', roleName: ROLE.ADMIN, legacyRole: 'admin', departmentId: w.deptA.id });
+
+beforeEach(async () => {
+  await resetData();
+  w = await makeWorld();
+  roles = expectOk(await w.admin.agent.get(`${API}/roles`)).roles;
+});
+afterAll(closeDb);
+
+describe('M1: falling back to a department default never hands out a top role', () => {
+  it('a department\'s default role can\'t be System Administrator or Owner, even for an Owner', async () => {
+    for (const name of ['System Administrator', 'Owner']) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await w.admin.agent.patch(`${API}/departments/${w.deptA.id}`).send({ defaultRoleId: roleId(name) });
+      expect([name, res.status, res.body.message]).toEqual([name, 400, 'A department\'s default role can\'t be System Administrator or Owner']);
+    }
+  });
+
+  it('removing a main role that would fall back to a top role is refused for a non-Owner', async () => {
+    const sa = await makeSysadmin();
+    const staff = await makeStaff('staff', w.deptA.id);
+    await models.Department.update({ defaultRoleId: roleId('System Administrator') }, { where: { id: w.deptA.id } }); // set before this fix
+    const res = await sa.agent.delete(`${API}/users/${staff.user.id}/roles/${roleId('Department Staff')}`);
+    expect(res.body).toEqual(ownerOnly('Granting the System Administrator role'));
+    expect(await models.UserRole.count({ where: { userId: staff.user.id, roleId: roleId('System Administrator') } })).toBe(0);
+  });
+
+  it('deleting a role whose holders would fall back to a top role is refused for a non-Owner', async () => {
+    const sa = await makeSysadmin();
+    const custom = expectOk(await w.admin.agent.post(`${API}/roles`).send({ name: 'Temp', permissionKeys: ['tickets.view_own'] }), 201).role;
+    await makeUser('temp', 'Temp', w.deptA.id);
+    await models.Department.update({ defaultRoleId: roleId('System Administrator') }, { where: { id: w.deptA.id } });
+    const res = await sa.agent.delete(`${API}/roles/${custom.id}`);
+    expect(res.body).toEqual(ownerOnly('Granting the System Administrator role'));
+    expect(await models.Role.count({ where: { id: custom.id } })).toBe(1);
+  });
+});
+
+it('M2: the migration skips administrators still on the default password, unless no other exists', async () => {
+  const qi = sequelize.getQueryInterface();
+  const real = await makeUser('realadmin', ROLE.ADMIN, w.deptA.id);
+  await migration.down(qi, Sequelize);
+  // The setup account was never used: still on the default password.
+  await models.User.update({ passwordHash: await bcrypt.hash('changeme', 4), mustChangePassword: true }, { where: { id: w.admin.user.id } });
+  await migration.up(qi, Sequelize);
+  const owner = await models.Role.findOne({ where: { name: 'Owner', isSystemRole: true } });
+  expect((await models.UserRole.findAll({ where: { roleId: owner.id } })).map((r) => r.userId)).toEqual([real.user.id]);
+});
+
+it('L1: the general settings don\'t return sign-in and mail settings', async () => {
+  await models.SystemSettings.upsert({ key: 'smtp.host', value: 'mail.example.com' });
+  const sa = await makeSysadmin();
+  const { settings } = expectOk(await sa.agent.get(`${API}/settings`));
+  expect(Object.keys(settings).filter((k) => /^(ldap|smtp|inboundEmail|sso|adSync)\./.test(k))).toEqual([]);
+  expect(settings).toHaveProperty(['company.timezone']);
+});
+
+it('L2/L3: an administrator can\'t revoke an Owner\'s API key or change their preferences', async () => {
+  const sa = await makeSysadmin();
+  const { apiKey } = expectOk(await w.admin.agent.post(`${API}/apikeys`).send({ name: 'Owner integration' }), 201);
+  expect((await sa.agent.delete(`${API}/apikeys/${apiKey.id}`)).body).toEqual(ownerOnly('Changing an administrator\'s account'));
+  expect((await sa.agent.patch(`${API}/users/${w.admin.user.id}/preferences`).send({ timerMode: 'automatic' })).body)
+    .toEqual(ownerOnly('Changing an administrator\'s account'));
+});
+
+it('L4: single sign-on can\'t grant System Administrator or Owner', async () => {
+  const provider = expectOk(await w.admin.agent.post(`${API}/sso-admin/providers`).send({
+    name: 'Entra', slug: 'entra', protocol: 'oidc', config: { issuerUrl: 'https://login.example.com/v2.0', clientId: 'abc' }, clientSecret: 'x',
+  }), 201).provider;
+  const refused = 'Single sign-on can\'t grant the System Administrator or Owner role';
+  for (const name of ['System Administrator', 'Owner']) {
+    // eslint-disable-next-line no-await-in-loop
+    const mapping = await w.admin.agent.post(`${API}/sso-admin/providers/${provider.id}/mappings`).send({ claimValue: 'admins', roleId: roleId(name) });
+    expect([name, mapping.status, mapping.body.message]).toEqual([name, 400, refused]);
+    // eslint-disable-next-line no-await-in-loop
+    const def = await w.admin.agent.patch(`${API}/sso-admin/providers/${provider.id}`).send({ defaultRoleId: roleId(name) });
+    expect([name, def.status, def.body.message]).toEqual([name, 400, refused]);
+  }
+});
+
+it('L7: an Owner changing another Owner\'s legacy role keeps them an Owner', async () => {
+  const second = await makeStaff('second', w.deptA.id);
+  expectOk(await w.admin.agent.post(`${API}/users/${second.user.id}/roles`).send({ roleId: roleId('Owner') }), 201);
+  expectOk(await w.admin.agent.patch(`${API}/users/${second.user.id}`).send({ role: 'admin' }));
+  expect(await models.UserRole.count({ where: { userId: second.user.id, roleId: roleId('Owner') } })).toBe(1);
+});
+
+it('L8: the permissions view shows an Owner holding everything', async () => {
+  await models.UserPermissionOverride.create({ userId: w.admin.user.id, permissionKey: 'tickets.view_all', granted: false });
+  const second = await makeStaff('second', w.deptA.id);
+  expectOk(await w.admin.agent.post(`${API}/users/${second.user.id}/roles`).send({ roleId: roleId('Owner') }), 201);
+  const { permissions } = expectOk(await second.agent.get(`${API}/users/${w.admin.user.id}/permissions`));
+  expect(permissions.filter((p) => !p.granted)).toEqual([]);
+  expect(permissions.find((p) => p.key === 'tickets.view_all').source).toBe('Role: Owner');
+});

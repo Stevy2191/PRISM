@@ -5,7 +5,7 @@ const {
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { invalidateAllPermissions, invalidateUserPermissions } = require('../services/permissionService');
-const { assertCanGrantPermissions, assertNotOwnRolePermissions } = require('../services/roleGrant');
+const { assertCanGrantPermissions, assertNotOwnRolePermissions, assertCanHandOutRole } = require('../services/roleGrant');
 
 const roleInclude = [
   { model: Permission, as: 'permissions', through: { attributes: ['granted'] } },
@@ -160,6 +160,15 @@ const remove = asyncHandler(async (req, res) => {
   const affectedUsers = affectedUserIds.length
     ? await User.findAll({ where: { id: affectedUserIds }, include: [{ model: Department, as: 'department' }] })
     : [];
+  // Holders whose main role this is fall back to their department default:
+  // the deleter must be able to hand each of those out (Owner review M1).
+  const fallbackIds = [...new Set(affectedUsers
+    .filter((u) => u.roleId === role.id && u.department?.defaultRoleId && u.department.defaultRoleId !== role.id)
+    .map((u) => u.department.defaultRoleId))];
+  for (const id of fallbackIds) {
+    const fallback = await Role.findByPk(id); // eslint-disable-line no-await-in-loop
+    if (fallback) await assertCanHandOutRole(req.user, fallback); // eslint-disable-line no-await-in-loop
+  }
 
   await sequelize.transaction(async (t) => {
     await UserRole.destroy({ where: { roleId: role.id }, transaction: t });

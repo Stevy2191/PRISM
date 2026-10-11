@@ -1,5 +1,7 @@
 'use strict';
 
+const bcrypt = require('bcryptjs');
+
 // The Owner (user decision 2026-10-11): a locked role above System
 // Administrator. Only Owners make System Administrators or Owners, change an
 // administrator's account, or change sign-in, mail and integration settings,
@@ -29,12 +31,19 @@ module.exports = {
       { replacements: { roleId: role.id }, transaction: t });
       const [hasOwner] = await select('SELECT userId FROM UserRoles WHERE roleId = :roleId LIMIT 1', { roleId: role.id }, t);
       if (!hasOwner) {
-        const [first] = await select(`SELECT u.id FROM Users u
+        const admins = await select(`SELECT u.id, u.passwordHash, u.mustChangePassword FROM Users u
           WHERE u.isActive = 1 AND (u.role = 'admin'
             OR u.roleId IN (SELECT id FROM Roles WHERE name = 'System Administrator' AND isSystemRole = 1)
             OR EXISTS (SELECT 1 FROM UserRoles ur JOIN Roles r ON r.id = ur.roleId
                        WHERE ur.userId = u.id AND r.name = 'System Administrator' AND r.isSystemRole = 1))
-          ORDER BY u.id ASC LIMIT 1`, {}, t);
+          ORDER BY u.id ASC`, {}, t);
+        // Not an account still on the public default password, or due a
+        // forced change (an unused setup account): anyone knowing "changeme"
+        // would get the Owner. Only when no other administrator exists (a
+        // fresh install) does the setup account become the Owner, and it must
+        // change that password at first sign-in.
+        const unused = (a) => !!Number(a.mustChangePassword) || (a.passwordHash && bcrypt.compareSync('changeme', a.passwordHash));
+        const first = admins.find((a) => !unused(a)) || admins[0];
         if (first) {
           await queryInterface.bulkInsert('UserRoles', [{ userId: first.id, roleId: role.id, assignedAt: new Date() }], { transaction: t });
         }

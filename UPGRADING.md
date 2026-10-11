@@ -172,8 +172,11 @@ A new built-in role, **Owner**, sits above System Administrator, so that a singl
 System Administrator can't take the system over.
 
 - **Who is the Owner after upgrading:** the oldest active administrator
-  account, which is normally the account created when PRISM was set up. On a
-  new install, the setup account is the Owner.
+  account that has been used. An account still on the default password
+  (`changeme`), or still due its first password change, is skipped unless no
+  other administrator exists. On a new install, the setup account is the
+  Owner and must change its password at first sign-in.
+- **Confirm the Owner right after upgrading.**
 - **Check who it is:** Settings → Users, where the account shows an "Owner"
   badge.
 - **An Owner has every permission and reaches every company.**
@@ -191,7 +194,11 @@ System Administrator can't take the system over.
   Owner assigns the Owner role to them under Settings → Users.
 - **There is always at least one active Owner.** The last Owner's role can't be
   removed and their account can't be deleted. As before, nobody changes their
-  own roles or permissions, Owners included.
+  own roles or permission overrides, Owners included.
+- **The Owner and System Administrator roles are never given automatically:**
+  - a department's default role can't be one of them;
+  - single sign-on can't grant them, by group mapping or as a provider's
+    default. Mappings to them made before this update are ignored at sign-in.
 
 ### Security fixes
 

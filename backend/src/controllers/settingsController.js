@@ -106,8 +106,11 @@ const WRITABLE_KEYS = Object.keys(DEFAULTS).filter(
   (k) => k !== 'company.logoFilename' && k !== 'company.faviconFilename'
 );
 
+// The general settings as the client sees them: only this module's own keys
+// (sign-in and mail settings have their own Owner-only endpoints, Owner
+// review L1), with the integration secrets blanked.
 function redactSettings(values) {
-  const redacted = { ...values };
+  const redacted = Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, values[k]]));
   const flags = {};
   SECRET_KEYS.forEach((key) => {
     flags[`${key}Set`] = !!redacted[key];

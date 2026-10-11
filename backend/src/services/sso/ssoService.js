@@ -7,7 +7,7 @@
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 const {
-  SsoProvider, SsoIdentity, SsoGroupMapping, SsoAuthRequest, User, UserRole, sequelize,
+  SsoProvider, SsoIdentity, SsoGroupMapping, SsoAuthRequest, User, UserRole, Role, sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { invalidateUserPermissions } = require('../permissionService');
@@ -213,8 +213,18 @@ async function syncProfile(user, profile) {
 // Only roles that this provider maps are touched. A role an administrator
 // assigned by hand is left alone — otherwise SSO would silently undo manual
 // grants on every sign-in.
+// Ids of the Owner and System Administrator roles, which single sign-on never
+// grants (a mapping or default made before that rule is ignored) and never
+// takes away from an Owner (Owner review L4).
+async function topRoleIds() {
+  const rows = await Role.findAll({ where: { name: ['Owner', 'System Administrator'], isSystemRole: true }, attributes: ['id', 'name'] });
+  return { all: new Set(rows.map((r) => r.id)), owner: rows.find((r) => r.name === 'Owner')?.id };
+}
+
 async function applyGroupMappings(provider, user, groups) {
-  const mappings = await SsoGroupMapping.findAll({ where: { providerId: provider.id } });
+  const top = await topRoleIds();
+  const mappings = (await SsoGroupMapping.findAll({ where: { providerId: provider.id } }))
+    .filter((m) => !top.all.has(m.roleId));
   if (!mappings.length) {
     if (provider.defaultRoleId) await ensureDefaultRole(user, provider.defaultRoleId);
     return;
@@ -226,13 +236,13 @@ async function applyGroupMappings(provider, user, groups) {
     mappings.filter((m) => asserted.has(String(m.claimValue))).map((m) => m.roleId)
   );
 
-  if (!grantedRoleIds.size && provider.defaultRoleId) grantedRoleIds.add(provider.defaultRoleId);
+  if (!grantedRoleIds.size && provider.defaultRoleId && !top.all.has(provider.defaultRoleId)) grantedRoleIds.add(provider.defaultRoleId);
 
   const current = await UserRole.findAll({ where: { userId: user.id } });
   const currentRoleIds = new Set(current.map((ur) => ur.roleId));
 
   const toAdd = [...grantedRoleIds].filter((id) => !currentRoleIds.has(id));
-  const toRemove = current.filter((ur) => managedRoleIds.has(ur.roleId) && !grantedRoleIds.has(ur.roleId));
+  const toRemove = current.filter((ur) => managedRoleIds.has(ur.roleId) && !grantedRoleIds.has(ur.roleId) && ur.roleId !== top.owner);
 
   if (!toAdd.length && !toRemove.length) return;
 
@@ -259,6 +269,7 @@ async function applyGroupMappings(provider, user, groups) {
 }
 
 async function ensureDefaultRole(user, roleId) {
+  if ((await topRoleIds()).all.has(roleId)) return; // never granted by single sign-on
   const existing = await UserRole.findOne({ where: { userId: user.id, roleId } });
   if (existing) return;
   await UserRole.create({ userId: user.id, roleId, assignedAt: new Date(), assignedBy: null });

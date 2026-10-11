@@ -33,7 +33,9 @@ async function syncSeedRoleAssignment(user, legacyRole, assignedBy) {
   const seedRoleName = LEGACY_ROLE_TO_SEED_ROLE[legacyRole];
   const seedRole = seedRoleName ? await Role.findOne({ where: { name: seedRoleName, isSystemRole: true } }) : null;
   if (!seedRole) return;
-  await UserRole.destroy({ where: { userId: user.id } });
+  // An Owner stays an Owner when their legacy role changes (Owner review L7).
+  const ownerRole = await Role.findOne({ where: { name: 'Owner', isSystemRole: true }, attributes: ['id'] });
+  await UserRole.destroy({ where: { userId: user.id, ...(ownerRole ? { roleId: { [Op.ne]: ownerRole.id } } : {}) } });
   await UserRole.create({ userId: user.id, roleId: seedRole.id, assignedAt: new Date(), assignedBy: assignedBy || null });
   await user.update({ roleId: seedRole.id });
   invalidateUserPermissions(user.id);
@@ -361,6 +363,7 @@ const updatePreferences = asyncHandler(async (req, res) => {
   }
   const user = await User.findByPk(id);
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
+  if (req.user.id !== id) await assertCanManageAccount(req.user, user); // Owner review L3
 
   const { timerMode, timerMinThreshold, timerPromptBeforeLog } = req.body || {};
   const changes = {};

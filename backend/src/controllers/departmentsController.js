@@ -8,6 +8,7 @@ const {
 const { getInternalCompanyId } = require('../services/companyService');
 const { andWhere } = require('../services/recordScope');
 const { assertCanHandOutRole } = require('../services/roleGrant');
+const { isTopRole } = require('../services/ownership');
 
 const departmentInclude = [
   { model: Role, as: 'defaultRole', attributes: ['id', 'name'] },
@@ -103,6 +104,9 @@ const list = asyncHandler(async (req, res) => {
 async function resolveDefaultRole(req, rawRoleId) {
   const role = await Role.findByPk(parseRecordId(rawRoleId) || 0);
   if (!role) throw new ApiError(400, 'Default role does not exist', 'VALIDATION_ERROR');
+  // Never automatically: a default reaches every account created in the
+  // department, and anyone whose main role is removed (Owner review M1).
+  if (isTopRole(role)) throw new ApiError(400, 'A department\'s default role can\'t be System Administrator or Owner', 'VALIDATION_ERROR');
   if (!(await hasPermission(req.user.id, 'people.manage_roles'))) {
     throw new ApiError(403, 'Setting a default role needs people.manage_roles', 'FORBIDDEN');
   }
