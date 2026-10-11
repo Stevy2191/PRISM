@@ -44,7 +44,7 @@ const {
 const { generateProjectCode } = require('../../services/projectCodeService');
 const {
   userAttrs, projectInclude, buildProjectStats, getProjectWithDetail, assertCanEditProject,
-  assertCanWorkProject, assertCanManageMembers, syncLeadMembership,
+  assertCanWorkProject, assertCanManageMembers, syncLeadMembership, projectAccessFor,
 } = require('./shared');
 
 // ==================== Projects ====================
@@ -296,7 +296,7 @@ const get = asyncHandler(async (req, res) => {
   if (!(await canAccessProject(req.user, project))) {
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   }
-  res.json({ project });
+  res.json({ project: { ...project, access: await projectAccessFor(req.user, project) } });
 });
 
 // PATCH /projects/:id — Admin/Technician. Updates any field.
@@ -383,7 +383,7 @@ const update = asyncHandler(async (req, res) => {
     syncProjectToExternalCalendars(project.id);
   }
 
-  res.json({ project: await getProjectWithDetail(project.id) });
+  res.json({ project: { ...(await getProjectWithDetail(project.id)), access: await projectAccessFor(req.user, project) } });
 });
 
 // DELETE /projects/:id — Admin only

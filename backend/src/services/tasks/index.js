@@ -63,8 +63,25 @@ async function shownLinkedTicket(viewer, linked) {
   return { id: linked.id, restricted: true };
 }
 
-async function annotate(task, behavior, viewer) {
+// Seconds logged per task in a parent (each task's own entries).
+async function loggedSecondsByTask(parent) {
+  const rows = await TimeEntry.findAll({
+    where: { ...parent.where, taskId: { [Op.ne]: null } },
+    attributes: ['taskId', [sequelize.fn('SUM', sequelize.col('durationSeconds')), 'seconds']],
+    group: ['taskId'],
+    raw: true,
+  });
+  return new Map(rows.map((r) => [r.taskId, Number(r.seconds) || 0]));
+}
+
+// logged: loggedSecondsByTask. A task's loggedSeconds counts its subtasks'.
+async function annotate(task, behavior, viewer, logged = new Map()) {
   const json = task.toJSON();
+  const subs = task.subtasks || [];
+  json.loggedSeconds = (logged.get(task.id) || 0) + subs.reduce((n, st) => n + (logged.get(st.id) || 0), 0);
+  if (Array.isArray(json.subtasks)) {
+    json.subtasks = json.subtasks.map((st) => ({ ...st, loggedSeconds: logged.get(st.id) || 0 }));
+  }
   if (json.parentTaskId === null) {
     json.isComplete = isTaskComplete(task, task.subtasks || [], behavior);
     json.subtaskPercent = subtaskCompletionPercent(task.subtasks || [], behavior);
@@ -76,13 +93,14 @@ async function annotate(task, behavior, viewer) {
 // viewer: the user the task is shown to, for the linked ticket (Q19).
 async function loadTask(parent, id, viewer) {
   const task = await Task.findByPk(id, { include: taskIncludes(parent) });
-  return annotate(task, await taskStatusBehaviorMap(), viewer);
+  return annotate(task, await taskStatusBehaviorMap(), viewer, await loggedSecondsByTask(parent));
 }
 
 async function listTasks(parent, viewer) {
   const tasks = await Task.findAll({ where: { ...parent.where, parentTaskId: null }, include: taskIncludes(parent), order: ORDER });
   const behavior = await taskStatusBehaviorMap();
-  return Promise.all(tasks.map((t) => annotate(t, behavior, viewer)));
+  const logged = await loggedSecondsByTask(parent);
+  return Promise.all(tasks.map((t) => annotate(t, behavior, viewer, logged)));
 }
 
 // ---- Field rules ----

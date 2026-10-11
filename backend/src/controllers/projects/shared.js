@@ -14,7 +14,9 @@ const {
   Company,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
-const { parseRecordId, canEditProject, hasPermission } = require('../../services/permissionService');
+const {
+  parseRecordId, canEditProject, canModerateProjectContent, hasPermission,
+} = require('../../services/permissionService');
 const { canWorkCompany } = require('../../services/ticketPeople');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
 const { computeProjectCompletion } = require('../../services/projectCompletion');
@@ -129,8 +131,19 @@ async function syncLeadMembership(project, previousLeadId) {
   }
 }
 
+// What the viewer may do with this project, for the screens to follow.
+async function projectAccessFor(viewer, project) {
+  const edit = await canEditProject(viewer, project);
+  return {
+    edit,
+    moderate: await canModerateProjectContent(viewer, project),
+    delete: edit && (await hasPermission(viewer.id, 'projects.delete')),
+  };
+}
+
 module.exports = {
   assertCanEditProject,
+  projectAccessFor,
   assertCanWorkProject,
   assertCanManageMembers,
   syncLeadMembership,

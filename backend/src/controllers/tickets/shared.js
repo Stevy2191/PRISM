@@ -15,7 +15,9 @@ const {
 const { Op, col } = require('sequelize');
 const { ApiError } = require('../../middleware/error');
 const { toDateString } = require('../../utils/orgTime');
-const { canEditTicket, canAccessProject } = require('../../services/permissionService');
+const {
+  canEditTicket, canAccessProject, canModerateTicketContent, hasPermission,
+} = require('../../services/permissionService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 
@@ -174,9 +176,21 @@ async function assertCanEditTicket(user, ticket) {
   if (!(await canEditTicket(user, ticket))) throw new ApiError(403, 'You do not have permission to edit this ticket', 'FORBIDDEN');
 }
 
+// What the viewer may do with this ticket, for the screens to follow (the
+// server re-checks every request).
+async function ticketAccessFor(viewer, ticket) {
+  const edit = await canEditTicket(viewer, ticket);
+  return {
+    edit,
+    moderate: await canModerateTicketContent(viewer, ticket),
+    delete: edit && (await hasPermission(viewer.id, 'tickets.delete')),
+  };
+}
+
 module.exports = {
   assertCanEditTicket,
   shownTicketFor,
+  ticketAccessFor,
   ticketInclude,
   withCustomFields,
   syncCustomFieldValues,

@@ -48,7 +48,7 @@ const {
 const { maybeCreateCsatSurvey } = require('../../services/csatService');
 const { logAssetActivity } = require('../../services/assetActivity');
 const {
-  ticketInclude, syncCustomFieldValues, shownTicketFor, assertCanEditTicket,
+  ticketInclude, syncCustomFieldValues, shownTicketFor, ticketAccessFor, assertCanEditTicket,
 } = require('./shared');
 
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
@@ -465,7 +465,7 @@ const create = asyncHandler(async (req, res) => {
   syncTicketToExternalCalendars(ticket.id);
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
-  res.status(201).json({ ticket: await shownTicketFor(req.user, fresh) });
+  res.status(201).json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });
 });
 
 // GET /tickets/:id
@@ -477,7 +477,7 @@ const get = asyncHandler(async (req, res) => {
   if (!(await canAccessTicket(req.user, ticket))) {
     throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
   }
-  res.json({ ticket: await shownTicketFor(req.user, ticket) });
+  res.json({ ticket: { ...(await shownTicketFor(req.user, ticket)), access: await ticketAccessFor(req.user, ticket) } });
 });
 
 // A status must be one of the configured ticket statuses (Q25). Returns its
@@ -671,7 +671,7 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
-  res.json({ ticket: await shownTicketFor(req.user, fresh) });
+  res.json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });
 });
 
 // DELETE /tickets/:id — Admin only
