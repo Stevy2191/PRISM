@@ -78,9 +78,9 @@ it('the default work date is the organization\'s today', async () => {
     const page = await smoke.pageAs('admin');
     await page.goto(`/tickets/${ticket.id}`);
     await tab(page, /^Time Entries/);
-    await page.getByRole('button', { name: 'Add manual time entry' }).filter({ visible: true }).first().click();
-    // The modal renders last; the sidebar has its own (empty) due-date input.
-    expect(await page.locator('input[type=date]').filter({ visible: true }).last().inputValue()).toBe(dateIn(zone));
+    await page.getByRole('button', { name: 'Log time' }).filter({ visible: true }).first().click();
+    const dialog = page.getByRole('dialog').filter({ visible: true }).last();
+    expect(await dialog.getByLabel('Date').inputValue()).toBe(dateIn(zone));
   } finally {
     await setSettings(w.admin, { 'company.timezone': 'UTC' });
   }

@@ -8,6 +8,9 @@ import { useAuth, usePermission } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import Spinner from '../../components/Spinner';
 import TimerButton from '../../components/work/TimerButton';
+import TimeLog from '../../components/work/TimeLog';
+import TimeEntryForm from '../../components/work/TimeEntryForm';
+import { useTimer } from '../../context/TimerContext';
 import { Modal } from './detail/Modal';
 import {
   BG,
@@ -23,7 +26,6 @@ import {
 } from './theme';
 import { Avatar, StatCard } from './detail/Bits';
 import { TasksTab, AddTaskModal } from './detail/TasksTab';
-import { TimeTab, AddTimeModal } from './detail/TimeTab';
 import { ExpensesTab, AddExpenseModal } from './detail/ExpensesTab';
 import { MaterialsTab, AddMaterialModal } from './detail/MaterialsTab';
 import { PeopleTab, AddPersonModal } from './detail/PeopleTab';
@@ -126,7 +128,6 @@ export default function ProjectDetail() {
   const [reportModalOpen, setReportModalOpen] = useState(false);
 
   const [tasks, setTasks] = useState([]);
-  const [timeEntries, setTimeEntries] = useState({ entries: [], totalSeconds: 0 });
   const [expenses, setExpenses] = useState({ expenses: [], total: 0 });
   const [materials, setMaterials] = useState({ materials: [], total: 0 });
   const [members, setMembers] = useState([]);
@@ -135,7 +136,9 @@ export default function ProjectDetail() {
 
   const [openTask, setOpenTask] = useState(null);
   const [showAddTask, setShowAddTask] = useState(false);
-  const [showAddTime, setShowAddTime] = useState(false);
+  // A stopped header timer, waiting in the Log time form.
+  const [stoppedTimer, setStoppedTimer] = useState(null);
+  const { logVersion } = useTimer();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMaterial, setShowAddMaterial] = useState(false);
   const [showAddPerson, setShowAddPerson] = useState(false);
@@ -145,7 +148,6 @@ export default function ProjectDetail() {
   // How many rows of each growing list are currently loaded. Passed as the
   // request's `limit` so a refetch after an edit doesn't collapse the list
   // back to the first chunk.
-  const [timeLimit, setTimeLimit] = useState(SUBLIST_STEP);
   const [expenseLimit, setExpenseLimit] = useState(SUBLIST_STEP);
   const [materialLimit, setMaterialLimit] = useState(SUBLIST_STEP);
   const [activityLimit, setActivityLimit] = useState(SUBLIST_STEP);
@@ -153,10 +155,9 @@ export default function ProjectDetail() {
 
   const loadAll = async () => {
     try {
-      const [p, t, te, ex, mat, mem, fl, act] = await Promise.all([
+      const [p, t, ex, mat, mem, fl, act] = await Promise.all([
         api.get(`/projects/${id}`),
         api.get(`/projects/${id}/tasks`),
-        api.get(`/projects/${id}/time-entries`, { params: { limit: timeLimit } }),
         api.get(`/projects/${id}/expenses`, { params: { limit: expenseLimit } }),
         api.get(`/projects/${id}/materials`, { params: { limit: materialLimit } }),
         api.get(`/projects/${id}/members`),
@@ -165,7 +166,6 @@ export default function ProjectDetail() {
       ]);
       setProject(p.data.project);
       setTasks(t.data.tasks);
-      setTimeEntries(te.data);
       setExpenses(ex.data);
       setMaterials(mat.data);
       setMembers(mem.data.members);
@@ -182,7 +182,7 @@ export default function ProjectDetail() {
   useEffect(() => {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, timeLimit, expenseLimit, materialLimit, activityLimit]);
+  }, [id, expenseLimit, materialLimit, activityLimit]);
 
   useEffect(() => {
     api.get('/project-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
@@ -198,7 +198,6 @@ export default function ProjectDetail() {
   const reloadProject = () => api.get(`/projects/${id}`).then(({ data }) => setProject(data.project));
   const reloadActivity = () => api.get(`/projects/${id}/activity`, { params: { limit: activityLimit } })
     .then(({ data }) => { setActivity(data.activity); setActivityTotal(data.total); });
-  const reloadTime = () => api.get(`/projects/${id}/time-entries`, { params: { limit: timeLimit } }).then(({ data }) => setTimeEntries(data));
   const reloadExpenses = () => api.get(`/projects/${id}/expenses`, { params: { limit: expenseLimit } }).then(({ data }) => setExpenses(data));
   const reloadMaterials = () => api.get(`/projects/${id}/materials`, { params: { limit: materialLimit } }).then(({ data }) => setMaterials(data));
 
@@ -379,7 +378,7 @@ export default function ProjectDetail() {
         {isStaff && (
           <div className="flex flex-shrink-0 items-center gap-2">
             {canLogTime && (
-              <TimerButton kind="project" parentId={project.id} label={`${project.projectCode} ${project.name}`} anyTask />
+              <TimerButton kind="project" parentId={project.id} label={`${project.projectCode} ${project.name}`} onStopRequest={setStoppedTimer} anyTask />
             )}
             <button
               type="button"
@@ -462,20 +461,16 @@ export default function ProjectDetail() {
         />
       )}
       {tab === 'time' && (
-        <TimeTab
-          data={timeEntries}
-          isStaff={isStaff}
-          canLogTime={canLogTime}
-          user={user}
-          canManageOthers={canLogTimeForOthers}
+        <TimeLog
+          kind="project"
+          parentId={project.id}
           tasks={tasks}
-          onAdd={() => setShowAddTime(true)}
-          onDelete={async (entryId) => {
-            await api.delete(`/projects/${id}/time-entries/${entryId}`);
-            await reloadTime();
-            reloadProject();
-          }}
-          onLoadMore={() => setTimeLimit((n) => n + SUBLIST_STEP)}
+          canLog={canLogTime}
+          canManageOthers={canLogTimeForOthers}
+          currentUser={user}
+          assignableUsers={assignableUsers}
+          reloadKey={logVersion}
+          onChanged={() => { reloadTasks(); reloadProject(); reloadActivity(); }}
         />
       )}
       {tab === 'expenses' && (
@@ -557,18 +552,17 @@ export default function ProjectDetail() {
         />
       )}
 
-      {showAddTime && (
-        <AddTimeModal
+      {stoppedTimer && (
+        <TimeEntryForm
+          kind="project"
+          parentId={project.id}
           tasks={tasks}
+          timer={stoppedTimer}
           canManageOthers={canLogTimeForOthers}
+          currentUser={user}
           assignableUsers={assignableUsers}
-          onClose={() => setShowAddTime(false)}
-          onSave={async (payload) => {
-            await api.post(`/projects/${id}/time-entries`, payload);
-            setShowAddTime(false);
-            await reloadTime();
-            reloadProject();
-          }}
+          onSaved={() => { reloadTasks(); reloadProject(); reloadActivity(); }}
+          onClose={() => setStoppedTimer(null)}
         />
       )}
 

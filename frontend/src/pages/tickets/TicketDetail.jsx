@@ -6,7 +6,8 @@ import { IconLink, IconFileText } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
 import { assignableContactDepartments } from '../../utils/contactDepartments';
-import { formatHMS } from '../../context/TimerContext';
+import { formatHMS, useTimer } from '../../context/TimerContext';
+import TimeLog from '../../components/work/TimeLog';
 import Spinner from '../../components/Spinner';
 import { formatTicketId } from '../../utils/ticketId';
 import {
@@ -27,7 +28,6 @@ import { GenerateReportModal } from './detail/GenerateReportModal';
 import { Sidebar } from './detail/Sidebar';
 import { ConversationTab } from './detail/ConversationTab';
 import { ResolutionTab } from './detail/ResolutionTab';
-import { TimeEntriesTab } from './detail/TimeEntriesTab';
 import { TasksTab } from './detail/TasksTab';
 import { AttachmentsTab } from './detail/AttachmentsTab';
 import { ActivityTab } from './detail/ActivityTab';
@@ -86,7 +86,11 @@ export default function TicketDetail() {
   const [commentLimit, setCommentLimit] = useState(SUBLIST_STEP);
   const [commentTotal, setCommentTotal] = useState(0);
   const [attachments, setAttachments] = useState([]);
-  const [time, setTime] = useState({ entries: [], totalSeconds: 0 });
+  // The whole ticket's logged time (for the no-time-logged warning); the
+  // Time Entries tab loads its own list.
+  const [timeTotal, setTimeTotal] = useState(0);
+  const [timeVersion, setTimeVersion] = useState(0);
+  const { logVersion } = useTimer();
   const [relations, setRelations] = useState([]);
   const [watchers, setWatchers] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -126,7 +130,7 @@ export default function TicketDetail() {
         api.get(`/tickets/${id}`),
         api.get(`/tickets/${id}/comments`, { params: { limit: commentLimit } }),
         api.get(`/tickets/${id}/attachments`, { params: { limit: 'all' } }),
-        api.get(`/tickets/${id}/time`, { params: { limit: 'all' } }),
+        api.get(`/tickets/${id}/time`, { params: { limit: 1 } }),
         api.get(`/tickets/${id}/relations`),
         api.get(`/tickets/${id}/watchers`),
         api.get(`/tickets/${id}/tasks`),
@@ -137,7 +141,7 @@ export default function TicketDetail() {
       setComments(c.data.comments);
       setCommentTotal(c.data.total);
       setAttachments(a.data.attachments);
-      setTime(tm.data);
+      setTimeTotal(tm.data.totalSeconds);
       setRelations(rel.data.relations);
       setWatchers(w.data.watchers);
       setTasks(tk.data.tasks);
@@ -300,7 +304,7 @@ export default function TicketDetail() {
   // "Close without resolution" falls through into that second check rather
   // than skipping it.
   const applyStatusChange = (status) => {
-    if (closedStatusNames.includes(status) && time.totalSeconds === 0) {
+    if (closedStatusNames.includes(status) && timeTotal === 0) {
       setNoTimeWarning(status);
     } else {
       patchTicket({ status });
@@ -315,10 +319,15 @@ export default function TicketDetail() {
     }
   };
 
-  const reloadTime = () => {
-    api.get(`/tickets/${id}/time`, { params: { limit: 'all' } }).then(({ data }) => setTime(data)).catch(() => {});
+  const reloadTasks = () => api.get(`/tickets/${id}/tasks`).then(({ data }) => setTasks(data.tasks)).catch(() => {});
+  // After time changes: the total, the Time Entries list, each task's time, activity.
+  const afterTimeChange = () => {
+    api.get(`/tickets/${id}/time`, { params: { limit: 1 } }).then(({ data }) => setTimeTotal(data.totalSeconds)).catch(() => {});
+    reloadTasks();
     reloadActivity();
   };
+  // Time logged outside the Time Entries tab (the timer) also reloads its list.
+  const reloadTime = () => { setTimeVersion((v) => v + 1); afterTimeChange(); };
 
   const sendReply = async (body, type) => {
     const { data } = await api.post(`/tickets/${id}/comments`, { body, type });
@@ -430,17 +439,7 @@ export default function TicketDetail() {
     }
   };
 
-  const addManualTime = async ({ startTime, endTime, description, entryDate, loggedForId }) => {
-    const { data } = await api.post(`/tickets/${id}/time`, {
-      startTime,
-      endTime,
-      note: description || undefined,
-      entryDate,
-      userId: loggedForId,
-    });
-    setTime((t) => ({ entries: [data.entry, ...t.entries], totalSeconds: t.totalSeconds + data.entry.durationSeconds }));
-    reloadActivity();
-  };
+
 
   if (loading) return <Spinner />;
   if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
@@ -633,13 +632,16 @@ export default function TicketDetail() {
               <ResolutionTab ticket={ticket} onSave={saveResolution} isStaff={isStaff} />
             )}
             {activeTab === 'time' && (
-              <TimeEntriesTab
-                entries={time.entries}
-                totalSeconds={time.totalSeconds}
-                onAdd={addManualTime}
-                assignableUsers={assignableUsers}
-                canLogTimeForOthers={canLogTimeForOthers}
+              <TimeLog
+                kind="ticket"
+                parentId={ticket.id}
+                tasks={tasks}
+                canLog={hasPermission('time.log')}
+                canManageOthers={canLogTimeForOthers}
                 currentUser={user}
+                assignableUsers={assignableUsers}
+                reloadKey={logVersion + timeVersion}
+                onChanged={afterTimeChange}
               />
             )}
             {activeTab === 'tasks' && (
