@@ -92,6 +92,9 @@ export function AuthProvider({ children }) {
     isAdmin: user?.role === 'admin',
     isStaff: user?.role === 'admin' || user?.role === 'technician',
     canLogTimeForOthers: !!user?.canLogTimeForOthers,
+    // The Owner (above System Administrator): the screens show Owner-only
+    // settings and controls; the server decides.
+    isOwner: !!user?.isOwner,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

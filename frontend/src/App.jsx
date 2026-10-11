@@ -74,11 +74,21 @@ import AdminBlueprints from './pages/AdminBlueprints';
 import AdminApiKeys from './pages/AdminApiKeys';
 import AdminSettings from './pages/AdminSettings';
 import EmailLog from './pages/settings/EmailLog';
+import AccessRestricted from './components/AccessRestricted';
+import { useAuth } from './context/AuthContext';
 import AuditLog from './pages/settings/AuditLog';
 
 const admin = (el) => <ProtectedRoute roles={['admin']}>{el}</ProtectedRoute>;
 const staff = (el) => <ProtectedRoute roles={['admin', 'technician']}>{el}</ProtectedRoute>;
 const perm = (el, keys) => <ProtectedRoute permission={keys}>{el}</ProtectedRoute>;
+
+// Sign-in, mail and integration settings need an Owner (user decision
+// 2026-10-11); the server refuses everyone else too.
+function OwnerOnly({ children }) {
+  const { isOwner } = useAuth();
+  return isOwner ? children : <AccessRestricted message="Changing these settings needs an Owner." />;
+}
+const owner = (el, keys) => <ProtectedRoute permission={keys}><OwnerOnly>{el}</OwnerOnly></ProtectedRoute>;
 
 // These mirror the Settings-hub card visibility rules 1:1 (see SettingsHub.jsx)
 // so a route is always reachable whenever its card is shown, and never
@@ -176,7 +186,7 @@ export default function App() {
         <Route path="/admin/blueprints" element={staff(<AdminBlueprints />)} />
         <Route path="/admin/apikeys" element={<AdminApiKeys />} />
         <Route path="/admin/settings" element={perm(<AdminSettings />, SYSTEM_KEYS)} />
-        <Route path="/settings/email-log" element={perm(<EmailLog />, SYSTEM_KEYS)} />
+        <Route path="/settings/email-log" element={owner(<EmailLog />, SYSTEM_KEYS)} />
 
         <Route path="/settings/customer-happiness" element={perm(<CustomerHappiness />, SYSTEM_KEYS)} />
 
@@ -188,12 +198,12 @@ export default function App() {
         <Route path="/settings/notifications" element={perm(<SettingsNotifications />, SYSTEM_KEYS)} />
         <Route path="/settings/time-tracking" element={perm(<SettingsTimeTracking />, SYSTEM_KEYS)} />
         <Route path="/settings/work-types" element={perm(<SettingsWorkTypes />, SYSTEM_KEYS)} />
-        <Route path="/settings/single-sign-on" element={perm(<SettingsSingleSignOn />, SYSTEM_KEYS)} />
+        <Route path="/settings/single-sign-on" element={owner(<SettingsSingleSignOn />, SYSTEM_KEYS)} />
         <Route path="/settings/assignment-rules" element={perm(<AssignmentRules />, SYSTEM_KEYS)} />
         <Route path="/settings/workflow-rules" element={perm(<WorkflowRules />, SYSTEM_KEYS)} />
         <Route path="/settings/workflow-rules/new" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
         <Route path="/settings/workflow-rules/:id" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
-        <Route path="/settings/directory-sync" element={perm(<DirectorySync />, SYSTEM_KEYS)} />
+        <Route path="/settings/directory-sync" element={owner(<DirectorySync />, SYSTEM_KEYS)} />
         <Route path="/settings/macros" element={admin(<Placeholder title="Macros" icon={IconBolt} note="Create one-click action sets that apply multiple changes to a ticket at once. Coming in a future update." />)} />
         <Route path="/settings/slas" element={perm(<SLAs />, SYSTEM_KEYS)} />
         <Route path="/settings/supervisor-rules" element={admin(<Placeholder title="Supervisor Rules" icon={IconShieldCheck} note="Automatic escalation rules that fire when tickets are idle too long. Coming in a future update." />)} />
@@ -202,7 +212,7 @@ export default function App() {
         <Route path="/settings/export" element={admin(<SettingsExport />)} />
         <Route path="/settings/audit-log" element={perm(<AuditLog />, AUDIT_LOG_KEYS)} />
         <Route path="/settings/recycle-bin" element={admin(<Placeholder title="Recycle Bin" icon={IconTrash} note="Recover recently deleted tickets and contacts. Requires soft-delete support that isn't built yet. Coming in a future update." />)} />
-        <Route path="/settings/calendar-integration" element={admin(<CalendarIntegration />)} />
+        <Route path="/settings/calendar-integration" element={owner(<CalendarIntegration />, SYSTEM_KEYS)} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

@@ -116,15 +116,15 @@ const SECTIONS = [
     title: 'Integrations',
     items: [
       { label: 'API Keys', to: '/admin/apikeys', desc: 'Programmatic access', roles: ALL },
-      { label: 'Calendar Integration', to: '/settings/calendar-integration', desc: 'Sync with calendars' },
-      { label: 'Directory Sync', to: '/settings/directory-sync', desc: 'AD contact sync & group mapping', permission: SYSTEM_KEYS },
-      { label: 'Single Sign-On', to: '/settings/single-sign-on', desc: 'SAML & OIDC identity providers', permission: SYSTEM_KEYS },
+      { label: 'Calendar Integration', to: '/settings/calendar-integration', desc: 'Sync with calendars', permission: SYSTEM_KEYS, owner: true },
+      { label: 'Directory Sync', to: '/settings/directory-sync', desc: 'AD contact sync & group mapping', permission: SYSTEM_KEYS, owner: true },
+      { label: 'Single Sign-On', to: '/settings/single-sign-on', desc: 'SAML & OIDC identity providers', permission: SYSTEM_KEYS, owner: true },
     ],
   },
 ];
 
 export default function SettingsHub() {
-  const { user, hasAnyPermission } = useAuth();
+  const { user, hasAnyPermission, isOwner } = useAuth();
   const { settings } = useSettings();
   const adConnected = !!settings?.ldap?.connected;
   const role = user?.role;
@@ -186,7 +186,8 @@ export default function SettingsHub() {
   // keeps the original role-string gate.
   const visibleSections = SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((it) => (
+    // `owner`: sign-in, mail and integration settings need an Owner (2026-10-11).
+    items: section.items.filter((it) => (!it.owner || isOwner) && (
       it.permission ? hasAnyPermission(it.permission) : (it.roles || ['admin']).includes(role)
     )),
   })).filter((section) => section.items.length > 0);

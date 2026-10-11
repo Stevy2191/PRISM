@@ -376,7 +376,7 @@ function EffectivePermissionsSection({ effective, error }) {
 
 // ---- Roles & Permissions tab ----
 
-function RolesPermissionsTab({ userId, onPermissionsChanged }) {
+function RolesPermissionsTab({ userId, onPermissionsChanged, readOnly = false }) {
   const [loading, setLoading] = useState(true);
   const [allRoles, setAllRoles] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -478,7 +478,7 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
       <div className="card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-semibold text-navy-900">Assigned roles</h2>
-          <button className="btn-primary" onClick={() => setShowAssignRole(true)}>+ Assign role</button>
+          {!readOnly && <button className="btn-primary" onClick={() => setShowAssignRole(true)}>+ Assign role</button>}
         </div>
         {rolesError && <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{rolesError}</div>}
         <div className="space-y-2">
@@ -497,7 +497,7 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
                     : 'System-wide'}
                 </p>
               </div>
-              <button onClick={() => removeRole(ur)} className="text-xs text-red-500 hover:underline">
+              <button hidden={readOnly} onClick={() => removeRole(ur)} className="text-xs text-red-500 hover:underline">
                 Remove
               </button>
             </div>
@@ -510,7 +510,7 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
       <div className="card p-5">
         <div className="mb-1 flex items-center justify-between">
           <h2 className="font-semibold text-navy-900">Individual permission overrides</h2>
-          <button className="btn-primary" onClick={() => setShowAddOverride(true)}>+ Add override</button>
+          {!readOnly && <button className="btn-primary" onClick={() => setShowAddOverride(true)}>+ Add override</button>}
         </div>
         <p className="mb-3 text-sm text-navy-500">Overrides apply on top of this user's roles. Use for temporary access.</p>
         {overridesError && <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{overridesError}</div>}
@@ -528,7 +528,7 @@ function RolesPermissionsTab({ userId, onPermissionsChanged }) {
                   </div>
                   <p className="text-xs text-navy-400">{o.permissionKey}</p>
                 </div>
-                <button onClick={() => revokeOverride(o.id)} className="text-xs text-red-500 hover:underline">Revoke</button>
+                <button hidden={readOnly} onClick={() => revokeOverride(o.id)} className="text-xs text-red-500 hover:underline">Revoke</button>
               </div>
               {o.reason && <p className="mt-1 text-sm text-navy-600">{o.reason}</p>}
               <p className="mt-1 text-xs text-navy-400">
@@ -852,7 +852,7 @@ function PerformanceTab({ userId }) {
 
 export default function UserDetail() {
   const { id } = useParams();
-  const { refreshPermissions } = useAuth();
+  const { refreshPermissions, isOwner, user: me } = useAuth();
   const canEditUsers = usePermission('people.edit_users');
   const [user, setUser] = useState(null);
   const [departments, setDepartments] = useState([]);
@@ -892,10 +892,22 @@ export default function UserDetail() {
     { key: 'performance', label: 'Performance' },
   ];
 
+  // An administrator's account (another one) is changed only by an Owner
+  // (user decision 2026-10-11); the server refuses anyone else.
+  const readOnly = !!user.administrator && !isOwner && user.id !== me?.id;
+
   return (
     <div className="space-y-5">
       <Link to="/admin/users" className="text-sm text-prism hover:underline">← Back to Users</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">{user.displayName}</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-navy-900">
+        {user.displayName}
+        {user.owner && <span className="ml-2 rounded-full bg-navy-100 px-2 py-0.5 align-middle text-xs font-medium text-navy-600">Owner</span>}
+      </h1>
+      {readOnly && (
+        <div className="rounded-md border border-navy-200 bg-navy-50 p-3 text-sm text-navy-600">
+          Only an Owner can change an administrator&apos;s account.
+        </div>
+      )}
 
       <div className="flex gap-2 border-b border-navy-100">
         {TABS.map((t) => (
@@ -911,10 +923,14 @@ export default function UserDetail() {
         ))}
       </div>
 
-      {tab === 'profile' && <ProfileTab user={user} departments={departments} onUpdate={updateUser} canManageContractor={canEditUsers} />}
+      {tab === 'profile' && (
+        <fieldset disabled={readOnly}>
+          <ProfileTab user={user} departments={departments} onUpdate={updateUser} canManageContractor={canEditUsers} />
+        </fieldset>
+      )}
       {tab === 'access' && (
         <>
-          <RolesPermissionsTab userId={id} onPermissionsChanged={refreshPermissions} />
+          <RolesPermissionsTab userId={id} onPermissionsChanged={refreshPermissions} readOnly={readOnly} />
           <CompanyAccessPanel userId={id} />
         </>
       )}

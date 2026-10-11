@@ -14,7 +14,9 @@ const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
-const { assertCanManageAccount, assertKeepsAnOwner, isOwner } = require('../services/ownership');
+const {
+  assertCanManageAccount, assertKeepsAnOwner, isOwner, isAdministrator,
+} = require('../services/ownership');
 
 const userInclude = [{ model: Department, as: 'department' }, { model: Role, as: 'primaryRole' }];
 
@@ -227,7 +229,9 @@ const get = asyncHandler(async (req, res) => {
   }
   const user = await User.findByPk(id, { include: userInclude });
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
-  res.json({ user });
+  // administrator / owner: the screens keep an administrator's account
+  // read-only for anyone but an Owner (the server decides).
+  res.json({ user: { ...user.toJSON(), administrator: await isAdministrator(user), owner: await isOwner(user) } });
 });
 
 // PATCH /users/:id — self (profile fields only) or people.edit_users (everything).

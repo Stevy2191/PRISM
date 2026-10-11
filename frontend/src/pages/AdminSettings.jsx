@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
+import { useAuth } from '../context/AuthContext';
 import LdapSection from './settings/LdapSection';
 import InboundEmailSection from './settings/InboundEmailSection';
 import OutboundEmailSection from './settings/OutboundEmailSection';
@@ -26,6 +27,7 @@ function Bool({ value }) {
 }
 
 export default function AdminSettings() {
+  const { isOwner } = useAuth();
   const [config, setConfig] = useState(null);
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,19 +80,27 @@ export default function AdminSettings() {
       </div>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
-      <LdapSection />
+      {isOwner ? (
+        <>
+        <LdapSection />
 
-      <InboundEmailSection />
-      <OutboundEmailSection />
-      <div className="card p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold text-navy-900">Email Log</h2>
-            <p className="mt-1 text-xs text-navy-400">See why an inbound email did or didn't create a ticket.</p>
+        <InboundEmailSection />
+        <OutboundEmailSection />
+        <div className="card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-navy-900">Email Log</h2>
+              <p className="mt-1 text-xs text-navy-400">See why an inbound email did or didn't create a ticket.</p>
+            </div>
+            <Link to="/settings/email-log" className="btn-secondary text-sm">View log</Link>
           </div>
-          <Link to="/settings/email-log" className="btn-secondary text-sm">View log</Link>
         </div>
-      </div>
+        </>
+      ) : (
+        <div className="card p-5 text-sm text-navy-500">
+          Sign-in and mail settings can be changed only by an Owner: Active Directory / LDAP, inbound and outbound email, and the email log.
+        </div>
+      )}
 
       <form onSubmit={save} className="card space-y-4 p-5">
         <h2 className="font-semibold text-navy-900">System</h2>
