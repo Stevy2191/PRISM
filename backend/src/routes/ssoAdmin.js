@@ -1,6 +1,7 @@
 const express = require('express');
 const ctrl = require('../controllers/ssoAdminController');
 const { requirePermission } = require('../middleware/requirePermission');
+const { requireOwner } = require('../services/ownership');
 
 const router = express.Router();
 
@@ -8,7 +9,8 @@ const router = express.Router();
 // in at all, so it sits behind the same permission as the rest of system
 // settings rather than anything narrower.
 const manageSystem = requirePermission('settings.manage_system');
-router.use(manageSystem);
+// Single sign-on (and its role mappings) needs an Owner (user decision 2026-10-11).
+router.use(manageSystem, requireOwner('Single sign-on settings'));
 
 router.get('/providers', ctrl.listProviders);
 router.post('/providers', ctrl.createProvider);

@@ -1,11 +1,13 @@
 const express = require('express');
 const ctrl = require('../controllers/adSyncController');
 const { requirePermission } = require('../middleware/requirePermission');
+const { requireOwner } = require('../services/ownership');
 
 const router = express.Router();
 const manage = requirePermission('settings.manage_system');
 
-router.use(manage);
+// Directory sync (and its group-to-role mappings) needs an Owner (user decision 2026-10-11).
+router.use(manage, requireOwner('Directory sync settings'));
 
 router.get('/settings', ctrl.getSettings);
 router.put('/settings', ctrl.saveSettings);

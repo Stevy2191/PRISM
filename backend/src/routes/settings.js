@@ -9,6 +9,7 @@ const emailCtrl = require('../controllers/emailSettingsController');
 const { authenticate } = require('../middleware/auth');
 const { blockUntilPasswordChanged } = require('../middleware/role');
 const { requirePermission } = require('../middleware/requirePermission');
+const { requireOwner } = require('../services/ownership');
 const { verifyFileSignature } = require('../middleware/upload');
 
 const router = express.Router();
@@ -54,6 +55,9 @@ router.get('/favicon', ctrl.getFavicon);
 
 // Admin endpoints.
 const manageSystem = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_system')];
+// Sign-in and mail settings are a way to take over accounts or read mail:
+// they need an Owner (user decision 2026-10-11).
+const ownerSettings = [...manageSystem, requireOwner('Sign-in and mail settings')];
 const manageBranding = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_branding')];
 // GET is widened to settings.manage_branding too — a branding-only role
 // (no manage_system) still needs to load the Company/Branding pages to use
@@ -67,16 +71,16 @@ const readSettings = [authenticate, blockUntilPasswordChanged, requirePermission
 router.get('/', readSettings, ctrl.get);
 router.put('/', manageSystem, ctrl.update);
 router.patch('/', manageSystem, ctrl.patch);
-router.get('/ldap', manageSystem, ldapCtrl.get);
-router.patch('/ldap', manageSystem, ldapCtrl.update);
-router.post('/ldap/test', manageSystem, ldapCtrl.test);
-router.get('/inbound-email', manageSystem, emailCtrl.getInbound);
-router.patch('/inbound-email', manageSystem, emailCtrl.updateInbound);
-router.post('/inbound-email/test', manageSystem, emailCtrl.testInbound);
-router.get('/smtp', manageSystem, emailCtrl.getSmtp);
-router.patch('/smtp', manageSystem, emailCtrl.updateSmtp);
-router.post('/smtp/test', manageSystem, emailCtrl.testSmtp);
-router.get('/email-log', manageSystem, emailCtrl.getEmailLog);
+router.get('/ldap', ownerSettings, ldapCtrl.get);
+router.patch('/ldap', ownerSettings, ldapCtrl.update);
+router.post('/ldap/test', ownerSettings, ldapCtrl.test);
+router.get('/inbound-email', ownerSettings, emailCtrl.getInbound);
+router.patch('/inbound-email', ownerSettings, emailCtrl.updateInbound);
+router.post('/inbound-email/test', ownerSettings, emailCtrl.testInbound);
+router.get('/smtp', ownerSettings, emailCtrl.getSmtp);
+router.patch('/smtp', ownerSettings, emailCtrl.updateSmtp);
+router.post('/smtp/test', ownerSettings, emailCtrl.testSmtp);
+router.get('/email-log', ownerSettings, emailCtrl.getEmailLog);
 router.post('/logo', manageBranding, logoUpload.single('file'), verifyFileSignature, ctrl.uploadLogo);
 router.delete('/logo', manageBranding, ctrl.removeLogo);
 router.post('/favicon', manageBranding, faviconUpload.single('file'), verifyFileSignature, ctrl.uploadFavicon);

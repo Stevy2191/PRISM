@@ -4,6 +4,7 @@ const { SystemSettings } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
+const { assertOwner } = require('../services/ownership');
 
 const BRANDING_DIR = path.join(UPLOAD_ROOT, 'branding');
 
@@ -243,6 +244,14 @@ const get = asyncHandler(async (req, res) => {
 // Shared upsert logic for PUT/PATCH /settings — a map of key/value pairs.
 // JSON-shaped settings (currently just branding.loginBullets) are
 // re-serialized so callers can pass either a JS array or a JSON string.
+// Integration secrets (the calendar OAuth apps) need an Owner (user decision
+// 2026-10-11): they decide where users' calendar tokens go.
+async function assertCanWriteKeys(req, incoming) {
+  if (Object.keys(incoming).some((k) => k.startsWith('integrations.'))) {
+    await assertOwner(req.user, 'Changing integration settings');
+  }
+}
+
 async function upsertSettings(incoming, userId) {
   const keys = Object.keys(incoming).filter((k) => WRITABLE_KEYS.includes(k));
   const written = [];
@@ -273,6 +282,7 @@ async function upsertSettings(incoming, userId) {
 // kept alongside PATCH for the existing Company/other settings pages).
 const update = asyncHandler(async (req, res) => {
   const incoming = (req.body && req.body.settings) || {};
+  await assertCanWriteKeys(req, incoming);
   const keys = await upsertSettings(incoming, req.user.id);
   await writeAudit(req, 'settings.update', 'SystemSettings', null, { keys });
 
@@ -284,6 +294,7 @@ const update = asyncHandler(async (req, res) => {
 // key/value body for convenience from the Appearance/Statuses admin pages.
 const patch = asyncHandler(async (req, res) => {
   const incoming = (req.body && req.body.settings) || req.body || {};
+  await assertCanWriteKeys(req, incoming);
   const keys = await upsertSettings(incoming, req.user.id);
   await writeAudit(req, 'settings.update', 'SystemSettings', null, { keys });
 
