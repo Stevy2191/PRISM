@@ -57,10 +57,10 @@ it('the ticket\'s time tab shows the entry and the total', async () => {
 it('a project subtask toggles closed from the task list', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/projects/${project.id}`);
-  await shown(page, 'Project task').click();
+  await shown(page, 'Project task').click(); // expands the task (plan 3c)
   await shown(page, 'Project subtask').waitFor();
   const before = expectOk(await w.admin.agent.get(`${API}/projects/${project.id}/tasks`)).tasks[0].subtasks[0];
-  await clickAndWait(page, page.locator('input[type=checkbox]').filter({ visible: true }).last(), '/subtasks/');
+  await clickAndWait(page, page.getByLabel('Complete Project subtask').filter({ visible: true }).first(), '/tasks/');
   const after = expectOk(await w.admin.agent.get(`${API}/projects/${project.id}/tasks`)).tasks[0].subtasks[0];
   expect([before.completedAt, typeof after.completedAt]).toEqual([null, 'string']);
 });

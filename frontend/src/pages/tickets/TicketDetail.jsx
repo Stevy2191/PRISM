@@ -8,6 +8,7 @@ import { useAuth, usePermission } from '../../context/AuthContext';
 import { assignableContactDepartments } from '../../utils/contactDepartments';
 import { formatHMS, useTimer } from '../../context/TimerContext';
 import TimeLog from '../../components/work/TimeLog';
+import TaskList from '../../components/work/TaskList';
 import Spinner from '../../components/Spinner';
 import { formatTicketId } from '../../utils/ticketId';
 import {
@@ -28,7 +29,6 @@ import { GenerateReportModal } from './detail/GenerateReportModal';
 import { Sidebar } from './detail/Sidebar';
 import { ConversationTab } from './detail/ConversationTab';
 import { ResolutionTab } from './detail/ResolutionTab';
-import { TasksTab } from './detail/TasksTab';
 import { AttachmentsTab } from './detail/AttachmentsTab';
 import { ActivityTab } from './detail/ActivityTab';
 import { ReplyBox } from './detail/ReplyBox';
@@ -410,37 +410,6 @@ export default function TicketDetail() {
     }
   };
 
-  const addTask = async (title) => {
-    try {
-      const { data } = await api.post(`/tickets/${id}/tasks`, { title });
-      setTasks((prev) => [...prev, data.task]);
-    } catch (err) {
-      alert(errMessage(err));
-    }
-  };
-  // The checkbox moves a task between the first open and first closed status.
-  const toggleTask = async (task) => {
-    const closed = task.status?.behaviorType === 'closed';
-    const next = taskStatuses.find((st) => st.behaviorType === (closed ? 'open' : 'closed'));
-    if (!next) return;
-    try {
-      const { data } = await api.patch(`/tickets/${id}/tasks/${task.id}`, { statusId: next.id });
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? data.task : t)));
-    } catch (err) {
-      alert(errMessage(err));
-    }
-  };
-  const reassignTask = async (task, assigneeId) => {
-    try {
-      const { data } = await api.patch(`/tickets/${id}/tasks/${task.id}`, { assigneeId });
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? data.task : t)));
-    } catch (err) {
-      alert(errMessage(err));
-    }
-  };
-
-
-
   if (loading) return <Spinner />;
   if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
   if (!ticket) return null;
@@ -645,7 +614,19 @@ export default function TicketDetail() {
               />
             )}
             {activeTab === 'tasks' && (
-              <TasksTab tasks={tasks} assignableUsers={assignableUsers} onToggle={toggleTask} onReassign={reassignTask} onAdd={addTask} />
+              <TaskList
+                kind="ticket"
+                parentId={ticket.id}
+                tasks={tasks}
+                statuses={taskStatuses}
+                assignableUsers={assignableUsers}
+                canEdit={!!ticket.access?.edit}
+                canLog={hasPermission('time.log')}
+                canManageOthers={canLogTimeForOthers}
+                currentUser={user}
+                timerLabel={`${formatTicketId(ticket)} ${ticket.title}`}
+                onChanged={afterTimeChange}
+              />
             )}
             {activeTab === 'attachments' && (
               <AttachmentsTab ticketId={id} attachments={attachments} onUpload={uploadFile} onRemove={removeAttachment} />

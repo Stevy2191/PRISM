@@ -5,10 +5,10 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { IconFileText } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
 import Spinner from '../../components/Spinner';
 import TimerButton from '../../components/work/TimerButton';
 import TimeLog from '../../components/work/TimeLog';
+import TaskList from '../../components/work/TaskList';
 import TimeEntryForm from '../../components/work/TimeEntryForm';
 import { useTimer } from '../../context/TimerContext';
 import { Modal } from './detail/Modal';
@@ -25,13 +25,11 @@ import {
   completionColor,
 } from './theme';
 import { Avatar, StatCard } from './detail/Bits';
-import { TasksTab, AddTaskModal } from './detail/TasksTab';
 import { ExpensesTab, AddExpenseModal } from './detail/ExpensesTab';
 import { MaterialsTab, AddMaterialModal } from './detail/MaterialsTab';
 import { PeopleTab, AddPersonModal } from './detail/PeopleTab';
 import { FilesTab } from './detail/FilesTab';
 import { ActivityTab } from './detail/ActivityTab';
-import { TaskDetailModal } from './detail/TaskDetailModal';
 
 // Rows loaded at a time by the growing detail lists.
 const SUBLIST_STEP = 25;
@@ -110,7 +108,6 @@ export default function ProjectDetail() {
   const canLogTime = usePermission('time.log');
   const canEditProjectContent = hasAnyPermission(['projects.edit_own', 'projects.edit_department', 'projects.edit_all']);
   const navigate = useNavigate();
-  const { showToast } = useToast();
 
   const [project, setProject] = useState(null);
   const [statuses, setStatuses] = useState([]);
@@ -134,8 +131,6 @@ export default function ProjectDetail() {
   const [files, setFiles] = useState([]);
   const [activity, setActivity] = useState([]);
 
-  const [openTask, setOpenTask] = useState(null);
-  const [showAddTask, setShowAddTask] = useState(false);
   // A stopped header timer, waiting in the Log time form.
   const [stoppedTimer, setStoppedTimer] = useState(null);
   const { logVersion } = useTimer();
@@ -244,52 +239,6 @@ export default function ProjectDetail() {
       await patchProject({ name: nameDraft.trim() });
     }
     setEditingName(false);
-  };
-
-  // ---- Task reorder (drag-and-drop or the up/down buttons) ----
-  // `order` is the full array of task IDs in their new order; a single
-  // bulk PATCH updates every affected position in one request.
-  const handleReorderTasks = async (order) => {
-    setTasks((prev) => order.map((tid) => prev.find((t) => t.id === tid)).filter(Boolean));
-    try {
-      await api.patch(`/projects/${id}/tasks/reorder`, { order });
-      showToast('Order saved.');
-    } catch (err) {
-      alert(errMessage(err));
-    } finally {
-      reloadTasks();
-    }
-  };
-
-  const toggleTaskComplete = async (task) => {
-    const closedStatus = taskStatuses.find((s) => s.behaviorType === 'closed');
-    const openStatus = taskStatuses.find((s) => s.behaviorType === 'open');
-    const target = task.isComplete ? openStatus : closedStatus;
-    if (!target) return;
-    await api.patch(`/projects/${id}/tasks/${task.id}`, { statusId: target.id });
-    await reloadTasks();
-    await reloadProject();
-    await reloadActivity();
-  };
-
-  const toggleSubtaskComplete = async (task, subtask) => {
-    const closedStatus = taskStatuses.find((s) => s.behaviorType === 'closed');
-    const openStatus = taskStatuses.find((s) => s.behaviorType === 'open');
-    const isClosed = taskStatuses.find((s) => s.id === subtask.statusId)?.behaviorType === 'closed';
-    const target = isClosed ? openStatus : closedStatus;
-    if (!target) return;
-    await api.patch(`/projects/${id}/tasks/${task.id}/subtasks/${subtask.id}`, { statusId: target.id });
-    await reloadTasks();
-    await reloadProject();
-    await reloadActivity();
-  };
-
-  const deleteTask = async (taskId) => {
-    if (!confirm('Delete this task and its subtasks?')) return;
-    await api.delete(`/projects/${id}/tasks/${taskId}`);
-    setOpenTask(null);
-    await reloadTasks();
-    await reloadProject();
   };
 
   if (loading) return <Spinner />;
@@ -445,19 +394,18 @@ export default function ProjectDetail() {
       </div>
 
       {tab === 'tasks' && (
-        <TasksTab
+        <TaskList
+          kind="project"
+          parentId={project.id}
           tasks={tasks}
-          isStaff={isStaff}
-          canEdit={canEditProjectContent}
           statuses={taskStatuses}
           assignableUsers={assignableUsers}
-          onOpenTask={setOpenTask}
-          onAdd={() => setShowAddTask(true)}
-          onToggleTask={toggleTaskComplete}
-          onToggleSubtask={toggleSubtaskComplete}
-          onReorder={handleReorderTasks}
-          projectId={id}
-          onRenumbered={reloadTasks}
+          canEdit={!!project.access?.edit}
+          canLog={canLogTime}
+          canManageOthers={canLogTimeForOthers}
+          currentUser={user}
+          timerLabel={`${project.projectCode} ${project.name}`}
+          onChanged={() => { reloadTasks(); reloadProject(); reloadActivity(); }}
         />
       )}
       {tab === 'time' && (
@@ -526,32 +474,6 @@ export default function ProjectDetail() {
       )}
 
       {/* ---- Modals ---- */}
-      {showAddTask && (
-        <AddTaskModal
-          statuses={taskStatuses}
-          assignableUsers={assignableUsers}
-          onClose={() => setShowAddTask(false)}
-          onSave={async (payload) => {
-            await api.post(`/projects/${id}/tasks`, payload);
-            setShowAddTask(false);
-            await reloadTasks();
-            await reloadProject();
-          }}
-        />
-      )}
-
-      {openTask && (
-        <TaskDetailModal
-          projectId={id}
-          task={openTask}
-          statuses={taskStatuses}
-          assignableUsers={assignableUsers}
-          onClose={() => setOpenTask(null)}
-          onChanged={async () => { await reloadTasks(); await reloadProject(); await reloadActivity(); }}
-          onDeleted={() => deleteTask(openTask.id)}
-        />
-      )}
-
       {stoppedTimer && (
         <TimeEntryForm
           kind="project"

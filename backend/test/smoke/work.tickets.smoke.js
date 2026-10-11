@@ -60,7 +60,7 @@ it('a task can be added from the Tasks tab', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${ticket.id}`);
   await tab(page, /^Tasks/);
-  const input = page.getByPlaceholder('Add a task and press Enter…').filter({ visible: true });
+  const input = page.getByPlaceholder('Add a task…').filter({ visible: true });
   await input.fill('Added from the guard');
   await input.press('Enter');
   await shown(page, 'Added from the guard').waitFor();
