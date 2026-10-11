@@ -9,6 +9,8 @@ const { resolveUserPermissions, hasPermission } = require('../services/permissio
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
 
+const { isOwner } = require('../services/ownership');
+
 const primaryRoleInclude = [{ model: Role, as: 'primaryRole' }];
 
 // Whether the user may log time for other people: time.manage_others, or
@@ -16,7 +18,8 @@ const primaryRoleInclude = [{ model: Role, as: 'primaryRole' }];
 async function serializeUserWithFlags(user) {
   const canLogTimeForOthers = (await hasPermission(user.id, 'time.manage_others'))
     || !!(await TeamMember.findOne({ where: { userId: user.id, isLead: true } }));
-  return { ...user.toJSON(), canLogTimeForOthers };
+  // isOwner: the screens show the Owner-only settings and controls (the server decides).
+  return { ...user.toJSON(), canLogTimeForOthers, isOwner: await isOwner(user) };
 }
 
 

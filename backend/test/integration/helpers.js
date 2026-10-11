@@ -18,6 +18,7 @@ const {
 
 // Seeded system roles created by the migrations.
 const ROLE = {
+  OWNER: 'Owner',
   ADMIN: 'System Administrator',
   TECHNICIAN: 'System Technician',
   DEPARTMENT_MANAGER: 'Department Manager',
@@ -59,6 +60,7 @@ async function createUser({
   roleName = ROLE.READ_ONLY,
   legacyRole = 'technician',
   departmentId = null,
+  extraRoles = [],
 }) {
   const roleId = await roleIdByName(roleName);
   const user = await User.create({
@@ -74,6 +76,10 @@ async function createUser({
   });
   await UserRole.destroy({ where: { userId: user.id } });
   await UserRole.create({ userId: user.id, roleId, assignedAt: new Date() });
+  for (const name of extraRoles) {
+    // eslint-disable-next-line no-await-in-loop
+    await UserRole.create({ userId: user.id, roleId: await roleIdByName(name), assignedAt: new Date() });
+  }
   invalidateAllPermissions();
   return { user, password };
 }

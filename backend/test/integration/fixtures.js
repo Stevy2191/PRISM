@@ -20,8 +20,10 @@ function expectOk(res, status = 200) {
 
 // legacyRole 'admin' matters: logging time for others, deleting other
 // people's time and managing teams still check User.role (quirk Q6).
+// The test world's admin is also the Owner, as the setup account of a fresh
+// install is (the Owner role, user decision 2026-10-11).
 function makeAdmin(username = 'admin') {
-  return createUserAndLogin({ username, roleName: ROLE.ADMIN, legacyRole: 'admin' });
+  return createUserAndLogin({ username, roleName: ROLE.ADMIN, legacyRole: 'admin', extraRoles: [ROLE.OWNER] });
 }
 
 async function makeDept(admin, name, shortCode) {

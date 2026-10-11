@@ -23,7 +23,7 @@ afterAll(async () => {
 it('grants moderation to the roles that could moderate before, not to System Technician', async () => {
   for (const key of ['tickets.moderate', 'projects.moderate']) {
     // eslint-disable-next-line no-await-in-loop
-    expect(await holders(key)).toEqual(['Department Manager', 'System Administrator']);
+    expect(await holders(key)).toEqual(['Department Manager', 'Owner', 'System Administrator']); // the Owner holds everything
   }
 });
 
