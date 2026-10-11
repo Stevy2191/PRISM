@@ -73,7 +73,9 @@ describe('the timer', () => {
     freezeClock('2026-03-11T15:00:00Z');
     const tech = await makeTech('tech', w.deptA.id);
     const res = await onTicket(tech, T, { label: 'Working' });
-    const timer = { type: 'ticket', id: T.id, taskId: null, label: 'Working', startedAt: '2026-03-11T15:00:00.000Z' };
+    const timer = {
+      type: 'ticket', id: T.id, taskId: null, label: 'Working', startedAt: '2026-03-11T15:00:00.000Z', state: 'running', elapsedSeconds: 0,
+    };
     expect([res.status, res.body]).toEqual([201, { timer, logged: null }]);
     expect(await current(tech)).toEqual(timer);
     const task = await makeTask(w.admin.agent, P.id, { title: 'Rack' });

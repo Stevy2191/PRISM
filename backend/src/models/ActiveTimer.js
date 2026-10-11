@@ -15,6 +15,10 @@ module.exports = (sequelize) => {
       taskId: { type: DataTypes.INTEGER, allowNull: true },
       label: { type: DataTypes.STRING(255), allowNull: true },
       startedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+      // Pause (plan 3c): finished running stretches, and the start of the
+      // current one (null while paused).
+      accumulatedSeconds: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      runningSince: { type: DataTypes.DATE, allowNull: true },
     },
     {
       sequelize,

@@ -10,6 +10,8 @@ router.use(requirePermission('time.log'));
 router.get('/', ctrl.get);
 router.post('/start', ctrl.start);
 router.post('/stop', ctrl.stop);
+router.post('/pause', ctrl.pause);
+router.post('/resume', ctrl.resume);
 router.delete('/', ctrl.cancel);
 
 module.exports = router;

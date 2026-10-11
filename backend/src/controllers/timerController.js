@@ -19,9 +19,16 @@ const DISCARDED = {
   denied: 'You no longer have access to what this timer was running on, so its time was discarded.',
 };
 
+// Seconds the timer has run: finished stretches plus the current one.
+function elapsedOf(t, now = Date.now()) {
+  const running = t.runningSince ? Math.max(0, Math.floor((now - new Date(t.runningSince).getTime()) / 1000)) : 0;
+  return (t.accumulatedSeconds || 0) + running;
+}
+
 function shape(t) {
   return t ? {
     type: t.entityType, id: t.entityId, taskId: t.taskId ?? null, label: t.label, startedAt: t.startedAt,
+    state: t.runningSince ? 'running' : 'paused', elapsedSeconds: elapsedOf(t),
   } : null;
 }
 
@@ -35,8 +42,10 @@ async function logTimer(req, timer, note) {
   if (!(await kind.canAccess(req.user, record))) {
     return { entry: null, discarded: DISCARDED.denied };
   }
+  // The time it ran, ending now: a paused stretch isn't work (plan 3c).
+  const endedAt = new Date();
   const entry = await time.logTimerEntry(req, kind.toParent(record), {
-    startedAt: timer.startedAt, endedAt: new Date(), taskId: timer.taskId, note,
+    startedAt: new Date(endedAt.getTime() - elapsedOf(timer, endedAt.getTime()) * 1000), endedAt, taskId: timer.taskId, note,
   });
   return { entry, discarded: null };
 }
@@ -73,6 +82,8 @@ const start = asyncHandler(async (req, res) => {
   let discarded = null;
   if (existing) {
     if (existing.entityType === type && existing.entityId === targetId && (existing.taskId ?? null) === taskId) {
+      // Starting the same timer again resumes it if it was paused.
+      if (!existing.runningSince) await existing.update({ runningSince: new Date() });
       return res.json({ timer: shape(existing), logged: null });
     }
     ({ entry: logged, discarded } = await logTimer(req, existing));
@@ -80,7 +91,7 @@ const start = asyncHandler(async (req, res) => {
   }
 
   const created = await ActiveTimer.create({
-    userId: req.user.id, entityType: type, entityId: targetId, taskId, label: label || null, startedAt: new Date(),
+    userId: req.user.id, entityType: type, entityId: targetId, taskId, label: label || null, startedAt: new Date(), runningSince: new Date(),
   });
   // A replaced timer that couldn't be logged says why (Q34).
   res.status(201).json({ timer: shape(created), logged, ...(discarded ? { discarded } : {}) });
@@ -90,6 +101,10 @@ const start = asyncHandler(async (req, res) => {
 const stop = asyncHandler(async (req, res) => {
   const existing = await ActiveTimer.findOne({ where: { userId: req.user.id } });
   if (!existing) return res.json({ timer: null, entry: null });
+  if (req.body?.discard === true) {
+    await existing.destroy();
+    return res.json({ timer: null, entry: null, discarded: true });
+  }
   const { entry, discarded } = await logTimer(req, existing, req.body?.note);
   await existing.destroy();
   res.json(discarded ? { timer: null, entry: null, discarded: true, message: discarded } : { timer: null, entry });
@@ -101,4 +116,25 @@ const cancel = asyncHandler(async (req, res) => {
   res.json({ ok: true, timer: null });
 });
 
-module.exports = { get, start, stop, cancel };
+const mine = (req) => ActiveTimer.findOne({ where: { userId: req.user.id } });
+const noTimer = () => new ApiError(404, 'No timer is running', 'NOT_FOUND');
+
+// POST /timer/pause
+const pause = asyncHandler(async (req, res) => {
+  const t = await mine(req);
+  if (!t) throw noTimer();
+  if (t.runningSince) await t.update({ accumulatedSeconds: elapsedOf(t), runningSince: null });
+  res.json({ timer: shape(t) });
+});
+
+// POST /timer/resume
+const resume = asyncHandler(async (req, res) => {
+  const t = await mine(req);
+  if (!t) throw noTimer();
+  if (!t.runningSince) await t.update({ runningSince: new Date() });
+  res.json({ timer: shape(t) });
+});
+
+module.exports = {
+  get, start, stop, cancel, pause, resume,
+};
