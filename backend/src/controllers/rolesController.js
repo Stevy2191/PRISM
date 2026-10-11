@@ -5,6 +5,7 @@ const {
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { invalidateAllPermissions, invalidateUserPermissions } = require('../services/permissionService');
+const { assertCanGrantPermissions, assertNotOwnRolePermissions } = require('../services/roleGrant');
 
 const roleInclude = [
   { model: Permission, as: 'permissions', through: { attributes: ['granted'] } },
@@ -53,6 +54,7 @@ const create = asyncHandler(async (req, res) => {
   }
 
   const keys = Array.isArray(permissionKeys) ? permissionKeys : [];
+  await assertCanGrantPermissions(req.user, keys.filter((k) => typeof k === 'string'));
   const role = await sequelize.transaction(async (t) => {
     const created = await Role.create(
       {
@@ -203,8 +205,13 @@ const setPermissions = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'permissions must be an object of { key: granted }', 'VALIDATION_ERROR');
   }
 
+  await assertNotOwnRolePermissions(req.user, role);
   const grantedKeys = Object.keys(map).filter((k) => !!map[k]);
   const permissions = grantedKeys.length ? await Permission.findAll({ where: { key: grantedKeys } }) : [];
+  // Only what is being added must be held; keeping a role's existing grants is not granting.
+  const current = new Set((await RolePermission.findAll({ where: { roleId: role.id, granted: true }, include: [{ model: Permission, as: 'permission', attributes: ['key'] }] }))
+    .map((rp) => rp.permission?.key).filter(Boolean));
+  await assertCanGrantPermissions(req.user, permissions.map((p) => p.key).filter((k) => !current.has(k)));
 
   await sequelize.transaction(async (t) => {
     await RolePermission.destroy({ where: { roleId: role.id }, transaction: t });
@@ -236,6 +243,8 @@ const togglePermission = asyncHandler(async (req, res) => {
   if (!permission) throw new ApiError(404, 'Permission not found', 'NOT_FOUND');
 
   const granted = !!req.body?.granted;
+  await assertNotOwnRolePermissions(req.user, role);
+  if (granted) await assertCanGrantPermissions(req.user, [permission.key]);
   if (granted) {
     const [row] = await RolePermission.findOrCreate({
       where: { roleId: role.id, permissionId: permission.id },

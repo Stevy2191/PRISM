@@ -13,6 +13,7 @@ const { resolveTrustProxy } = require('./config/validateEnv');
 require('./models'); // register models + associations
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/error');
+const { sameOriginWrites } = require('./middleware/sameOrigin');
 
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -76,7 +77,7 @@ function createApp({ sessionStore } = {}) {
     })
   );
 
-  app.use('/api/v1', apiRoutes);
+  app.use('/api/v1', sameOriginWrites, apiRoutes);
 
   // Unmatched routes + central error handler.
   app.use(notFound);

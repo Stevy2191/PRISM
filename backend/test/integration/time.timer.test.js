@@ -74,9 +74,9 @@ describe('the timer', () => {
     const tech = await makeTech('tech', w.deptA.id);
     const res = await onTicket(tech, T, { label: 'Working' });
     const timer = {
-      type: 'ticket', id: T.id, taskId: null, label: 'Working', startedAt: '2026-03-11T15:00:00.000Z', state: 'running', elapsedSeconds: 0,
+      timerId: res.body.timer.timerId, type: 'ticket', id: T.id, taskId: null, label: 'Working', startedAt: '2026-03-11T15:00:00.000Z', state: 'running', elapsedSeconds: 0,
     };
-    expect([res.status, res.body]).toEqual([201, { timer, logged: null }]);
+    expect([res.status, res.body]).toEqual([201, { timer, logged: null, started: true }]);
     expect(await current(tech)).toEqual(timer);
     const task = await makeTask(w.admin.agent, P.id, { title: 'Rack' });
     const onTask = expectOk(await start(tech, { type: 'project', id: P.id, taskId: task.id }), 201);

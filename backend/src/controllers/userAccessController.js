@@ -4,7 +4,7 @@ const { User, Role, UserRole, Department, Permission, UserPermissionOverride } =
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, explainUserPermissions } = require('../services/permissionService');
-const { assertCanGrantRole } = require('../services/roleGrant');
+const { assertCanGrantRole, assertCanGrantPermissions } = require('../services/roleGrant');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -156,6 +156,7 @@ const createOverride = asyncHandler(async (req, res) => {
   const permission = await Permission.findOne({ where: { key: permissionKey } });
   if (!permission) throw new ApiError(400, 'permissionKey does not exist', 'VALIDATION_ERROR');
   if (typeof granted !== 'boolean') throw new ApiError(400, 'granted must be true or false', 'VALIDATION_ERROR');
+  if (granted) await assertCanGrantPermissions(req.user, [permission.key]);
 
   let resolvedExpiresAt = null;
   if (expiresAt) {

@@ -27,7 +27,7 @@ function elapsedOf(t, now = Date.now()) {
 
 function shape(t) {
   return t ? {
-    type: t.entityType, id: t.entityId, taskId: t.taskId ?? null, label: t.label, startedAt: t.startedAt,
+    timerId: t.id, type: t.entityType, id: t.entityId, taskId: t.taskId ?? null, label: t.label, startedAt: t.startedAt,
     state: t.runningSince ? 'running' : 'paused', elapsedSeconds: elapsedOf(t),
   } : null;
 }
@@ -50,15 +50,42 @@ async function logTimer(req, timer, note) {
   return { entry, discarded: null };
 }
 
+// Takes the timer row so only one request logs it: two stops at once, or a
+// stop racing a start elsewhere, log it once (plan 3c review). False when
+// another request got there first.
+async function claim(timer) {
+  return (await ActiveTimer.destroy({ where: { id: timer.id } })) === 1;
+}
+
+// Puts back a claimed timer whose logging failed, so no time is lost.
+async function restore(timer) {
+  await ActiveTimer.create(timer.get({ plain: true }));
+}
+
+// Logs a claimed timer, putting it back if logging throws.
+async function logClaimed(req, timer, note) {
+  try {
+    return await logTimer(req, timer, note);
+  } catch (err) {
+    await restore(timer);
+    throw err;
+  }
+}
+
+const cleanLabel = (label) => (typeof label === 'string' ? label.trim().slice(0, 255) || null : null);
+const changed = () => new ApiError(409, 'This timer was already logged or replaced', 'TIMER_CHANGED');
+
 // GET /timer — the current user's running timer (or null).
 const get = asyncHandler(async (req, res) => {
   res.json({ timer: shape(await ActiveTimer.findOne({ where: { userId: req.user.id } })) });
 });
 
-// POST /timer/start { type: 'ticket' | 'project', id, taskId?, label? }
-// Starting while another timer runs logs that one first.
+// POST /timer/start { type: 'ticket' | 'project', id, taskId?, label?, onlyIfIdle? }
+// Starting while another timer runs logs that one first. With onlyIfIdle
+// (automatic mode) an existing timer, anywhere, is left exactly as it is.
 const start = asyncHandler(async (req, res) => {
-  const { type, label } = req.body || {};
+  const { type } = req.body || {};
+  const onlyIfIdle = req.body?.onlyIfIdle === true;
   const kind = kindOf(type);
   if (!kind) throw new ApiError(400, 'Invalid timer type', 'VALIDATION_ERROR');
   const targetId = parseRecordId(req.body?.id);
@@ -81,32 +108,57 @@ const start = asyncHandler(async (req, res) => {
   let logged = null;
   let discarded = null;
   if (existing) {
+    if (onlyIfIdle) return res.json({ timer: shape(existing), logged: null, started: false });
     if (existing.entityType === type && existing.entityId === targetId && (existing.taskId ?? null) === taskId) {
       // Starting the same timer again resumes it if it was paused.
       if (!existing.runningSince) await existing.update({ runningSince: new Date() });
-      return res.json({ timer: shape(existing), logged: null });
+      return res.json({ timer: shape(existing), logged: null, started: false });
     }
-    ({ entry: logged, discarded } = await logTimer(req, existing));
-    await existing.destroy();
+    if (await claim(existing)) ({ entry: logged, discarded } = await logClaimed(req, existing));
   }
 
   const created = await ActiveTimer.create({
-    userId: req.user.id, entityType: type, entityId: targetId, taskId, label: label || null, startedAt: new Date(), runningSince: new Date(),
+    userId: req.user.id, entityType: type, entityId: targetId, taskId, label: cleanLabel(req.body?.label), startedAt: new Date(), runningSince: new Date(),
   });
   // A replaced timer that couldn't be logged says why (Q34).
-  res.status(201).json({ timer: shape(created), logged, ...(discarded ? { discarded } : {}) });
+  res.status(201).json({ timer: shape(created), logged, started: true, ...(discarded ? { discarded } : {}) });
 });
 
-// POST /timer/stop { note? } — logs and clears the running timer.
+// POST /timer/stop { note?, discard?, entry?, expectTimerId? } — logs and
+// clears the running timer.
+//   - discard: clears it without logging.
+//   - entry: the Log time form's fields (as POST …/time takes them); the
+//     timer is logged as that entry instead, in the same call (plan 3c review).
+//   - expectTimerId: the timer the caller means (its timerId). If it was
+//     already logged or replaced (another tab, another device), nothing
+//     happens: 409. A replacement always gets a new id.
 const stop = asyncHandler(async (req, res) => {
+  const { discard, entry: form, expectTimerId } = req.body || {};
   const existing = await ActiveTimer.findOne({ where: { userId: req.user.id } });
+  if (expectTimerId !== undefined && (!existing || Number(expectTimerId) !== existing.id)) {
+    throw changed();
+  }
   if (!existing) return res.json({ timer: null, entry: null });
-  if (req.body?.discard === true) {
-    await existing.destroy();
+  if (discard === true) {
+    await claim(existing);
     return res.json({ timer: null, entry: null, discarded: true });
   }
-  const { entry, discarded } = await logTimer(req, existing, req.body?.note);
-  await existing.destroy();
+  if (form && typeof form === 'object') {
+    const kind = kindOf(existing.entityType);
+    const record = kind && await kind.Model.findByPk(existing.entityId);
+    const reason = !record ? DISCARDED.gone : (!(await kind.canAccess(req.user, record)) ? DISCARDED.denied : null);
+    if (!(await claim(existing))) throw changed();
+    if (reason) return res.json({ timer: null, entry: null, discarded: true, message: reason });
+    try {
+      const entry = await time.createEntry(req, kind.toParent(record), form);
+      return res.json({ timer: null, entry });
+    } catch (err) {
+      await restore(existing);
+      throw err;
+    }
+  }
+  if (!(await claim(existing))) return res.json({ timer: null, entry: null });
+  const { entry, discarded } = await logClaimed(req, existing, req.body?.note);
   res.json(discarded ? { timer: null, entry: null, discarded: true, message: discarded } : { timer: null, entry });
 });
 
