@@ -98,7 +98,7 @@ describe('relations', () => {
       ticket: expect.objectContaining({ id: B.id, title: 'Bravo' }),
     });
     const { activity } = expectOk(await tech.agent.get(`${API}/tickets/${A.id}/activity`));
-    expect(activity.map((a) => [a.action, a.fromValue, a.toValue])).toContainEqual(['relation_added', null, 'related: Bravo']);
+    expect(activity.map((a) => [a.action, a.fromValue, a.toValue])).toContainEqual(['relation_added', null, `related: #${String(B.id).padStart(5, '0')} Bravo`]);
   });
 
   it('lists a relation from both sides', async () => {

@@ -5,6 +5,7 @@ const { parsePagination, paginated } = require('../../utils/pagination');
 const { generateTicketReport } = require('../../services/ticketReport');
 const { canAccessTicket } = require('../../services/permissionService');
 const { userAttrs, SUBLIST_LIMIT, SUBLIST_MAX } = require('./shared');
+const { shownActivity } = require('../../services/ticketActivity');
 
 // ---- Activity (per-ticket timeline) ----
 
@@ -22,7 +23,7 @@ const listActivity = asyncHandler(async (req, res) => {
     limit,
     offset,
   });
-  res.json(paginated('activity', { rows, count }, { page, limit }));
+  res.json(paginated('activity', { rows: await shownActivity(req.user, rows), count }, { page, limit }));
 });
 
 // GET /tickets/:id/report — streams a generated PDF report for this ticket.

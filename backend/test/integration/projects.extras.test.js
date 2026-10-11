@@ -217,7 +217,7 @@ describe('members', () => {
     expect(none.body.message).toBe('userId is required');
     const ghost = await add({ userId: 99999 });
     expect(ghost.status).toBe(400);
-    expect(ghost.body.message).toBe('User does not exist');
+    expect(ghost.body.message).toBe('Member can\'t work for this company'); // the same answer for missing, inactive or fenced-off
     expectOk(await add({ userId: mgr.user.id }), 201);
     const dup = await add({ userId: mgr.user.id });
     expect(dup.status).toBe(409);

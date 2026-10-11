@@ -15,7 +15,7 @@ const {
 const { Op, col } = require('sequelize');
 const { ApiError } = require('../../middleware/error');
 const { toDateString } = require('../../utils/orgTime');
-const { canEditTicket } = require('../../services/permissionService');
+const { canEditTicket, canAccessProject } = require('../../services/permissionService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 
@@ -32,7 +32,8 @@ const ticketInclude = [
   {
     model: Project,
     as: 'project',
-    attributes: ['id', 'name'],
+    // The department and company columns are for the viewer check (shownTicketFor), never sent.
+    attributes: ['id', 'name', 'companyId', 'ownerDepartmentId', 'forDepartmentId'],
     where: { companyId: { [Op.eq]: col('Ticket.companyId') } },
     required: false,
   },
@@ -145,6 +146,18 @@ function withCustomFields(ticket) {
   return json;
 }
 
+// A ticket as a viewer may see it: its project shows only its id when the
+// viewer can't open that project (as a restricted linked ticket does, Q18).
+async function shownTicketFor(viewer, ticket) {
+  const json = withCustomFields(ticket);
+  if (ticket.project) {
+    json.project = (await canAccessProject(viewer, ticket.project))
+      ? { id: ticket.project.id, name: ticket.project.name }
+      : { id: ticket.project.id, restricted: true };
+  }
+  return json;
+}
+
 // Default page size for the per-record lists on a ticket's detail page
 // (comments, attachments, time entries, activity). They use a "load more"
 // control rather than numbered pages, so this is the chunk size.
@@ -163,6 +176,7 @@ async function assertCanEditTicket(user, ticket) {
 
 module.exports = {
   assertCanEditTicket,
+  shownTicketFor,
   ticketInclude,
   withCustomFields,
   syncCustomFieldValues,

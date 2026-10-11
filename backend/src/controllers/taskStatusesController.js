@@ -78,13 +78,16 @@ const update = asyncHandler(async (req, res) => {
     if (!BEHAVIORS.includes(behaviorType)) throw bad('Invalid behaviorType');
     changes.behaviorType = behaviorType;
   }
-  if (isDefault !== undefined) changes.isDefault = !!isDefault;
+  if (isDefault !== undefined && typeof isDefault !== 'boolean') throw bad('isDefault must be true or false');
+  if (isDefault !== undefined) changes.isDefault = isDefault;
   // A default that stops being open stops being the default (the first open one takes over).
   else if (status.isDefault && changes.behaviorType && changes.behaviorType !== 'open') changes.isDefault = false;
   const willBeDefault = changes.isDefault ?? status.isDefault;
   if (willBeDefault && (changes.behaviorType ?? status.behaviorType) !== 'open') throw bad('The default status must be an open one');
   await sequelize.transaction(async (transaction) => {
-    if (changes.isDefault) await TaskStatus.update({ isDefault: false }, { where: { scope: status.scope }, transaction });
+    if (changes.isDefault) {
+      await TaskStatus.update({ isDefault: false }, { where: { scope: status.scope, id: { [Op.ne]: status.id } }, transaction });
+    }
     await status.update(changes, { transaction });
     await assertBothBehaviors(status.scope, transaction);
   });

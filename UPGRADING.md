@@ -90,8 +90,16 @@ reports. Settings → Companies is always there, also for managing vendors.
     department's (or assigned to you), and `edit_all` any you can see.
   - `projects.edit_own` means projects you belong to or lead,
     `edit_department` your department's, and `edit_all` any you can see.
-  - Commenting, attachments, project files, watchers and your own time still
-    need only view access.
+  - Commenting, attachments, project files, watchers and your own time are
+    not checked against the record's edit tier: they keep the permission
+    they needed before (for example any ticket edit permission to attach a
+    file, `tickets.manage_watchers` for watchers), plus view access. Your
+    own time needs only `time.log` and view access.
+  - Recording a customer's satisfaction rating on a ticket needs the edit
+    tier, since it replaces the ticket's rating.
+  - Choosing a project's lead, or naming someone else as lead or member when
+    creating a project, needs `projects.manage_members`. Adding a member as
+    "lead" makes them the project's lead.
   - Deleting also needs `tickets.delete` / `projects.delete`, as before.
 - **Seeded roles.**
   - System Technician is granted `tickets.edit_all` and `projects.edit_all`, so
@@ -134,7 +142,7 @@ reports. Settings → Companies is always there, also for managing vendors.
 - **Rolling back** this part's migration takes `tickets.edit_all` and
   `projects.edit_all` back from System Technician, even if you had granted them
   yourself before upgrading, and gives `projects.log_time` back to every role
-  with `time.log`.
+  with `time.log`. Per-user overrides of `projects.log_time` are not restored.
 
 ### Security fixes
 
@@ -142,6 +150,14 @@ reports. Settings → Companies is always there, also for managing vendors.
   and contact that had no department, and the same in reports, the dashboard
   and the people list. A user with no department now matches no department.
 - Project file responses no longer include the file's path on the server.
+- A contact's ticket list, counts and recent tickets now show only the
+  tickets you can open. Before, anyone who could see a contact saw every
+  ticket they had raised, in any department.
+- An asset's linked tickets, and its link history, show a ticket you can't
+  open as "Restricted ticket" (id only). Unlinking needs access to the ticket.
+- A ticket's linked project shows as restricted (id only) when you can't open
+  the project, and a ticket's activity names a linked ticket only to those who
+  can open it.
 - Deleting a project subtask now checks that its task belongs to the project
   in the URL. Before, a user who could edit one project could delete subtasks
   in any other.

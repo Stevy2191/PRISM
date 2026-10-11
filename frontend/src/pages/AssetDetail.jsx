@@ -552,14 +552,14 @@ function TicketsTab({ assetId, asset, canLinkTickets, navigate }) {
                     <Link to={`/tickets/${t.id}`} className="hover:underline">#{t.ticketNumber}</Link>
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    <Link to={`/tickets/${t.id}`} className="hover:underline" style={{ color: TEXT }}>{t.title}</Link>
+                    <Link to={`/tickets/${t.id}`} className="hover:underline" style={{ color: TEXT }}>{t.restricted ? 'Restricted ticket' : t.title}</Link>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: TEXT }}>{t.status}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: (PRIORITY_META[t.priority] || PRIORITY_META.medium).color }}>
-                    {(PRIORITY_META[t.priority] || PRIORITY_META.medium).label}
+                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: TEXT }}>{t.restricted ? '—' : t.status}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: t.restricted ? MUTED : (PRIORITY_META[t.priority] || PRIORITY_META.medium).color }}>
+                    {t.restricted ? '—' : (PRIORITY_META[t.priority] || PRIORITY_META.medium).label}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{t.assignee?.displayName || 'Unassigned'}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{new Date(t.createdAt).toLocaleDateString()}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{t.restricted ? '—' : (t.assignee?.displayName || 'Unassigned')}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{t.restricted ? '—' : new Date(t.createdAt).toLocaleDateString()}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
                     {canLinkTickets && <button type="button" onClick={() => unlink(t.id)} style={{ color: 'var(--color-danger)' }}>Unlink</button>}
                   </td>
@@ -669,7 +669,7 @@ function activityDescription(a) {
   if (a.action === 'created') return `Asset ${d.assetTag || ''} "${d.name || ''}" created`;
   if (a.action === 'status_changed') return `Status changed from "${d.from}" to "${d.to}"`;
   if (a.action === 'assignment_changed') return 'Assignment changed';
-  if (a.action === 'ticket_linked' || a.action === 'ticket_unlinked') return `Ticket #${d.ticketNumber} — ${d.ticketTitle || ''}`;
+  if (a.action === 'ticket_linked' || a.action === 'ticket_unlinked') return `Ticket #${d.ticketNumber}${d.ticketTitle ? ` — ${d.ticketTitle}` : ''}`;
   if (a.action === 'updated') return `Updated: ${(d.fields || []).join(', ')}`;
   if (a.action === 'checked_out') return `Checked out to ${d.contactName || 'a contact'}`;
   if (a.action === 'checkout_form_sent') return `Sent to ${d.to || ''}`;

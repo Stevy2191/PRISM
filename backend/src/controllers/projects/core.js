@@ -41,9 +41,9 @@ const {
   parseRecordId,
 } = require('../../services/permissionService');
 const { generateProjectCode } = require('../../services/projectCodeService');
-const { canWorkCompany } = require('../../services/ticketPeople');
 const {
   userAttrs, projectInclude, buildProjectStats, getProjectWithDetail, assertCanEditProject,
+  assertCanWorkProject, assertCanManageMembers, syncLeadMembership,
 } = require('./shared');
 
 // ==================== Projects ====================
@@ -198,20 +198,12 @@ const listTags = asyncHandler(async (req, res) => {
 });
 
 // POST /projects — Admin/Technician
-// The lead and members are active users who can work for the project's
-// company; a lead is also a member (Q30), so it is checked like one. The same
-// answer for a missing, inactive or fenced-off user.
-async function assertCanWorkProject(rawUserId, companyId, label) {
-  const user = await canWorkCompany(rawUserId, companyId);
-  if (!user) throw new ApiError(400, `${label} can't work for this company`, 'VALIDATION_ERROR');
-  return user.id;
-}
-
-// A status must be one of the configured project statuses (Q25).
-async function assertProjectStatus(name) {
-  if (typeof name !== 'string' || !(await ProjectStatus.findOne({ where: { name } }))) {
-    throw new ApiError(400, 'Unknown project status', 'VALIDATION_ERROR');
-  }
+// A status must be one of the configured project statuses (Q25). Returns its
+// real name (the database matches names in any letter case).
+async function projectStatusName(name) {
+  const row = typeof name === 'string' ? await ProjectStatus.findOne({ where: { name } }) : null;
+  if (!row) throw new ApiError(400, 'Unknown project status', 'VALIDATION_ERROR');
+  return row.name;
 }
 
 const create = asyncHandler(async (req, res) => {
@@ -242,9 +234,10 @@ const create = asyncHandler(async (req, res) => {
     memberSet.add(await assertCanWorkProject(raw, projectCompanyId, 'Member')); // eslint-disable-line no-await-in-loop
   }
   if (leadId) memberSet.add(leadId);
+  if ([...memberSet].some((id) => id !== req.user.id)) await assertCanManageMembers(req.user, 'Naming the lead or members');
 
   let resolvedStatus = status;
-  if (resolvedStatus) await assertProjectStatus(resolvedStatus);
+  if (resolvedStatus) resolvedStatus = await projectStatusName(resolvedStatus);
   if (!resolvedStatus) {
     const firstOpen = await getFirstProjectStatusByBehavior('open');
     resolvedStatus = firstOpen ? firstOpen.name : 'Active';
@@ -330,7 +323,7 @@ const update = asyncHandler(async (req, res) => {
     }
     changes.name = changes.name.trim();
   }
-  if (changes.status !== undefined) await assertProjectStatus(changes.status);
+  if (changes.status !== undefined && changes.status !== project.status) changes.status = await projectStatusName(changes.status);
   if (changes.tags !== undefined) {
     changes.tags = Array.isArray(changes.tags) && changes.tags.length ? changes.tags : null;
   }
@@ -358,26 +351,26 @@ const update = asyncHandler(async (req, res) => {
     && !(await findDepartmentInCompany(project.forDepartmentId, targetCompanyId))) {
     throw new ApiError(400, 'For-department does not exist', 'VALIDATION_ERROR');
   }
-  if (changes.assignedToUserId) {
-    changes.assignedToUserId = await assertCanWorkProject(changes.assignedToUserId, targetCompanyId, 'Lead');
-  } else if (changes.assignedToUserId !== undefined) {
-    changes.assignedToUserId = null;
+  if (changes.assignedToUserId !== undefined) {
+    // Re-sending the current lead (a client PATCHing the whole project back)
+    // changes nothing, so it isn't re-checked: a lead who has since left
+    // doesn't block other edits.
+    const raw = changes.assignedToUserId;
+    const rawId = raw ? parseRecordId(raw) : null;
+    const sameLead = raw ? rawId !== null && rawId === project.assignedToUserId : project.assignedToUserId === null;
+    if (sameLead) {
+      delete changes.assignedToUserId;
+    } else {
+      await assertCanManageMembers(req.user, 'Changing the lead');
+      changes.assignedToUserId = raw ? await assertCanWorkProject(raw, targetCompanyId, 'Lead') : null;
+    }
   }
   const statusChanged = changes.status !== undefined && changes.status !== project.status;
   const previousStatus = project.status;
   const previousLeadId = project.assignedToUserId;
 
   await project.update(changes);
-  if (changes.assignedToUserId !== undefined && project.assignedToUserId !== previousLeadId) {
-    // Q30: the new lead is a member with the lead role; the old lead stays a member.
-    if (previousLeadId) await ProjectMember.update({ role: 'member' }, { where: { projectId: project.id, userId: previousLeadId } });
-    if (project.assignedToUserId) {
-      const [member] = await ProjectMember.findOrCreate({
-        where: { projectId: project.id, userId: project.assignedToUserId }, defaults: { role: 'lead' },
-      });
-      if (member.role !== 'lead') await member.update({ role: 'lead' });
-    }
-  }
+  await syncLeadMembership(project, previousLeadId);
   await writeAudit(req, 'project.update', 'Project', project.id, changes);
   if (statusChanged) {
     await logProjectActivity(project.id, req.user.id, 'status_changed', { from: previousStatus, to: changes.status });

@@ -101,7 +101,9 @@ const createRelation = asyncHandler(async (req, res) => {
     relatedTicketId: storedRelatedId,
     relationType: storedType,
   });
-  await logActivity(ticket.id, req.user.id, 'relation_added', null, `${storedType}: ${related.title}`);
+  // The linked ticket's id, not its title: the title is shown at read time
+  // only to those who can open it (ticketActivity.shownActivity).
+  await logActivity(ticket.id, req.user.id, 'relation_added', String(related.id), storedType);
 
   res.status(201).json({
     relation: {

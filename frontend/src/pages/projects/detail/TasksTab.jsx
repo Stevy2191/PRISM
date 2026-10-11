@@ -135,7 +135,7 @@ export function TasksTab({ tasks, isStaff, canEdit, statuses, assignableUsers, o
                         className="flex items-center gap-1 rounded-[3px] px-2 py-0.5 text-xs font-medium"
                         style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}
                       >
-                        <IconLink size={11} /> {formatTicketId(task.linkedTicket)} {task.linkedTicket.title}
+                        <IconLink size={11} /> {formatTicketId(task.linkedTicket)} {task.linkedTicket.restricted ? 'Restricted ticket' : task.linkedTicket.title}
                       </Link>
                     )}
                   </div>

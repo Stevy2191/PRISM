@@ -4,7 +4,7 @@ const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
 const { canAccessTicket } = require('../../services/permissionService');
-const { userAttrs } = require('./shared');
+const { userAttrs, assertCanEditTicket } = require('./shared');
 
 // ---- CSAT (customer happiness) ----
 
@@ -28,6 +28,9 @@ const submitCsat = asyncHandler(async (req, res) => {
   const ticket = await Ticket.findByPk(req.params.id);
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   if (!(await canAccessTicket(req.user, ticket))) throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
+  // Recording the rating replaces the ticket's one rating, which reports
+  // credit to the assignee: it changes the ticket, so it needs the edit tier.
+  await assertCanEditTicket(req.user, ticket);
 
   const buckets = await getTicketStatusBuckets();
   if (!buckets.closed.includes(ticket.status)) {

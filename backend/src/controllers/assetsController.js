@@ -18,7 +18,7 @@ const { sendMail } = require('../services/emailSender');
 const { getAllSettings } = require('./settingsController');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const {
-  companyScopeWhere, parseRecordId, findAccessibleTicket, findAccessibleContact,
+  companyScopeWhere, parseRecordId, findAccessibleTicket, findAccessibleContact, canAccessTicket,
 } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
 const { resolvePlacement, resolveVendorFields, hideUnreachableVendors } = require('../services/companyService');
@@ -425,16 +425,20 @@ const listTickets = asyncHandler(async (req, res) => {
 
   res.json({
     ...paginated('tickets', {
-      rows: links.filter((l) => l.ticket).map((l) => ({
-      linkId: l.id,
-      linkedAt: l.linkedAt,
-      id: l.ticket.id,
-      ticketNumber: String(l.ticket.id).padStart(5, '0'),
-      title: l.ticket.title,
-      status: l.ticket.status,
-      priority: l.ticket.priority,
-      assignee: l.ticket.assignee ? { id: l.ticket.assignee.id, displayName: l.ticket.assignee.displayName } : null,
-      createdAt: l.ticket.createdAt,
+      // A linked ticket the viewer can't open shows only that it exists (as Q18 on tickets).
+      rows: await Promise.all(links.filter((l) => l.ticket).map(async (l) => {
+        const base = {
+          linkId: l.id, linkedAt: l.linkedAt, id: l.ticket.id, ticketNumber: String(l.ticket.id).padStart(5, '0'),
+        };
+        if (!(await canAccessTicket(req.user, l.ticket))) return { ...base, restricted: true };
+        return {
+          ...base,
+          title: l.ticket.title,
+          status: l.ticket.status,
+          priority: l.ticket.priority,
+          assignee: l.ticket.assignee ? { id: l.ticket.assignee.id, displayName: l.ticket.assignee.displayName } : null,
+          createdAt: l.ticket.createdAt,
+        };
       })),
       count,
     }, { page, limit }),
@@ -471,11 +475,12 @@ const unlinkTicket = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
 
-  const ticketId = parseInt(req.params.ticketId, 10);
-  const link = await AssetTicket.findOne({ where: { assetId: asset.id, ticketId } });
+  const ticketId = parseRecordId(req.params.ticketId);
+  const link = ticketId && await AssetTicket.findOne({ where: { assetId: asset.id, ticketId } });
   if (!link) throw new ApiError(404, 'Link not found', 'NOT_FOUND');
-
-  const ticket = await Ticket.findByPk(ticketId, { attributes: ['id', 'title'] });
+  // Unlinking needs the ticket, the same as linking: a hidden one looks missing.
+  const ticket = await findAccessibleTicket(req.user, ticketId);
+  if (!ticket) throw new ApiError(404, 'Link not found', 'NOT_FOUND');
   await link.destroy();
   await logAssetActivity(asset.id, req.user.id, 'ticket_unlinked', {
     ticketId, ticketNumber: String(ticketId).padStart(5, '0'), ticketTitle: ticket?.title || '',
@@ -496,7 +501,18 @@ const listActivity = asyncHandler(async (req, res) => {
     limit,
     offset,
   });
-  res.json(paginated('activity', { rows, count }, { page, limit }));
+  // A linked ticket's title shows only to someone who can open that ticket.
+  const shown = await Promise.all(rows.map(async (row) => {
+    const json = row.toJSON();
+    if (!['ticket_linked', 'ticket_unlinked'].includes(json.action) || !json.detail?.ticketTitle) return json;
+    const ticket = await Ticket.findByPk(parseRecordId(json.detail.ticketId) || 0, {
+      attributes: ['id', 'departmentId', 'assigneeId', 'companyId'],
+    });
+    if (ticket && (await canAccessTicket(req.user, ticket))) return json;
+    const { ticketTitle, ...detail } = json.detail;
+    return { ...json, detail };
+  }));
+  res.json(paginated('activity', { rows: shown, count }, { page, limit }));
 });
 
 // ==================== Checkout / check-in ====================

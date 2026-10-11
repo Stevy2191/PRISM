@@ -95,6 +95,15 @@ it('the default status is what a new task gets', async () => {
     .toEqual(err('The default status must be an open one'));
 });
 
+it('I1: re-saving the default keeps it the default; isDefault must be a boolean', async () => {
+  const todo = await taskStatusId(w.admin.agent, 'ticket', 'To do');
+  expectOk(await w.admin.agent.patch(`${API}/task-statuses/${todo}`).send({ name: 'Backlog', isDefault: true }));
+  expect((await list()).filter((x) => x.isDefault).map((x) => x.id)).toEqual([todo]);
+  const done = await taskStatusId(w.admin.agent, 'ticket', 'Done');
+  expect((await w.admin.agent.patch(`${API}/task-statuses/${done}`).send({ isDefault: 'false' })).body)
+    .toEqual(err('isDefault must be true or false'));
+});
+
 it('editing needs settings.manage_statuses; reading needs a login only', async () => {
   const tech = await makeTech('tech', w.deptA.id);
   const done = await taskStatusId(w.admin.agent, 'ticket', 'Done');

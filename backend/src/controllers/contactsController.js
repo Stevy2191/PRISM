@@ -8,7 +8,7 @@ const {
   hasPermission, findAccessibleContact, canAccessContact, parseRecordId,
 } = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
-const { andWhere, contactScopeWhere } = require('../services/recordScope');
+const { andWhere, contactScopeWhere, ticketScopeWhere } = require('../services/recordScope');
 const {
   findDepartmentInCompany, findSiteInCompany, resolveRecordCompany, isCompanyChange,
 } = require('../services/companyService');
@@ -207,23 +207,25 @@ const get = asyncHandler(async (req, res) => {
   }
 
   const buckets = await getTicketStatusBuckets();
+  // A contact's tickets are counted and listed only as far as the viewer may
+  // see tickets: seeing the contact doesn't open every ticket they raised.
+  const visible = andWhere(await ticketScopeWhere(req.user), { contactId: contact.id });
   const [totalTickets, openTickets, overdueTickets, resolvedTickets, recentTickets] = await Promise.all([
-    Ticket.count({ where: { contactId: contact.id } }),
-    Ticket.count({ where: { contactId: contact.id, status: { [Op.in]: buckets.open } } }),
+    Ticket.count({ where: visible }),
+    Ticket.count({ where: andWhere(visible, { status: { [Op.in]: buckets.open } }) }),
     Ticket.count({
-      where: {
-        contactId: contact.id,
+      where: andWhere(visible, {
         status: { [Op.in]: buckets.open },
         dueDate: { [Op.lt]: new Date().toISOString().slice(0, 10) },
-      },
+      }),
     }),
     Ticket.findAll({
-      where: { contactId: contact.id, resolvedAt: { [Op.ne]: null } },
+      where: andWhere(visible, { resolvedAt: { [Op.ne]: null } }),
       attributes: ['createdAt', 'resolvedAt'],
       raw: true,
     }),
     Ticket.findAll({
-      where: { contactId: contact.id },
+      where: visible,
       attributes: ticketAttrs,
       include: [{ model: User, as: 'assignee', attributes: userAttrs }],
       order: [['createdAt', 'DESC']],
@@ -396,7 +398,7 @@ const listTickets = asyncHandler(async (req, res) => {
 
   const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
   const { rows, count } = await Ticket.findAndCountAll({
-    where: { contactId: contact.id },
+    where: andWhere(await ticketScopeWhere(req.user), { contactId: contact.id }),
     include: [{ model: User, as: 'assignee', attributes: userAttrs }],
     order: [['createdAt', 'DESC'], ['id', 'DESC']],
     limit,

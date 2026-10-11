@@ -142,7 +142,7 @@ function RelationChip({ Icon, accent, accentLight, ticket, isStaff, onRemove }) 
       style={{ backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`, color: accentLight }}
     >
       {Icon && <Icon size={12} />}
-      <Link to={`/tickets/${ticket.id}`} className="hover:underline">{formatTicketId(ticket)} {ticket.title}</Link>
+      <Link to={`/tickets/${ticket.id}`} className="hover:underline">{formatTicketId(ticket)} {ticket.restricted ? 'Restricted ticket' : ticket.title}</Link>
       {isStaff && (
         <button type="button" onClick={onRemove} style={{ color: accentLight }} title="Remove relationship">
           <IconX size={12} />

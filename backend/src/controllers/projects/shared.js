@@ -14,7 +14,8 @@ const {
   Company,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
-const { parseRecordId, canEditProject } = require('../../services/permissionService');
+const { parseRecordId, canEditProject, hasPermission } = require('../../services/permissionService');
+const { canWorkCompany } = require('../../services/ticketPeople');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
 const { computeProjectCompletion } = require('../../services/projectCompletion');
 
@@ -98,8 +99,41 @@ async function assertCanEditProject(user, project) {
   if (!(await canEditProject(user, project))) throw new ApiError(403, 'You do not have permission to edit this project', 'FORBIDDEN');
 }
 
+// The lead and members are active users who can work for the project's
+// company; a lead is also a member (Q30), so it is checked like one. The same
+// answer for a missing, inactive or fenced-off user.
+async function assertCanWorkProject(rawUserId, companyId, label) {
+  const user = await canWorkCompany(rawUserId, companyId);
+  if (!user) throw new ApiError(400, `${label} can't work for this company`, 'VALIDATION_ERROR');
+  return user.id;
+}
+
+// Naming a lead or members makes them members, so it needs the members
+// permission as well as the edit tier (or projects.create).
+async function assertCanManageMembers(user, what) {
+  if (!(await hasPermission(user.id, 'projects.manage_members'))) {
+    throw new ApiError(403, `${what} needs permission to manage members`, 'FORBIDDEN');
+  }
+}
+
+// Q30: after the lead changed, the new lead is a member with the lead role
+// and the old lead stays a plain member.
+async function syncLeadMembership(project, previousLeadId) {
+  if (project.assignedToUserId === previousLeadId) return;
+  if (previousLeadId) await ProjectMember.update({ role: 'member' }, { where: { projectId: project.id, userId: previousLeadId } });
+  if (project.assignedToUserId) {
+    const [member] = await ProjectMember.findOrCreate({
+      where: { projectId: project.id, userId: project.assignedToUserId }, defaults: { role: 'lead' },
+    });
+    if (member.role !== 'lead') await member.update({ role: 'lead' });
+  }
+}
+
 module.exports = {
   assertCanEditProject,
+  assertCanWorkProject,
+  assertCanManageMembers,
+  syncLeadMembership,
   resolveProjectTaskId,
   projectInclude,
   userAttrs,

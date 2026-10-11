@@ -4,7 +4,10 @@ const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { logProjectActivity } = require('../../services/projectActivity');
 const { canAccessProject } = require('../../services/permissionService');
-const { userAttrs, assertCanEditProject } = require('./shared');
+const {
+  userAttrs, assertCanEditProject, assertCanWorkProject, syncLeadMembership,
+} = require('./shared');
+const { removeProjectFromExternalCalendars, syncProjectToExternalCalendars } = require('../../services/calendarPush');
 
 // ==================== Members ====================
 
@@ -29,19 +32,26 @@ const addMember = asyncHandler(async (req, res) => {
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   await assertCanEditProject(req.user, project);
 
-  const { userId, role } = req.body || {};
-  if (!userId) throw new ApiError(400, 'userId is required', 'VALIDATION_ERROR');
+  const { role } = req.body || {};
+  if (!req.body?.userId) throw new ApiError(400, 'userId is required', 'VALIDATION_ERROR');
+  // The same rule as the lead and members named on the project (Task 7).
+  const userId = await assertCanWorkProject(req.body.userId, project.companyId, 'Member');
   const user = await User.findByPk(userId);
-  if (!user) throw new ApiError(400, 'User does not exist', 'VALIDATION_ERROR');
 
   const existing = await ProjectMember.findOne({ where: { projectId: project.id, userId } });
   if (existing) throw new ApiError(409, 'User is already a member of this project', 'ALREADY_MEMBER');
 
-  const member = await ProjectMember.create({
-    projectId: project.id,
-    userId,
-    role: role === 'lead' ? 'lead' : 'member',
-  });
+  const member = await ProjectMember.create({ projectId: project.id, userId, role: 'member' });
+  if (role === 'lead') {
+    // A project has one lead (Q30): adding someone as lead makes them the
+    // project's lead, and the old lead stays a member.
+    const previousLeadId = project.assignedToUserId;
+    await project.update({ assignedToUserId: userId });
+    await syncLeadMembership(project, previousLeadId);
+    await member.reload();
+    if (previousLeadId) removeProjectFromExternalCalendars(project.id, previousLeadId);
+    syncProjectToExternalCalendars(project.id);
+  }
   await writeAudit(req, 'project_member.add', 'Project', project.id, { userId: member.userId, role: member.role });
   await logProjectActivity(project.id, req.user.id, 'member_added', { userId, displayName: user.displayName });
 

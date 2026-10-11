@@ -48,7 +48,7 @@ const {
 const { maybeCreateCsatSurvey } = require('../../services/csatService');
 const { logAssetActivity } = require('../../services/assetActivity');
 const {
-  ticketInclude, syncCustomFieldValues, withCustomFields, assertCanEditTicket,
+  ticketInclude, syncCustomFieldValues, shownTicketFor, assertCanEditTicket,
 } = require('./shared');
 
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
@@ -201,10 +201,10 @@ const list = asyncHandler(async (req, res) => {
   res.json(paginated(
     'tickets',
     {
-      rows: tickets.map((t) => ({
-        ...withCustomFields(t),
+      rows: await Promise.all(tickets.map(async (t) => ({
+        ...(await shownTicketFor(req.user, t)),
         timeLoggedMinutes: minutesByTicket.get(t.id) || 0,
-      })),
+      }))),
       count,
     },
     { page, limit }
@@ -245,15 +245,15 @@ const board = asyncHandler(async (req, res) => {
   );
 
   res.json({
-    columns: columns.map((c) => ({
+    columns: await Promise.all(columns.map(async (c) => ({
       status: c.status,
       total: c.total,
       limit: BOARD_COLUMN_LIMIT,
-      tickets: c.tickets.map((t) => ({
-        ...withCustomFields(t),
+      tickets: await Promise.all(c.tickets.map(async (t) => ({
+        ...(await shownTicketFor(req.user, t)),
         timeLoggedMinutes: minutesByTicket.get(t.id) || 0,
-      })),
-    })),
+      }))),
+    }))),
   });
 });
 
@@ -275,8 +275,7 @@ const create = asyncHandler(async (req, res) => {
   // this HTTP endpoint) — a caller of this API can only pick manual/phone,
   // same restriction the create-ticket form's dropdown itself enforces.
   const resolvedSource = ['manual', 'phone'].includes(source) ? source : 'manual';
-  const resolvedStatus = status || 'Open';
-  if (status) await assertTicketStatus(status);
+  const resolvedStatus = status ? await ticketStatusName(status) : 'Open';
   // Q35: creating a ticket already closed obeys "require time before close";
   // a new ticket has no time yet.
   if ((await getTicketStatusBehaviorMap()).get(resolvedStatus) === 'closed') {
@@ -296,6 +295,12 @@ const create = asyncHandler(async (req, res) => {
   const childIdList = Array.isArray(childTicketIds) ? [...new Set(childTicketIds.map(parseLinked))] : [];
   const relatedIdList = Array.isArray(relatedTicketIds) ? [...new Set(relatedTicketIds.map(parseLinked))] : [];
   const parentId = parentTicketId ? parseLinked(parentTicketId) : null;
+  // Two tickets are linked once (Q24): one ticket can't be parent, child and
+  // related at the same time.
+  const allLinked = [parentId, ...childIdList, ...relatedIdList].filter(Boolean);
+  if (new Set(allLinked).size !== allLinked.length) {
+    throw new ApiError(400, 'A ticket can be linked only once', 'VALIDATION_ERROR');
+  }
   // Every ticket this one links to must be one the caller can see. Missing
   // and out-of-scope get the same answer, so the links can't probe ids.
   // (They must also share the new ticket's company — checked below, once the
@@ -460,7 +465,7 @@ const create = asyncHandler(async (req, res) => {
   syncTicketToExternalCalendars(ticket.id);
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
-  res.status(201).json({ ticket: withCustomFields(fresh) });
+  res.status(201).json({ ticket: await shownTicketFor(req.user, fresh) });
 });
 
 // GET /tickets/:id
@@ -472,14 +477,16 @@ const get = asyncHandler(async (req, res) => {
   if (!(await canAccessTicket(req.user, ticket))) {
     throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
   }
-  res.json({ ticket: withCustomFields(ticket) });
+  res.json({ ticket: await shownTicketFor(req.user, ticket) });
 });
 
-// A status must be one of the configured ticket statuses (Q25).
-async function assertTicketStatus(name) {
-  if (typeof name !== 'string' || !(await TicketStatus.findOne({ where: { name } }))) {
-    throw new ApiError(400, 'Unknown ticket status', 'VALIDATION_ERROR');
-  }
+// A status must be one of the configured ticket statuses (Q25). Returns its
+// real name: the database matches names in any letter case, the behaviour
+// map does not, so a ticket always stores the configured spelling.
+async function ticketStatusName(name) {
+  const row = typeof name === 'string' ? await TicketStatus.findOne({ where: { name } }) : null;
+  if (!row) throw new ApiError(400, 'Unknown ticket status', 'VALIDATION_ERROR');
+  return row.name;
 }
 
 // PATCH /tickets/:id
@@ -525,7 +532,7 @@ const update = asyncHandler(async (req, res) => {
     }
     changes.title = changes.title.trim();
   }
-  if (changes.status !== undefined) await assertTicketStatus(changes.status);
+  if (changes.status !== undefined && changes.status !== ticket.status) changes.status = await ticketStatusName(changes.status);
   // Same rules as create for the contact and project (S7, S6). Re-sending the
   // ticket's current value unchanged (a client PATCHing the whole ticket
   // back) reveals nothing new, so it isn't re-checked.
@@ -664,7 +671,7 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
-  res.json({ ticket: withCustomFields(fresh) });
+  res.json({ ticket: await shownTicketFor(req.user, fresh) });
 });
 
 // DELETE /tickets/:id — Admin only
