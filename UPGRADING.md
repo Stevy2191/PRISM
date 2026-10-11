@@ -149,6 +149,23 @@ reports. Settings → Companies is always there, also for managing vendors.
   yourself before upgrading, and gives `projects.log_time` back to every role
   with `time.log`. Per-user overrides of `projects.log_time` are not restored.
 
+### One work model, part 3: the screens
+
+- **One timer, on the server.**
+  - Tickets, projects and individual tasks and subtasks share one timer per person.
+  - It follows you between devices and tabs, pauses and resumes, and shows in the top bar on every page.
+  - Stopping it opens the Log time form, with "Keep timing" and "Discard".
+  - Automatic mode, the minimum-time warning and the prompt before logging still work.
+  - **Before upgrading**, stop and log any timer that is running on a ticket page: the old timer lived only in the browser and is not carried over.
+- **Switching the timer** from a ticket (or a task) to a subtask logs the time so far where it was worked, then starts fresh on the subtask. So the ticket's total is all of its time, and each subtask's total is how long that subtask took.
+- **Ticket tasks** work like project tasks: a checklist that expands to status, priority, assignee, due date, estimate, subtasks, and time and a timer per task and subtask.
+- **Log time** asks for a work type and whether it is billable, can be logged against a task or subtask, and can be edited afterwards. The Time Entries tab starts with a **Time by task** breakdown.
+- **Settings:**
+  - Statuses has Ticket tasks and Project tasks tabs.
+  - Work types is new.
+  - The role editor now shows every permission category. Time, Companies, Assets and Knowledge base permissions were missing from it before.
+- **Read-only screens.** Ticket and project pages show only what you may change. A ticket you can see but not edit says "View only".
+
 ### Security fixes
 
 - A department-level user with no department could see every ticket, project

@@ -1,6 +1,6 @@
 # Sub-project 3: One work model — design
 
-Status: approved in brainstorming on 2026-10-05; written for review.
+Status: shipped (plans 3a, 3b-1, 3b-2, 3c). Approved in brainstorming on 2026-10-05.
 Roadmap: [`docs/ROADMAP.md`](../../ROADMAP.md), Phase 1, sub-project 3.
 Roadmap rule this implements: *One work model, one time ledger* in
 [the roadmap design](2026-10-03-prism-psa-roadmap-design.md).
@@ -290,6 +290,10 @@ Three plans, each shippable on its own and pushed to `dev` when done:
   - The shared task, time and timer components on both pages.
   - Settings → Statuses tabs, Work types, and the role editor permissions.
   - The frontend side of the quirk fixes ("Restricted ticket", etc.).
+  - **Decided by the user on 2026-10-11:**
+    - one server timer with pause replaces the ticket page's browser timer;
+    - subtasks get their own timer and Log time;
+    - switching the timer logs the time so far where it was worked, so the ticket's total is all of its time and each subtask shows how long it took.
 
 ## Testing
 
