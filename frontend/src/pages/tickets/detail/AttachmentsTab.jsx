@@ -5,7 +5,8 @@ import { BG, CARD_BG, BORDER, TEXT, MUTED, BLUE } from '../theme';
 
 // ---- Attachments tab ----
 
-export function AttachmentsTab({ ticketId, attachments, onUpload, onRemove }) {
+// canRemove(attachment): the uploader, or a ticket moderator (the server re-checks).
+export function AttachmentsTab({ ticketId, attachments, onUpload, onRemove, canRemove = () => true }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -24,14 +25,17 @@ export function AttachmentsTab({ ticketId, attachments, onUpload, onRemove }) {
             <IconFile size={28} style={{ color: MUTED }} />
             <span className="w-full truncate text-xs font-medium" style={{ color: TEXT }}>{a.originalName}</span>
             <span className="text-[10px]" style={{ color: MUTED }}>{(a.size / 1024).toFixed(1)} KB</span>
-            <button
-              type="button"
-              onClick={(e) => { e.preventDefault(); onRemove(a.id); }}
-              className="absolute right-1 top-1 rounded p-1 md:hidden md:group-hover:block"
-              style={{ color: MUTED }}
-            >
-              <IconTrash size={14} />
-            </button>
+            {canRemove(a) && (
+              <button
+                type="button"
+                aria-label={`Remove ${a.originalName}`}
+                onClick={(e) => { e.preventDefault(); onRemove(a.id); }}
+                className="absolute right-1 top-1 rounded p-1 md:hidden md:group-hover:block"
+                style={{ color: MUTED }}
+              >
+                <IconTrash size={14} />
+              </button>
+            )}
           </a>
         ))}
       </div>

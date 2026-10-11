@@ -245,6 +245,8 @@ export default function ProjectDetail() {
   if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
   if (!project) return null;
 
+  // What the viewer may change here (the server re-checks every request).
+  const canEdit = !!project.access?.edit;
   const statusMeta = statuses.find((s) => s.name === project.status);
   const stats = project.stats || {};
   const compColor = completionColor(stats.completionPercent || 0);
@@ -274,8 +276,8 @@ export default function ProjectDetail() {
               <h1
                 className="cursor-pointer text-2xl font-bold tracking-tight hover:opacity-80"
                 style={{ color: TEXT }}
-                onClick={() => { if (isStaff) { setNameDraft(project.name); setEditingName(true); } }}
-                title={isStaff ? 'Click to rename' : ''}
+                onClick={() => { if (canEdit) { setNameDraft(project.name); setEditingName(true); } }}
+                title={canEdit ? 'Click to rename' : ''}
               >
                 {project.name}
               </h1>
@@ -338,7 +340,7 @@ export default function ProjectDetail() {
               <IconFileText size={13} />
               Generate report
             </button>
-            {canDeleteProjects && <button onClick={deleteProject} className="btn-danger">Delete</button>}
+            {canDeleteProjects && project.access?.delete && <button onClick={deleteProject} className="btn-danger">Delete</button>}
           </div>
         )}
       </div>
@@ -352,7 +354,7 @@ export default function ProjectDetail() {
       )}
 
       {/* Close-project warning */}
-      {closeWarning && (
+      {closeWarning && canEdit && (
         <div
           className="flex items-center justify-between gap-4 rounded-[10px] border p-4"
           style={{ backgroundColor: 'color-mix(in srgb, var(--color-warning) 10%, var(--color-bg))', borderColor: 'var(--color-warning)' }}
@@ -422,14 +424,14 @@ export default function ProjectDetail() {
         />
       )}
       {tab === 'expenses' && (
-        <ExpensesTab data={expenses} canManageExpenses={canManageExpenses} onAdd={() => setShowAddExpense(true)} onDelete={async (expId) => {
+        <ExpensesTab data={expenses} canManageExpenses={canManageExpenses && canEdit} onAdd={() => setShowAddExpense(true)} onDelete={async (expId) => {
           await api.delete(`/projects/${id}/expenses/${expId}`);
           await reloadExpenses();
           reloadProject();
         }} onLoadMore={() => setExpenseLimit((n) => n + SUBLIST_STEP)} />
       )}
       {tab === 'materials' && (
-        <MaterialsTab data={materials} canManageExpenses={canManageExpenses} onAdd={() => setShowAddMaterial(true)} onDelete={async (matId) => {
+        <MaterialsTab data={materials} canManageExpenses={canManageExpenses && canEdit} onAdd={() => setShowAddMaterial(true)} onDelete={async (matId) => {
           await api.delete(`/projects/${id}/materials/${matId}`);
           await reloadMaterials();
           reloadProject();
@@ -439,7 +441,7 @@ export default function ProjectDetail() {
         <PeopleTab
           members={members}
           project={project}
-          canManageMembers={canManageMembers}
+          canManageMembers={canManageMembers && canEdit}
           onAdd={() => setShowAddPerson(true)}
           onRemove={async (userId) => {
             await api.delete(`/projects/${id}/members/${userId}`);
@@ -451,6 +453,8 @@ export default function ProjectDetail() {
       {tab === 'files' && (
         <FilesTab
           files={files}
+          canUpload={canEditProjectContent}
+          canDelete={(f) => f.uploadedBy === user.id || !!project.access?.moderate}
           onUpload={async (file) => {
             const fd = new FormData();
             fd.append('file', file);

@@ -18,6 +18,11 @@ export function TimerProvider({ children }) {
   const [logVersion, setLogVersion] = useState(0);
 
   const apply = useCallback((timer) => { setActiveTimer(timer); setSyncedAt(Date.now()); }, []);
+
+  // The ticket page's old browser-only timer (before plan 3c) is not carried over.
+  useEffect(() => {
+    try { localStorage.removeItem('prism.ticketTimer.v1'); } catch { /* storage unavailable */ }
+  }, []);
   const bumpLogVersion = useCallback(() => setLogVersion((v) => v + 1), []);
 
   const refresh = useCallback(async () => {

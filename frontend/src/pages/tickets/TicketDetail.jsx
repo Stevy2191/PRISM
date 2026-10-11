@@ -22,7 +22,9 @@ import {
   formatDate,
   formatDueDateTime,
 } from './theme';
-import { useTicketTimer, TimerWidget, OtherTicketTimerBanner } from './detail/TimerWidget';
+import TimerButton from '../../components/work/TimerButton';
+import TimeEntryForm from '../../components/work/TimeEntryForm';
+import useAutoTimer from '../../components/work/useAutoTimer';
 import { SourceBadge, CsatBadge } from './detail/Badges';
 import { LinkTicketModal, RelationshipsTab } from './detail/RelationshipsTab';
 import { GenerateReportModal } from './detail/GenerateReportModal';
@@ -78,7 +80,8 @@ export default function TicketDetail() {
   const fileRef = useRef(null);
 
   const [ticket, setTicket] = useState(null);
-  const ticketTimer = useTicketTimer(ticket);
+  // A stopped header timer, waiting in the Log time form.
+  const [stoppedTimer, setStoppedTimer] = useState(null);
   const [comments, setComments] = useState([]);
   // "Load more" grows the page size rather than accumulating pages: almost
   // every action on this page triggers a refetch, and a grown limit survives
@@ -90,7 +93,7 @@ export default function TicketDetail() {
   // Time Entries tab loads its own list.
   const [timeTotal, setTimeTotal] = useState(0);
   const [timeVersion, setTimeVersion] = useState(0);
-  const { logVersion } = useTimer();
+  const { logVersion, activeTimer, elapsedSeconds } = useTimer();
   const [relations, setRelations] = useState([]);
   const [watchers, setWatchers] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -194,66 +197,14 @@ export default function TicketDetail() {
     }
   };
 
-  // Keep a ref to the latest ticket-timer snapshot so the mount/unmount
-  // effect below (which only re-runs when the ticket changes) always acts on
-  // live data instead of the stale closure from when it first ran.
-  const ticketTimerRef = useRef(ticketTimer);
-  useEffect(() => { ticketTimerRef.current = ticketTimer; }, [ticketTimer]);
-
-  // Automatic timer mode: start on open (unless another ticket's timer is
-  // already running/paused — the warning banner handles that conflict
-  // instead), stop (and log/discard/prompt per the user's preferences) on
-  // navigating away; best-effort log via sendBeacon on tab close. Manual-mode
-  // and paused timers deliberately persist in localStorage across tab
-  // close/reopen — that's the point of the client-side persistence.
-  useEffect(() => {
-    if (!isStaff || !ticket || !user || user.timerMode !== 'automatic') return undefined;
-
-    if (ticketTimerRef.current.timerState === 'idle' && !ticketTimerRef.current.otherTicket) {
-      ticketTimerRef.current.start();
-    }
-
-    const handleBeforeUnload = () => {
-      const t = ticketTimerRef.current;
-      if (t.timerState === 'idle') return;
-      const seconds = t.elapsedSeconds;
-      if (seconds < (user.timerMinThreshold || 0)) return;
-      const minutes = Math.max(1, Math.round(seconds / 60));
-      navigator.sendBeacon(
-        `/api/v1/tickets/${ticket.id}/time`,
-        new Blob([JSON.stringify({ durationMinutes: minutes })], { type: 'application/json' })
-      );
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      const t = ticketTimerRef.current;
-      if (t.timerState === 'idle') return;
-      const seconds = t.elapsedSeconds;
-      const minutes = Math.max(1, Math.round(seconds / 60));
-      // A rich modal isn't renderable from an unmounting component, so this
-      // uses window.confirm as the closest equivalent — but a below-minimum
-      // entry always gets asked about (never silently dropped), regardless
-      // of timerPromptBeforeLog, matching the interactive Log Time modal's
-      // "always show the warning" rule for below-threshold entries.
-      if (seconds < (user.timerMinThreshold || 0)) {
-        if (window.confirm(
-          `This entry is ${formatHMS(seconds)} — below your minimum threshold of ${formatHMS(user.timerMinThreshold)}. Log it anyway?`
-        )) {
-          api.post(`/tickets/${ticket.id}/time`, { durationMinutes: minutes }).catch(() => {});
-        }
-      } else if (user.timerPromptBeforeLog) {
-        if (window.confirm(`Log ${formatHMS(seconds)} of time to this ticket before leaving?`)) {
-          api.post(`/tickets/${ticket.id}/time`, { durationMinutes: minutes }).catch(() => {});
-        }
-      } else {
-        api.post(`/tickets/${ticket.id}/time`, { durationMinutes: minutes }).catch(() => {});
-      }
-      t.stopToIdle();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticket?.id, isStaff, user?.id, user?.timerMode]);
+  // Automatic timer mode, on the one server timer (plan 3c).
+  useAutoTimer({
+    kind: 'ticket',
+    parentId: ticket?.id,
+    label: ticket ? `${formatTicketId(ticket)} ${ticket.title}` : null,
+    enabled: !!ticket && user?.timerMode === 'automatic' && hasPermission('time.log'),
+    user,
+  });
 
   const reloadActivityAndRelations = () => {
     api.get(`/tickets/${id}/relations`).then(({ data }) => setRelations(data.relations)).catch(() => {});
@@ -460,7 +411,7 @@ export default function TicketDetail() {
               {PRIORITY_META[ticket.priority].label}
             </span>
             <CsatBadge survey={ticket.csatSurvey} />
-            {isStaff && (
+            {isStaff && ticket.access?.edit && (
               <button
                 type="button"
                 onClick={() => setHeaderLinkModalOpen(true)}
@@ -492,14 +443,13 @@ export default function TicketDetail() {
             >
               Details
             </button>
-            {isStaff && (
-              <TimerWidget
-                ticket={ticket}
-                ticketTimer={ticketTimer}
-                onLogged={reloadTime}
-                assignableUsers={assignableUsers}
-                canLogTimeForOthers={canLogTimeForOthers}
-                currentUser={user}
+            {hasPermission('time.log') && (
+              <TimerButton
+                kind="ticket"
+                parentId={ticket.id}
+                label={`${formatTicketId(ticket)} ${ticket.title}`}
+                onStopRequest={setStoppedTimer}
+                anyTask
               />
             )}
           </div>
@@ -519,11 +469,25 @@ export default function TicketDetail() {
         </div>
       </div>
 
-      {isStaff && ticketTimer.otherTicket && (
-        <OtherTicketTimerBanner
-          otherTicket={ticketTimer.otherTicket}
-          now={ticketTimer.now}
-          onCleared={ticketTimer.clearOther}
+      {activeTimer && !(activeTimer.type === 'ticket' && activeTimer.id === ticket.id) && (
+        <div
+          className="flex-shrink-0 px-6 py-2 text-sm"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--color-warning) 15%, var(--color-bg))', borderBottom: '1px solid var(--color-warning)', color: 'var(--color-warning)' }}
+        >
+          Timer running on {activeTimer.label || 'another item'} ({formatHMS(elapsedSeconds)}). Starting it here logs that time first.
+        </div>
+      )}
+      {stoppedTimer && (
+        <TimeEntryForm
+          kind="ticket"
+          parentId={ticket.id}
+          tasks={tasks}
+          timer={stoppedTimer}
+          canManageOthers={canLogTimeForOthers}
+          currentUser={user}
+          assignableUsers={assignableUsers}
+          onSaved={reloadTime}
+          onClose={() => setStoppedTimer(null)}
         />
       )}
 
@@ -544,6 +508,7 @@ export default function TicketDetail() {
             collapsed={collapsed}
             onToggle={() => setCollapsed((c) => !c)}
             isStaff={isStaff}
+            canEdit={isStaff && !!ticket.access?.edit}
             canAssign={canAssign}
             onStatusChange={handleStatusChange}
             patchTicket={patchTicket}
@@ -598,7 +563,7 @@ export default function TicketDetail() {
               />
             )}
             {activeTab === 'resolution' && (
-              <ResolutionTab ticket={ticket} onSave={saveResolution} isStaff={isStaff} />
+              <ResolutionTab ticket={ticket} onSave={saveResolution} isStaff={isStaff && !!ticket.access?.edit} />
             )}
             {activeTab === 'time' && (
               <TimeLog
@@ -629,10 +594,16 @@ export default function TicketDetail() {
               />
             )}
             {activeTab === 'attachments' && (
-              <AttachmentsTab ticketId={id} attachments={attachments} onUpload={uploadFile} onRemove={removeAttachment} />
+              <AttachmentsTab
+                ticketId={id}
+                attachments={attachments}
+                onUpload={uploadFile}
+                onRemove={removeAttachment}
+                canRemove={(a) => a.uploadedById === user.id || !!ticket.access?.moderate}
+              />
             )}
             {activeTab === 'relationships' && (
-              <RelationshipsTab ticketId={id} relations={relations} isStaff={isStaff} reload={reloadActivityAndRelations} closedStatusNames={closedStatusNames} />
+              <RelationshipsTab ticketId={id} relations={relations} isStaff={isStaff && !!ticket.access?.edit} reload={reloadActivityAndRelations} closedStatusNames={closedStatusNames} />
             )}
             {activeTab === 'activity' && (
               <ActivityTab
@@ -723,6 +694,7 @@ export default function TicketDetail() {
                 mobileSheet
                 onToggle={() => {}}
                 isStaff={isStaff}
+                canEdit={isStaff && !!ticket.access?.edit}
                 canAssign={canAssign}
                 onStatusChange={handleStatusChange}
                 patchTicket={patchTicket}

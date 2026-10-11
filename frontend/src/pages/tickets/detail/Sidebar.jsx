@@ -149,7 +149,7 @@ function CustomFieldValue({ field, value, disabled, onSave }) {
 }
 
 export function Sidebar({
-  ticket, collapsed, onToggle, isStaff, canAssign, onStatusChange, patchTicket,
+  ticket, collapsed, onToggle, isStaff, canEdit = isStaff, canAssign, onStatusChange, patchTicket,
   assignableUsers, teams, directory, ticketStatuses,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
@@ -223,6 +223,9 @@ export function Sidebar({
         className={collapsed ? 'flex flex-col items-center gap-4 pt-4' : 'space-y-5 p-4'}
         style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}
       >
+        {!canEdit && !collapsed && (
+          <p className="text-xs" style={{ color: MUTED }}>View only — you can&apos;t edit this ticket.</p>
+        )}
         <SidebarSection title="Contact Info" collapsed={collapsed}>
           {collapsed ? (
             <span title={`${ticket.contact?.displayName} · ${ticket.contact?.department?.name || 'No department'} · ${ticket.contact?.email || 'no email'}`} className="text-lg">👤</span>
@@ -287,7 +290,7 @@ export function Sidebar({
               <div>
                 <label className="mb-1 block text-xs" style={{ color: MUTED }}>Status</label>
                 <select
-                  disabled={!isStaff}
+                  disabled={!canEdit}
                   value={ticket.status}
                   onChange={(e) => onStatusChange(e.target.value)}
                   className="input h-9 text-sm"
@@ -297,9 +300,10 @@ export function Sidebar({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs" style={{ color: MUTED }}>Priority</label>
+                <label htmlFor="ticket-priority" className="mb-1 block text-xs" style={{ color: MUTED }}>Priority</label>
                 <select
-                  disabled={!isStaff}
+                  id="ticket-priority"
+                  disabled={!canEdit}
                   value={ticket.priority}
                   onChange={(e) => patchTicket({ priority: e.target.value })}
                   className="input h-9 text-sm"
@@ -311,7 +315,7 @@ export function Sidebar({
               <div>
                 <label className="mb-1 block text-xs" style={{ color: MUTED }}>Type</label>
                 <select
-                  disabled={!isStaff}
+                  disabled={!canEdit}
                   value={ticket.type}
                   onChange={(e) => patchTicket({ type: e.target.value })}
                   className="input h-9 text-sm"
@@ -324,6 +328,7 @@ export function Sidebar({
                 <div>
                   <label className="mb-1 block text-xs" style={{ color: MUTED }}>Assignee</label>
                   <select
+                    disabled={!canEdit}
                     value={ticket.assigneeId || ''}
                     onChange={(e) => patchTicket({ assigneeId: e.target.value || null })}
                     className="input h-9 text-sm"
@@ -337,7 +342,7 @@ export function Sidebar({
               <div>
                 <label className="mb-1 block text-xs" style={{ color: MUTED }}>Team</label>
                 <select
-                  disabled={!isStaff}
+                  disabled={!canEdit}
                   value={ticket.teamId || ''}
                   onChange={(e) => patchTicket({ teamId: e.target.value || null })}
                   className="input h-9 text-sm"
@@ -351,7 +356,7 @@ export function Sidebar({
                 <label className="mb-1 block text-xs" style={{ color: MUTED }}>Due Date</label>
                 <input
                   type="date"
-                  disabled={!isStaff}
+                  disabled={!canEdit}
                   value={ticket.dueDate || ''}
                   onChange={(e) => patchTicket(e.target.value ? { dueDate: e.target.value } : { dueDate: null, dueTime: null })}
                   className="input h-9 text-sm"
@@ -364,7 +369,7 @@ export function Sidebar({
                   <TimeDropdownPicker
                     value={ticket.dueTime ? ticket.dueTime.slice(0, 5) : null}
                     onChange={(v) => patchTicket({ dueTime: v })}
-                    disabled={!isStaff || !ticket.dueDate}
+                    disabled={!canEdit || !ticket.dueDate}
                     fieldStyle={fieldStyle}
                     selectClassName="input h-9 text-sm"
                   />
@@ -388,7 +393,7 @@ export function Sidebar({
                     <CustomFieldValue
                       field={f}
                       value={ticket.customFields?.[f.fieldKey]}
-                      disabled={!isStaff}
+                      disabled={!canEdit}
                       onSave={(v) => onSaveCustomField(f.fieldKey, v)}
                     />
                   </div>
@@ -407,11 +412,11 @@ export function Sidebar({
                 {(tags || []).map((tag) => (
                   <span key={tag} className="flex items-center gap-1 rounded-[3px] px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: BORDER, color: TEXT }}>
                     {tag}
-                    <button type="button" onClick={() => onRemoveTag(tag)} style={{ color: MUTED }}><IconX size={11} /></button>
+                    {canEdit && <button type="button" onClick={() => onRemoveTag(tag)} style={{ color: MUTED }}><IconX size={11} /></button>}
                   </span>
                 ))}
               </div>
-              <input
+              {canEdit && <input
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -420,7 +425,7 @@ export function Sidebar({
                 placeholder="Add a tag…"
                 className="input mt-2 h-8 text-xs"
                 style={fieldStyle}
-              />
+              />}
             </div>
           )}
         </SidebarSection>
