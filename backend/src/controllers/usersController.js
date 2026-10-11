@@ -9,7 +9,7 @@ const { writeAudit } = require('../middleware/audit');
 const {
   invalidateUserPermissions, hasPermission, isUnfenceable, getUserCompanyIds, canAccessCompany, parseRecordId,
 } = require('../services/permissionService');
-const { assertCanGrantRole, assertCanSetLegacyRole } = require('../services/roleGrant');
+const { assertCanHandOutRole, assertCanSetLegacyRole } = require('../services/roleGrant');
 const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
@@ -177,10 +177,10 @@ const create = asyncHandler(async (req, res) => {
   if (roleId !== undefined && roleId !== null && roleId !== '') {
     const requestedRole = await Role.findByPk(roleId);
     if (!requestedRole) throw new ApiError(400, 'Role does not exist', 'VALIDATION_ERROR');
-    await assertCanGrantRole(req.user, requestedRole);
+    await assertCanHandOutRole(req.user, requestedRole);
   } else if (dept && dept.defaultRoleId) {
     const defaultRole = await Role.findByPk(dept.defaultRoleId);
-    if (defaultRole) await assertCanGrantRole(req.user, defaultRole);
+    if (defaultRole) await assertCanHandOutRole(req.user, defaultRole);
   }
   // A fenced creator can't make an account that reaches more than they do:
   // it starts with the creator's own companies.

@@ -4,7 +4,7 @@ const { User, Role, UserRole, Department, Permission, UserPermissionOverride } =
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, explainUserPermissions } = require('../services/permissionService');
-const { assertCanGrantRole, assertCanGrantPermissions } = require('../services/roleGrant');
+const { assertCanHandOutRole, assertCanGrantPermissions } = require('../services/roleGrant');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -42,7 +42,7 @@ const assignRole = asyncHandler(async (req, res) => {
 
   const role = await Role.findByPk(roleId);
   if (!role) throw new ApiError(400, 'Role does not exist', 'VALIDATION_ERROR');
-  await assertCanGrantRole(req.user, role, user.id);
+  await assertCanHandOutRole(req.user, role, user.id);
 
   let departmentId = null;
   if (role.scope === 'department') {

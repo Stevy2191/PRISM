@@ -7,7 +7,7 @@ const {
 } = require('../services/permissionService');
 const { getInternalCompanyId } = require('../services/companyService');
 const { andWhere } = require('../services/recordScope');
-const { assertCanGrantRole } = require('../services/roleGrant');
+const { assertCanHandOutRole } = require('../services/roleGrant');
 
 const departmentInclude = [
   { model: Role, as: 'defaultRole', attributes: ['id', 'name'] },
@@ -106,7 +106,7 @@ async function resolveDefaultRole(req, rawRoleId) {
   if (!(await hasPermission(req.user.id, 'people.manage_roles'))) {
     throw new ApiError(403, 'Setting a default role needs people.manage_roles', 'FORBIDDEN');
   }
-  await assertCanGrantRole(req.user, role);
+  await assertCanHandOutRole(req.user, role);
   return role.id;
 }
 

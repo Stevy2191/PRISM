@@ -176,7 +176,10 @@ reports. Settings → Companies is always there, also for managing vendors.
   permissions of a role they hold, or grant a permission (to a role, a new
   role or a user) that they don't hold themselves (a broader scope counts:
   holding `tickets.edit_department` allows granting `tickets.edit_own`).
-  System Administrators are not limited.
+  The same goes for handing out a role: assigning it, choosing it for a new
+  account, or making it a department's default. System Administrators (the
+  owners) are not limited, and only they can make someone a System
+  Administrator.
 - A department-level user with no department could see every ticket, project
   and contact that had no department, and the same in reports, the dashboard
   and the people list. A user with no department now matches no department.

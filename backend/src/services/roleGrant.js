@@ -80,6 +80,21 @@ async function assertCanSetLegacyRole(actor, legacyRole, targetUserId) {
   if (seed) await assertCanGrantRole(actor, seed, undefined);
 }
 
+// Handing a role to someone (assigning it, choosing it for a new account,
+// making it a department's default): everything assertCanGrantRole checks,
+// and — unless the actor is the owner (System Administrator, user decision
+// 2026-10-11) — the role carries nothing more than the actor holds.
+async function assertCanHandOutRole(actor, role, targetUserId) {
+  await assertCanGrantRole(actor, role, targetUserId);
+  if (await isUnfenceable(actor)) return;
+  const { RolePermission, Permission } = require('../models'); // eslint-disable-line global-require
+  const rows = await RolePermission.findAll({
+    where: { roleId: role.id, granted: true }, include: [{ model: Permission, as: 'permission', attributes: ['key'] }],
+  });
+  await assertCanGrantPermissions(actor, rows.map((r) => r.permission?.key).filter(Boolean));
+}
+
 module.exports = {
-  assertCanGrantRole, assertCanSetLegacyRole, assertCanGrantSystemAdmin, assertCanGrantPermissions, assertNotOwnRolePermissions,
+  assertCanGrantRole,
+  assertCanHandOutRole, assertCanSetLegacyRole, assertCanGrantSystemAdmin, assertCanGrantPermissions, assertNotOwnRolePermissions,
 };
