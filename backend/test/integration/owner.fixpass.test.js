@@ -20,9 +20,11 @@ const makeSysadmin = () => createUserAndLogin({ username: 'sysadmin', roleName: 
 
 beforeEach(async () => {
   await resetData();
+  await models.Role.destroy({ where: { name: 'Temp' } }); // roles are not reset between tests
   w = await makeWorld();
   roles = expectOk(await w.admin.agent.get(`${API}/roles`)).roles;
 });
+afterEach(() => models.Role.destroy({ where: { name: 'Temp' } }));
 afterAll(closeDb);
 
 describe('M1: falling back to a department default never hands out a top role', () => {

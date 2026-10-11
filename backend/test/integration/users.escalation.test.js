@@ -43,7 +43,8 @@ describe('a user administrator who isn\'t a System Administrator', () => {
   });
 
   it('can\'t create one through a department whose default role is System Administrator', async () => {
-    expectOk(await a().patch(`${API}/departments/${w.deptA.id}`).send({ defaultRoleId: sysAdmin.id }));
+    // Set before top roles were refused as a default (Owner review M1): an older install's data.
+    await models.Department.update({ defaultRoleId: sysAdmin.id }, { where: { id: w.deptA.id } });
     expectErr(
       await newUser(mgr.agent, { departmentId: w.deptA.id }),
       403, 'OWNER_ONLY', 'Granting the System Administrator role needs an Owner'

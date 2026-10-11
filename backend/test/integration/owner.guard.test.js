@@ -28,8 +28,9 @@ it('a System Administrator can\'t make administrators or Owners, by any path', a
     .toEqual(ownerOnly('Granting the Owner role'));
   expect((await a.patch(`${API}/users/${staff.user.id}`).send({ role: 'admin' })).body)
     .toEqual(ownerOnly('Granting the System Administrator role'));
-  expect((await a.patch(`${API}/departments/${w.deptA.id}`).send({ defaultRoleId: roleId('System Administrator') })).body)
-    .toEqual(ownerOnly('Granting the System Administrator role'));
+  // A top role is never a department default, for anyone (Owner review M1).
+  expect((await a.patch(`${API}/departments/${w.deptA.id}`).send({ defaultRoleId: roleId('System Administrator') })).body.message)
+    .toBe('A department\'s default role can\'t be System Administrator or Owner');
   // Below them, they manage freely.
   expect((await a.post(`${API}/users/${staff.user.id}/roles`).send({ roleId: roleId('System Technician') })).status).toBeLessThan(300);
 });
