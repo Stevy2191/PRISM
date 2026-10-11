@@ -5,6 +5,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, explainUserPermissions } = require('../services/permissionService');
 const { assertCanHandOutRole, assertCanGrantPermissions } = require('../services/roleGrant');
+const { assertCanManageAccount, assertKeepsAnOwner } = require('../services/ownership');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -37,6 +38,7 @@ const listRoles = asyncHandler(async (req, res) => {
 // with no department of its own).
 const assignRole = asyncHandler(async (req, res) => {
   const user = await loadUser(req.params.id);
+  if (user.id !== req.user.id) await assertCanManageAccount(req.user, user);
   const roleId = parseInt(req.body?.roleId, 10);
   if (!roleId) throw new ApiError(400, 'roleId is required', 'VALIDATION_ERROR');
 
@@ -87,6 +89,7 @@ const removeRole = asyncHandler(async (req, res) => {
   // Removing a primary role falls back to the department default, which can
   // be a bigger role — so, like assigning, it's never done to yourself.
   if (user.id === req.user.id) throw new ApiError(403, 'You cannot change your own roles', 'FORBIDDEN');
+  await assertCanManageAccount(req.user, user);
   const roleId = parseInt(req.params.roleId, 10);
   // Optional disambiguator: a department-scoped role can be assigned to the
   // same user for more than one department (e.g. Department Manager for
@@ -97,6 +100,7 @@ const removeRole = asyncHandler(async (req, res) => {
   const userRole = await UserRole.findOne({ where, include: [{ model: Role, as: 'role' }] });
   if (!userRole) throw new ApiError(404, 'Role assignment not found', 'NOT_FOUND');
   const roleName = userRole.role?.name;
+  if (roleName === 'Owner' && userRole.role?.isSystemRole) await assertKeepsAnOwner(user.id);
   await userRole.destroy();
 
   // Removing the primary role falls back to the user's department default,
@@ -151,6 +155,7 @@ function assertNotOwnPermissions(req, user) {
 const createOverride = asyncHandler(async (req, res) => {
   const user = await loadUser(req.params.id);
   assertNotOwnPermissions(req, user);
+  await assertCanManageAccount(req.user, user);
   const { permissionKey, granted, reason, expiresAt } = req.body || {};
 
   const permission = await Permission.findOne({ where: { key: permissionKey } });
@@ -190,6 +195,7 @@ const createOverride = asyncHandler(async (req, res) => {
 const revokeOverride = asyncHandler(async (req, res) => {
   const user = await loadUser(req.params.id);
   assertNotOwnPermissions(req, user);
+  await assertCanManageAccount(req.user, user);
   const override = await UserPermissionOverride.findOne({ where: { id: req.params.overrideId, userId: user.id } });
   if (!override) throw new ApiError(404, 'Override not found', 'NOT_FOUND');
 

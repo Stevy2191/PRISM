@@ -7,13 +7,14 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
 const {
-  invalidateUserPermissions, hasPermission, isUnfenceable, getUserCompanyIds, canAccessCompany, parseRecordId,
+  invalidateUserPermissions, hasPermission, getUserCompanyIds, canAccessCompany, parseRecordId,
 } = require('../services/permissionService');
 const { assertCanHandOutRole, assertCanSetLegacyRole } = require('../services/roleGrant');
 const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
+const { assertCanManageAccount, assertKeepsAnOwner, isOwner } = require('../services/ownership');
 
 const userInclude = [{ model: Department, as: 'department' }, { model: Role, as: 'primaryRole' }];
 
@@ -243,6 +244,8 @@ const update = asyncHandler(async (req, res) => {
   if (!isSelf && !canEditUsers) {
     throw new ApiError(403, 'You may only edit your own profile', 'FORBIDDEN');
   }
+  // An administrator's account is changed only by an Owner (user decision 2026-10-11).
+  if (!isSelf) await assertCanManageAccount(req.user, user);
 
   const {
     role, departmentId, password, firstName, lastName, phone, jobTitle, email, userType, hourlyRate,
@@ -284,9 +287,7 @@ const update = asyncHandler(async (req, res) => {
       throw new ApiError(400, 'Cannot set a password on a directory (AD) account', 'NOT_LOCAL_ACCOUNT');
     }
     // Resetting a password lets you sign in as that account (S11).
-    if ((await isUnfenceable(user)) && !(await isUnfenceable(req.user))) {
-      throw new ApiError(403, 'Only a System Administrator can reset a System Administrator\'s password', 'FORBIDDEN');
-    }
+    // (An administrator's password: covered by assertCanManageAccount above.)
     const resetPolicy = validatePassword(password, {
       username: user.username,
       displayName: user.displayName,
@@ -389,6 +390,8 @@ const remove = asyncHandler(async (req, res) => {
   }
   const user = await User.findByPk(id);
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
+  await assertCanManageAccount(req.user, user);
+  if (await isOwner(user)) await assertKeepsAnOwner(user.id);
 
   await user.destroy();
   await writeAudit(req, 'user.delete', 'User', id, { username: user.username });

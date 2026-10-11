@@ -242,7 +242,7 @@ describe('R8: role assignment can\'t widen company reach', () => {
     const sysAdmin = await Role.findOne({ where: { name: 'System Administrator' } });
     expectErr(
       await mgr.agent.post(`${API}/users/${target.user.id}/roles`).send({ roleId: sysAdmin.id }),
-      403, 'FORBIDDEN', 'Only a System Administrator can grant the System Administrator role'
+      403, 'OWNER_ONLY', 'Granting the System Administrator role needs an Owner'
     );
     const manager = await Role.findOne({ where: { name: 'Department Manager' } });
     expectErr(

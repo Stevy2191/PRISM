@@ -16,7 +16,9 @@ const roleInclude = [
 // not even its permission grants (every other system role's permissions CAN
 // be edited; only its name/description/scope/deletion are locked, same as
 // every other system role).
-const isFullyLocked = (role) => role.isSystemRole && role.name === 'System Administrator';
+// The top roles' permissions are fixed: System Administrator, and the Owner
+// (who holds every permission regardless).
+const isFullyLocked = (role) => role.isSystemRole && ['System Administrator', 'Owner'].includes(role.name);
 
 async function memberCounts() {
   const rows = await UserRole.findAll({

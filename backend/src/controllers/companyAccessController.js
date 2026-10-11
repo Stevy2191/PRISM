@@ -8,6 +8,7 @@ const {
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
+const { assertCanManageAccount } = require('../services/ownership');
 const {
   parseRecordId, isUnfenceable, getUserCompanyIds, invalidateUserPermissions, invalidateAllPermissions,
 } = require('../services/permissionService');
@@ -64,6 +65,7 @@ const getUserAccess = asyncHandler(async (req, res) => {
 const putUserAccess = asyncHandler(async (req, res) => {
   const user = await User.findByPk(parseRecordId(req.params.id) || 0);
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
+  await assertCanManageAccount(req.user, user);
   const { allCompanies, companyIds } = req.body || {};
   if (typeof allCompanies !== 'boolean') throw new ApiError(400, 'allCompanies must be true or false', 'VALIDATION_ERROR');
   if (!allCompanies && (await isUnfenceable(user))) {

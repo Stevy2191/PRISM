@@ -46,7 +46,7 @@ describe('a user administrator who isn\'t a System Administrator', () => {
     expectOk(await a().patch(`${API}/departments/${w.deptA.id}`).send({ defaultRoleId: sysAdmin.id }));
     expectErr(
       await newUser(mgr.agent, { departmentId: w.deptA.id }),
-      403, 'FORBIDDEN', 'Only a System Administrator can grant the System Administrator role'
+      403, 'OWNER_ONLY', 'Granting the System Administrator role needs an Owner'
     );
   });
 
@@ -59,7 +59,7 @@ describe('a user administrator who isn\'t a System Administrator', () => {
   it('can\'t reset an administrator\'s password', async () => {
     expectErr(
       await mgr.agent.patch(`${API}/users/${w.admin.user.id}`).send({ password: PASSWORD }),
-      403, 'FORBIDDEN', 'Only a System Administrator can reset a System Administrator\'s password'
+      403, 'OWNER_ONLY', 'Changing an administrator\'s account needs an Owner'
     );
   });
 
@@ -78,12 +78,12 @@ it('a role manager who isn\'t a System Administrator can\'t slip role "admin" in
   const staff = await Role.findOne({ where: { name: 'Department Staff' } });
   expectErr(
     await newUser(mgr.agent, { role: 'admin', roleId: staff.id }),
-    403, 'FORBIDDEN', 'Only a System Administrator can grant the System Administrator role'
+    403, 'OWNER_ONLY', 'Granting the System Administrator role needs an Owner'
   );
   expectOk(await a().patch(`${API}/departments/${w.deptB.id}`).send({ defaultRoleId: staff.id }));
   expectErr(
     await newUser(mgr.agent, { role: 'admin', departmentId: w.deptB.id }),
-    403, 'FORBIDDEN', 'Only a System Administrator can grant the System Administrator role'
+    403, 'OWNER_ONLY', 'Granting the System Administrator role needs an Owner'
   );
   expect(await User.count({ where: { role: 'admin' } })).toBe(1);
 });

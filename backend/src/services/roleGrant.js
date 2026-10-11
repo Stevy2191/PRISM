@@ -13,6 +13,7 @@
 const { Role, RoleCompanyAccess, UserRole } = require('../models');
 const { ApiError } = require('../middleware/error');
 const { isUnfenceable, getUserCompanyIds, resolveUserPermissions } = require('./permissionService');
+const { assertOwner } = require('./ownership');
 
 // Scope tiers: holding a broader one covers granting a narrower one.
 const BROADER = {};
@@ -47,10 +48,9 @@ async function assertNotOwnRolePermissions(actor, role) {
 
 const SYSTEM_ADMIN = 'System Administrator';
 
+// Only an Owner makes System Administrators (user decision 2026-10-11).
 async function assertCanGrantSystemAdmin(actor) {
-  if (!(await isUnfenceable(actor))) {
-    throw new ApiError(403, 'Only a System Administrator can grant the System Administrator role', 'FORBIDDEN');
-  }
+  await assertOwner(actor, 'Granting the System Administrator role');
 }
 
 function assertNotSelf(actor, targetUserId) {
@@ -64,6 +64,7 @@ function assertNotSelf(actor, targetUserId) {
 async function assertCanGrantRole(actor, role, targetUserId) {
   assertNotSelf(actor, targetUserId);
   if (role.name === SYSTEM_ADMIN) await assertCanGrantSystemAdmin(actor);
+  if (role.name === 'Owner') await assertOwner(actor, 'Granting the Owner role');
   const reachable = await getUserCompanyIds(actor);
   if (reachable === null) return;
   const rows = await RoleCompanyAccess.findAll({ where: { roleId: role.id }, attributes: ['companyId'] });
