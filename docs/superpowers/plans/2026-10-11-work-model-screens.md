@@ -21,6 +21,11 @@
 - **2026-10-11, one server timer:** one server-side timer for tickets, projects and tasks, replacing the ticket page's browser-only timer. It gains pause and resume. Automatic mode, the minimum-time warning, the prompt before logging and "keep timing" stay. Old browser-only timers are ignored.
 - **2026-10-06, own time:** logging your own time needs `time.log` and view access.
 - **2026-10-11, moderation:** moderating others' content needs `tickets.moderate` / `projects.moderate`.
+- **2026-10-11, time attribution:** the ticket's total is all of its time, and each subtask shows the time worked on it, so you know how long it took.
+  - Subtasks get their own timer and Log time.
+  - Starting a timer on a subtask while one runs on the same ticket (or another task) logs the time so far where it was worked, then starts fresh on the subtask. The server already does this.
+  - That time is never discarded or moved, so the totals stay exact.
+  - The Time Entries tab shows a **Time by task** breakdown.
 
 ## Global Constraints
 
@@ -35,6 +40,10 @@
   - There is one timer per user, on the server.
   - Pause/resume live on the server (`ActiveTimers.accumulatedSeconds`, `runningSince`). Never reintroduce browser-only timer state.
   - Stopping logs the elapsed time ending now, so `durationSeconds = endTime − startTime`.
+- **Time attribution:**
+  - a time entry belongs to its ticket or project, and optionally to one task or subtask;
+  - totals are sums over the ledger: ticket or project = all entries, task = its own plus its subtasks', subtask = its own;
+  - nothing is moved between tasks after the fact.
 - **The server decides; the screens follow.** A control is hidden or disabled when `access` says no. Never rely on hiding for security.
 - **Tests:**
   - backend integration: `cd backend && npx cross-env NODE_OPTIONS=--experimental-vm-modules jest <file>`;
@@ -47,7 +56,11 @@
 2. **A time entry with no start or end** (plain duration, or migrated legacy time) opened for editing. The form must show its duration and save without inventing times. *(Task 4 smoke: editing a duration-only entry.)*
 3. **A Department Staff user on an unassigned department ticket.** They see no edit controls for the ticket, its tasks or its links, but can comment and log their own time. *(Task 6 smoke.)*
 4. **Deleting a task status that tasks use, from Settings.** The server's refusal must be shown, and the list left unchanged. *(Task 7 smoke.)*
-5. **The timer running on another ticket when you open this one.** The page says so, and starting here logs the other one. Automatic mode must not silently replace it. *(Task 6 smoke.)*
+5. **Switching the timer from a ticket to one of its subtasks.**
+   - The ticket-level time so far is logged on the ticket and stays out of the subtask's total.
+   - The header keeps showing the running timer, now on the subtask, with Pause and Stop.
+   *(Task 6 smoke test.)*
+6. **The timer running on another ticket when you open this one.** The page says so, and starting here logs the other one. Automatic mode must not silently replace it. *(Task 6 smoke.)*
 
 ---
 
@@ -442,7 +455,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - **Produces:**
   - `useTimer()` → `{ activeTimer, elapsedSeconds, logVersion, start(type, id, { taskId, label }), pause(), resume(), stop({ note, discard }), cancel(), isRunning(type, id, taskId?), refresh }`. `activeTimer` is the server shape from Task 2, and `elapsedSeconds` ticks locally from the server's value.
   - `workPaths(kind, parentId)` → `{ tasks, task(id), reorder, code(id), time, entry(id) }` (URL strings).
-  - `<TimerButton kind parentId taskId? label onStopRequest? />`.
+  - `<TimerButton kind parentId taskId? label onStopRequest? anyTask? />`. With `anyTask`, used by a page header, the button treats a timer on any task of this ticket or project as its own: it shows "on <task>" with working Pause/Stop instead of Start.
   - `<TimerIndicator />`.
 
 - [ ] **Step 1: Failing smoke test**
@@ -583,9 +596,12 @@ import {
 } from '@tabler/icons-react';
 import { useTimer, formatHMS } from '../../context/TimerContext';
 
-export default function TimerButton({ kind, parentId, taskId = null, label, onStopRequest, compact = false }) {
+export default function TimerButton({ kind, parentId, taskId = null, label, onStopRequest, compact = false, anyTask = false }) {
   const timer = useTimer();
-  const here = timer.isRunning(kind, parentId, taskId);
+  // A page header (anyTask) owns a timer on any of its tasks too, so it never
+  // offers Start while one of them is running.
+  const here = anyTask ? timer.isRunning(kind, parentId) : timer.isRunning(kind, parentId, taskId);
+  const onTask = here && anyTask && timer.activeTimer.taskId;
   const state = here ? timer.activeTimer.state : 'idle';
   const color = state === 'running' ? 'var(--color-timer)' : state === 'paused' ? 'var(--color-warning)' : 'var(--color-text-muted)';
   const elsewhere = !here && timer.activeTimer;
@@ -622,6 +638,7 @@ export default function TimerButton({ kind, parentId, taskId = null, label, onSt
       )}
       {!compact && <span className="font-mono text-sm font-semibold" style={{ color }}>{formatHMS(here ? timer.elapsedSeconds : 0)}</span>}
       {compact && here && <span className="font-mono text-xs" style={{ color }}>{formatHMS(timer.elapsedSeconds)}</span>}
+      {onTask && <span className="max-w-[12rem] truncate text-xs" style={{ color }}>on {timer.activeTimer.label?.split(' · ').pop() || 'a task'}</span>}
       {state !== 'idle' && (
         <button type="button" aria-label="Stop timer" title="Stop and log time" style={{ color }} onClick={stop}>
           <IconPlayerStopFilled size={compact ? 13 : 15} />
@@ -670,7 +687,7 @@ export default function TimerIndicator() {
 In `ProjectDetail.jsx`, inside the header's button group (the `isStaff &&` block), when `canLogTime`:
 
 ```jsx
-<TimerButton kind="project" parentId={project.id} label={`${project.projectCode} ${project.name}`} onStopRequest={setStoppedTimer} />
+<TimerButton kind="project" parentId={project.id} label={`${project.projectCode} ${project.name}`} onStopRequest={setStoppedTimer} anyTask />
 ```
 
 - Add `const [stoppedTimer, setStoppedTimer] = useState(null);`.
@@ -703,7 +720,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 **Interfaces:**
 - **Consumes:** `workPaths` and `useTimer` (Task 3); the time API's `{ entries, total, totalSeconds, totalLaborCost }`; entries carry `user`, `loggedBy`, `task {id,title,code}` and `workType {id,name}`.
 - **Produces:**
-  - `<TimeLog kind parentId tasks canLog canManageOthers currentUser assignableUsers reloadKey onChanged />`. It loads and pages its own entries.
+  - `<TimeLog kind parentId tasks canLog canManageOthers currentUser assignableUsers reloadKey onChanged />`. It loads and pages its own entries, and shows a **Time by task** breakdown from `tasks[].loggedSeconds`:
+    - general time, on no task;
+    - each task with its total, its subtasks indented under it with theirs;
+    - the grand total.
   - `<TimeEntryForm kind parentId tasks entry? timer? defaultTaskId? canManageOthers currentUser assignableUsers onSaved onClose onKeepTiming? />`:
     - with `entry` it edits;
     - with `timer` (a stopped timer from TimerButton) it pre-fills from it, and on save logs the entry and then discards the server timer;
@@ -1036,6 +1056,10 @@ export default function TimeLog({
   useEffect(() => { load(); }, [load, reloadKey]);
 
   const mayChange = (e) => e.userId === currentUser.id || e.loggedById === currentUser.id || canManageOthers;
+  // Time by task: general time (no task) is the total less every task's time
+  // (a task's loggedSeconds already includes its subtasks').
+  const onTasks = tasks.reduce((n, t) => n + (t.loggedSeconds || 0), 0);
+  const general = Math.max(0, data.totalSeconds - onTasks);
   const changed = () => { load(); onChanged?.(); };
   const remove = async (e) => {
     if (!window.confirm('Delete this time entry?')) return;
@@ -1048,6 +1072,23 @@ export default function TimeLog({
         <h2 className="font-semibold text-[var(--color-text-primary)]">Time entries</h2>
         {canLog && <button type="button" onClick={() => setEditing('new')} className="btn-primary">Log time</button>}
       </div>
+      {onTasks > 0 && (
+        <section aria-label="Time by task" className="border-b p-4 text-sm" style={{ borderColor: 'var(--color-border)' }}>
+          <p className="mb-2 font-semibold">Time by task</p>
+          <ul className="space-y-1">
+            <li className="flex justify-between"><span>General ({kind === 'ticket' ? 'the ticket' : 'the project'}, no task)</span><span className="font-mono">{formatSeconds(general)}</span></li>
+            {tasks.filter((t) => t.loggedSeconds > 0).map((t) => (
+              <li key={t.id}>
+                <div className="flex justify-between"><span>{t.code ? `${t.code} ` : ''}{t.title}</span><span className="font-mono">{formatSeconds(t.loggedSeconds)}</span></div>
+                {(t.subtasks || []).filter((st) => st.loggedSeconds > 0).map((st) => (
+                  <div key={st.id} className="flex justify-between pl-5 text-[var(--color-text-muted)]"><span>{st.code ? `${st.code} ` : ''}{st.title}</span><span className="font-mono">{formatSeconds(st.loggedSeconds)}</span></div>
+                ))}
+              </li>
+            ))}
+            <li className="flex justify-between border-t pt-1 font-semibold" style={{ borderColor: 'var(--color-border)' }}><span>Total</span><span className="font-mono">{formatSeconds(data.totalSeconds)}</span></li>
+          </ul>
+        </section>
+      )}
       <table className="min-w-full">
         <thead>
           <tr>{['Date', 'Who', 'Task', 'Work type', 'Note', 'Duration', 'Cost', ''].map((h) => <th key={h} className="table-th">{h}</th>)}</tr>
@@ -1098,6 +1139,8 @@ export default function TimeLog({
 }
 ```
 
+`TimeLog` relies on the page reloading `tasks` when time changes, so `loggedSeconds` is current. Both pages pass an `onChanged` that reloads tasks (Task 5), and `reloadKey` covers timers logged from elsewhere.
+
 The Edit and Delete buttons need accessible names "Edit" and "Delete", which they have as their text. Each row's accessible name includes the note, which the smoke test's `getByRole('row', { name: /…/ })` relies on.
 
 - [ ] **Step 6: The pages use it**
@@ -1143,7 +1186,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 **Interfaces:**
 - **Consumes:** `workPaths`, `TimerButton`, `TimeEntryForm`; task objects with `status`, `subtasks`, `assignee`, `code`, `isComplete`, `subtaskPercent`, `loggedSeconds` and `linkedTicket` (Task 1).
 - **Produces:**
-  - `<TaskList kind parentId tasks statuses assignableUsers canEdit canLog canManageOthers currentUser onChanged />`;
+  - `<TaskList kind parentId tasks statuses assignableUsers canEdit canLog canManageOthers currentUser timerLabel onChanged />`;
+  - every subtask row in `TaskDetails` has its own compact timer, a "Log time" button and its time total;
   - `<TaskDetails kind parentId task statuses assignableUsers canEdit canLog … onChanged onClose />`, which expands inline under its row.
 
 - [ ] **Step 1: Failing smoke test**
@@ -1151,7 +1195,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 `backend/test/smoke/work.tasks.smoke.js`:
 
 ```js
-const { resetData, closeDb } = require('../integration/helpers');
+const { resetData, closeDb, models } = require('../integration/helpers');
 const {
   API, expectOk, makeWorld, makeTicket, makeProject, makeTask,
 } = require('../integration/fixtures');
@@ -1215,6 +1259,43 @@ it('a timer can run on a task', async () => {
   expectOk(await w.admin.agent.delete(`${API}/timer`));
 });
 
+it('a subtask has its own timer and time; switching from the ticket timer keeps each minute where it was worked', async () => {
+  const [task] = expectOk(await w.admin.agent.get(`${API}/tickets/${ticket.id}/tasks`)).tasks;
+  const sub = task.subtasks.find((s) => s.title === 'Order part');
+  // A ticket-level timer has been running ten minutes when the subtask timer starts.
+  expectOk(await w.admin.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: ticket.id, label: 'Task ticket' }), 201);
+  await models.ActiveTimer.update({ runningSince: new Date(Date.now() - 10 * 60 * 1000) }, { where: {} });
+  const before = expectOk(await w.admin.agent.get(`${API}/tickets/${ticket.id}/time`)).totalSeconds;
+  const page = await smoke.pageAs('admin');
+  await page.goto(`/tickets/${ticket.id}`);
+  await tab(page, /^Tasks/);
+  await shown(page, 'Replace drum').click();
+  const details = page.getByRole('region', { name: 'Task details' }).filter({ visible: true }).first();
+  const row = details.getByRole('listitem').filter({ hasText: 'Order part' });
+  await row.getByRole('button', { name: 'Start timer' }).click();
+  const started = await waitFor(page, 'POST', '/timer/start');
+  const { logged } = await started.json();
+  // The ten minutes went to the ticket (no task), not to the subtask.
+  expect([logged.taskId, logged.durationSeconds >= 600]).toEqual([null, true]);
+  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timer).toEqual(expect.objectContaining({ taskId: sub.id }));
+  // The header still shows the running timer, now on the subtask.
+  await page.getByText(/on Order part/).filter({ visible: true }).first().waitFor();
+  await page.getByRole('button', { name: 'Pause timer' }).filter({ visible: true }).first().waitFor();
+  const after = expectOk(await w.admin.agent.get(`${API}/tickets/${ticket.id}/time`)).totalSeconds;
+  expect(after - before).toBe(logged.durationSeconds);
+  expectOk(await w.admin.agent.delete(`${API}/timer`));
+});
+
+it('the Time Entries tab breaks the time down by task and subtask', async () => {
+  const page = await smoke.pageAs('admin');
+  await page.goto(`/tickets/${ticket.id}`);
+  await tab(page, /^Time Entries/);
+  const breakdown = page.getByRole('region', { name: 'Time by task' }).filter({ visible: true }).first();
+  await breakdown.getByText(/General/).waitFor();
+  await breakdown.getByText('Replace drum').waitFor();
+  await breakdown.getByText('Total').waitFor();
+});
+
 it('project tasks reorder with the move buttons', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/projects/${project.id}`);
@@ -1258,7 +1339,7 @@ export default function TaskDetails({
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
   const [newSubtask, setNewSubtask] = useState('');
-  const [logging, setLogging] = useState(false);
+  const [loggingFor, setLoggingFor] = useState(null); // task or subtask id the Log time form is for
   const [stoppedTimer, setStoppedTimer] = useState(null);
 
   const patch = async (id, changes) => {
@@ -1336,7 +1417,13 @@ export default function TaskDetails({
               <input type="checkbox" aria-label={`Complete ${st.title}`} disabled={!canEdit} checked={st.status?.behaviorType === 'closed'} onChange={() => toggle(st)} />
               {st.code && <span className="font-mono text-xs text-[var(--color-text-muted)]">{st.code}</span>}
               <span className="flex-1">{st.title}</span>
-              {st.loggedSeconds > 0 && <span className="font-mono text-xs text-[var(--color-text-muted)]">{formatSeconds(st.loggedSeconds)}</span>}
+              <span className="font-mono text-xs text-[var(--color-text-muted)]" title="Time on this subtask">{formatSeconds(st.loggedSeconds)}</span>
+              {canLog && (
+                <>
+                  <TimerButton kind={kind} parentId={parentId} taskId={st.id} label={`${timerLabel} · ${st.title}`} onStopRequest={setStoppedTimer} compact />
+                  <button type="button" aria-label={`Log time on ${st.title}`} onClick={() => setLoggingFor(st.id)} className="text-xs font-medium text-[var(--color-accent)]">Log time</button>
+                </>
+              )}
               {canEdit && <button type="button" aria-label={`Delete ${st.title}`} onClick={() => removeTask(st.id, 'subtask')} style={{ color: 'var(--color-danger)' }}><IconX size={14} /></button>}
             </li>
           ))}
@@ -1352,16 +1439,16 @@ export default function TaskDetails({
         {canLog && (
           <>
             <TimerButton kind={kind} parentId={parentId} taskId={task.id} label={`${timerLabel} · ${task.title}`} onStopRequest={setStoppedTimer} compact />
-            <button type="button" onClick={() => setLogging(true)} className="text-sm font-medium text-[var(--color-accent)]">Log time on this task</button>
+            <button type="button" onClick={() => setLoggingFor(task.id)} className="text-sm font-medium text-[var(--color-accent)]">Log time on this task</button>
           </>
         )}
         {canEdit && <button type="button" onClick={() => removeTask(task.id, 'task and its subtasks')} className="ml-auto text-sm" style={{ color: 'var(--color-danger)' }}>Delete task</button>}
       </div>
-      {(logging || stoppedTimer) && (
+      {(loggingFor || stoppedTimer) && (
         <TimeEntryForm
-          kind={kind} parentId={parentId} tasks={tasks} defaultTaskId={task.id} timer={stoppedTimer}
+          kind={kind} parentId={parentId} tasks={tasks} defaultTaskId={loggingFor || task.id} timer={stoppedTimer}
           canManageOthers={canManageOthers} currentUser={currentUser} assignableUsers={assignableUsers}
-          onSaved={onChanged} onClose={() => { setLogging(false); setStoppedTimer(null); }}
+          onSaved={onChanged} onClose={() => { setLoggingFor(null); setStoppedTimer(null); }}
         />
       )}
     </section>
@@ -1511,7 +1598,7 @@ In `TicketDetail.jsx`:
 - the header shows, when `hasPermission('time.log')`:
 
 ```jsx
-<TimerButton kind="ticket" parentId={ticket.id} label={`${formatTicketId(ticket)} ${ticket.title}`} onStopRequest={setStoppedTimer} />
+<TimerButton kind="ticket" parentId={ticket.id} label={`${formatTicketId(ticket)} ${ticket.title}`} onStopRequest={setStoppedTimer} anyTask />
 ```
 
 - with `{stoppedTimer && <TimeEntryForm kind="ticket" parentId={ticket.id} tasks={tasks} timer={stoppedTimer} … onClose={() => setStoppedTimer(null)} />}`;
