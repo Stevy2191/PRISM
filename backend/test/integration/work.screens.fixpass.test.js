@@ -127,9 +127,14 @@ describe('roles: nobody grants themselves or others more than they hold', () => 
     roles = expectOk(await w.admin.agent.get(`${API}/roles`)).roles;
   });
   afterEach(async () => {
-    // Seeded roles are not reset between tests: undo what a test granted.
+    // Seeded roles are not reset between tests: undo every grant a test
+    // attempts, refused or not (a refusal that regresses must not leak into
+    // later test files).
     await toggle(w.admin.agent, 'Read Only', 'tickets.create', false);
     await toggle(w.admin.agent, 'Read Only', 'tickets.edit_own', false);
+    await toggle(w.admin.agent, 'Read Only', 'settings.manage_system', false);
+    await toggle(w.admin.agent, 'Department Manager', 'tickets.view_all', false);
+    await models.Role.destroy({ where: { name: 'Sneaky' } });
   });
 
   it('can\'t change the permissions of a role they hold', async () => {
