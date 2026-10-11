@@ -80,7 +80,7 @@ const SECTIONS = [
     title: 'Customization',
     items: [
       { label: 'Modules & Tabs', to: '/settings/modules', desc: 'Show/hide sidebar items per role', permission: SYSTEM_KEYS },
-      { label: 'Statuses', to: '/settings/statuses', desc: 'Custom ticket & project statuses', permission: STATUSES_KEYS },
+      { label: 'Statuses', to: '/settings/statuses', desc: 'Ticket, project and task statuses', permission: STATUSES_KEYS },
       { label: 'Layouts & Fields', to: '/settings/layouts', desc: 'Custom ticket fields', permission: SYSTEM_KEYS },
       { label: 'Asset Categories', to: '/settings/asset-categories', desc: 'Asset categories & device fields', permission: SYSTEM_KEYS },
       { label: 'Asset Alerts', to: '/settings/asset-alerts', desc: 'Days-before-expiry thresholds for auto-created reminder tickets', permission: SYSTEM_KEYS },
@@ -89,6 +89,7 @@ const SECTIONS = [
       { label: 'Notifications', to: '/settings/notifications', desc: 'Which events send in-app notifications', permission: SYSTEM_KEYS },
       { label: 'General Settings', to: '/admin/settings', desc: 'LDAP status, timezone, attachment limits', permission: SYSTEM_KEYS },
       { label: 'Time Tracking', to: '/settings/time-tracking', desc: 'System-wide time logging defaults', permission: SYSTEM_KEYS },
+      { label: 'Work types', to: '/settings/work-types', desc: 'Kinds of work and billable defaults', permission: SYSTEM_KEYS },
     ],
   },
   {

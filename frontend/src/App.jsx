@@ -49,6 +49,7 @@ import SettingsLayouts from './pages/settings/Layouts';
 import SettingsAssetCategories from './pages/settings/AssetCategories';
 import SettingsAssetAlerts from './pages/settings/AssetAlerts';
 import SettingsTimeTracking from './pages/settings/TimeTracking';
+import SettingsWorkTypes from './pages/settings/WorkTypes';
 import SettingsSingleSignOn from './pages/settings/SingleSignOn';
 import AssignmentRules from './pages/settings/AssignmentRules';
 import SLAs from './pages/settings/SLAs';
@@ -186,6 +187,7 @@ export default function App() {
         <Route path="/settings/email-templates" element={admin(<Placeholder title="Email Templates" icon={IconMail} note="Customize the content of outbound system emails like ticket created, ticket closed, and CSAT surveys. Coming in a future update." />)} />
         <Route path="/settings/notifications" element={perm(<SettingsNotifications />, SYSTEM_KEYS)} />
         <Route path="/settings/time-tracking" element={perm(<SettingsTimeTracking />, SYSTEM_KEYS)} />
+        <Route path="/settings/work-types" element={perm(<SettingsWorkTypes />, SYSTEM_KEYS)} />
         <Route path="/settings/single-sign-on" element={perm(<SettingsSingleSignOn />, SYSTEM_KEYS)} />
         <Route path="/settings/assignment-rules" element={perm(<AssignmentRules />, SYSTEM_KEYS)} />
         <Route path="/settings/workflow-rules" element={perm(<WorkflowRules />, SYSTEM_KEYS)} />

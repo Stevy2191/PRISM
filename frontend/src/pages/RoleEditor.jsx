@@ -7,8 +7,20 @@ import Spinner from '../components/Spinner';
 import Switch from '../components/Switch';
 import Collapsible from '../components/Collapsible';
 
-const CATEGORY_ORDER = ['tickets', 'projects', 'people', 'reports', 'settings'];
-const CATEGORY_LABELS = { tickets: 'Tickets', projects: 'Projects', people: 'People', reports: 'Reports', settings: 'Settings' };
+// Every permission category the server defines; a category missing here is
+// a set of permissions no one can see or grant.
+const CATEGORY_ORDER = ['tickets', 'projects', 'time', 'companies', 'assets', 'knowledge', 'people', 'reports', 'settings'];
+const CATEGORY_LABELS = {
+  tickets: 'Tickets',
+  projects: 'Projects',
+  time: 'Time',
+  companies: 'Companies',
+  assets: 'Assets',
+  knowledge: 'Knowledge base',
+  people: 'People',
+  reports: 'Reports',
+  settings: 'Settings',
+};
 
 // Broader-scope -> narrower-scope pairs. If the broader one is granted but
 // the narrower isn't, we show an informational (non-blocking) note.

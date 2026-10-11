@@ -3,9 +3,13 @@ import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 
+// Four lists (sub-project 3): tickets, ticket tasks, projects, project tasks.
+// The task lists share one endpoint, told apart by scope.
 const TABS = [
-  { key: 'ticket', label: 'Ticket Statuses', endpoint: '/ticket-statuses' },
-  { key: 'project', label: 'Project Statuses', endpoint: '/project-statuses' },
+  { key: 'ticket', label: 'Tickets', endpoint: '/ticket-statuses' },
+  { key: 'ticket-task', label: 'Ticket tasks', endpoint: '/task-statuses', scope: 'ticket' },
+  { key: 'project', label: 'Projects', endpoint: '/project-statuses' },
+  { key: 'project-task', label: 'Project tasks', endpoint: '/task-statuses', scope: 'project' },
 ];
 const BEHAVIOR_OPTIONS = [
   ['open', 'Open'],
@@ -25,12 +29,14 @@ export default function Statuses() {
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  const endpoint = TABS.find((t) => t.key === scope).endpoint;
+  const tab = TABS.find((t) => t.key === scope);
+  const { endpoint } = tab;
+  const scopeParams = tab.scope ? { scope: tab.scope } : {};
 
   const load = () => {
     setLoading(true);
     setError('');
-    api.get(endpoint)
+    api.get(endpoint, { params: scopeParams })
       .then(({ data }) => { setStatuses(data.statuses); setDirty(false); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
@@ -54,7 +60,7 @@ export default function Statuses() {
 
   const addStatus = async () => {
     try {
-      const { data } = await api.post(endpoint, { name: 'New Status', color: '#3b82f6', behaviorType: 'open' });
+      const { data } = await api.post(endpoint, { ...scopeParams, name: 'New Status', color: '#3b82f6', behaviorType: 'open' });
       setStatuses((list) => [...list, data.status]);
     } catch (err) {
       alert(errMessage(err));
@@ -78,7 +84,7 @@ export default function Statuses() {
   const saveOrder = async () => {
     setSaving(true);
     try {
-      const { data } = await api.put(`${endpoint}/reorder`, { order: statuses.map((s) => s.id) });
+      const { data } = await api.put(`${endpoint}/reorder`, { ...scopeParams, order: statuses.map((s) => s.id) });
       setStatuses(data.statuses);
       setDirty(false);
     } catch (err) {
@@ -110,7 +116,7 @@ export default function Statuses() {
       <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-navy-900">Statuses</h1>
-        <p className="text-sm text-navy-500">Define, reorder, and recolor ticket and project statuses. Changes apply immediately across the app.</p>
+        <p className="text-sm text-navy-500">Define, reorder and recolor the ticket, ticket-task, project and project-task statuses. Changes apply immediately across the app.</p>
       </div>
 
       <div className="flex gap-1 border-b border-navy-200">
@@ -170,6 +176,7 @@ export default function Statuses() {
                 )}
                 <button
                   type="button"
+                  aria-label={`Delete ${s.name}`}
                   onClick={() => setDeleteTarget(s)}
                   disabled={s.isProtected}
                   title={s.isProtected ? 'Protected statuses cannot be deleted' : 'Delete status'}
@@ -195,8 +202,9 @@ export default function Statuses() {
           <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-white p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-2 text-base font-semibold text-navy-900">Delete "{deleteTarget.name}"?</h2>
             <p className="mb-4 text-sm text-navy-600">
-              Any {scope === 'ticket' ? 'tickets' : 'projects'} currently using this status will be moved to the default
-              open status before it's removed.
+              {tab.scope
+                ? 'A task status can only be deleted once no task uses it.'
+                : `Any ${scope === 'ticket' ? 'tickets' : 'projects'} currently using this status will be moved to the default open status before it's removed.`}
             </p>
             {deleteError && <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{deleteError}</div>}
             <div className="flex justify-end gap-2">
