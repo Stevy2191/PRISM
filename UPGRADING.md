@@ -168,6 +168,15 @@ reports. Settings → Companies is always there, also for managing vendors.
 
 ### Security fixes
 
+- State-changing API requests that a browser marks as coming from another site
+  (including a sibling subdomain or another port of the same host) are refused
+  with `403 CROSS_SITE`. API tools and scripts, which send no such marker, are
+  not affected; single sign-on's SAML response is the one exception.
+- Someone who manages roles or permission overrides can no longer change the
+  permissions of a role they hold, or grant a permission (to a role, a new
+  role or a user) that they don't hold themselves (a broader scope counts:
+  holding `tickets.edit_department` allows granting `tickets.edit_own`).
+  System Administrators are not limited.
 - A department-level user with no department could see every ticket, project
   and contact that had no department, and the same in reports, the dashboard
   and the people list. A user with no department now matches no department.

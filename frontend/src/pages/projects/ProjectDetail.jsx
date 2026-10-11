@@ -190,11 +190,19 @@ export default function ProjectDetail() {
   }, []);
 
   const reloadTasks = () => api.get(`/projects/${id}/tasks`).then(({ data }) => setTasks(data.tasks));
+  // After tasks or time change: tasks (their times), the project's stats, activity.
+  const reloadAll = () => Promise.all([reloadTasks(), reloadProject(), reloadActivity()]).catch(() => {});
   const reloadProject = () => api.get(`/projects/${id}`).then(({ data }) => setProject(data.project));
   const reloadActivity = () => api.get(`/projects/${id}/activity`, { params: { limit: activityLimit } })
     .then(({ data }) => { setActivity(data.activity); setActivityTotal(data.total); });
   const reloadExpenses = () => api.get(`/projects/${id}/expenses`, { params: { limit: expenseLimit } }).then(({ data }) => setExpenses(data));
   const reloadMaterials = () => api.get(`/projects/${id}/materials`, { params: { limit: materialLimit } }).then(({ data }) => setMaterials(data));
+
+  // Time the server logged by itself (a timer switched or stopped anywhere).
+  useEffect(() => {
+    if (project) reloadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logVersion]);
 
   // All-tasks-closed prompt: fires once completion hits 100% while the
   // project's own status is still open-behavior.
@@ -407,7 +415,7 @@ export default function ProjectDetail() {
           canManageOthers={canLogTimeForOthers}
           currentUser={user}
           timerLabel={`${project.projectCode} ${project.name}`}
-          onChanged={() => { reloadTasks(); reloadProject(); reloadActivity(); }}
+          onChanged={reloadAll}
         />
       )}
       {tab === 'time' && (
@@ -420,7 +428,7 @@ export default function ProjectDetail() {
           currentUser={user}
           assignableUsers={assignableUsers}
           reloadKey={logVersion}
-          onChanged={() => { reloadTasks(); reloadProject(); reloadActivity(); }}
+          onChanged={reloadAll}
         />
       )}
       {tab === 'expenses' && (
@@ -487,7 +495,7 @@ export default function ProjectDetail() {
           canManageOthers={canLogTimeForOthers}
           currentUser={user}
           assignableUsers={assignableUsers}
-          onSaved={() => { reloadTasks(); reloadProject(); reloadActivity(); }}
+          onSaved={reloadAll}
           onClose={() => setStoppedTimer(null)}
         />
       )}

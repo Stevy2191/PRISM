@@ -14,8 +14,6 @@ export const MUTED = 'var(--color-text-muted)';
 
 export const BLUE = 'var(--color-accent)';
 
-export const TIMER_COLOR = 'var(--color-timer)';
-
 export const PURPLE = 'var(--color-relation-accent)';
 
 export const PURPLE_LIGHT = 'var(--color-relation-accent-light)';
@@ -59,16 +57,6 @@ export function formatDueDateTime(dueDate, dueTime) {
   const period = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${dueDate} ${h12}:${String(m).padStart(2, '0')} ${period}`;
-}
-
-// Combines a YYYY-MM-DD date with minutes-since-midnight into a local
-// datetime string suitable for `new Date(...)` on either side of the wire —
-// only the DIFFERENCE between two such values is ever used, so timezone
-// offset doesn't matter as long as both are constructed the same way.
-export function buildLocalDateTime(dateStr, minutesOfDay) {
-  const h = Math.floor(minutesOfDay / 60);
-  const m = minutesOfDay % 60;
-  return `${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
 }
 
 export const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
@@ -33,13 +33,17 @@ export default function Statuses() {
   const { endpoint } = tab;
   const scopeParams = tab.scope ? { scope: tab.scope } : {};
 
+  // Only the latest request's answer counts: switching tabs quickly must not
+  // show one list under another tab (two tabs share an endpoint).
+  const requestRef = useRef(0);
   const load = () => {
+    const request = ++requestRef.current;
     setLoading(true);
     setError('');
     api.get(endpoint, { params: scopeParams })
-      .then(({ data }) => { setStatuses(data.statuses); setDirty(false); })
-      .catch((err) => setError(errMessage(err)))
-      .finally(() => setLoading(false));
+      .then(({ data }) => { if (request === requestRef.current) { setStatuses(data.statuses); setDirty(false); } })
+      .catch((err) => { if (request === requestRef.current) setError(errMessage(err)); })
+      .finally(() => { if (request === requestRef.current) setLoading(false); });
   };
 
   useEffect(load, [scope]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -186,7 +186,7 @@ export default function TaskList({
               </div>
               {isOpen && (
                 <TaskDetails
-                  key={`${task.id}-${task.title}-${task.description}`}
+                  key={task.id}
                   kind={kind} parentId={parentId} task={task} tasks={tasks} statuses={statuses}
                   assignableUsers={assignableUsers} canEdit={canEdit} canLog={canLog} canManageOthers={canManageOthers}
                   currentUser={currentUser} timerLabel={timerLabel} onChanged={onChanged}

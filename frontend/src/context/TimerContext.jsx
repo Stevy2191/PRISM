@@ -12,6 +12,9 @@ export function TimerProvider({ children }) {
   const { user, hasPermission } = useAuth();
   const canTime = !!user && hasPermission('time.log');
   const [activeTimer, setActiveTimer] = useState(null); // server shape, or null
+  // False until the first GET /timer answers: before that, "no timer" only
+  // means "not known yet" (automatic mode must not act on it).
+  const [loaded, setLoaded] = useState(false);
   const [syncedAt, setSyncedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
   // Increments after each successful log so pages can refresh their time data.
@@ -28,11 +31,13 @@ export function TimerProvider({ children }) {
   const refresh = useCallback(async () => {
     if (!canTime) {
       apply(null);
+      setLoaded(false);
       return;
     }
     try {
       const { data } = await api.get('/timer');
       apply(data.timer);
+      setLoaded(true);
     } catch {
       /* leave current state on transient errors */
     }
@@ -64,9 +69,10 @@ export function TimerProvider({ children }) {
     return () => clearInterval(iv);
   }, [running, syncedAt]);
 
-  const start = useCallback(async (type, id, { taskId = null, label = null } = {}) => {
+  // onlyIfIdle: start only if no timer exists anywhere (automatic mode).
+  const start = useCallback(async (type, id, { taskId = null, label = null, onlyIfIdle = false } = {}) => {
     try {
-      const { data } = await api.post('/timer/start', { type, id, taskId, label });
+      const { data } = await api.post('/timer/start', { type, id, taskId, label, ...(onlyIfIdle ? { onlyIfIdle: true } : {}) });
       apply(data.timer);
       if (data.logged) bumpLogVersion(); // a previous timer was logged
       return data;
@@ -76,34 +82,41 @@ export function TimerProvider({ children }) {
     }
   }, [apply, bumpLogVersion]);
 
+  // A failed timer call (say, the timer was stopped on another device) shows
+  // why and re-syncs with the server instead of leaving a stale control.
+  const failed = useCallback((err) => {
+    alert(errMessage(err, 'The timer could not be updated'));
+    refresh();
+    return null;
+  }, [refresh]);
+
   const pause = useCallback(async () => {
-    const { data } = await api.post('/timer/pause');
-    apply(data.timer);
-    return data.timer; // the paused timer, with its frozen elapsedSeconds
-  }, [apply]);
+    try {
+      const { data } = await api.post('/timer/pause');
+      apply(data.timer);
+      return data.timer; // the paused timer, with its frozen elapsedSeconds
+    } catch (err) { return failed(err); }
+  }, [apply, failed]);
 
   const resume = useCallback(async () => {
-    const { data } = await api.post('/timer/resume');
-    apply(data.timer);
-    return data.timer;
-  }, [apply]);
+    try {
+      const { data } = await api.post('/timer/resume');
+      apply(data.timer);
+      return data.timer;
+    } catch (err) { return failed(err); }
+  }, [apply, failed]);
 
-  const stop = useCallback(async ({ note, discard } = {}) => {
-    const { data } = await api.post('/timer/stop', { ...(note ? { note } : {}), ...(discard ? { discard: true } : {}) });
+  // expectTimerId: act only on that timer (it may have been logged or
+  // replaced elsewhere meanwhile). entry: the Log time form's fields.
+  const stop = useCallback(async ({ note, discard, expectTimerId, entry } = {}) => {
+    const { data } = await api.post('/timer/stop', {
+      ...(note ? { note } : {}), ...(discard ? { discard: true } : {}),
+      ...(expectTimerId ? { expectTimerId } : {}), ...(entry ? { entry } : {}),
+    });
     apply(null);
     if (data.entry) bumpLogVersion();
     return data;
   }, [apply, bumpLogVersion]);
-
-  // Discard without logging.
-  const cancel = useCallback(async () => {
-    try {
-      await api.delete('/timer');
-    } catch {
-      /* ignore */
-    }
-    apply(null);
-  }, [apply]);
 
   const elapsedSeconds = activeTimer
     ? activeTimer.elapsedSeconds + (running ? Math.max(0, Math.floor((now - syncedAt) / 1000)) : 0)
@@ -114,7 +127,7 @@ export function TimerProvider({ children }) {
     && (taskId === undefined || (activeTimer.taskId ?? null) === (taskId ?? null));
 
   const value = {
-    activeTimer, elapsedSeconds, logVersion, start, pause, resume, stop, cancel, isRunning, refresh, bumpLogVersion,
+    activeTimer, loaded, elapsedSeconds, logVersion, start, pause, resume, stop, isRunning, refresh, bumpLogVersion,
   };
   return <TimerContext.Provider value={value}>{children}</TimerContext.Provider>;
 }

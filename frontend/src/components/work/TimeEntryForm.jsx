@@ -13,6 +13,16 @@ import { workPaths } from './workPaths';
 const field = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: 'var(--color-text-primary)' };
 const label = 'mb-1 block text-sm font-medium text-[var(--color-text-primary)]';
 const minutesOfDay = (d) => d.getHours() * 60 + d.getMinutes();
+const pad = (n) => String(n).padStart(2, '0');
+// The browser's local date of an instant, as YYYY-MM-DD.
+const localDateOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+// A YYYY-MM-DD date moved by a number of days.
+function shiftDate(dateStr, days) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return localDateOf(new Date(y, m - 1, d + days));
+}
+const daysBetween = (a, b) => Math.round((Date.UTC(...b.split('-').map((n, i) => (i === 1 ? n - 1 : Number(n))))
+  - Date.UTC(...a.split('-').map((n, i) => (i === 1 ? n - 1 : Number(n))))) / 86400000);
 
 function initialState({ entry, timer, defaultTaskId, today, currentUser }) {
   if (entry) {
@@ -21,6 +31,10 @@ function initialState({ entry, timer, defaultTaskId, today, currentUser }) {
     return {
       mode: start && end ? 'span' : 'duration',
       entryDate: entry.entryDate,
+      // Start and end are wall-clock times in this browser's zone, on this
+      // local date (which can differ from the work date, kept in the
+      // organization's zone). Changing the work date moves it alike.
+      spanDate: start ? localDateOf(start) : entry.entryDate,
       startMinutes: start ? minutesOfDay(start) : 9 * 60,
       endMinutes: end ? minutesOfDay(end) : 9 * 60 + Math.round(entry.durationSeconds / 60),
       minutes: Math.round(entry.durationSeconds / 60),
@@ -36,8 +50,11 @@ function initialState({ entry, timer, defaultTaskId, today, currentUser }) {
   const startMinutes = roundToNearest5(new Date(end.getTime() - seconds * 1000));
   let endMinutes = roundToNearest5(end);
   if (endMinutes <= startMinutes) endMinutes = startMinutes + 5;
+  // A timer that ran past midnight (or a day or more) has no start and end on
+  // one date: log it as a plain duration.
+  const crossesMidnight = seconds / 60 > end.getHours() * 60 + end.getMinutes();
   return {
-    mode: 'span', entryDate: today, startMinutes, endMinutes, minutes: Math.max(1, Math.round(seconds / 60)),
+    mode: crossesMidnight ? 'duration' : 'span', entryDate: today, spanDate: localDateOf(end), startMinutes, endMinutes, minutes: Math.max(1, Math.round(seconds / 60)),
     taskId: (timer && timer.taskId) || defaultTaskId || '', workTypeId: '', billable: true, userId: currentUser.id, note: '',
   };
 }
@@ -92,12 +109,14 @@ export default function TimeEntryForm({
       ...(canManageOthers ? { userId: form.userId } : {}),
       ...(form.mode === 'duration'
         ? { durationMinutes: Number(form.minutes), ...(entry && entry.startTime ? { startTime: null, endTime: null } : {}) }
-        : { startTime: localDateTime(form.entryDate, form.startMinutes), endTime: localDateTime(form.entryDate, form.endMinutes) }),
+        : { startTime: localDateTime(form.spanDate, form.startMinutes), endTime: localDateTime(form.spanDate, form.endMinutes) }),
     };
     try {
       if (entry) await api.patch(paths.entry(entry.id), body);
+      // A stopped timer is logged as this entry and cleared in one call, and
+      // only if it is still the timer this form is for (plan 3c review).
+      else if (timer) await timerCtx.stop({ expectTimerId: timer.timerId, entry: body });
       else await api.post(paths.time, body);
-      if (timer) await timerCtx.stop({ discard: true }); // the form logged it
       onSaved?.();
       onClose();
     } catch (err) {
@@ -107,7 +126,15 @@ export default function TimeEntryForm({
     }
   };
 
-  const discardTimer = async () => { await timerCtx.stop({ discard: true }); onClose(); };
+  const discardTimer = async () => {
+    try {
+      await timerCtx.stop({ expectTimerId: timer.timerId, discard: true });
+    } catch (err) {
+      if (err?.response?.status !== 409) { setError(errMessage(err)); return; }
+      timerCtx.refresh(); // already logged or replaced elsewhere: nothing to discard
+    }
+    onClose();
+  };
   const keepTiming = async () => { if (timer?.resumeAfter) await timerCtx.resume(); onClose(); };
 
   return (
@@ -120,7 +147,7 @@ export default function TimeEntryForm({
       )}
       {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       <label className={label} htmlFor="te-date">Date</label>
-      <input id="te-date" type="date" max={today} value={form.entryDate} onChange={(e) => set({ entryDate: e.target.value })} className="input mb-3" style={field} />
+      <input id="te-date" type="date" max={today} value={form.entryDate} onChange={(e) => e.target.value && set({ entryDate: e.target.value, spanDate: shiftDate(form.spanDate, daysBetween(form.entryDate, e.target.value)) })} className="input mb-3" style={field} />
       <div className="mb-2 flex gap-3 text-sm">
         <label className="flex items-center gap-1"><input type="radio" checked={form.mode === 'span'} onChange={() => set({ mode: 'span' })} /> Start and end</label>
         <label className="flex items-center gap-1"><input type="radio" checked={form.mode === 'duration'} onChange={() => set({ mode: 'duration' })} /> Duration</label>

@@ -26,12 +26,12 @@ export function roundToNearest5(date) {
   return Math.round(mins / 5) * 5;
 }
 
-// "YYYY-MM-DDTHH:MM:00" for a date and a minutes-since-midnight value. Start
-// and end are built the same way, so their difference is the duration.
+// The instant, as ISO (UTC), of a wall-clock time on a date in the browser's
+// time zone. Sending it with its zone keeps a server in any zone from reading
+// it as its own local time (plan 3c review).
 export function localDateTime(dateStr, minutesOfDay) {
-  const h = Math.floor(minutesOfDay / 60);
-  const m = minutesOfDay % 60;
-  return `${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  return new Date(y, mo - 1, d, Math.floor(minutesOfDay / 60), minutesOfDay % 60).toISOString();
 }
 
 export default function TimePicker({ minutesOfDay, onChange, idPrefix }) {
@@ -43,7 +43,9 @@ export default function TimePicker({ minutesOfDay, onChange, idPrefix }) {
         {PICKER_HOURS_12.map((h) => <option key={h} value={h}>{h}</option>)}
       </select>
       <select aria-label={idPrefix ? `${idPrefix} minute` : 'Minute'} value={m} onChange={(e) => update(h12, Number(e.target.value), meridiem)} className="input h-9 text-sm" style={fieldStyle}>
-        {PICKER_MINUTES_5.map((mm) => <option key={mm} value={mm}>{String(mm).padStart(2, '0')}</option>)}
+        {/* A recorded time (a timer's) can fall between the 5-minute steps: show it as it is. */}
+        {(PICKER_MINUTES_5.includes(m) ? PICKER_MINUTES_5 : [...PICKER_MINUTES_5, m].sort((a, b) => a - b))
+          .map((mm) => <option key={mm} value={mm}>{String(mm).padStart(2, '0')}</option>)}
       </select>
       <select aria-label={idPrefix ? `${idPrefix} AM or PM` : 'AM or PM'} value={meridiem} onChange={(e) => update(h12, m, e.target.value)} className="input h-9 text-sm" style={fieldStyle}>
         <option value="AM">AM</option>

@@ -1,9 +1,8 @@
-// Small pieces of the project page: stat card and drop line; the avatar and
-// editable code live in components/work and are re-exported here.
-import { CARD_BG, BORDER, MUTED, BLUE } from '../theme';
+// Small pieces of the project page: the stat card, and the avatar
+// (components/work) re-exported for the project tabs.
+import { CARD_BG, BORDER, MUTED } from '../theme';
 
 export { default as Avatar } from '../../../components/work/Avatar';
-export { default as EditableCode } from '../../../components/work/EditableCode';
 
 export function StatCard({ label, value, color }) {
   return (
@@ -12,9 +11,4 @@ export function StatCard({ label, value, color }) {
       <p className="mt-1 text-2xl font-bold tracking-tight" style={{ color }}>{value}</p>
     </div>
   );
-}
-
-// Thin animated line marking exactly where a dragged task will land.
-export function DropLine() {
-  return <div className="drop-line my-1 h-0.5 rounded-full" style={{ backgroundColor: BLUE }} />;
 }

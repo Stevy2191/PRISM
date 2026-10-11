@@ -1,9 +1,10 @@
 // A task's details, inline under its row: fields, subtasks, time on the
 // task, a timer on it. Saves each field as it changes.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { IconX } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import TimerButton from './TimerButton';
+import EditableCode from './EditableCode';
 import TimeEntryForm from './TimeEntryForm';
 import { formatSeconds } from './TimeLog';
 import { workPaths } from './workPaths';
@@ -18,6 +19,12 @@ export default function TaskDetails({
   const paths = workPaths(kind, parentId);
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
+  const [estimate, setEstimate] = useState(task.estimateMinutes ?? '');
+  // Follow the server's values when the task reloads (the panel stays
+  // mounted, so open forms and drafts survive a reload).
+  useEffect(() => { setTitle(task.title); }, [task.title]);
+  useEffect(() => { setDescription(task.description || ''); }, [task.description]);
+  useEffect(() => { setEstimate(task.estimateMinutes ?? ''); }, [task.estimateMinutes]);
   const [newSubtask, setNewSubtask] = useState('');
   const [loggingFor, setLoggingFor] = useState(null); // task or subtask id the Log time form is for
   const [stoppedTimer, setStoppedTimer] = useState(null);
@@ -83,8 +90,12 @@ export default function TaskDetails({
           </div>
           <div>
             <label className={label} htmlFor={`t-est-${task.id}`}>Estimate (min)</label>
-            <input id={`t-est-${task.id}`} type="number" min="0" className="input" style={field} defaultValue={task.estimateMinutes ?? ''}
-              onBlur={(e) => { const v = e.target.value === '' ? null : Number(e.target.value); if (v !== (task.estimateMinutes ?? null)) patch(task.id, { estimateMinutes: v }); }} />
+            <input id={`t-est-${task.id}`} type="number" min="0" className="input" style={field} value={estimate}
+              onChange={(e) => setEstimate(e.target.value)}
+              onBlur={() => {
+                const v = estimate === '' ? null : Number(estimate);
+                if (v !== (task.estimateMinutes ?? null)) patch(task.id, { estimateMinutes: v });
+              }} />
           </div>
         </div>
       </fieldset>
@@ -95,7 +106,10 @@ export default function TaskDetails({
           {(task.subtasks || []).map((st) => (
             <li key={st.id} className="flex items-center gap-2 text-sm">
               <input type="checkbox" aria-label={`Complete ${st.title}`} disabled={!canEdit} checked={st.status?.behaviorType === 'closed'} onChange={() => toggle(st)} />
-              {st.code && <span className="font-mono text-xs text-[var(--color-text-muted)]">{st.code}</span>}
+              {st.code && (
+                <EditableCode code={st.code} letter="S" disabled={!canEdit}
+                  onRename={async (number) => { await api.patch(paths.code(st.id), { number }); onChanged(); }} />
+              )}
               <span className="flex-1">{st.title}</span>
               <span className="font-mono text-xs text-[var(--color-text-muted)]" title="Time on this subtask">{formatSeconds(st.loggedSeconds)}</span>
               {canLog && (

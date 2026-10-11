@@ -6,6 +6,7 @@ import {
   IconPlayerPlayFilled, IconPlayerPauseFilled, IconPlayerStopFilled,
 } from '@tabler/icons-react';
 import { useTimer, formatHMS } from '../../context/TimerContext';
+import { errMessage } from '../../api/api';
 
 // target: names what the buttons act on when several timers share a screen (subtask rows).
 export default function TimerButton({
@@ -25,8 +26,9 @@ export default function TimerButton({
     // Freeze it while the form is open; read the paused timer the server
     // returns (the context's value in this closure is from before the pause).
     const paused = state === 'running' ? await timer.pause() : timer.activeTimer;
+    if (!paused) return; // the pause failed; the context has said why and re-synced
     if (onStopRequest) onStopRequest({ ...paused, resumeAfter: state === 'running' });
-    else await timer.stop();
+    else await timer.stop({ expectTimerId: paused.timerId }).catch((err) => alert(errMessage(err)));
   };
 
   return (

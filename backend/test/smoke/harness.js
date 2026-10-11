@@ -51,8 +51,9 @@ async function startSmoke() {
 
   // A page signed in as `username`: the context's request client shares its
   // cookie jar with the pages it opens.
-  async function pageAs(username, password = PASSWORD) {
-    const context = await browser.newContext({ baseURL: base });
+  // contextOptions: Playwright context options, e.g. { timezoneId }.
+  async function pageAs(username, password = PASSWORD, contextOptions = {}) {
+    const context = await browser.newContext({ baseURL: base, ...contextOptions });
     const res = await context.request.post('/api/v1/auth/login', { data: { username, password } });
     if (!res.ok()) throw new Error(`smoke login failed for ${username}: ${res.status()}`);
     return context.newPage();
