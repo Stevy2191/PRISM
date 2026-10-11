@@ -166,6 +166,33 @@ reports. Settings → Companies is always there, also for managing vendors.
   - The role editor now shows every permission category. Time, Companies, Assets and Knowledge base permissions were missing from it before.
 - **Read-only screens.** Ticket and project pages show only what you may change. A ticket you can see but not edit says "View only".
 
+### The Owner
+
+A new built-in role, **Owner**, sits above System Administrator, so that a single
+System Administrator can't take the system over.
+
+- **Who is the Owner after upgrading:** the oldest active administrator
+  account, which is normally the account created when PRISM was set up. On a
+  new install, the setup account is the Owner.
+- **Check who it is:** Settings → Users, where the account shows an "Owner"
+  badge.
+- **An Owner has every permission and reaches every company.**
+- **Only an Owner can:**
+  - make someone a System Administrator or an Owner, or remove that;
+  - change an administrator's account: their roles, permission overrides,
+    company access, password, profile, or delete it;
+  - change the sign-in, mail and integration settings: single sign-on
+    (including its role mappings), Active Directory / LDAP, directory sync
+    (including its group-to-role mappings), inbound and outbound email, the
+    email log, and the calendar integration settings.
+- **System Administrators** keep everything else: every other setting, and the
+  roles and accounts below them.
+- **Add a second Owner** so you're not locked out if an account is lost: an
+  Owner assigns the Owner role to them under Settings → Users.
+- **There is always at least one active Owner.** The last Owner's role can't be
+  removed and their account can't be deleted. As before, nobody changes their
+  own roles or permissions, Owners included.
+
 ### Security fixes
 
 - State-changing API requests that a browser marks as coming from another site
