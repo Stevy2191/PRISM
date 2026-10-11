@@ -351,8 +351,11 @@ async function canEditProject(user, project) {
 // tickets.edit_all anywhere, or tickets.edit_department within your own
 // department. tickets.edit_own is deliberately not enough — it is the
 // baseline permission for handling your own work.
+// Since 2026-10-11 it also needs tickets.moderate, so a role can edit every
+// ticket (the seeded System Technician) without moderating colleagues.
 async function canModerateTicketContent(user, ticket) {
   const permissions = await resolveUserPermissions(user.id);
+  if (!permissions['tickets.moderate']) return false;
   if (permissions['tickets.edit_all']) return true;
   if (permissions['tickets.edit_department']) {
     return ticket.departmentId != null && ticket.departmentId === user.departmentId;
@@ -361,8 +364,10 @@ async function canModerateTicketContent(user, ticket) {
 }
 
 // Same reasoning for project content (files, task trees) created by others.
+// Needs projects.moderate as well (see canModerateTicketContent).
 async function canModerateProjectContent(user, project) {
   const permissions = await resolveUserPermissions(user.id);
+  if (!permissions['projects.moderate']) return false;
   if (permissions['projects.edit_all']) return true;
   if (permissions['projects.edit_department']) {
     return (

@@ -1,4 +1,4 @@
-const { resetData, closeDb, ROLE } = require('./helpers');
+const { resetData, closeDb, ROLE, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeStaff, makeUser, makeContractor, makeTicket, makeProject, makeTask,
   setSettings, freezeClock, advanceClock, unfreezeClock,
@@ -186,6 +186,17 @@ describe('the timer', () => {
     const replaced = expectOk(await onTicket(tech, T), 201);
     expect(replaced.logged).toBeNull();
     expect((await current(tech)).id).toBe(T.id);
+  });
+
+  it('deleting a project stops the timers running on it (user decision 2026-10-11)', async () => {
+    const tech = await makeTech('tech', w.deptA.id);
+    const p = await makeProject(w.admin.agent, { name: 'Going away', ownerDepartmentId: w.deptA.id });
+    expectOk(await tech.agent.post(`${API}/timer/start`).send({ type: 'project', id: p.id }), 201);
+    expectOk(await w.admin.agent.delete(`${API}/projects/${p.id}`));
+    expect(expectOk(await tech.agent.get(`${API}/timer`)).timer).toBeNull();
+    expect(await models.ActiveTimer.count({ where: { entityType: 'project', entityId: p.id } })).toBe(0);
+    const audit = await models.AuditLog.findOne({ where: { action: 'project.delete', entityId: p.id } });
+    expect(audit.meta.timers).toBe(1);
   });
 
   it('a timer on something the user can no longer open is discarded, with a reason', async () => {

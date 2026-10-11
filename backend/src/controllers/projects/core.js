@@ -10,6 +10,7 @@ const {
   ProjectStatus,
   ProjectFile,
   ProjectActivity,
+  ActiveTimer,
   Task,
   TimeEntry,
   User,
@@ -399,11 +400,12 @@ const remove = asyncHandler(async (req, res) => {
   const counts = {};
   await sequelize.transaction(async (transaction) => {
     // No database cascades (Q13): everything that belongs to the project goes
-    // with it. A running timer stays, and says so when it stops (Q34).
+    // with it, and timers running on it stop (their time has nowhere to go).
     for (const [label, M] of [['tasks', Task], ['timeEntries', TimeEntry], ['expenses', ProjectExpense],
       ['materials', ProjectMaterial], ['files', ProjectFile], ['members', ProjectMember], ['activity', ProjectActivity]]) {
       counts[label] = await M.destroy({ where, transaction }); // eslint-disable-line no-await-in-loop
     }
+    counts.timers = await ActiveTimer.destroy({ where: { entityType: 'project', entityId: project.id }, transaction });
     await project.destroy({ transaction });
     await writeAudit(req, 'project.delete', 'Project', project.id, { name: project.name, ...counts }, { transaction });
   });

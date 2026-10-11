@@ -103,9 +103,8 @@ reports. Settings → Companies is always there, also for managing vendors.
   - Deleting also needs `tickets.delete` / `projects.delete`, as before.
 - **Seeded roles.**
   - System Technician is granted `tickets.edit_all` and `projects.edit_all`, so
-    it edits everything it could before. With `edit_all` it is now also a
-    moderator: it can edit or delete other people's comments and attachments,
-    and delete other people's project files.
+    it edits everything it could before. It still can't edit or delete other
+    people's comments, attachments or project files.
   - **Department Staff** can now edit only tickets assigned to them. They can
     still see, comment on and log time on the rest of their department's.
 - **Logging your own time** needs `time.log` and view access to the ticket or
@@ -113,11 +112,17 @@ reports. Settings → Companies is always there, also for managing vendors.
   is removed**; every role that had it has `time.log`.
 - **Linked tickets you can't open** show as "Restricted ticket" (id only) in a
   ticket's links and on a project task.
+- **Moderating** (editing or deleting someone else's comment or attachment,
+  deleting someone else's project file) is now its own permission:
+  `tickets.moderate` / `projects.moderate`, together with `edit_all`, or
+  `edit_department` for your own department. Every role and user who could
+  moderate before keeps it (System Administrator and Department Manager among
+  the seeded roles); System Technician doesn't.
 - **Deleting a project** now deletes its tasks, time, expenses, materials,
-  files (also on disk), members and activity. It used to leave them behind.
+  files (also on disk), members and activity, and stops any timer running on
+  it. It used to leave them behind.
 - **Project files** can be deleted by the person who uploaded them or a
-  project moderator (`projects.edit_all`, or `projects.edit_department` for
-  your department's projects).
+  project moderator.
 - **Task statuses and work types are editable** through the API:
   - `POST/PATCH/DELETE /task-statuses` and `PUT /task-statuses/reorder` need
     `settings.manage_statuses`;

@@ -121,7 +121,9 @@ describe('audit rows', () => {
       await ok(w.admin.agent.delete(`${API}/projects/${p.id}`));
       return {
         actor: w.admin, entityType: 'Project', entityId: p.id,
-        meta: { name: 'Refresh', tasks: 0, timeEntries: 0, expenses: 0, materials: 0, files: 0, members: 0, activity: 1 },
+        meta: {
+          name: 'Refresh', tasks: 0, timeEntries: 0, expenses: 0, materials: 0, files: 0, members: 0, activity: 1, timers: 0,
+        },
       };
     }],
     ['time.create', async () => { // on a project
