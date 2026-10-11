@@ -2,38 +2,45 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import api, { errMessage } from '../api/api';
 import { useAuth } from './AuthContext';
 
-// Server-backed single active timer per user, so a running timer resumes on any
-// device. Stopping or switching converts elapsed time into a TimeEntry server-side.
+// The one timer per user (plan 3c; user decision 2026-10-11), kept on the
+// server so it follows the user across devices and tabs. It can run on a
+// ticket, a project or one of their tasks, and pauses and resumes. The
+// server reports elapsedSeconds; this ticks it locally between syncs.
 const TimerContext = createContext(null);
 
 export function TimerProvider({ children }) {
-  const { user, isStaff } = useAuth();
-  const [activeTimer, setActiveTimer] = useState(null); // { type, id, label, startedAt }
+  const { user, hasPermission } = useAuth();
+  const canTime = !!user && hasPermission('time.log');
+  const [activeTimer, setActiveTimer] = useState(null); // server shape, or null
+  const [syncedAt, setSyncedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
   // Increments after each successful log so pages can refresh their time data.
   const [logVersion, setLogVersion] = useState(0);
 
+  const apply = useCallback((timer) => { setActiveTimer(timer); setSyncedAt(Date.now()); }, []);
+  const bumpLogVersion = useCallback(() => setLogVersion((v) => v + 1), []);
+
   const refresh = useCallback(async () => {
-    if (!user || !isStaff) {
-      setActiveTimer(null);
+    if (!canTime) {
+      apply(null);
       return;
     }
     try {
       const { data } = await api.get('/timer');
-      setActiveTimer(data.timer);
+      apply(data.timer);
     } catch {
       /* leave current state on transient errors */
     }
-  }, [user, isStaff]);
+  }, [canTime, apply]);
 
-  // Load on login / role change.
+  // Load on login / permission change.
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  // Keep roughly in sync across devices: re-check when the tab regains focus.
+  // Keep in sync across devices: re-check when the tab regains focus.
   useEffect(() => {
-    if (!user || !isStaff) return undefined;
+    if (!canTime) return undefined;
     const onFocus = () => { if (document.visibilityState === 'visible') refresh(); };
     document.addEventListener('visibilitychange', onFocus);
     window.addEventListener('focus', onFocus);
@@ -41,35 +48,47 @@ export function TimerProvider({ children }) {
       document.removeEventListener('visibilitychange', onFocus);
       window.removeEventListener('focus', onFocus);
     };
-  }, [user, isStaff, refresh]);
+  }, [canTime, refresh]);
 
   // Tick every second while a timer is running.
+  const running = activeTimer?.state === 'running';
   useEffect(() => {
-    if (!activeTimer) return undefined;
+    if (!running) return undefined;
     setNow(Date.now());
     const iv = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(iv);
-  }, [activeTimer]);
+  }, [running, syncedAt]);
 
-  const start = useCallback(async (type, id, label) => {
+  const start = useCallback(async (type, id, { taskId = null, label = null } = {}) => {
     try {
-      const { data } = await api.post('/timer/start', { type, id, label });
-      setActiveTimer(data.timer);
-      if (data.logged) setLogVersion((v) => v + 1); // a previous timer was logged
+      const { data } = await api.post('/timer/start', { type, id, taskId, label });
+      apply(data.timer);
+      if (data.logged) bumpLogVersion(); // a previous timer was logged
+      return data;
     } catch (err) {
       alert(errMessage(err, 'Failed to start timer'));
+      return null;
     }
-  }, []);
+  }, [apply, bumpLogVersion]);
 
-  const stop = useCallback(async (note) => {
-    try {
-      await api.post('/timer/stop', note ? { note } : {});
-      setActiveTimer(null);
-      setLogVersion((v) => v + 1);
-    } catch (err) {
-      alert(errMessage(err, 'Failed to stop timer'));
-    }
-  }, []);
+  const pause = useCallback(async () => {
+    const { data } = await api.post('/timer/pause');
+    apply(data.timer);
+    return data.timer; // the paused timer, with its frozen elapsedSeconds
+  }, [apply]);
+
+  const resume = useCallback(async () => {
+    const { data } = await api.post('/timer/resume');
+    apply(data.timer);
+    return data.timer;
+  }, [apply]);
+
+  const stop = useCallback(async ({ note, discard } = {}) => {
+    const { data } = await api.post('/timer/stop', { ...(note ? { note } : {}), ...(discard ? { discard: true } : {}) });
+    apply(null);
+    if (data.entry) bumpLogVersion();
+    return data;
+  }, [apply, bumpLogVersion]);
 
   // Discard without logging.
   const cancel = useCallback(async () => {
@@ -78,17 +97,20 @@ export function TimerProvider({ children }) {
     } catch {
       /* ignore */
     }
-    setActiveTimer(null);
-  }, []);
+    apply(null);
+  }, [apply]);
 
   const elapsedSeconds = activeTimer
-    ? Math.max(0, Math.floor((now - new Date(activeTimer.startedAt).getTime()) / 1000))
+    ? activeTimer.elapsedSeconds + (running ? Math.max(0, Math.floor((now - syncedAt) / 1000)) : 0)
     : 0;
 
-  const isRunning = (type, id) =>
-    !!activeTimer && activeTimer.type === type && Number(activeTimer.id) === Number(id);
+  // taskId undefined: any timer on that ticket or project; otherwise that exact task (null = no task).
+  const isRunning = (type, id, taskId) => !!activeTimer && activeTimer.type === type && Number(activeTimer.id) === Number(id)
+    && (taskId === undefined || (activeTimer.taskId ?? null) === (taskId ?? null));
 
-  const value = { activeTimer, elapsedSeconds, logVersion, start, stop, cancel, isRunning, refresh };
+  const value = {
+    activeTimer, elapsedSeconds, logVersion, start, pause, resume, stop, cancel, isRunning, refresh, bumpLogVersion,
+  };
   return <TimerContext.Provider value={value}>{children}</TimerContext.Provider>;
 }
 
@@ -108,7 +130,7 @@ export function formatElapsed(totalSeconds) {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-// Always-HH:MM:SS formatter for the persistent ticket-detail timer widget.
+// Always-HH:MM:SS formatter for timer displays.
 export function formatHMS(totalSeconds) {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);

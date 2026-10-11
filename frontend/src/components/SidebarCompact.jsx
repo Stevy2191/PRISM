@@ -7,6 +7,7 @@ import api from '../api/api';
 import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
 import { useCompanySummary } from '../context/CompanyContext';
 import NotificationsDropdown from './NotificationsDropdown';
+import TimerIndicator from './work/TimerIndicator';
 import GlobalSearch from './GlobalSearch';
 import ThemeToggle from './ThemeToggle';
 
@@ -95,6 +96,8 @@ export default function SidebarCompact() {
             <IconSearch size={18} stroke={1.8} />
             <Tooltip label="Search (Ctrl+K)" />
           </button>
+
+          <TimerIndicator compact />
 
           <div className="flex h-11 w-11 items-center justify-center">
             <NotificationsDropdown align="left" />

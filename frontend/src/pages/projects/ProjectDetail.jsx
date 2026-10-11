@@ -7,6 +7,7 @@ import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import Spinner from '../../components/Spinner';
+import TimerButton from '../../components/work/TimerButton';
 import { Modal } from './detail/Modal';
 import {
   BG,
@@ -377,6 +378,9 @@ export default function ProjectDetail() {
         </div>
         {isStaff && (
           <div className="flex flex-shrink-0 items-center gap-2">
+            {canLogTime && (
+              <TimerButton kind="project" parentId={project.id} label={`${project.projectCode} ${project.name}`} anyTask />
+            )}
             <button
               type="button"
               onClick={() => setReportModalOpen(true)}
