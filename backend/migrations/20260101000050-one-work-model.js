@@ -31,7 +31,7 @@ const WORK_TYPES = [
   { name: 'Admin', billableDefault: false, position: 4 },
 ];
 const PERMISSIONS = [
-  { key: 'time.log', category: 'time', label: 'Log time', description: 'Log your own time on tickets and projects you can edit' },
+  { key: 'time.log', category: 'time', label: 'Log time', description: 'Log your own time on tickets and projects you can see' },
   {
     key: 'time.manage_others', category: 'time', label: "Manage others' time",
     description: 'Log, edit and delete time for other people you can see',
