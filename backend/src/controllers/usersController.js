@@ -11,6 +11,7 @@ const {
 } = require('../services/permissionService');
 const { assertCanHandOutRole, assertCanSetLegacyRole, assertCanGrantPermissions } = require('../services/roleGrant');
 const { normalizeUsername, assertUsernameFree, rethrowIfUsernameTaken } = require('../utils/username');
+const { settleAccountRoles } = require('../services/accountRoles');
 const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
@@ -39,7 +40,7 @@ async function syncSeedRoleAssignment(user, legacyRole, assignedBy, transaction)
   await UserRole.destroy({ where: { userId: user.id, ...(ownerRole ? { roleId: { [Op.ne]: ownerRole.id } } : {}) }, transaction });
   await UserRole.create({ userId: user.id, roleId: seedRole.id, assignedAt: new Date(), assignedBy: assignedBy || null }, { transaction });
   await user.update({ roleId: seedRole.id }, { transaction });
-  invalidateUserPermissions(user.id);
+  await settleAccountRoles(user, { transaction });
 }
 
 // New users get the role chosen for them; otherwise their department's
@@ -57,7 +58,7 @@ async function assignInitialRole(user, legacyRole, departmentId, assignedBy, cho
       userId: user.id, roleId: roleIdToAssign, departmentId: scopedTo, assignedAt: new Date(), assignedBy: assignedBy || null,
     }, { transaction });
     await user.update({ roleId: roleIdToAssign }, { transaction });
-    invalidateUserPermissions(user.id);
+    await settleAccountRoles(user, { transaction });
     return;
   }
   await syncSeedRoleAssignment(user, legacyRole, assignedBy, transaction);
@@ -482,7 +483,14 @@ const remove = asyncHandler(async (req, res) => {
   await assertCanManageAccount(req.user, user);
   if (await isOwner(user)) await assertKeepsAnOwner(user.id);
 
-  await user.destroy();
+  // Nothing the account held outlives it: its grants must not pass to
+  // whoever might ever get its id.
+  await sequelize.transaction(async (transaction) => {
+    await UserRole.destroy({ where: { userId: user.id }, transaction });
+    await UserPermissionOverride.destroy({ where: { userId: user.id }, transaction });
+    await UserCompanyAccess.destroy({ where: { userId: user.id }, transaction });
+    await user.destroy({ transaction });
+  });
   await writeAudit(req, 'user.delete', 'User', id, { username: user.username });
   res.json({ ok: true });
 });

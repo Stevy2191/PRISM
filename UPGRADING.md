@@ -219,6 +219,30 @@ System Administrator can't take the system over.
   `GET /users` marks administrators with `administrator: true`.
 - Signing in looks for a matching username before a matching email.
 
+### An account's main role and admin marker follow its roles
+
+- **Fix:** removing an account's main role (for example System Administrator
+  from an Owner) left it with no main role, and the Users page showed none.
+  The best role the account still holds now becomes its main role: Owner,
+  then System Administrator, then its oldest role. The department's default
+  role is given only when no other role is left.
+- **Security fix:** assigning or removing System Administrator or Owner on the
+  Roles & Permissions tab didn't update the account's older "admin" marker.
+  Older checks still read it: deleting users, teams, modules, everyone's API
+  keys, and reaching every company. An account demoted there kept those
+  powers. The marker is now set exactly while the account holds Owner or
+  System Administrator, wherever its roles change.
+- **Upgrading repairs existing accounts:**
+  - an account with no main role, or a main role it doesn't hold, gets the
+    best role it holds;
+  - the admin marker is set for holders of Owner or System Administrator;
+  - the marker is cleared from accounts holding neither, but only while an
+    active Owner exists;
+  - role assignments, permission overrides and company access left behind by
+    deleted accounts are removed.
+
+  Deleting an account now removes these too.
+
 ### Security fixes
 
 - State-changing API requests that a browser marks as coming from another site

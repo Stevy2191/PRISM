@@ -10,7 +10,7 @@ const {
   SsoProvider, SsoIdentity, SsoGroupMapping, SsoAuthRequest, User, UserRole, Role, sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
-const { invalidateUserPermissions } = require('../permissionService');
+const { settleAccountRoles } = require('../accountRoles');
 const { computeDisplayName } = require('../../utils/userDisplay');
 
 // A login round-trip has to survive a redirect to the IdP and back, but not
@@ -261,11 +261,7 @@ async function applyGroupMappings(provider, user, groups) {
 
   // User.roleId is the "primary" role the UI displays; keep it pointing at
   // something the user actually holds.
-  const remaining = await UserRole.findAll({ where: { userId: user.id } });
-  const primary = remaining.length ? remaining[0].roleId : null;
-  if (user.roleId !== primary) await user.update({ roleId: primary });
-
-  invalidateUserPermissions(user.id);
+  await settleAccountRoles(user);
 }
 
 async function ensureDefaultRole(user, roleId) {
@@ -273,8 +269,7 @@ async function ensureDefaultRole(user, roleId) {
   const existing = await UserRole.findOne({ where: { userId: user.id, roleId } });
   if (existing) return;
   await UserRole.create({ userId: user.id, roleId, assignedAt: new Date(), assignedBy: null });
-  if (!user.roleId) await user.update({ roleId });
-  invalidateUserPermissions(user.id);
+  await settleAccountRoles(user);
 }
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, explainUserPermissions } = require('../services/permissionService');
 const { assertCanHandOutRole, assertCanGrantPermissions } = require('../services/roleGrant');
 const { assertCanManageAccount, assertKeepsAnOwner } = require('../services/ownership');
+const { settleAccountRoles, needsFallback } = require('../services/accountRoles');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -66,10 +67,9 @@ const assignRole = asyncHandler(async (req, res) => {
     userId: user.id, roleId, departmentId, assignedAt: new Date(), assignedBy: req.user.id,
   });
 
-  // A user with no primary role yet gets this one as primary automatically.
-  if (!user.roleId) await user.update({ roleId });
+  // A user with no main role yet gets one; a top role sets the legacy marker.
+  await settleAccountRoles(user, { assignedBy: req.user.id });
 
-  invalidateUserPermissions(user.id);
   await writeAudit(req, 'user.assign_role', 'User', user.id, { roleId, roleName: role.name, departmentId });
   await writeSystemAudit(req, 'role_assigned', user.id, { roleId, roleName: role.name, departmentId });
 
@@ -101,28 +101,19 @@ const removeRole = asyncHandler(async (req, res) => {
   if (!userRole) throw new ApiError(404, 'Role assignment not found', 'NOT_FOUND');
   const roleName = userRole.role?.name;
   if (roleName === 'Owner' && userRole.role?.isSystemRole) await assertKeepsAnOwner(user.id);
-  // Removing the main role hands out the department default: the remover
-  // must be able to hand that out too (Owner review M1).
-  if (user.roleId === roleId && user.department?.defaultRoleId) {
-    const fallback = await Role.findByPk(user.department.defaultRoleId);
+  // Removing the last role hands out the department default: the remover
+  // must be able to hand that out too (Owner review M1). While other roles
+  // remain, the best of them becomes the main role instead.
+  let fallbackRoleId = user.department?.defaultRoleId || null;
+  if (fallbackRoleId && !(await needsFallback(user, [userRole.id]))) fallbackRoleId = null;
+  if (fallbackRoleId) {
+    const fallback = await Role.findByPk(fallbackRoleId);
     if (fallback) await assertCanHandOutRole(req.user, fallback, user.id);
+    else fallbackRoleId = null;
   }
   await userRole.destroy();
+  await settleAccountRoles(user, { fallbackRoleId, assignedBy: req.user.id });
 
-  // Removing the primary role falls back to the user's department default,
-  // same rule as deleting a role outright (see rolesController.remove).
-  if (user.roleId === roleId) {
-    const fallbackRoleId = user.department?.defaultRoleId || null;
-    await user.update({ roleId: fallbackRoleId });
-    if (fallbackRoleId) {
-      await UserRole.findOrCreate({
-        where: { userId: user.id, roleId: fallbackRoleId },
-        defaults: { assignedAt: new Date(), assignedBy: req.user.id },
-      });
-    }
-  }
-
-  invalidateUserPermissions(user.id);
   await writeAudit(req, 'user.remove_role', 'User', user.id, { roleId });
   await writeSystemAudit(req, 'role_removed', user.id, { roleId, roleName });
   res.json({ ok: true, primaryRoleId: user.roleId });

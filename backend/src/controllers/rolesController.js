@@ -1,4 +1,4 @@
-const { fn, col } = require('sequelize');
+const { fn, col, Op } = require('sequelize');
 const {
   Role, Permission, RolePermission, UserRole, User, Department, sequelize,
 } = require('../models');
@@ -6,6 +6,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { invalidateAllPermissions, invalidateUserPermissions } = require('../services/permissionService');
 const { assertCanGrantPermissions, assertNotOwnRolePermissions, assertCanHandOutRole } = require('../services/roleGrant');
+const { settleAccountRoles } = require('../services/accountRoles');
 
 const roleInclude = [
   { model: Permission, as: 'permissions', through: { attributes: ['granted'] } },
@@ -178,11 +179,16 @@ const remove = asyncHandler(async (req, res) => {
   const affectedUsers = affectedUserIds.length
     ? await User.findAll({ where: { id: affectedUserIds }, include: [{ model: Department, as: 'department' }] })
     : [];
-  // Holders whose main role this is fall back to their department default:
+  // Holders left with no other role fall back to their department default:
   // the deleter must be able to hand each of those out (Owner review M1).
-  const fallbackIds = [...new Set(affectedUsers
-    .filter((u) => u.roleId === role.id && u.department?.defaultRoleId && u.department.defaultRoleId !== role.id)
-    .map((u) => u.department.defaultRoleId))];
+  const otherRoles = new Set((await UserRole.findAll({
+    where: { userId: affectedUserIds, roleId: { [Op.ne]: role.id } }, attributes: ['userId'], raw: true,
+  })).map((r) => r.userId));
+  const fallbackFor = (u) => {
+    const deptDefault = u.department?.defaultRoleId;
+    return !otherRoles.has(u.id) && deptDefault && deptDefault !== role.id ? deptDefault : null;
+  };
+  const fallbackIds = [...new Set(affectedUsers.map(fallbackFor).filter(Boolean))];
   for (const id of fallbackIds) {
     const fallback = await Role.findByPk(id); // eslint-disable-line no-await-in-loop
     if (fallback) await assertCanHandOutRole(req.user, fallback); // eslint-disable-line no-await-in-loop
@@ -197,18 +203,8 @@ const remove = asyncHandler(async (req, res) => {
     await Department.update({ defaultRoleId: null }, { where: { defaultRoleId: role.id }, transaction: t });
 
     for (const user of affectedUsers) {
-      if (user.roleId !== role.id) continue; // eslint-disable-line no-continue
-      const deptDefault = user.department?.defaultRoleId;
-      const fallbackRoleId = deptDefault && deptDefault !== role.id ? deptDefault : null;
       // eslint-disable-next-line no-await-in-loop
-      await user.update({ roleId: fallbackRoleId }, { transaction: t });
-      if (fallbackRoleId) {
-        // eslint-disable-next-line no-await-in-loop
-        await UserRole.create(
-          { userId: user.id, roleId: fallbackRoleId, assignedAt: new Date(), assignedBy: req.user.id },
-          { transaction: t }
-        );
-      }
+      await settleAccountRoles(user, { fallbackRoleId: fallbackFor(user), assignedBy: req.user.id, transaction: t });
     }
 
     await role.destroy({ transaction: t });
