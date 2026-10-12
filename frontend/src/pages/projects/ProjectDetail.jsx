@@ -426,7 +426,6 @@ export default function ProjectDetail() {
           canLog={canLogTime}
           canManageOthers={canLogTimeForOthers}
           currentUser={user}
-          assignableUsers={assignableUsers}
           reloadKey={logVersion}
           onChanged={reloadAll}
         />

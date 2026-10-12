@@ -74,7 +74,7 @@ function dueDateColor(dueDate) {
 
 export default function TicketDetail() {
   const { id } = useParams();
-  const { user, isStaff, canLogTimeForOthers, hasPermission } = useAuth();
+  const { user, isStaff, canLogTimeForOthers, hasPermission, hasAnyPermission } = useAuth();
   const canAssign = usePermission('tickets.assign');
   const canViewPrivateComments = usePermission('tickets.view_private_comments');
   const fileRef = useRef(null);
@@ -597,7 +597,6 @@ export default function TicketDetail() {
                 canLog={hasPermission('time.log')}
                 canManageOthers={canLogTimeForOthers}
                 currentUser={user}
-                assignableUsers={assignableUsers}
                 reloadKey={logVersion + timeVersion}
                 onChanged={afterTimeChange}
               />
@@ -623,6 +622,7 @@ export default function TicketDetail() {
                 attachments={attachments}
                 onUpload={uploadFile}
                 onRemove={removeAttachment}
+                canUpload={hasAnyPermission(['tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all'])}
                 canRemove={(a) => a.uploadedById === user.id || !!ticket.access?.moderate}
               />
             )}

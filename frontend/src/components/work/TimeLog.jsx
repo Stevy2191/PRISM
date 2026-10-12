@@ -16,7 +16,7 @@ export const formatSeconds = (sec) => {
 const money = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function TimeLog({
-  kind, parentId, tasks = [], canLog, canManageOthers, currentUser, assignableUsers, reloadKey = 0, onChanged,
+  kind, parentId, tasks = [], canLog, canManageOthers, currentUser, reloadKey = 0, onChanged,
 }) {
   const paths = workPaths(kind, parentId);
   const [data, setData] = useState({ entries: [], total: 0, totalSeconds: 0, totalLaborCost: null });
@@ -25,7 +25,8 @@ export default function TimeLog({
   const load = useCallback(() => api.get(paths.time, { params: { limit } }).then(({ data: d }) => setData(d)).catch(() => {}), [paths.time, limit]);
   useEffect(() => { load(); }, [load, reloadKey]);
 
-  const mayChange = (e) => e.userId === currentUser.id || e.loggedById === currentUser.id || canManageOthers;
+  // The server says per entry whether this user may change it.
+  const mayChange = (e) => !!e.canChange;
   // Time by task: general time (no task) is the total less every task's time
   // (a task's loggedSeconds already includes its subtasks').
   const onTasks = tasks.reduce((n, t) => n + (t.loggedSeconds || 0), 0);
@@ -100,7 +101,7 @@ export default function TimeLog({
       {editing && (
         <TimeEntryForm
           kind={kind} parentId={parentId} tasks={tasks} entry={editing === 'new' ? null : editing}
-          canManageOthers={canManageOthers} currentUser={currentUser} assignableUsers={assignableUsers}
+          canManageOthers={canManageOthers} currentUser={currentUser}
           onSaved={changed} onClose={() => setEditing(null)}
         />
       )}

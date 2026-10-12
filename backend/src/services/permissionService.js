@@ -14,7 +14,7 @@ const {
 } = require('../models');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const cache = new Map(); // userId -> { permissions, expiresAt }
+const cache = new Map(); // userId -> { permissions, ownerLevel, expiresAt }
 
 function getCached(userId) {
   const entry = cache.get(userId);
@@ -31,6 +31,14 @@ function getCached(userId) {
 function invalidateUserPermissions(userId) {
   cache.delete(userId);
   companyCache.delete(userId); // eslint-disable-line no-use-before-define
+}
+
+// The owner mark can change outside this process (the server's owner
+// recovery command): authentication passes each request's freshly loaded
+// account here, and a set cached under a different mark is dropped.
+function noteOwnerLevel(user) {
+  const entry = cache.get(user.id);
+  if (entry && entry.ownerLevel !== (user.ownerLevel ?? null)) invalidateUserPermissions(user.id);
 }
 
 // Call whenever a role's permission grants change — affects every user
@@ -60,7 +68,7 @@ async function resolveUserPermissions(userId) {
   // whatever an override says (user decision 2026-10-11).
   if (user && user.ownerLevel) {
     allPermissions.forEach((p) => { permissions[p.key] = true; });
-    cache.set(userId, { permissions, expiresAt: Date.now() + CACHE_TTL_MS });
+    cache.set(userId, { permissions, ownerLevel: user?.ownerLevel ?? null, expiresAt: Date.now() + CACHE_TTL_MS });
     return permissions;
   }
 
@@ -85,7 +93,7 @@ async function resolveUserPermissions(userId) {
   });
   overrides.forEach((o) => { permissions[o.permissionKey] = !!o.granted; });
 
-  cache.set(userId, { permissions, expiresAt: Date.now() + CACHE_TTL_MS });
+  cache.set(userId, { permissions, ownerLevel: user?.ownerLevel ?? null, expiresAt: Date.now() + CACHE_TTL_MS });
   return permissions;
 }
 
@@ -397,6 +405,7 @@ async function canModerateProjectContent(user, project) {
 }
 
 module.exports = {
+  noteOwnerLevel,
   getUserCompanyIds,
   canAccessCompany,
   companyScopeWhere,

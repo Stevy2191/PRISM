@@ -32,4 +32,19 @@ function rethrowIfUsernameTaken(err) {
   throw err;
 }
 
-module.exports = { normalizeUsername, assertUsernameFree, rethrowIfUsernameTaken };
+// A local account's email is also a way to sign in, so no two local accounts
+// share one (case ignored, as the collation does). Directory and single
+// sign-on accounts take theirs from the provider and aren't checked. Two
+// saves racing past this check leave a shared address, which sign-in then
+// refuses (authController.loginUnified).
+async function assertLocalEmailFree(email, exceptUserId = null) {
+  if (!email) return;
+  const existing = await User.findOne({ where: { email, isLocalAccount: true }, attributes: ['id'] });
+  if (existing && existing.id !== exceptUserId) {
+    throw new ApiError(409, 'Another account already uses that email address', 'EMAIL_TAKEN');
+  }
+}
+
+module.exports = {
+  normalizeUsername, assertUsernameFree, rethrowIfUsernameTaken, assertLocalEmailFree,
+};

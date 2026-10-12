@@ -39,10 +39,20 @@ async function findEntry(parent, rawId) {
   return id ? TimeEntry.findOne({ where: { id, ...parent.where } }) : null;
 }
 
-async function listEntries(parent, { limit, offset }) {
-  const { rows, count } = await TimeEntry.findAndCountAll({
+// viewer: each entry says whether they may change it (canChange), so the
+// screens offer Edit and Delete only where the server allows them.
+async function listEntries(parent, { limit, offset }, viewer) {
+  const found = await TimeEntry.findAndCountAll({
     where: parent.where, include: entryInclude, order: NEWEST_FIRST, limit, offset,
   });
+  const { count } = found;
+  const manages = new Map();
+  const rows = [];
+  for (const entry of found.rows) {
+    if (!manages.has(entry.userId)) manages.set(entry.userId, await canManageTimeFor(viewer, entry.userId)); // eslint-disable-line no-await-in-loop
+    const own = entry.userId === viewer.id || entry.loggedById === viewer.id;
+    rows.push({ ...entry.toJSON(), canChange: own || manages.get(entry.userId) });
+  }
   // The headline totals cover the whole ticket or project, not the page.
   const [seconds, labour] = await Promise.all([
     TimeEntry.sum('durationSeconds', { where: parent.where }),
@@ -138,6 +148,29 @@ async function canManageTimeFor(actor, userId) {
   if (!userId) return false;
   if (await hasPermission(actor.id, 'time.manage_others')) return true;
   return isLeadOf(actor.id, userId);
+}
+
+// The people the viewer may log time for on this parent, as resolveTarget
+// allows: themselves first, then those they manage by name.
+async function logForUsers(viewer, parent) {
+  const self = await User.findByPk(viewer.id, { attributes: ['id', 'displayName'] });
+  let where;
+  if (await hasPermission(viewer.id, 'time.manage_others')) {
+    where = { isActive: true, id: { [Op.ne]: viewer.id } };
+  } else {
+    const led = await TeamMember.findAll({ where: { userId: viewer.id, isLead: true }, attributes: ['teamId'] });
+    const members = led.length
+      ? await TeamMember.findAll({ where: { teamId: { [Op.in]: led.map((m) => m.teamId) } }, attributes: ['userId'] })
+      : [];
+    const ids = [...new Set(members.map((m) => m.userId))].filter((id) => id !== viewer.id);
+    if (!ids.length) return [self];
+    where = { isActive: true, id: { [Op.in]: ids } };
+  }
+  const others = [];
+  for (const u of await User.findAll({ where, attributes: ['id', 'displayName'], order: [['displayName', 'ASC'], ['id', 'ASC']] })) {
+    if ((await hasPermission(u.id, 'time.log')) && (await canWorkCompany(u.id, parent.companyId))) others.push(u); // eslint-disable-line no-await-in-loop
+  }
+  return [self, ...others];
 }
 
 // Who the time is for. Someone else needs the right to manage their time,
@@ -255,5 +288,5 @@ async function logTimerEntry(req, parent, { startedAt, endedAt, taskId, note }) 
 }
 
 module.exports = {
-  listEntries, findEntry, createEntry, updateEntry, deleteEntry, logTimerEntry, canManageTimeFor,
+  listEntries, findEntry, createEntry, updateEntry, deleteEntry, logTimerEntry, canManageTimeFor, logForUsers,
 };

@@ -242,6 +242,12 @@ role.
 - `GET /roles?grantable=1` marks each role with whether you may give it, and
   `GET /users` marks administrators with `administrator: true`.
 - Signing in looks for a matching username before a matching email.
+- **Email addresses on local accounts:** two local accounts can't share an
+  email address (case ignored). **Changed response:** creating or editing a
+  local account with another local account's email returns
+  `409 EMAIL_TAKEN`. Where older accounts already share one, signing in with
+  that email is refused; those people sign in with their username. Directory
+  and single sign-on accounts aren't checked.
 
 ### An account's main role and admin marker follow its roles
 
@@ -359,6 +365,17 @@ role.
 
 ### Fixes
 
+- Time entries show Edit and Delete only where you may change them, and the
+  Log time form's "Logged for" list holds only the people you may log time
+  for there. Before, a team lead saw Edit and Delete on every entry and could
+  pick anyone, and the server then refused. New:
+  `GET /tickets/:id/time/log-for` and `GET /projects/:id/time-entries/log-for`,
+  and each listed time entry carries `canChange`.
+- People without a ticket edit permission (such as Read Only) no longer see
+  the ticket upload area. The server already refused their uploads.
+- After the server's owner recovery command runs, the running server picks up
+  the change at that person's next request. Before, it could keep their old
+  permissions for up to five minutes.
 - Two people creating a project in the same department at the same moment
   no longer get an error; both projects are created with their own numbers.
 

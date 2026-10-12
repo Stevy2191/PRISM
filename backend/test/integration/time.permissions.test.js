@@ -116,6 +116,35 @@ describe.each(Object.keys(KINDS))('on a %s', (kind) => {
     expect(res.body).toEqual(invalidTarget);
   });
 
+  it('each listed entry says whether the viewer may change it', async () => {
+    const lead = await makeTech('lead', w.deptA.id);
+    await makeTeam(w.admin, 'Desk', [{ userId: lead.user.id, isLead: true }, { userId: tech.user.id, isLead: false }]);
+    const techs = expectOk(await log(tech), 201).entry;
+    const ctrs = expectOk(await log(ctr), 201).entry;
+    const leads = expectOk(await log(lead), 201).entry;
+    const seen = async (u) => Object.fromEntries(expectOk(await u.agent.get(url(parent))).entries.map((e) => [e.id, e.canChange]));
+    // A lead changes their team's entries and their own, not anyone else's.
+    expect(await seen(lead)).toEqual({ [techs.id]: true, [ctrs.id]: false, [leads.id]: true });
+    expect(await seen(tech)).toEqual({ [techs.id]: true, [ctrs.id]: false, [leads.id]: false });
+    expect(await seen(mgr)).toEqual({ [techs.id]: true, [ctrs.id]: true, [leads.id]: true });
+  });
+
+  it('lists who the viewer may log time for here: themselves first, then the people they manage', async () => {
+    const lead = await makeTech('lead', w.deptA.id);
+    const ro = await makeUser('ro', ROLE.READ_ONLY, w.deptA.id);
+    await makeTeam(w.admin, 'Desk', [
+      { userId: lead.user.id, isLead: true }, { userId: tech.user.id, isLead: false }, { userId: ro.user.id, isLead: false },
+    ]);
+    const ids = async (u) => expectOk(await u.agent.get(`${url(parent)}/log-for`)).users.map((x) => x.id);
+    // ro can't log time, so a lead can't log for them either.
+    expect(await ids(lead)).toEqual([lead.user.id, tech.user.id]);
+    expect(await ids(tech)).toEqual([tech.user.id]);
+    const managed = await ids(mgr);
+    expect(managed[0]).toBe(mgr.user.id);
+    expect(managed).toEqual(expect.arrayContaining([tech.user.id, ctr.user.id, lead.user.id]));
+    expect(managed).not.toContain(ro.user.id);
+  });
+
   it('moving an entry to someone else follows the same rules, and recosts it', async () => {
     const e = expectOk(await log(tech), 201).entry;
     expect((await tech.agent.patch(entryUrl(e)).send({ userId: ctr.user.id })).body)

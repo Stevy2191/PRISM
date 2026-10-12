@@ -61,7 +61,7 @@ function initialState({ entry, timer, defaultTaskId, today, currentUser }) {
 
 export default function TimeEntryForm({
   kind, parentId, tasks = [], entry = null, timer = null, defaultTaskId = null,
-  canManageOthers, currentUser, assignableUsers = [], onSaved, onClose,
+  canManageOthers, currentUser, onSaved, onClose,
 }) {
   const today = useOrgToday();
   const timerCtx = useTimer();
@@ -85,6 +85,18 @@ export default function TimeEntryForm({
     }).catch(() => {});
   }, [entry, kind]);
 
+  // Who this user may log time for here (the server's list: themselves
+  // first, then the people they manage), plus whoever an edited entry is for.
+  const [logFor, setLogFor] = useState([]);
+  useEffect(() => {
+    if (!canManageOthers) return;
+    api.get(`${paths.time}/log-for`).then(({ data }) => setLogFor(data.users)).catch(() => {});
+  }, [canManageOthers, paths.time]);
+  const people = useMemo(() => {
+    const list = logFor.length ? logFor : [{ id: currentUser.id, displayName: currentUser.displayName }];
+    return entry?.user && !list.some((u) => u.id === entry.user.id) ? [...list, entry.user] : list;
+  }, [logFor, entry, currentUser]);
+
   // Active types, plus the entry's own type even if it was since deactivated.
   const typeOptions = useMemo(
     () => workTypes.filter((t) => t.isActive || t.id === form.workTypeId),
@@ -106,7 +118,8 @@ export default function TimeEntryForm({
       workTypeId: form.workTypeId || undefined,
       billable: form.billable,
       note: form.note,
-      ...(canManageOthers ? { userId: form.userId } : {}),
+      // Sent only when it changes who the entry is for.
+      ...(canManageOthers && form.userId !== (entry ? entry.userId : currentUser.id) ? { userId: form.userId } : {}),
       ...(form.mode === 'duration'
         ? { durationMinutes: Number(form.minutes), ...(entry && entry.startTime ? { startTime: null, endTime: null } : {}) }
         : { startTime: localDateTime(form.spanDate, form.startMinutes), endTime: localDateTime(form.spanDate, form.endMinutes) }),
@@ -188,12 +201,11 @@ export default function TimeEntryForm({
           </select>
         </>
       )}
-      {canManageOthers && (
+      {canManageOthers && people.length > 1 && (
         <>
           <label className={label} htmlFor="te-user">Logged for</label>
           <select id="te-user" className="input mb-3" style={field} value={form.userId} onChange={(e) => set({ userId: Number(e.target.value) })}>
-            <option value={currentUser.id}>Yourself ({currentUser.displayName})</option>
-            {assignableUsers.filter((u) => u.id !== currentUser.id).map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+            {people.map((u) => <option key={u.id} value={u.id}>{u.id === currentUser.id ? `Yourself (${u.displayName})` : u.displayName}</option>)}
           </select>
         </>
       )}

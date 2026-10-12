@@ -36,6 +36,7 @@ router.patch('/:id/tasks/:taskId/subtasks/:subtaskId/code', editMin, ctrl.renumb
 
 // Time entries (time.log; the same rules as ticket time)
 router.get('/:id/time-entries', ctrl.listTimeEntries);
+router.get('/:id/time-entries/log-for', logTime, ctrl.listLogFor);
 router.post('/:id/time-entries', logTime, ctrl.createTimeEntry);
 router.patch('/:id/time-entries/:entryId', logTime, ctrl.updateTimeEntry);
 router.delete('/:id/time-entries/:entryId', logTime, ctrl.removeTimeEntry);

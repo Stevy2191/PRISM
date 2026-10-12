@@ -36,6 +36,7 @@ router.delete('/:id/attachments/:attachmentId', editMin, ctrl.removeAttachment);
 
 // Time entries (requires an edit permission on tickets)
 router.get('/:id/time', ctrl.listTime);
+router.get('/:id/time/log-for', logTime, ctrl.listLogFor);
 router.post('/:id/time', logTime, ctrl.createTime);
 router.patch('/:id/time/:entryId', logTime, ctrl.updateTime);
 router.delete('/:id/time/:entryId', logTime, ctrl.removeTime);

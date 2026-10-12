@@ -5,8 +5,9 @@ import { BG, CARD_BG, BORDER, TEXT, MUTED, BLUE } from '../theme';
 
 // ---- Attachments tab ----
 
+// canUpload: holds a ticket edit permission, as the upload route needs.
 // canRemove(attachment): the uploader, or a ticket moderator (the server re-checks).
-export function AttachmentsTab({ ticketId, attachments, onUpload, onRemove, canRemove = () => true }) {
+export function AttachmentsTab({ ticketId, attachments, onUpload, onRemove, canUpload = false, canRemove = () => true }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -41,18 +42,20 @@ export function AttachmentsTab({ ticketId, attachments, onUpload, onRemove, canR
       </div>
       {attachments.length === 0 && <p className="mb-4 text-sm" style={{ color: MUTED }}>No attachments yet.</p>}
 
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-        onClick={() => inputRef.current?.click()}
-        className="mt-4 cursor-pointer rounded-md border-2 border-dashed p-6 text-center"
-        style={{ borderColor: dragOver ? BLUE : BORDER, backgroundColor: dragOver ? 'color-mix(in srgb, var(--color-accent) 8%, var(--color-bg))' : BG }}
-      >
-        <IconUpload size={22} style={{ color: MUTED, margin: '0 auto' }} />
-        <p className="mt-2 text-sm" style={{ color: TEXT }}>Drag &amp; drop files here or browse</p>
-        <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }} />
-      </div>
+      {canUpload && (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+          onClick={() => inputRef.current?.click()}
+          className="mt-4 cursor-pointer rounded-md border-2 border-dashed p-6 text-center"
+          style={{ borderColor: dragOver ? BLUE : BORDER, backgroundColor: dragOver ? 'color-mix(in srgb, var(--color-accent) 8%, var(--color-bg))' : BG }}
+        >
+          <IconUpload size={22} style={{ color: MUTED, margin: '0 auto' }} />
+          <p className="mt-2 text-sm" style={{ color: TEXT }}>Drag &amp; drop files here or browse</p>
+          <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }} />
+        </div>
+      )}
     </div>
   );
 }

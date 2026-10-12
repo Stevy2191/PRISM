@@ -110,9 +110,14 @@ const login = asyncHandler(async (req, res) => {
 async function loginUnified(identifier, password) {
   // 1. Local account — by username, else by email. A username match comes
   // first: an email that equals someone's username (saved before addresses
-  // were checked) must not shadow their account.
-  const localUser = await User.findOne({ where: { isLocalAccount: true, username: identifier }, include: primaryRoleInclude })
-    || await User.findOne({ where: { isLocalAccount: true, email: identifier }, include: primaryRoleInclude });
+  // were checked) must not shadow their account. An email reaches an account
+  // only when no other local account shares it (older data may): which one
+  // was meant is unknown, so those sign in by username.
+  let localUser = await User.findOne({ where: { isLocalAccount: true, username: identifier }, include: primaryRoleInclude });
+  if (!localUser) {
+    const byEmail = await User.findAll({ where: { isLocalAccount: true, email: identifier }, include: primaryRoleInclude, limit: 2 });
+    if (byEmail.length === 1) [localUser] = byEmail;
+  }
 
   if (localUser) {
     // Always run bcrypt (even when there is no hash) to avoid timing attacks.

@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const { User, ApiKey, Role } = require('../models');
 const { ApiError } = require('./error');
+const { noteOwnerLevel } = require('../services/permissionService');
 
 // Included on every req.user so the frontend can show the new roles system's
 // primary role name instead of the legacy `role` enum (see Role model).
@@ -19,6 +20,7 @@ async function authenticate(req, res, next) {
       if (!user) {
         return next(new ApiError(401, 'Invalid or expired API key', 'INVALID_API_KEY'));
       }
+      noteOwnerLevel(user);
       req.user = user;
       req.authMethod = 'apikey';
       return next();
@@ -36,6 +38,7 @@ async function authenticate(req, res, next) {
       if (!user.isActive) {
         return next(new ApiError(401, 'This account has been deactivated', 'ACCOUNT_DEACTIVATED'));
       }
+      noteOwnerLevel(user);
       req.user = user;
       req.authMethod = 'session';
       return next();

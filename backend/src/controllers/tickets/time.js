@@ -24,8 +24,13 @@ async function entryFor(parent, rawId) {
 const listTime = asyncHandler(async (req, res) => {
   const parent = await ticketFor(req);
   const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
-  const { rows, count, totalSeconds, totalLaborCost } = await time.listEntries(parent, { limit, offset });
+  const { rows, count, totalSeconds, totalLaborCost } = await time.listEntries(parent, { limit, offset }, req.user);
   res.json({ ...paginated('entries', { rows, count }, { page, limit }), totalSeconds, totalLaborCost });
+});
+
+// GET /tickets/:id/time/log-for — who the user may log time for here.
+const listLogFor = asyncHandler(async (req, res) => {
+  res.json({ users: await time.logForUsers(req.user, await ticketFor(req)) });
 });
 
 // POST /tickets/:id/time — { durationMinutes | startTime+endTime, entryDate?, note?, taskId?, workTypeId?, billable?, userId? }
@@ -47,6 +52,7 @@ const removeTime = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  listLogFor,
   listTime,
   createTime,
   updateTime,

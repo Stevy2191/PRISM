@@ -163,6 +163,17 @@ describe('recovering ownership from the server', () => {
     expect([audit.userId, audit.meta]).toEqual([null, { from: 'admin', to: 'staff', via: 'server command' }]);
   });
 
+  it('the running server notices a mark changed outside it (the command runs in its own process)', async () => {
+    const sa = await makeSysadmin();
+    expectOk(await markSecondary(sa));
+    expectOk(await w.admin.agent.post(`${API}/users/${sa.user.id}/overrides`).send({ permissionKey: 'people.manage_roles', granted: false }), 201);
+    // An owner's overrides are ignored, and the server caches that.
+    expectOk(await sa.agent.get(`${API}/roles`));
+    // As the command would: straight to the database, no cache to clear here.
+    await User.update({ ownerLevel: null }, { where: { id: sa.user.id } });
+    expect((await sa.agent.get(`${API}/roles`)).status).toBe(403);
+  });
+
   it('refuses an unknown, inactive or directory account', async () => {
     const staff = await makeStaff('staff', w.deptA.id);
     await expect(recoverOwnership('nobody')).rejects.toThrow('No account with the username "nobody"');

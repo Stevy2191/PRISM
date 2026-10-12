@@ -141,7 +141,7 @@ export default function TaskDetails({
       {(loggingFor || stoppedTimer) && (
         <TimeEntryForm
           kind={kind} parentId={parentId} tasks={tasks} defaultTaskId={loggingFor || task.id} timer={stoppedTimer}
-          canManageOthers={canManageOthers} currentUser={currentUser} assignableUsers={assignableUsers}
+          canManageOthers={canManageOthers} currentUser={currentUser}
           onSaved={onChanged} onClose={() => { setLoggingFor(null); setStoppedTimer(null); }}
         />
       )}

@@ -960,7 +960,7 @@ export default function UserDetail() {
       {tab === 'access' && (
         <>
           <RolesPermissionsTab userId={id} onPermissionsChanged={refreshPermissions} readOnly={readOnly} />
-          <CompanyAccessPanel userId={id} />
+          <CompanyAccessPanel userId={id} readOnly={readOnly} />
         </>
       )}
       {tab === 'performance' && <PerformanceTab userId={id} />}

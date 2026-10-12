@@ -7,8 +7,9 @@ import { useCompanyOptions } from '../../hooks/useCompanyOptions';
 // "Company access" on a user or a role (spec: Users and roles). A user
 // reaches every company or a chosen list; a role adds its list to everyone
 // holding it. Only companies the viewer can reach are listed; the server
-// keeps the rest when saving (plan 2a review R6).
-export default function CompanyAccessPanel({ userId, roleId }) {
+// keeps the rest when saving (plan 2a review R6). readOnly: shown, not
+// changeable (an administrator's page seen by a non-owner).
+export default function CompanyAccessPanel({ userId, roleId, readOnly = false }) {
   const { hasPermission } = useAuth();
   const { multiCompany } = useCompanySummary();
   const companies = useCompanyOptions();
@@ -50,7 +51,7 @@ export default function CompanyAccessPanel({ userId, roleId }) {
   };
 
   return (
-    <div className="card mt-5 space-y-3 p-5">
+    <fieldset disabled={readOnly} className="card mt-5 space-y-3 p-5">
       <p className="eyebrow">Company access</p>
       {roleId && <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Everyone with this role also reaches these companies.</p>}
       {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
@@ -69,9 +70,9 @@ export default function CompanyAccessPanel({ userId, roleId }) {
         ))}
       </div>
       <div className="flex items-center gap-3">
-        <button type="button" className="btn-primary" onClick={save}>Save company access</button>
+        {!readOnly && <button type="button" className="btn-primary" onClick={save}>Save company access</button>}
         {saved && <span className="text-sm" style={{ color: 'var(--color-success)' }}>Company access saved</span>}
       </div>
-    </div>
+    </fieldset>
   );
 }

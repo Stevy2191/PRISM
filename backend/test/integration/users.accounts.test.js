@@ -201,3 +201,32 @@ describe('signing in when an email looks like someone\'s username', () => {
     await expect(login('admin', w.admin.password)).resolves.toBeTruthy();
   });
 });
+
+describe('email addresses on local accounts', () => {
+  it('a new local account can\'t use an email another local account has, ignoring case', async () => {
+    const staff = await makeStaff('staff', w.deptA.id);
+    await User.update({ email: 'pat@example.com' }, { where: { id: staff.user.id } });
+    expectErr(await newUser(w.admin.agent, { email: 'PAT@example.com' }), 409, 'EMAIL_TAKEN', 'Another account already uses that email address');
+    expect(await newbieCount()).toBe(0);
+  });
+
+  it('an edit can\'t move a local account onto another one\'s email; keeping its own is fine', async () => {
+    const a = await makeStaff('staffa', w.deptA.id);
+    const b = await makeStaff('staffb', w.deptA.id);
+    await User.update({ email: 'a@example.com' }, { where: { id: a.user.id } });
+    expectErr(await w.admin.agent.patch(`${API}/users/${b.user.id}`).send({ email: 'a@example.com' }), 409, 'EMAIL_TAKEN', 'Another account already uses that email address');
+    expectOk(await w.admin.agent.patch(`${API}/users/${a.user.id}`).send({ email: 'a@example.com', displayName: 'A' }));
+  });
+
+  it('signing in by an email two local accounts share (older data) is refused; their usernames still work', async () => {
+    const a = await makeStaff('staffa', w.deptA.id);
+    const b = await makeStaff('staffb', w.deptA.id);
+    await User.update({ email: 'shared@example.com' }, { where: { id: [a.user.id, b.user.id] } });
+    // Neither account is reached by the shared address, whichever password.
+    await expect(login('shared@example.com', a.password)).rejects.toThrow();
+    await expect(login('shared@example.com', b.password)).rejects.toThrow();
+    await expect(login('staffb', b.password)).resolves.toBeTruthy();
+    await User.update({ email: null }, { where: { id: a.user.id } });
+    await expect(login('shared@example.com', b.password)).resolves.toBeTruthy();
+  });
+});

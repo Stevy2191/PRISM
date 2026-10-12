@@ -10,7 +10,9 @@ const {
   invalidateUserPermissions, hasPermission, getUserCompanyIds, canAccessCompany, parseRecordId,
 } = require('../services/permissionService');
 const { assertCanHandOutRole, assertCanSetLegacyRole, assertCanGrantPermissions } = require('../services/roleGrant');
-const { normalizeUsername, assertUsernameFree, rethrowIfUsernameTaken } = require('../utils/username');
+const {
+  normalizeUsername, assertUsernameFree, rethrowIfUsernameTaken, assertLocalEmailFree,
+} = require('../utils/username');
 const { settleAccountRoles } = require('../services/accountRoles');
 const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
@@ -204,6 +206,7 @@ const create = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Invalid role', 'VALIDATION_ERROR');
   }
   await assertUsernameFree(username);
+  await assertLocalEmailFree(email ? String(email).trim() : null);
   let dept = null;
   if (departmentId) {
     dept = await Department.findByPk(departmentId);
@@ -410,7 +413,10 @@ const update = asyncHandler(async (req, res) => {
   if (lastName !== undefined) changes.lastName = lastName ? lastName.trim() : null;
   if (phone !== undefined) changes.phone = normalizePhone(phone);
   if (jobTitle !== undefined) changes.jobTitle = jobTitle ? jobTitle.trim() : null;
-  if (email !== undefined) changes.email = email ? email.trim() : null;
+  if (email !== undefined) {
+    changes.email = email ? email.trim() : null;
+    if (user.isLocalAccount && changes.email !== user.email) await assertLocalEmailFree(changes.email, user.id);
+  }
 
   if (firstName !== undefined || lastName !== undefined) {
     const resolvedFirst = changes.firstName !== undefined ? changes.firstName : user.firstName;
