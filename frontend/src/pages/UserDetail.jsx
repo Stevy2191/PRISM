@@ -589,7 +589,12 @@ function RolesPermissionsTab({ userId, onPermissionsChanged, readOnly = false })
 // ---- Profile tab ----
 
 function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
+  // A local account's username can be changed by someone who edits users
+  // (an administrator's only by an Owner: the page is read-only otherwise).
+  // Directory and single sign-on accounts keep their provider's name.
+  const canRename = canManageContractor && user.isLocalAccount;
   const [form, setForm] = useState({
+    username: user.username,
     firstName: user.firstName || '',
     lastName: user.lastName || '',
     email: user.email || '',
@@ -630,6 +635,7 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
     setSaving(true);
     try {
       const payload = {
+        ...(canRename && form.username.trim() !== user.username ? { username: form.username.trim() } : {}),
         firstName: form.firstName.trim() || null,
         lastName: form.lastName.trim() || null,
         email: form.email.trim() || null,
@@ -657,10 +663,12 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
   return (
     <div className="card space-y-4 p-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="label">Username</label>
-          <p className="text-sm text-navy-700">{user.username}</p>
-        </div>
+        {!canRename && (
+          <div>
+            <label className="label">Username</label>
+            <p className="text-sm text-navy-700">{user.username}</p>
+          </div>
+        )}
         <div>
           <label className="label">Last login</label>
           <p className="text-sm text-navy-700">{formatDate(user.lastLogin)}</p>
@@ -697,6 +705,13 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
         </div>
       </div>
       <form onSubmit={save} className="grid grid-cols-1 gap-4 border-t border-navy-100 pt-4 sm:grid-cols-2">
+        {canRename && (
+          <div className="sm:col-span-2 sm:w-1/2 sm:pr-2">
+            <label className="label" htmlFor="profile-username">Username</label>
+            <input id="profile-username" className="input" value={form.username} onChange={set('username')} required autoComplete="off" />
+            <p className="mt-1 text-xs text-navy-400">Used to sign in. Letters, numbers, dots, dashes and underscores.</p>
+          </div>
+        )}
         <div>
           <label className="label">First name</label>
           <input className="input" value={form.firstName} onChange={set('firstName')} />
@@ -852,7 +867,9 @@ function PerformanceTab({ userId }) {
 
 export default function UserDetail() {
   const { id } = useParams();
-  const { refreshPermissions, isOwner, user: me } = useAuth();
+  const {
+    refreshPermissions, refresh, isOwner, user: me,
+  } = useAuth();
   const canEditUsers = usePermission('people.edit_users');
   const [user, setUser] = useState(null);
   const [departments, setDepartments] = useState([]);
@@ -875,7 +892,8 @@ export default function UserDetail() {
   const updateUser = async (changes) => {
     try {
       const { data } = await api.patch(`/users/${id}`, changes);
-      setUser(data.user);
+      setUser((u) => ({ ...u, ...data.user }));
+      if (changes.username !== undefined && data.user.id === me?.id) refresh();
     } catch (err) {
       alert(errMessage(err));
     }

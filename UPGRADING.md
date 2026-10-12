@@ -200,6 +200,25 @@ System Administrator can't take the system over.
   - single sign-on can't grant them, by group mapping or as a provider's
     default. Mappings to them made before this update are ignored at sign-in.
 
+### New accounts and usernames
+
+- **New account form:** Settings → Users → New Local Account now takes the
+  person's name, their role, and optional permission overrides. The role list
+  shows only the roles you can give. The account, its role and its overrides
+  are created together: if any of them is refused, no account is made.
+- **Changing a username:** a local account's username can be changed on its
+  Profile tab by anyone who can edit users. Only an Owner can change an
+  administrator's username. An Owner can change their own, for example away
+  from `admin`. The person stays signed in. Directory and single sign-on
+  accounts keep the username their provider gives them.
+- **Username rules for new and changed usernames:** 3 to 64 letters, numbers,
+  dots, dashes and underscores, and no `@`. Existing usernames are not
+  touched. **Changed response:** `POST /users` with any other username returns
+  `400 INVALID_USERNAME`.
+- `GET /roles?grantable=1` marks each role with whether you may give it, and
+  `GET /users` marks administrators with `administrator: true`.
+- Signing in looks for a matching username before a matching email.
+
 ### Security fixes
 
 - State-changing API requests that a browser marks as coming from another site

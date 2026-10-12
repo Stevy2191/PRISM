@@ -20,6 +20,16 @@ const roleInclude = [
 // (who holds every permission regardless).
 const isFullyLocked = (role) => role.isSystemRole && ['System Administrator', 'Owner'].includes(role.name);
 
+async function canHandOut(actor, role) {
+  try {
+    await assertCanHandOutRole(actor, role);
+    return true;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 403) return false;
+    throw err;
+  }
+}
+
 async function memberCounts() {
   const rows = await UserRole.findAll({
     attributes: ['roleId', [fn('COUNT', col('id')), 'count']],
@@ -41,6 +51,14 @@ const list = asyncHandler(async (req, res) => {
     json.permissionCount = json.permissions.length;
     return json;
   });
+  // ?grantable=1: whether the caller may hand each role to someone, by the
+  // same check that refuses it (the new-account form lists only these).
+  if (req.query.grantable) {
+    for (const json of withCounts) {
+      // eslint-disable-next-line no-await-in-loop
+      json.grantable = await canHandOut(req.user, roles.find((r) => r.id === json.id));
+    }
+  }
   res.json({ roles: withCounts });
 });
 

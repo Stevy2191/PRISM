@@ -108,14 +108,11 @@ const login = asyncHandler(async (req, res) => {
 // Try local first (by username or email), then fall back to AD if configured.
 // Always returns the same generic error so we don't reveal which methods exist.
 async function loginUnified(identifier, password) {
-  // 1. Local account — look up by username OR email.
-  const localUser = await User.findOne({
-    where: {
-      isLocalAccount: true,
-      [Op.or]: [{ username: identifier }, { email: identifier }],
-    },
-    include: primaryRoleInclude,
-  });
+  // 1. Local account — by username, else by email. A username match comes
+  // first: an email that equals someone's username (saved before addresses
+  // were checked) must not shadow their account.
+  const localUser = await User.findOne({ where: { isLocalAccount: true, username: identifier }, include: primaryRoleInclude })
+    || await User.findOne({ where: { isLocalAccount: true, email: identifier }, include: primaryRoleInclude });
 
   if (localUser) {
     // Always run bcrypt (even when there is no hash) to avoid timing attacks.

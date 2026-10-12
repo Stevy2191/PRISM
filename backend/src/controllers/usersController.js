@@ -1,21 +1,22 @@
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const {
-  User, Department, Role, UserRole, UserCompanyAccess,
+  User, Department, Role, UserRole, UserCompanyAccess, Permission, UserPermissionOverride, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
-const { writeAudit } = require('../middleware/audit');
+const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const {
   invalidateUserPermissions, hasPermission, getUserCompanyIds, canAccessCompany, parseRecordId,
 } = require('../services/permissionService');
-const { assertCanHandOutRole, assertCanSetLegacyRole } = require('../services/roleGrant');
+const { assertCanHandOutRole, assertCanSetLegacyRole, assertCanGrantPermissions } = require('../services/roleGrant');
+const { normalizeUsername, assertUsernameFree, rethrowIfUsernameTaken } = require('../utils/username');
 const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
 const {
-  assertCanManageAccount, assertKeepsAnOwner, isOwner, isAdministrator,
+  assertCanManageAccount, assertKeepsAnOwner, isOwner, isAdministrator, isTopRole, OWNER, SYSTEM_ADMIN,
 } = require('../services/ownership');
 
 const userInclude = [{ model: Department, as: 'department' }, { model: Role, as: 'primaryRole' }];
@@ -29,38 +30,37 @@ const LEGACY_ROLE_TO_SEED_ROLE = {
   technician: 'System Technician',
 };
 
-async function syncSeedRoleAssignment(user, legacyRole, assignedBy) {
+async function syncSeedRoleAssignment(user, legacyRole, assignedBy, transaction) {
   const seedRoleName = LEGACY_ROLE_TO_SEED_ROLE[legacyRole];
-  const seedRole = seedRoleName ? await Role.findOne({ where: { name: seedRoleName, isSystemRole: true } }) : null;
+  const seedRole = seedRoleName ? await Role.findOne({ where: { name: seedRoleName, isSystemRole: true }, transaction }) : null;
   if (!seedRole) return;
   // An Owner stays an Owner when their legacy role changes (Owner review L7).
-  const ownerRole = await Role.findOne({ where: { name: 'Owner', isSystemRole: true }, attributes: ['id'] });
-  await UserRole.destroy({ where: { userId: user.id, ...(ownerRole ? { roleId: { [Op.ne]: ownerRole.id } } : {}) } });
-  await UserRole.create({ userId: user.id, roleId: seedRole.id, assignedAt: new Date(), assignedBy: assignedBy || null });
-  await user.update({ roleId: seedRole.id });
+  const ownerRole = await Role.findOne({ where: { name: 'Owner', isSystemRole: true }, attributes: ['id'], transaction });
+  await UserRole.destroy({ where: { userId: user.id, ...(ownerRole ? { roleId: { [Op.ne]: ownerRole.id } } : {}) }, transaction });
+  await UserRole.create({ userId: user.id, roleId: seedRole.id, assignedAt: new Date(), assignedBy: assignedBy || null }, { transaction });
+  await user.update({ roleId: seedRole.id }, { transaction });
   invalidateUserPermissions(user.id);
 }
 
-// New users get their department's configured default role (Settings →
-// Departments) when one is set; otherwise fall back to the legacy role enum
-// mapping above.
-async function assignInitialRole(user, legacyRole, departmentId, assignedBy, explicitRoleId) {
-  if (explicitRoleId) {
-    await UserRole.destroy({ where: { userId: user.id } });
-    await UserRole.create({ userId: user.id, roleId: explicitRoleId, assignedAt: new Date(), assignedBy: assignedBy || null });
-    await user.update({ roleId: explicitRoleId });
+// New users get the role chosen for them; otherwise their department's
+// configured default role (Settings → Departments) when one is set; otherwise
+// the legacy role enum mapping above. A chosen department role applies within
+// the account's department.
+async function assignInitialRole(user, legacyRole, departmentId, assignedBy, chosenRole, transaction) {
+  const department = departmentId ? await Department.findByPk(departmentId, { transaction }) : null;
+  const role = chosenRole || null;
+  const roleIdToAssign = role ? role.id : department?.defaultRoleId;
+  if (roleIdToAssign) {
+    const scopedTo = role && role.scope === 'department' ? departmentId : null;
+    await UserRole.destroy({ where: { userId: user.id }, transaction });
+    await UserRole.create({
+      userId: user.id, roleId: roleIdToAssign, departmentId: scopedTo, assignedAt: new Date(), assignedBy: assignedBy || null,
+    }, { transaction });
+    await user.update({ roleId: roleIdToAssign }, { transaction });
     invalidateUserPermissions(user.id);
     return;
   }
-  const department = departmentId ? await Department.findByPk(departmentId) : null;
-  if (department && department.defaultRoleId) {
-    await UserRole.destroy({ where: { userId: user.id } });
-    await UserRole.create({ userId: user.id, roleId: department.defaultRoleId, assignedAt: new Date(), assignedBy: assignedBy || null });
-    await user.update({ roleId: department.defaultRoleId });
-    invalidateUserPermissions(user.id);
-    return;
-  }
-  await syncSeedRoleAssignment(user, legacyRole, assignedBy);
+  await syncSeedRoleAssignment(user, legacyRole, assignedBy, transaction);
 }
 
 // GET /users?scope=department|assignment — department scoping is opt-in via
@@ -87,7 +87,18 @@ const list = asyncHandler(async (req, res) => {
     offset,
     distinct: true,
   });
-  res.json(paginated('users', { rows, count }, { page, limit }));
+  // administrator: the screen keeps these rows read-only for anyone but an
+  // Owner (the server refuses the changes either way).
+  const topRoles = await Role.findAll({ where: { name: [OWNER, SYSTEM_ADMIN], isSystemRole: true }, attributes: ['id'] });
+  const topIds = topRoles.map((r) => r.id);
+  const holders = rows.length && topIds.length
+    ? await UserRole.findAll({ where: { userId: rows.map((u) => u.id), roleId: topIds }, attributes: ['userId'], raw: true })
+    : [];
+  const admins = new Set(holders.map((h) => h.userId));
+  const users = rows.map((u) => ({
+    ...u.toJSON(), administrator: u.role === 'admin' || topIds.includes(u.roleId) || admins.has(u.id),
+  }));
+  res.json(paginated('users', { rows: users, count }, { page, limit }));
 });
 
 // GET /users/assignable — any authenticated user. Minimal fields for
@@ -135,17 +146,53 @@ const listDirectory = asyncHandler(async (req, res) => {
   res.json({ users: await narrowToCompany(req, users) });
 });
 
+// The permission overrides a new account starts with: checked in full before
+// the account exists, like its role.
+async function parseNewOverrides(actor, overrides) {
+  if (overrides === undefined || overrides === null) return [];
+  if (!Array.isArray(overrides)) throw new ApiError(400, 'overrides must be a list', 'VALIDATION_ERROR');
+  if (!overrides.length) return [];
+  if (!(await hasPermission(actor.id, 'people.manage_permission_overrides'))) {
+    throw new ApiError(403, 'Adding permission overrides needs people.manage_permission_overrides', 'FORBIDDEN');
+  }
+  const seen = new Set();
+  const rows = [];
+  for (const o of overrides) {
+    const permissionKey = o && typeof o.permissionKey === 'string' ? o.permissionKey : '';
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await Permission.findOne({ where: { key: permissionKey }, attributes: ['key'] }))) {
+      throw new ApiError(400, `Unknown permission: ${permissionKey}`, 'VALIDATION_ERROR');
+    }
+    if (seen.has(permissionKey)) throw new ApiError(400, `${permissionKey} is listed twice`, 'VALIDATION_ERROR');
+    seen.add(permissionKey);
+    if (typeof o.granted !== 'boolean') throw new ApiError(400, 'granted must be true or false', 'VALIDATION_ERROR');
+    let expiresAt = null;
+    if (o.expiresAt) {
+      expiresAt = new Date(o.expiresAt);
+      if (Number.isNaN(expiresAt.getTime())) throw new ApiError(400, 'Invalid expiresAt', 'VALIDATION_ERROR');
+    }
+    rows.push({
+      permissionKey, granted: o.granted, reason: typeof o.reason === 'string' && o.reason.trim() ? o.reason.trim() : null, expiresAt,
+    });
+  }
+  await assertCanGrantPermissions(actor, rows.filter((r) => r.granted).map((r) => r.permissionKey));
+  return rows;
+}
+
 // POST /users — Admin only. Creates a LOCAL account (username/password).
 // Directory (AD) users are never created here — they are provisioned on first
 // LDAP login. New local accounts must change their password on first login.
+// The account, its role and its permission overrides are made together, in
+// one transaction: a refused grant leaves no account behind.
 const create = asyncHandler(async (req, res) => {
   const {
-    username, displayName, email, role, departmentId, password,
-    firstName, lastName, phone, jobTitle, roleId,
+    username: rawUsername, displayName, email, role, departmentId, password,
+    firstName, lastName, phone, jobTitle, roleId, overrides,
   } = req.body || {};
-  if (!username || !username.trim()) {
+  if (!rawUsername || !String(rawUsername).trim()) {
     throw new ApiError(400, 'Username is required', 'VALIDATION_ERROR');
   }
+  const username = normalizeUsername(rawUsername);
   const resolvedDisplayName = computeDisplayName({ firstName, lastName, fallback: displayName?.trim() });
   if (!resolvedDisplayName) {
     throw new ApiError(400, 'Display name is required (or provide first/last name)', 'VALIDATION_ERROR');
@@ -157,10 +204,7 @@ const create = asyncHandler(async (req, res) => {
   if (role && !['admin', 'technician'].includes(role)) {
     throw new ApiError(400, 'Invalid role', 'VALIDATION_ERROR');
   }
-  const existing = await User.findOne({ where: { username: username.trim() } });
-  if (existing) {
-    throw new ApiError(409, 'A user with this username already exists', 'USERNAME_TAKEN');
-  }
+  await assertUsernameFree(username);
   let dept = null;
   if (departmentId) {
     dept = await Department.findByPk(departmentId);
@@ -171,22 +215,29 @@ const create = asyncHandler(async (req, res) => {
   // chosen, or the department's default — must be one the creator may grant.
   // Validated before the account exists, so a refused or bad role fails the
   // request outright rather than leaving a user with the wrong permissions.
-  const choosesRole = (roleId !== undefined && roleId !== null && roleId !== '') || role === 'admin';
-  if (choosesRole && !(await hasPermission(req.user.id, 'people.manage_roles'))) {
+  const choosesRoleId = roleId !== undefined && roleId !== null && roleId !== '';
+  if ((choosesRoleId || role === 'admin') && !(await hasPermission(req.user.id, 'people.manage_roles'))) {
     throw new ApiError(403, 'Choosing a role needs people.manage_roles', 'FORBIDDEN');
   }
-  // The legacy role is stored on the account whatever role row it gets, and
-  // 'admin' alone makes it a System Administrator — so it's checked on its
-  // own, never skipped because a roleId or department default also applies.
-  await assertCanSetLegacyRole(req.user, role || 'technician');
-  if (roleId !== undefined && roleId !== null && roleId !== '') {
-    const requestedRole = await Role.findByPk(roleId);
+  let requestedRole = null;
+  if (choosesRoleId) {
+    requestedRole = await Role.findByPk(roleId);
     if (!requestedRole) throw new ApiError(400, 'Role does not exist', 'VALIDATION_ERROR');
     await assertCanHandOutRole(req.user, requestedRole);
   } else if (dept && dept.defaultRoleId) {
     const defaultRole = await Role.findByPk(dept.defaultRoleId);
     if (defaultRole) await assertCanHandOutRole(req.user, defaultRole);
   }
+  // The legacy role is stored on the account whatever role row it gets, and
+  // 'admin' alone makes it a System Administrator — so it's checked on its
+  // own, never skipped because a roleId or department default also applies.
+  // Choosing Owner or System Administrator sets it too: older gates still read it.
+  const legacyRole = isTopRole(requestedRole) ? 'admin' : (role || 'technician');
+  await assertCanSetLegacyRole(req.user, legacyRole);
+  if (requestedRole && requestedRole.scope === 'department' && !dept) {
+    throw new ApiError(400, `Choose a department: the ${requestedRole.name} role applies within one`, 'VALIDATION_ERROR');
+  }
+  const overrideRows = await parseNewOverrides(req.user, overrides);
   // A fenced creator can't make an account that reaches more than they do:
   // it starts with the creator's own companies.
   const creatorCompanyIds = await getUserCompanyIds(req.user);
@@ -196,28 +247,41 @@ const create = asyncHandler(async (req, res) => {
   // new user's own timer preferences — after creation, Preferences fully
   // overrides these per-user, this is only the initial value.
   const settings = await getAllSettings();
-  const user = await User.create({
-    username: username.trim(),
-    displayName: resolvedDisplayName,
-    firstName: firstName ? firstName.trim() : null,
-    lastName: lastName ? lastName.trim() : null,
-    phone: normalizePhone(phone),
-    jobTitle: jobTitle ? jobTitle.trim() : null,
-    email: email || null,
-    role: role || 'technician',
-    departmentId: departmentId || null,
-    passwordHash,
-    isLocalAccount: true,
-    mustChangePassword: true,
-    timerMode: ['manual', 'automatic'].includes(settings['timeTracking.defaultMode']) ? settings['timeTracking.defaultMode'] : 'manual',
-    timerMinThreshold: Number(settings['timeTracking.defaultMinThreshold']) || 0,
-    allCompanies: creatorCompanyIds === null,
+  const user = await sequelize.transaction(async (transaction) => {
+    const made = await User.create({
+      username,
+      displayName: resolvedDisplayName,
+      firstName: firstName ? firstName.trim() : null,
+      lastName: lastName ? lastName.trim() : null,
+      phone: normalizePhone(phone),
+      jobTitle: jobTitle ? jobTitle.trim() : null,
+      email: email || null,
+      role: legacyRole,
+      departmentId: departmentId || null,
+      passwordHash,
+      isLocalAccount: true,
+      mustChangePassword: true,
+      timerMode: ['manual', 'automatic'].includes(settings['timeTracking.defaultMode']) ? settings['timeTracking.defaultMode'] : 'manual',
+      timerMinThreshold: Number(settings['timeTracking.defaultMinThreshold']) || 0,
+      allCompanies: creatorCompanyIds === null,
+    }, { transaction }).catch(rethrowIfUsernameTaken);
+    if (creatorCompanyIds && creatorCompanyIds.length) {
+      await UserCompanyAccess.bulkCreate(creatorCompanyIds.map((companyId) => ({ userId: made.id, companyId })), { transaction });
+    }
+    await assignInitialRole(made, made.role, made.departmentId, req.user.id, requestedRole, transaction);
+    if (overrideRows.length) {
+      await UserPermissionOverride.bulkCreate(overrideRows.map((o) => ({ ...o, userId: made.id, grantedBy: req.user.id })), { transaction });
+    }
+    return made;
   });
-  if (creatorCompanyIds && creatorCompanyIds.length) {
-    await UserCompanyAccess.bulkCreate(creatorCompanyIds.map((companyId) => ({ userId: user.id, companyId })));
+  invalidateUserPermissions(user.id);
+  await writeAudit(req, 'user.create_local', 'User', user.id, {
+    username: user.username, role: user.role, roleId: user.roleId, overrides: overrideRows.map((o) => ({ permissionKey: o.permissionKey, granted: o.granted })),
+  });
+  for (const o of overrideRows) {
+    // eslint-disable-next-line no-await-in-loop
+    await writeSystemAudit(req, 'override_granted', user.id, o);
   }
-  await assignInitialRole(user, user.role, user.departmentId, req.user.id, roleId || null);
-  await writeAudit(req, 'user.create_local', 'User', user.id, { username: user.username, role: user.role });
 
   const fresh = await User.findByPk(user.id, { include: userInclude });
   res.status(201).json({ user: fresh });
@@ -254,9 +318,23 @@ const update = asyncHandler(async (req, res) => {
   if (!isSelf) await assertCanManageAccount(req.user, user);
 
   const {
-    role, departmentId, password, firstName, lastName, phone, jobTitle, email, userType, hourlyRate,
+    role, departmentId, password, firstName, lastName, phone, jobTitle, email, userType, hourlyRate, username,
   } = req.body || {};
   const changes = {};
+
+  // A rename (user request 2026-10-11). Sending the current name back (the
+  // whole form comes back) isn't one. Sessions hold the account's id, so its
+  // holder stays signed in.
+  if (username !== undefined && username !== user.username) {
+    if (!canEditUsers) throw new ApiError(403, 'Changing a username needs people.edit_users', 'FORBIDDEN');
+    // Directory sign-in finds its account by username: a renamed one would be
+    // made again at the next sign-in.
+    if (!user.isLocalAccount) {
+      throw new ApiError(400, 'A directory or single sign-on account keeps the username its provider gives it', 'NOT_LOCAL_ACCOUNT');
+    }
+    changes.username = normalizeUsername(username);
+    await assertUsernameFree(changes.username, user.id);
+  }
 
   if (role !== undefined || departmentId !== undefined || password !== undefined
     || userType !== undefined || hourlyRate !== undefined) {
@@ -340,7 +418,11 @@ const update = asyncHandler(async (req, res) => {
     changes.displayName = computeDisplayName({ firstName: resolvedFirst, lastName: resolvedLast, fallback: user.displayName });
   }
 
-  await user.update(changes);
+  const previousUsername = user.username;
+  await user.update(changes).catch(rethrowIfUsernameTaken);
+  if (changes.username !== undefined) {
+    await writeAudit(req, 'user.rename', 'User', user.id, { from: previousUsername, to: changes.username });
+  }
   if (changes.role !== undefined) {
     await syncSeedRoleAssignment(user, changes.role, req.user.id);
   }
