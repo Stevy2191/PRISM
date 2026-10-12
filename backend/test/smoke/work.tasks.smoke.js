@@ -58,8 +58,8 @@ it('a timer can run on a task', async () => {
   await details.getByRole('button', { name: 'Start timer', exact: true }).click();
   await waitFor(page, 'POST', '/timer/start');
   const [task] = expectOk(await w.admin.agent.get(`${API}/tickets/${ticket.id}/tasks`)).tasks;
-  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timer).toEqual(expect.objectContaining({ type: 'ticket', taskId: task.id }));
-  expectOk(await w.admin.agent.delete(`${API}/timer`));
+  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timers[0]).toEqual(expect.objectContaining({ type: 'ticket', taskId: task.id }));
+  await models.ActiveTimer.destroy({ where: {} });
 });
 
 it('a subtask has its own timer and time; switching from the ticket timer keeps each minute where it was worked', async () => {
@@ -80,11 +80,11 @@ it('a subtask has its own timer and time; switching from the ticket timer keeps 
   const { logged } = await started.json();
   // The ten minutes went to the ticket (no task), not to the subtask.
   expect([logged.taskId, logged.durationSeconds >= 600]).toEqual([null, true]);
-  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timer).toEqual(expect.objectContaining({ taskId: sub.id }));
+  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timers[0]).toEqual(expect.objectContaining({ taskId: sub.id }));
   // The ticket header showing it is checked in work.access.smoke.js (plan 3c Task 6).
   const after = expectOk(await w.admin.agent.get(`${API}/tickets/${ticket.id}/time`)).totalSeconds;
   expect(after - before).toBe(logged.durationSeconds);
-  expectOk(await w.admin.agent.delete(`${API}/timer`));
+  await models.ActiveTimer.destroy({ where: {} });
 });
 
 it('the Time Entries tab breaks the time down by task and subtask', async () => {

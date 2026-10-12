@@ -7,6 +7,24 @@ import { useTheme, THEME_OPTIONS } from '../../context/ThemeContext';
 import { useNavStyle, NAV_STYLE_OPTIONS } from '../../context/NavStyleContext';
 import { formatPhone } from '../../utils/formatPhone';
 
+// Reminders for running timers (user decision 2026-10-12). Minutes.
+const REMINDER_FIRST = [
+  { value: 0, label: 'Never (off)' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: '1 hour' },
+  { value: 120, label: '2 hours' },
+  { value: 180, label: '3 hours' },
+  { value: 240, label: '4 hours' },
+  { value: 360, label: '6 hours' },
+  { value: 480, label: '8 hours' },
+];
+const REMINDER_REPEAT = [
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: 'hour' },
+  { value: 120, label: '2 hours' },
+];
+
 const THRESHOLD_OPTIONS = [
   { value: 0, label: 'No minimum' },
   { value: 30, label: '30 seconds' },
@@ -74,6 +92,9 @@ export default function Preferences() {
   const [timerMode, setTimerMode] = useState(user?.timerMode || 'manual');
   const [timerMinThreshold, setTimerMinThreshold] = useState(user?.timerMinThreshold ?? 0);
   const [timerPromptBeforeLog, setTimerPromptBeforeLog] = useState(user?.timerPromptBeforeLog ?? true);
+  const [reminderFirst, setReminderFirst] = useState(user?.timerReminderMinutes ?? 120);
+  const [reminderRepeat, setReminderRepeat] = useState(user?.timerReminderRepeatMinutes ?? 60);
+  const [notifyPermission, setNotifyPermission] = useState(() => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -225,6 +246,43 @@ export default function Preferences() {
               className="h-5 w-5 flex-shrink-0 rounded border-navy-300 text-prism"
             />
           </label>
+
+          <div className="mt-5 border-t border-navy-100 pt-4">
+            <p className="mb-1 text-sm font-medium text-navy-800">Reminders for running timers</p>
+            <p className="mb-3 text-xs text-navy-400">
+              A popup asks whether you&apos;re still working, so a forgotten timer doesn&apos;t keep counting.
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="reminder-first">Remind me after</label>
+                <select id="reminder-first" className="input" value={reminderFirst} disabled={saving}
+                  onChange={(e) => { const v = Number(e.target.value); setReminderFirst(v); saveTimerPrefs({ timerReminderMinutes: v }); }}>
+                  {REMINDER_FIRST.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label" htmlFor="reminder-repeat">Then every</label>
+                <select id="reminder-repeat" className="input" value={reminderRepeat} disabled={saving || !reminderFirst}
+                  onChange={(e) => { const v = Number(e.target.value); setReminderRepeat(v); saveTimerPrefs({ timerReminderRepeatMinutes: v }); }}>
+                  {REMINDER_REPEAT.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-navy-500">
+              {notifyPermission === 'granted' && <span>Desktop notifications are on for this browser.</span>}
+              {notifyPermission === 'denied' && <span>This browser blocks PRISM&apos;s desktop notifications; allow them in its site settings. Reminders still pop up inside PRISM.</span>}
+              {notifyPermission === 'unsupported' && <span>This browser can&apos;t show desktop notifications. Reminders pop up inside PRISM.</span>}
+              {notifyPermission === 'default' && (
+                <>
+                  <button type="button" className="btn-secondary"
+                    onClick={() => Notification.requestPermission().then(setNotifyPermission).catch(() => {})}>
+                    Allow desktop notifications
+                  </button>
+                  <span>Reminders also show outside the browser.</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

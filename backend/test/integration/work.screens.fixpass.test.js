@@ -21,33 +21,27 @@ afterEach(unfreezeClock);
 afterAll(closeDb);
 
 const startOn = (t, body = {}) => tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: t.id, ...body });
-const current = async () => expectOk(await tech.agent.get(`${API}/timer`)).timer;
+const timers = async () => expectOk(await tech.agent.get(`${API}/timer`)).timers;
+const act = (timer, verb) => tech.agent.post(`${API}/timer/${timer.timerId}/${verb}`);
 
-describe('C1: automatic mode starts a timer only when none exists', () => {
-  it('onlyIfIdle leaves a running timer elsewhere alone and logs nothing', async () => {
-    expectOk(await startOn(A), 201);
-    const res = expectOk(await startOn(B, { onlyIfIdle: true }));
-    expect(res).toEqual(expect.objectContaining({ started: false, logged: null }));
-    expect((await current()).id).toBe(A.id);
+describe('C1: automatic mode starts a timer only when its item has none', () => {
+  it('onlyIfNone leaves a paused timer on the same ticket paused, and logs nothing', async () => {
+    const { timer } = expectOk(await startOn(A), 201);
+    expectOk(await act(timer, 'pause'));
+    expect(expectOk(await startOn(A, { onlyIfNone: true })).started).toBe(false);
+    expect((await timers())[0].state).toBe('paused');
     expect(await models.TimeEntry.count()).toBe(0);
   });
 
-  it('onlyIfIdle leaves a paused timer on the same ticket paused', async () => {
-    expectOk(await startOn(A), 201);
-    expectOk(await tech.agent.post(`${API}/timer/pause`));
-    expect(expectOk(await startOn(A, { onlyIfIdle: true })).started).toBe(false);
-    expect((await current()).state).toBe('paused');
+  it('onlyIfNone starts when the item has no timer', async () => {
+    expect(expectOk(await startOn(A, { onlyIfNone: true }), 201).started).toBe(true);
   });
 
-  it('onlyIfIdle starts when there is no timer', async () => {
-    expect(expectOk(await startOn(A, { onlyIfIdle: true }), 201).started).toBe(true);
-  });
-
-  it('starting the same paused target again (without onlyIfIdle) resumes it', async () => {
-    expectOk(await startOn(A), 201);
-    expectOk(await tech.agent.post(`${API}/timer/pause`));
+  it('starting the same paused target again (without onlyIfNone) resumes it', async () => {
+    const { timer } = expectOk(await startOn(A), 201);
+    expectOk(await act(timer, 'pause'));
     expectOk(await startOn(A));
-    expect((await current()).state).toBe('running');
+    expect((await timers())[0].state).toBe('running');
   });
 });
 
@@ -56,33 +50,32 @@ describe('I1/L1: stopping logs a timer once', () => {
     freezeClock('2026-03-10T15:00:00Z');
     const { timer } = expectOk(await startOn(A), 201);
     advanceClock(20 * 60 * 1000);
-    const res = expectOk(await tech.agent.post(`${API}/timer/stop`).send({
-      expectTimerId: timer.timerId, entry: { durationMinutes: 20, note: 'From the form', billable: false },
-    }));
+    const res = expectOk(await act(timer, 'stop').send({ entry: { durationMinutes: 20, note: 'From the form', billable: false } }));
     expect(res.entry).toEqual(expect.objectContaining({ ticketId: A.id, durationSeconds: 1200, note: 'From the form', billable: false }));
-    expect(await current()).toBeNull();
+    expect(await timers()).toEqual([]);
   });
 
   it('a stop for a timer that was already replaced is refused, and nothing is logged twice', async () => {
+    const task = expectOk(await w.admin.agent.post(`${API}/tickets/${A.id}/tasks`).send({ title: 'x' }), 201).task;
     const { timer } = expectOk(await startOn(A), 201);
-    expectOk(await startOn(B), 201); // logs A's timer
+    expectOk(await startOn(A, { taskId: task.id }), 201); // logs the ticket-level timer
     const before = await models.TimeEntry.count();
-    const res = await tech.agent.post(`${API}/timer/stop`).send({ expectTimerId: timer.timerId, entry: { durationMinutes: 5 } });
+    const res = await act(timer, 'stop').send({ entry: { durationMinutes: 5 } });
     expect([res.status, res.body.code]).toEqual([409, 'TIMER_CHANGED']);
     expect(await models.TimeEntry.count()).toBe(before);
-    expect((await current()).id).toBe(B.id); // the new timer is untouched
+    expect((await timers()).map((t) => t.taskId)).toEqual([task.id]); // the new timer is untouched
   });
 
   it('a form entry the server refuses leaves the timer in place', async () => {
     const { timer } = expectOk(await startOn(A), 201);
-    const res = await tech.agent.post(`${API}/timer/stop`).send({ expectTimerId: timer.timerId, entry: { durationMinutes: 0 } });
+    const res = await act(timer, 'stop').send({ entry: { durationMinutes: 0 } });
     expect(res.status).toBe(400);
-    expect((await current()).id).toBe(A.id);
+    expect((await timers()).map((t) => t.id)).toEqual([A.id]);
   });
 
   it('two stops at once log one entry', async () => {
-    expectOk(await startOn(A), 201);
-    await Promise.all([tech.agent.post(`${API}/timer/stop`).send({}), tech.agent.post(`${API}/timer/stop`).send({})]);
+    const { timer } = expectOk(await startOn(A), 201);
+    await Promise.all([act(timer, 'stop').send({}), act(timer, 'stop').send({})]);
     expect(await models.TimeEntry.count()).toBe(1);
   });
 });
@@ -95,16 +88,16 @@ it('L2: a long timer label is trimmed to fit, not a server error', async () => {
 
 describe('L3: cross-site writes are refused', () => {
   it('refuses a write a browser marks cross-site or same-site; allows same-origin, tools and reads', async () => {
-    expectOk(await startOn(A), 201);
+    const { timer } = expectOk(await startOn(A), 201);
     for (const site of ['cross-site', 'same-site']) {
       // eslint-disable-next-line no-await-in-loop
-      const res = await tech.agent.post(`${API}/timer/stop`).set('Sec-Fetch-Site', site).send({});
+      const res = await act(timer, 'stop').set('Sec-Fetch-Site', site).send({});
       expect([site, res.status, res.body.code]).toEqual([site, 403, 'CROSS_SITE']);
     }
-    expect((await current()).id).toBe(A.id);
+    expect((await timers()).map((t) => t.id)).toEqual([A.id]);
     expectOk(await tech.agent.get(`${API}/timer`).set('Sec-Fetch-Site', 'cross-site'));
-    expectOk(await tech.agent.post(`${API}/timer/pause`).set('Sec-Fetch-Site', 'same-origin'));
-    expectOk(await tech.agent.post(`${API}/timer/resume`)); // no header: API tools, older clients
+    expectOk(await act(timer, 'pause').set('Sec-Fetch-Site', 'same-origin'));
+    expectOk(await act(timer, 'resume')); // no header: API tools, older clients
   });
 
   it('SAML\'s cross-site POST to the assertion consumer is not refused for being cross-site', async () => {

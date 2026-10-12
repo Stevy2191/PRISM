@@ -1,4 +1,4 @@
-const { resetData, closeDb } = require('../integration/helpers');
+const { resetData, closeDb, models } = require('../integration/helpers');
 const {
   API, expectOk, makeWorld, makeStaff, makeTicket,
 } = require('../integration/fixtures');
@@ -47,24 +47,24 @@ it('the ticket timer is the server timer, pauses, and stops into the Log time fo
   await button(page, 'Start timer').click();
   await page.waitForResponse((r) => r.url().includes('/timer/start'));
   await button(page, 'Pause timer').click();
-  await page.waitForResponse((r) => r.url().includes('/timer/pause'));
+  await page.waitForResponse((r) => /\/timer\/\d+\/pause/.test(r.url()));
   await button(page, 'Stop timer').click();
   const dialog = page.getByRole('dialog').filter({ visible: true }).last();
   await dialog.getByRole('button', { name: 'Keep timing' }).waitFor();
   await dialog.getByRole('button', { name: 'Discard' }).click();
-  await page.waitForResponse((r) => r.url().includes('/timer/stop'));
-  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timer).toBeNull();
+  await page.waitForResponse((r) => /\/timer\/\d+\/stop/.test(r.url()));
+  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timers).toEqual([]);
 });
 
-it('a timer on another ticket is named on this one, and starting here logs it', async () => {
+it('a timer on another ticket keeps running when this ticket\'s timer starts', async () => {
   expectOk(await w.admin.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: other.id, label: 'Other ticket' }), 201);
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${ticket.id}`);
-  await shown(page, /Timer running on Other ticket/).waitFor();
   await button(page, 'Start timer').click();
   const started = await page.waitForResponse((r) => r.url().includes('/timer/start'));
-  expect((await started.json()).logged).toEqual(expect.objectContaining({ ticketId: other.id }));
-  expectOk(await w.admin.agent.delete(`${API}/timer`));
+  expect((await started.json()).logged).toBeNull();
+  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timers.map((t) => t.state)).toEqual(['running', 'running']);
+  await models.ActiveTimer.destroy({ where: {} });
 });
 
 it('the ticket header shows a timer running on one of its subtasks, with Pause and Stop', async () => {
@@ -77,5 +77,5 @@ it('the ticket header shows a timer running on one of its subtasks, with Pause a
   await button(page, 'Pause timer').waitFor();
   await button(page, 'Stop timer').waitFor();
   expect(await page.getByRole('button', { name: 'Start timer', exact: true }).filter({ visible: true }).count()).toBe(0);
-  expectOk(await w.admin.agent.delete(`${API}/timer`));
+  await models.ActiveTimer.destroy({ where: {} });
 });

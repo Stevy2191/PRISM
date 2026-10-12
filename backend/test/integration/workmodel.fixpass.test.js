@@ -54,14 +54,14 @@ it('M5: sending userId null or empty on an edit changes nothing', async () => {
   }
 });
 
-it('M7: replacing a timer whose ticket was deleted says so', async () => {
+it('M7: a timer whose ticket was deleted doesn\'t hold up others, and says why when stopped', async () => {
   const tech = await makeTech('tech', w.deptA.id);
   const gone = await makeTicket(w.admin.agent, { title: 'Gone', contactId: w.contact.id, departmentId: w.deptA.id });
   const next = await makeTicket(w.admin.agent, { title: 'Next', contactId: w.contact.id, departmentId: w.deptA.id });
-  expectOk(await tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: gone.id }), 201);
+  const { timer } = expectOk(await tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: gone.id }), 201);
   expectOk(await w.admin.agent.delete(`${API}/tickets/${gone.id}`));
-  const res = expectOk(await tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: next.id }), 201);
-  expect(res).toEqual(expect.objectContaining({
-    logged: null, discarded: 'The ticket or project this timer was running on has been deleted, so its time was discarded.',
-  }));
+  expect(expectOk(await tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: next.id }), 201).logged).toBeNull();
+  expect(expectOk(await tech.agent.post(`${API}/timer/${timer.timerId}/stop`).send({}))).toEqual({
+    entry: null, discarded: true, message: 'The ticket or project this timer was running on has been deleted, so its time was discarded.',
+  });
 });

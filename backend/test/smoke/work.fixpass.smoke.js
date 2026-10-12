@@ -27,27 +27,40 @@ afterEach(async () => {
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 
-it('C1: automatic mode leaves a timer running elsewhere alone', async () => {
+it('C1: automatic mode starts this ticket\'s timer and leaves a timer running elsewhere alone', async () => {
   expectOk(await w.admin.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: B.id, label: 'Ticket B' }), 201);
   await models.User.update({ timerMode: 'automatic' }, { where: { id: w.admin.user.id } });
   const page = await smoke.pageAs('admin');
+  const started = waitFor(page, 'POST', '/timer/start');
   await page.goto(`/tickets/${A.id}`);
-  await shown(page, /Timer running on Ticket B/).waitFor();
-  await page.waitForTimeout(1500); // give a wrongful start time to happen
-  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timer).toEqual(expect.objectContaining({ id: B.id }));
+  await started;
+  const timers = expectOk(await w.admin.agent.get(`${API}/timer`)).timers;
+  expect(timers.map((t) => [t.id, t.state]).sort()).toEqual([[A.id, 'running'], [B.id, 'running']].sort());
   expect(await models.TimeEntry.count({ where: { ticketId: B.id } })).toBe(0);
 });
 
-it('the banner for a timer elsewhere stops and logs it, or discards it', async () => {
-  expectOk(await w.admin.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: B.id, label: 'Ticket B' }), 201);
+it('My timers stops and logs a timer on another ticket, or discards one', async () => {
+  for (const t of [A, B]) {
+    // eslint-disable-next-line no-await-in-loop
+    expectOk(await w.admin.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: t.id, label: t.title }), 201);
+  }
   await models.ActiveTimer.update({ runningSince: new Date(Date.now() - 5 * 60 * 1000) }, { where: {} });
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${A.id}`);
-  const stopped = waitFor(page, 'POST', '/timer/stop');
-  await page.getByRole('button', { name: 'Stop & log' }).click();
+  await page.getByRole('button', { name: /My timers/ }).filter({ visible: true }).first().click();
+  const list = page.getByRole('dialog', { name: 'My timers' });
+  await list.getByRole('button', { name: 'Stop and log Ticket B' }).click();
+  const stopped = waitFor(page, 'POST', '/stop');
+  await page.getByRole('dialog', { name: 'Log time' }).getByRole('button', { name: 'Save time entry' }).click();
   await stopped;
-  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timer).toBeNull();
   expect(await models.TimeEntry.count({ where: { ticketId: B.id } })).toBe(1);
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: /My timers/ }).filter({ visible: true }).first().click();
+  const discarded = waitFor(page, 'POST', '/stop');
+  await list.getByRole('button', { name: 'Discard Ticket A' }).click();
+  await discarded;
+  expect(expectOk(await w.admin.agent.get(`${API}/timer`)).timers).toEqual([]);
+  expect(await models.TimeEntry.count({ where: { ticketId: A.id } })).toBe(0);
 });
 
 it('I2: editing an entry keeps its times, in any browser time zone', async () => {

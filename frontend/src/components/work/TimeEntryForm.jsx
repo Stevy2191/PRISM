@@ -128,7 +128,7 @@ export default function TimeEntryForm({
       if (entry) await api.patch(paths.entry(entry.id), body);
       // A stopped timer is logged as this entry and cleared in one call, and
       // only if it is still the timer this form is for (plan 3c review).
-      else if (timer) await timerCtx.stop({ expectTimerId: timer.timerId, entry: body });
+      else if (timer) await timerCtx.stop(timer.timerId, { entry: body });
       else await api.post(paths.time, body);
       onSaved?.();
       onClose();
@@ -141,17 +141,23 @@ export default function TimeEntryForm({
 
   const discardTimer = async () => {
     try {
-      await timerCtx.stop({ expectTimerId: timer.timerId, discard: true });
+      await timerCtx.stop(timer.timerId, { discard: true });
     } catch (err) {
       if (err?.response?.status !== 409) { setError(errMessage(err)); return; }
       timerCtx.refresh(); // already logged or replaced elsewhere: nothing to discard
     }
     onClose();
   };
-  const keepTiming = async () => { if (timer?.resumeAfter) await timerCtx.resume(); onClose(); };
+  const keepTiming = async () => { if (timer?.resumeAfter) await timerCtx.resume(timer.timerId); onClose(); };
 
   return (
     <Modal title={entry ? 'Edit time entry' : 'Log time'} onClose={timer ? keepTiming : onClose}>
+      {timer?.atLimit && (
+        <div className="mb-4 flex items-start gap-2 rounded-md border p-3 text-sm" style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}>
+          <IconAlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+          <span>This timer stopped counting at the {timer.limitSeconds / 3600}-hour limit, so it was probably left running. Correct the time before you log it.</span>
+        </div>
+      )}
       {belowThreshold && (
         <div className="mb-4 flex items-start gap-2 rounded-md border p-3 text-sm" style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}>
           <IconAlertTriangle size={16} className="mt-0.5 flex-shrink-0" />

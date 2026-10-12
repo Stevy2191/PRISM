@@ -103,8 +103,8 @@ describe('audit rows', () => {
       return { actor: tech, entityType: 'CsatResponse', entityId: t.id, meta: { rating: 'happy' } };
     }],
     ['timer.log', async () => {
-      await ok(tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: t.id }), 201);
-      const { entry } = await ok(tech.agent.post(`${API}/timer/stop`).send({}));
+      const { timer } = await ok(tech.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: t.id }), 201);
+      const { entry } = await ok(tech.agent.post(`${API}/timer/${timer.timerId}/stop`).send({}));
       return { actor: tech, entityType: 'TimeEntry', entityId: entry.id, meta: { ticketId: t.id, durationSeconds: 1 } };
     }],
     ['project.create', async () => {

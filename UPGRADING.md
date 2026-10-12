@@ -151,13 +151,13 @@ reports. Settings → Companies is always there, also for managing vendors.
 
 ### One work model, part 3: the screens
 
-- **One timer, on the server.**
-  - Tickets, projects and individual tasks and subtasks share one timer per person.
+- **Timers, on the server.**
+  - Tickets, projects and individual tasks and subtasks use timers kept on the server (several per person: see "Several timers" below).
   - It follows you between devices and tabs, pauses and resumes, and shows in the top bar on every page.
   - Stopping it opens the Log time form, with "Keep timing" and "Discard".
   - Automatic mode, the minimum-time warning and the prompt before logging still work.
   - **Before upgrading**, stop and log any timer that is running on a ticket page: the old timer lived only in the browser and is not carried over.
-- **Switching the timer** from a ticket (or a task) to a subtask logs the time so far where it was worked, then starts fresh on the subtask. So the ticket's total is all of its time, and each subtask's total is how long that subtask took.
+- **Switching the timer** on one ticket or project from the ticket (or a task) to a subtask logs the time so far where it was worked, then starts fresh on the subtask. So the ticket's total is all of its time, and each subtask's total is how long that subtask took.
 - **Ticket tasks** work like project tasks: a checklist that expands to status, priority, assignee, due date, estimate, subtasks, and time and a timer per task and subtask.
 - **Log time** asks for a work type and whether it is billable, can be logged against a task or subtask, and can be edited afterwards. The Time Entries tab starts with a **Time by task** breakdown.
 - **Settings:**
@@ -165,6 +165,45 @@ reports. Settings → Companies is always there, also for managing vendors.
   - Work types is new.
   - The role editor now shows every permission category. Time, Companies, Assets and Knowledge base permissions were missing from it before.
 - **Read-only screens.** Ticket and project pages show only what you may change. A ticket you can see but not edit says "View only".
+
+### Several timers, reminders and the longest entry
+
+- **Several timers at once.** Each ticket or project can have its own timer, so
+  timers on different items count at the same time (for work that runs in
+  parallel). On the same ticket or project, starting a timer on another of its
+  tasks still logs the current one first, so one piece of work isn't counted
+  twice. At most 20 timers each.
+- **My timers.** The top-bar timer shows how many timers are running and opens
+  a list of all of them, running or paused, with Pause/Resume, Stop and log,
+  Discard, and a link to each ticket or project. The ticket page's "timer
+  running on another item" banner is gone.
+- **Reminders.** A timer that has run 2 hours gets a "Still working on these?"
+  popup, then one every hour, with Keep going, Pause and Stop and log. It is
+  also a desktop notification when the browser allows one. Each person sets
+  the timing, or turns reminders off, in Preferences. Reminders need a PRISM
+  tab open.
+- **Longest entry.** No time entry can be longer than 12 hours. Administrators
+  can set 1 to 24 hours in Settings → Time Tracking. A timer stops counting
+  at the limit and shows it, and its Log time form asks for the time to be
+  corrected. Existing longer entries are kept until their time is edited.
+  **Changed response:** a longer entry returns `400 VALIDATION_ERROR`.
+- **Automatic mode** now starts the opened ticket's timer whenever that ticket
+  has none, whatever runs elsewhere. Moving straight from one ticket to
+  another now starts the second ticket's timer.
+- **Timer API (breaking for API users):**
+  - `GET /timer` returns `{ timers: [...], limitSeconds }`, newest first.
+  - Each timer is acted on by id: `POST /timer/:timerId/pause`, `/resume` and
+    `/stop`, and `DELETE /timer/:timerId`. These replace `POST /timer/pause`,
+    `/resume` and `/stop` and `DELETE /timer`. A timer already logged
+    elsewhere, or someone else's, returns `409 TIMER_CHANGED`.
+  - `POST /timer/start` takes `onlyIfNone` (in place of `onlyIfIdle`). It
+    returns `400 TOO_MANY_TIMERS` past 20 timers.
+  - Each timer carries `atLimit` and `limitSeconds`. Resuming one at the limit
+    returns `400 TIMER_AT_LIMIT`.
+  - `PATCH /users/:id/preferences` takes `timerReminderMinutes` (0 to 1440;
+    0 turns reminders off) and `timerReminderRepeatMinutes` (15 to 1440).
+- **Rolling back** this release keeps each person's newest timer and removes
+  the others without logging them.
 
 ### Owners
 

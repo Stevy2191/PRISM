@@ -77,7 +77,11 @@ consistent between tickets and projects, and covered by tests.
 | 6 | Project management, full feature — phases and milestones, dependencies, timeline view, templates, hour budgets, workload view | Not started | — | — |
 | 7 | Client portal (desk) — contact logins, submit and track tickets, company tickets by permission, KB | Not started | — | — |
 
-**Testing feedback (Phase 1):** _none yet_
+**Testing feedback (Phase 1):**
+- Accounts (2026-10-11): choose the role and permission overrides when creating an account; usernames can be changed.
+- Owners (2026-10-11): the Owner role became a mark on a System Administrator's account (one owner, secondary owners set by the owner, a server command to recover a lost owner).
+- Parked fixes (2026-10-12): time-entry controls follow the server, no shared local email addresses, upload area only with edit permission, owner recovery seen at once.
+- Timers (2026-10-12): several timers at once, a "My timers" list, reminders for timers left running, and a longest-entry limit (12 hours by default).
 
 ### Phase 2 — RMM core (`v0.5.0`)
 

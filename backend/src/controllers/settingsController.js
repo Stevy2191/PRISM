@@ -55,6 +55,9 @@ const DEFAULTS = {
   'timeTracking.defaultMode': 'manual',
   'timeTracking.defaultMinThreshold': '0',
   'timeTracking.requireBeforeClose': 'false',
+  // The longest one time entry may be, and where a timer stops counting
+  // (user decision 2026-10-12): whole hours, 1 to 24.
+  'timeTracking.maxEntryHours': '12',
 
   // General Settings -> max attachment size — read by upload.js as a soft
   // ceiling under multer's hard limit. (The old system.inboundEmailAddress
@@ -255,8 +258,18 @@ async function assertCanWriteKeys(req, incoming) {
   }
 }
 
+// Settings with a fixed range, checked before anything is written.
+const RANGES = {
+  'timeTracking.maxEntryHours': { min: 1, max: 24, what: 'The longest time entry must be a whole number of hours from 1 to 24' },
+};
+
 async function upsertSettings(incoming, userId) {
   const keys = Object.keys(incoming).filter((k) => WRITABLE_KEYS.includes(k));
+  for (const key of keys.filter((k) => Object.hasOwn(RANGES, k))) {
+    const { min, max, what } = RANGES[key];
+    const n = Number(incoming[key]);
+    if (!Number.isInteger(n) || n < min || n > max) throw new ApiError(400, what, 'VALIDATION_ERROR');
+  }
   const written = [];
   for (const key of keys) {
     let value = incoming[key];

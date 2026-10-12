@@ -20,6 +20,7 @@ export default function TimeTracking() {
           defaultMode: s['timeTracking.defaultMode'] || 'manual',
           defaultMinThreshold: Number(s['timeTracking.defaultMinThreshold']) || 0,
           requireBeforeClose: s['timeTracking.requireBeforeClose'] === 'true',
+          maxEntryHours: Number(s['timeTracking.maxEntryHours']) || 12,
         });
       })
       .catch((err) => setError(errMessage(err)))
@@ -36,6 +37,7 @@ export default function TimeTracking() {
           'timeTracking.defaultMode': form.defaultMode,
           'timeTracking.defaultMinThreshold': String(form.defaultMinThreshold),
           'timeTracking.requireBeforeClose': String(form.requireBeforeClose),
+          'timeTracking.maxEntryHours': String(form.maxEntryHours),
         },
       });
       setSavedAt(true);
@@ -85,6 +87,24 @@ export default function TimeTracking() {
           </select>
           <p className="mt-1 text-xs text-navy-400">
             New users are warned before logging a timer session shorter than this.
+          </p>
+        </div>
+
+        <div>
+          <label className="label" htmlFor="maxEntryHours">Longest time entry</label>
+          <select
+            id="maxEntryHours"
+            className="input max-w-xs"
+            value={form.maxEntryHours}
+            onChange={(e) => setForm((f) => ({ ...f, maxEntryHours: Number(e.target.value) }))}
+          >
+            {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+              <option key={h} value={h}>{h} hour{h === 1 ? '' : 's'}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-navy-400">
+            No one entry can be longer. A timer stops counting when it gets there, so one left running
+            overnight or over a weekend logs this much at most, and the person corrects it when they stop it.
           </p>
         </div>
 

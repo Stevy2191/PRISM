@@ -155,6 +155,19 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: true,
       },
+      // Reminders for timers left running (user decision 2026-10-12): the
+      // first after this many minutes of running (0 = off), then every
+      // timerReminderRepeatMinutes.
+      timerReminderMinutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 120,
+      },
+      timerReminderRepeatMinutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 60,
+      },
     },
     {
       sequelize,

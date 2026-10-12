@@ -6,7 +6,7 @@ import { IconLink, IconFileText } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
 import { assignableContactDepartments } from '../../utils/contactDepartments';
-import { formatHMS, useTimer } from '../../context/TimerContext';
+import { useTimer } from '../../context/TimerContext';
 import TimeLog from '../../components/work/TimeLog';
 import TaskList from '../../components/work/TaskList';
 import Spinner from '../../components/Spinner';
@@ -93,9 +93,7 @@ export default function TicketDetail() {
   // Time Entries tab loads its own list.
   const [timeTotal, setTimeTotal] = useState(0);
   const [timeVersion, setTimeVersion] = useState(0);
-  const {
-    logVersion, activeTimer, elapsedSeconds, stop: stopTimer,
-  } = useTimer();
+  const { logVersion } = useTimer();
   const [relations, setRelations] = useState([]);
   const [watchers, setWatchers] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -477,30 +475,6 @@ export default function TicketDetail() {
         </div>
       </div>
 
-      {activeTimer && !(activeTimer.type === 'ticket' && activeTimer.id === ticket.id) && (
-        <div
-          className="flex-shrink-0 px-6 py-2 text-sm"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--color-warning) 15%, var(--color-bg))', borderBottom: '1px solid var(--color-warning)', color: 'var(--color-warning)' }}
-        >
-          <span>
-            Timer running on{' '}
-            <Link to={activeTimer.type === 'ticket' ? `/tickets/${activeTimer.id}` : `/projects/${activeTimer.id}`} className="font-semibold underline">
-              {activeTimer.label || 'another item'}
-            </Link>{' '}
-            ({formatHMS(elapsedSeconds)}). Starting it here logs that time first.
-          </span>
-          <span className="ml-3 inline-flex gap-2">
-            <button type="button" className="rounded-md px-3 py-1 text-xs font-semibold" style={{ backgroundColor: 'var(--color-warning)', color: 'black' }}
-              onClick={() => stopTimer({ expectTimerId: activeTimer.timerId }).catch((err) => alert(errMessage(err)))}>
-              Stop &amp; log
-            </button>
-            <button type="button" className="rounded-md border px-3 py-1 text-xs font-medium" style={{ borderColor: 'var(--color-warning)' }}
-              onClick={() => { if (window.confirm('Discard the time on that timer?')) stopTimer({ expectTimerId: activeTimer.timerId, discard: true }).catch((err) => alert(errMessage(err))); }}>
-              Discard
-            </button>
-          </span>
-        </div>
-      )}
       {stoppedTimer && (
         <TimeEntryForm
           kind="ticket"

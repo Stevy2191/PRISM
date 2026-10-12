@@ -64,7 +64,7 @@ describe('a System Technician can still do their job', () => {
   it('starts and stops the timer', async () => {
     const start = await tech.agent.post('/api/v1/timer/start').send({ type: 'ticket', id: ticket.id, label: 'Working' });
     expect([200, 201]).toContain(start.status);
-    const stop = await tech.agent.post('/api/v1/timer/stop').send({});
+    const stop = await tech.agent.post(`/api/v1/timer/${start.body.timer.timerId}/stop`).send({});
     expect([200, 201]).toContain(stop.status);
   });
 

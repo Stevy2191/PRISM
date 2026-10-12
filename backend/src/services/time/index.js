@@ -3,7 +3,7 @@
 // parent and check access; the timer logs through logTimerEntry.
 const { Op } = require('sequelize');
 const {
-  TimeEntry, Task, User, WorkType, TeamMember,
+  TimeEntry, Task, User, WorkType, TeamMember, SystemSettings,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -61,6 +61,20 @@ async function listEntries(parent, { limit, offset }, viewer) {
   return {
     rows, count, totalSeconds: Number(seconds) || 0, totalLaborCost: labour == null ? null : Number(labour),
   };
+}
+
+// ---- The longest entry (user decision 2026-10-12) ----
+
+// Settings → Time Tracking: whole hours, 1 to 24, 12 unless set.
+async function maxEntrySeconds() {
+  const row = await SystemSettings.findOne({ where: { key: 'timeTracking.maxEntryHours' }, attributes: ['value'] });
+  const hours = Number(row && row.value);
+  return (Number.isInteger(hours) && hours >= 1 && hours <= 24 ? hours : 12) * 3600;
+}
+
+async function assertWithinLimit(durationSeconds) {
+  const max = await maxEntrySeconds();
+  if (durationSeconds > max) throw bad(`A time entry can't be longer than ${max / 3600} hours`);
 }
 
 // ---- Body rules ----
@@ -209,6 +223,7 @@ async function logged(req, parent, entry, action) {
 
 async function createEntry(req, parent, body = {}) {
   const duration = readDuration(body, true);
+  await assertWithinLimit(duration.durationSeconds);
   const target = await resolveTarget(req, parent, body.userId);
   const entryDate = await resolveEntryDate(body.entryDate, { onEdit: false });
   const taskId = await resolveTaskId(parent, body.taskId);
@@ -234,7 +249,11 @@ async function updateEntry(req, parent, entry, body = {}) {
   await assertCanChange(req, entry, 'edit');
   const changes = {};
   const duration = readDuration(body, false);
-  if (duration) Object.assign(changes, duration);
+  // An older entry over the limit keeps its time until its time is edited.
+  if (duration) {
+    await assertWithinLimit(duration.durationSeconds);
+    Object.assign(changes, duration);
+  }
   let target = null;
   // null or '' is "no change", never "move it to me".
   if (given(body.userId) && parseRecordId(body.userId) !== entry.userId) {
@@ -265,7 +284,10 @@ async function deleteEntry(req, parent, entry) {
 // dated on the organization's calendar (Q5). Under a second still counts one.
 async function logTimerEntry(req, parent, { startedAt, endedAt, taskId, note }) {
   const start = new Date(startedAt);
-  const durationSeconds = Math.max(1, Math.floor((new Date(endedAt).getTime() - start.getTime()) / 1000));
+  const durationSeconds = Math.min(
+    await maxEntrySeconds(),
+    Math.max(1, Math.floor((new Date(endedAt).getTime() - start.getTime()) / 1000)),
+  );
   const task = taskId ? await Task.findOne({ where: { id: taskId, ...parent.where }, attributes: ['id'] }) : null;
   const workType = await defaultWorkType(parent);
   if (!workType) throw bad('No active work type is configured');
@@ -288,5 +310,5 @@ async function logTimerEntry(req, parent, { startedAt, endedAt, taskId, note }) 
 }
 
 module.exports = {
-  listEntries, findEntry, createEntry, updateEntry, deleteEntry, logTimerEntry, canManageTimeFor, logForUsers,
+  listEntries, findEntry, createEntry, updateEntry, deleteEntry, logTimerEntry, canManageTimeFor, logForUsers, maxEntrySeconds,
 };

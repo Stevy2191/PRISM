@@ -4,6 +4,7 @@ import { useNavStyle } from '../context/NavStyleContext';
 import { SETTINGS_SCROLL_KEY } from '../pages/SettingsHub';
 import TopNav from './TopNav';
 import SidebarCompact from './SidebarCompact';
+import TimerReminder from './work/TimerReminder';
 
 // Settings sub-pages live under both /settings/* (e.g. /settings/company)
 // and /admin/* (e.g. /admin/users, /admin/roles — reached from the Settings
@@ -36,6 +37,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       {isSidebar ? <SidebarCompact /> : <TopNav />}
+      <TimerReminder />
 
       <main
         className="min-h-screen w-full"

@@ -453,7 +453,9 @@ const updatePreferences = asyncHandler(async (req, res) => {
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
   if (req.user.id !== id) await assertCanManageAccount(req.user, user); // Owner review L3
 
-  const { timerMode, timerMinThreshold, timerPromptBeforeLog } = req.body || {};
+  const {
+    timerMode, timerMinThreshold, timerPromptBeforeLog, timerReminderMinutes, timerReminderRepeatMinutes,
+  } = req.body || {};
   const changes = {};
 
   if (timerMode !== undefined) {
@@ -471,6 +473,19 @@ const updatePreferences = asyncHandler(async (req, res) => {
   }
   if (timerPromptBeforeLog !== undefined) {
     changes.timerPromptBeforeLog = !!timerPromptBeforeLog;
+  }
+  // Reminders for timers left running: the first after 0 (off) to 24 hours,
+  // then every 15 minutes to 24 hours.
+  const minutes = (value, name, min) => {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < min || n > 1440) {
+      throw new ApiError(400, `${name} must be a whole number of minutes from ${min} to 1440`, 'VALIDATION_ERROR');
+    }
+    return n;
+  };
+  if (timerReminderMinutes !== undefined) changes.timerReminderMinutes = minutes(timerReminderMinutes, 'timerReminderMinutes', 0);
+  if (timerReminderRepeatMinutes !== undefined) {
+    changes.timerReminderRepeatMinutes = minutes(timerReminderRepeatMinutes, 'timerReminderRepeatMinutes', 15);
   }
 
   await user.update(changes);

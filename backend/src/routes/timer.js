@@ -4,14 +4,14 @@ const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
 
-// The timer exists to produce time entries, so it needs time.log.
+// Timers exist to produce time entries, so they need time.log.
 router.use(requirePermission('time.log'));
 
-router.get('/', ctrl.get);
+router.get('/', ctrl.list);
 router.post('/start', ctrl.start);
-router.post('/stop', ctrl.stop);
-router.post('/pause', ctrl.pause);
-router.post('/resume', ctrl.resume);
-router.delete('/', ctrl.cancel);
+router.post('/:timerId/stop', ctrl.stop);
+router.post('/:timerId/pause', ctrl.pause);
+router.post('/:timerId/resume', ctrl.resume);
+router.delete('/:timerId', ctrl.cancel);
 
 module.exports = router;

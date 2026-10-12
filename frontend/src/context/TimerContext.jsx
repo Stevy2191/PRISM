@@ -2,16 +2,18 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import api, { errMessage } from '../api/api';
 import { useAuth } from './AuthContext';
 
-// The one timer per user (plan 3c; user decision 2026-10-11), kept on the
-// server so it follows the user across devices and tabs. It can run on a
-// ticket, a project or one of their tasks, and pauses and resumes. The
-// server reports elapsedSeconds; this ticks it locally between syncs.
+// The user's timers (user decision 2026-10-12), kept on the server so they
+// follow the user across devices and tabs: one per ticket or project,
+// optionally on one of its tasks. Timers on different items count at the same
+// time; each pauses, resumes and stops on its own. A timer stops counting at
+// the longest-entry limit. The server reports elapsedSeconds; this ticks them
+// locally between syncs.
 const TimerContext = createContext(null);
 
 export function TimerProvider({ children }) {
   const { user, hasPermission } = useAuth();
   const canTime = !!user && hasPermission('time.log');
-  const [activeTimer, setActiveTimer] = useState(null); // server shape, or null
+  const [timers, setTimers] = useState([]); // server shapes, newest first
   // False until the first GET /timer answers: before that, "no timer" only
   // means "not known yet" (automatic mode must not act on it).
   const [loaded, setLoaded] = useState(false);
@@ -19,29 +21,28 @@ export function TimerProvider({ children }) {
   const [now, setNow] = useState(() => Date.now());
   // Increments after each successful log so pages can refresh their time data.
   const [logVersion, setLogVersion] = useState(0);
-
-  const apply = useCallback((timer) => { setActiveTimer(timer); setSyncedAt(Date.now()); }, []);
+  const bumpLogVersion = useCallback(() => setLogVersion((v) => v + 1), []);
 
   // The ticket page's old browser-only timer (before plan 3c) is not carried over.
   useEffect(() => {
     try { localStorage.removeItem('prism.ticketTimer.v1'); } catch { /* storage unavailable */ }
   }, []);
-  const bumpLogVersion = useCallback(() => setLogVersion((v) => v + 1), []);
 
   const refresh = useCallback(async () => {
     if (!canTime) {
-      apply(null);
+      setTimers([]);
       setLoaded(false);
       return;
     }
     try {
       const { data } = await api.get('/timer');
-      apply(data.timer);
+      setSyncedAt(Date.now());
+      setTimers(data.timers);
       setLoaded(true);
     } catch {
       /* leave current state on transient errors */
     }
-  }, [canTime, apply]);
+  }, [canTime]);
 
   // Load on login / permission change.
   useEffect(() => {
@@ -60,27 +61,37 @@ export function TimerProvider({ children }) {
     };
   }, [canTime, refresh]);
 
-  // Tick every second while a timer is running.
-  const running = activeTimer?.state === 'running';
+  // Tick every second while any timer is running.
+  const anyRunning = timers.some((t) => t.state === 'running');
   useEffect(() => {
-    if (!running) return undefined;
+    if (!anyRunning) return undefined;
     setNow(Date.now());
     const iv = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(iv);
-  }, [running, syncedAt]);
+  }, [anyRunning, syncedAt]);
 
-  // onlyIfIdle: start only if no timer exists anywhere (automatic mode).
-  const start = useCallback(async (type, id, { taskId = null, label = null, onlyIfIdle = false } = {}) => {
-    try {
-      const { data } = await api.post('/timer/start', { type, id, taskId, label, ...(onlyIfIdle ? { onlyIfIdle: true } : {}) });
-      apply(data.timer);
-      if (data.logged) bumpLogVersion(); // a previous timer was logged
-      return data;
-    } catch (err) {
-      alert(errMessage(err, 'Failed to start timer'));
-      return null;
-    }
-  }, [apply, bumpLogVersion]);
+  // A timer's elapsed seconds right now, up to its limit. A running timer that
+  // reaches the limit shows as stopped there; the server pauses it.
+  const elapsedOf = useCallback((t) => {
+    if (!t) return 0;
+    const extra = t.state === 'running' ? Math.max(0, Math.floor((now - syncedAt) / 1000)) : 0;
+    return Math.min(t.limitSeconds || Infinity, t.elapsedSeconds + extra);
+  }, [now, syncedAt]);
+  const atLimit = useCallback((t) => !!t && (t.atLimit || elapsedOf(t) >= (t.limitSeconds || Infinity)), [elapsedOf]);
+
+  // Folds one timer from the server into the list (each live value re-based).
+  const put = useCallback((timer) => {
+    const at = Date.now();
+    const gone = Math.max(0, Math.floor((at - syncedAt) / 1000));
+    setTimers((list) => {
+      const others = list
+        .filter((t) => t.timerId !== timer.timerId && !(t.type === timer.type && Number(t.id) === Number(timer.id)))
+        .map((t) => (t.state === 'running' ? { ...t, elapsedSeconds: Math.min(t.limitSeconds, t.elapsedSeconds + gone) } : t));
+      return [timer, ...others];
+    });
+    setSyncedAt(at);
+  }, [syncedAt]);
+  const drop = useCallback((timerId) => setTimers((list) => list.filter((t) => t.timerId !== timerId)), []);
 
   // A failed timer call (say, the timer was stopped on another device) shows
   // why and re-syncs with the server instead of leaving a stale control.
@@ -90,44 +101,61 @@ export function TimerProvider({ children }) {
     return null;
   }, [refresh]);
 
-  const pause = useCallback(async () => {
+  // onlyIfNone: start only if this item has no timer (automatic mode).
+  const start = useCallback(async (type, id, { taskId = null, label = null, onlyIfNone = false } = {}) => {
     try {
-      const { data } = await api.post('/timer/pause');
-      apply(data.timer);
+      const { data } = await api.post('/timer/start', { type, id, taskId, label, ...(onlyIfNone ? { onlyIfNone: true } : {}) });
+      put(data.timer);
+      if (data.logged) bumpLogVersion(); // the item's timer on another task was logged
+      // Ask once, on a click, for desktop reminders (the browser wants a gesture).
+      if (!onlyIfNone && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
+      return data;
+    } catch (err) {
+      alert(errMessage(err, 'Failed to start timer'));
+      return null;
+    }
+  }, [put, bumpLogVersion]);
+
+  const pause = useCallback(async (timerId) => {
+    try {
+      const { data } = await api.post(`/timer/${timerId}/pause`);
+      put(data.timer);
       return data.timer; // the paused timer, with its frozen elapsedSeconds
     } catch (err) { return failed(err); }
-  }, [apply, failed]);
+  }, [put, failed]);
 
-  const resume = useCallback(async () => {
+  const resume = useCallback(async (timerId) => {
     try {
-      const { data } = await api.post('/timer/resume');
-      apply(data.timer);
+      const { data } = await api.post(`/timer/${timerId}/resume`);
+      put(data.timer);
       return data.timer;
     } catch (err) { return failed(err); }
-  }, [apply, failed]);
+  }, [put, failed]);
 
-  // expectTimerId: act only on that timer (it may have been logged or
-  // replaced elsewhere meanwhile). entry: the Log time form's fields.
-  const stop = useCallback(async ({ note, discard, expectTimerId, entry } = {}) => {
-    const { data } = await api.post('/timer/stop', {
-      ...(note ? { note } : {}), ...(discard ? { discard: true } : {}),
-      ...(expectTimerId ? { expectTimerId } : {}), ...(entry ? { entry } : {}),
-    });
-    apply(null);
-    if (data.entry) bumpLogVersion();
-    return data;
-  }, [apply, bumpLogVersion]);
+  // Logs and clears one timer. entry: the Log time form's fields; discard:
+  // clear without logging. Throws on failure (a 409 when it was already
+  // logged elsewhere) — callers show why; the list re-syncs.
+  const stop = useCallback(async (timerId, { note, discard, entry } = {}) => {
+    try {
+      const { data } = await api.post(`/timer/${timerId}/stop`, {
+        ...(note ? { note } : {}), ...(discard ? { discard: true } : {}), ...(entry ? { entry } : {}),
+      });
+      drop(timerId);
+      if (data.entry) bumpLogVersion();
+      return data;
+    } catch (err) {
+      refresh();
+      throw err;
+    }
+  }, [drop, bumpLogVersion, refresh]);
 
-  const elapsedSeconds = activeTimer
-    ? activeTimer.elapsedSeconds + (running ? Math.max(0, Math.floor((now - syncedAt) / 1000)) : 0)
-    : 0;
-
-  // taskId undefined: any timer on that ticket or project; otherwise that exact task (null = no task).
-  const isRunning = (type, id, taskId) => !!activeTimer && activeTimer.type === type && Number(activeTimer.id) === Number(id)
-    && (taskId === undefined || (activeTimer.taskId ?? null) === (taskId ?? null));
+  // The timer on a ticket or project (any task), or null.
+  const timerFor = useCallback((type, id) => timers.find((t) => t.type === type && Number(t.id) === Number(id)) || null, [timers]);
 
   const value = {
-    activeTimer, loaded, elapsedSeconds, logVersion, start, pause, resume, stop, isRunning, refresh, bumpLogVersion,
+    timers, loaded, logVersion, start, pause, resume, stop, refresh, bumpLogVersion, timerFor, elapsedOf, atLimit,
   };
   return <TimerContext.Provider value={value}>{children}</TimerContext.Provider>;
 }
@@ -155,3 +183,6 @@ export function formatHMS(totalSeconds) {
   const s = totalSeconds % 60;
   return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
 }
+
+// Where a timer's ticket or project is.
+export const timerPath = (t) => (t.type === 'ticket' ? `/tickets/${t.id}` : `/projects/${t.id}`);
