@@ -493,7 +493,6 @@ export default function ProjectDetail() {
           timer={stoppedTimer}
           canManageOthers={canLogTimeForOthers}
           currentUser={user}
-          assignableUsers={assignableUsers}
           onSaved={reloadAll}
           onClose={() => setStoppedTimer(null)}
         />

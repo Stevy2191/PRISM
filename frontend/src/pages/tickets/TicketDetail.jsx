@@ -509,7 +509,6 @@ export default function TicketDetail() {
           timer={stoppedTimer}
           canManageOthers={canLogTimeForOthers}
           currentUser={user}
-          assignableUsers={assignableUsers}
           onSaved={reloadTime}
           onClose={() => setStoppedTimer(null)}
         />
