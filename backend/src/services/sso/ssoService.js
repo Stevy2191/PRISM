@@ -213,12 +213,12 @@ async function syncProfile(user, profile) {
 // Only roles that this provider maps are touched. A role an administrator
 // assigned by hand is left alone — otherwise SSO would silently undo manual
 // grants on every sign-in.
-// Ids of the Owner and System Administrator roles, which single sign-on never
-// grants (a mapping or default made before that rule is ignored) and never
-// takes away from an Owner (Owner review L4).
+// The System Administrator role, which single sign-on never grants (a
+// mapping or default made before that rule is ignored) and so, never managing
+// it, never takes away either (Owner review L4).
 async function topRoleIds() {
-  const rows = await Role.findAll({ where: { name: ['Owner', 'System Administrator'], isSystemRole: true }, attributes: ['id', 'name'] });
-  return { all: new Set(rows.map((r) => r.id)), owner: rows.find((r) => r.name === 'Owner')?.id };
+  const rows = await Role.findAll({ where: { name: 'System Administrator', isSystemRole: true }, attributes: ['id'] });
+  return { all: new Set(rows.map((r) => r.id)) };
 }
 
 async function applyGroupMappings(provider, user, groups) {
@@ -242,7 +242,7 @@ async function applyGroupMappings(provider, user, groups) {
   const currentRoleIds = new Set(current.map((ur) => ur.roleId));
 
   const toAdd = [...grantedRoleIds].filter((id) => !currentRoleIds.has(id));
-  const toRemove = current.filter((ur) => managedRoleIds.has(ur.roleId) && !grantedRoleIds.has(ur.roleId) && ur.roleId !== top.owner);
+  const toRemove = current.filter((ur) => managedRoleIds.has(ur.roleId) && !grantedRoleIds.has(ur.roleId));
 
   if (!toAdd.length && !toRemove.length) return;
 

@@ -115,6 +115,16 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: false,
       },
+      // Ownership (user decision 2026-10-11) is a mark on a System
+      // Administrator's account, not a role: 'owner' (exactly one, a local
+      // account) or 'secondary' (set by the owner). Both have the owner
+      // powers; only the owner marks owners and hands ownership on.
+      ownerLevel: {
+        type: DataTypes.STRING(16),
+        allowNull: true,
+        defaultValue: null,
+        validate: { isIn: [['owner', 'secondary']] },
+      },
       mustChangePassword: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

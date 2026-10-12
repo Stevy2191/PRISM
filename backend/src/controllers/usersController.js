@@ -17,7 +17,7 @@ const { normalizePhone } = require('../utils/phone');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
 const {
-  assertCanManageAccount, assertKeepsAnOwner, isOwner, isAdministrator, isTopRole, OWNER, SYSTEM_ADMIN,
+  assertCanManageAccount, assertKeepsSystemAdmin, assertNotTheOwner, isOwner, isAdministrator, isTopRole, SYSTEM_ADMIN,
 } = require('../services/ownership');
 
 const userInclude = [{ model: Department, as: 'department' }, { model: Role, as: 'primaryRole' }];
@@ -35,9 +35,7 @@ async function syncSeedRoleAssignment(user, legacyRole, assignedBy, transaction)
   const seedRoleName = LEGACY_ROLE_TO_SEED_ROLE[legacyRole];
   const seedRole = seedRoleName ? await Role.findOne({ where: { name: seedRoleName, isSystemRole: true }, transaction }) : null;
   if (!seedRole) return;
-  // An Owner stays an Owner when their legacy role changes (Owner review L7).
-  const ownerRole = await Role.findOne({ where: { name: 'Owner', isSystemRole: true }, attributes: ['id'], transaction });
-  await UserRole.destroy({ where: { userId: user.id, ...(ownerRole ? { roleId: { [Op.ne]: ownerRole.id } } : {}) }, transaction });
+  await UserRole.destroy({ where: { userId: user.id }, transaction });
   await UserRole.create({ userId: user.id, roleId: seedRole.id, assignedAt: new Date(), assignedBy: assignedBy || null }, { transaction });
   await user.update({ roleId: seedRole.id }, { transaction });
   await settleAccountRoles(user, { transaction });
@@ -90,14 +88,14 @@ const list = asyncHandler(async (req, res) => {
   });
   // administrator: the screen keeps these rows read-only for anyone but an
   // Owner (the server refuses the changes either way).
-  const topRoles = await Role.findAll({ where: { name: [OWNER, SYSTEM_ADMIN], isSystemRole: true }, attributes: ['id'] });
+  const topRoles = await Role.findAll({ where: { name: SYSTEM_ADMIN, isSystemRole: true }, attributes: ['id'] });
   const topIds = topRoles.map((r) => r.id);
   const holders = rows.length && topIds.length
     ? await UserRole.findAll({ where: { userId: rows.map((u) => u.id), roleId: topIds }, attributes: ['userId'], raw: true })
     : [];
   const admins = new Set(holders.map((h) => h.userId));
   const users = rows.map((u) => ({
-    ...u.toJSON(), administrator: u.role === 'admin' || topIds.includes(u.roleId) || admins.has(u.id),
+    ...u.toJSON(), administrator: u.role === 'admin' || !!u.ownerLevel || topIds.includes(u.roleId) || admins.has(u.id),
   }));
   res.json(paginated('users', { rows: users, count }, { page, limit }));
 });
@@ -232,7 +230,7 @@ const create = asyncHandler(async (req, res) => {
   // The legacy role is stored on the account whatever role row it gets, and
   // 'admin' alone makes it a System Administrator — so it's checked on its
   // own, never skipped because a roleId or department default also applies.
-  // Choosing Owner or System Administrator sets it too: older gates still read it.
+  // Choosing System Administrator sets it too: older gates still read it.
   const legacyRole = isTopRole(requestedRole) ? 'admin' : (role || 'technician');
   await assertCanSetLegacyRole(req.user, legacyRole);
   if (requestedRole && requestedRole.scope === 'department' && !dept) {
@@ -355,6 +353,7 @@ const update = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'Changing a role needs people.manage_roles', 'FORBIDDEN');
       }
       await assertCanSetLegacyRole(req.user, role, user.id);
+      if (role !== 'admin') await assertKeepsSystemAdmin(user); // an owner stays a System Administrator
       changes.role = role;
     }
   }
@@ -481,7 +480,7 @@ const remove = asyncHandler(async (req, res) => {
   const user = await User.findByPk(id);
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
   await assertCanManageAccount(req.user, user);
-  if (await isOwner(user)) await assertKeepsAnOwner(user.id);
+  await assertNotTheOwner(user);
 
   // Nothing the account held outlives it: its grants must not pass to
   // whoever might ever get its id.

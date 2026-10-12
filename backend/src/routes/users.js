@@ -3,6 +3,7 @@ const ctrl = require('../controllers/usersController');
 const access = require('../controllers/userAccessController');
 const { requireRole } = require('../middleware/role');
 const { requirePermission } = require('../middleware/requirePermission');
+const { passwordChangeLimiter } = require('../middleware/rateLimit');
 
 // All routes here are already behind `authenticate` (mounted in routes/index.js).
 const router = express.Router();
@@ -33,5 +34,8 @@ router.get('/:id/overrides', manageOverrides, access.listOverrides);
 router.post('/:id/overrides', manageOverrides, access.createOverride);
 router.delete('/:id/overrides/:overrideId', manageOverrides, access.revokeOverride);
 router.get('/:id/permissions', viewAccess, access.getEffectivePermissions);
+// Ownership: the owner only (enforced in the controller).
+router.put('/:id/owner', access.setOwnerMark);
+router.post('/:id/owner/transfer', passwordChangeLimiter, access.transferOwnership);
 
 module.exports = router;

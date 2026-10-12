@@ -18,7 +18,6 @@ const {
 
 // Seeded system roles created by the migrations.
 const ROLE = {
-  OWNER: 'Owner',
   ADMIN: 'System Administrator',
   TECHNICIAN: 'System Technician',
   DEPARTMENT_MANAGER: 'Department Manager',
@@ -61,6 +60,7 @@ async function createUser({
   legacyRole = 'technician',
   departmentId = null,
   extraRoles = [],
+  ownerLevel = null,
 }) {
   const roleId = await roleIdByName(roleName);
   const user = await User.create({
@@ -69,6 +69,7 @@ async function createUser({
     role: legacyRole,
     roleId,
     departmentId,
+    ownerLevel,
     isLocalAccount: true,
     isActive: true,
     mustChangePassword: false,

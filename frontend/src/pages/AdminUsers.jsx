@@ -5,6 +5,7 @@ import Spinner from '../components/Spinner';
 import { usePagination } from '../hooks/usePagination';
 import Pagination from '../components/Pagination';
 import NewAccountForm from '../components/users/NewAccountForm';
+import OwnerBadge from '../components/users/OwnerBadge';
 import { useAuth } from '../context/AuthContext';
 
 export default function AdminUsers() {
@@ -14,7 +15,7 @@ export default function AdminUsers() {
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const navigate = useNavigate();
-  const { isOwner } = useAuth();
+  const { isOwner, isTheOwner, user: me } = useAuth();
 
   const pager = usePagination({ storageKey: 'prism.adminUsers.pageSize' });
 
@@ -78,6 +79,14 @@ export default function AdminUsers() {
       </div>
 
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
+      {/* Ownership on a person's account leaves with them: suggest a service account. */}
+      {isTheOwner && (me?.firstName || me?.lastName) && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          You are the owner on a personal account. Consider a dedicated local service account (for example
+          {' '}<span className="font-mono">prism-owner</span>) with its password kept in your password vault, and hand
+          ownership to it from that account&apos;s page, so ownership doesn&apos;t leave with a person.
+        </div>
+      )}
 
       {showCreate && (
         <NewAccountForm
@@ -110,6 +119,7 @@ export default function AdminUsers() {
               <tr key={u.id} className="hover:bg-navy-50">
                 <td className="table-td font-medium">
                   <Link to={`/admin/users/${u.id}`} className="text-prism hover:underline">{fullName}</Link>
+                  {u.ownerLevel && <span className="ml-1.5"><OwnerBadge level={u.ownerLevel} size={14} /></span>}
                   {u.jobTitle && <p className="mt-0.5 text-xs font-normal text-navy-400">{u.jobTitle}</p>}
                 </td>
                 <td className="table-td text-navy-500">{u.username}</td>

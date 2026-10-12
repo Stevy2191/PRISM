@@ -5,7 +5,10 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { invalidateUserPermissions, explainUserPermissions } = require('../services/permissionService');
 const { assertCanHandOutRole, assertCanGrantPermissions } = require('../services/roleGrant');
-const { assertCanManageAccount, assertKeepsAnOwner } = require('../services/ownership');
+const bcrypt = require('bcryptjs');
+const {
+  assertCanManageAccount, assertKeepsSystemAdmin, assertTheOwner, handOverOwnership, SYSTEM_ADMIN,
+} = require('../services/ownership');
 const { settleAccountRoles, needsFallback } = require('../services/accountRoles');
 
 const userAttrs = ['id', 'displayName', 'username'];
@@ -100,7 +103,8 @@ const removeRole = asyncHandler(async (req, res) => {
   const userRole = await UserRole.findOne({ where, include: [{ model: Role, as: 'role' }] });
   if (!userRole) throw new ApiError(404, 'Role assignment not found', 'NOT_FOUND');
   const roleName = userRole.role?.name;
-  if (roleName === 'Owner' && userRole.role?.isSystemRole) await assertKeepsAnOwner(user.id);
+  // An owner (or secondary owner) keeps System Administrator.
+  if (roleName === SYSTEM_ADMIN && userRole.role?.isSystemRole) await assertKeepsSystemAdmin(user);
   // Removing the last role hands out the department default: the remover
   // must be able to hand that out too (Owner review M1). While other roles
   // remain, the best of them becomes the main role instead.
@@ -214,6 +218,54 @@ const getEffectivePermissions = asyncHandler(async (req, res) => {
   res.json({ permissions });
 });
 
+// ---- Ownership (user decisions 2026-10-11) ----
+
+// PUT /users/:id/owner — { secondary: true|false }. The owner marks or
+// unmarks a System Administrator as a secondary owner.
+const setOwnerMark = asyncHandler(async (req, res) => {
+  await assertTheOwner(req.user, 'Marking owners');
+  const user = await loadUser(req.params.id);
+  const { secondary } = req.body || {};
+  if (typeof secondary !== 'boolean') throw new ApiError(400, 'secondary must be true or false', 'VALIDATION_ERROR');
+  if (user.ownerLevel === 'owner') {
+    throw new ApiError(400, 'You are the owner: hand ownership to someone else instead', 'VALIDATION_ERROR');
+  }
+  if (secondary) {
+    const admin = await Role.findOne({ where: { name: SYSTEM_ADMIN, isSystemRole: true }, attributes: ['id'] });
+    const holds = admin && (user.roleId === admin.id || await UserRole.findOne({ where: { userId: user.id, roleId: admin.id } }));
+    if (!holds || !user.isActive) {
+      throw new ApiError(400, 'Only a System Administrator can be marked as an owner', 'VALIDATION_ERROR');
+    }
+  }
+  const ownerLevel = secondary ? 'secondary' : null;
+  if (user.ownerLevel !== ownerLevel) {
+    await user.update({ ownerLevel });
+    invalidateUserPermissions(user.id);
+    await writeAudit(req, secondary ? 'owner.mark_secondary' : 'owner.unmark_secondary', 'User', user.id, { username: user.username });
+    await writeSystemAudit(req, secondary ? 'owner_marked' : 'owner_unmarked', user.id, { level: 'secondary' });
+  }
+  res.json({ user: await User.findByPk(user.id, { attributes: { exclude: ['passwordHash'] } }) });
+});
+
+// POST /users/:id/owner/transfer — { password }. The owner hands ownership
+// to a local, active System Administrator, confirming with their password.
+// They stay a System Administrator.
+const transferOwnership = asyncHandler(async (req, res) => {
+  await assertTheOwner(req.user, 'Handing over ownership');
+  const target = await loadUser(req.params.id);
+  const me = await User.findByPk(req.user.id);
+  const { password } = req.body || {};
+  if (typeof password !== 'string' || !me.passwordHash || !(await bcrypt.compare(password, me.passwordHash))) {
+    throw new ApiError(403, 'Your password is incorrect', 'WRONG_PASSWORD');
+  }
+  const from = me.username;
+  await handOverOwnership(me, target);
+  await writeAudit(req, 'owner.transfer', 'User', target.id, { from, to: target.username, via: 'app' });
+  await writeSystemAudit(req, 'owner_transferred', target.id, { from, to: target.username });
+  res.json({ user: await User.findByPk(target.id, { attributes: { exclude: ['passwordHash'] } }) });
+});
+
 module.exports = {
   listRoles, assignRole, removeRole, listOverrides, createOverride, revokeOverride, getEffectivePermissions,
+  setOwnerMark, transferOwnership,
 };

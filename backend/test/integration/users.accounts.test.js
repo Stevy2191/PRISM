@@ -36,12 +36,12 @@ afterAll(closeDb);
 describe('creating an account with its role', () => {
   it('lists which roles the creator may hand out', async () => {
     const sa = await makeSysadmin();
-    const grantable = (list) => Object.fromEntries(list.filter((r) => ['Owner', 'System Administrator', 'Department Staff'].includes(r.name))
+    const grantable = (list) => Object.fromEntries(list.filter((r) => ['System Administrator', 'Department Staff'].includes(r.name))
       .map((r) => [r.name, r.grantable]));
     expect(grantable(expectOk(await sa.agent.get(`${API}/roles?grantable=1`)).roles))
-      .toEqual({ Owner: false, 'System Administrator': false, 'Department Staff': true });
+      .toEqual({ 'System Administrator': false, 'Department Staff': true });
     expect(grantable(expectOk(await w.admin.agent.get(`${API}/roles?grantable=1`)).roles))
-      .toEqual({ Owner: true, 'System Administrator': true, 'Department Staff': true });
+      .toEqual({ 'System Administrator': true, 'Department Staff': true });
   });
 
   it('an Owner makes a System Administrator, who also gets the legacy admin role', async () => {
@@ -50,13 +50,10 @@ describe('creating an account with its role', () => {
     expect((await UserRole.findAll({ where: { userId: made.id } })).map((r) => r.roleId)).toEqual([roleId('System Administrator')]);
   });
 
-  it('a System Administrator can\'t make an Owner or System Administrator, and nothing is created', async () => {
+  it('a System Administrator can\'t make a System Administrator, and nothing is created', async () => {
     const sa = await makeSysadmin();
-    for (const name of ['Owner', 'System Administrator']) {
-      // eslint-disable-next-line no-await-in-loop
-      const res = await newUser(sa.agent, { roleId: roleId(name) });
-      expect([name, res.status, res.body.code]).toEqual([name, 403, 'OWNER_ONLY']);
-    }
+    const res = await newUser(sa.agent, { roleId: roleId('System Administrator') });
+    expect([res.status, res.body.code]).toEqual([403, 'OWNER_ONLY']);
     expect(await newbieCount()).toBe(0);
   });
 

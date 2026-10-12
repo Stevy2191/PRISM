@@ -13,7 +13,7 @@ let plainUser;
 beforeEach(async () => {
   await resetData();
   // Single sign-on settings need an Owner (user decision 2026-10-11).
-  admin = await createUserAndLogin({ username: 'boss', roleName: ROLE.ADMIN, legacyRole: 'admin', extraRoles: [ROLE.OWNER] });
+  admin = await createUserAndLogin({ username: 'boss', roleName: ROLE.ADMIN, legacyRole: 'admin', ownerLevel: 'owner' });
   plainUser = await createUserAndLogin({ username: 'tech', roleName: ROLE.TECHNICIAN });
 });
 

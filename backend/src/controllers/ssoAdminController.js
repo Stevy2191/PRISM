@@ -16,7 +16,7 @@ const { isTopRole } = require('../services/ownership');
 async function ssoGrantableRole(rawId, notFound) {
   const role = await Role.findByPk(rawId);
   if (!role) throw new ApiError(400, notFound, 'VALIDATION_ERROR');
-  if (isTopRole(role)) throw new ApiError(400, 'Single sign-on can\'t grant the System Administrator or Owner role', 'VALIDATION_ERROR');
+  if (isTopRole(role)) throw new ApiError(400, 'Single sign-on can\'t grant the System Administrator role', 'VALIDATION_ERROR');
   return role;
 }
 

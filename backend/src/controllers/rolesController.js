@@ -17,9 +17,7 @@ const roleInclude = [
 // not even its permission grants (every other system role's permissions CAN
 // be edited; only its name/description/scope/deletion are locked, same as
 // every other system role).
-// The top roles' permissions are fixed: System Administrator, and the Owner
-// (who holds every permission regardless).
-const isFullyLocked = (role) => role.isSystemRole && ['System Administrator', 'Owner'].includes(role.name);
+const isFullyLocked = (role) => role.isSystemRole && role.name === 'System Administrator';
 
 async function canHandOut(actor, role) {
   try {

@@ -64,7 +64,6 @@ function assertNotSelf(actor, targetUserId) {
 async function assertCanGrantRole(actor, role, targetUserId) {
   assertNotSelf(actor, targetUserId);
   if (role.name === SYSTEM_ADMIN) await assertCanGrantSystemAdmin(actor);
-  if (role.name === 'Owner') await assertOwner(actor, 'Granting the Owner role');
   const reachable = await getUserCompanyIds(actor);
   if (reachable === null) return;
   const rows = await RoleCompanyAccess.findAll({ where: { roleId: role.id }, attributes: ['companyId'] });

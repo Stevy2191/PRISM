@@ -166,22 +166,31 @@ reports. Settings → Companies is always there, also for managing vendors.
   - The role editor now shows every permission category. Time, Companies, Assets and Knowledge base permissions were missing from it before.
 - **Read-only screens.** Ticket and project pages show only what you may change. A ticket you can see but not edit says "View only".
 
-### The Owner
+### Owners
 
-A new built-in role, **Owner**, sits above System Administrator, so that a single
-System Administrator can't take the system over.
+An **owner** mark on a System Administrator's account keeps a single System
+Administrator from taking the system over. It's a mark on the account, not a
+role.
 
-- **Who is the Owner after upgrading:** the oldest active administrator
+- **The owner** (a crown next to the name): there is exactly one, and it must
+  be a local account. A dedicated service account (for example `prism-owner`,
+  with its password in your password vault) is best, so ownership doesn't
+  leave with a person. The Users page suggests this when the owner is a
+  personal account.
+- **Secondary owners** (a star): any number. The owner marks and unmarks them
+  on a System Administrator's page. They can do everything the owner can,
+  including resetting the owner's password, except marking owners and handing
+  ownership on.
+- **Who is the owner after upgrading:** the oldest active local administrator
   account that has been used. An account still on the default password
   (`changeme`), or still due its first password change, is skipped unless no
-  other administrator exists. On a new install, the setup account is the
-  Owner and must change its password at first sign-in.
-- **Confirm the Owner right after upgrading.**
-- **Check who it is:** Settings → Users, where the account shows an "Owner"
-  badge.
-- **An Owner has every permission and reaches every company.**
-- **Only an Owner can:**
-  - make someone a System Administrator or an Owner, or remove that;
+  other exists. On a new install, the setup account is the owner and must
+  change its password at first sign-in. **Confirm the owner right after
+  upgrading** under Settings → Users.
+- **Owners (the owner and secondary owners) have every permission, whatever an
+  override says, and reach every company.**
+- **Only owners can:**
+  - make someone a System Administrator, or remove that;
   - change an administrator's account: their roles, permission overrides,
     company access, password, profile, or delete it;
   - change the sign-in, mail and integration settings: single sign-on
@@ -189,16 +198,31 @@ System Administrator can't take the system over.
     (including its group-to-role mappings), inbound and outbound email, the
     email log, and the calendar integration settings.
 - **System Administrators** keep everything else: every other setting, and the
-  roles and accounts below them.
-- **Add a second Owner** so you're not locked out if an account is lost: an
-  Owner assigns the Owner role to them under Settings → Users.
-- **There is always at least one active Owner.** The last Owner's role can't be
-  removed and their account can't be deleted. As before, nobody changes their
-  own roles or permission overrides, Owners included.
-- **The Owner and System Administrator roles are never given automatically:**
-  - a department's default role can't be one of them;
-  - single sign-on can't grant them, by group mapping or as a provider's
-    default. Mappings to them made before this update are ignored at sign-in.
+  roles and accounts below them. They can't make owners.
+- **Handing over ownership:** the owner opens the new owner's page (an active
+  local System Administrator), chooses "Hand ownership to …" and confirms with
+  their own password. The former owner stays a System Administrator, without
+  owner powers.
+- **The owner's account can't be deleted or lose System Administrator.** A
+  secondary owner keeps System Administrator until the owner removes their
+  mark. As before, nobody changes their own roles or permission overrides.
+- **If the owner's account is lost**, run this on the server:
+
+  ```
+  docker compose exec backend npm run owner:transfer -- <username>
+  ```
+
+  Ownership moves to that local, active account, which becomes a System
+  Administrator if it isn't one. The move is recorded in the audit log.
+- **System Administrator is never given automatically:**
+  - a department's default role can't be System Administrator;
+  - single sign-on can't grant it, by group mapping or as a provider's default.
+    Mappings to it made before this update are ignored at sign-in.
+- **API:** `GET /auth/me` and the user endpoints return `ownerLevel`
+  (`"owner"`, `"secondary"` or `null`), and `GET /auth/me` returns `isOwner`
+  for owner powers. `PUT /users/:id/owner` with `{ "secondary": true|false }`
+  marks or unmarks a secondary owner, and `POST /users/:id/owner/transfer` with
+  `{ "password" }` hands ownership on. Both are for the owner only.
 
 ### New accounts and usernames
 
@@ -223,21 +247,21 @@ System Administrator can't take the system over.
 
 - **Fix:** removing an account's main role (for example System Administrator
   from an Owner) left it with no main role, and the Users page showed none.
-  The best role the account still holds now becomes its main role: Owner,
-  then System Administrator, then its oldest role. The department's default
+  The best role the account still holds now becomes its main role: System
+  Administrator first, then its oldest role. The department's default
   role is given only when no other role is left.
-- **Security fix:** assigning or removing System Administrator or Owner on the
-  Roles & Permissions tab didn't update the account's older "admin" marker.
+- **Security fix:** assigning or removing System Administrator on the Roles &
+  Permissions tab didn't update the account's older "admin" marker.
   Older checks still read it: deleting users, teams, modules, everyone's API
   keys, and reaching every company. An account demoted there kept those
-  powers. The marker is now set exactly while the account holds Owner or
-  System Administrator, wherever its roles change.
+  powers. The marker is now set exactly while the account holds System
+  Administrator, wherever its roles change.
 - **Upgrading repairs existing accounts:**
   - an account with no main role, or a main role it doesn't hold, gets the
     best role it holds;
-  - the admin marker is set for holders of Owner or System Administrator;
-  - the marker is cleared from accounts holding neither, but only while an
-    active Owner exists;
+  - the admin marker is set for holders of System Administrator;
+  - the marker is cleared from accounts not holding it, but only while an
+    active owner exists;
   - role assignments, permission overrides and company access left behind by
     deleted accounts are removed.
 

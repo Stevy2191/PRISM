@@ -5,6 +5,8 @@ import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
+import OwnerBadge from '../components/users/OwnerBadge';
+import OwnershipPanel from '../components/users/OwnershipPanel';
 import Collapsible from '../components/Collapsible';
 import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 import { formatPhone } from '../utils/formatPhone';
@@ -868,7 +870,7 @@ function PerformanceTab({ userId }) {
 export default function UserDetail() {
   const { id } = useParams();
   const {
-    refreshPermissions, refresh, isOwner, user: me,
+    refreshPermissions, refresh, isOwner, isTheOwner, user: me,
   } = useAuth();
   const canEditUsers = usePermission('people.edit_users');
   const [user, setUser] = useState(null);
@@ -919,12 +921,21 @@ export default function UserDetail() {
       <Link to="/admin/users" className="text-sm text-prism hover:underline">← Back to Users</Link>
       <h1 className="text-2xl font-bold tracking-tight text-navy-900">
         {user.displayName}
-        {user.owner && <span className="ml-2 rounded-full bg-navy-100 px-2 py-0.5 align-middle text-xs font-medium text-navy-600">Owner</span>}
+        {user.ownerLevel && (
+          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 align-middle text-xs font-medium text-amber-800">
+            <OwnerBadge level={user.ownerLevel} size={13} />
+            {user.ownerLevel === 'owner' ? 'Owner' : 'Secondary owner'}
+          </span>
+        )}
       </h1>
       {readOnly && (
         <div className="rounded-md border border-navy-200 bg-navy-50 p-3 text-sm text-navy-600">
           Only an Owner can change an administrator&apos;s account.
         </div>
+      )}
+      {/* The owner's controls, on another System Administrator's account. */}
+      {isTheOwner && user.administrator && user.id !== me?.id && (
+        <OwnershipPanel user={user} onChanged={load} />
       )}
 
       <div className="flex gap-2 border-b border-navy-100">

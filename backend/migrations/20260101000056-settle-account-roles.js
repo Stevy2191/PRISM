@@ -41,7 +41,11 @@ module.exports = {
         if (!heldBy.has(h.userId)) heldBy.set(h.userId, []);
         heldBy.get(h.userId).push(h.roleId);
       }
-      const activeOwner = users.some((u) => Number(u.isActive) && (heldBy.get(u.id) || []).includes(ownerId));
+      // An owner: the Owner role, or (once migration 057 has run) the mark.
+      const marked = (await queryInterface.describeTable('Users')).ownerLevel
+        ? (await select("SELECT id FROM Users WHERE isActive = 1 AND ownerLevel IS NOT NULL", {}, t)).map((u) => u.id)
+        : [];
+      const activeOwner = marked.length > 0 || users.some((u) => Number(u.isActive) && (heldBy.get(u.id) || []).includes(ownerId));
 
       for (const u of users) {
         const roles = heldBy.get(u.id) || [];

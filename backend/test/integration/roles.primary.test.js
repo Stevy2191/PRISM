@@ -20,8 +20,6 @@ let roles;
 const roleId = (name) => roles.find((r) => r.name === name).id;
 const reload = (id) => User.findByPk(id);
 const roleIdsOf = async (userId) => (await UserRole.findAll({ where: { userId }, order: [['roleId', 'ASC']] })).map((r) => r.roleId);
-// Another Owner: nobody changes their own roles.
-const makeSecondOwner = () => createUserAndLogin({ username: 'owner2', roleName: ROLE.OWNER, legacyRole: 'admin' });
 
 beforeEach(async () => {
   await resetData();
@@ -33,15 +31,6 @@ afterEach(() => Role.destroy({ where: { name: 'Temp' } }));
 afterAll(closeDb);
 
 describe('removing a main role', () => {
-  it('an Owner whose System Administrator role is removed shows as Owner, and stays an administrator', async () => {
-    const o2 = await makeSecondOwner();
-    expectOk(await o2.agent.delete(`${API}/users/${w.admin.user.id}/roles/${roleId('System Administrator')}`));
-    const admin = await reload(w.admin.user.id);
-    expect([admin.roleId, admin.role]).toEqual([roleId('Owner'), 'admin']);
-    const { users } = expectOk(await o2.agent.get(`${API}/users?scope=department`));
-    expect(users.find((u) => u.id === w.admin.user.id).primaryRole.name).toBe('Owner');
-  });
-
   it('another role the account holds becomes the main role, before the department default', async () => {
     await Department.update({ defaultRoleId: roleId('System Technician') }, { where: { id: w.deptA.id } });
     const staff = await makeStaff('staff', w.deptA.id);
@@ -103,11 +92,11 @@ describe('the repair migration', () => {
 
   it('gives an account with no main role the best role it holds, and the admin marker for a top role', async () => {
     const staff = await makeStaff('staff', w.deptA.id);
-    await UserRole.create({ userId: staff.user.id, roleId: roleId('Owner'), assignedAt: new Date() });
+    await UserRole.create({ userId: staff.user.id, roleId: roleId('System Administrator'), assignedAt: new Date() });
     await User.update({ roleId: null, role: 'technician' }, { where: { id: staff.user.id } });
     await run();
     const fixed = await reload(staff.user.id);
-    expect([fixed.roleId, fixed.role]).toEqual([roleId('Owner'), 'admin']);
+    expect([fixed.roleId, fixed.role]).toEqual([roleId('System Administrator'), 'admin']);
   });
 
   it('records a main role the account had no assignment row for', async () => {
@@ -117,17 +106,17 @@ describe('the repair migration', () => {
     expect(await roleIdsOf(staff.user.id)).toEqual([roleId('Department Staff')]);
   });
 
-  it('clears the admin marker of an account holding no top role while an Owner exists', async () => {
+  it('clears the admin marker of an account holding no top role while an owner exists', async () => {
     const staff = await makeStaff('staff', w.deptA.id);
     await User.update({ role: 'admin' }, { where: { id: staff.user.id } });
     await run();
     expect((await reload(staff.user.id)).role).toBe('technician');
   });
 
-  it('leaves the marker alone when there is no Owner to fall back on', async () => {
+  it('leaves the marker alone when there is no owner to fall back on', async () => {
     const staff = await makeStaff('staff', w.deptA.id);
     await User.update({ role: 'admin' }, { where: { id: staff.user.id } });
-    await UserRole.destroy({ where: { roleId: roleId('Owner') } });
+    await User.update({ ownerLevel: null }, { where: {} });
     await run();
     expect((await reload(staff.user.id)).role).toBe('admin');
   });

@@ -46,7 +46,7 @@ async function resolveUserPermissions(userId) {
 
   const [allPermissions, user, userRoles] = await Promise.all([
     Permission.findAll({ attributes: ['id', 'key'] }),
-    User.findByPk(userId, { attributes: ['id', 'roleId'] }),
+    User.findByPk(userId, { attributes: ['id', 'roleId', 'ownerLevel'] }),
     UserRole.findAll({ where: { userId }, attributes: ['roleId'] }),
   ]);
 
@@ -56,15 +56,12 @@ async function resolveUserPermissions(userId) {
   const permissions = {};
   allPermissions.forEach((p) => { permissions[p.key] = false; });
 
-  // An Owner holds every permission, now and later, whatever an override
-  // says (user decision 2026-10-11).
-  if (roleIds.size > 0) {
-    const ownerRole = await Role.findOne({ where: { name: 'Owner', isSystemRole: true }, attributes: ['id'] });
-    if (ownerRole && roleIds.has(ownerRole.id)) {
-      allPermissions.forEach((p) => { permissions[p.key] = true; });
-      cache.set(userId, { permissions, expiresAt: Date.now() + CACHE_TTL_MS });
-      return permissions;
-    }
+  // An owner (or secondary owner) holds every permission, now and later,
+  // whatever an override says (user decision 2026-10-11).
+  if (user && user.ownerLevel) {
+    allPermissions.forEach((p) => { permissions[p.key] = true; });
+    cache.set(userId, { permissions, expiresAt: Date.now() + CACHE_TTL_MS });
+    return permissions;
   }
 
   if (roleIds.size > 0) {
@@ -134,20 +131,20 @@ async function getUserReportScope(userId) {
 async function explainUserPermissions(userId) {
   const [allPermissions, user, userRoles] = await Promise.all([
     Permission.findAll({ order: [['category', 'ASC'], ['id', 'ASC']] }),
-    User.findByPk(userId, { attributes: ['id', 'roleId'] }),
+    User.findByPk(userId, { attributes: ['id', 'roleId', 'ownerLevel'] }),
     UserRole.findAll({ where: { userId }, attributes: ['roleId'] }),
   ]);
 
+  // An owner holds everything, whatever an override says (as resolveUserPermissions).
+  if (user && user.ownerLevel) {
+    return allPermissions.map((p) => ({
+      key: p.key, category: p.category, label: p.label, description: p.description, granted: true, source: 'Owner',
+    }));
+  }
   const roleIds = new Set(userRoles.map((ur) => ur.roleId));
   if (user && user.roleId) roleIds.add(user.roleId);
   const roles = roleIds.size ? await Role.findAll({ where: { id: [...roleIds] } }) : [];
   const roleNameById = new Map(roles.map((r) => [r.id, r.name]));
-  // An Owner holds everything, whatever an override says (as resolveUserPermissions).
-  if (roles.some((r) => r.name === 'Owner' && r.isSystemRole)) {
-    return allPermissions.map((p) => ({
-      key: p.key, category: p.category, label: p.label, description: p.description, granted: true, source: 'Role: Owner',
-    }));
-  }
 
   const permByIdKey = new Map(allPermissions.map((p) => [p.id, p.key]));
   const rolePermissions = roleIds.size
@@ -206,11 +203,11 @@ async function explainUserPermissions(userId) {
 // they hold. System Administrators always reach everything.
 const companyCache = new Map(); // userId -> { ids: null | number[], expiresAt }
 
-// System Administrators and Owners reach every company.
+// System Administrators (every owner is one) reach every company.
 async function isUnfenceable(user) {
   if (user.role === 'admin') return true;
   const topRoles = await Role.findAll({
-    where: { name: ['System Administrator', 'Owner'], isSystemRole: true }, attributes: ['id'],
+    where: { name: 'System Administrator', isSystemRole: true }, attributes: ['id'],
   });
   if (!topRoles.length) return false;
   const ids = topRoles.map((r) => r.id);

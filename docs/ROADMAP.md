@@ -32,7 +32,7 @@ read that before designing any sub-project.
 | Remote access | Built in, no third-party app: remote shell and file transfer first, then full remote desktop in the browser over WebRTC. |
 | End-user tray app | A system-tray helper installed with the agent gives end users a one-click way to submit tickets, pre-filled with who they are and which computer they're on. No separate install or login. |
 | Billing | Full billing inside PRISM, including online payments in the client portal. Accounting sync is a connector, not a replacement. |
-| Administration | An **Owner** role sits above System Administrator (decided 2026-10-11): only Owners make administrators, change an administrator's account, or change sign-in, mail and integration settings. Several Owners are allowed; there is always at least one. |
+| Administration | **Owners** (decided 2026-10-11): ownership is a mark on a System Administrator's account, not a role. Exactly one owner (a local account, ideally a service account) marks any number of secondary owners. Owners alone make administrators, change an administrator's account, or change sign-in, mail and integration settings; only the owner marks owners and hands ownership on. A server command recovers a lost owner. |
 | Docs | Everything lives in this repo: this roadmap, one spec and one plan per sub-project, release notes in `UPGRADING.md`. |
 
 ## Releases

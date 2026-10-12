@@ -1,8 +1,9 @@
 const { resetData, closeDb, models } = require('./helpers');
 const { API, expectOk, makeWorld, makeStaff } = require('./fixtures');
 
-// Only Owners make System Administrators or Owners, or change an
-// administrator's account; a System Administrator manages everything below.
+// Only owners make System Administrators or change an administrator's
+// account; a System Administrator manages everything below. (Marking owners:
+// owner.mark.test.js.)
 
 let w;
 let sysadmin;
@@ -19,18 +20,16 @@ beforeEach(async () => {
 });
 afterAll(closeDb);
 
-it('a System Administrator can\'t make administrators or Owners, by any path', async () => {
+it('a System Administrator can\'t make administrators, by any path', async () => {
   const staff = await makeStaff('staff', w.deptA.id);
   const a = sysadmin.agent;
   expect((await a.post(`${API}/users/${staff.user.id}/roles`).send({ roleId: roleId('System Administrator') })).body)
     .toEqual(ownerOnly('Granting the System Administrator role'));
-  expect((await a.post(`${API}/users/${staff.user.id}/roles`).send({ roleId: roleId('Owner') })).body)
-    .toEqual(ownerOnly('Granting the Owner role'));
   expect((await a.patch(`${API}/users/${staff.user.id}`).send({ role: 'admin' })).body)
     .toEqual(ownerOnly('Granting the System Administrator role'));
   // A top role is never a department default, for anyone (Owner review M1).
   expect((await a.patch(`${API}/departments/${w.deptA.id}`).send({ defaultRoleId: roleId('System Administrator') })).body.message)
-    .toBe('A department\'s default role can\'t be System Administrator or Owner');
+    .toBe('A department\'s default role can\'t be System Administrator');
   // Below them, they manage freely.
   expect((await a.post(`${API}/users/${staff.user.id}/roles`).send({ roleId: roleId('System Technician') })).status).toBeLessThan(300);
 });
@@ -55,20 +54,4 @@ it('a System Administrator can\'t change another administrator\'s or an Owner\'s
     expect((await a.delete(`${API}/users/${target}`)).status).toBe(403); // eslint-disable-line no-await-in-loop
   }
   expect((await a.delete(`${API}/users/${other.user.id}/roles/${roleId('System Administrator')}`)).body).toEqual(ownerOnly(what));
-});
-
-it('an Owner makes administrators and other Owners; the last Owner stays', async () => {
-  const staff = await makeStaff('staff', w.deptA.id);
-  expectOk(await w.admin.agent.post(`${API}/users/${staff.user.id}/roles`).send({ roleId: roleId('Owner') }), 201);
-  // Two Owners: one can remove the other's Owner role.
-  expectOk(await w.admin.agent.delete(`${API}/users/${staff.user.id}/roles/${roleId('Owner')}`));
-  // Now one Owner is left; no one can take theirs away (and nobody changes their own).
-  const owners = await models.UserRole.count({ where: { roleId: roleId('Owner') } });
-  expect(owners).toBe(1);
-  expect((await w.admin.agent.delete(`${API}/users/${w.admin.user.id}/roles/${roleId('Owner')}`)).status).toBe(403);
-});
-
-it('the Owner role can\'t be edited or deleted', async () => {
-  expect((await w.admin.agent.patch(`${API}/roles/${roleId('Owner')}/permissions/tickets.view_all`).send({ granted: false })).status).toBe(400);
-  expect((await w.admin.agent.delete(`${API}/roles/${roleId('Owner')}`)).status).toBeGreaterThanOrEqual(400);
 });

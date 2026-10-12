@@ -3,23 +3,20 @@
 // every change to an account's roles.
 //
 // - The main role stays put while the account still holds it. Otherwise it
-//   becomes the best role still held: Owner, then System Administrator, then
-//   the oldest assignment. With nothing left, the fallback role (the
-//   department default) is assigned, else none. A caller handing out the
-//   fallback has checked the actor may give it.
-// - The legacy marker is 'admin' exactly while the account holds Owner or
-//   System Administrator: older gates still read it (requireRole('admin'),
-//   isUnfenceable), so an account demoted on the roles tab must lose it.
+//   becomes the best role still held: System Administrator, then the oldest
+//   assignment. With nothing left, the fallback role (the department default)
+//   is assigned, else none. A caller handing out the fallback has checked the
+//   actor may give it.
+// - The legacy marker is 'admin' exactly while the account holds System
+//   Administrator (as every owner does): older gates still read it
+//   (requireRole('admin'), isUnfenceable), so an account demoted on the roles
+//   tab must lose it.
 const { Role, UserRole } = require('../models');
 const { invalidateUserPermissions } = require('./permissionService');
-const { OWNER, SYSTEM_ADMIN } = require('./ownership');
 
-async function topRoleIds(transaction) {
-  const rows = await Role.findAll({ where: { name: [OWNER, SYSTEM_ADMIN], isSystemRole: true }, attributes: ['id', 'name'], transaction });
-  return {
-    owner: rows.find((r) => r.name === OWNER)?.id ?? null,
-    admin: rows.find((r) => r.name === SYSTEM_ADMIN)?.id ?? null,
-  };
+async function systemAdminId(transaction) {
+  const role = await Role.findOne({ where: { name: 'System Administrator', isSystemRole: true }, attributes: ['id'], transaction });
+  return role ? role.id : null;
 }
 
 // The role the account would fall back to with nothing else left: whether it
@@ -33,12 +30,12 @@ async function settleAccountRoles(user, { fallbackRoleId = null, assignedBy = nu
   const held = await UserRole.findAll({
     where: { userId: user.id }, order: [['assignedAt', 'ASC'], ['id', 'ASC']], transaction,
   });
-  const top = await topRoleIds(transaction);
+  const admin = await systemAdminId(transaction);
   const heldIds = held.map((ur) => ur.roleId);
   const changes = {};
 
   if (!heldIds.includes(user.roleId)) {
-    let next = [top.owner, top.admin].find((id) => id && heldIds.includes(id)) ?? heldIds[0] ?? null;
+    let next = (admin && heldIds.includes(admin) ? admin : heldIds[0]) ?? null;
     if (next === null && fallbackRoleId) {
       await UserRole.create({
         userId: user.id, roleId: fallbackRoleId, assignedAt: new Date(), assignedBy,
@@ -49,7 +46,7 @@ async function settleAccountRoles(user, { fallbackRoleId = null, assignedBy = nu
     if (next !== user.roleId) changes.roleId = next;
   }
 
-  const holdsTop = heldIds.some((id) => id && (id === top.owner || id === top.admin));
+  const holdsTop = !!admin && heldIds.includes(admin);
   if (holdsTop && user.role !== 'admin') changes.role = 'admin';
   if (!holdsTop && user.role === 'admin') changes.role = 'technician';
 
