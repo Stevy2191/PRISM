@@ -33,7 +33,7 @@ export const PAGES = [
   { id: 'notifications', group: 'Service desk', name: 'Notifications', desc: 'Which events notify people', keywords: ['bell', 'alert', 'notify'], path: '/settings/notifications', access: SYSTEM, width: 'narrow' },
   { id: 'customer-happiness', group: 'Service desk', name: 'Customer happiness', desc: 'Satisfaction surveys and scores', keywords: ['csat', 'survey', 'rating', 'feedback'], path: '/settings/customer-happiness', access: SYSTEM, width: 'narrow' },
   // Hours & SLAs
-  { id: 'slas', group: 'Hours & SLAs', name: 'SLAs', desc: 'Response and resolution targets', keywords: ['sla', 'response time', 'resolution', 'escalation'], path: '/settings/slas', access: SYSTEM, width: 'narrow' },
+  { id: 'slas', group: 'Hours & SLAs', name: 'SLAs', desc: 'Assignment, response and resolution targets', keywords: ['sla', 'response time', 'resolution', 'escalation', 'assignment', 'breach'], path: '/settings/slas', access: SYSTEM, width: 'wide' },
   { id: 'business-hours', group: 'Hours & SLAs', name: 'Business hours', desc: 'Work schedules', keywords: ['hours', 'schedule', 'open'], path: '/settings/business-hours', access: { permission: ['settings.manage_business_hours'] }, width: 'narrow' },
   { id: 'holidays', group: 'Hours & SLAs', name: 'Holidays', desc: 'Days the SLA clock stops', keywords: ['holiday', 'closed', 'day off'], path: '/settings/holidays', access: { permission: ['settings.manage_business_hours'] }, width: 'narrow' },
   // Time & work

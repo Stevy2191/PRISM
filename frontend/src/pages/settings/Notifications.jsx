@@ -13,6 +13,8 @@ const TYPES = [
   ['status_change', 'Status changed', 'A ticket you’re watching changes status.'],
   ['watcher_update', 'Watched ticket updated', 'Activity on a ticket you’re watching.'],
   ['workflow', 'Workflow rule notification', 'A workflow rule’s "notify" action fires.'],
+  ['sla_warning', 'SLA at risk', 'A ticket you’re assigned (or your team, before it’s assigned) is close to an SLA target.'],
+  ['sla_breached', 'SLA breached', 'A ticket you’re assigned (or your team, before it’s assigned) missed an SLA target.'],
 ];
 
 export default function Notifications() {

@@ -17,6 +17,8 @@ const TRIGGER_META = {
   ticket_due_date_approaching: { label: 'Due Date Approaching', badge: 'bg-amber-100 text-amber-800' },
   ticket_overdue: { label: 'Overdue', badge: 'bg-red-100 text-red-700' },
   ticket_closed: { label: 'Ticket Closed', badge: 'bg-navy-100 text-navy-700' },
+  sla_warning: { label: 'SLA at risk', badge: 'bg-amber-100 text-amber-700' },
+  sla_breached: { label: 'SLA breached', badge: 'bg-red-100 text-red-700' },
 };
 
 function TriggerBadge({ triggerEvent }) {

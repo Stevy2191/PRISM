@@ -16,6 +16,15 @@ const TRIGGER_OPTIONS = [
   { value: 'ticket_due_date_approaching', label: 'Due date approaching' },
   { value: 'ticket_overdue', label: 'Ticket becomes overdue' },
   { value: 'ticket_closed', label: 'Ticket closed' },
+  { value: 'sla_warning', label: 'SLA at risk' },
+  { value: 'sla_breached', label: 'SLA breached' },
+];
+const SLA_TRIGGERS = ['sla_warning', 'sla_breached'];
+const SLA_CLOCK_OPTIONS = [
+  { value: 'any', label: 'Any SLA clock' },
+  { value: 'assign', label: 'Assignment' },
+  { value: 'response', label: 'First response' },
+  { value: 'resolution', label: 'Resolution' },
 ];
 
 const STATIC_CONDITION_FIELDS = [
@@ -62,6 +71,7 @@ const ACTION_OPTIONS = [
   { value: 'send_notification', label: 'Send notification' },
   { value: 'add_private_comment', label: 'Add private comment' },
   { value: 'escalate_to_user', label: 'Escalate to user' },
+  { value: 'set_sla_policy', label: 'Set SLA policy' },
 ];
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'critical'];
 
@@ -197,7 +207,7 @@ function ConditionValueInput({ kind, field, value, onChange, statuses, departmen
 }
 
 // ==================== Action row ====================
-function ActionRow({ action, dragging, onDragStart, onDragOver, onDrop, onDragEnd, onChange, onDelete, statuses, assignableUsers, teams }) {
+function ActionRow({ action, dragging, onDragStart, onDragOver, onDrop, onDragEnd, onChange, onDelete, statuses, assignableUsers, teams, slaPolicies }) {
   const v = action.actionValue || {};
   const setValue = (patch) => onChange({ ...action, actionValue: { ...v, ...patch } });
 
@@ -234,6 +244,13 @@ function ActionRow({ action, dragging, onDragStart, onDragOver, onDrop, onDragEn
         <select className="input h-9 text-sm" value={v.teamId || ''} onChange={(e) => setValue({ teamId: Number(e.target.value) })}>
           <option value="">Select team…</option>
           {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      )}
+
+      {action.actionType === 'set_sla_policy' && (
+        <select className="input h-9 text-sm" value={v.slaPolicyId || ''} onChange={(e) => setValue({ slaPolicyId: Number(e.target.value) })}>
+          <option value="">Select SLA policy…</option>
+          {slaPolicies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       )}
 
@@ -402,6 +419,8 @@ export default function WorkflowRuleEditor() {
   const [isActive, setIsActive] = useState(true);
   const [triggerEvent, setTriggerEvent] = useState('ticket_created');
   const [hoursBefore, setHoursBefore] = useState(24);
+  const [slaClock, setSlaClock] = useState('any');
+  const [slaPolicies, setSlaPolicies] = useState([]);
   const [conditionMatch, setConditionMatch] = useState('all');
   const [conditions, setConditions] = useState([]);
   const [actions, setActions] = useState([]);
@@ -426,6 +445,7 @@ export default function WorkflowRuleEditor() {
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
     api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
     api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
+    api.get('/sla-policies').then(({ data }) => setSlaPolicies(data.policies)).catch(() => {});
     api.get('/roles').then(({ data }) => setRoles(data.roles)).catch(() => {});
     api.get('/custom-fields').then(({ data }) => setCustomFieldDefs(data.customFields.filter((f) => f.isActive))).catch(() => {});
   }, []);
@@ -440,6 +460,7 @@ export default function WorkflowRuleEditor() {
         setIsActive(rule.isActive);
         setTriggerEvent(rule.triggerEvent);
         setHoursBefore(rule.triggerConfig?.hoursBefore || 24);
+        setSlaClock(rule.triggerConfig?.clock || 'any');
         setConditionMatch(rule.conditionMatch);
         setConditions(rule.conditions.map((c) => ({ field: c.field, operator: c.operator, value: c.value || '' })));
         setActions(rule.actions.map((a) => ({ actionType: a.actionType, actionValue: a.actionValue || {} })));
@@ -480,7 +501,11 @@ export default function WorkflowRuleEditor() {
         description: description || null,
         isActive,
         triggerEvent,
-        triggerConfig: triggerEvent === 'ticket_due_date_approaching' ? { hoursBefore: Number(hoursBefore) || 24 } : null,
+        triggerConfig: (() => {
+          if (triggerEvent === 'ticket_due_date_approaching') return { hoursBefore: Number(hoursBefore) || 24 };
+          if (SLA_TRIGGERS.includes(triggerEvent)) return { clock: slaClock };
+          return null;
+        })(),
         conditionMatch,
         conditions,
         actions,
@@ -534,6 +559,14 @@ export default function WorkflowRuleEditor() {
             <div>
               <label className="label">Hours before due date</label>
               <input type="number" min="1" className="input max-w-[10rem]" value={hoursBefore} onChange={(e) => setHoursBefore(e.target.value)} />
+            </div>
+          )}
+          {SLA_TRIGGERS.includes(triggerEvent) && (
+            <div>
+              <label className="label" htmlFor="sla-clock">Which SLA clock</label>
+              <select id="sla-clock" className="input max-w-xs" value={slaClock} onChange={(e) => setSlaClock(e.target.value)}>
+                {SLA_CLOCK_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </div>
           )}
         </div>
@@ -596,6 +629,7 @@ export default function WorkflowRuleEditor() {
                 statuses={statuses}
                 assignableUsers={assignableUsers}
                 teams={teams}
+                slaPolicies={slaPolicies}
               />
             ))}
           </div>

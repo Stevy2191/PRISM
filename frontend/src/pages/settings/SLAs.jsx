@@ -2,105 +2,123 @@ import { useEffect, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
+import SlaPolicyEditor, { PRIORITY_LABELS } from './SlaPolicyEditor';
 
-const PRIORITY_LABELS = { critical: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' };
+const hm = (minutes) => {
+  if (minutes == null) return '—';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return [h ? `${h}h` : '', m ? `${m}m` : ''].filter(Boolean).join(' ');
+};
 
 export default function SLAs() {
   const [policies, setPolicies] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [schedules, setSchedules] = useState([]);
   const [error, setError] = useState('');
-  const [savingPriority, setSavingPriority] = useState(null);
-  const [savedPriority, setSavedPriority] = useState(null);
+  const [editing, setEditing] = useState(null); // null | { policy } (policy null = new)
+  const [saving, setSaving] = useState(false);
 
-  const load = () => {
-    api.get('/sla-policies')
-      .then(({ data }) => setPolicies(data.policies))
-      .catch((err) => setError(errMessage(err)))
-      .finally(() => setLoading(false));
-  };
-  useEffect(load, []);
+  const load = () => Promise.all([api.get('/sla-policies'), api.get('/business-hours')])
+    .then(([p, b]) => { setPolicies(p.data.policies); setSchedules(b.data.businessHours); })
+    .catch((err) => setError(errMessage(err)));
+  useEffect(() => { load(); }, []);
 
-  const setField = (priority, key, value) => {
-    setPolicies((list) => list.map((p) => (p.priority === priority ? { ...p, [key]: value } : p)));
-  };
-
-  const save = async (priority) => {
-    const policy = policies.find((p) => p.priority === priority);
-    setSavingPriority(priority);
+  const save = async (payload) => {
+    setSaving(true);
     setError('');
     try {
-      const { data } = await api.patch(`/sla-policies/${priority}`, {
-        firstResponseHours: policy.firstResponseHours,
-        resolutionHours: policy.resolutionHours,
-        useBusinessHours: policy.useBusinessHours,
-      });
-      setPolicies((list) => list.map((p) => (p.priority === priority ? data.policy : p)));
-      setSavedPriority(priority);
-      setTimeout(() => setSavedPriority(null), 2000);
+      if (editing.policy) await api.patch(`/sla-policies/${editing.policy.id}`, payload);
+      else await api.post('/sla-policies', payload);
+      setEditing(null);
+      await load();
     } catch (err) {
       setError(errMessage(err));
     } finally {
-      setSavingPriority(null);
+      setSaving(false);
     }
   };
 
-  if (loading || !policies) return <Spinner />;
+  const act = async (fn) => {
+    setError('');
+    try { await fn(); await load(); } catch (err) { setError(errMessage(err)); }
+  };
+  const makeDefault = (p) => act(() => api.post(`/sla-policies/${p.id}/default`));
+  const remove = (p) => {
+    if (!window.confirm(`Delete the "${p.name}" policy? Its companies and open tickets move to the default policy.`)) return;
+    act(() => api.delete(`/sla-policies/${p.id}`));
+  };
+
+  if (!policies) return error ? <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div> : <Spinner />;
 
   return (
-    <SettingsPage description="Target response and resolution times per priority. These are configuration targets only — PRISM doesn't yet automatically calculate or flag SLA breaches against them.">
+    <SettingsPage
+      description="SLA policies set how quickly tickets must be assigned, first answered and resolved, per priority. A ticket uses its company's policy, or the default. Time counts during the policy's business hours, and pauses in statuses marked Pauses SLA."
+      actions={editing === null && <button type="button" className="btn-primary" onClick={() => setEditing({ policy: null })}>+ New policy</button>}
+    >
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
-      <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-navy-100 text-left text-xs font-semibold uppercase tracking-wide text-navy-400">
-              <th className="px-4 py-3">Priority</th>
-              <th className="px-4 py-3">First response (hours)</th>
-              <th className="px-4 py-3">Resolution (hours)</th>
-              <th className="px-4 py-3">Use business hours</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-navy-100">
-            {policies.map((p) => (
-              <tr key={p.priority}>
-                <td className="px-4 py-3 font-medium text-navy-900">{PRIORITY_LABELS[p.priority] || p.priority}</td>
-                <td className="px-4 py-3">
-                  <input
-                    type="number" min="0.5" step="0.5" className="input h-9 w-24 text-sm"
-                    value={p.firstResponseHours}
-                    onChange={(e) => setField(p.priority, 'firstResponseHours', e.target.value)}
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    type="number" min="0.5" step="0.5" className="input h-9 w-24 text-sm"
-                    value={p.resolutionHours}
-                    onChange={(e) => setField(p.priority, 'resolutionHours', e.target.value)}
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox" className="h-4 w-4 rounded border-navy-300 text-prism"
-                    checked={p.useBusinessHours}
-                    onChange={(e) => setField(p.priority, 'useBusinessHours', e.target.checked)}
-                  />
-                </td>
-                <td className="px-4 py-3 text-right">
-                  {savedPriority === p.priority && <span className="mr-2 text-xs text-green-600">Saved</span>}
+      {editing !== null ? (
+        <SlaPolicyEditor
+          key={editing.policy?.id || 'new'}
+          initial={editing.policy}
+          schedules={schedules}
+          saving={saving}
+          onSave={save}
+          onCancel={() => { setEditing(null); setError(''); }}
+        />
+      ) : (
+        <div className="space-y-3">
+          {policies.map((p) => (
+            <div key={p.id} className="card p-4" data-testid="sla-policy">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-navy-900">
+                    {p.name}
+                    {p.isDefault && <span className="ml-2 rounded-sm bg-prism/10 px-1.5 py-0.5 text-xs font-medium text-prism">Default</span>}
+                  </h3>
+                  <p className="text-xs text-navy-500">
+                    {p.businessHours ? p.businessHours.name : '24×7'} · warns at {p.warnAtPercent}%
+                    {p.companies.length > 0 && ` · ${p.companies.map((c) => c.name).join(', ')}`}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className="btn-secondary text-xs" onClick={() => setEditing({ policy: p })}>Edit</button>
+                  {!p.isDefault && <button type="button" className="btn-secondary text-xs" onClick={() => makeDefault(p)}>Make default</button>}
                   <button
-                    className="btn-secondary text-xs"
-                    disabled={savingPriority === p.priority}
-                    onClick={() => save(p.priority)}
+                    type="button" className="btn-secondary text-xs" disabled={p.isDefault}
+                    title={p.isDefault ? 'Make another policy the default first' : undefined}
+                    onClick={() => remove(p)}
                   >
-                    {savingPriority === p.priority ? 'Saving…' : 'Save'}
+                    Delete
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              </div>
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full min-w-[480px] text-xs">
+                  <thead>
+                    <tr className="text-left text-navy-400">
+                      <th className="py-1 pr-3 font-medium">Priority</th>
+                      <th className="py-1 pr-3 font-medium">Assign</th>
+                      <th className="py-1 pr-3 font-medium">First response</th>
+                      <th className="py-1 pr-3 font-medium">Resolve</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono text-navy-700">
+                    {p.targets.map((t) => (
+                      <tr key={t.priority}>
+                        <td className="py-1 pr-3 font-sans">{PRIORITY_LABELS[t.priority]}{p.businessHours && !t.useBusinessHours ? ' · 24×7' : ''}</td>
+                        <td className="py-1 pr-3">{hm(t.assignMinutes)}</td>
+                        <td className="py-1 pr-3">{hm(t.responseMinutes)}</td>
+                        <td className="py-1 pr-3">{hm(t.resolutionMinutes)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </SettingsPage>
   );
 }

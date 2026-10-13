@@ -71,6 +71,11 @@ export default function CompanyOverview({ company, onSaved }) {
         </div>
         <div><label className="label" htmlFor="co-phone">Phone</label><input id="co-phone" className="input" value={form.phone} disabled={!canManage} onChange={set('phone')} /></div>
         <div><label className="label" htmlFor="co-website">Website</label><input id="co-website" className="input" value={form.website} disabled={!canManage} onChange={set('website')} /></div>
+        {/* Set in Settings → SLAs (system settings permission), not here. */}
+        <div>
+          <p className="label">SLA policy</p>
+          <p className="py-2 text-sm text-navy-700" data-testid="company-sla-policy">{company.slaPolicy ? company.slaPolicy.name : 'Default policy'}</p>
+        </div>
         <div className="flex items-center gap-6 text-sm">
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.isClient} disabled={!canManage || company.isInternal} onChange={set('isClient')} /> Client</label>
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.isVendor} disabled={!canManage} onChange={set('isVendor')} /> Vendor</label>
