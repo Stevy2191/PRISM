@@ -1,6 +1,8 @@
 const path = require('path');
 const fs = require('fs');
-const { SystemSettings } = require('../models');
+const { SystemSettings, SsoProvider } = require('../models');
+const { isConfigured: isLdapConfigured } = require('../config/ldap');
+const { resolveSmtpConfig, isSmtpConfigured } = require('../services/emailSender');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
@@ -379,7 +381,22 @@ const removeFavicon = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /settings/status — owner only (the route). The Settings overview's
+// hints: whether the directory, incoming and outgoing email and single
+// sign-on are set up. Booleans and counts only, never their settings.
+const status = asyncHandler(async (req, res) => {
+  const values = await getAllSettings();
+  const directory = await isLdapConfigured();
+  res.json({
+    directory: { configured: !!directory, connected: !!(directory && values['ldap.lastTestAt']) },
+    incomingEmail: { enabled: values['inboundEmail.enabled'] === 'true' },
+    outgoingEmail: { configured: isSmtpConfigured(await resolveSmtpConfig(values)) },
+    singleSignOn: { enabled: await SsoProvider.count({ where: { isEnabled: true } }) },
+  });
+});
+
 module.exports = {
+  status,
   getPublic,
   getLogo,
   getFavicon,

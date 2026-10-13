@@ -81,6 +81,7 @@ router.get('/smtp', ownerSettings, emailCtrl.getSmtp);
 router.patch('/smtp', ownerSettings, emailCtrl.updateSmtp);
 router.post('/smtp/test', ownerSettings, emailCtrl.testSmtp);
 router.get('/email-log', ownerSettings, emailCtrl.getEmailLog);
+router.get('/status', ownerSettings, ctrl.status);
 router.post('/logo', manageBranding, logoUpload.single('file'), verifyFileSignature, ctrl.uploadLogo);
 router.delete('/logo', manageBranding, ctrl.removeLogo);
 router.post('/favicon', manageBranding, faviconUpload.single('file'), verifyFileSignature, ctrl.uploadFavicon);
