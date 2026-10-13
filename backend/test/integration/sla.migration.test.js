@@ -15,7 +15,21 @@ const enumOf = async (table, column) => {
 const qi = () => sequelize.getQueryInterface();
 const tables = async () => (await qi().showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
 
-beforeEach(resetData);
+const colType = async (table, column) => {
+  const [rows] = await sequelize.query(`SHOW COLUMNS FROM ${table} LIKE '${column}'`);
+  return rows[0].Type;
+};
+// Migration 026 creates these as VARCHAR(50); only the models say ENUM.
+// Put them back to what every real install has before each case.
+const asInstalled = async () => {
+  await sequelize.query('ALTER TABLE WorkflowRules MODIFY triggerEvent VARCHAR(50) NOT NULL');
+  await sequelize.query('ALTER TABLE WorkflowActions MODIFY actionType VARCHAR(50) NOT NULL');
+};
+
+beforeEach(async () => {
+  await resetData();
+  await asInstalled();
+});
 afterAll(async () => {
   await BusinessHours.destroy({ where: {} });
   await closeDb();
@@ -68,9 +82,7 @@ describe('sla-engine migration', () => {
     expect(old).toBeDefined();
     expect((await qi().describeTable('Companies')).slaPolicyId).toBeUndefined();
     expect((await qi().describeTable('TicketStatuses')).pausesSla).toBeUndefined();
-    expect(await enumOf('WorkflowRules', 'triggerEvent')).toEqual(expect.arrayContaining(['ticket_created', 'ticket_closed']));
-    expect(await enumOf('WorkflowRules', 'triggerEvent')).not.toContain('sla_warning');
-    expect(await enumOf('WorkflowActions', 'actionType')).not.toContain('set_sla_policy');
+    expect([await colType('WorkflowRules', 'triggerEvent'), await colType('WorkflowActions', 'actionType')]).toEqual(['varchar(50)', 'varchar(50)']);
     expect(await enumOf('Notifications', 'type')).toEqual(expect.arrayContaining(['workflow']));
     expect(await enumOf('Notifications', 'type')).not.toContain('sla_breached');
 
@@ -78,8 +90,20 @@ describe('sla-engine migration', () => {
     expect(await tables()).toEqual(expect.arrayContaining(['SlaPolicies', 'SlaTargets', 'TicketSlas']));
     expect((await qi().describeTable('Companies')).slaPolicyId).toBeDefined();
     expect(await SlaTarget.count()).toBe(4);
-    expect(await enumOf('WorkflowRules', 'triggerEvent')).toEqual(expect.arrayContaining(['ticket_created', 'ticket_overdue', 'sla_warning', 'sla_breached']));
-    expect(await enumOf('WorkflowActions', 'actionType')).toEqual(expect.arrayContaining(['assign_to_user', 'escalate_to_user', 'set_sla_policy']));
+    // VARCHAR columns already take the new values: left as they are.
+    expect([await colType('WorkflowRules', 'triggerEvent'), await colType('WorkflowActions', 'actionType')]).toEqual(['varchar(50)', 'varchar(50)']);
+    const rule = await models.WorkflowRule.create({ name: 'esc', triggerEvent: 'sla_breached', triggerConfig: { clock: 'any' } });
+    await models.WorkflowAction.create({ ruleId: rule.id, actionType: 'set_sla_policy', actionValue: { slaPolicyId: 1 }, position: 0 });
+  });
+
+  it('still rewrites the columns where an install does have ENUMs', async () => {
+    await migration.down(qi());
+    await sequelize.query("ALTER TABLE WorkflowRules MODIFY triggerEvent ENUM('ticket_created','ticket_closed') NOT NULL");
+    await migration.up(qi(), Sequelize);
+    expect(await enumOf('WorkflowRules', 'triggerEvent')).toEqual(expect.arrayContaining(['ticket_created', 'ticket_overdue', 'sla_breached']));
+    await migration.down(qi());
+    expect(await enumOf('WorkflowRules', 'triggerEvent')).not.toContain('sla_breached');
+    await migration.up(qi(), Sequelize);
   });
 
   it('down keeps the default policy targets as the per-priority rows', async () => {

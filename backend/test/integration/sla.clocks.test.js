@@ -158,6 +158,91 @@ describe('resolution clock', () => {
   });
 });
 
+describe('changing statuses that tickets are in', () => {
+  afterEach(async () => { await TicketStatus.destroy({ where: { name: ['Done', 'Waiting on customer'] } }); });
+
+  it('deleting a closed status reopens its tickets\' resolution clock', async () => {
+    expectOk(await w.admin.agent.post(`${API}/ticket-statuses`).send({ name: 'Done', behaviorType: 'closed' }), 201);
+    const t = await newTicket();
+    advanceClock(10 * MIN);
+    await patchTicket(t.id, { status: 'Done' });
+    advanceClock(50 * MIN);
+    const done = await TicketStatus.findOne({ where: { name: 'Done' } });
+    expectOk(await w.admin.agent.delete(`${API}/ticket-statuses/${done.id}`));
+    const s = await sla(t.id);
+    expect([iso(s.resolutionRunningSince), s.resolutionMetAt, s.resolutionUsedMinutes]).toEqual([at(60), null, 10]);
+  });
+
+  it('unticking Pauses SLA resumes the tickets paused in that status', async () => {
+    const { status } = expectOk(await w.admin.agent.post(`${API}/ticket-statuses`).send({ name: 'Waiting on customer', pausesSla: true }), 201);
+    const t = await newTicket();
+    advanceClock(10 * MIN);
+    await patchTicket(t.id, { status: 'Waiting on customer' });
+    advanceClock(30 * MIN);
+    expectOk(await w.admin.agent.patch(`${API}/ticket-statuses/${status.id}`).send({ pausesSla: false }));
+    const s = await sla(t.id);
+    expect([iso(s.resolutionRunningSince), s.resolutionUsedMinutes]).toEqual([at(40), 10]);
+  });
+
+  it('making a status closed stops the clocks of the tickets in it', async () => {
+    const { status } = expectOk(await w.admin.agent.post(`${API}/ticket-statuses`).send({ name: 'Done' }), 201);
+    const t = await newTicket();
+    await patchTicket(t.id, { status: 'Done' });
+    advanceClock(15 * MIN);
+    expectOk(await w.admin.agent.patch(`${API}/ticket-statuses/${status.id}`).send({ behaviorType: 'closed' }));
+    const s = await sla(t.id);
+    expect([s.resolutionRunningSince, s.resolutionUsedMinutes, iso(s.resolutionMetAt)]).toEqual([null, 15, at(15)]);
+  });
+});
+
+describe('unusable business-hours schedules', () => {
+  afterEach(async () => { await models.BusinessHours.destroy({ where: {} }); });
+  const closedWeek = () => Object.fromEntries(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    .map((d) => [d, { start: '09:00', end: '17:00', enabled: false }]));
+
+  it('a schedule with no open time counts every hour instead of failing ticket creation', async () => {
+    const bh = await models.BusinessHours.create({ name: 'Closed', timezone: 'UTC', schedule: closedWeek() });
+    await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({ businessHoursId: bh.id });
+    const t = await newTicket();
+    expect(iso((await sla(t.id)).responseDueAt)).toBe(at(480));
+  });
+
+  it('a schedule with an unknown time zone counts every hour too', async () => {
+    const week = closedWeek();
+    week.monday.enabled = true;
+    const bh = await models.BusinessHours.create({ name: 'Odd', timezone: 'Mars/Olympus', schedule: week });
+    await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({ businessHoursId: bh.id });
+    const t = await newTicket();
+    expect(iso((await sla(t.id)).responseDueAt)).toBe(at(480));
+  });
+
+  it('the business-hours API refuses an unknown time zone or a malformed time', async () => {
+    const week = closedWeek();
+    const post = (b) => w.admin.agent.post(`${API}/business-hours`).send({ name: 'X', schedule: week, ...b });
+    expect((await post({ timezone: 'Mars/Olympus' })).status).toBe(400);
+    week.monday = { start: 9, end: '17:00', enabled: true };
+    expect((await post({ timezone: 'UTC', schedule: week })).status).toBe(400);
+    week.monday = { start: '09:00', end: '25:00', enabled: true };
+    expect((await post({ timezone: 'UTC', schedule: week })).status).toBe(400);
+    week.monday = { start: '09:00', end: '17:00', enabled: true };
+    expect((await post({ timezone: 'UTC', schedule: week })).status).toBe(201);
+  });
+});
+
+describe('under load', () => {
+  it('ten tickets saved in ten open transactions at once all get clocks (no second connection needed)', async () => {
+    unfreezeClock();
+    require('../../src/services/sla/calendar').invalidate(); // eslint-disable-line global-require
+    const internal = await models.Company.findOne({ where: { isInternal: true } });
+    // The pool holds 10 connections: every one is busy with a transaction,
+    // so an SLA lookup outside the transaction would wait for an 11th.
+    await Promise.all(Array.from({ length: 10 }, (_, i) => models.sequelize.transaction((transaction) => models.Ticket.create({
+      title: `Load ${i}`, companyId: internal.id, contactId: w.contact.id, departmentId: w.deptA.id, createdBy: w.admin.user.id, status: 'Open',
+    }, { transaction }))));
+    expect(await TicketSla.count()).toBe(10);
+  }, 15000);
+});
+
 describe('changing targets', () => {
   it('a priority change keeps used minutes and moves the due time', async () => {
     const t = await newTicket();

@@ -1,6 +1,7 @@
 const { TicketStatus, ProjectStatus, Ticket, Project, sequelize } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const { syncTicketSla } = require('../services/sla/ticketSla');
 
 // Builds the list/create/update/delete/reorder handlers for one status
 // scope (ticket or project) against its StatusModel + the EntityModel whose
@@ -10,6 +11,17 @@ const { writeAudit } = require('../middleware/audit');
 function buildStatusController(StatusModel, EntityModel, scopeLabel) {
   // Only ticket statuses can pause the SLA resolution clock.
   const hasSlaPause = !!StatusModel.rawAttributes.pausesSla;
+
+  // SLA clocks depend on a ticket's status behaviour; bulk status writes skip
+  // the Ticket hooks, so re-sync the tickets they touched.
+  const syncSla = async (ticketIds) => {
+    if (!hasSlaPause) return;
+    // eslint-disable-next-line no-restricted-syntax
+    for (const id of ticketIds) await syncTicketSla(id); // eslint-disable-line no-await-in-loop
+  };
+  const idsInStatus = async (name) => (hasSlaPause
+    ? (await EntityModel.findAll({ where: { status: name }, attributes: ['id'] })).map((r) => r.id)
+    : []);
   const list = asyncHandler(async (req, res) => {
     const statuses = await StatusModel.findAll({ order: [['position', 'ASC'], ['id', 'ASC']] });
     res.json({ statuses });
@@ -67,6 +79,7 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
       }
     });
 
+    if (changes.pausesSla !== undefined || changes.behaviorType !== undefined) await syncSla(await idsInStatus(status.name));
     await writeAudit(req, `${scopeLabel}Status.update`, StatusModel.name, status.id, changes);
     res.json({ status });
   });
@@ -84,6 +97,7 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
     }
 
     const affectedCount = await EntityModel.count({ where: { status: status.name } });
+    const movedIds = await idsInStatus(status.name);
 
     await sequelize.transaction(async (t) => {
       if (affectedCount > 0) {
@@ -94,6 +108,7 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
       }
       await status.destroy({ transaction: t });
     });
+    await syncSla(movedIds);
 
     await writeAudit(req, `${scopeLabel}Status.delete`, StatusModel.name, req.params.id, {
       name: status.name,

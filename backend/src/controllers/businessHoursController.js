@@ -1,6 +1,7 @@
 const { BusinessHours, Department, HolidayList } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const { isValidZone } = require('../utils/orgTime');
 const slaCalendar = require('../services/sla/calendar');
 
 const include = [
@@ -8,6 +9,19 @@ const include = [
   { model: HolidayList, as: 'holidayList', attributes: ['id', 'name'] },
 ];
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// SLA clocks count on these: a real zone and well-formed day entries.
+function assertValidHours({ timezone, schedule }) {
+  if (timezone !== undefined && !isValidZone(timezone)) throw new ApiError(400, 'Unknown time zone', 'VALIDATION_ERROR');
+  if (schedule === undefined || schedule === null) return;
+  if (typeof schedule !== 'object' || Array.isArray(schedule)) throw new ApiError(400, 'Schedule must be a set of days', 'VALIDATION_ERROR');
+  Object.entries(schedule).forEach(([day, v]) => {
+    if (!DAYS.includes(day) || !v || typeof v !== 'object' || !HHMM.test(v.start) || !HHMM.test(v.end)) {
+      throw new ApiError(400, 'Each day needs a start and end time as HH:MM', 'VALIDATION_ERROR');
+    }
+  });
+}
 
 function defaultSchedule() {
   const s = {};
@@ -26,6 +40,7 @@ const list = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const { name, departmentId, timezone, schedule, is24x7, holidayListId } = req.body || {};
   if (!name || !name.trim()) throw new ApiError(400, 'Name is required', 'VALIDATION_ERROR');
+  assertValidHours({ timezone: timezone || 'UTC', schedule });
   const bh = await BusinessHours.create({
     name: name.trim(),
     departmentId: departmentId || null,
@@ -47,6 +62,7 @@ const update = asyncHandler(async (req, res) => {
   for (const k of ['name', 'departmentId', 'timezone', 'schedule', 'is24x7', 'holidayListId']) {
     if (req.body[k] !== undefined) changes[k] = req.body[k] === '' ? null : req.body[k];
   }
+  assertValidHours(changes);
   await bh.update(changes);
   await writeAudit(req, 'businessHours.update', 'BusinessHours', bh.id, { name: bh.name });
   slaCalendar.invalidate();

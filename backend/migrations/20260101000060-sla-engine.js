@@ -10,9 +10,9 @@ const CLOCKS = ['assign', 'response', 'resolution'];
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 const NEW_TRIGGERS = ['sla_warning', 'sla_breached'];
 const NEW_ACTIONS = ['set_sla_policy'];
-// The values the columns held before this migration. Rewriting an ENUM with
-// a list that misses a value in use would corrupt those rows, so the lists
-// are always a superset of these.
+// The values these columns hold before this migration, where they are
+// ENUMs. Rewriting an ENUM with a list that misses a value in use would
+// corrupt those rows, so the lists are always a superset of these.
 const BASE_TRIGGERS = [
   'ticket_created', 'ticket_updated', 'ticket_status_changed', 'ticket_priority_changed',
   'ticket_assigned', 'ticket_comment_added', 'ticket_due_date_approaching', 'ticket_overdue', 'ticket_closed',
@@ -30,15 +30,24 @@ const SEED = {
 
 const tableNames = async (qi) => (await qi.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
 
+// The column's ENUM values, or null when it isn't an ENUM. Migration 026
+// created WorkflowRules.triggerEvent and WorkflowActions.actionType as
+// VARCHAR(50) (only the models say ENUM); those already take any value and
+// are left alone. Notifications.type is a real ENUM (migration 006).
 async function enumValues(qi, table, column) {
   const [rows] = await qi.sequelize.query(`SHOW COLUMNS FROM \`${table}\` LIKE '${column}'`);
-  const values = rows && rows[0] ? [...String(rows[0].Type).matchAll(/'([^']*)'/g)].map((m) => m[1]) : [];
+  const type = rows && rows[0] ? String(rows[0].Type) : '';
+  if (!/^enum\(/i.test(type)) return null;
+  const values = [...type.matchAll(/'([^']*)'/g)].map((m) => m[1]);
   if (!values.length) throw new Error(`Could not read the ENUM values of ${table}.${column}`);
   return values;
 }
 
-async function setEnum(qi, table, column, values) {
-  const list = values.map((v) => `'${v}'`).join(',');
+// Rewrites an ENUM column's value list; a non-ENUM column is left as it is.
+async function changeEnum(qi, table, column, change) {
+  const current = await enumValues(qi, table, column);
+  if (!current) return;
+  const list = change(current).map((v) => `'${v}'`).join(',');
   await qi.sequelize.query(`ALTER TABLE \`${table}\` MODIFY \`${column}\` ENUM(${list}) NOT NULL`);
 }
 
@@ -152,12 +161,9 @@ module.exports = {
     await qi.addColumn('TicketStatuses', 'pausesSla', { type: dt.BOOLEAN, allowNull: false, defaultValue: false });
 
     const union = (...lists) => [...new Set(lists.flat())];
-    const triggers = await enumValues(qi, 'WorkflowRules', 'triggerEvent');
-    await setEnum(qi, 'WorkflowRules', 'triggerEvent', union(BASE_TRIGGERS, triggers, NEW_TRIGGERS));
-    const actions = await enumValues(qi, 'WorkflowActions', 'actionType');
-    await setEnum(qi, 'WorkflowActions', 'actionType', union(BASE_ACTIONS, actions, NEW_ACTIONS));
-    const notifications = await enumValues(qi, 'Notifications', 'type');
-    await setEnum(qi, 'Notifications', 'type', union(BASE_NOTIFICATIONS, notifications, NEW_NOTIFICATIONS));
+    await changeEnum(qi, 'WorkflowRules', 'triggerEvent', (cur) => union(BASE_TRIGGERS, cur, NEW_TRIGGERS));
+    await changeEnum(qi, 'WorkflowActions', 'actionType', (cur) => union(BASE_ACTIONS, cur, NEW_ACTIONS));
+    await changeEnum(qi, 'Notifications', 'type', (cur) => union(BASE_NOTIFICATIONS, cur, NEW_NOTIFICATIONS));
     // A saved notification setting is an allow-list: without this the new
     // SLA notifications would be off on every install that ever saved it.
     await updateEnabledTypes(qi, Sequelize, (list) => union(list, NEW_NOTIFICATIONS));
@@ -181,13 +187,10 @@ module.exports = {
     await qi.sequelize.query(`DELETE FROM WorkflowRules WHERE triggerEvent IN (${triggerList})`);
     await qi.sequelize.query(`DELETE FROM WorkflowActions WHERE actionType IN (${NEW_ACTIONS.map((v) => `'${v}'`).join(',')})`);
     const without = (list, drop, base) => [...new Set([...base, ...list])].filter((v) => !drop.includes(v));
-    const triggers = await enumValues(qi, 'WorkflowRules', 'triggerEvent');
-    await setEnum(qi, 'WorkflowRules', 'triggerEvent', without(triggers, NEW_TRIGGERS, BASE_TRIGGERS));
-    const actions = await enumValues(qi, 'WorkflowActions', 'actionType');
-    await setEnum(qi, 'WorkflowActions', 'actionType', without(actions, NEW_ACTIONS, BASE_ACTIONS));
+    await changeEnum(qi, 'WorkflowRules', 'triggerEvent', (cur) => without(cur, NEW_TRIGGERS, BASE_TRIGGERS));
+    await changeEnum(qi, 'WorkflowActions', 'actionType', (cur) => without(cur, NEW_ACTIONS, BASE_ACTIONS));
     await qi.sequelize.query(`DELETE FROM Notifications WHERE type IN (${NEW_NOTIFICATIONS.map((v) => `'${v}'`).join(',')})`);
-    const notifications = await enumValues(qi, 'Notifications', 'type');
-    await setEnum(qi, 'Notifications', 'type', without(notifications, NEW_NOTIFICATIONS, BASE_NOTIFICATIONS));
+    await changeEnum(qi, 'Notifications', 'type', (cur) => without(cur, NEW_NOTIFICATIONS, BASE_NOTIFICATIONS));
     await updateEnabledTypes(qi, Sequelize, (list) => list.filter((v) => !NEW_NOTIFICATIONS.includes(v)));
 
     await qi.removeColumn('TicketStatuses', 'pausesSla');

@@ -153,10 +153,12 @@ module.exports = (sequelize) => {
         // is resolved dynamically via that row's behaviorType rather than a
         // fixed set of literal strings. Required lazily to dodge the
         // models/index.js <-> Ticket.js circular require.
-        beforeSave: async (ticket) => {
+        beforeSave: async (ticket, options) => {
           if (ticket.changed('status')) {
             const { TicketStatus } = require('./index'); // eslint-disable-line global-require
-            const statusRow = await TicketStatus.findOne({ where: { name: ticket.status } });
+            // In the caller's transaction: a second connection per save can
+            // starve the pool when many saves run at once.
+            const statusRow = await TicketStatus.findOne({ where: { name: ticket.status }, transaction: options && options.transaction });
             const isClosed = statusRow?.behaviorType === 'closed';
             if (isClosed && !ticket.resolvedAt) {
               ticket.resolvedAt = new Date();

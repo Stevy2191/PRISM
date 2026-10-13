@@ -65,6 +65,8 @@ async function flag(clock, kind, now) {
         [`${clock}RunningSince`]: { [Op.ne]: null },
         [atCol]: { [Op.ne]: null, [Op.lte]: now },
         [flagCol]: null,
+        // An already-breached clock is past warning about.
+        ...(kind === 'warn' ? { [`${clock}BreachedAt`]: null } : {}),
       },
       attributes: ['id', 'ticketId', atCol],
       order: [[atCol, 'ASC']],
@@ -121,4 +123,4 @@ function startSlaScheduler() {
   setInterval(runChecks, CHECK_INTERVAL_MS);
 }
 
-module.exports = { runSlaPass, startSlaScheduler };
+module.exports = { runSlaPass, startSlaScheduler, announce };

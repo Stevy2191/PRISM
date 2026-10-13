@@ -70,7 +70,7 @@ async function selectPolicyId(ticket, transaction) {
     const company = await Company.findByPk(ticket.companyId, { attributes: ['slaPolicyId'], transaction });
     if (company && company.slaPolicyId) return company.slaPolicyId;
   }
-  return slaCalendar.getDefaultPolicyId();
+  return slaCalendar.getDefaultPolicyId(transaction);
 }
 
 function markMet(c, s, ticket, status, now) {
@@ -79,9 +79,40 @@ function markMet(c, s, ticket, status, now) {
   return s;
 }
 
+// A clock can breach while a ticket is being saved (stopped past its due
+// time before the scheduler's next pass, or a new target already used up).
+// Those breaches are announced here — the scheduler only looks at clocks
+// whose breachedAt is still empty. A breached clock counts as warned.
+function newlyBreached(row, values) {
+  return CLOCKS.filter((c) => !row[`${c}BreachedAt`] && values[`${c}BreachedAt`]);
+}
+
+async function announceBreaches(ticketId, clocks, transaction) {
+  if (!clocks.length) return;
+  const run = async () => {
+    const { announce } = require('./slaScheduler'); // eslint-disable-line global-require
+    // eslint-disable-next-line no-restricted-syntax
+    for (const c of clocks) {
+      try {
+        await announce(ticketId, c, 'breach'); // eslint-disable-line no-await-in-loop
+      } catch (err) {
+        console.error(`[sla] breach announcement for ticket ${ticketId} failed:`, err.message);
+      }
+    }
+  };
+  if (transaction) transaction.afterCommit(run);
+  else await run();
+}
+
+function markWarned(values) {
+  CLOCKS.forEach((c) => {
+    if (values[`${c}BreachedAt`] && !values[`${c}WarnedAt`]) values[`${c}WarnedAt`] = values[`${c}BreachedAt`]; // eslint-disable-line no-param-reassign
+  });
+}
+
 async function onTicketCreated(ticket, options = {}) {
   const { transaction } = options;
-  const policy = await slaCalendar.getPolicy(await selectPolicyId(ticket, transaction));
+  const policy = await slaCalendar.getPolicy(await selectPolicyId(ticket, transaction), transaction);
   if (!policy) return;
   const priority = priorityOf(ticket);
   const status = await statusInfo(ticket.status, transaction);
@@ -99,8 +130,8 @@ async function onTicketCreated(ticket, options = {}) {
 // Brings every clock in line with the ticket's current state. `retargetAll`
 // re-reads targets (priority or policy change) keeping minutes used.
 async function apply(row, ticket, policyId, transaction, { retargetAll = false } = {}) {
-  const oldPolicy = await slaCalendar.getPolicy(row.slaPolicyId);
-  const policy = (await slaCalendar.getPolicy(policyId)) || oldPolicy;
+  const oldPolicy = await slaCalendar.getPolicy(row.slaPolicyId, transaction);
+  const policy = (await slaCalendar.getPolicy(policyId, transaction)) || oldPolicy;
   if (!policy) return;
   const priority = priorityOf(ticket);
   const status = await statusInfo(ticket.status, transaction);
@@ -123,7 +154,10 @@ async function apply(row, ticket, policyId, transaction, { retargetAll = false }
     }
     writeClock(values, c, markMet(c, s, ticket, status, now));
   });
+  markWarned(values);
+  const breached = newlyBreached(row, values);
   await row.update(values, { transaction, hooks: false });
+  await announceBreaches(ticket.id, breached, transaction);
 }
 
 async function onTicketUpdated(ticket, options = {}) {
@@ -138,12 +172,15 @@ async function onTicketUpdated(ticket, options = {}) {
 async function recordFirstResponse(ticketId, { transaction } = {}) {
   const row = await TicketSla.findOne({ where: { ticketId }, transaction });
   if (!row || row.responseMetAt) return;
-  const policy = await slaCalendar.getPolicy(row.slaPolicyId);
+  const policy = await slaCalendar.getPolicy(row.slaPolicyId, transaction);
   const now = new Date();
   const s = stopClock(readClock(row, 'response'), now, calendarFor(policy, row.priority), policy ? policy.warnAtPercent : 75);
   const values = {};
   writeClock(values, 'response', { ...s, metAt: now });
+  markWarned(values);
+  const breached = newlyBreached(row, values);
   await row.update(values, { transaction, hooks: false });
+  await announceBreaches(ticketId, breached, transaction);
 }
 
 // Re-times a ticket against `policyId` (or its company's / the default).
@@ -152,6 +189,16 @@ async function recalcTicketSla(ticketId, { policyId, transaction } = {}) {
   const row = ticket && await TicketSla.findOne({ where: { ticketId }, transaction });
   if (!row) return;
   await apply(row, ticket, policyId || await selectPolicyId(ticket, transaction), transaction, { retargetAll: true });
+}
+
+// Brings a ticket's clocks in line with its current state, keeping its
+// policy and targets — for changes that bypass the model hooks (a status
+// deleted or reconfigured under tickets that are in it).
+async function syncTicketSla(ticketId, { transaction } = {}) {
+  const ticket = await Ticket.findByPk(ticketId, { transaction });
+  const row = ticket && await TicketSla.findOne({ where: { ticketId }, transaction });
+  if (!row) return;
+  await apply(row, ticket, row.slaPolicyId, transaction);
 }
 
 // Business minutes a clock has used up to `now`, including a running spell.
@@ -163,5 +210,5 @@ async function liveUsedMinutes(row, c, now = new Date()) {
 }
 
 module.exports = {
-  onTicketCreated, onTicketUpdated, recordFirstResponse, recalcTicketSla, liveUsedMinutes,
+  onTicketCreated, onTicketUpdated, recordFirstResponse, recalcTicketSla, syncTicketSla, liveUsedMinutes,
 };
