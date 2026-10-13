@@ -30,6 +30,8 @@ beforeAll(async () => {
   tina = await makeTech('tina', w.deptA.id);
 
   acmeTicket = await makeTicket(a, { title: `${MARK} ticket`, contactId: ann.id, assigneeId: tina.user.id, dueDate: day(-3) });
+  // A missed first response, so the SLA compliance report lists it.
+  await models.TicketSla.update({ responseBreachedAt: new Date() }, { where: { ticketId: acmeTicket.id } });
   expectOk(await a.post(`${API}/tickets/${acmeTicket.id}/time`).send({ durationMinutes: 30, note: `${MARK} work` }), 201);
   expectOk(await a.patch(`${API}/tickets/${acmeTicket.id}`).send({ status: 'Closed' }));
   expectOk(await a.post(`${API}/tickets/${acmeTicket.id}/csat`).send({ rating: 'happy' }), 201);
