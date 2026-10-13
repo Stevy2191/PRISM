@@ -265,3 +265,49 @@ describe('the rest in the frame, and every page opens', () => {
     expect(await setting('timeTracking.maxEntryHours')).toBe('10');
   });
 });
+
+describe('review fixes', () => {
+  it('picking a page in the menu opens it at the top', async () => {
+    const page = await as('admin');
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await page.goto('/settings/preferences');
+    await page.getByRole('heading', { level: 1, name: 'Preferences' }).waitFor();
+    await page.getByText('Reminders for running timers').waitFor();
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link', { name: 'Time tracking' }).click();
+    await page.waitForURL('**/settings/time-tracking');
+    await page.getByRole('heading', { level: 1, name: 'Time tracking' }).waitFor();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await page.setViewportSize({ width: 1280, height: 720 });
+  });
+
+  it('someone who can\'t open Users isn\'t offered "All users" on their own profile', async () => {
+    const page = await as('staff1');
+    const me = await models.User.findOne({ where: { username: 'staff1' } });
+    await page.goto(`/admin/users/${me.id}`);
+    await page.getByRole('main').getByRole('navigation', { name: 'Breadcrumb' }).waitFor();
+    expect(await page.getByRole('link', { name: 'All users' }).count()).toBe(0);
+    const admin = await as('admin');
+    await admin.goto(`/admin/users/${me.id}`);
+    await admin.getByRole('link', { name: 'All users' }).waitFor();
+  });
+
+  it('Directory sync names the Directory page, not General Settings', async () => {
+    const page = await as('admin');
+    await page.goto('/settings/directory-sync');
+    await page.getByRole('heading', { level: 1, name: 'Directory sync' }).waitFor();
+    expect(await page.getByText(/General Settings/).count()).toBe(0);
+  });
+
+  it('Company profile offers logo and favicon uploads only with the branding permission', async () => {
+    const sys = await models.User.findOne({ where: { username: 'sysadmin2' } });
+    expectOk(await w.admin.agent.post(`${API}/users/${sys.id}/overrides`).send({ permissionKey: 'settings.manage_branding', granted: false }), 201);
+    const page = await as('sysadmin2');
+    await page.goto('/settings/company');
+    await page.getByRole('heading', { level: 1, name: 'Company profile' }).waitFor();
+    expect(await page.getByLabel('Upload logo').count()).toBe(0);
+    await page.getByText(/Changing the logo and favicon needs the Branding permission/).waitFor();
+    expect(await page.getByLabel('Organization name').isDisabled()).toBe(false);
+  });
+});

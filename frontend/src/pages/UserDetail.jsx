@@ -11,6 +11,7 @@ import Collapsible from '../components/Collapsible';
 import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 import { formatPhone } from '../utils/formatPhone';
 import SettingsPage from '../components/settings/SettingsPage';
+import { canOpen, findPage } from './settings/registry';
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString() : 'Never';
@@ -871,7 +872,7 @@ function PerformanceTab({ userId }) {
 export default function UserDetail() {
   const { id } = useParams();
   const {
-    refreshPermissions, refresh, isOwner, isTheOwner, user: me,
+    refreshPermissions, refresh, isOwner, isTheOwner, user: me, hasAnyPermission,
   } = useAuth();
   const canEditUsers = usePermission('people.edit_users');
   const [user, setUser] = useState(null);
@@ -917,6 +918,9 @@ export default function UserDetail() {
   // (user decision 2026-10-11); the server refuses anyone else.
   const readOnly = !!user.administrator && !isOwner && user.id !== me?.id;
 
+  // "All users" only for someone who may open the list (not a person on
+  // their own profile without people permissions).
+  const canOpenUsers = canOpen(findPage('/admin/users').access, { role: me?.role, isOwner, hasAnyPermission });
   const title = (
     <>
       {user.displayName}
@@ -931,7 +935,7 @@ export default function UserDetail() {
 
   return (
     <SettingsPage title={title} description={user.username} width="wide"
-      actions={<Link to="/admin/users" className="btn-secondary">All users</Link>}>
+      actions={canOpenUsers && <Link to="/admin/users" className="btn-secondary">All users</Link>}>
       {readOnly && (
         <div className="rounded-md border border-navy-200 bg-navy-50 p-3 text-sm text-navy-600">
           Only an Owner can change an administrator&apos;s account.

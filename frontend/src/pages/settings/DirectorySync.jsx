@@ -174,7 +174,7 @@ export default function DirectorySync() {
       <div className="card space-y-4 p-5">
         <h2 className="font-semibold text-navy-900">AD Contact Sync</h2>
         <p className="text-sm text-navy-500">
-          Reuses the LDAP connection configured in Settings → General Settings.
+          Uses the connection set up in Settings → Directory (AD/LDAP).
           {!settings.ldapConfigured && (
             <span className="ml-1 font-medium text-amber-600">LDAP is not configured — sync will not run until it is.</span>
           )}

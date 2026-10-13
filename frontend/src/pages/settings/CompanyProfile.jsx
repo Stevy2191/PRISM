@@ -1,8 +1,8 @@
 // Company and Branding as one page (spec: Settings redesign): each value is
-// edited in one place. The logo and favicon save on upload (needs
-// settings.manage_branding or manage_system); the rest saves with Save, which
-// the server allows only with settings.manage_system, so a branding-only
-// user sees those fields read-only.
+// edited in one place. The logo and favicon save on upload, which the server
+// allows only with settings.manage_branding; the rest saves with Save, which
+// it allows only with settings.manage_system. Each part is offered only to
+// someone the server will let change it.
 import { useEffect, useRef, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
@@ -39,6 +39,7 @@ function ImagePicker({ label, url, onUpload, onRemove, help }) {
 export default function CompanyProfile() {
   const { hasPermission } = useAuth();
   const canSave = hasPermission('settings.manage_system');
+  const canBrand = hasPermission('settings.manage_branding');
   const { settings, refresh } = useSettings();
   const [form, setForm] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
@@ -105,12 +106,16 @@ export default function CompanyProfile() {
   return (
     <SettingsPage>
       {error && <div role="alert" className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
-      <SettingsPanel title="Look" description="Saved as soon as you upload.">
+      <SettingsPanel title="Look" description={canBrand ? 'Saved as soon as you upload.' : 'Changing the logo and favicon needs the Branding permission.'}>
         <SettingsRow label="Logo" help="Shown in the top bar and on the login page. PNG or SVG, up to 5 MB.">
-          <ImagePicker label="Logo" url={settings.logoUrl} onUpload={upload('/settings/logo')} onRemove={remove('/settings/logo')} />
+          {canBrand
+            ? <ImagePicker label="Logo" url={settings.logoUrl} onUpload={upload('/settings/logo')} onRemove={remove('/settings/logo')} />
+            : settings.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="h-12 w-12 object-contain" /> : <span className="text-sm text-navy-400">None</span>}
         </SettingsRow>
         <SettingsRow label="Favicon" help="The icon in the browser tab.">
-          <ImagePicker label="Favicon" url={settings.faviconUrl} onUpload={upload('/settings/favicon')} onRemove={remove('/settings/favicon')} />
+          {canBrand
+            ? <ImagePicker label="Favicon" url={settings.faviconUrl} onUpload={upload('/settings/favicon')} onRemove={remove('/settings/favicon')} />
+            : settings.faviconUrl ? <img src={settings.faviconUrl} alt="Favicon" className="h-8 w-8 object-contain" /> : <span className="text-sm text-navy-400">Default</span>}
         </SettingsRow>
       </SettingsPanel>
 

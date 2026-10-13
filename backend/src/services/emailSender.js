@@ -54,7 +54,7 @@ function buildTransport(config) {
 async function sendMail({ to, subject, text, html, attachments, headers, replyTo, messageId, inReplyTo, references }) {
   const config = await resolveSmtpConfig();
   if (!isSmtpConfigured(config)) {
-    const e = new Error('SMTP is not configured (Settings -> General Settings -> Outbound Email)');
+    const e = new Error('Outgoing email is not set up yet (Settings → Outgoing email)');
     e.code = 'SMTP_NOT_CONFIGURED';
     throw e;
   }

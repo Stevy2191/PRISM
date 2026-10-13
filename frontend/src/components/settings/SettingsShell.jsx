@@ -12,7 +12,8 @@ export default function SettingsShell() {
   const { navStyle } = useNavStyle();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
-  useEffect(() => { setOpen(false); }, [pathname]);
+  // A new page opens at its top (the menu is how you move between pages).
+  useEffect(() => { setOpen(false); window.scrollTo(0, 0); }, [pathname]);
   // Below the fixed top bar (52px) or beside the compact sidebar.
   const top = navStyle === 'sidebar' ? 16 : 68;
   const here = findPage(pathname)?.name || 'Settings home';
