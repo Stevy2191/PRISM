@@ -66,7 +66,7 @@ export default function SurveyPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy-50 px-4 py-10">
-      <div className="w-full max-w-md rounded-[10px] border border-navy-100 bg-white p-6 shadow-sm sm:p-8">
+      <div className="w-full max-w-md rounded-[10px] border border-navy-100 bg-surface p-6 shadow-sm sm:p-8">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           {logoUrl ? (
             <img src={logoUrl} alt={appName} className="h-10 w-10 object-contain" />

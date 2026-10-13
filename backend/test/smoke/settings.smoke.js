@@ -311,3 +311,22 @@ describe('review fixes', () => {
     expect(await page.getByLabel('Organization name').isDisabled()).toBe(false);
   });
 });
+
+describe('dark theme', () => {
+  it('status rows follow the theme (no white rows) and their columns line up', async () => {
+    const page = await as('admin');
+    await page.goto('/settings/preferences');
+    await page.evaluate(() => localStorage.setItem('prism.theme', 'dark'));
+    await page.goto('/settings/statuses');
+    const main = page.getByRole('main');
+    const names = main.locator('li[draggable] input:not([type=color])');
+    await names.first().waitFor();
+    const rows = main.locator('li[draggable]');
+    const backgrounds = await rows.evaluateAll((els) => els.map((e) => getComputedStyle(e).backgroundColor));
+    expect(backgrounds.length).toBeGreaterThan(1);
+    expect(backgrounds.filter((b) => b === 'rgb(255, 255, 255)')).toEqual([]);
+    const widths = await names.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+    expect(new Set(widths).size).toBe(1);
+    await page.evaluate(() => localStorage.setItem('prism.theme', 'light'));
+  });
+});

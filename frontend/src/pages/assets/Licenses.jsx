@@ -231,7 +231,7 @@ export default function Licenses() {
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={() => setDeleteTarget(null)}>
-          <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-white p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-surface p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-2 text-base font-semibold text-navy-900">Delete &quot;{deleteTarget.name}&quot;?</h2>
             <p className="mb-4 text-sm text-navy-600">This cannot be undone.</p>
             <div className="flex justify-end gap-2">

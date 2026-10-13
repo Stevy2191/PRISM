@@ -810,7 +810,7 @@ function formatHours(hours) {
 
 function PerfCard({ label, children }) {
   return (
-    <div className="rounded-[10px] border border-navy-100 bg-white p-4">
+    <div className="rounded-[10px] border border-navy-100 bg-surface p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-navy-400">{label}</p>
       <div className="mt-2">{children}</div>
     </div>

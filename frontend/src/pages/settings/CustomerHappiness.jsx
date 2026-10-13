@@ -162,7 +162,7 @@ function SurveyEmailPreview({ question, expiryDays, companyName, onClose }) {
       <div className="rounded-md border border-navy-100 bg-navy-50 p-3 text-xs text-navy-500">
         Subject: How did we do? — Ticket #00114 Printer not connecting to network
       </div>
-      <div className="mt-3 rounded-md border border-navy-100 bg-white p-6 font-sans text-sm text-navy-900">
+      <div className="mt-3 rounded-md border border-navy-100 bg-surface p-6 font-sans text-sm text-navy-900">
         <p>Hi Jordan,</p>
         <p className="mt-2">Your recent support request has been resolved. We&apos;d love to hear how we did.</p>
         <p className="mt-4 font-semibold">{question || 'How satisfied were you with the support you received?'}</p>

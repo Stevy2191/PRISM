@@ -329,7 +329,7 @@ export default function Assets() {
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={() => { setDeleteTarget(null); setDeleteWarning(null); }}>
           <div
-            className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-white p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg"
+            className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-surface p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="mb-2 text-base font-semibold text-navy-900">Delete &quot;{deleteTarget.name}&quot;?</h2>

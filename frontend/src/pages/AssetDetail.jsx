@@ -204,7 +204,7 @@ export default function AssetDetail() {
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-white p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-surface p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-2 text-base font-semibold text-navy-900">Delete &quot;{asset.name}&quot;?</h2>
             {deleteWarning ? (
               <p className="mb-4 text-sm text-red-700">{deleteWarning.message}</p>

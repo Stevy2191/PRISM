@@ -147,7 +147,7 @@ export default function Statuses() {
                 onDragStart={onDragStart(i)}
                 onDragOver={onDragOver(i)}
                 onDrop={onDrop(i)}
-                className="flex items-center gap-3 rounded-md border border-navy-200 bg-white p-3"
+                className="flex items-center gap-3 rounded-md border border-navy-200 bg-surface p-3"
               >
                 <span className="cursor-grab select-none text-lg leading-none text-navy-300" title="Drag to reorder">⠿</span>
                 <input
@@ -161,18 +161,21 @@ export default function Statuses() {
                   value={s.name}
                   onChange={(e) => renameLocal(s.id, e.target.value)}
                   onBlur={(e) => { if (e.target.value.trim() && e.target.value.trim() !== s.name) patchStatus(s.id, { name: e.target.value.trim() }); }}
-                  className="input flex-1"
+                  aria-label="Status name"
+                  className="input min-w-0 flex-1"
                 />
                 <select
                   value={s.behaviorType}
                   onChange={(e) => patchStatus(s.id, { behaviorType: e.target.value })}
+                  aria-label={`${s.name} counts as`}
                   className="input w-32 flex-shrink-0"
                 >
                   {BEHAVIOR_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
-                {s.isDefault && (
-                  <span className="flex-shrink-0 rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-600">Default</span>
-                )}
+                {/* A fixed slot on every row, so the columns line up with or without the badge. */}
+                <span className="w-16 flex-shrink-0 text-center">
+                  {s.isDefault && <span className="rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-600">Default</span>}
+                </span>
                 <button
                   type="button"
                   aria-label={`Delete ${s.name}`}
@@ -198,7 +201,7 @@ export default function Statuses() {
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 sm:p-4" onClick={() => setDeleteTarget(null)}>
-          <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-white p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none bg-surface p-5 shadow-lg sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-2 text-base font-semibold text-navy-900">Delete "{deleteTarget.name}"?</h2>
             <p className="mb-4 text-sm text-navy-600">
               {tab.scope
