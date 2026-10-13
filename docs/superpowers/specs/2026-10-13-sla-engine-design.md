@@ -103,8 +103,9 @@ Pure functions, no DB:
 `{ timezone, schedule, is24x7, holidays: Set<'YYYY-MM-DD'> }` or `null`
 (24×7). Days are walked in the schedule's timezone; holidays are whole closed
 days; DST transitions are handled by doing wall-clock arithmetic in the
-zone. Uses **luxon** (new dependency, no transitive deps) rather than
-hand-rolled `Intl` offset maths, because DST correctness is the main risk.
+zone. Builds on the existing, DST-tested `utils/orgTime.js` (`Intl`-based
+zone helpers) with one new helper, `zoneWallTime(dateStr, 'HH:MM', tz)`; no
+new dependency.
 A target with `useBusinessHours = false` uses `null` (24×7).
 
 ### When state is recalculated (`services/sla/ticketSla.js`)
