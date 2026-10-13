@@ -156,3 +156,20 @@ describe('the menu', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
   });
 });
+
+describe('Settings home', () => {
+  it('lists the groups, searches, and shows status hints to an owner only', async () => {
+    let page = await as('admin');
+    await page.goto('/settings');
+    const main = page.getByRole('main');
+    await main.getByRole('heading', { level: 1, name: 'Settings' }).waitFor();
+    await main.getByRole('heading', { name: 'Hours & SLAs' }).waitFor();
+    await main.getByText('Not set up').first().waitFor(); // outgoing email in a fresh install
+    await main.getByLabel('Search settings').fill('sla');
+    await main.getByRole('link', { name: /SLAs/ }).first().waitFor();
+    page = await as('sysadmin2');
+    await page.goto('/settings');
+    await page.getByRole('main').getByRole('heading', { name: 'Time & work' }).waitFor();
+    expect(await page.getByRole('main').getByText('Not set up').count()).toBe(0);
+  });
+});

@@ -34,7 +34,7 @@ import KbPortalArticle from './pages/kb/KbPortalArticle';
 import NotFound from './pages/NotFound';
 
 // Settings hub + sections
-import SettingsHub from './pages/SettingsHub';
+import SettingsHome from './pages/settings/SettingsHome';
 import CompanyProfile from './pages/settings/CompanyProfile';
 import SettingsStatuses from './pages/settings/Statuses';
 import SettingsBusinessHours from './pages/settings/BusinessHours';
@@ -176,7 +176,7 @@ export default function App() {
         {/* Settings: the menu and the routes come from one registry (spec:
             Settings redesign), so a menu entry always matches its guard. */}
         <Route element={<SettingsShell />}>
-          <Route path="/settings" element={<SettingsHub />} />
+          <Route path="/settings" element={<SettingsHome />} />
           {allRoutes().map((r) => <Route key={r.path} path={r.path} element={settingsElement(r.id, r.access)} />)}
           {REDIRECTS.map(([from, to]) => <Route key={from} path={from} element={<Navigate to={to} replace />} />)}
         </Route>
