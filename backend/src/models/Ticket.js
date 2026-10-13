@@ -144,6 +144,10 @@ module.exports = (sequelize) => {
       tableName: 'Tickets',
       timestamps: true,
       hooks: {
+        // SLA clocks follow every saved change to status, assignee, priority
+        // and company, whichever code path made it (services/sla/ticketSla.js).
+        afterCreate: (ticket, options) => require('../services/sla/ticketSla').onTicketCreated(ticket, options), // eslint-disable-line global-require
+        afterUpdate: (ticket, options) => require('../services/sla/ticketSla').onTicketUpdated(ticket, options), // eslint-disable-line global-require
         // Keep resolvedAt in sync with status transitions. Status is now a
         // free-form string matching a TicketStatus row's name, so "closed"
         // is resolved dynamically via that row's behaviorType rather than a

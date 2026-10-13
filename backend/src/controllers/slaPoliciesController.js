@@ -6,6 +6,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { parseRecordId } = require('../services/permissionService');
 const slaCalendar = require('../services/sla/calendar');
+const { recalcTicketSla } = require('../services/sla/ticketSla');
 
 // SLA policies (sub-project 4): a name, a business-hours schedule (null =
 // 24x7), a warning point and per-priority targets for the assign, response
@@ -193,6 +194,8 @@ const remove = asyncHandler(async (req, res) => {
     await policy.destroy({ transaction });
   });
   slaCalendar.invalidate();
+  // eslint-disable-next-line no-restricted-syntax
+  for (const ticketId of ticketIds) await recalcTicketSla(ticketId, { policyId: fallback.id }); // eslint-disable-line no-await-in-loop
   await writeAudit(req, 'slaPolicy.delete', 'SlaPolicy', policy.id, { name: policy.name, movedTickets: ticketIds.length });
   res.json({ ok: true });
 });

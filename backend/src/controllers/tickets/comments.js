@@ -9,6 +9,7 @@ const {
   createNotification,
 } = require('../../services/notifications');
 const { logActivity } = require('../../services/ticketActivity');
+const { recordFirstResponse } = require('../../services/sla/ticketSla');
 const { sendMail } = require('../../services/emailSender');
 const { buildTicketMessageId } = require('../../services/inboundEmailService');
 const { parsePagination, paginated } = require('../../utils/pagination');
@@ -96,6 +97,9 @@ const createComment = asyncHandler(async (req, res) => {
     type: resolvedType,
   });
   await writeAudit(req, 'comment.create', 'Comment', comment.id, { ticketId: ticket.id, type: resolvedType });
+  // Only a staff reply or public comment through this endpoint is a first
+  // response; inbound email replies are written elsewhere and never count.
+  if (resolvedType !== 'comment_private') await recordFirstResponse(ticket.id);
   await logActivity(ticket.id, req.user.id, 'comment', null, null);
 
   if (resolvedType === 'comment_private') {

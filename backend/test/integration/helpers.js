@@ -114,6 +114,7 @@ async function resetSlaPolicies() {
   const [rows] = await sequelize.query('SELECT id FROM SlaPolicies WHERE isDefault = 1').catch(() => [[]]);
   if (!rows.length) return;
   const stdId = rows[0].id;
+  require('../../src/services/sla/calendar').invalidate(); // eslint-disable-line global-require
   await sequelize.query('UPDATE Companies SET slaPolicyId = NULL');
   await sequelize.query('DELETE FROM SlaPolicies WHERE id <> ?', { replacements: [stdId] });
   await sequelize.query("UPDATE SlaPolicies SET name = 'Standard', businessHoursId = NULL, warnAtPercent = 75 WHERE id = ?", { replacements: [stdId] });

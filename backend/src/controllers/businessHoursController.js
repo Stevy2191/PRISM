@@ -1,6 +1,7 @@
 const { BusinessHours, Department, HolidayList } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const slaCalendar = require('../services/sla/calendar');
 
 const include = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
@@ -34,6 +35,7 @@ const create = asyncHandler(async (req, res) => {
     holidayListId: holidayListId || null,
   });
   await writeAudit(req, 'businessHours.create', 'BusinessHours', bh.id, { name: bh.name });
+  slaCalendar.invalidate();
   const fresh = await BusinessHours.findByPk(bh.id, { include });
   res.status(201).json({ businessHours: fresh });
 });
@@ -47,6 +49,7 @@ const update = asyncHandler(async (req, res) => {
   }
   await bh.update(changes);
   await writeAudit(req, 'businessHours.update', 'BusinessHours', bh.id, { name: bh.name });
+  slaCalendar.invalidate();
   const fresh = await BusinessHours.findByPk(bh.id, { include });
   res.json({ businessHours: fresh });
 });
@@ -56,6 +59,7 @@ const remove = asyncHandler(async (req, res) => {
   if (!bh) throw new ApiError(404, 'Schedule not found', 'NOT_FOUND');
   await bh.destroy();
   await writeAudit(req, 'businessHours.delete', 'BusinessHours', bh.id, { name: bh.name });
+  slaCalendar.invalidate();
   res.json({ ok: true });
 });
 
@@ -74,6 +78,7 @@ const clone = asyncHandler(async (req, res) => {
     holidayListId: original.holidayListId,
   });
   await writeAudit(req, 'businessHours.clone', 'BusinessHours', copy.id, { name: copy.name, clonedFrom: original.id });
+  slaCalendar.invalidate();
   const fresh = await BusinessHours.findByPk(copy.id, { include });
   res.status(201).json({ businessHours: fresh });
 });

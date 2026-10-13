@@ -1,6 +1,7 @@
 const { HolidayList, Holiday, Department } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const slaCalendar = require('../services/sla/calendar');
 
 const include = [
   { model: Department, as: 'department', attributes: ['id', 'name'] },
@@ -19,6 +20,7 @@ const create = asyncHandler(async (req, res) => {
   if (!name || !name.trim()) throw new ApiError(400, 'Name is required', 'VALIDATION_ERROR');
   const hl = await HolidayList.create({ name: name.trim(), departmentId: departmentId || null });
   await writeAudit(req, 'holidayList.create', 'HolidayList', hl.id, { name: hl.name });
+  slaCalendar.invalidate();
   const fresh = await HolidayList.findByPk(hl.id, { include });
   res.status(201).json({ holidayList: fresh });
 });
@@ -32,6 +34,7 @@ const update = asyncHandler(async (req, res) => {
   if (req.body.departmentId !== undefined) changes.departmentId = req.body.departmentId || null;
   await hl.update(changes);
   await writeAudit(req, 'holidayList.update', 'HolidayList', hl.id, { name: hl.name });
+  slaCalendar.invalidate();
   const fresh = await HolidayList.findByPk(hl.id, { include });
   res.json({ holidayList: fresh });
 });
@@ -42,6 +45,7 @@ const remove = asyncHandler(async (req, res) => {
   if (!hl) throw new ApiError(404, 'Holiday list not found', 'NOT_FOUND');
   await hl.destroy();
   await writeAudit(req, 'holidayList.delete', 'HolidayList', hl.id, { name: hl.name });
+  slaCalendar.invalidate();
   res.json({ ok: true });
 });
 
@@ -55,6 +59,7 @@ const addHoliday = asyncHandler(async (req, res) => {
   }
   const holiday = await Holiday.create({ holidayListId: hl.id, name: name.trim(), date });
   await writeAudit(req, 'holiday.create', 'Holiday', holiday.id, { holidayListId: hl.id });
+  slaCalendar.invalidate();
   res.status(201).json({ holiday });
 });
 
@@ -66,6 +71,7 @@ const removeHoliday = asyncHandler(async (req, res) => {
   if (!holiday) throw new ApiError(404, 'Holiday not found', 'NOT_FOUND');
   await holiday.destroy();
   await writeAudit(req, 'holiday.delete', 'Holiday', holiday.id, { holidayListId: req.params.id });
+  slaCalendar.invalidate();
   res.json({ ok: true });
 });
 
