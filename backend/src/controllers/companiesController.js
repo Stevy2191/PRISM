@@ -4,7 +4,7 @@
 const { Op, fn, col } = require('sequelize');
 const {
   Company, CompanyDomain, Site, User, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, SlaPolicy, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
@@ -24,6 +24,7 @@ const DOMAIN_RE = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{
 const companyInclude = [
   { model: CompanyDomain, as: 'domains', attributes: ['id', 'domain'] },
   { model: User, as: 'accountManager', attributes: ['id', 'displayName'] },
+  { model: SlaPolicy, as: 'slaPolicy', attributes: ['id', 'name'] },
 ];
 
 function normalizeName(raw) {
