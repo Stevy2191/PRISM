@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import { useSettings } from '../context/SettingsContext';
 
 // NOTE ON SCROLL TARGET: Layout.jsx's <main> (the content area under the
 // top nav / beside the sidebar) has no overflow/height constraint of its
@@ -86,7 +85,7 @@ const SECTIONS = [
       { label: 'Blueprints', to: '/admin/blueprints', desc: 'Ticket templates', roles: ['admin', 'technician'] },
       { label: 'Email Templates', to: '/settings/email-templates', desc: 'Outbound email content' },
       { label: 'Notifications', to: '/settings/notifications', desc: 'Which events send in-app notifications', permission: SYSTEM_KEYS },
-      { label: 'General Settings', to: '/admin/settings', desc: 'LDAP status, timezone, attachment limits', permission: SYSTEM_KEYS },
+      { label: 'System info', to: '/settings/system', desc: 'Upload limit, database and app', permission: SYSTEM_KEYS },
       { label: 'Time Tracking', to: '/settings/time-tracking', desc: 'System-wide time logging defaults', permission: SYSTEM_KEYS },
       { label: 'Work types', to: '/settings/work-types', desc: 'Kinds of work and billable defaults', permission: SYSTEM_KEYS },
     ],
@@ -117,6 +116,9 @@ const SECTIONS = [
       { label: 'API Keys', to: '/admin/apikeys', desc: 'Programmatic access', roles: ALL },
       { label: 'Calendar Integration', to: '/settings/calendar-integration', desc: 'Sync with calendars', permission: SYSTEM_KEYS, owner: true },
       { label: 'Directory Sync', to: '/settings/directory-sync', desc: 'AD contact sync & group mapping', permission: SYSTEM_KEYS, owner: true },
+      { label: 'Directory (AD/LDAP)', to: '/settings/directory', desc: 'Active Directory sign-in and lookups', permission: SYSTEM_KEYS, owner: true },
+      { label: 'Incoming email', to: '/settings/incoming-email', desc: 'Turn emails into tickets', permission: SYSTEM_KEYS, owner: true },
+      { label: 'Outgoing email', to: '/settings/outgoing-email', desc: 'How PRISM sends mail', permission: SYSTEM_KEYS, owner: true },
       { label: 'Single Sign-On', to: '/settings/single-sign-on', desc: 'SAML & OIDC identity providers', permission: SYSTEM_KEYS, owner: true },
     ],
   },
@@ -124,8 +126,6 @@ const SECTIONS = [
 
 export default function SettingsHub() {
   const { user, hasAnyPermission, isOwner } = useAuth();
-  const { settings } = useSettings();
-  const adConnected = !!settings?.ldap?.connected;
   const role = user?.role;
 
   const lastWriteAtRef = useRef(0);
@@ -206,12 +206,6 @@ export default function SettingsHub() {
               <Link key={it.to} to={it.to} className="card p-5 transition hover:border-prism hover:shadow-md">
                 <div className="flex items-center gap-1.5">
                   <p className="font-semibold text-navy-900">{it.label}</p>
-                  {it.label === 'General Settings' && adConnected && (
-                    <span
-                      className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-500"
-                      title="Active Directory connected"
-                    />
-                  )}
                 </div>
                 <p className="mt-1 text-sm text-navy-500">{it.desc}</p>
               </Link>

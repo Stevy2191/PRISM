@@ -53,3 +53,17 @@ describe('Company profile', () => {
     await page.waitForURL('**/settings/company');
   });
 });
+
+describe('System info', () => {
+  it('has the upload limit, and the old General Settings address lands on Settings', async () => {
+    const page = await smoke.pageAs('admin');
+    await page.goto('/settings/system');
+    await page.getByRole('heading', { level: 1, name: 'System info' }).waitFor();
+    await page.getByLabel('Max attachment size (MB)').fill('30');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await shown(page, 'Saved').waitFor();
+    expect(await setting('system.maxAttachmentSizeMB')).toBe('30');
+    await page.goto('/admin/settings');
+    await page.waitForURL(/\/settings$/);
+  });
+});

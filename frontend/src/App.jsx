@@ -71,7 +71,10 @@ import RoleEditor from './pages/RoleEditor';
 import AdminDepartments from './pages/AdminDepartments';
 import AdminBlueprints from './pages/AdminBlueprints';
 import AdminApiKeys from './pages/AdminApiKeys';
-import AdminSettings from './pages/AdminSettings';
+import SettingsDirectory from './pages/settings/Directory';
+import SettingsIncomingEmail from './pages/settings/IncomingEmail';
+import SettingsOutgoingEmail from './pages/settings/OutgoingEmail';
+import SettingsSystemInfo from './pages/settings/SystemInfo';
 import EmailLog from './pages/settings/EmailLog';
 import AccessRestricted from './components/AccessRestricted';
 import { useAuth } from './context/AuthContext';
@@ -184,7 +187,11 @@ export default function App() {
         <Route path="/admin/departments" element={perm(<AdminDepartments />, DEPARTMENTS_KEYS)} />
         <Route path="/admin/blueprints" element={staff(<AdminBlueprints />)} />
         <Route path="/admin/apikeys" element={<AdminApiKeys />} />
-        <Route path="/admin/settings" element={perm(<AdminSettings />, SYSTEM_KEYS)} />
+        <Route path="/admin/settings" element={<Navigate to="/settings" replace />} />
+        <Route path="/settings/directory" element={owner(<SettingsDirectory />, SYSTEM_KEYS)} />
+        <Route path="/settings/incoming-email" element={owner(<SettingsIncomingEmail />, SYSTEM_KEYS)} />
+        <Route path="/settings/outgoing-email" element={owner(<SettingsOutgoingEmail />, SYSTEM_KEYS)} />
+        <Route path="/settings/system" element={perm(<SettingsSystemInfo />, SYSTEM_KEYS)} />
         <Route path="/settings/email-log" element={owner(<EmailLog />, SYSTEM_KEYS)} />
 
         <Route path="/settings/customer-happiness" element={perm(<CustomerHappiness />, SYSTEM_KEYS)} />
