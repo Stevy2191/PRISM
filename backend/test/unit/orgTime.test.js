@@ -55,3 +55,20 @@ describe('helpers', () => {
     expect(isValidZone('')).toBe(false);
   });
 });
+
+describe('zoneWallTime', () => {
+  const { zoneWallTime } = require('../../src/utils/orgTime');
+
+  it('places a wall-clock time on a zone date', () => {
+    expect(zoneWallTime('2026-03-11', '09:00', 'America/Chicago').toISOString()).toBe('2026-03-11T14:00:00.000Z');
+    expect(zoneWallTime('2026-01-15', '17:30', 'America/Chicago').toISOString()).toBe('2026-01-15T23:30:00.000Z');
+    expect(zoneWallTime('2026-03-11', '09:00', 'UTC').toISOString()).toBe('2026-03-11T09:00:00.000Z');
+  });
+
+  it('handles the days the clocks change', () => {
+    expect(zoneWallTime('2026-03-08', '09:00', 'America/Chicago').toISOString()).toBe('2026-03-08T14:00:00.000Z');
+    expect(zoneWallTime('2026-11-01', '09:00', 'America/Chicago').toISOString()).toBe('2026-11-01T15:00:00.000Z');
+    // 02:30 does not exist on spring-forward day: it lands an hour later (03:30 CDT).
+    expect(zoneWallTime('2026-03-08', '02:30', 'America/Chicago').toISOString()).toBe('2026-03-08T08:30:00.000Z');
+  });
+});

@@ -61,6 +61,19 @@ function zoneDayEnd(dateStr, tz) {
   return new Date(zoneDayStart(addDays(dateStr, 1), tz).getTime() - 1);
 }
 
+// The UTC instant at which the wall clock in `tz` reads `hhmm` ('HH:MM') on
+// `dateStr`. A time skipped by a spring-forward gap lands just after the
+// gap (02:30 → 03:30); an hour repeated by fall-back takes its first pass.
+function zoneWallTime(dateStr, hhmm, tz) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [hh, mm] = hhmm.split(':').map(Number);
+  const wallUtc = Date.UTC(y, m - 1, d, hh, mm);
+  const first = wallUtc - offsetAt(new Date(wallUtc), tz);
+  const second = wallUtc - offsetAt(new Date(first), tz);
+  // In a gap the second pass falls back before it; keep the first guess.
+  return new Date(second + offsetAt(new Date(second), tz) === wallUtc ? second : first);
+}
+
 // A real calendar date as YYYY-MM-DD (also the date part of an ISO
 // timestamp), or null. '2026-02-30' is refused, not rolled into March.
 function toDateString(value) {
@@ -72,5 +85,5 @@ function toDateString(value) {
 }
 
 module.exports = {
-  orgTimeZone, isValidZone, dateInZone, todayInZone, zoneDayStart, zoneDayEnd, addDays, toDateString,
+  orgTimeZone, isValidZone, dateInZone, todayInZone, zoneDayStart, zoneDayEnd, zoneWallTime, addDays, toDateString,
 };
