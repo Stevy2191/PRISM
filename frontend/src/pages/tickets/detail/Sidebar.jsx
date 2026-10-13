@@ -7,6 +7,7 @@ import api from '../../../api/api';
 import { initials } from '../../../utils/userDisplay';
 import { formatPhone } from '../../../utils/formatPhone';
 import TimeDropdownPicker from '../../../components/TimeDropdownPicker';
+import SlaPanel from './SlaPanel';
 import {
   BG,
   CARD_BG,
@@ -378,6 +379,12 @@ export function Sidebar({
             </div>
           )}
         </SidebarSection>
+
+        {!collapsed && ticket.sla !== undefined && (
+          <SidebarSection title="SLA" collapsed={collapsed}>
+            <SlaPanel sla={ticket.sla} />
+          </SidebarSection>
+        )}
 
         {customFieldDefs.length > 0 && (
           <SidebarSection title="Custom Fields" collapsed={collapsed}>

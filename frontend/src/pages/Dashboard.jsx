@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import SlaBadge, { CLOCK_LABELS } from '../components/SlaBadge';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   IconMessageReply,
@@ -447,6 +448,32 @@ function AssetsSummaryPanel({ data }) {
   );
 }
 
+function SlaAtRiskPanel({ tickets }) {
+  if (!tickets) return null;
+  return (
+    <Card>
+      <h2 className="eyebrow">SLA at risk</h2>
+      {tickets.length === 0 ? (
+        <p className="mt-3 text-sm" style={{ color: MUTED }}>Nothing breached or at risk.</p>
+      ) : (
+        <ul className="mt-3 divide-y" style={{ borderColor: CARD_BORDER }} data-testid="sla-at-risk">
+          {tickets.map((t) => (
+            <li key={t.id} className="flex items-center justify-between gap-3 py-2">
+              <Link to={`/tickets/${t.id}`} className="min-w-0 truncate text-sm hover:underline" style={{ color: TEXT }}>
+                <span className="font-mono text-xs" style={{ color: MUTED }}>#{String(t.id).padStart(5, '0')}</span> {t.title}
+              </Link>
+              <span className="flex flex-shrink-0 items-center gap-2">
+                {t.sla?.worst && <span className="hidden text-xs sm:inline" style={{ color: MUTED }}>{CLOCK_LABELS[t.sla.worst.clock]}</span>}
+                <SlaBadge sla={t.sla} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 function QuickActionsPanel() {
   const navigate = useNavigate();
   const shortcuts = [
@@ -542,6 +569,7 @@ const TECH_CATALOG = {
   projectHealth: { label: 'Project Health', defaultSize: 'half' },
   hours: { label: 'Hours This Week', defaultSize: 'half' },
   myRatings: { label: 'My Ratings', defaultSize: 'half' },
+  slaAtRisk: { label: 'SLA at Risk', defaultSize: 'half' },
   quickActions: { label: 'Quick Actions', defaultSize: 'half' },
 };
 const ADMIN_CATALOG = {
@@ -550,6 +578,7 @@ const ADMIN_CATALOG = {
   projectHealth: { label: 'Project Health', defaultSize: 'full' },
   teamHappiness: { label: 'Team Happiness', defaultSize: 'half' },
   assetsSummary: { label: 'Assets', defaultSize: 'half' },
+  slaAtRisk: { label: 'SLA at Risk', defaultSize: 'half' },
   quickActions: { label: 'Quick Actions', defaultSize: 'half' },
 };
 
@@ -559,6 +588,7 @@ const TECH_DEFAULT_PANELS = [
   { key: 'projectHealth', size: 'half', hidden: false },
   { key: 'hours', size: 'half', hidden: false },
   { key: 'myRatings', size: 'half', hidden: false },
+  { key: 'slaAtRisk', size: 'half', hidden: false },
   { key: 'quickActions', size: 'half', hidden: true },
 ];
 const ADMIN_DEFAULT_PANELS = [
@@ -567,6 +597,7 @@ const ADMIN_DEFAULT_PANELS = [
   { key: 'projectHealth', size: 'full', hidden: false },
   { key: 'teamHappiness', size: 'half', hidden: false },
   { key: 'assetsSummary', size: 'half', hidden: false },
+  { key: 'slaAtRisk', size: 'half', hidden: false },
   { key: 'quickActions', size: 'half', hidden: true },
 ];
 
@@ -858,6 +889,7 @@ export default function Dashboard() {
       case 'teamWorkload': return <TeamWorkloadPanel workload={data.teamWorkload} />;
       case 'teamHappiness': return <TeamHappinessPanel data={data.teamHappiness} />;
       case 'assetsSummary': return <AssetsSummaryPanel data={data.assetsSummary} />;
+      case 'slaAtRisk': return <SlaAtRiskPanel tickets={data.slaAtRisk} />;
       case 'activityFeed': return (
         <ActivityFeedPanel
           activity={[...data.activity, ...activityMore]}

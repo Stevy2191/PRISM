@@ -190,7 +190,7 @@ export function SortableTable({ columns, rows, onRowClick, emptyMessage = 'No da
         </thead>
         <tbody className="divide-y divide-navy-100">
           {sorted.map((row, i) => (
-            <tr key={row.id ?? i} className={onRowClick ? 'cursor-pointer hover:bg-navy-50' : 'hover:bg-navy-50'} onClick={() => onRowClick && onRowClick(row)}>
+            <tr key={row.key ?? row.id ?? i} className={onRowClick ? 'cursor-pointer hover:bg-navy-50' : 'hover:bg-navy-50'} onClick={() => onRowClick && onRowClick(row)}>
               {columns.map((c) => (
                 <td key={c.key} className="table-td">{c.render ? c.render(row) : (row[c.key] ?? '—')}</td>
               ))}

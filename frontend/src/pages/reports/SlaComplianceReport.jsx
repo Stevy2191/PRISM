@@ -32,29 +32,36 @@ export default function SlaComplianceReport({ filters, onForbidden }) {
   if (!data) return null;
 
   const pct = (v) => (v === null || v === undefined ? '—' : `${v}%`);
-  const metMissedBars = [
+  const { clocks } = data.summary;
+  const of = (c) => (c.tracked ? `${c.met} of ${c.tracked} on time` : 'No results yet');
+  const bars = [
     { dataKey: 'met', label: 'Met', color: PALETTE[2] },
-    { dataKey: 'missed', label: 'Missed', color: PALETTE[4] },
+    { dataKey: 'breached', label: 'Breached', color: PALETTE[4] },
   ];
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <StatCard label="Closed within SLA" value={pct(data.summary.pctMetSLA)} />
-        <StatCard label="Overdue at closing" value={pct(data.summary.pctMissedAtClosing)} />
-        <StatCard label="Currently overdue" value={pct(data.summary.pctCurrentlyOverdue)} />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <StatCard label="Assigned on time" value={pct(clocks.assign.pctMet)} sub={of(clocks.assign)} />
+        <StatCard label="First response on time" value={pct(clocks.response.pctMet)} sub={of(clocks.response)} />
+        <StatCard label="Resolved on time" value={pct(clocks.resolution.pctMet)} sub={of(clocks.resolution)} />
+        <StatCard label="Open and breached" value={data.summary.openBreached} />
+        <StatCard label="Open and at risk" value={data.summary.openAtRisk} />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <ChartCard title="SLA met vs missed per tech">
-          <GroupedBarChart data={data.chartData.metVsMissedByTech} bars={metMissedBars} />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <ChartCard title="Resolution met vs breached per tech">
+          <GroupedBarChart data={data.chartData.metVsBreachedByTech} bars={bars} />
         </ChartCard>
-        <ChartCard title="SLA met vs missed per department">
-          <GroupedBarChart data={data.chartData.metVsMissedByDept} bars={metMissedBars} />
+        <ChartCard title="Resolution met vs breached per department">
+          <GroupedBarChart data={data.chartData.metVsBreachedByDept} bars={bars} />
+        </ChartCard>
+        <ChartCard title="Resolution met vs breached per company">
+          <GroupedBarChart data={data.chartData.metVsBreachedByCompany} bars={bars} />
         </ChartCard>
       </div>
 
-      <ChartCard title="SLA compliance trend (% met)">
+      <ChartCard title="Resolution compliance trend (% met)">
         <MultiLineChart data={data.chartData.complianceTrend} lines={[{ dataKey: 'pctMet', label: '% met', color: PALETTE[0] }]} />
       </ChartCard>
 
@@ -63,12 +70,13 @@ export default function SlaComplianceReport({ filters, onForbidden }) {
           { key: 'ticketNumber', label: '#' },
           { key: 'title', label: 'Title', render: (r) => <Link to={`/tickets/${r.id}`} className="text-prism hover:underline">{r.title}</Link> },
           { key: 'assignee', label: 'Assignee' },
-          { key: 'dueDate', label: 'Due date' },
-          { key: 'closedDate', label: 'Closed date' },
-          { key: 'daysOverdue', label: 'Days overdue' },
+          { key: 'company', label: 'Company' },
+          { key: 'clock', label: 'Clock' },
+          { key: 'dueAt', label: 'Due', render: (r) => new Date(r.dueAt).toLocaleString() },
+          { key: 'overByMinutes', label: 'Minutes over' },
         ]}
-        rows={data.tableData.rows}
-        emptyMessage="No missed SLA tickets in this period."
+        rows={data.tableData.rows.map((r, i) => ({ ...r, key: `${r.id}-${r.clock}-${i}` }))}
+        emptyMessage="No SLA breaches for tickets created in this period."
       />
     </div>
   );

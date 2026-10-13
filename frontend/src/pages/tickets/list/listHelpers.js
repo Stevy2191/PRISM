@@ -41,7 +41,7 @@ export const SOURCE_META = {
 export const FIXED_COLUMNS = ['id', 'title'];
 
 export const DEFAULT_COLUMN_ORDER = [
-  'priority', 'status', 'dueDate', 'assignee', 'type', 'source', 'team', 'timeLogged', 'createdDate', 'actions',
+  'priority', 'status', 'dueDate', 'sla', 'assignee', 'type', 'source', 'team', 'timeLogged', 'createdDate', 'actions',
 ];
 
 export const COLUMN_LABELS = {
@@ -50,6 +50,7 @@ export const COLUMN_LABELS = {
   priority: 'Priority',
   status: 'Status',
   dueDate: 'Due date',
+  sla: 'SLA',
   assignee: 'Assignee',
   type: 'Type',
   source: 'Source',

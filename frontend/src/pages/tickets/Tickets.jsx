@@ -6,6 +6,7 @@ import { IconMail } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
 import Spinner from '../../components/Spinner';
+import SlaBadge from '../../components/SlaBadge';
 import { formatTicketId } from '../../utils/ticketId';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/Pagination';
@@ -66,6 +67,7 @@ export default function Tickets() {
   const [myTickets, setMyTickets] = useState(false);
   const [overdue, setOverdue] = useState(false);
   const [unassigned, setUnassigned] = useState(false);
+  const [slaFilter, setSlaFilter] = useState(''); // '' | 'breached' | 'at_risk'
   const [newFromEmail, setNewFromEmail] = useState(false);
   const [searchParams] = useSearchParams();
   const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
@@ -73,7 +75,7 @@ export default function Tickets() {
 
   // Any change to a filter has to send the table back to page 1 — otherwise
   // narrowing the results while on page 5 shows an empty table.
-  const filterKey = JSON.stringify([search, status, priority, assignee, companyId, myTickets, overdue, unassigned, newFromEmail, sort]);
+  const filterKey = JSON.stringify([search, status, priority, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, sort]);
   const pager = usePagination({ filterKey, storageKey: 'prism.tickets.pageSize' });
 
   const [view, setView] = useState('table');
@@ -148,6 +150,7 @@ export default function Tickets() {
     if (myTickets) params.myTickets = 'true';
     if (overdue) params.overdue = 'true';
     if (unassigned) params.unassigned = 'true';
+    if (slaFilter) params.sla = slaFilter;
     if (newFromEmail) { params.source = 'email'; params.unassigned = 'true'; }
     // A `cf:`-prefixed key is passed through as-is — the server resolves it
     // to the custom field and sorts on its value in SQL. (This used to be
@@ -156,7 +159,7 @@ export default function Tickets() {
     params.sortBy = sort.key.startsWith('cf:') ? sort.key : (SORTABLE_COLUMNS[sort.key] || 'updatedAt');
     params.sortDir = sort.dir;
     return params;
-  }, [search, status, priority, assignee, companyId, myTickets, overdue, unassigned, newFromEmail, sort]);
+  }, [search, status, priority, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, sort]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -202,13 +205,14 @@ export default function Tickets() {
     setMyTickets(!!fj.myTickets);
     setOverdue(!!fj.overdue);
     setUnassigned(!!fj.unassigned);
+    setSlaFilter(fj.sla || '');
     setNewFromEmail(!!fj.newFromEmail);
     if (fj.sortKey) setSort({ key: fj.sortKey, dir: fj.sortDir || 'desc' });
     setActiveSavedFilterId(f.id);
   };
 
   const saveCurrentFilter = async (name) => {
-    const filterJson = { search, status, priority, assignee, myTickets, overdue, unassigned, newFromEmail, sortKey: sort.key, sortDir: sort.dir };
+    const filterJson = { search, status, priority, assignee, myTickets, overdue, unassigned, sla: slaFilter, newFromEmail, sortKey: sort.key, sortDir: sort.dir };
     try {
       const { data } = await api.post('/saved-filters', { name, filterJson });
       setSavedFilters((prev) => [...prev, data.savedFilter]);
@@ -237,6 +241,7 @@ export default function Tickets() {
   const toggleMyTickets = () => { clearActiveSavedFilter(); setMyTickets((v) => !v); };
   const toggleOverdue = () => { clearActiveSavedFilter(); setOverdue((v) => !v); };
   const toggleUnassigned = () => { clearActiveSavedFilter(); setUnassigned((v) => !v); };
+  const toggleSla = (kind) => () => { clearActiveSavedFilter(); setSlaFilter((v) => (v === kind ? '' : kind)); };
   const toggleNewFromEmail = () => { clearActiveSavedFilter(); setNewFromEmail((v) => !v); };
 
   const toggleSelect = (id) => {
@@ -439,6 +444,24 @@ export default function Tickets() {
             </button>
             <button
               type="button"
+              onClick={toggleSla('breached')}
+              aria-pressed={slaFilter === 'breached'}
+              className={`${filterButtonCls(slaFilter === 'breached')} flex-shrink-0 whitespace-nowrap`}
+              style={{ borderColor: slaFilter === 'breached' ? 'var(--color-danger)' : BORDER, backgroundColor: slaFilter === 'breached' ? 'var(--color-danger)' : CARD_BG, color: slaFilter === 'breached' ? 'white' : TEXT }}
+            >
+              SLA breached
+            </button>
+            <button
+              type="button"
+              onClick={toggleSla('at_risk')}
+              aria-pressed={slaFilter === 'at_risk'}
+              className={`${filterButtonCls(slaFilter === 'at_risk')} flex-shrink-0 whitespace-nowrap`}
+              style={{ borderColor: slaFilter === 'at_risk' ? 'var(--color-warning)' : BORDER, backgroundColor: slaFilter === 'at_risk' ? 'var(--color-warning)' : CARD_BG, color: slaFilter === 'at_risk' ? 'white' : TEXT }}
+            >
+              SLA at risk
+            </button>
+            <button
+              type="button"
               onClick={toggleNewFromEmail}
               title="Unassigned tickets created from inbound email"
               className={`${filterButtonCls(newFromEmail)} flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap`}
@@ -562,7 +585,10 @@ export default function Tickets() {
                       {canViewAllTickets && t.department?.name && <DeptPill name={t.department.name} />}
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />
-                        <DueDateCell dueDate={t.dueDate} />
+                        <div className="flex items-center gap-2">
+                          {t.sla?.worst && <SlaBadge sla={t.sla} />}
+                          <DueDateCell dueDate={t.dueDate} />
+                        </div>
                       </div>
                       <div className="mt-2">
                         <Avatar name={t.assignee?.displayName} />
@@ -656,6 +682,7 @@ export default function Tickets() {
                         {key === 'priority' && <PriorityCell priority={t.priority} />}
                         {key === 'status' && <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />}
                         {key === 'dueDate' && <DueDateCell dueDate={t.dueDate} />}
+                        {key === 'sla' && <SlaBadge sla={t.sla} />}
                         {key === 'assignee' && <Avatar name={t.assignee?.displayName} />}
                         {key === 'type' && <span className="text-sm capitalize" style={{ color: TEXT }}>{t.type}</span>}
                         {key === 'source' && <SourceCell source={t.source} />}
