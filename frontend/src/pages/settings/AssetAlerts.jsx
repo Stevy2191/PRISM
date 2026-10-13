@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
+import SaveBar, { isDirty } from '../../components/settings/SaveBar';
 
 const FIELDS = [
   { key: 'subscriptionAlertDays', settingsKey: 'assets.subscriptionAlertDays', label: 'Asset subscription renewal', desc: 'Days before a subscription renewal date to create a reminder ticket.', defaultValue: 30 },
@@ -16,7 +17,8 @@ export default function AssetAlerts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [snapshot, setSnapshot] = useState(null); // as loaded or last saved
 
   useEffect(() => {
     api.get('/settings')
@@ -25,6 +27,7 @@ export default function AssetAlerts() {
         const f = {};
         FIELDS.forEach((field) => { f[field.key] = Number(s[field.settingsKey]) || field.defaultValue; });
         setForm(f);
+        setSnapshot(f);
       })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
@@ -38,8 +41,8 @@ export default function AssetAlerts() {
       const settings = {};
       FIELDS.forEach((field) => { settings[field.settingsKey] = String(form[field.key]); });
       await api.put('/settings', { settings });
-      setSavedAt(true);
-      setTimeout(() => setSavedAt(false), 2500);
+      setSnapshot(form);
+      setSaved(true);
     } catch (err) {
       setError(errMessage(err));
     } finally {
@@ -50,15 +53,7 @@ export default function AssetAlerts() {
   if (loading || !form) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Asset Alerts</h1>
-      <p className="text-sm text-navy-500">
-        Each threshold below controls how many days in advance a reminder ticket is automatically created for that
-        type of expiring item. A ticket is only created once per date (or once per record for licenses/contracts,
-        re-created only after the previous reminder ticket is closed) — see the scheduled job that checks these
-        every 15 minutes.
-      </p>
+    <SettingsPage description="Each threshold below controls how many days in advance a reminder ticket is automatically created for that type of expiring item. A ticket is only created once per date (or once per record for licenses/contracts, re-created only after the previous reminder ticket is closed) — see the scheduled job that checks these every 15 minutes.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={save} className="card space-y-5 p-5">
@@ -72,7 +67,7 @@ export default function AssetAlerts() {
                 max="365"
                 className="input max-w-[8rem]"
                 value={form[field.key]}
-                onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
+                onChange={(e) => { setSaved(false); setForm((f) => ({ ...f, [field.key]: e.target.value })); }}
               />
               <span className="text-sm text-navy-500">days before</span>
             </div>
@@ -80,11 +75,8 @@ export default function AssetAlerts() {
           </div>
         ))}
 
-        <div className="flex items-center justify-end gap-3">
-          {savedAt && <span className="text-sm text-green-600">Saved</span>}
-          <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-        </div>
+        <SaveBar dirty={isDirty(form, snapshot)} saving={saving} saved={saved} />
       </form>
-    </div>
+    </SettingsPage>
   );
 }

@@ -1,6 +1,7 @@
 const { resetData, closeDb, models, ROLE } = require('../integration/helpers');
 const { API, expectOk, makeWorld, makeUser } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
 // The Settings redesign (spec 2026-10-12): one menu, one page layout, the
 // regrouped pages.
@@ -16,13 +17,21 @@ beforeAll(async () => {
   w = await makeWorld();
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
+// This file opens dozens of pages as one person; the API's limit (200
+// requests a minute per user) is a backstop for real use, not for a test run.
+beforeEach(resetRateLimits);
 
 // A page in the Settings frame: breadcrumb, its title, no "Back to Settings".
 const framed = async (page, path, title) => {
+  resetRateLimits();
   await page.goto(path);
   const main = page.getByRole('main');
-  await main.getByRole('navigation', { name: 'Breadcrumb' }).waitFor();
-  await main.getByRole('heading', { level: 1, name: title }).waitFor();
+  try {
+    await main.getByRole('navigation', { name: 'Breadcrumb' }).waitFor({ timeout: 10000 });
+    await main.getByRole('heading', { level: 1, name: title }).waitFor({ timeout: 10000 });
+  } catch (err) {
+    throw new Error(`${path}: ${err.message}`);
+  }
   expect([path, await page.getByText('Back to Settings').count()]).toEqual([path, 0]);
 };
 
@@ -52,7 +61,7 @@ describe('Company profile', () => {
     const saved = page.waitForResponse((r) => r.request().method() === 'PATCH' && r.url().endsWith('/settings'));
     await page.getByRole('button', { name: 'Save' }).click();
     await saved;
-    await shown(page, 'Saved').waitFor();
+    await page.getByText('Saved', { exact: true }).waitFor();
     expect([await setting('company.name'), await setting('company.timezone'), await setting('branding.appName'), await setting('branding.tagline')])
       .toEqual(['Northwind IT', 'America/Chicago', 'Northwind Desk', 'Help, fast']);
   });
@@ -85,7 +94,7 @@ describe('System info', () => {
     await page.getByRole('heading', { level: 1, name: 'System info' }).waitFor();
     await page.getByLabel('Max attachment size (MB)').fill('30');
     await page.getByRole('button', { name: 'Save' }).click();
-    await shown(page, 'Saved').waitFor();
+    await page.getByText('Saved', { exact: true }).waitFor();
     expect(await setting('system.maxAttachmentSizeMB')).toBe('30');
     await page.goto('/admin/settings');
     await page.waitForURL(/\/settings$/);
@@ -212,6 +221,47 @@ describe('Service desk and Hours & SLAs in the frame', () => {
     await page.getByRole('main').getByRole('checkbox').first().click();
     await shown(page, 'Unsaved changes').waitFor();
     await page.getByRole('button', { name: 'Save' }).click();
-    await shown(page, 'Saved').waitFor();
+    await page.getByText('Saved', { exact: true }).waitFor();
+  });
+});
+
+describe('the rest in the frame, and every page opens', () => {
+  it('Time & work, Assets, Sign-in & email, System', async () => {
+    const page = await as('admin');
+    for (const [path, title] of [
+      ['/settings/time-tracking', 'Time tracking'], ['/settings/work-types', 'Work types'],
+      ['/settings/asset-categories', 'Asset categories'], ['/settings/asset-alerts', 'Expiry alerts'],
+      ['/settings/single-sign-on', 'Single sign-on'], ['/settings/directory', 'Directory (AD/LDAP)'],
+      ['/settings/directory-sync', 'Directory sync'], ['/settings/incoming-email', 'Incoming email'],
+      ['/settings/outgoing-email', 'Outgoing email'], ['/settings/email-log', 'Email log'],
+      ['/settings/calendar-integration', 'Calendar'], ['/settings/modules', 'Modules & tabs'],
+      ['/settings/schedules', 'Background jobs'], ['/settings/import', 'Import'], ['/settings/export', 'Export'],
+      ['/settings/audit-log', 'Audit log'], ['/settings/system', 'System info'], ['/settings/company', 'Company profile'],
+    ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
+  });
+
+  it('every menu page opens for an owner (no page is missing from the component map)', async () => {
+    const page = await as('admin');
+    await page.goto('/settings/preferences');
+    await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link', { name: 'Time tracking' }).waitFor();
+    const links = await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link').evaluateAll(
+      (as) => as.map((a) => [a.getAttribute('href'), a.textContent.trim()]),
+    );
+    expect(links.length).toBeGreaterThan(35);
+    for (const [href, name] of links.filter(([h]) => h !== '/settings')) {
+      resetRateLimits();
+      await page.goto(href); // eslint-disable-line no-await-in-loop
+      await page.getByRole('main').getByRole('heading', { level: 1, name }).waitFor(); // eslint-disable-line no-await-in-loop
+    }
+  });
+
+  it('Time tracking says when there are unsaved changes, then that they were saved', async () => {
+    const page = await as('admin');
+    await page.goto('/settings/time-tracking');
+    await page.getByLabel('Longest time entry').selectOption('10');
+    await shown(page, 'Unsaved changes').waitFor();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Saved', { exact: true }).waitFor();
+    expect(await setting('timeTracking.maxEntryHours')).toBe('10');
   });
 });

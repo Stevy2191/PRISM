@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 function relativeTime(iso) {
   if (!iso) return 'Never run';
@@ -28,15 +28,7 @@ export default function Schedules() {
   if (!jobs) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Schedules</h1>
-        <p className="text-sm text-navy-500">
-          Background jobs this PRISM instance runs automatically. Read-only — configure Directory
-          Sync and Calendar Integration on their own settings pages.
-        </p>
-      </div>
+    <SettingsPage description="Background jobs this PRISM instance runs automatically. Read-only — configure Directory Sync and Calendar Integration on their own settings pages.">
 
       <div className="card divide-y divide-navy-100">
         {jobs.map((job) => (
@@ -60,6 +52,6 @@ export default function Schedules() {
           </div>
         ))}
       </div>
-    </div>
+    </SettingsPage>
   );
 }

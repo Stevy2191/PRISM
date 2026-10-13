@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const FIELD_TYPE_OPTIONS = [
   { value: 'text', label: 'Text' },
@@ -351,15 +351,11 @@ export default function AssetCategories() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-navy-900">Asset Categories</h1>
-          <p className="text-sm text-navy-500">Manage asset categories and the device-specific fields shown for each.</p>
-        </div>
+    <SettingsPage description="Manage asset categories and the device-specific fields shown for each." actions={(
+      <>
         <button type="button" onClick={() => setEditorCategory('new')} className="btn-primary flex-shrink-0">+ New category</button>
-      </div>
+      </>
+    )}>
 
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
@@ -393,6 +389,6 @@ export default function AssetCategories() {
           onSaved={() => load()}
         />
       )}
-    </div>
+    </SettingsPage>
   );
 }

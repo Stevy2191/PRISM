@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 // The callback URLs an admin must register with Google/Microsoft — computed
 // from the current origin since this backend is deployed same-origin by
@@ -88,14 +88,7 @@ export default function CalendarIntegration() {
   if (loading || !form) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Calendar Integration</h1>
-      <p className="text-sm text-navy-500">
-        OAuth app credentials for the Google Calendar / Microsoft Outlook connect buttons on the Calendar
-        page (Account Preferences → Calendar integrations). Without these configured here, users can still
-        connect an iCal/CalDAV URL, but the Google/Microsoft options stay disabled.
-      </p>
+    <SettingsPage description="OAuth app credentials for the Google Calendar / Microsoft Outlook connect buttons on the Calendar page (Account Preferences → Calendar integrations). Without these configured here, users can still connect an iCal/CalDAV URL, but the Google/Microsoft options stay disabled.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={save} className="space-y-5">
@@ -180,6 +173,6 @@ export default function CalendarIntegration() {
           <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </form>
-    </div>
+    </SettingsPage>
   );
 }

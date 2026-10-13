@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { IconUsers, IconTicket, IconBox } from '@tabler/icons-react';
 import api from '../../api/api';
 import ImportContactsModal from '../../components/ImportContactsModal';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 function ImportCard({ icon: Icon, title, desc, action, comingSoon }) {
   return (
@@ -31,12 +32,7 @@ export default function Import() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Import</h1>
-        <p className="text-sm text-navy-500">Bring records into PRISM from a CSV file.</p>
-      </div>
+    <SettingsPage description="Bring records into PRISM from a CSV file.">
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <ImportCard
@@ -66,6 +62,6 @@ export default function Import() {
           onImported={() => navigate('/contacts')}
         />
       )}
-    </div>
+    </SettingsPage>
   );
 }

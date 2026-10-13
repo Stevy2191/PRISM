@@ -4,6 +4,7 @@ import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
 import Switch from '../../components/Switch';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 // Fields differ per protocol. Keeping the descriptions here means the form is
 // generated from one place rather than two near-identical JSX blocks.
@@ -369,14 +370,7 @@ export default function SingleSignOn() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
-      <div>
-        <Link to="/settings" className="text-sm text-prism hover:underline">← Settings</Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-navy-900">Single Sign-On</h1>
-        <p className="text-sm text-navy-500">
-          Let people sign in with your organisation&apos;s identity provider over OpenID Connect or SAML 2.0.
-        </p>
-      </div>
+    <SettingsPage description="Let people sign in with your organization's identity provider over OpenID Connect or SAML 2.0.">
 
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
       {notice && <div className="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div>}
@@ -477,6 +471,6 @@ export default function SingleSignOn() {
       {mappingFor && (
         <MappingsModal provider={mappingFor} roles={roles} onClose={() => { setMappingFor(null); load(); }} />
       )}
-    </div>
+    </SettingsPage>
   );
 }

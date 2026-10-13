@@ -1,9 +1,9 @@
 // Settings → Work types: the kinds of work time is logged as. A type in use
 // can be deactivated (it stays on old entries) but not deleted; one stays active.
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 export default function WorkTypes() {
   const [types, setTypes] = useState(null);
@@ -36,12 +36,7 @@ export default function WorkTypes() {
 
   if (!types) return error ? <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div> : <Spinner />;
   return (
-    <div className="space-y-4">
-      <Link to="/settings" className="text-sm text-[var(--color-accent)] hover:underline">← Settings</Link>
-      <div>
-        <h1 className="page-title">Work types</h1>
-        <p className="text-sm text-navy-500">What kind of work time is logged as, and whether it is billable by default. A type in use can be turned off but not deleted.</p>
-      </div>
+    <SettingsPage description="What kind of work time is logged as, and whether it is billable by default. A type in use can be turned off but not deleted.">
       <div className="card divide-y divide-navy-100">
         {types.map((t) => (
           <div key={t.id} className="flex flex-wrap items-center gap-3 p-3">
@@ -61,6 +56,6 @@ export default function WorkTypes() {
         <input className="input max-w-xs" placeholder="New work type" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
         <button type="button" onClick={add} className="btn-primary">Add</button>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

@@ -1,31 +1,37 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage, { SettingsPanel, SettingsRow } from '../../components/settings/SettingsPage';
+import SaveBar, { isDirty } from '../../components/settings/SaveBar';
 
 const THRESHOLDS = [0, 60, 120, 300, 600, 900]; // seconds
 
 export default function TimeTracking() {
   const [form, setForm] = useState(null);
+  const [snapshot, setSnapshot] = useState(null); // as loaded or last saved
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     api.get('/settings')
       .then(({ data }) => {
         const s = data.settings;
-        setForm({
+        const loaded = {
           defaultMode: s['timeTracking.defaultMode'] || 'manual',
           defaultMinThreshold: Number(s['timeTracking.defaultMinThreshold']) || 0,
           requireBeforeClose: s['timeTracking.requireBeforeClose'] === 'true',
           maxEntryHours: Number(s['timeTracking.maxEntryHours']) || 12,
-        });
+        };
+        setForm(loaded);
+        setSnapshot(loaded);
       })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
   }, []);
+
+  const set = (patch) => { setSaved(false); setForm((f) => ({ ...f, ...patch })); };
 
   const save = async (e) => {
     e.preventDefault();
@@ -40,8 +46,8 @@ export default function TimeTracking() {
           'timeTracking.maxEntryHours': String(form.maxEntryHours),
         },
       });
-      setSavedAt(true);
-      setTimeout(() => setSavedAt(false), 2500);
+      setSnapshot(form);
+      setSaved(true);
     } catch (err) {
       setError(errMessage(err));
     } finally {
@@ -52,82 +58,46 @@ export default function TimeTracking() {
   if (loading || !form) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Time Tracking</h1>
-      <p className="text-sm text-navy-500">
-        System-wide defaults for time logging. Individual users can still override their own
-        timer mode and threshold in Account Preferences.
-      </p>
-      {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
+    <SettingsPage description="Defaults for logging time, for everyone. People can change their own timer mode and minimum in Preferences.">
+      {error && <div role="alert" className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
-      <form onSubmit={save} className="card space-y-5 p-5">
-        <div>
-          <label className="label">Default timer mode for new users</label>
-          <select
-            className="input max-w-xs"
-            value={form.defaultMode}
-            onChange={(e) => setForm((f) => ({ ...f, defaultMode: e.target.value }))}
-          >
-            <option value="manual">Manual — start/stop the timer yourself</option>
-            <option value="automatic">Automatic — timer runs while a ticket is open</option>
-          </select>
-        </div>
+      <form onSubmit={save} className="space-y-5">
+        <SettingsPanel title="Timer">
+          <SettingsRow label="Timer mode for new users" htmlFor="defaultMode">
+            <select id="defaultMode" className="input" value={form.defaultMode} onChange={(e) => set({ defaultMode: e.target.value })}>
+              <option value="manual">Manual — start and stop the timer yourself</option>
+              <option value="automatic">Automatic — the timer runs while a ticket is open</option>
+            </select>
+          </SettingsRow>
+          <SettingsRow label="Minimum entry for new users" htmlFor="defaultMinThreshold" help="New users are warned before logging a timer session shorter than this.">
+            <select id="defaultMinThreshold" className="input" value={form.defaultMinThreshold}
+              onChange={(e) => set({ defaultMinThreshold: Number(e.target.value) })}>
+              {THRESHOLDS.map((s) => (
+                <option key={s} value={s}>{s === 0 ? 'No minimum' : `${s / 60} minute${s / 60 === 1 ? '' : 's'}`}</option>
+              ))}
+            </select>
+          </SettingsRow>
+          <SettingsRow label="Longest time entry" htmlFor="maxEntryHours"
+            help="No one entry can be longer. A timer stops counting when it gets there, so one left running overnight or over a weekend logs this much at most, and the person corrects it when they stop it.">
+            <select id="maxEntryHours" className="input" value={form.maxEntryHours}
+              onChange={(e) => set({ maxEntryHours: Number(e.target.value) })}>
+              {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                <option key={h} value={h}>{h} hour{h === 1 ? '' : 's'}</option>
+              ))}
+            </select>
+          </SettingsRow>
+        </SettingsPanel>
 
-        <div>
-          <label className="label">Default minimum log threshold</label>
-          <select
-            className="input max-w-xs"
-            value={form.defaultMinThreshold}
-            onChange={(e) => setForm((f) => ({ ...f, defaultMinThreshold: Number(e.target.value) }))}
-          >
-            {THRESHOLDS.map((s) => (
-              <option key={s} value={s}>{s === 0 ? 'No minimum' : `${s / 60} minute${s / 60 === 1 ? '' : 's'}`}</option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-navy-400">
-            New users are warned before logging a timer session shorter than this.
-          </p>
-        </div>
+        <SettingsPanel title="Closing tickets">
+          <SettingsRow label="Require time before closing" htmlFor="requireBeforeClose"
+            help="A ticket can't move to a closed status until at least one time entry is logged on it.">
+            <input type="checkbox" id="requireBeforeClose" className="mt-1 h-4 w-4 rounded border-navy-300 text-prism"
+              checked={form.requireBeforeClose} onChange={(e) => set({ requireBeforeClose: e.target.checked })} />
+          </SettingsRow>
+        </SettingsPanel>
 
-        <div>
-          <label className="label" htmlFor="maxEntryHours">Longest time entry</label>
-          <select
-            id="maxEntryHours"
-            className="input max-w-xs"
-            value={form.maxEntryHours}
-            onChange={(e) => setForm((f) => ({ ...f, maxEntryHours: Number(e.target.value) }))}
-          >
-            {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
-              <option key={h} value={h}>{h} hour{h === 1 ? '' : 's'}</option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-navy-400">
-            No one entry can be longer. A timer stops counting when it gets there, so one left running
-            overnight or over a weekend logs this much at most, and the person corrects it when they stop it.
-          </p>
-        </div>
-
-        <div className="flex items-start gap-3 border-t border-navy-100 pt-4">
-          <input
-            type="checkbox"
-            id="requireBeforeClose"
-            className="mt-0.5 h-4 w-4 rounded border-navy-300 text-prism"
-            checked={form.requireBeforeClose}
-            onChange={(e) => setForm((f) => ({ ...f, requireBeforeClose: e.target.checked }))}
-          />
-          <label htmlFor="requireBeforeClose" className="text-sm text-navy-700">
-            <span className="font-medium text-navy-900">Require time logged before closing a ticket</span>
-            <br />
-            When enabled, a ticket can't be moved to a closed status until at least one time entry has been logged against it.
-          </label>
-        </div>
-
-        <div className="flex items-center justify-end gap-3">
-          {savedAt && <span className="text-sm text-green-600">Saved</span>}
-          <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-        </div>
+        <SaveBar dirty={isDirty(form, snapshot)} saving={saving} saved={saved} />
       </form>
-    </div>
+    </SettingsPage>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const ROLES = ['admin', 'technician'];
 const LABELS = {
@@ -49,10 +49,7 @@ export default function Modules() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Modules &amp; Tabs</h1>
-      <p className="text-sm text-navy-500">Choose which sidebar modules are visible to each role.</p>
+    <SettingsPage description="Choose which sidebar modules are visible to each role.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <div className="card overflow-x-auto">
@@ -84,6 +81,6 @@ export default function Modules() {
         {savedAt && <span className="text-sm text-green-600">Saved</span>}
         <button onClick={save} className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import { usePermission } from '../../context/AuthContext';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -50,12 +50,7 @@ export default function Export() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Export</h1>
-        <p className="text-sm text-navy-500">Download PRISM data as CSV.</p>
-      </div>
+    <SettingsPage description="Download PRISM data as CSV.">
 
       {!canExport && (
         <div className="rounded-md bg-amber-50 p-4 text-sm text-amber-800">
@@ -103,6 +98,6 @@ export default function Export() {
         exporting={busy === 'time'}
         error={errors.time}
       />
-    </div>
+    </SettingsPage>
   );
 }

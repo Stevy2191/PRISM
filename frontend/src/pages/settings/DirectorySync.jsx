@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const SCHEDULE_OPTIONS = [
   { value: 1, label: 'Every hour' },
@@ -167,9 +167,7 @@ export default function DirectorySync() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Directory Sync</h1>
+    <SettingsPage>
 
       {error && <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
@@ -279,6 +277,6 @@ export default function DirectorySync() {
       </div>
 
       {showLog && <SyncLogModal onClose={() => setShowLog(false)} />}
-    </div>
+    </SettingsPage>
   );
 }

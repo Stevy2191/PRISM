@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import AccessRestricted, { isForbidden } from '../../components/AccessRestricted';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const ACTION_LABELS = {
   role_assigned: 'Role assigned',
@@ -55,10 +55,7 @@ export default function AuditLog() {
   if (forbidden) return <AccessRestricted />;
 
   return (
-    <div className="space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Audit Log</h1>
-      <p className="text-sm text-navy-500">Every role assignment and permission override change, system-wide.</p>
+    <SettingsPage description="Every role assignment and permission override change, system-wide.">
 
       <div className="card flex flex-wrap items-end gap-3 p-5">
         <div>
@@ -128,6 +125,6 @@ export default function AuditLog() {
           </div>
         </>
       )}
-    </div>
+    </SettingsPage>
   );
 }
