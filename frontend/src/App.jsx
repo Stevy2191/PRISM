@@ -36,8 +36,7 @@ import NotFound from './pages/NotFound';
 
 // Settings hub + sections
 import SettingsHub from './pages/SettingsHub';
-import SettingsCompany from './pages/settings/Company';
-import SettingsBranding from './pages/settings/Branding';
+import CompanyProfile from './pages/settings/CompanyProfile';
 import SettingsStatuses from './pages/settings/Statuses';
 import SettingsBusinessHours from './pages/settings/BusinessHours';
 import SettingsHolidays from './pages/settings/Holidays';
@@ -163,8 +162,8 @@ export default function App() {
         <Route path="/settings" element={<SettingsHub />} />
         <Route path="/settings/preferences" element={<SettingsPreferences />} />
         <Route path="/settings/about" element={<SettingsAbout />} />
-        <Route path="/settings/company" element={perm(<SettingsCompany />, BRANDING_KEYS)} />
-        <Route path="/settings/branding" element={perm(<SettingsBranding />, BRANDING_KEYS)} />
+        <Route path="/settings/company" element={perm(<CompanyProfile />, BRANDING_KEYS)} />
+        <Route path="/settings/branding" element={<Navigate to="/settings/company" replace />} />
         <Route path="/settings/statuses" element={perm(<SettingsStatuses />, STATUSES_KEYS)} />
         <Route path="/settings/business-hours" element={perm(<SettingsBusinessHours />, BUSINESS_HOURS_KEYS)} />
         <Route path="/settings/holidays" element={perm(<SettingsHolidays />, BUSINESS_HOURS_KEYS)} />
