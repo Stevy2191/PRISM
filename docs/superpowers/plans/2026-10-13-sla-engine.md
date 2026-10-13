@@ -43,13 +43,13 @@
 - Produces: `zoneWallTime(dateStr: 'YYYY-MM-DD', hhmm: 'HH:MM', tz) → Date` (two-pass offset, like `zoneDayStart`).
 - Produces: `addBusinessMinutes(start: Date, minutes: int, calendar|null) → Date`; `businessMinutesBetween(a: Date, b: Date, calendar|null) → int` (0 if b ≤ a). `calendar = { timezone, schedule, is24x7, holidays: Set<string> }`; `null` or `is24x7` = plain wall-clock minutes. Schedule shape is `BusinessHours.schedule` (`{ monday: { start, end, enabled }, … }`); a disabled/missing day or a holiday is closed. `end <= start` = closed day (guard). Walk day by day in the zone; cap the walk at 3,700 days and throw if exceeded (an all-closed schedule must not loop forever).
 
-- [ ] Step 1: Write failing tests:
+- [x] Step 1: Write failing tests:
   - `zoneWallTime`: `09:00` Chicago on 2026-03-11 → `14:00Z`; on DST start day 2026-03-08 `09:00` → `14:00Z`; `02:30` on 2026-03-08 (non-existent) resolves to a valid instant after 03:00 local.
   - `businessTime`: `adds within one day`; `rolls past closing into next open day`; `start before opening counts from opening`; `start Friday 18:00 lands Monday`; `skips a holiday`; `24x7 and null calendar are wall-clock`; `businessMinutesBetween counts only open minutes across a weekend`; `round-trips: between(start, add(start, n)) === n` for n in [1, 59, 480, 2000]; `spring-forward and fall-back days count real open minutes`; `all-closed schedule throws`; `zero minutes returns start (or next opening if closed)`.
-- [ ] Step 2: Run `npm test -- test/unit/businessTime.test.js test/unit/orgTime.test.js` → FAIL.
-- [ ] Step 3: Implement.
-- [ ] Step 4: Re-run → PASS.
-- [ ] Step 5: Commit `feat(sla): business-time calculator`.
+- [x] Step 2: Run `npm test -- test/unit/businessTime.test.js test/unit/orgTime.test.js` → FAIL.
+- [x] Step 3: Implement.
+- [x] Step 4: Re-run → PASS.
+- [x] Step 5: Commit `feat(sla): business-time calculator`.
 
 ### Task 2: Schema — policies, targets, ticket SLA rows
 
@@ -64,11 +64,11 @@
 - ENUM additions: triggers `sla_warning`, `sla_breached`; action `set_sla_policy`.
 - Migration data move: old rows → policy "Standard" (`isDefault: true`, `warnAtPercent: 75`, `businessHoursId` = global schedule (`departmentId IS NULL`, lowest id) or null) with one target per old row (`hours × 60`, `assignMinutes: null`). `down()`: rebuild old per-priority rows from the default policy's targets (`minutes / 60`), delete rules/actions using the new ENUM values before shrinking ENUMs, drop new tables/columns.
 
-- [ ] Step 1: Failing tests: `sla.migration.test.js` — `migrates per-priority rows into a Standard default policy`, `links the global business-hours schedule when one exists`, `new ticket statuses default pausesSla false`; `migrations.test.js` — `sla-engine migration round-trips (down then up)` incl. data survives.
-- [ ] Step 2: Run → FAIL.
-- [ ] Step 3: Implement migration + models; run `npm run test:migrate`.
-- [ ] Step 4: Re-run both files → PASS.
-- [ ] Step 5: Commit `feat(sla): schema for policies, targets and ticket clocks`.
+- [x] Step 1: Failing tests: `sla.migration.test.js` — `migrates per-priority rows into a Standard default policy`, `links the global business-hours schedule when one exists`, `new ticket statuses default pausesSla false`; `migrations.test.js` — `sla-engine migration round-trips (down then up)` incl. data survives.
+- [x] Step 2: Run → FAIL.
+- [x] Step 3: Implement migration + models; run `npm run test:migrate`.
+- [x] Step 4: Re-run both files → PASS.
+- [x] Step 5: Commit `feat(sla): schema for policies, targets and ticket clocks`.
 
 ### Task 3: Policy API and "Pauses SLA" on statuses
 
@@ -84,11 +84,11 @@
 - Delete: refused (409) for the default; otherwise in one transaction set those companies' `slaPolicyId = null` and repoint open tickets' `TicketSla.slaPolicyId` to the default (recalc happens in Task 4 via `recalcTicketSla`; until Task 4 exists, just repoint).
 - `recalcForPolicy` is NOT run on edit (spec: applies on next recalculation).
 
-- [ ] Step 1: Failing tests: `lists the Standard policy with four targets`; `creates a policy with targets and companies (audited)`; `rejects duplicate name / bad percent / unknown priority / unknown company id / '12abc' id`; `moving a company to a new policy removes it from the old`; `cannot delete the default`; `deleting a policy moves its companies and open tickets to the default`; `set default switches the flag atomically`; `non-admin gets 403 on every route`; `status PATCH round-trips pausesSla`; `company detail shows its policy name`.
-- [ ] Step 2: Run `npm test -- test/integration/sla.policies.test.js` → FAIL.
-- [ ] Step 3: Implement.
-- [ ] Step 4: Re-run → PASS (plus `settings.status.test.js`).
-- [ ] Step 5: Commit `feat(sla): policy API and pausing statuses`.
+- [x] Step 1: Failing tests: `lists the Standard policy with four targets`; `creates a policy with targets and companies (audited)`; `rejects duplicate name / bad percent / unknown priority / unknown company id / '12abc' id`; `moving a company to a new policy removes it from the old`; `cannot delete the default`; `deleting a policy moves its companies and open tickets to the default`; `set default switches the flag atomically`; `non-admin gets 403 on every route`; `status PATCH round-trips pausesSla`; `company detail shows its policy name`.
+- [x] Step 2: Run `npm test -- test/integration/sla.policies.test.js` → FAIL.
+- [x] Step 3: Implement.
+- [x] Step 4: Re-run → PASS (plus `settings.status.test.js`).
+- [x] Step 5: Commit `feat(sla): policy API and pausing statuses`.
 
 ### Task 4: Clock engine — ticket hooks and first response
 
@@ -110,10 +110,10 @@
   - `statusFlags()` — cached `Map<statusName, { behaviorType, pausesSla }>`.
 - Ticket hooks pass `options.transaction` through and let SLA errors propagate, so a ticket is never saved with a stale clock (the same transaction rolls back).
 
-- [ ] Step 1: Failing unit tests (`slaClock.test.js`): `start then stop banks business minutes`; `stop after due sets breachedAt = dueAt`; `retarget keeps used minutes`; `retarget below used breaches now`; `null target = untracked`; `warnAt at warnPct of target`.
-- [ ] Step 2: Failing integration tests (`sla.clocks.test.js`, use a 24×7 policy unless testing hours): `new unassigned ticket starts all three clocks`; `assigned at create: assign clock not started`; `assigning stops assign clock; unassigning restarts it and keeps used`; `staff public reply stops response clock`; `private note does not`; `inbound email reply does not count as first response` (call the inbound-reply path used in `companies.inbound.test.js`); `pausing status stops resolution only`; `closing stops all; reopening resumes resolution, time closed not counted`; `priority change keeps used minutes and moves dueAt`; `company with its own policy gets it at create`; `ticket created before upgrade (no row) is untouched by updates`; `workflow assign action (no request) still stops the assign clock`; `editing a policy target then changing priority uses the new target`.
-- [ ] Step 3: Run → FAIL. Implement. Re-run → PASS. Also run `tickets.core.test.js tickets.comments.test.js` (hooks must not break them).
-- [ ] Step 4: Commit `feat(sla): clock engine on ticket and comment events`.
+- [x] Step 1: Failing unit tests (`slaClock.test.js`): `start then stop banks business minutes`; `stop after due sets breachedAt = dueAt`; `retarget keeps used minutes`; `retarget below used breaches now`; `null target = untracked`; `warnAt at warnPct of target`.
+- [x] Step 2: Failing integration tests (`sla.clocks.test.js`, use a 24×7 policy unless testing hours): `new unassigned ticket starts all three clocks`; `assigned at create: assign clock not started`; `assigning stops assign clock; unassigning restarts it and keeps used`; `staff public reply stops response clock`; `private note does not`; `inbound email reply does not count as first response` (call the inbound-reply path used in `companies.inbound.test.js`); `pausing status stops resolution only`; `closing stops all; reopening resumes resolution, time closed not counted`; `priority change keeps used minutes and moves dueAt`; `company with its own policy gets it at create`; `ticket created before upgrade (no row) is untouched by updates`; `workflow assign action (no request) still stops the assign clock`; `editing a policy target then changing priority uses the new target`.
+- [x] Step 3: Run → FAIL. Implement. Re-run → PASS. Also run `tickets.core.test.js tickets.comments.test.js` (hooks must not break them).
+- [x] Step 4: Commit `feat(sla): clock engine on ticket and comment events`.
 
 ### Task 5: Scheduler, notifications, workflow triggers and action
 
@@ -128,9 +128,9 @@
 - Notifications via `createNotification({ userId, type: 'sla_warning'|'sla_breached', message, ticketId })`: assignee; for `assign` clock, the ticket's team members (`TeamMember`). Message names the clock: "Assignment SLA at risk", "First response SLA breached", etc.
 - Workflow: rules with trigger `sla_warning`/`sla_breached` whose `triggerConfig.clock` is `any` or matches.
 
-- [ ] Step 1: Failing tests: `warns once at warnAt and notifies the assignee`; `breaches once at dueAt and fires sla_breached rules`; `two overlapping passes fire once` (Promise.all two `runSlaPass`); `paused or stopped clocks are not flagged`; `assign-clock warning goes to team members when unassigned`; `notification type switched off sends nothing`; `rule with clock=response ignores a resolution breach`; `set_sla_policy action switches policy and retargets`; `rule save rejects unknown clock / unknown slaPolicyId`; `recipient who cannot reach the ticket is skipped`.
-- [ ] Step 2: Run → FAIL. Implement. Re-run → PASS; also `settings.cleanup.test.js` and any workflow test files touched.
-- [ ] Step 3: Commit `feat(sla): warnings, breaches and workflow escalation`.
+- [x] Step 1: Failing tests: `warns once at warnAt and notifies the assignee`; `breaches once at dueAt and fires sla_breached rules`; `two overlapping passes fire once` (Promise.all two `runSlaPass`); `paused or stopped clocks are not flagged`; `assign-clock warning goes to team members when unassigned`; `notification type switched off sends nothing`; `rule with clock=response ignores a resolution breach`; `set_sla_policy action switches policy and retargets`; `rule save rejects unknown clock / unknown slaPolicyId`; `recipient who cannot reach the ticket is skipped`.
+- [x] Step 2: Run → FAIL. Implement. Re-run → PASS; also `settings.cleanup.test.js` and any workflow test files touched.
+- [x] Step 3: Commit `feat(sla): warnings, breaches and workflow escalation`.
 
 ### Task 6: Ticket API exposure, list filters, dashboard data
 
@@ -142,9 +142,9 @@
 **Interfaces:**
 - `breached` = any `cBreachedAt` not null on an open ticket; `at_risk` = any running clock with `cWarnAt <= now` and no breach. Use `$sla.col$` with `include: [{ model: TicketSla, as: 'sla', required: true }]` — mind the pagination `findAndCountAll` + include trap (memory "Pagination build": `distinct: true`, `col`).
 
-- [ ] Step 1: Failing tests: `ticket detail includes sla view`; `old ticket returns sla: null`; `list ?sla=breached returns only breached in scope` (own-tier user + another user's breached ticket → excluded, total correct); `?sla=at_risk excludes breached`; `bad sla value → 400`; `dashboard slaAtRisk is scoped`; `paused resolution shows state paused`.
-- [ ] Step 2: Run → FAIL. Implement. Re-run → PASS; also `pagination.test.js`, `tickets.core.test.js`.
-- [ ] Step 3: Commit `feat(sla): SLA on ticket responses, filters and dashboard data`.
+- [x] Step 1: Failing tests: `ticket detail includes sla view`; `old ticket returns sla: null`; `list ?sla=breached returns only breached in scope` (own-tier user + another user's breached ticket → excluded, total correct); `?sla=at_risk excludes breached`; `bad sla value → 400`; `dashboard slaAtRisk is scoped`; `paused resolution shows state paused`.
+- [x] Step 2: Run → FAIL. Implement. Re-run → PASS; also `pagination.test.js`, `tickets.core.test.js`.
+- [x] Step 3: Commit `feat(sla): SLA on ticket responses, filters and dashboard data`.
 
 ### Task 7: SLA compliance report on real clocks
 
@@ -155,9 +155,9 @@
 **Interfaces:**
 - Range applies to ticket `createdAt`. Summary: per clock `{ tracked, met, breached, pctMet }` + `openAtRisk`, `openBreached`. Charts: `metVsBreachedByTech`, `…ByDept`, `…ByCompany` (resolution clock), `complianceTrend` (resolution). Table: breaches `{ ticketNumber, title, assignee, company, clock, dueAt, breachedAt, overByMinutes }`. Same `ticketScopeWhere`, `companyFilterWhere`, `sendCsv`.
 
-- [ ] Step 1: Failing tests: `counts met and breached per clock`; `tickets without SLA are excluded`; `respects scope and company filter`; `CSV export lists breaches`.
-- [ ] Step 2: Run → FAIL. Implement. Re-run → PASS (plus the two existing report files).
-- [ ] Step 3: Commit `feat(sla): compliance report on SLA clocks`.
+- [x] Step 1: Failing tests: `counts met and breached per clock`; `tickets without SLA are excluded`; `respects scope and company filter`; `CSV export lists breaches`.
+- [x] Step 2: Run → FAIL. Implement. Re-run → PASS (plus the two existing report files).
+- [x] Step 3: Commit `feat(sla): compliance report on SLA clocks`.
 
 ### Task 8: Settings screens
 
@@ -168,9 +168,9 @@
 
 **Interfaces:** consumes Task 3/5 APIs. Target grid: rows = priorities, columns = Assign / Respond / Resolve (hours + minutes inputs, blank = not tracked) + 24×7 toggle. Schedule picker from `GET /business-hours`; company multi-picker from the existing company picker component.
 
-- [ ] Step 1: Failing smoke: `admin creates a policy with targets and a company, sees it listed`; `default policy cannot be deleted (button disabled)`; `Pauses SLA switch saves`; `workflow editor offers SLA triggers and Set SLA policy action`.
-- [ ] Step 2: Implement; `npm --prefix frontend run build`; run the smoke file → PASS.
-- [ ] Step 3: Commit `feat(sla): settings screens`.
+- [x] Step 1: Failing smoke: `admin creates a policy with targets and a company, sees it listed`; `default policy cannot be deleted (button disabled)`; `Pauses SLA switch saves`; `workflow editor offers SLA triggers and Set SLA policy action`.
+- [x] Step 2: Implement; `npm --prefix frontend run build`; run the smoke file → PASS.
+- [x] Step 3: Commit `feat(sla): settings screens`.
 
 ### Task 9: Ticket, list, dashboard and report screens
 
@@ -179,14 +179,14 @@
 - Modify: `frontend/src/pages/tickets/detail/Sidebar.jsx` (mount panel), `frontend/src/pages/tickets/list/Cells.jsx` + `ColumnsMenu.jsx` (SLA column), `Tickets.jsx` filters (Breached / At risk → `?sla=`), `frontend/src/pages/Dashboard.jsx` (panel `slaAtRisk` in catalog, default visible for tech and admin), `frontend/src/pages/reports/SlaComplianceReport.jsx`
 - Test: `backend/test/smoke/sla.tickets.smoke.js`
 
-- [ ] Step 1: Failing smoke: `ticket page shows three clocks with due times`; `old ticket shows No SLA`; `list Breached filter shows only breached`; `dashboard SLA at risk panel lists a warned ticket`; `report shows per-clock percentages`; `375px width: panel and badge do not overflow`.
-- [ ] Step 2: Implement; build; run smoke → PASS.
-- [ ] Step 3: Commit `feat(sla): ticket, list, dashboard and report screens`.
+- [x] Step 1: Failing smoke: `ticket page shows three clocks with due times`; `old ticket shows No SLA`; `list Breached filter shows only breached`; `dashboard SLA at risk panel lists a warned ticket`; `report shows per-clock percentages`; `375px width: panel and badge do not overflow`.
+- [x] Step 2: Implement; build; run smoke → PASS.
+- [x] Step 3: Commit `feat(sla): ticket, list, dashboard and report screens`.
 
 ### Task 10: Docs, full verification, push
 
 **Files:** `docs/ROADMAP.md` (status Shipped, plan link), `UPGRADING.md` (Phase 1 notes: SLA policies replace per-priority settings, only new tickets get clocks, "Pauses SLA" on statuses — set it on waiting statuses), memory note.
 
-- [ ] Step 1: Security pass over the diff (scope on every new query, strict ids, audit on every mutation, no SLA data outside scoped ticket responses, scheduler can't be driven by request input). Fresh reviewer subagent for the whole branch (security-relevant + large).
-- [ ] Step 2: Full backend suite once (`npm test` in `backend/`) + full smoke once (`npm run test:smoke`) on Node 24. Paste results.
-- [ ] Step 3: Update docs; commit `docs: SLA engine shipped`; push `dev`.
+- [x] Step 1: Security pass over the diff (scope on every new query, strict ids, audit on every mutation, no SLA data outside scoped ticket responses, scheduler can't be driven by request input). Fresh reviewer subagent for the whole branch (security-relevant + large).
+- [x] Step 2: Full backend suite once (`npm test` in `backend/`) + full smoke once (`npm run test:smoke`) on Node 24. Paste results.
+- [x] Step 3: Update docs; commit `docs: SLA engine shipped`; push `dev`.

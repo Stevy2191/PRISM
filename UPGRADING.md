@@ -12,6 +12,48 @@ backend start.
 
 Nothing here needs action before upgrading.
 
+### SLA engine
+
+Tickets now have real SLA clocks: how long they sit **unassigned**, time to
+**first response**, and time to **resolution**. They count your business
+hours, pause while waiting on the customer, warn before a target is missed,
+and can escalate through workflow rules.
+
+- **Your SLA settings carry over.** The per-priority response and
+  resolution targets become a policy called **Standard**, the default. It
+  uses your global business-hours schedule if you have one, otherwise it
+  counts every hour (24×7). Settings → SLAs now holds named policies: a
+  schedule, a warning point (75% of the target by default), and per-priority
+  targets for assignment, first response and resolution. A blank target is
+  not tracked. Companies can be put on their own policy there.
+- **Only tickets created after the upgrade get clocks.** Older tickets show
+  "No SLA" rather than all showing as breached.
+- **Set "Pauses SLA" on your waiting statuses** (Settings → Statuses), for
+  example "Pending" or "On Hold". Nothing pauses until you do. Pausing stops
+  the resolution clock only.
+- **First response** is the first reply or public comment a staff member
+  posts on the ticket. Private notes, status changes and a customer's own
+  emailed reply don't count.
+- Reopening a ticket resumes its resolution clock; time spent closed doesn't
+  count. A breach stays on record even if a later priority change raises the
+  target.
+- New: an SLA badge and "SLA breached" / "SLA at risk" filters in the ticket
+  list, an SLA panel on the ticket page, an "SLA at Risk" dashboard panel,
+  and "SLA at risk" / "SLA breached" notifications to the assignee (or the
+  ticket's team while it's unassigned).
+- Workflow rules gain the triggers **SLA at risk** and **SLA breached**
+  (for any clock or one of them) and the action **Set SLA policy**.
+- **Changed report:** the SLA compliance report now reads the SLA clocks
+  (per-clock % on time, breaches by technician, department and company)
+  instead of comparing due dates. The manual due date is unchanged and
+  separate from SLA targets.
+- **Changed API:** `/sla-policies` is now policy-based (`GET/POST`,
+  `GET/PATCH/DELETE /:id`, `POST /:id/default`); the old
+  `PATCH /sla-policies/:priority` is gone. Ticket responses carry `sla`, and
+  `GET /tickets` takes `?sla=breached|at_risk`.
+- If you saved the notification types setting before, the two new SLA types
+  are switched on for you.
+
 ### Client companies
 
 Upgrading creates one company for your organization and puts every existing

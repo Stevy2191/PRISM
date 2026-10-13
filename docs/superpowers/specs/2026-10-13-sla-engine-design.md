@@ -1,7 +1,7 @@
 # SLA engine — design
 
 Sub-project 4 of the [PSA roadmap](2026-10-03-prism-psa-roadmap-design.md).
-Status: awaiting review (2026-10-13).
+Status: approved 2026-10-13; shipped (see the plan's ledger rulings in the final report).
 
 ## Goal
 
