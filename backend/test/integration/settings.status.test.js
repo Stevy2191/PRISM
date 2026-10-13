@@ -6,10 +6,14 @@ const { API, expectOk, makeWorld, makeStaff } = require('./fixtures');
 // only, and only booleans and counts, never a host, address or secret.
 
 let w;
+// resetData keeps SystemSettings, so this file clears the keys it sets.
+const MAIL_KEYS = ['smtp.host', 'smtp.fromEmail', 'inboundEmail.enabled'];
 beforeEach(async () => {
   await resetData();
+  await models.SystemSettings.destroy({ where: { key: MAIL_KEYS } });
   w = await makeWorld();
 });
+afterAll(() => models.SystemSettings.destroy({ where: { key: MAIL_KEYS } }));
 afterAll(closeDb);
 
 const status = (u) => u.agent.get(`${API}/settings/status`);
