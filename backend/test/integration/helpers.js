@@ -81,9 +81,6 @@ async function createUser({
     // eslint-disable-next-line no-await-in-loop
     await UserRole.create({ userId: user.id, roleId: await roleIdByName(name), assignedAt: new Date() });
   }
-  // SLA policies: back to the migrated "Standard" default and its seeded
-  // targets, so one test's policies and edits don't leak into the next.
-  await resetSlaPolicies();
   invalidateAllPermissions();
   return { user, password };
 }
@@ -179,6 +176,9 @@ async function resetData() {
     "DELETE FROM SystemSettings WHERE `key` LIKE 'sso.%' OR `key` LIKE 'timeTracking.%' "
     + "OR `key` LIKE 'csat.%' OR `key` LIKE 'integrations.%' OR `key` = 'notifications.enabledTypes' OR `key` = 'company.timezone'"
   ).catch(() => {});
+  // SLA policies: back to the migrated "Standard" default and its seeded
+  // targets, so one test's policies and edits don't leak into the next.
+  await resetSlaPolicies();
   invalidateAllPermissions();
   // Otherwise one case's login attempts rate-limit the next.
   resetRateLimits();

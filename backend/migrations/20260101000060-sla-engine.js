@@ -17,6 +17,8 @@ const BASE_TRIGGERS = [
   'ticket_created', 'ticket_updated', 'ticket_status_changed', 'ticket_priority_changed',
   'ticket_assigned', 'ticket_comment_added', 'ticket_due_date_approaching', 'ticket_overdue', 'ticket_closed',
 ];
+const NEW_NOTIFICATIONS = ['sla_warning', 'sla_breached'];
+const BASE_NOTIFICATIONS = ['reply', 'assigned', 'overdue', 'comment', 'due_soon', 'status_change', 'watcher_update', 'workflow'];
 const BASE_ACTIONS = [
   'assign_to_user', 'assign_to_team', 'assign_round_robin', 'set_status', 'set_priority',
   'add_tag', 'remove_tag', 'set_due_date', 'send_notification', 'add_private_comment', 'escalate_to_user',
@@ -45,6 +47,20 @@ async function dropForeignKeys(qi, table, column) {
   for (const ref of refs.filter((r) => r.columnName === column)) {
     await qi.removeConstraint(table, ref.constraintName); // eslint-disable-line no-await-in-loop
   }
+}
+
+async function updateEnabledTypes(qi, Sequelize, change) {
+  const [row] = await qi.sequelize.query(
+    "SELECT value FROM SystemSettings WHERE `key` = 'notifications.enabledTypes'",
+    { type: Sequelize.QueryTypes.SELECT }
+  );
+  let list;
+  try { list = JSON.parse(row && row.value); } catch { list = null; }
+  if (!Array.isArray(list)) return;
+  await qi.sequelize.query(
+    "UPDATE SystemSettings SET value = ? WHERE `key` = 'notifications.enabledTypes'",
+    { replacements: [JSON.stringify(change(list))] }
+  );
 }
 
 function clockColumns(Sequelize) {
@@ -140,6 +156,11 @@ module.exports = {
     await setEnum(qi, 'WorkflowRules', 'triggerEvent', union(BASE_TRIGGERS, triggers, NEW_TRIGGERS));
     const actions = await enumValues(qi, 'WorkflowActions', 'actionType');
     await setEnum(qi, 'WorkflowActions', 'actionType', union(BASE_ACTIONS, actions, NEW_ACTIONS));
+    const notifications = await enumValues(qi, 'Notifications', 'type');
+    await setEnum(qi, 'Notifications', 'type', union(BASE_NOTIFICATIONS, notifications, NEW_NOTIFICATIONS));
+    // A saved notification setting is an allow-list: without this the new
+    // SLA notifications would be off on every install that ever saved it.
+    await updateEnabledTypes(qi, Sequelize, (list) => union(list, NEW_NOTIFICATIONS));
   },
 
   // Back to one row per priority, taken from the default policy's targets.
@@ -164,6 +185,10 @@ module.exports = {
     await setEnum(qi, 'WorkflowRules', 'triggerEvent', without(triggers, NEW_TRIGGERS, BASE_TRIGGERS));
     const actions = await enumValues(qi, 'WorkflowActions', 'actionType');
     await setEnum(qi, 'WorkflowActions', 'actionType', without(actions, NEW_ACTIONS, BASE_ACTIONS));
+    await qi.sequelize.query(`DELETE FROM Notifications WHERE type IN (${NEW_NOTIFICATIONS.map((v) => `'${v}'`).join(',')})`);
+    const notifications = await enumValues(qi, 'Notifications', 'type');
+    await setEnum(qi, 'Notifications', 'type', without(notifications, NEW_NOTIFICATIONS, BASE_NOTIFICATIONS));
+    await updateEnabledTypes(qi, Sequelize, (list) => list.filter((v) => !NEW_NOTIFICATIONS.includes(v)));
 
     await qi.removeColumn('TicketStatuses', 'pausesSla');
     await dropForeignKeys(qi, 'Companies', 'slaPolicyId');

@@ -7,6 +7,7 @@ const { asyncHandler } = require('../middleware/error');
 // hardcoded interval each one runs on.
 const list = asyncHandler(async (req, res) => {
   const workflowLastRunRow = await SystemSettings.findOne({ where: { key: 'scheduler.workflowLastRun' } });
+  const slaLastRunRow = await SystemSettings.findOne({ where: { key: 'scheduler.slaLastRun' } });
   const lastAdSync = await AdSyncLog.findOne({ order: [['startedAt', 'DESC']] });
   const calendarIntegrations = await UserCalendarIntegration.findAll({
     where: { isActive: true },
@@ -21,6 +22,13 @@ const list = asyncHandler(async (req, res) => {
       description: 'Fires "ticket overdue" and "ticket due soon" workflow rules against open tickets.',
       intervalLabel: 'Every 15 minutes',
       lastRun: workflowLastRunRow?.value || null,
+    },
+    {
+      key: 'sla',
+      name: 'SLA warnings and breaches',
+      description: 'Flags tickets whose SLA clocks reach their warning point or target, notifies, and fires the SLA workflow rules.',
+      intervalLabel: 'Every minute',
+      lastRun: slaLastRunRow?.value || null,
     },
     {
       key: 'adSync',

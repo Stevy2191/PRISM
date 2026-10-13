@@ -12,6 +12,7 @@ const sequelize = require('./config/database');
 const { createApp, createSessionStore } = require('./app');
 const { UPLOAD_ROOT } = require('./middleware/upload');
 const { startWorkflowScheduler } = require('./services/workflowScheduler');
+const { startSlaScheduler } = require('./services/sla/slaScheduler');
 const { startAdSyncScheduler } = require('./services/adSyncScheduler');
 const { startCalendarSyncScheduler } = require('./services/calendarSyncScheduler');
 const { startInboundEmailScheduler } = require('./services/inboundEmailScheduler');
@@ -102,6 +103,7 @@ async function start() {
     });
 
     startWorkflowScheduler();
+    startSlaScheduler();
     startAdSyncScheduler();
     startCalendarSyncScheduler();
     startInboundEmailScheduler();

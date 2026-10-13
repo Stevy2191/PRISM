@@ -1,19 +1,23 @@
 const {
-  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog, Ticket, User, sequelize,
+  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog, Ticket, User, SlaPolicy, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { testRule } = require('../services/workflowEngine');
+const { parseRecordId } = require('../services/permissionService');
 
 const TRIGGER_EVENTS = [
   'ticket_created', 'ticket_updated', 'ticket_status_changed', 'ticket_priority_changed',
   'ticket_assigned', 'ticket_comment_added', 'ticket_due_date_approaching', 'ticket_overdue',
-  'ticket_closed',
+  'ticket_closed', 'sla_warning', 'sla_breached',
 ];
+const SLA_TRIGGERS = ['sla_warning', 'sla_breached'];
+const SLA_CLOCKS = ['any', 'assign', 'response', 'resolution'];
 const OPERATORS = ['equals', 'not_equals', 'contains', 'not_contains', 'is_empty', 'is_not_empty', 'greater_than', 'less_than'];
 const ACTION_TYPES = [
   'assign_to_user', 'assign_to_team', 'assign_round_robin', 'set_status', 'set_priority',
   'add_tag', 'remove_tag', 'set_due_date', 'send_notification', 'add_private_comment', 'escalate_to_user',
+  'set_sla_policy',
 ];
 
 const detailInclude = [
@@ -35,16 +39,36 @@ function validateConditions(conditions) {
   });
 }
 
-function validateActions(actions) {
+async function validateActions(actions) {
   if (!Array.isArray(actions) || actions.length === 0) {
     throw new ApiError(400, 'At least one action is required', 'VALIDATION_ERROR');
   }
-  return actions.map((a, idx) => {
+  const out = [];
+  // eslint-disable-next-line no-restricted-syntax
+  for (const [idx, a] of actions.entries()) {
     if (!ACTION_TYPES.includes(a.actionType)) {
       throw new ApiError(400, `Action ${idx + 1} has an invalid action type`, 'VALIDATION_ERROR');
     }
-    return { actionType: a.actionType, actionValue: a.actionValue ?? null, position: idx + 1 };
-  });
+    let actionValue = a.actionValue ?? null;
+    if (a.actionType === 'set_sla_policy') {
+      const id = parseRecordId(actionValue && actionValue.slaPolicyId);
+      // eslint-disable-next-line no-await-in-loop
+      if (!id || !(await SlaPolicy.findByPk(id))) {
+        throw new ApiError(400, `Action ${idx + 1}: SLA policy not found`, 'VALIDATION_ERROR');
+      }
+      actionValue = { slaPolicyId: id };
+    }
+    out.push({ actionType: a.actionType, actionValue, position: idx + 1 });
+  }
+  return out;
+}
+
+// SLA triggers name the clock they watch; anything else keeps its config.
+function readTriggerConfig(triggerEvent, config) {
+  if (!SLA_TRIGGERS.includes(triggerEvent)) return config || null;
+  const clock = config && config.clock !== undefined ? config.clock : 'any';
+  if (!SLA_CLOCKS.includes(clock)) throw new ApiError(400, 'SLA clock must be any, assign, response or resolution', 'VALIDATION_ERROR');
+  return { clock };
 }
 
 function validateRuleBody(body, partial = false) {
@@ -69,7 +93,9 @@ function validateRuleBody(body, partial = false) {
     }
     out.conditionMatch = body.conditionMatch;
   }
-  if (body.triggerConfig !== undefined) out.triggerConfig = body.triggerConfig || null;
+  if (body.triggerConfig !== undefined || (out.triggerEvent && SLA_TRIGGERS.includes(out.triggerEvent))) {
+    out.triggerConfig = readTriggerConfig(out.triggerEvent, body.triggerConfig);
+  }
 
   return out;
 }
@@ -107,7 +133,7 @@ const get = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const data = validateRuleBody(req.body || {});
   const conditions = validateConditions(req.body?.conditions);
-  const actions = validateActions(req.body?.actions);
+  const actions = await validateActions(req.body?.actions);
 
   const maxPosition = await WorkflowRule.max('position');
   const rule = await sequelize.transaction(async (t) => {
@@ -133,8 +159,12 @@ const update = asyncHandler(async (req, res) => {
   if (!rule) throw new ApiError(404, 'Workflow rule not found', 'NOT_FOUND');
 
   const data = validateRuleBody(req.body || {}, true);
+  // A config sent without a new trigger is checked against the rule's own.
+  if (req.body?.triggerConfig !== undefined && !data.triggerEvent) {
+    data.triggerConfig = readTriggerConfig(rule.triggerEvent, req.body.triggerConfig);
+  }
   const conditions = req.body?.conditions !== undefined ? validateConditions(req.body.conditions) : null;
-  const actions = req.body?.actions !== undefined ? validateActions(req.body.actions) : null;
+  const actions = req.body?.actions !== undefined ? await validateActions(req.body.actions) : null;
 
   await sequelize.transaction(async (t) => {
     await rule.update(data, { transaction: t });

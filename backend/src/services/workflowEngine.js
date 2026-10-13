@@ -6,8 +6,9 @@
 const { Op } = require('sequelize');
 const {
   Ticket, Contact, Department, User, Role, TeamMember, Comment, CustomField, TicketFieldValue,
-  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog,
+  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog, SlaPolicy,
 } = require('../models');
+const { parseRecordId } = require('./permissionService');
 const { createNotification, notifyAssigned } = require('./notifications');
 const { assertCanWorkTicket } = require('./ticketPeople');
 
@@ -243,6 +244,13 @@ async function executeAction(ticket, action, rule) {
       // Ticket priorities top out at critical (Q16).
       await ticket.update({ assigneeId: v.userId, priority: 'critical' });
       return `escalated to user #${v.userId} (priority: critical)`;
+    }
+    case 'set_sla_policy': {
+      const policy = await SlaPolicy.findByPk(parseRecordId(v.slaPolicyId) || 0);
+      if (!policy) throw new Error('SLA policy not found');
+      // Lazy: services/sla/ticketSla requires the models this file does.
+      await require('./sla/ticketSla').recalcTicketSla(ticket.id, { policyId: policy.id }); // eslint-disable-line global-require
+      return `SLA policy set to ${policy.name}`;
     }
     default:
       throw new Error(`Unknown action type "${action.actionType}"`);

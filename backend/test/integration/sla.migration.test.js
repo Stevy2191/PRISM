@@ -46,6 +46,15 @@ describe('sla-engine migration', () => {
     expect((await SlaPolicy.findOne({ where: { isDefault: true } })).businessHoursId).toBe(global.id);
   });
 
+  it('adds the SLA notification types to a saved notification setting', async () => {
+    await migration.down(qi());
+    await models.SystemSettings.upsert({ key: 'notifications.enabledTypes', value: JSON.stringify(['assigned', 'reply']) });
+    await migration.up(qi(), Sequelize);
+    const row = await models.SystemSettings.findOne({ where: { key: 'notifications.enabledTypes' } });
+    expect(JSON.parse(row.value)).toEqual(['assigned', 'reply', 'sla_warning', 'sla_breached']);
+    expect(await enumOf('Notifications', 'type')).toEqual(expect.arrayContaining(['workflow', 'sla_warning', 'sla_breached']));
+  });
+
   it('gives ticket statuses a Pauses SLA switch, off by default', async () => {
     const s = await TicketStatus.create({ name: 'Waiting', behaviorType: 'open', position: 99 });
     expect(s.pausesSla).toBe(false);
@@ -62,6 +71,8 @@ describe('sla-engine migration', () => {
     expect(await enumOf('WorkflowRules', 'triggerEvent')).toEqual(expect.arrayContaining(['ticket_created', 'ticket_closed']));
     expect(await enumOf('WorkflowRules', 'triggerEvent')).not.toContain('sla_warning');
     expect(await enumOf('WorkflowActions', 'actionType')).not.toContain('set_sla_policy');
+    expect(await enumOf('Notifications', 'type')).toEqual(expect.arrayContaining(['workflow']));
+    expect(await enumOf('Notifications', 'type')).not.toContain('sla_breached');
 
     await migration.up(qi(), Sequelize);
     expect(await tables()).toEqual(expect.arrayContaining(['SlaPolicies', 'SlaTargets', 'TicketSlas']));
