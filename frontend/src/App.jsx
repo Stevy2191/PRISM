@@ -1,10 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import SettingsShell from './components/settings/SettingsShell';
+import { allRoutes, REDIRECTS } from './pages/settings/registry';
 
-import {
-  IconBolt, IconShieldCheck, IconMail, IconTrash,
-} from '@tabler/icons-react';
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
 import SurveyPage from './pages/SurveyPage';
@@ -61,7 +60,6 @@ import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
 import DirectorySync from './pages/settings/DirectorySync';
 import CalendarIntegration from './pages/settings/CalendarIntegration';
 import CustomerHappiness from './pages/settings/CustomerHappiness';
-import Placeholder from './pages/settings/Placeholder';
 
 // Existing admin pages (reached via the Settings hub)
 import AdminUsers from './pages/AdminUsers';
@@ -80,7 +78,6 @@ import AccessRestricted from './components/AccessRestricted';
 import { useAuth } from './context/AuthContext';
 import AuditLog from './pages/settings/AuditLog';
 
-const admin = (el) => <ProtectedRoute roles={['admin']}>{el}</ProtectedRoute>;
 const staff = (el) => <ProtectedRoute roles={['admin', 'technician']}>{el}</ProtectedRoute>;
 const perm = (el, keys) => <ProtectedRoute permission={keys}>{el}</ProtectedRoute>;
 
@@ -90,11 +87,7 @@ function OwnerOnly({ children }) {
   const { isOwner } = useAuth();
   return isOwner ? children : <AccessRestricted message="Changing these settings needs an Owner." />;
 }
-const owner = (el, keys) => <ProtectedRoute permission={keys}><OwnerOnly>{el}</OwnerOnly></ProtectedRoute>;
 
-// These mirror the Settings-hub card visibility rules 1:1 (see SettingsHub.jsx)
-// so a route is always reachable whenever its card is shown, and never
-// reachable when it isn't.
 const TICKETS_KEYS = ['tickets.view_own', 'tickets.view_department', 'tickets.view_all'];
 const PROJECTS_KEYS = ['projects.view_own', 'projects.view_department', 'projects.view_all'];
 // Calendar aggregates both tickets and projects/tasks — reachable by anyone
@@ -105,16 +98,36 @@ const CONTACTS_KEYS = ['people.view_own_department', 'people.view_all'];
 const ASSETS_KEYS = ['assets.view'];
 const REPORTS_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
 const KB_KEYS = ['kb.view'];
-const USERS_KEYS = ['people.view_all', 'people.create_users'];
-const TEAMS_KEYS = ['people.view_all', 'people.manage_departments'];
-const DEPARTMENTS_KEYS = ['people.manage_departments'];
-const ROLES_KEYS = ['people.manage_roles'];
-const BRANDING_KEYS = ['settings.manage_branding', 'settings.manage_system'];
-const BUSINESS_HOURS_KEYS = ['settings.manage_business_hours'];
-const STATUSES_KEYS = ['settings.manage_statuses'];
-const SYSTEM_KEYS = ['settings.manage_system'];
-const AUDIT_LOG_KEYS = ['settings.view_audit_log'];
 const COMPANIES_KEYS = ['companies.view'];
+
+// Which component each registry page (and sub-page) renders. The registry
+// holds its access; settingsElement turns that into the same guards as
+// before the redesign (spec: Settings redesign, "One source of truth").
+const SETTINGS_COMPONENTS = {
+  preferences: SettingsPreferences, about: SettingsAbout, company: CompanyProfile,
+  companies: () => <CompaniesList inSettings />,
+  users: AdminUsers, 'user-detail': UserDetail, teams: SettingsTeams, departments: AdminDepartments,
+  roles: AdminRoles, 'role-new': RoleEditor, 'role-edit': RoleEditor, 'api-keys': AdminApiKeys,
+  statuses: SettingsStatuses, 'custom-fields': SettingsLayouts, blueprints: AdminBlueprints,
+  'assignment-rules': AssignmentRules, 'workflow-rules': WorkflowRules,
+  'workflow-rule-new': WorkflowRuleEditor, 'workflow-rule-edit': WorkflowRuleEditor,
+  notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
+  slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays,
+  'time-tracking': SettingsTimeTracking, 'work-types': SettingsWorkTypes,
+  'asset-categories': SettingsAssetCategories, 'asset-alerts': SettingsAssetAlerts,
+  'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory, 'directory-sync': DirectorySync,
+  'incoming-email': SettingsIncomingEmail, 'outgoing-email': SettingsOutgoingEmail, 'email-log': EmailLog,
+  calendar: CalendarIntegration, modules: SettingsModules, schedules: Schedules, import: SettingsImport,
+  export: SettingsExport, 'audit-log': AuditLog, system: SettingsSystemInfo,
+};
+
+function settingsElement(id, access) {
+  const Component = SETTINGS_COMPONENTS[id];
+  const page = access.owner ? <OwnerOnly><Component /></OwnerOnly> : <Component />;
+  return access.roles || access.permission
+    ? <ProtectedRoute roles={access.roles} permission={access.permission}>{page}</ProtectedRoute>
+    : page;
+}
 
 export default function App() {
   return (
@@ -140,7 +153,6 @@ export default function App() {
 
         <Route path="/companies" element={perm(<CompaniesList />, COMPANIES_KEYS)} />
         <Route path="/companies/:id" element={perm(<CompanyPage />, COMPANIES_KEYS)} />
-        <Route path="/settings/companies" element={perm(<CompaniesList inSettings />, COMPANIES_KEYS)} />
 
         <Route path="/assets" element={perm(<Assets />, ASSETS_KEYS)} />
         <Route path="/assets/licenses" element={perm(<Licenses />, ASSETS_KEYS)} />
@@ -161,64 +173,13 @@ export default function App() {
         <Route path="/knowledge/:id" element={perm(<ArticleView />, KB_KEYS)} />
         <Route path="/knowledge/:id/edit" element={perm(<ArticleEditor />, KB_KEYS)} />
 
-        {/* Settings hub + sections */}
-        <Route path="/settings" element={<SettingsHub />} />
-        <Route path="/settings/preferences" element={<SettingsPreferences />} />
-        <Route path="/settings/about" element={<SettingsAbout />} />
-        <Route path="/settings/company" element={perm(<CompanyProfile />, BRANDING_KEYS)} />
-        <Route path="/settings/branding" element={<Navigate to="/settings/company" replace />} />
-        <Route path="/settings/statuses" element={perm(<SettingsStatuses />, STATUSES_KEYS)} />
-        <Route path="/settings/business-hours" element={perm(<SettingsBusinessHours />, BUSINESS_HOURS_KEYS)} />
-        <Route path="/settings/holidays" element={perm(<SettingsHolidays />, BUSINESS_HOURS_KEYS)} />
-        <Route path="/settings/teams" element={perm(<SettingsTeams />, TEAMS_KEYS)} />
-        <Route path="/settings/modules" element={perm(<SettingsModules />, SYSTEM_KEYS)} />
-        <Route path="/settings/blueprints" element={staff(<AdminBlueprints />)} />
-
-        {/* Existing admin pages */}
-        <Route path="/admin/users" element={perm(<AdminUsers />, USERS_KEYS)} />
-        {/* No route-level permission gate: any authenticated user may view
-            their own profile here. UserDetail itself enforces self-or-
-            people.edit_users for viewing someone else's (matching the
-            backend's GET /users/:id check) and shows AccessRestricted on 403. */}
-        <Route path="/admin/users/:id" element={<ProtectedRoute><UserDetail /></ProtectedRoute>} />
-        <Route path="/admin/roles" element={perm(<AdminRoles />, ROLES_KEYS)} />
-        <Route path="/admin/roles/new" element={perm(<RoleEditor />, ROLES_KEYS)} />
-        <Route path="/admin/roles/:id" element={perm(<RoleEditor />, ROLES_KEYS)} />
-        <Route path="/admin/departments" element={perm(<AdminDepartments />, DEPARTMENTS_KEYS)} />
-        <Route path="/admin/blueprints" element={staff(<AdminBlueprints />)} />
-        <Route path="/admin/apikeys" element={<AdminApiKeys />} />
-        <Route path="/admin/settings" element={<Navigate to="/settings" replace />} />
-        <Route path="/settings/directory" element={owner(<SettingsDirectory />, SYSTEM_KEYS)} />
-        <Route path="/settings/incoming-email" element={owner(<SettingsIncomingEmail />, SYSTEM_KEYS)} />
-        <Route path="/settings/outgoing-email" element={owner(<SettingsOutgoingEmail />, SYSTEM_KEYS)} />
-        <Route path="/settings/system" element={perm(<SettingsSystemInfo />, SYSTEM_KEYS)} />
-        <Route path="/settings/email-log" element={owner(<EmailLog />, SYSTEM_KEYS)} />
-
-        <Route path="/settings/customer-happiness" element={perm(<CustomerHappiness />, SYSTEM_KEYS)} />
-
-        {/* Placeholders for sections specified later */}
-        <Route path="/settings/layouts" element={perm(<SettingsLayouts />, SYSTEM_KEYS)} />
-        <Route path="/settings/asset-categories" element={perm(<SettingsAssetCategories />, SYSTEM_KEYS)} />
-        <Route path="/settings/asset-alerts" element={perm(<SettingsAssetAlerts />, SYSTEM_KEYS)} />
-        <Route path="/settings/email-templates" element={admin(<Placeholder title="Email Templates" icon={IconMail} note="Customize the content of outbound system emails like ticket created, ticket closed, and CSAT surveys. Coming in a future update." />)} />
-        <Route path="/settings/notifications" element={perm(<SettingsNotifications />, SYSTEM_KEYS)} />
-        <Route path="/settings/time-tracking" element={perm(<SettingsTimeTracking />, SYSTEM_KEYS)} />
-        <Route path="/settings/work-types" element={perm(<SettingsWorkTypes />, SYSTEM_KEYS)} />
-        <Route path="/settings/single-sign-on" element={owner(<SettingsSingleSignOn />, SYSTEM_KEYS)} />
-        <Route path="/settings/assignment-rules" element={perm(<AssignmentRules />, SYSTEM_KEYS)} />
-        <Route path="/settings/workflow-rules" element={perm(<WorkflowRules />, SYSTEM_KEYS)} />
-        <Route path="/settings/workflow-rules/new" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
-        <Route path="/settings/workflow-rules/:id" element={perm(<WorkflowRuleEditor />, SYSTEM_KEYS)} />
-        <Route path="/settings/directory-sync" element={owner(<DirectorySync />, SYSTEM_KEYS)} />
-        <Route path="/settings/macros" element={admin(<Placeholder title="Macros" icon={IconBolt} note="Create one-click action sets that apply multiple changes to a ticket at once. Coming in a future update." />)} />
-        <Route path="/settings/slas" element={perm(<SLAs />, SYSTEM_KEYS)} />
-        <Route path="/settings/supervisor-rules" element={admin(<Placeholder title="Supervisor Rules" icon={IconShieldCheck} note="Automatic escalation rules that fire when tickets are idle too long. Coming in a future update." />)} />
-        <Route path="/settings/schedules" element={perm(<Schedules />, SYSTEM_KEYS)} />
-        <Route path="/settings/import" element={admin(<SettingsImport />)} />
-        <Route path="/settings/export" element={admin(<SettingsExport />)} />
-        <Route path="/settings/audit-log" element={perm(<AuditLog />, AUDIT_LOG_KEYS)} />
-        <Route path="/settings/recycle-bin" element={admin(<Placeholder title="Recycle Bin" icon={IconTrash} note="Recover recently deleted tickets and contacts. Requires soft-delete support that isn't built yet. Coming in a future update." />)} />
-        <Route path="/settings/calendar-integration" element={owner(<CalendarIntegration />, SYSTEM_KEYS)} />
+        {/* Settings: the menu and the routes come from one registry (spec:
+            Settings redesign), so a menu entry always matches its guard. */}
+        <Route element={<SettingsShell />}>
+          <Route path="/settings" element={<SettingsHub />} />
+          {allRoutes().map((r) => <Route key={r.path} path={r.path} element={settingsElement(r.id, r.access)} />)}
+          {REDIRECTS.map(([from, to]) => <Route key={from} path={from} element={<Navigate to={to} replace />} />)}
+        </Route>
       </Route>
 
       <Route path="*" element={<NotFound />} />

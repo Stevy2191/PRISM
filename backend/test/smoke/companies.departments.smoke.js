@@ -19,7 +19,7 @@ it('departments are grouped by company, and a client department can be created t
   await page.getByText('Acme', { exact: true }).waitFor();
   await page.getByRole('button', { name: '+ New department' }).click();
   await page.locator('#company-picker').selectOption(String(acme.id));
-  await page.locator('input').first().fill('Acme Ops');
+  await page.locator('form').filter({ has: page.locator('#company-picker') }).locator('input').first().fill('Acme Ops');
   await page.getByRole('button', { name: 'Create' }).click();
   await page.getByText('Acme Ops').waitFor();
   expect((await models.Department.findOne({ where: { name: 'Acme Ops' } })).companyId).toBe(acme.id);
