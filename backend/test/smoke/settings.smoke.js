@@ -19,6 +19,10 @@ afterAll(async () => { await smoke.stop(); await closeDb(); });
 
 describe('Company profile', () => {
   it('holds what Company and Branding did, and saves a value from each panel', async () => {
+    // Settings outlive resetData: start from known values.
+    for (const [key, value] of [['company.name', 'Acme Corp'], ['company.timezone', 'UTC'], ['branding.appName', 'PRISM'], ['branding.tagline', '']]) {
+      await models.SystemSettings.upsert({ key, value }); // eslint-disable-line no-await-in-loop
+    }
     const page = await smoke.pageAs('admin');
     await page.goto('/settings/company');
     await page.getByRole('heading', { level: 1, name: 'Company profile' }).waitFor();
@@ -56,6 +60,8 @@ describe('Company profile', () => {
 
 describe('System info', () => {
   it('has the upload limit, and the old General Settings address lands on Settings', async () => {
+    // Settings outlive resetData: start from a known value.
+    await models.SystemSettings.upsert({ key: 'system.maxAttachmentSizeMB', value: '25' });
     const page = await smoke.pageAs('admin');
     await page.goto('/settings/system');
     await page.getByRole('heading', { level: 1, name: 'System info' }).waitFor();
