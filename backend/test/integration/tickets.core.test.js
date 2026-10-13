@@ -91,32 +91,7 @@ describe('POST /tickets', () => {
       .toEqual({ error: true, message: 'Unknown ticket status', code: 'VALIDATION_ERROR' });
   });
 
-  describe('assignment rules', () => {
-    const rule = async (body) => expectOk(await w.admin.agent.post(`${API}/assignment-rules`).send(body), 201);
-
-    it('applies a matching rule when no assignee or team is given', async () => {
-      await rule({ name: 'Incidents', ticketType: 'incident', assigneeId: tech.user.id });
-      const incident = await makeTicket(tech.agent, { ...base(), type: 'incident' });
-      const request = await makeTicket(tech.agent, { ...base(), type: 'request' });
-      expect(incident.assigneeId).toBe(tech.user.id);
-      expect(request.assigneeId).toBeNull();
-    });
-
-    it('an explicit assignee beats the rule', async () => {
-      const mgr = await makeManager('mgr', w.deptA.id);
-      await rule({ name: 'Incidents', ticketType: 'incident', assigneeId: tech.user.id });
-      const t = await makeTicket(tech.agent, { ...base(), type: 'incident', assigneeId: mgr.user.id });
-      expect(t.assigneeId).toBe(mgr.user.id);
-    });
-
-    it('a rule matches only when department and priority both match', async () => {
-      await rule({ name: 'R', departmentId: w.deptA.id, priority: 'high', assigneeId: tech.user.id });
-      const high = await makeTicket(tech.agent, { ...base(), departmentId: w.deptA.id, priority: 'high' });
-      const medium = await makeTicket(tech.agent, { ...base(), departmentId: w.deptA.id, priority: 'medium' });
-      expect(high.assigneeId).toBe(tech.user.id);
-      expect(medium.assigneeId).toBeNull();
-    });
-  });
+  // Automatic assignment is a workflow rule now: settings.cleanup.test.js.
 
   it('logs a created activity entry', async () => {
     const t = await makeTicket(tech.agent, base());

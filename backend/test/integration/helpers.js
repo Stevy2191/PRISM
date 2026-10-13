@@ -117,7 +117,7 @@ async function resetData() {
     'ProjectActivities', 'ProjectMembers',
     'ProjectIdSequences', 'Projects',
     'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
-    'AssignmentRules', 'CustomFields', 'TeamMembers', 'Teams',
+    'CustomFields', 'TeamMembers', 'Teams',
     'AuditLogs', 'SystemAuditLogs',
     'Sites', 'CompanyDomains', 'UserCompanyAccess', 'RoleCompanyAccess',
     'SsoAuthRequests', 'SsoGroupMappings', 'SsoIdentities', 'SsoProviders',

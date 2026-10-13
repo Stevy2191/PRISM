@@ -26,8 +26,7 @@ const {
   getTicketStatusBehaviorMap,
 } = require('../../services/statusBehavior');
 const { getAllSettings } = require('../settingsController');
-const { matchAssignmentRule } = require('../assignmentRulesController');
-const { canWorkCompany, assertCanWorkTicket } = require('../../services/ticketPeople');
+const { assertCanWorkTicket } = require('../../services/ticketPeople');
 const { parsePagination, paginated } = require('../../utils/pagination');
 const { andWhere, ticketScopeWhere } = require('../../services/recordScope');
 const { findDepartmentInCompany } = require('../../services/companyService');
@@ -369,25 +368,11 @@ const create = asyncHandler(async (req, res) => {
   // Simple auto-assignment (Settings -> Assignment Rules) only kicks in when
   // the caller didn't already pick an assignee/team explicitly — an
   // explicit choice on the new-ticket form always wins.
-  let ruleAssigneeId = null;
-  let ruleTeamId = null;
-  if (!assigneeId && !teamId) {
-    const matched = await matchAssignmentRule({
-      type: type || 'request',
-      departmentId: resolvedDepartmentId,
-      priority: priority || 'medium',
-    });
-    if (matched) {
-      ruleAssigneeId = matched.assigneeId;
-      ruleTeamId = matched.teamId;
-    }
-  }
+  // Automatic assignment is a workflow rule on ticket_created (assignment
+  // rules were folded into workflow rules, user decision 2026-10-12).
   let resolvedAssigneeId = null;
   if (assigneeId) {
     resolvedAssigneeId = await assertCanWorkTicket(assigneeId, contact.companyId, 'Assignee');
-  } else if (ruleAssigneeId && (await canWorkCompany(ruleAssigneeId, contact.companyId))) {
-    // A rule's assignee who can't reach this company is skipped, not refused.
-    resolvedAssigneeId = ruleAssigneeId;
   }
 
   const ticket = await sequelize.transaction(async (t) => {
@@ -399,7 +384,7 @@ const create = asyncHandler(async (req, res) => {
       type: type || 'request',
       source: resolvedSource,
       assigneeId: resolvedAssigneeId,
-      teamId: teamId || ruleTeamId || null,
+      teamId: teamId || null,
       contactId: contact.id,
       projectId: resolvedProjectId,
       departmentId: resolvedDepartmentId,

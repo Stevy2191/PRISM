@@ -154,7 +154,8 @@ describe('the menu', () => {
 
   it('old addresses land where they should', async () => {
     const page = await as('admin');
-    for (const [from, to] of [['/settings/macros', /\/settings$/], ['/settings/recycle-bin', /\/settings$/], ['/settings/blueprints', /\/admin\/blueprints$/]]) {
+    for (const [from, to] of [['/settings/macros', /\/settings$/], ['/settings/recycle-bin', /\/settings$/], ['/settings/blueprints', /\/admin\/blueprints$/],
+      ['/settings/assignment-rules', /\/settings\/workflow-rules$/], ['/settings/modules', /\/settings$/]]) {
       await page.goto(from); // eslint-disable-line no-await-in-loop
       await page.waitForURL(to); // eslint-disable-line no-await-in-loop
     }
@@ -208,7 +209,7 @@ describe('Service desk and Hours & SLAs in the frame', () => {
     const page = await as('admin');
     for (const [path, title] of [
       ['/settings/statuses', 'Statuses'], ['/settings/layouts', 'Custom fields'], ['/admin/blueprints', 'Ticket templates'],
-      ['/settings/assignment-rules', 'Assignment rules'], ['/settings/workflow-rules', 'Workflow rules'],
+      ['/settings/workflow-rules', 'Workflow rules'],
       ['/settings/workflow-rules/new', 'New workflow rule'], ['/settings/notifications', 'Notifications'],
       ['/settings/customer-happiness', 'Customer happiness'], ['/settings/slas', 'SLAs'],
       ['/settings/business-hours', 'Business hours'], ['/settings/holidays', 'Holidays'],
@@ -234,7 +235,7 @@ describe('the rest in the frame, and every page opens', () => {
       ['/settings/single-sign-on', 'Single sign-on'], ['/settings/directory', 'Directory (AD/LDAP)'],
       ['/settings/directory-sync', 'Directory sync'], ['/settings/incoming-email', 'Incoming email'],
       ['/settings/outgoing-email', 'Outgoing email'], ['/settings/email-log', 'Email log'],
-      ['/settings/calendar-integration', 'Calendar'], ['/settings/modules', 'Modules & tabs'],
+      ['/settings/calendar-integration', 'Calendar'],
       ['/settings/schedules', 'Background jobs'], ['/settings/import', 'Import'], ['/settings/export', 'Export'],
       ['/settings/audit-log', 'Audit log'], ['/settings/system', 'System info'], ['/settings/company', 'Company profile'],
     ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
@@ -247,7 +248,7 @@ describe('the rest in the frame, and every page opens', () => {
     const links = await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link').evaluateAll(
       (as) => as.map((a) => [a.getAttribute('href'), a.textContent.trim()]),
     );
-    expect(links.length).toBeGreaterThan(35);
+    expect(links.length).toBeGreaterThan(30);
     for (const [href, name] of links.filter(([h]) => h !== '/settings')) {
       resetRateLimits();
       await page.goto(href); // eslint-disable-line no-await-in-loop

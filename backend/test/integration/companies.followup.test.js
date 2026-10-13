@@ -6,7 +6,7 @@ const migration = require('../../migrations/20260101000049-client-companies-foll
 // Plan 2b task 2: the Companies nav module, and vendor text that plan 2a's
 // migration couldn't link because SQL TRIM() keeps tabs and newlines.
 
-const { Company, Asset, AssetCategory, ModuleVisibility, sequelize } = models;
+const { Company, Asset, AssetCategory, sequelize } = models;
 const up = () => migration.up(sequelize.getQueryInterface(), Sequelize);
 
 let category;
@@ -48,12 +48,3 @@ it('leaves blank vendor text and already-linked rows alone', async () => {
   expect((await Asset.findByPk(blank.id)).vendorCompanyId).toBeNull();
 });
 
-it('adds the Companies nav module, and running twice is harmless', async () => {
-  await up();
-  await up();
-  const rows = await ModuleVisibility.findAll({ where: { moduleName: 'companies' } });
-  expect(rows).toHaveLength(1);
-  // A JSON column: the driver may hand back the parsed array or its text.
-  const roles = rows[0].visibleToRoles;
-  expect(typeof roles === 'string' ? JSON.parse(roles) : roles).toEqual(['admin', 'technician']);
-});

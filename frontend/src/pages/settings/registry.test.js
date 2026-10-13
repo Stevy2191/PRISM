@@ -33,7 +33,7 @@ test('ids and paths are unique, and no redirect shadows a route', () => {
 
 test('the placeholders are gone and the split pages exist', () => {
   const paths = allRoutes().map((r) => r.path);
-  for (const gone of ['/settings/email-templates', '/settings/macros', '/settings/supervisor-rules', '/settings/recycle-bin', '/admin/settings', '/settings/branding']) {
+  for (const gone of ['/settings/email-templates', '/settings/macros', '/settings/supervisor-rules', '/settings/recycle-bin', '/admin/settings', '/settings/branding', '/settings/assignment-rules', '/settings/modules']) {
     assert.ok(!paths.includes(gone), gone);
   }
   for (const added of ['/settings/directory', '/settings/incoming-email', '/settings/outgoing-email', '/settings/system']) {

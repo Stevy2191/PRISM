@@ -8,7 +8,7 @@ const {
   Ticket, Contact, Department, User, Role, TeamMember, Comment, CustomField, TicketFieldValue,
   WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog,
 } = require('../models');
-const { createNotification } = require('./notifications');
+const { createNotification, notifyAssigned } = require('./notifications');
 const { assertCanWorkTicket } = require('./ticketPeople');
 
 const ticketEvalInclude = [
@@ -65,8 +65,20 @@ function normalize(v) {
   return v === null || v === undefined ? '' : String(v).toLowerCase().trim();
 }
 
+// A department condition names the department by its id (user decision
+// 2026-10-12): names repeat across client companies. Conditions saved before
+// then name it, and still match by name.
+const DEPARTMENT_FIELDS = { department: (t) => t.department, contact_department: (t) => t.contact?.department };
+function departmentValue(ticket, condition) {
+  const dept = DEPARTMENT_FIELDS[condition.field](ticket);
+  if (/^\d+$/.test(String(condition.value ?? '').trim())) return { value: dept ? String(dept.id) : null };
+  return { value: dept?.name || null };
+}
+
 function evaluateCondition(ticket, condition) {
-  const { value, isArray } = extractFieldValue(ticket, condition.field);
+  const { value, isArray } = Object.hasOwn(DEPARTMENT_FIELDS, condition.field)
+    ? departmentValue(ticket, condition)
+    : extractFieldValue(ticket, condition.field);
   const target = condition.value;
 
   if (isArray) {
@@ -150,7 +162,9 @@ async function executeAction(ticket, action, rule) {
       // Throws for someone who can't reach the ticket's company (plan 2b);
       // the rule runner logs it and skips the action.
       await assertCanWorkTicket(v.userId, ticket.companyId, 'Assignee');
+      const changed = ticket.assigneeId !== v.userId;
       await ticket.update({ assigneeId: v.userId });
+      if (changed) await notifyAssigned(ticket, null); // as assigning by hand does
       return `assigned to user #${v.userId}`;
     }
     case 'assign_to_team': {
@@ -161,7 +175,9 @@ async function executeAction(ticket, action, rule) {
       const userId = await pickRoundRobinAssignee(v.teamId);
       if (!userId) throw new Error(`Team #${v.teamId} has no members for round robin`);
       await assertCanWorkTicket(userId, ticket.companyId, 'Assignee');
+      const changed = ticket.assigneeId !== userId;
       await ticket.update({ assigneeId: userId, teamId: v.teamId });
+      if (changed) await notifyAssigned(ticket, null);
       return `round-robin assigned to user #${userId}`;
     }
     case 'set_status': {

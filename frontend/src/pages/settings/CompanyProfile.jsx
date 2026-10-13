@@ -12,11 +12,8 @@ import SettingsPage, { SettingsPanel, SettingsRow } from '../../components/setti
 import SaveBar, { isDirty } from '../../components/settings/SaveBar';
 
 const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney'];
-const DATE_FORMATS = ['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMM YYYY'];
-const TIME_FORMATS = [['12h', '12-hour (2:30 PM)'], ['24h', '24-hour (14:30)']];
-const LANGUAGES = [['en', 'English'], ['es', 'Spanish'], ['fr', 'French'], ['de', 'German']];
-const KEYS = ['company.name', 'company.supportEmail', 'company.timezone', 'company.dateFormat', 'company.timeFormat', 'company.language', 'branding.appName', 'branding.tagline'];
-const DEFAULTS = { 'company.timezone': 'UTC', 'company.dateFormat': 'YYYY-MM-DD', 'company.timeFormat': '12h', 'company.language': 'en', 'branding.appName': 'PRISM' };
+const KEYS = ['company.name', 'company.timezone', 'branding.appName', 'branding.tagline'];
+const DEFAULTS = { 'company.timezone': 'UTC', 'branding.appName': 'PRISM' };
 
 function ImagePicker({ label, url, onUpload, onRemove, help }) {
   const ref = useRef();
@@ -122,36 +119,15 @@ export default function CompanyProfile() {
       <form onSubmit={save} className="space-y-5">
         <fieldset disabled={!canSave} className="space-y-5">
           <SettingsPanel title="Details">
-            <SettingsRow label="Organization name" htmlFor="company-name" help="Shown in email footers and reports.">
+            <SettingsRow label="Organization name" htmlFor="company-name" help="Shown in email footers and reports, and as your own company under Companies & vendors.">
               <input id="company-name" className="input" value={form['company.name']} onChange={set('company.name')} required />
-            </SettingsRow>
-            <SettingsRow label="Support email" htmlFor="support-email">
-              <input id="support-email" type="email" className="input" value={form['company.supportEmail']} onChange={set('company.supportEmail')} />
             </SettingsRow>
             <SettingsRow label="App name" htmlFor="app-name" help="Shown in the top bar, the login page and the browser tab.">
               <input id="app-name" className="input" value={form['branding.appName']} onChange={set('branding.appName')} />
             </SettingsRow>
-          </SettingsPanel>
-
-          <SettingsPanel title="Regional">
             <SettingsRow label="Time zone" htmlFor="tz" help="Used for dates, reports and the time ledger.">
               <select id="tz" className="input" value={form['company.timezone']} onChange={set('company.timezone')}>
                 {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-              </select>
-            </SettingsRow>
-            <SettingsRow label="Date format" htmlFor="date-format">
-              <select id="date-format" className="input" value={form['company.dateFormat']} onChange={set('company.dateFormat')}>
-                {DATE_FORMATS.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </SettingsRow>
-            <SettingsRow label="Time format" htmlFor="time-format">
-              <select id="time-format" className="input" value={form['company.timeFormat']} onChange={set('company.timeFormat')}>
-                {TIME_FORMATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </SettingsRow>
-            <SettingsRow label="Language" htmlFor="language">
-              <select id="language" className="input" value={form['company.language']} onChange={set('company.language')}>
-                {LANGUAGES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </SettingsRow>
           </SettingsPanel>

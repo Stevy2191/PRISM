@@ -12,11 +12,16 @@ module.exports = {
   up: async (queryInterface) => {
     const select = (sql, replacements) => queryInterface.sequelize.query(sql, { replacements, type: 'SELECT' });
 
-    const [existing] = await select("SELECT id FROM ModuleVisibility WHERE moduleName = 'companies'");
-    if (!existing) {
-      await queryInterface.bulkInsert('ModuleVisibility', [
-        { moduleName: 'companies', visibleToRoles: JSON.stringify(['admin', 'technician']) },
-      ]);
+    // The ModuleVisibility table is gone after 20260101000059 (Modules & tabs
+    // removed); a re-run then has nothing to add.
+    const tables = (await queryInterface.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
+    if (tables.includes('ModuleVisibility')) {
+      const [existing] = await select("SELECT id FROM ModuleVisibility WHERE moduleName = 'companies'");
+      if (!existing) {
+        await queryInterface.bulkInsert('ModuleVisibility', [
+          { moduleName: 'companies', visibleToRoles: JSON.stringify(['admin', 'technician']) },
+        ]);
+      }
     }
 
     const vendorIdByKey = new Map(

@@ -5,7 +5,9 @@ const {
 
 // Plan 2b task 8: who may work a ticket, and server-side form defaults.
 
-const { Company, Contact, Department, AssignmentRule } = models;
+const {
+  Company, Contact, Department, WorkflowRule, WorkflowAction,
+} = models;
 
 let w;
 let acme;
@@ -56,8 +58,9 @@ it('nor watched by them', async () => {
   expectOk(await a().post(`${API}/tickets/${t.id}/watchers`).send({ userId: insider.user.id }), 201);
 });
 
-it('an assignment rule pointing at such a person leaves the ticket unassigned', async () => {
-  await AssignmentRule.create({ name: 'all to outsider', position: 0, isActive: true, assigneeId: outsider.user.id });
+it('an automatic assignment to such a person leaves the ticket unassigned', async () => {
+  const rule = await WorkflowRule.create({ name: 'all to outsider', triggerEvent: 'ticket_created', position: 0, isActive: true });
+  await WorkflowAction.create({ ruleId: rule.id, actionType: 'assign_to_user', actionValue: { userId: outsider.user.id }, position: 0 });
   const t = await makeTicket(a(), { title: 'z', contactId: ann.id });
   expect(t.assigneeId).toBeNull();
   const home = await makeTicket(a(), { title: 'home', contactId: w.contact.id });

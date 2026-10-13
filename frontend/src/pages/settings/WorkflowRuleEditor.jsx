@@ -142,9 +142,16 @@ function ConditionValueInput({ kind, field, value, onChange, statuses, departmen
   }
   if (kind === 'department') {
     return (
+      // By id: department names repeat across client companies (user
+      // decision 2026-10-12). A rule saved by name keeps that name as an option.
       <select className={cls} value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Select department…</option>
-        {departments.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
+        {departments.map((d) => (
+          <option key={d.id} value={String(d.id)}>
+            {d.name}{departments.some((o) => o.id !== d.id && o.name === d.name) && d.company ? ` (${d.company.name})` : ''}
+          </option>
+        ))}
+        {value && !/^\d+$/.test(value) && <option value={value}>{value} (by name)</option>}
       </select>
     );
   }

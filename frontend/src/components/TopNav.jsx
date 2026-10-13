@@ -3,7 +3,6 @@ import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { IconSearch, IconSettings, IconMenu2, IconX, IconChevronDown } from '@tabler/icons-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
-import api from '../api/api';
 import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
 import { useCompanySummary } from '../context/CompanyContext';
 import NotificationsDropdown from './NotificationsDropdown';
@@ -82,21 +81,10 @@ export default function TopNav() {
   const { settings } = useSettings();
   const navigate = useNavigate();
 
-  const [visibility, setVisibility] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const userMenuRef = useRef(null);
-
-  useEffect(() => {
-    api.get('/modules')
-      .then(({ data }) => {
-        const map = {};
-        data.modules.forEach((m) => { map[m.moduleName] = m.visibleToRoles || []; });
-        setVisibility(map);
-      })
-      .catch(() => setVisibility(null));
-  }, []);
 
   useEffect(() => {
     if (!userMenuOpen) return undefined;
@@ -108,7 +96,7 @@ export default function TopNav() {
   useGlobalSearchShortcut(() => setSearchOpen(true));
 
   const { multiCompany } = useCompanySummary();
-  const items = visibleNavItems({ visibility, user, hasAnyPermission, multiCompany });
+  const items = visibleNavItems({ hasAnyPermission, multiCompany });
 
   const handleLogout = async () => {
     await logout();

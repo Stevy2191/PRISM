@@ -28,7 +28,6 @@ const Holiday = require('./Holiday')(sequelize);
 const CsatResponse = require('./CsatResponse')(sequelize);
 const Team = require('./Team')(sequelize);
 const TeamMember = require('./TeamMember')(sequelize);
-const ModuleVisibility = require('./ModuleVisibility')(sequelize);
 const CustomField = require('./CustomField')(sequelize);
 const TicketFieldValue = require('./TicketFieldValue')(sequelize);
 const ActiveTimer = require('./ActiveTimer')(sequelize);
@@ -62,7 +61,6 @@ const SsoProvider = require('./SsoProvider')(sequelize);
 const SsoIdentity = require('./SsoIdentity')(sequelize);
 const SsoGroupMapping = require('./SsoGroupMapping')(sequelize);
 const SsoAuthRequest = require('./SsoAuthRequest')(sequelize);
-const AssignmentRule = require('./AssignmentRule')(sequelize);
 const SlaPolicy = require('./SlaPolicy')(sequelize);
 const EmailProcessingLog = require('./EmailProcessingLog')(sequelize);
 const CsatSurvey = require('./CsatSurvey')(sequelize);
@@ -139,7 +137,6 @@ const db = {
   CsatResponse,
   Team,
   TeamMember,
-  ModuleVisibility,
   CustomField,
   TicketFieldValue,
   ActiveTimer,
@@ -156,7 +153,6 @@ const db = {
   UserPermissionOverride,
   SystemAuditLog,
   ProjectIdSequence,
-  AssignmentRule,
   SlaPolicy,
   EmailProcessingLog,
   CsatSurvey,
@@ -548,10 +544,6 @@ SystemAuditLog.belongsTo(User, { foreignKey: 'actorUserId', as: 'actor' });
 SystemAuditLog.belongsTo(User, { foreignKey: 'targetUserId', as: 'target' });
 
 // Assignment rules
-AssignmentRule.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
-AssignmentRule.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
-AssignmentRule.belongsTo(Team, { foreignKey: 'teamId', as: 'team' });
-AssignmentRule.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 
 // Inbound email processing log
 EmailProcessingLog.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });

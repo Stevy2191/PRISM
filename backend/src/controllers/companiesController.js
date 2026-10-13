@@ -4,7 +4,7 @@
 const { Op, fn, col } = require('sequelize');
 const {
   Company, CompanyDomain, Site, User, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
@@ -12,7 +12,7 @@ const { parsePagination, paginated } = require('../utils/pagination');
 const {
   canAccessCompany, companyScopeWhere, parseRecordId, invalidateAllPermissions, hasPermission,
 } = require('../services/permissionService');
-const { FREE_MAIL_DOMAINS } = require('../services/companyService');
+const { FREE_MAIL_DOMAINS, assertCompanyNameFree: assertNameFree } = require('../services/companyService');
 const { andWhere, isEmpty } = require('../services/recordScope');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { mergeCounts, mergeCompanies } = require('../services/companyMerge');
@@ -31,19 +31,6 @@ function normalizeName(raw) {
   if (!name) throw new ApiError(400, 'Company name is required', 'VALIDATION_ERROR');
   if (name.length > NAME_MAX) throw new ApiError(400, `Company name must be ${NAME_MAX} characters or fewer`, 'VALIDATION_ERROR');
   return name;
-}
-
-// Active names are unique ignoring case; an inactive company's name is free
-// to reuse (a client who left and came back as a new record).
-async function assertNameFree(name, excludeId) {
-  const clash = await Company.findOne({
-    where: {
-      status: 'active',
-      [Op.and]: [sequelize.where(fn('LOWER', col('name')), name.toLowerCase())],
-      ...(excludeId ? { id: { [Op.ne]: excludeId } } : {}),
-    },
-  });
-  if (clash) throw new ApiError(409, 'A company with this name already exists', 'COMPANY_NAME_TAKEN');
 }
 
 async function resolveAccountManager(raw) {
@@ -193,6 +180,10 @@ const update = asyncHandler(async (req, res) => {
     await assertNameFree(changes.name || company.name, company.id);
   }
   await company.update(changes);
+  // The internal company's name is the organization's name (Company profile).
+  if (company.isInternal && changes.name !== undefined) {
+    await SystemSettings.upsert({ key: 'company.name', value: company.name, updatedById: req.user.id });
+  }
   await writeAudit(req, 'company.update', 'Company', company.id, changes);
   res.json({ company: await Company.findByPk(company.id, { include: companyInclude }) });
 });

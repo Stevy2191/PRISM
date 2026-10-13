@@ -205,6 +205,40 @@ reports. Settings → Companies is always there, also for managing vendors.
 - **Rolling back** this release keeps each person's newest timer and removes
   the others without logging them.
 
+### Settings cleanup
+
+Settings that did nothing, or did the same job as another, are gone:
+
+- **Removed settings:** Company profile's support email, date format, time
+  format and language. Nothing in PRISM used them. They were saved but never
+  shown, sent or applied. Their stored values are deleted.
+- **One organization name.** The name on Company profile is also your own
+  company's name under Companies & vendors. Renaming either renames both. The
+  upgrade sets your company record to the Company profile name. **Changed
+  response:** saving a blank organization name returns `400
+  VALIDATION_ERROR`, and another active company's name returns `409
+  COMPANY_NAME_TAKEN`.
+- **Assignment rules are now workflow rules.** Workflow rules already did
+  everything assignment rules did. Each assignment rule is converted
+  automatically into a workflow rule on "Ticket created". The converted rules
+  run before your other rules, apply only while a ticket has no assignee and
+  no team, and keep their order, so the first match still wins. The
+  Assignment rules page and `/assignment-rules` API are removed. The old
+  address opens Workflow rules.
+- **Workflow department conditions** now pick a department, not a
+  department name. Department names can repeat across client companies, so a
+  rule for one company's "IT" no longer fires for another company's "IT".
+  Existing conditions are converted where the name is unique. Others keep
+  working by name and say "(by name)" in the editor.
+- **Workflow assignments notify the assignee**, just as assigning by hand
+  does.
+- **Modules & tabs is removed.** The top-bar tabs follow each person's
+  permissions. Before, the old Admin/Technician role could also hide a tab
+  from someone who had permission for it. The page and the `/modules` API are
+  removed.
+- **Rolling back** this release brings back empty Assignment rules and
+  Modules & tabs tables. Converted rules stay workflow rules.
+
 ### Settings, reorganized
 
 - **One menu.** Settings has its own menu down the left, with a search box
@@ -216,7 +250,8 @@ reports. Settings → Companies is always there, also for managing vendors.
   the directory, incoming and outgoing email and single sign-on are set up.
 - **New groups:** You; Organization; People & access; Service desk; Hours &
   SLAs; Time & work; Assets; Sign-in & email (owners); System. Who may open
-  each page has not changed.
+  each page has not changed. (Assignment rules and Modules & tabs were later
+  removed: see "Settings cleanup".)
 - **Company profile** replaces Company and Branding, so the name, logo and
   time zone are each set in one place. `/settings/branding` opens it.
 - **General Settings is split** into Directory (AD/LDAP), Incoming email,

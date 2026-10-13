@@ -83,6 +83,7 @@ consistent between tickets and projects, and covered by tests.
 - Parked fixes (2026-10-12): time-entry controls follow the server, no shared local email addresses, upload area only with edit permission, owner recovery seen at once.
 - Timers (2026-10-12): several timers at once, a "My timers" list, reminders for timers left running, and a longest-entry limit (12 hours by default).
 - Settings (2026-10-12): one menu with search, regrouped pages, one page layout ([spec](superpowers/specs/2026-10-12-settings-redesign-design.md), [plan](superpowers/plans/2026-10-12-settings-redesign.md)).
+- Settings cleanup (2026-10-12): unused settings removed, one organization name, assignment rules folded into workflow rules, Modules & tabs removed.
 
 ### Phase 2 — RMM core (`v0.5.0`)
 

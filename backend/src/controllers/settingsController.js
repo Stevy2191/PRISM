@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
-const { SystemSettings, SsoProvider } = require('../models');
+const { SystemSettings, SsoProvider, Company } = require('../models');
+const { checkOrganizationName } = require('../services/companyService');
 const { isConfigured: isLdapConfigured } = require('../config/ldap');
 const { resolveSmtpConfig, isSmtpConfigured } = require('../services/emailSender');
 const { ApiError, asyncHandler } = require('../middleware/error');
@@ -24,11 +25,7 @@ const DEFAULT_NOTIFICATION_TYPES = JSON.stringify(ALL_NOTIFICATION_TYPES);
 // Defaults applied when a setting has not been configured.
 const DEFAULTS = {
   'company.name': 'Acme Corp',
-  'company.supportEmail': '',
   'company.timezone': 'UTC',
-  'company.dateFormat': 'YYYY-MM-DD',
-  'company.timeFormat': '12h',
-  'company.language': 'en',
   'company.logoFilename': '',
   'company.faviconFilename': '',
 
@@ -147,11 +144,7 @@ function publicShape(values) {
     appName: values['branding.appName'],
     company: {
       name: values['company.name'],
-      supportEmail: values['company.supportEmail'],
       timezone: values['company.timezone'],
-      dateFormat: values['company.dateFormat'],
-      timeFormat: values['company.timeFormat'],
-      language: values['company.language'],
       hasLogo,
     },
     branding: {
@@ -265,8 +258,12 @@ const RANGES = {
   'timeTracking.maxEntryHours': { min: 1, max: 24, what: 'The longest time entry must be a whole number of hours from 1 to 24' },
 };
 
-async function upsertSettings(incoming, userId) {
+async function upsertSettings(rawIncoming, userId) {
+  const incoming = { ...rawIncoming };
   const keys = Object.keys(incoming).filter((k) => WRITABLE_KEYS.includes(k));
+  // The organization's name is also the internal company's (user decision
+  // 2026-10-12): checked before anything is written.
+  if (keys.includes('company.name')) incoming['company.name'] = await checkOrganizationName(incoming['company.name']);
   for (const key of keys.filter((k) => Object.hasOwn(RANGES, k))) {
     const { min, max, what } = RANGES[key];
     const n = Number(incoming[key]);
@@ -292,6 +289,9 @@ async function upsertSettings(incoming, userId) {
       updatedById: userId,
     });
     written.push(key);
+  }
+  if (written.includes('company.name')) {
+    await Company.update({ name: incoming['company.name'] }, { where: { isInternal: true } });
   }
   return written;
 }

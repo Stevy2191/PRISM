@@ -47,22 +47,9 @@ export const NAV = [
   { key: 'settings', to: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 
-// Sensible defaults if module visibility hasn't loaded yet.
-export const DEFAULT_ROLES = {
-  dashboard: ['admin', 'technician'],
-  tickets: ['admin', 'technician'],
-  contacts: ['admin', 'technician'],
-  companies: ['admin', 'technician'],
-  assets: ['admin', 'technician'],
-  projects: ['admin', 'technician'],
-  reports: ['admin', 'technician'],
-  knowledge: ['admin', 'technician'],
-  calendar: ['admin', 'technician'],
-  settings: ['admin', 'technician'],
-};
-
-// Permission-gated on top of the role-based module visibility — cosmetic
-// only, the backend is the real enforcement (see requirePermission middleware).
+// Which tabs a person sees follows their permissions (Modules & tabs was
+// removed, user decision 2026-10-12) — cosmetic only, the backend is the
+// real enforcement (see requirePermission middleware).
 export function permissionGate(key, hasAnyPermission) {
   if (key === 'tickets') return hasAnyPermission(TICKETS_PERMISSION_KEYS);
   // Calendar aggregates both tickets and projects/tasks — visible to anyone
@@ -80,10 +67,8 @@ export function permissionGate(key, hasAnyPermission) {
 
 // `multiCompany` hides the Companies tab until a client company exists
 // (spec: the only new UI of a one-company install is Settings → Companies).
-export function visibleNavItems({ visibility, user, hasAnyPermission, multiCompany = false }) {
-  const rolesFor = (key) => (visibility && visibility[key]) || DEFAULT_ROLES[key] || [];
-  return NAV.filter((n) => (n.key !== 'companies' || multiCompany)
-    && rolesFor(n.key).includes(user?.role) && permissionGate(n.key, hasAnyPermission));
+export function visibleNavItems({ hasAnyPermission, multiCompany = false }) {
+  return NAV.filter((n) => (n.key !== 'companies' || multiCompany) && permissionGate(n.key, hasAnyPermission));
 }
 
 // Fixed palette for department-colored avatars — hashed by departmentId so

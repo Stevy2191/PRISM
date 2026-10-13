@@ -17,7 +17,7 @@ export const PAGES = [
   { id: 'preferences', group: 'You', name: 'Preferences', desc: 'Theme, timers and reminders', keywords: ['theme', 'dark mode', 'timer', 'reminder', 'notifications', 'profile', 'password', 'calendar'], path: '/settings/preferences', access: {}, width: 'narrow' },
   { id: 'about', group: 'You', name: 'About PRISM', desc: 'Version, license, report a problem', keywords: ['version', 'license', 'bug', 'issue'], path: '/settings/about', access: {}, width: 'narrow' },
   // Organization
-  { id: 'company', group: 'Organization', name: 'Company profile', desc: 'Name, logo, time zone and login page', keywords: ['logo', 'favicon', 'branding', 'time zone', 'timezone', 'date format', 'language', 'login page', 'app name'], path: '/settings/company', access: { permission: ['settings.manage_branding', 'settings.manage_system'] }, width: 'narrow' },
+  { id: 'company', group: 'Organization', name: 'Company profile', desc: 'Name, logo, time zone and login page', keywords: ['logo', 'favicon', 'branding', 'time zone', 'timezone', 'login page', 'app name', 'organization name'], path: '/settings/company', access: { permission: ['settings.manage_branding', 'settings.manage_system'] }, width: 'narrow' },
   { id: 'companies', group: 'Organization', name: 'Companies & vendors', desc: 'Clients, vendors, sites and domains', keywords: ['client', 'customer', 'vendor', 'site', 'domain', 'msp'], path: '/settings/companies', access: { permission: ['companies.view'] }, width: 'wide' },
   // People & access
   { id: 'users', group: 'People & access', name: 'Users', desc: 'Accounts, roles and owners', keywords: ['account', 'password', 'username', 'owner', 'invite', 'deactivate'], path: '/admin/users', access: { permission: ['people.view_all', 'people.create_users'] }, width: 'wide', sub: [{ id: 'user-detail', path: '/admin/users/:id', access: {} }] },
@@ -29,7 +29,6 @@ export const PAGES = [
   { id: 'statuses', group: 'Service desk', name: 'Statuses', desc: 'Ticket, project and task statuses', keywords: ['status', 'workflow', 'closed'], path: '/settings/statuses', access: { permission: ['settings.manage_statuses'] }, width: 'narrow' },
   { id: 'custom-fields', group: 'Service desk', name: 'Custom fields', desc: 'Extra fields on tickets', keywords: ['field', 'layout', 'form'], path: '/settings/layouts', access: SYSTEM, width: 'wide' },
   { id: 'blueprints', group: 'Service desk', name: 'Ticket templates', desc: 'Blueprints for common tickets', keywords: ['blueprint', 'template'], path: '/admin/blueprints', access: { roles: ['admin', 'technician'] }, width: 'wide' },
-  { id: 'assignment-rules', group: 'Service desk', name: 'Assignment rules', desc: 'Who gets new tickets', keywords: ['assign', 'round robin', 'routing'], path: '/settings/assignment-rules', access: SYSTEM, width: 'narrow' },
   { id: 'workflow-rules', group: 'Service desk', name: 'Workflow rules', desc: 'Automatic actions on tickets', keywords: ['automation', 'trigger', 'action'], path: '/settings/workflow-rules', access: SYSTEM, width: 'wide', sub: [{ id: 'workflow-rule-new', path: '/settings/workflow-rules/new' }, { id: 'workflow-rule-edit', path: '/settings/workflow-rules/:id' }] },
   { id: 'notifications', group: 'Service desk', name: 'Notifications', desc: 'Which events notify people', keywords: ['bell', 'alert', 'notify'], path: '/settings/notifications', access: SYSTEM, width: 'narrow' },
   { id: 'customer-happiness', group: 'Service desk', name: 'Customer happiness', desc: 'Satisfaction surveys and scores', keywords: ['csat', 'survey', 'rating', 'feedback'], path: '/settings/customer-happiness', access: SYSTEM, width: 'narrow' },
@@ -52,7 +51,6 @@ export const PAGES = [
   { id: 'email-log', group: 'Sign-in & email', name: 'Email log', desc: 'What came in and what was sent', keywords: ['mail log', 'bounce', 'delivery'], path: '/settings/email-log', access: OWNER, width: 'wide' },
   { id: 'calendar', group: 'Sign-in & email', name: 'Calendar', desc: 'Google and Microsoft calendar sync', keywords: ['google', 'microsoft', 'outlook', 'oauth'], path: '/settings/calendar-integration', access: OWNER, width: 'narrow' },
   // System
-  { id: 'modules', group: 'System', name: 'Modules & tabs', desc: 'Show or hide parts of PRISM', keywords: ['menu', 'tab', 'module', 'hide'], path: '/settings/modules', access: SYSTEM, width: 'narrow' },
   { id: 'schedules', group: 'System', name: 'Background jobs', desc: 'Scheduled jobs and their status', keywords: ['schedule', 'job', 'cron', 'sync'], path: '/settings/schedules', access: SYSTEM, width: 'narrow' },
   { id: 'import', group: 'System', name: 'Import', desc: 'Bring records in from a file', keywords: ['csv', 'upload', 'migrate'], path: '/settings/import', access: { roles: ['admin'] }, width: 'narrow' },
   { id: 'export', group: 'System', name: 'Export', desc: 'Take records out as a file', keywords: ['csv', 'download', 'backup'], path: '/settings/export', access: { roles: ['admin'] }, width: 'narrow' },
@@ -68,6 +66,9 @@ export const REDIRECTS = [
   ['/settings/macros', '/settings'],
   ['/settings/supervisor-rules', '/settings'],
   ['/settings/recycle-bin', '/settings'],
+  // Removed in the Settings cleanup (user decision 2026-10-12).
+  ['/settings/assignment-rules', '/settings/workflow-rules'],
+  ['/settings/modules', '/settings'],
 ];
 
 export function canOpen(access, auth) {

@@ -190,7 +190,33 @@ async function hideUnreachableVendors(user, rows) {
   return rows;
 }
 
+// Active company names are unique ignoring case; an inactive company's name
+// is free to reuse (a client who left and came back as a new record).
+async function assertCompanyNameFree(name, excludeId) {
+  const { ApiError } = require('../middleware/error'); // eslint-disable-line global-require
+  const clash = await Company.findOne({
+    where: {
+      status: 'active',
+      [Op.and]: [sqlWhere(fn('LOWER', col('name')), name.toLowerCase())],
+      ...(excludeId ? { id: { [Op.ne]: excludeId } } : {}),
+    },
+  });
+  if (clash) throw new ApiError(409, 'A company with this name already exists', 'COMPANY_NAME_TAKEN');
+}
+
+// The organization has one name (user decision 2026-10-12): the company.name
+// setting and the internal company's name are kept the same. Checks a new
+// one and returns it trimmed.
+async function checkOrganizationName(raw) {
+  const { ApiError } = require('../middleware/error'); // eslint-disable-line global-require
+  const name = typeof raw === 'string' ? raw.trim() : '';
+  if (!name) throw new ApiError(400, 'The organization name can\'t be blank', 'VALIDATION_ERROR');
+  await assertCompanyNameFree(name, await getInternalCompanyId());
+  return name;
+}
+
 module.exports = {
+  assertCompanyNameFree, checkOrganizationName,
   getInternalCompanyId, FREE_MAIL_DOMAINS, findDepartmentInCompany, findSiteInCompany, resolveRecordCompany,
   resolvePlacement, isCompanyChange, isSharedVendor, resolveVendorCompany, resolveVendorFields, hideUnreachableVendors,
 };

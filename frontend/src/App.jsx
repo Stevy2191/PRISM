@@ -40,7 +40,6 @@ import SettingsStatuses from './pages/settings/Statuses';
 import SettingsBusinessHours from './pages/settings/BusinessHours';
 import SettingsHolidays from './pages/settings/Holidays';
 import SettingsTeams from './pages/settings/Teams';
-import SettingsModules from './pages/settings/Modules';
 import SettingsPreferences from './pages/settings/Preferences';
 import SettingsAbout from './pages/settings/About';
 import SettingsLayouts from './pages/settings/Layouts';
@@ -49,7 +48,6 @@ import SettingsAssetAlerts from './pages/settings/AssetAlerts';
 import SettingsTimeTracking from './pages/settings/TimeTracking';
 import SettingsWorkTypes from './pages/settings/WorkTypes';
 import SettingsSingleSignOn from './pages/settings/SingleSignOn';
-import AssignmentRules from './pages/settings/AssignmentRules';
 import SLAs from './pages/settings/SLAs';
 import Schedules from './pages/settings/Schedules';
 import SettingsImport from './pages/settings/Import';
@@ -109,7 +107,7 @@ const SETTINGS_COMPONENTS = {
   users: AdminUsers, 'user-detail': UserDetail, teams: SettingsTeams, departments: AdminDepartments,
   roles: AdminRoles, 'role-new': RoleEditor, 'role-edit': RoleEditor, 'api-keys': AdminApiKeys,
   statuses: SettingsStatuses, 'custom-fields': SettingsLayouts, blueprints: AdminBlueprints,
-  'assignment-rules': AssignmentRules, 'workflow-rules': WorkflowRules,
+  'workflow-rules': WorkflowRules,
   'workflow-rule-new': WorkflowRuleEditor, 'workflow-rule-edit': WorkflowRuleEditor,
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
   slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays,
@@ -117,7 +115,7 @@ const SETTINGS_COMPONENTS = {
   'asset-categories': SettingsAssetCategories, 'asset-alerts': SettingsAssetAlerts,
   'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory, 'directory-sync': DirectorySync,
   'incoming-email': SettingsIncomingEmail, 'outgoing-email': SettingsOutgoingEmail, 'email-log': EmailLog,
-  calendar: CalendarIntegration, modules: SettingsModules, schedules: Schedules, import: SettingsImport,
+  calendar: CalendarIntegration, schedules: Schedules, import: SettingsImport,
   export: SettingsExport, 'audit-log': AuditLog, system: SettingsSystemInfo,
 };
 
