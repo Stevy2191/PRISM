@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const PRIORITY_LABELS = { critical: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' };
 
@@ -47,15 +47,7 @@ export default function SLAs() {
   if (loading || !policies) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">SLAs</h1>
-        <p className="text-sm text-navy-500">
-          Target response and resolution times per priority. These are configuration targets only —
-          PRISM doesn't yet automatically calculate or flag SLA breaches against them.
-        </p>
-      </div>
+    <SettingsPage description="Target response and resolution times per priority. These are configuration targets only — PRISM doesn't yet automatically calculate or flag SLA breaches against them.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <div className="card overflow-x-auto">
@@ -109,6 +101,6 @@ export default function SLAs() {
           </tbody>
         </table>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

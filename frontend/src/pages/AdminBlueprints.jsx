@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
+import SettingsPage from '../components/settings/SettingsPage';
 
 const PRIORITIES = ['', 'low', 'medium', 'high', 'critical'];
 const TYPES = ['', 'incident', 'request', 'problem', 'task', 'change'];
@@ -111,12 +111,11 @@ export default function AdminBlueprints() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Blueprints</h1>
+    <SettingsPage actions={(
+      <>
         {editing === null && <button onClick={startNew} className="btn-primary">+ New Blueprint</button>}
-      </div>
+      </>
+    )}>
       <p className="text-sm text-navy-500">
         Reusable ticket templates: default title, description, priority, type, department,
         and custom fields. Not yet selectable from the new-ticket form.
@@ -257,6 +256,6 @@ export default function AdminBlueprints() {
           ))}
         </div>
       )}
-    </div>
+    </SettingsPage>
   );
 }

@@ -4,6 +4,7 @@ import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
 import Switch from '../../components/Switch';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const TRIGGER_OPTIONS = [
   { value: 'ticket_created', label: 'Ticket created' },
@@ -493,9 +494,8 @@ export default function WorkflowRuleEditor() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link to="/settings/workflow-rules" className="text-sm text-prism hover:underline">← Back to Workflow Rules</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">{isNew ? 'New workflow rule' : 'Edit workflow rule'}</h1>
+    <SettingsPage title={isNew ? 'New workflow rule' : 'Edit workflow rule'} description="When something happens to a ticket, check conditions, then act."
+      actions={<Link to="/settings/workflow-rules" className="btn-secondary">All workflow rules</Link>}>
 
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
@@ -609,6 +609,6 @@ export default function WorkflowRuleEditor() {
       </form>
 
       {showTest && <TestRuleModal ruleId={id} onClose={() => setShowTest(false)} />}
-    </div>
+    </SettingsPage>
   );
 }

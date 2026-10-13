@@ -17,6 +17,15 @@ beforeAll(async () => {
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 
+// A page in the Settings frame: breadcrumb, its title, no "Back to Settings".
+const framed = async (page, path, title) => {
+  await page.goto(path);
+  const main = page.getByRole('main');
+  await main.getByRole('navigation', { name: 'Breadcrumb' }).waitFor();
+  await main.getByRole('heading', { level: 1, name: title }).waitFor();
+  expect([path, await page.getByText('Back to Settings').count()]).toEqual([path, 0]);
+};
+
 // One sign-in per person (and screen size) for the whole file: the login
 // limiter allows 10 per 15 minutes from one address.
 const signedIn = new Map();
@@ -175,13 +184,6 @@ describe('Settings home', () => {
 });
 
 describe('every page uses the Settings frame', () => {
-  const framed = async (page, path, title) => {
-    await page.goto(path);
-    const main = page.getByRole('main');
-    await main.getByRole('navigation', { name: 'Breadcrumb' }).waitFor();
-    await main.getByRole('heading', { level: 1, name: title }).waitFor();
-    expect([path, await page.getByText('Back to Settings').count()]).toEqual([path, 0]);
-  };
   it('You, Organization, People & access', async () => {
     const page = await as('admin');
     for (const [path, title] of [
@@ -189,5 +191,27 @@ describe('every page uses the Settings frame', () => {
       ['/admin/users', 'Users'], ['/settings/teams', 'Teams'], ['/admin/departments', 'Departments'],
       ['/admin/roles', 'Roles & permissions'], ['/admin/roles/new', 'New role'], ['/admin/apikeys', 'API keys'],
     ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
+  });
+});
+
+describe('Service desk and Hours & SLAs in the frame', () => {
+  it('Service desk, Hours & SLAs', async () => {
+    const page = await as('admin');
+    for (const [path, title] of [
+      ['/settings/statuses', 'Statuses'], ['/settings/layouts', 'Custom fields'], ['/admin/blueprints', 'Ticket templates'],
+      ['/settings/assignment-rules', 'Assignment rules'], ['/settings/workflow-rules', 'Workflow rules'],
+      ['/settings/workflow-rules/new', 'New workflow rule'], ['/settings/notifications', 'Notifications'],
+      ['/settings/customer-happiness', 'Customer happiness'], ['/settings/slas', 'SLAs'],
+      ['/settings/business-hours', 'Business hours'], ['/settings/holidays', 'Holidays'],
+    ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
+  });
+
+  it('Notifications says when there are unsaved changes, then that they were saved', async () => {
+    const page = await as('admin');
+    await page.goto('/settings/notifications');
+    await page.getByRole('main').getByRole('checkbox').first().click();
+    await shown(page, 'Unsaved changes').waitFor();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await shown(page, 'Saved').waitFor();
   });
 });

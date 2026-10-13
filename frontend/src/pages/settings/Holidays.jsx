@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 export default function Holidays() {
   const [lists, setLists] = useState([]);
@@ -58,10 +58,7 @@ export default function Holidays() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Holiday Lists</h1>
-      <p className="text-sm text-navy-500">Holidays pause SLA timers for the assigned department (or globally).</p>
+    <SettingsPage description="Holidays pause SLA timers for the assigned department (or globally).">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={createList} className="card flex flex-wrap items-end gap-3 p-5">
@@ -105,6 +102,6 @@ export default function Holidays() {
         </div>
       ))}
       {lists.length === 0 && <div className="card p-8 text-center text-navy-400">No holiday lists yet.</div>}
-    </div>
+    </SettingsPage>
   );
 }

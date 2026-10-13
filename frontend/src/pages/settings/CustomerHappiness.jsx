@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import Switch from '../../components/Switch';
 import Modal from '../../components/Modal';
+import SettingsPage from '../../components/settings/SettingsPage';
+import SaveBar, { isDirty } from '../../components/settings/SaveBar';
 
 const DELAY_OPTIONS = [
   { value: '0', label: 'Immediately' },
@@ -25,27 +26,30 @@ export default function CustomerHappiness() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [snapshot, setSnapshot] = useState(null); // as loaded or last saved
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     api.get('/settings')
       .then(({ data }) => {
         const s = data.settings;
-        setForm({
+        const loaded = {
           'csat.enabled': s['csat.enabled'] === 'true',
           'csat.sendDelayHours': s['csat.sendDelayHours'] || '0',
           'csat.surveyQuestion': s['csat.surveyQuestion'] || 'How satisfied were you with the support you received?',
           'csat.expiryDays': s['csat.expiryDays'] || '7',
           'csat.minTicketsToShowRating': s['csat.minTicketsToShowRating'] || '3',
-        });
+        };
+        setForm(loaded);
+        setSnapshot(loaded);
         setCompanyName(s['company.name'] || 'Your company');
       })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
   }, []);
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const set = (key) => (e) => { setSaved(false); setForm((f) => ({ ...f, [key]: e.target.value })); };
 
   const save = async (e) => {
     e.preventDefault();
@@ -61,8 +65,8 @@ export default function CustomerHappiness() {
           'csat.minTicketsToShowRating': form['csat.minTicketsToShowRating'],
         },
       });
-      setSavedAt(true);
-      setTimeout(() => setSavedAt(false), 2500);
+      setSnapshot(form);
+      setSaved(true);
     } catch (err) {
       setError(errMessage(err));
     } finally {
@@ -73,15 +77,7 @@ export default function CustomerHappiness() {
   if (loading || !form) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Customer Happiness</h1>
-        <p className="text-sm text-navy-500">
-          Automatically email a satisfaction survey to the contact when a ticket is closed. Ratings feed
-          into technician performance stats on their profile, the dashboard, and reports.
-        </p>
-      </div>
+    <SettingsPage description="Automatically email a satisfaction survey to the contact when a ticket is closed. Ratings feed into technician performance stats on their profile, the dashboard, and reports.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={save} className="card space-y-5 p-5">
@@ -92,7 +88,7 @@ export default function CustomerHappiness() {
           </div>
           <Switch
             checked={form['csat.enabled']}
-            onChange={(v) => setForm((f) => ({ ...f, 'csat.enabled': v }))}
+            onChange={(v) => { setSaved(false); setForm((f) => ({ ...f, 'csat.enabled': v })); }}
             label="Enable CSAT surveys"
           />
         </div>
@@ -144,12 +140,7 @@ export default function CustomerHappiness() {
           <button type="button" className="btn-secondary" onClick={() => setPreviewOpen(true)}>
             Preview survey email
           </button>
-          <div className="flex items-center gap-3">
-            {savedAt && <span className="text-xs text-green-600">Saved</span>}
-            <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-          </div>
+          <SaveBar dirty={isDirty(form, snapshot)} saving={saving} saved={saved} />
         </div>
       </form>
 
@@ -161,7 +152,7 @@ export default function CustomerHappiness() {
           onClose={() => setPreviewOpen(false)}
         />
       )}
-    </div>
+    </SettingsPage>
   );
 }
 

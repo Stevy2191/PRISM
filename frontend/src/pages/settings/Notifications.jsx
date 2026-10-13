@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
+import SaveBar, { isDirty } from '../../components/settings/SaveBar';
 
 const TYPES = [
   ['assigned', 'Ticket assigned', 'A ticket is assigned to you.'],
@@ -19,7 +20,8 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [snapshot, setSnapshot] = useState(null); // as loaded or last saved
 
   useEffect(() => {
     api.get('/settings')
@@ -30,17 +32,19 @@ export default function Notifications() {
         } catch {
           list = TYPES.map(([key]) => key);
         }
-        setEnabled(new Set(Array.isArray(list) ? list : TYPES.map(([key]) => key)));
+        const initial = new Set(Array.isArray(list) ? list : TYPES.map(([key]) => key));
+        setEnabled(initial);
+        setSnapshot([...initial].sort());
       })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
   }, []);
 
-  const toggle = (key) => setEnabled((prev) => {
+  const toggle = (key) => { setSaved(false); setEnabled((prev) => {
     const next = new Set(prev);
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
-  });
+  }); };
 
   const save = async (e) => {
     e.preventDefault();
@@ -48,8 +52,8 @@ export default function Notifications() {
     setError('');
     try {
       await api.put('/settings', { settings: { 'notifications.enabledTypes': [...enabled] } });
-      setSavedAt(true);
-      setTimeout(() => setSavedAt(false), 2500);
+      setSnapshot([...enabled].sort());
+      setSaved(true);
     } catch (err) {
       setError(errMessage(err));
     } finally {
@@ -60,15 +64,7 @@ export default function Notifications() {
   if (loading || !enabled) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Notifications</h1>
-        <p className="text-sm text-navy-500">
-          System-wide switches for which events create an in-app notification. Turning an event off
-          here stops it for everyone, not just you.
-        </p>
-      </div>
+    <SettingsPage description="System-wide switches for which events create an in-app notification. Turning an event off here stops it for everyone, not just you.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={save} className="card divide-y divide-navy-100">
@@ -86,11 +82,10 @@ export default function Notifications() {
             />
           </label>
         ))}
-        <div className="flex items-center justify-end gap-3 p-4">
-          {savedAt && <span className="text-sm text-green-600">Saved</span>}
-          <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+        <div className="p-4">
+          <SaveBar dirty={isDirty([...enabled].sort(), snapshot)} saving={saving} saved={saved} />
         </div>
       </form>
-    </div>
+    </SettingsPage>
   );
 }

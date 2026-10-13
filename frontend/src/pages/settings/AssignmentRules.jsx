@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const TYPE_OPTIONS = [['incident', 'Incident'], ['request', 'Request'], ['problem', 'Problem'], ['change', 'Change']];
 const PRIORITY_OPTIONS = [['critical', 'Urgent'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']];
@@ -107,19 +107,10 @@ export default function AssignmentRules() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-navy-900">Assignment Rules</h1>
-          <p className="text-sm text-navy-500">
-            Auto-assign new tickets by type, department, and priority. Rules are checked top to
-            bottom — the first match wins, and only applies when the ticket has no assignee already.
-            For anything more complex (multi-step conditions, other trigger events), use Workflow Rules instead.
-          </p>
-        </div>
-        {!showForm && <button className="btn-primary flex-shrink-0" onClick={openCreate}>+ New rule</button>}
-      </div>
+    <SettingsPage
+      description="Auto-assign new tickets by type, department and priority. Rules are checked top to bottom: the first match wins, and only when the ticket has no assignee yet. For anything more complex, use Workflow rules."
+      actions={!showForm && <button className="btn-primary flex-shrink-0" onClick={openCreate}>+ New rule</button>}
+    >
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       {showForm && (
@@ -206,6 +197,6 @@ export default function AssignmentRules() {
           ))}
         </div>
       )}
-    </div>
+    </SettingsPage>
   );
 }

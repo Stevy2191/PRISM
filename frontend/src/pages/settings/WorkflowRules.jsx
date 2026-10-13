@@ -5,6 +5,7 @@ import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
 import Switch from '../../components/Switch';
 import { formatTicketId } from '../../utils/ticketId';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const TRIGGER_META = {
   ticket_created: { label: 'Ticket Created', badge: 'bg-emerald-100 text-emerald-700' },
@@ -212,15 +213,10 @@ export default function WorkflowRules() {
   const activeCount = rules.filter((r) => r.isActive).length;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-navy-900">Workflow Rules</h1>
-          <p className="text-sm text-navy-500">{activeCount} of {rules.length} rule{rules.length === 1 ? '' : 's'} active</p>
-        </div>
-        <Link to="/settings/workflow-rules/new" className="btn-primary">+ New rule</Link>
-      </div>
+    <SettingsPage
+      description={`${activeCount} of ${rules.length} rule${rules.length === 1 ? '' : 's'} active`}
+      actions={<Link to="/settings/workflow-rules/new" className="btn-primary">+ New rule</Link>}
+    >
 
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
@@ -244,6 +240,6 @@ export default function WorkflowRules() {
       </div>
 
       {logsRule && <LogsModal rule={logsRule} onClose={() => setLogsRule(null)} />}
-    </div>
+    </SettingsPage>
   );
 }

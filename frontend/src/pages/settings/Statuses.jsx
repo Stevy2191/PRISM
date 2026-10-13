@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 // Four lists (sub-project 3): tickets, ticket tasks, projects, project tasks.
 // The task lists share one endpoint, told apart by scope.
@@ -116,12 +116,7 @@ export default function Statuses() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Statuses</h1>
-        <p className="text-sm text-navy-500">Define, reorder and recolor the ticket, ticket-task, project and project-task statuses. Changes apply immediately across the app.</p>
-      </div>
+    <SettingsPage description="Define, reorder and recolor the ticket, ticket-task, project and project-task statuses. Changes apply immediately across the app.">
 
       <div className="flex gap-1 border-b border-navy-200">
         {TABS.map((t) => (
@@ -220,6 +215,6 @@ export default function Statuses() {
           </div>
         </div>
       )}
-    </div>
+    </SettingsPage>
   );
 }
