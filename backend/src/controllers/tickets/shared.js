@@ -11,7 +11,10 @@ const {
   Project,
   Department,
   Company,
+  TicketSla,
+  SlaPolicy,
 } = require('../../models');
+const { toSlaView } = require('../../services/sla/slaView');
 const { Op, col } = require('sequelize');
 const { ApiError } = require('../../middleware/error');
 const { toDateString } = require('../../utils/orgTime');
@@ -43,6 +46,7 @@ const ticketInclude = [
   { model: Company, as: 'company', attributes: ['id', 'name'] },
   { model: User, as: 'resolutionUpdatedByUser', attributes: userAttrs },
   { model: CsatResponse, as: 'csat' },
+  { model: TicketSla, as: 'sla', include: [{ model: SlaPolicy, as: 'policy', attributes: ['id', 'name'] }] },
   // surveyToken excluded — it's the sole credential for the fully public,
   // unauthenticated POST /survey/:token endpoint, so embedding it here would
   // let any staff member who can view the ticket submit a fake response as
@@ -152,6 +156,8 @@ function withCustomFields(ticket) {
 // viewer can't open that project (as a restricted linked ticket does, Q18).
 async function shownTicketFor(viewer, ticket) {
   const json = withCustomFields(ticket);
+  // Only when the SLA row was loaded: null then means "no SLA".
+  if (ticket.sla !== undefined) json.sla = toSlaView(ticket.sla);
   if (ticket.project) {
     json.project = (await canAccessProject(viewer, ticket.project))
       ? { id: ticket.project.id, name: ticket.project.name }

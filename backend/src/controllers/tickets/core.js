@@ -21,6 +21,7 @@ const { writeAudit } = require('../../middleware/audit');
 const { UPLOAD_ROOT } = require('../../middleware/upload');
 const { notifyAssigned, notifyWatchers } = require('../../services/notifications');
 const { logActivity, resolveDisplayValue } = require('../../services/ticketActivity');
+const { slaFilterWhere, SLA_FILTERS } = require('../../services/sla/slaView');
 const {
   getTicketStatusBuckets,
   getTicketStatusBehaviorMap,
@@ -61,7 +62,7 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   const where = {};
   const {
     status, priority, assignee, project, department, contactId, type, team, source,
-    search, myTickets, overdue, unassigned, companyId,
+    search, myTickets, overdue, unassigned, companyId, sla,
   } = req.query;
 
   // "Closed" in the UI covers every status whose behaviorType is 'closed';
@@ -97,6 +98,13 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
     if (!status && !ignoreStatus) where.status = { [Op.in]: buckets.open };
   }
   if (unassigned === 'true') where.assigneeId = null;
+  if (sla !== undefined && sla !== '') {
+    if (!SLA_FILTERS.includes(sla)) throw new ApiError(400, 'sla must be breached or at_risk', 'VALIDATION_ERROR');
+    Object.assign(where, slaFilterWhere(sla));
+    // Breached / at risk are about work still to do: open tickets, unless a
+    // status was asked for explicitly.
+    if (!status && !ignoreStatus) where.status = { [Op.in]: buckets.open };
+  }
 
   // "My tickets" pins the view to the logged-in user regardless of any
   // assignee filter that was also passed ('own' scope already does).

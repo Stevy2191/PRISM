@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const {
   Ticket, Project, User, TimeEntry, Notification, TicketActivity, ProjectActivity, DashboardLayout, Asset,
   License, Contract,
+  TicketSla, SlaPolicy,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
@@ -9,7 +10,8 @@ const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { orgTimeZone, todayInZone, addDays } = require('../utils/orgTime');
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { hasPermission, companyScopeWhere } = require('../services/permissionService');
-const { andWhere, isEmpty } = require('../services/recordScope');
+const { andWhere, isEmpty, ticketScopeWhere } = require('../services/recordScope');
+const { slaFilterWhere, toSlaView } = require('../services/sla/slaView');
 const { ledgerCompanyWhere } = require('./reports/shared');
 const { getUserPerformanceStats, getTeamHappiness } = require('../services/csatStatsService');
 const { getAllSettings } = require('./settingsController');
@@ -418,6 +420,30 @@ async function resolveDashboardScope(userId) {
 //                      tech-mode dashboard (department viewers may only
 //                      target users in their own department)
 //   tech             — neither: the logged-in user's own dashboard
+// "SLA at risk" panel: open tickets in `where` with a breached or at-risk
+// clock, most urgent (soonest due) first.
+const SLA_PANEL_LIMIT = 10;
+async function slaAtRiskFor(buckets, where) {
+  const now = new Date();
+  const base = andWhere(where, { status: { [Op.in]: buckets.open } });
+  const tickets = await Ticket.findAll({
+    where: andWhere(base, { [Op.or]: [slaFilterWhere('breached', now), slaFilterWhere('at_risk', now)] }),
+    attributes: ['id', 'title', 'priority', 'status', 'assigneeId'],
+    include: [
+      { model: TicketSla, as: 'sla', required: true, include: [{ model: SlaPolicy, as: 'policy', attributes: ['id', 'name'] }] },
+      { model: User, as: 'assignee', attributes: ['id', 'displayName'] },
+    ],
+    limit: 200,
+  });
+  const dueOf = (t) => (t.sla.worst ? new Date(t.sla.worst.dueAt).getTime() : Infinity);
+  return tickets
+    .map((t) => ({
+      id: t.id, title: t.title, priority: t.priority, status: t.status, assignee: t.assignee, sla: toSlaView(t.sla, now),
+    }))
+    .sort((a, b) => dueOf(a) - dueOf(b))
+    .slice(0, SLA_PANEL_LIMIT);
+}
+
 const get = asyncHandler(async (req, res) => {
   const requestedUserId = req.query.userId ? parseInt(req.query.userId, 10) : null;
 
@@ -448,13 +474,14 @@ const get = asyncHandler(async (req, res) => {
   if (isSystemView && !requestedUserId) {
     const settings = await getAllSettings();
     const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
-    const [stats, projectHealth, workload, activity, teamHappiness, assetsSummary] = await Promise.all([
+    const [stats, projectHealth, workload, activity, teamHappiness, assetsSummary, slaAtRisk] = await Promise.all([
       systemStats(buckets, companyWhere),
       projectHealthFor(companyWhere),
       teamWorkload(buckets, {}, companyWhere),
       activityFeed(buckets, companyWhere, companyWhere),
       getTeamHappiness({ companyWhere }),
       assetsSummaryStats(companyWhere),
+      slaAtRiskFor(buckets, andWhere(await ticketScopeWhere(req.user), companyWhere)),
     ]);
     return res.json({
       mode: 'admin_system',
@@ -466,6 +493,7 @@ const get = asyncHandler(async (req, res) => {
       activityHasMore: activity.hasMore,
       teamHappiness: teamHappiness.map((t) => ({ ...t, showRating: t.responseCount >= minResponses })),
       assetsSummary,
+      slaAtRisk,
     });
   }
 
@@ -474,12 +502,13 @@ const get = asyncHandler(async (req, res) => {
     const deptProjectWhere = { [Op.or]: [{ ownerDepartmentId: deptId }, { forDepartmentId: deptId }] };
     const settings = await getAllSettings();
     const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
-    const [stats, projectHealth, workload, activity, teamHappiness] = await Promise.all([
+    const [stats, projectHealth, workload, activity, teamHappiness, slaAtRisk] = await Promise.all([
       systemStats(buckets, andWhere({ departmentId: deptId }, companyWhere)),
       projectHealthFor(andWhere(deptProjectWhere, companyWhere)),
       teamWorkload(buckets, { departmentId: deptId }, companyWhere),
       activityFeed(buckets, andWhere({ departmentId: deptId }, companyWhere), andWhere(deptProjectWhere, companyWhere)),
       getTeamHappiness({ departmentId: deptId, companyWhere }),
+      slaAtRiskFor(buckets, andWhere({ departmentId: deptId }, andWhere(await ticketScopeWhere(req.user), companyWhere))),
     ]);
     return res.json({
       mode: 'admin_department',
@@ -490,6 +519,7 @@ const get = asyncHandler(async (req, res) => {
       activity: activity.events,
       activityHasMore: activity.hasMore,
       teamHappiness: teamHappiness.map((t) => ({ ...t, showRating: t.responseCount >= minResponses })),
+      slaAtRisk,
     });
   }
 
@@ -508,7 +538,7 @@ const get = asyncHandler(async (req, res) => {
   });
   const taskProjectIds = taskProjectRows.map((r) => r.projectId);
 
-  const [stats, tickets, notifications, projectHealth, hours, myRatingsRaw, settings] = await Promise.all([
+  const [stats, tickets, notifications, projectHealth, hours, myRatingsRaw, settings, slaAtRisk] = await Promise.all([
     statsForUser(targetId, scopeField, buckets, companyWhere),
     ticketsForUser(targetId, scopeField, behaviorByName, companyWhere),
     notificationsForUser(targetId),
@@ -516,6 +546,7 @@ const get = asyncHandler(async (req, res) => {
     hoursForUser(targetId, req.user),
     getUserPerformanceStats(targetId, {}, companyWhere),
     getAllSettings(),
+    slaAtRiskFor(buckets, andWhere({ [scopeField]: targetId }, andWhere(await ticketScopeWhere(req.user), companyWhere))),
   ]);
   const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
 
@@ -528,6 +559,7 @@ const get = asyncHandler(async (req, res) => {
     projectHealth,
     hours,
     myRatings: { ...myRatingsRaw, showRating: myRatingsRaw.responseCount >= minResponses },
+    slaAtRisk,
   });
 });
 
