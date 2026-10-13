@@ -81,6 +81,9 @@ async function createUser({
     // eslint-disable-next-line no-await-in-loop
     await UserRole.create({ userId: user.id, roleId: await roleIdByName(name), assignedAt: new Date() });
   }
+  // SLA policies: back to the migrated "Standard" default and its seeded
+  // targets, so one test's policies and edits don't leak into the next.
+  await resetSlaPolicies();
   invalidateAllPermissions();
   return { user, password };
 }
@@ -104,12 +107,31 @@ async function createUserAndLogin(options) {
 // Truncating rather than dropping keeps the migrated schema intact between
 // suites. Order matters only for the tables with foreign keys between them,
 // so checks are disabled for the duration.
+const SLA_SEED = {
+  critical: [60, 240, false], high: [240, 480, true], medium: [480, 1440, true], low: [1440, 4320, true],
+};
+async function resetSlaPolicies() {
+  const [rows] = await sequelize.query('SELECT id FROM SlaPolicies WHERE isDefault = 1').catch(() => [[]]);
+  if (!rows.length) return;
+  const stdId = rows[0].id;
+  await sequelize.query('UPDATE Companies SET slaPolicyId = NULL');
+  await sequelize.query('DELETE FROM SlaPolicies WHERE id <> ?', { replacements: [stdId] });
+  await sequelize.query("UPDATE SlaPolicies SET name = 'Standard', businessHoursId = NULL, warnAtPercent = 75 WHERE id = ?", { replacements: [stdId] });
+  for (const [priority, [resp, resol, biz]] of Object.entries(SLA_SEED)) {
+    // eslint-disable-next-line no-await-in-loop
+    await sequelize.query(
+      'UPDATE SlaTargets SET assignMinutes = NULL, responseMinutes = ?, resolutionMinutes = ?, useBusinessHours = ? WHERE slaPolicyId = ? AND priority = ?',
+      { replacements: [resp, resol, biz, stdId, priority] }
+    );
+  }
+}
+
 async function resetData() {
   await ensureSchema();
   const tables = [
     'Comments', 'Attachments', 'TicketWatchers', 'Tasks', 'TicketActivities',
     'TicketRelations', 'TicketFieldValues', 'TimeEntries', 'ActiveTimers',
-    'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'Tickets', 'Contacts',
+    'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'TicketSlas', 'Tickets', 'Contacts',
     // Project child tables truncate with Projects: TRUNCATE resets
     // AUTO_INCREMENT, so a project created by the next test reuses id 1 and
     // would otherwise inherit the previous test's expenses/time/materials.

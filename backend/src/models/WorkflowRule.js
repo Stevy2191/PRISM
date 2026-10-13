@@ -17,7 +17,7 @@ module.exports = (sequelize) => {
         type: DataTypes.ENUM(
           'ticket_created', 'ticket_updated', 'ticket_status_changed', 'ticket_priority_changed',
           'ticket_assigned', 'ticket_comment_added', 'ticket_due_date_approaching', 'ticket_overdue',
-          'ticket_closed'
+          'ticket_closed', 'sla_warning', 'sla_breached'
         ),
         allowNull: false,
       },

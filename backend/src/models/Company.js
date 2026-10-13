@@ -16,6 +16,8 @@ module.exports = (sequelize) => {
       website: { type: DataTypes.STRING(255), allowNull: true },
       notes: { type: DataTypes.TEXT, allowNull: true },
       accountManagerId: { type: DataTypes.INTEGER, allowNull: true },
+      // null = the default SLA policy.
+      slaPolicyId: { type: DataTypes.INTEGER, allowNull: true },
     },
     { sequelize, modelName: 'Company', tableName: 'Companies', timestamps: true }
   );

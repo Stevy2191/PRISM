@@ -14,7 +14,7 @@ module.exports = (sequelize) => {
         type: DataTypes.ENUM(
           'assign_to_user', 'assign_to_team', 'assign_round_robin', 'set_status', 'set_priority',
           'add_tag', 'remove_tag', 'set_due_date', 'send_notification', 'add_private_comment',
-          'escalate_to_user'
+          'escalate_to_user', 'set_sla_policy'
         ),
         allowNull: false,
       },

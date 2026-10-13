@@ -62,6 +62,8 @@ const SsoIdentity = require('./SsoIdentity')(sequelize);
 const SsoGroupMapping = require('./SsoGroupMapping')(sequelize);
 const SsoAuthRequest = require('./SsoAuthRequest')(sequelize);
 const SlaPolicy = require('./SlaPolicy')(sequelize);
+const SlaTarget = require('./SlaTarget')(sequelize);
+const TicketSla = require('./TicketSla')(sequelize);
 const EmailProcessingLog = require('./EmailProcessingLog')(sequelize);
 const CsatSurvey = require('./CsatSurvey')(sequelize);
 const AssetCategory = require('./AssetCategory')(sequelize);
@@ -154,6 +156,8 @@ const db = {
   SystemAuditLog,
   ProjectIdSequence,
   SlaPolicy,
+  SlaTarget,
+  TicketSla,
   EmailProcessingLog,
   CsatSurvey,
   AssetCategory,
@@ -341,6 +345,14 @@ Ticket.belongsTo(Team, { foreignKey: 'teamId', as: 'team' });
 Team.hasMany(Ticket, { foreignKey: 'teamId', as: 'tickets' });
 
 // Business hours / holidays
+SlaPolicy.hasMany(SlaTarget, { foreignKey: 'slaPolicyId', as: 'targets', onDelete: 'CASCADE' });
+SlaTarget.belongsTo(SlaPolicy, { foreignKey: 'slaPolicyId', as: 'policy' });
+SlaPolicy.belongsTo(BusinessHours, { foreignKey: 'businessHoursId', as: 'businessHours' });
+SlaPolicy.hasMany(Company, { foreignKey: 'slaPolicyId', as: 'companies' });
+Company.belongsTo(SlaPolicy, { foreignKey: 'slaPolicyId', as: 'slaPolicy' });
+Ticket.hasOne(TicketSla, { foreignKey: 'ticketId', as: 'sla', onDelete: 'CASCADE' });
+TicketSla.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+TicketSla.belongsTo(SlaPolicy, { foreignKey: 'slaPolicyId', as: 'policy' });
 BusinessHours.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 BusinessHours.belongsTo(HolidayList, { foreignKey: 'holidayListId', as: 'holidayList' });
 HolidayList.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
