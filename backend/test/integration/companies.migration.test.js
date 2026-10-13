@@ -15,6 +15,13 @@ afterAll(async () => {
   await sequelize.query("DELETE FROM Assets WHERE assetTag LIKE 'MIGPROBE-%'");
   await sequelize.query("DELETE FROM AssetCategories WHERE name = 'MigProbe'");
   await sequelize.query("DELETE FROM Companies WHERE isInternal = 0");
+  // down() drops Companies and up() rebuilds it as of this migration, so
+  // columns later migrations add to it must be put back for later suites.
+  if (!(await qi().describeTable('Companies')).slaPolicyId) {
+    await qi().addColumn('Companies', 'slaPolicyId', {
+      type: Sequelize.INTEGER, allowNull: true, references: { model: 'SlaPolicies', key: 'id' }, onDelete: 'SET NULL',
+    });
+  }
   await closeDb();
 });
 
