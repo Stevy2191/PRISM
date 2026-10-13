@@ -205,6 +205,32 @@ reports. Settings → Companies is always there, also for managing vendors.
 - **Rolling back** this release keeps each person's newest timer and removes
   the others without logging them.
 
+### Settings, reorganized
+
+- **One menu.** Settings has its own menu down the left, with a search box
+  that finds a page by name, description or common words ("password",
+  "logo", "time zone"). On screens under 768px wide the menu is behind a
+  "Settings" button. Every Settings page shares one layout: a breadcrumb,
+  the title and a short description. The "Back to Settings" links are gone.
+- **Settings home** lists every group you can open. Owners also see whether
+  the directory, incoming and outgoing email and single sign-on are set up.
+- **New groups:** You; Organization; People & access; Service desk; Hours &
+  SLAs; Time & work; Assets; Sign-in & email (owners); System. Who may open
+  each page has not changed.
+- **Company profile** replaces Company and Branding, so the name, logo and
+  time zone are each set in one place. `/settings/branding` opens it.
+- **General Settings is split** into Directory (AD/LDAP), Incoming email,
+  Outgoing email and System info (upload limit, database and app). The time
+  zone is set on Company profile only. `/admin/settings` opens Settings.
+- **Save bars.** Company profile, Time tracking, Expiry alerts, Customer
+  happiness, Notifications and System info say "Unsaved changes" until you
+  save.
+- Email templates, Macros, Supervisor rules and Recycle bin, which were
+  "coming soon" pages, are hidden until they are built. Their addresses open
+  Settings.
+- **New:** `GET /settings/status` (owners only) reports whether those
+  services are set up, as true/false values and counts.
+
 ### Owners
 
 An **owner** mark on a System Administrator's account keeps a single System
