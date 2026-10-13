@@ -1,110 +1,137 @@
-// SLA compliance report.
-const { Op } = require('sequelize');
-const { Ticket, User, Department } = require('../../models');
+// SLA compliance report, read from the stored SLA clocks (TicketSlas).
+// Range filters on the ticket's creation date. A clock counts once it has a
+// result: breached, or met (assigned / first response given / resolved)
+// within its target. Clocks still running count only toward the open
+// "breached" and "at risk" figures.
+const {
+  Ticket, TicketSla, User, Department, Company,
+} = require('../../models');
 const { asyncHandler } = require('../../middleware/error');
 const { getUserReportScope } = require('../../services/permissionService');
-const { andWhere, companyFilterWhere } = require('../../services/recordScope');
+const { companyFilterWhere } = require('../../services/recordScope');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
+const { toSlaView } = require('../../services/sla/slaView');
+const { liveUsedMinutes } = require('../../services/sla/ticketSla');
 const {
-  parseDateRange,
-  dateWhere,
-  parseDepartmentId,
-  granularityFor,
-  bucketKey,
-  ticketScopeWhere,
-  sendCsv,
-  hoursBetween,
-  userAttrs,
+  parseDateRange, dateWhere, parseDepartmentId, granularityFor, bucketKey, ticketScopeWhere, sendCsv, userAttrs,
 } = require('./shared');
 
-// ==================== Report 4: SLA Compliance ====================
+const CLOCKS = ['assign', 'response', 'resolution'];
+const LABEL = { assign: 'Assignment', response: 'First response', resolution: 'Resolution' };
+
+// 'met' | 'breached' | null (no result yet, or not tracked).
+function outcome(row, c) {
+  if (row[`${c}TargetMinutes`] === null || row[`${c}TargetMinutes`] === undefined) return null;
+  if (row[`${c}BreachedAt`]) return 'breached';
+  if (row[`${c}MetAt`] && !row[`${c}RunningSince`]) return 'met';
+  return null;
+}
+
+const pct = (met, breached) => (met + breached ? Math.round((100 * met) / (met + breached)) : null);
 
 async function buildSlaComplianceReport(req) {
   const scope = await getUserReportScope(req.user.id);
   const range = await parseDateRange(req.query);
   const deptId = parseDepartmentId(req.query);
-
   const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
-  const closedWithDueDate = await Ticket.findAll({
-    where: ticketScopeWhere({ resolvedAt: { [Op.ne]: null }, dueDate: { [Op.ne]: null }, ...dateWhere('resolvedAt', range) }, scope, req.user, deptId, companyWhere),
-    attributes: ['id', 'title', 'dueDate', 'resolvedAt', 'assigneeId', 'departmentId'],
+  const now = new Date();
+
+  const tickets = await Ticket.findAll({
+    where: ticketScopeWhere(dateWhere('createdAt', range), scope, req.user, deptId, companyWhere),
+    attributes: ['id', 'title', 'status', 'createdAt', 'assigneeId', 'departmentId', 'companyId'],
     include: [
+      { model: TicketSla, as: 'sla', required: true },
       { model: User, as: 'assignee', attributes: userAttrs },
       { model: Department, as: 'department', attributes: ['id', 'name'] },
+      { model: Company, as: 'company', attributes: ['id', 'name'] },
     ],
+    order: [['id', 'ASC']],
   });
 
-  const met = [];
-  const missed = [];
-  closedWithDueDate.forEach((t) => {
-    const dueEnd = new Date(`${t.dueDate}T23:59:59`);
-    (t.resolvedAt <= dueEnd ? met : missed).push(t);
-  });
-
-  const buckets = await getTicketStatusBuckets();
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const openWhere = ticketScopeWhere({ status: { [Op.in]: buckets.open } }, scope, req.user, deptId, companyWhere);
-  const [openTotal, openOverdue] = await Promise.all([
-    Ticket.count({ where: openWhere }),
-    Ticket.count({ where: andWhere(openWhere, { dueDate: { [Op.ne]: null, [Op.lt]: todayStr } }) }),
-  ]);
-
+  const clocks = {};
+  CLOCKS.forEach((c) => { clocks[c] = { tracked: 0, met: 0, breached: 0 }; });
   const byTech = new Map();
   const byDept = new Map();
-  const bumpBucket = (map, key, label, isMet) => {
-    const cur = map.get(key) || { name: label, met: 0, missed: 0 };
-    if (isMet) cur.met += 1; else cur.missed += 1;
+  const byCompany = new Map();
+  const trend = new Map();
+  const granularity = granularityFor(range) === 'day' ? 'week' : granularityFor(range);
+  const bump = (map, key, name, result) => {
+    const cur = map.get(key) || { name, met: 0, breached: 0 };
+    cur[result] += 1;
     map.set(key, cur);
   };
-  closedWithDueDate.forEach((t) => {
-    const isMet = met.includes(t);
-    bumpBucket(byTech, t.assigneeId || 'unassigned', t.assignee?.displayName || 'Unassigned', isMet);
-    bumpBucket(byDept, t.departmentId || 'none', t.department?.name || 'No department', isMet);
-  });
+  const breaches = [];
 
-  const granularity = granularityFor(range) === 'day' ? 'week' : granularityFor(range);
-  const trendMap = new Map();
-  closedWithDueDate.forEach((t) => {
-    const key = bucketKey(t.resolvedAt, granularity);
-    const cur = trendMap.get(key) || { date: key, met: 0, missed: 0 };
-    if (met.includes(t)) cur.met += 1; else cur.missed += 1;
-    trendMap.set(key, cur);
-  });
-  const complianceTrend = [...trendMap.values()]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((r) => ({ date: r.date, pctMet: r.met + r.missed ? Math.round((100 * r.met) / (r.met + r.missed)) : null }));
+  const buckets = await getTicketStatusBuckets();
+  let openBreached = 0;
+  let openAtRisk = 0;
 
-  const totalClosedWithDueDate = met.length + missed.length;
+  // eslint-disable-next-line no-restricted-syntax
+  for (const t of tickets) {
+    CLOCKS.forEach((c) => {
+      const result = outcome(t.sla, c);
+      if (!result) return;
+      clocks[c].tracked += 1;
+      clocks[c][result] += 1;
+    });
+    const res = outcome(t.sla, 'resolution');
+    if (res) {
+      bump(byTech, t.assigneeId || 'unassigned', t.assignee?.displayName || 'Unassigned', res);
+      bump(byDept, t.departmentId || 'none', t.department?.name || 'No department', res);
+      bump(byCompany, t.companyId, t.company?.name || '—', res);
+      const key = bucketKey(t.createdAt, granularity);
+      const cur = trend.get(key) || { date: key, met: 0, breached: 0 };
+      cur[res] += 1;
+      trend.set(key, cur);
+    }
+    if (buckets.open.includes(t.status)) {
+      const view = toSlaView(t.sla, now);
+      if (CLOCKS.some((c) => view.clocks[c].state === 'breached')) openBreached += 1;
+      else if (CLOCKS.some((c) => view.clocks[c].atRisk)) openAtRisk += 1;
+    }
+    // eslint-disable-next-line no-restricted-syntax
+    for (const c of CLOCKS) {
+      if (t.sla[`${c}BreachedAt`]) {
+        // eslint-disable-next-line no-await-in-loop
+        const used = await liveUsedMinutes(t.sla, c, now);
+        breaches.push({
+          id: t.id,
+          ticketNumber: String(t.id).padStart(5, '0'),
+          title: t.title,
+          assignee: t.assignee?.displayName || 'Unassigned',
+          company: t.company?.name || '',
+          clock: LABEL[c],
+          // A breach is dated at the due time it passed.
+          dueAt: new Date(t.sla[`${c}BreachedAt`]).toISOString(),
+          overByMinutes: Math.max(0, used - t.sla[`${c}TargetMinutes`]),
+        });
+      }
+    }
+  }
+
+  CLOCKS.forEach((c) => { clocks[c].pctMet = pct(clocks[c].met, clocks[c].breached); });
 
   return {
-    summary: {
-      pctMetSLA: totalClosedWithDueDate ? Math.round((100 * met.length) / totalClosedWithDueDate) : null,
-      pctMissedAtClosing: totalClosedWithDueDate ? Math.round((100 * missed.length) / totalClosedWithDueDate) : null,
-      pctCurrentlyOverdue: openTotal ? Math.round((100 * openOverdue) / openTotal) : null,
-    },
+    summary: { clocks, openBreached, openAtRisk },
     chartData: {
-      metVsMissedByTech: [...byTech.values()],
-      metVsMissedByDept: [...byDept.values()],
-      complianceTrend,
+      metVsBreachedByTech: [...byTech.values()],
+      metVsBreachedByDept: [...byDept.values()],
+      metVsBreachedByCompany: [...byCompany.values()],
+      complianceTrend: [...trend.values()]
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((r) => ({ date: r.date, pctMet: pct(r.met, r.breached) })),
     },
     tableData: {
       columns: [
         { key: 'ticketNumber', label: 'Ticket #' },
         { key: 'title', label: 'Title' },
         { key: 'assignee', label: 'Assignee' },
-        { key: 'dueDate', label: 'Due date' },
-        { key: 'closedDate', label: 'Closed date' },
-        { key: 'daysOverdue', label: 'Days overdue' },
+        { key: 'company', label: 'Company' },
+        { key: 'clock', label: 'Clock' },
+        { key: 'dueAt', label: 'Due' },
+        { key: 'overByMinutes', label: 'Minutes over' },
       ],
-      rows: missed.map((t) => ({
-        id: t.id,
-        ticketNumber: String(t.id).padStart(5, '0'),
-        title: t.title,
-        assignee: t.assignee?.displayName || 'Unassigned',
-        dueDate: t.dueDate,
-        closedDate: t.resolvedAt.toISOString().slice(0, 10),
-        daysOverdue: Math.round(hoursBetween(`${t.dueDate}T23:59:59`, t.resolvedAt) / 24 * 10) / 10,
-      })),
+      rows: breaches,
     },
   };
 }

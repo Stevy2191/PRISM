@@ -10,6 +10,7 @@
 // per-ticket hooks; the ticket keeps the policy it was given.
 const { TicketSla, TicketStatus, Company, Ticket } = require('../../models');
 const slaCalendar = require('./calendar');
+const { businessMinutesBetween } = require('./businessTime');
 const {
   emptyClock, startClock, stopClock, retarget,
 } = require('./clock');
@@ -153,6 +154,14 @@ async function recalcTicketSla(ticketId, { policyId, transaction } = {}) {
   await apply(row, ticket, policyId || await selectPolicyId(ticket, transaction), transaction, { retargetAll: true });
 }
 
+// Business minutes a clock has used up to `now`, including a running spell.
+async function liveUsedMinutes(row, c, now = new Date()) {
+  const used = row[`${c}UsedMinutes`] || 0;
+  if (!row[`${c}RunningSince`]) return used;
+  const policy = await slaCalendar.getPolicy(row.slaPolicyId);
+  return used + businessMinutesBetween(row[`${c}RunningSince`], now, calendarFor(policy, row.priority));
+}
+
 module.exports = {
-  onTicketCreated, onTicketUpdated, recordFirstResponse, recalcTicketSla,
+  onTicketCreated, onTicketUpdated, recordFirstResponse, recalcTicketSla, liveUsedMinutes,
 };
