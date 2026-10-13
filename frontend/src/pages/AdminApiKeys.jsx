@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import SettingsPage from '../components/settings/SettingsPage';
 
 export default function AdminApiKeys() {
   const { isAdmin } = useAuth();
@@ -51,9 +51,7 @@ export default function AdminApiKeys() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">API Keys</h1>
+    <SettingsPage>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       {newKey && (
@@ -111,6 +109,6 @@ export default function AdminApiKeys() {
           </tbody>
         </table>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

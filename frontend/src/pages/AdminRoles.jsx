@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { IconLock } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
+import SettingsPage from '../components/settings/SettingsPage';
 
 function roleScopeLabel(role) {
   if (role.scope === 'department') {
@@ -83,12 +84,11 @@ export default function AdminRoles() {
   const customRoles = roles.filter((r) => !r.isSystemRole);
 
   return (
-    <div className="space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Roles & Permissions</h1>
+    <SettingsPage actions={(
+      <>
         <Link to="/admin/roles/new" className="btn-primary">+ New role</Link>
-      </div>
+      </>
+    )}>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <div>
@@ -109,6 +109,6 @@ export default function AdminRoles() {
           {customRoles.length === 0 && <p className="px-5 py-4 text-sm text-navy-400">No custom roles yet.</p>}
         </div>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

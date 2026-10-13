@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { IconBrandGithub, IconBug, IconStar, IconExternalLink } from '@tabler/icons-react';
 import api from '../../api/api';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const REPO_URL = 'https://github.com/Stevy2191/PRISM';
 
@@ -81,12 +81,7 @@ export default function About() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div>
-        <h1 className="page-title">About PRISM</h1>
-        <p className="text-sm text-navy-500">Self-hosted ticketing and project management.</p>
-      </div>
+    <SettingsPage description="Self-hosted ticketing and project management.">
 
       <div className="card px-5 py-2">
         <dl className="divide-y divide-navy-100">
@@ -133,6 +128,6 @@ export default function About() {
         GNU Affero General Public License, version 3. It comes with no warranty. The source code for
         this version is available at the Source code link above. Copyright © 2026 sstevens117.
       </p>
-    </div>
+    </SettingsPage>
   );
 }

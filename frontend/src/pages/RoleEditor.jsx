@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Switch from '../components/Switch';
 import Collapsible from '../components/Collapsible';
+import SettingsPage from '../components/settings/SettingsPage';
 
 // Every permission category the server defines; a category missing here is
 // a set of permissions no one can see or grant.
@@ -145,9 +146,8 @@ export default function RoleEditor() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="space-y-5">
-      <Link to="/admin/roles" className="text-sm text-prism hover:underline">← Back to Roles & Permissions</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">{isNew ? 'New role' : form.name}</h1>
+    <SettingsPage title={isNew ? 'New role' : form.name} description={isNew ? 'A role is a set of permissions.' : form.description || undefined}
+      actions={<Link to="/admin/roles" className="btn-secondary">All roles</Link>}>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       {isFullyLocked && (
@@ -275,6 +275,6 @@ export default function RoleEditor() {
         </div>
       </div>
       {!isNew && <CompanyAccessPanel roleId={id} />}
-    </div>
+    </SettingsPage>
   );
 }

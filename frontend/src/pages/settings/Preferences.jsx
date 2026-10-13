@@ -6,6 +6,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { useTheme, THEME_OPTIONS } from '../../context/ThemeContext';
 import { useNavStyle, NAV_STYLE_OPTIONS } from '../../context/NavStyleContext';
 import { formatPhone } from '../../utils/formatPhone';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 // Reminders for running timers (user decision 2026-10-12). Minutes.
 const REMINDER_FIRST = [
@@ -121,9 +122,7 @@ export default function Preferences() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">Preferences</h1>
+    <SettingsPage>
 
       <div className="card p-5">
         <h2 className="mb-3 font-semibold text-navy-900">Appearance</h2>
@@ -299,7 +298,7 @@ export default function Preferences() {
           <Link to="/change-password" className="btn-secondary">Change password</Link>
         </div>
       )}
-    </div>
+    </SettingsPage>
   );
 }
 

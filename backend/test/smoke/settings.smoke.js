@@ -173,3 +173,21 @@ describe('Settings home', () => {
     expect(await page.getByRole('main').getByText('Not set up').count()).toBe(0);
   });
 });
+
+describe('every page uses the Settings frame', () => {
+  const framed = async (page, path, title) => {
+    await page.goto(path);
+    const main = page.getByRole('main');
+    await main.getByRole('navigation', { name: 'Breadcrumb' }).waitFor();
+    await main.getByRole('heading', { level: 1, name: title }).waitFor();
+    expect([path, await page.getByText('Back to Settings').count()]).toEqual([path, 0]);
+  };
+  it('You, Organization, People & access', async () => {
+    const page = await as('admin');
+    for (const [path, title] of [
+      ['/settings/preferences', 'Preferences'], ['/settings/about', 'About PRISM'], ['/settings/companies', 'Companies & vendors'],
+      ['/admin/users', 'Users'], ['/settings/teams', 'Teams'], ['/admin/departments', 'Departments'],
+      ['/admin/roles', 'Roles & permissions'], ['/admin/roles/new', 'New role'], ['/admin/apikeys', 'API keys'],
+    ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
+  });
+});

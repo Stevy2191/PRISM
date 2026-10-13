@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
+import SettingsPage from '../../components/settings/SettingsPage';
 
 const EMPTY = { name: '', description: '', departmentId: '', members: [] };
 
@@ -67,12 +67,11 @@ export default function Teams() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Teams</h1>
+    <SettingsPage actions={(
+      <>
         {editing === null && <button onClick={startNew} className="btn-primary">+ New Team</button>}
-      </div>
+      </>
+    )}>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       {editing !== null ? (
@@ -139,6 +138,6 @@ export default function Teams() {
           ))}
         </div>
       )}
-    </div>
+    </SettingsPage>
   );
 }

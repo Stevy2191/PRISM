@@ -1,11 +1,11 @@
 import { Fragment, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
 import CompanyPicker from '../components/companies/CompanyPicker';
 import { useCompanySummary } from '../context/CompanyContext';
 import { useCompanyOptions } from '../hooks/useCompanyOptions';
+import SettingsPage from '../components/settings/SettingsPage';
 
 const EMPTY = { name: '', shortCode: '', description: '', defaultRoleId: '', companyId: '' };
 
@@ -125,14 +125,13 @@ export default function AdminDepartments() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Departments</h1>
+    <SettingsPage actions={(
+      <>
         {!showForm && (
           <button className="btn-primary" onClick={openCreate}>+ New department</button>
         )}
-      </div>
+      </>
+    )}>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       {showForm && (
@@ -221,6 +220,6 @@ export default function AdminDepartments() {
         ))}
         {departments.length === 0 && <p className="px-5 py-4 text-sm text-navy-400">No departments yet.</p>}
       </div>
-    </div>
+    </SettingsPage>
   );
 }

@@ -10,6 +10,7 @@ import OwnershipPanel from '../components/users/OwnershipPanel';
 import Collapsible from '../components/Collapsible';
 import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 import { formatPhone } from '../utils/formatPhone';
+import SettingsPage from '../components/settings/SettingsPage';
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString() : 'Never';
@@ -916,18 +917,21 @@ export default function UserDetail() {
   // (user decision 2026-10-11); the server refuses anyone else.
   const readOnly = !!user.administrator && !isOwner && user.id !== me?.id;
 
+  const title = (
+    <>
+      {user.displayName}
+      {user.ownerLevel && (
+        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 align-middle text-xs font-medium text-amber-800">
+          <OwnerBadge level={user.ownerLevel} size={13} />
+          {user.ownerLevel === 'owner' ? 'Owner' : 'Secondary owner'}
+        </span>
+      )}
+    </>
+  );
+
   return (
-    <div className="space-y-5">
-      <Link to="/admin/users" className="text-sm text-prism hover:underline">← Back to Users</Link>
-      <h1 className="text-2xl font-bold tracking-tight text-navy-900">
-        {user.displayName}
-        {user.ownerLevel && (
-          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 align-middle text-xs font-medium text-amber-800">
-            <OwnerBadge level={user.ownerLevel} size={13} />
-            {user.ownerLevel === 'owner' ? 'Owner' : 'Secondary owner'}
-          </span>
-        )}
-      </h1>
+    <SettingsPage title={title} description={user.username} width="wide"
+      actions={<Link to="/admin/users" className="btn-secondary">All users</Link>}>
       {readOnly && (
         <div className="rounded-md border border-navy-200 bg-navy-50 p-3 text-sm text-navy-600">
           Only an Owner can change an administrator&apos;s account.
@@ -964,6 +968,6 @@ export default function UserDetail() {
         </>
       )}
       {tab === 'performance' && <PerformanceTab userId={id} />}
-    </div>
+    </SettingsPage>
   );
 }

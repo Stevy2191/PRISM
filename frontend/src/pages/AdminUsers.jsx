@@ -7,6 +7,7 @@ import Pagination from '../components/Pagination';
 import NewAccountForm from '../components/users/NewAccountForm';
 import OwnerBadge from '../components/users/OwnerBadge';
 import { useAuth } from '../context/AuthContext';
+import SettingsPage from '../components/settings/SettingsPage';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -69,14 +70,13 @@ export default function AdminUsers() {
   if (loading) return <Spinner />;
 
   return (
-    <div className="space-y-5">
-      <Link to="/settings" className="text-sm text-prism hover:underline">← Back to Settings</Link>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Users</h1>
+    <SettingsPage actions={(
+      <>
         <button onClick={() => setShowCreate((v) => !v)} className="btn-primary">
           {showCreate ? 'Close' : '+ New Local Account'}
         </button>
-      </div>
+      </>
+    )}>
 
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
       {/* Ownership on a person's account leaves with them: suggest a service account. */}
@@ -188,6 +188,6 @@ export default function AdminUsers() {
           />
         )}
       </div>
-    </div>
+    </SettingsPage>
   );
 }
