@@ -2,14 +2,9 @@ import { useEffect, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
-import SlaPolicyEditor, { PRIORITY_LABELS } from './SlaPolicyEditor';
-
-const hm = (minutes) => {
-  if (minutes == null) return '—';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return [h ? `${h}h` : '', m ? `${m}m` : ''].filter(Boolean).join(' ');
-};
+import SlaPolicyEditor, {
+  PRIORITIES, PRIORITY_LABELS, TICKET_TYPES, TYPE_LABELS, formatTarget,
+} from './SlaPolicyEditor';
 
 export default function SLAs() {
   const [policies, setPolicies] = useState(null);
@@ -52,7 +47,7 @@ export default function SLAs() {
 
   return (
     <SettingsPage
-      description="SLA policies set how quickly tickets must be assigned, first answered and resolved, per priority. A ticket uses its company's policy, or the default. Time counts during the policy's business hours, and pauses in statuses marked Pauses SLA."
+      description="SLA policies set how quickly tickets must be assigned, first answered and resolved, per priority. A ticket uses its company's policy, or the default. The resolve target sets each ticket's due date; time counts during the policy's business hours and never pauses."
       actions={editing === null && <button type="button" className="btn-primary" onClick={() => setEditing({ policy: null })}>+ New policy</button>}
     >
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
@@ -94,22 +89,22 @@ export default function SLAs() {
                 </div>
               </div>
               <div className="mt-3 overflow-x-auto">
-                <table className="w-full min-w-[480px] text-xs">
+                <p className="mb-1 text-xs text-navy-400">Resolve within</p>
+                <table className="w-full min-w-[420px] text-xs">
                   <thead>
                     <tr className="text-left text-navy-400">
-                      <th className="py-1 pr-3 font-medium">Priority</th>
-                      <th className="py-1 pr-3 font-medium">Assign</th>
-                      <th className="py-1 pr-3 font-medium">First response</th>
-                      <th className="py-1 pr-3 font-medium">Resolve</th>
+                      <th className="py-1 pr-3 font-medium">Type</th>
+                      {PRIORITIES.map((pr) => <th key={pr} className="py-1 pr-3 font-medium">{PRIORITY_LABELS[pr]}</th>)}
                     </tr>
                   </thead>
                   <tbody className="font-mono text-navy-700">
-                    {p.targets.map((t) => (
-                      <tr key={t.priority}>
-                        <td className="py-1 pr-3 font-sans">{PRIORITY_LABELS[t.priority]}{p.businessHours && !t.useBusinessHours ? ' · 24×7' : ''}</td>
-                        <td className="py-1 pr-3">{hm(t.assignMinutes)}</td>
-                        <td className="py-1 pr-3">{hm(t.responseMinutes)}</td>
-                        <td className="py-1 pr-3">{hm(t.resolutionMinutes)}</td>
+                    {TICKET_TYPES.map((type) => (
+                      <tr key={type}>
+                        <td className="py-1 pr-3 font-sans">{TYPE_LABELS[type]}</td>
+                        {PRIORITIES.map((pr) => {
+                          const t = p.targets.find((x) => x.ticketType === type && x.priority === pr);
+                          return <td key={pr} className="py-1 pr-3">{t ? formatTarget(t.resolutionMinutes, t.resolutionUnit) : '—'}</td>;
+                        })}
                       </tr>
                     ))}
                   </tbody>

@@ -6,7 +6,7 @@ const { resetRateLimits } = require('../../src/middleware/rateLimit');
 // SLA engine settings screens (sub-project 4): the policy editor, the
 // Pauses SLA switch on statuses, and the SLA workflow trigger and action.
 
-const { SlaPolicy, SlaTarget, TicketStatus } = models;
+const { SlaPolicy, SlaTarget } = models;
 
 let smoke;
 let w;
@@ -21,26 +21,32 @@ beforeAll(async () => {
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 beforeEach(resetRateLimits);
 
-it('an admin creates a policy with targets and a company, and sees it listed', async () => {
+it('an admin sets Request/Low to 20 days and Incident/High to 4 hours, with a company', async () => {
   await page.goto('/settings/slas');
   await page.getByRole('heading', { level: 1, name: 'SLAs' }).waitFor();
   await page.getByRole('button', { name: '+ New policy' }).click();
   await page.getByLabel('Name').fill('Gold');
-  await page.getByLabel('Urgent Assign within minutes').fill('15');
-  await page.getByLabel('Urgent First response within hours').fill('1');
-  await page.getByLabel('Urgent Resolve within hours').fill('4');
-  await page.getByLabel('Urgent Resolve within minutes').fill('30');
+  await page.getByLabel('Incident High Resolve within amount').fill('4');
+  await page.getByLabel('Incident High Resolve within unit').selectOption('hours');
+  await page.getByLabel('Incident High Assign within amount').fill('15');
+  await page.getByLabel('Incident High Assign within unit').selectOption('minutes');
+  await page.getByRole('tab', { name: 'Request' }).click();
+  await page.getByLabel('Request Low Resolve within amount').fill('20');
+  await page.getByLabel('Request Low Resolve within unit').selectOption('days');
   await page.getByLabel('Globex').check();
   await page.getByRole('button', { name: 'Save policy' }).click();
   const card = page.getByTestId('sla-policy').filter({ hasText: 'Gold' });
   await card.waitFor();
   await card.getByText('Globex').waitFor();
+  await card.getByText('20d').waitFor();
 
   const gold = await SlaPolicy.findOne({ where: { name: 'Gold' } });
-  const urgent = await SlaTarget.findOne({ where: { slaPolicyId: gold.id, priority: 'critical' } });
-  expect([urgent.assignMinutes, urgent.responseMinutes, urgent.resolutionMinutes]).toEqual([15, 60, 270]);
-  const low = await SlaTarget.findOne({ where: { slaPolicyId: gold.id, priority: 'low' } });
-  expect(low.resolutionMinutes).toBeNull();
+  const target = (ticketType, priority) => SlaTarget.findOne({ where: { slaPolicyId: gold.id, ticketType, priority } });
+  const incident = await target('incident', 'high');
+  expect([incident.resolutionMinutes, incident.resolutionUnit, incident.assignMinutes]).toEqual([240, 'minutes', 15]);
+  const request = await target('request', 'low');
+  expect([request.resolutionMinutes, request.resolutionUnit]).toEqual([20, 'business_days']);
+  expect((await target('problem', 'low')).resolutionMinutes).toBeNull();
 });
 
 it('the default policy cannot be deleted', async () => {
@@ -50,21 +56,10 @@ it('the default policy cannot be deleted', async () => {
   expect(await standard.getByRole('button', { name: 'Delete' }).isDisabled()).toBe(true);
 });
 
-it('the Pauses SLA switch on a ticket status saves', async () => {
-  const status = await TicketStatus.create({ name: 'Waiting on vendor', behaviorType: 'open', position: 98 });
-  try {
-    await page.goto('/settings/statuses');
-    const box = page.getByLabel('Waiting on vendor pauses SLA');
-    await box.waitFor();
-    await Promise.all([
-      page.waitForResponse((r) => r.url().includes(`/ticket-statuses/${status.id}`) && r.request().method() === 'PATCH'),
-      box.click(),
-    ]);
-    expect((await TicketStatus.findByPk(status.id)).pausesSla).toBe(true);
-    expect(await box.isChecked()).toBe(true);
-  } finally {
-    await status.destroy();
-  }
+it('ticket statuses have no Pauses SLA switch', async () => {
+  await page.goto('/settings/statuses');
+  await page.getByRole('main').locator('li[draggable]').first().waitFor();
+  expect(await page.getByText('Pauses SLA').count()).toBe(0);
 });
 
 it('the workflow editor offers the SLA triggers, clock and Set SLA policy action', async () => {

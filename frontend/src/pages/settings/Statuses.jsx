@@ -172,20 +172,6 @@ export default function Statuses() {
                 >
                   {BEHAVIOR_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
-                {scope === 'ticket' && (
-                  // Closed statuses stop every SLA clock anyway; pausing only means something for open ones.
-                  <label className="flex w-28 flex-shrink-0 items-center gap-1.5 text-xs text-navy-600" title="While a ticket is in this status its resolution SLA clock is paused">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-navy-300 text-prism"
-                      checked={!!s.pausesSla}
-                      disabled={s.behaviorType !== 'open'}
-                      onChange={(e) => patchStatus(s.id, { pausesSla: e.target.checked })}
-                      aria-label={`${s.name} pauses SLA`}
-                    />
-                    Pauses SLA
-                  </label>
-                )}
                 {/* A fixed slot on every row, so the columns line up with or without the badge. */}
                 <span className="w-16 flex-shrink-0 text-center">
                   {s.isDefault && <span className="rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-600">Default</span>}
