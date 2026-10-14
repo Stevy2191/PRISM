@@ -38,10 +38,10 @@
 **Interfaces:**
 - Produces `addBusinessDays(start: Date, days: int, calendar|null) → Date`. Null/24×7 → `start + days × 24h`. Otherwise: anchor = `start` if inside an open window, else the next opening; walk forward `days` open days; result = the same wall-clock time on that day, clamped into that day's window (before opening → opening, after closing → closing). `days <= 0` → anchor. Same 3,700-day guard.
 
-- [ ] Step 1: Failing tests: `adds open days keeping the time of day`; `skips the weekend`; `skips a holiday`; `starts after hours from the next opening (Tue 20:00 + 2 → Fri 09:00)`; `clamps to a shorter day's closing`; `24x7 and null are calendar days`; `zero days returns the anchor`.
-- [ ] Step 2: `npm test -- test/unit/businessTime.test.js` → FAIL.
-- [ ] Step 3: Implement. Step 4: re-run → PASS.
-- [ ] Step 5: Commit `feat(sla): business days`.
+- [x] Step 1: Failing tests: `adds open days keeping the time of day`; `skips the weekend`; `skips a holiday`; `starts after hours from the next opening (Tue 20:00 + 2 → Fri 09:00)`; `clamps to a shorter day's closing`; `24x7 and null are calendar days`; `zero days returns the anchor`.
+- [x] Step 2: `npm test -- test/unit/businessTime.test.js` → FAIL.
+- [x] Step 3: Implement. Step 4: re-run → PASS.
+- [x] Step 5: Commit `feat(sla): business days`.
 
 ### Task 2: Schema — type × priority targets, units, no pause, due date history, permission
 
@@ -57,10 +57,10 @@
 - `TicketDueDateChange`: `id, ticketId (FK cascade), userId (null = system/workflow), fromDueAt, toDueAt, reason TEXT, kind ENUM('extension','adjustment'), createdAt`; `Ticket.hasMany(TicketDueDateChange, as 'dueDateChanges')`, `belongsTo(User, as 'user')`.
 - Migration up: for every existing target row, create the other four types as copies (unit `minutes`) — the existing row becomes `incident`; backfill `resolutionOriginalDueAt = resolutionDueAt`; drop `TicketStatuses.pausesSla`; create `TicketDueDateChanges`; insert permission `tickets.adjust_sla_due` (category tickets, label "Adjust SLA due dates", description "Move a ticket's SLA due date earlier, or without a reason") granted to the role named "System Administrator". Down: keep only `incident` rows (minutes; a `business_days` value converts to `days × 1440`), drop the new columns/table/permission, re-add `pausesSla` (false).
 
-- [ ] Step 1: Failing tests: `copies each priority target to all five ticket types`; `backfills the original due date`; `drops Pauses SLA from statuses`; `grants Adjust SLA due dates to System Administrator only`; `rolls back and re-applies` (incl. data). Update `sla.migration.test.js` so its cases run with 061 rolled back and restore it in afterAll.
-- [ ] Step 2: Run → FAIL. Step 3: Implement; apply to the test DB (`set -a; . ./.env.test; set +a; NODE_ENV=test npx sequelize-cli db:migrate --env test`).
-- [ ] Step 4: `npm test -- test/integration/sla.duedates.migration.test.js test/integration/sla.migration.test.js test/integration/companies.migration.test.js` → PASS.
-- [ ] Step 5: Commit `feat(sla): schema for type × priority targets and due date history`.
+- [x] Step 1: Failing tests: `copies each priority target to all five ticket types`; `backfills the original due date`; `drops Pauses SLA from statuses`; `grants Adjust SLA due dates to System Administrator only`; `rolls back and re-applies` (incl. data). Update `sla.migration.test.js` so its cases run with 061 rolled back and restore it in afterAll.
+- [x] Step 2: Run → FAIL. Step 3: Implement; apply to the test DB (`set -a; . ./.env.test; set +a; NODE_ENV=test npx sequelize-cli db:migrate --env test`).
+- [x] Step 4: `npm test -- test/integration/sla.duedates.migration.test.js test/integration/sla.migration.test.js test/integration/companies.migration.test.js` → PASS.
+- [x] Step 5: Commit `feat(sla): schema for type × priority targets and due date history`.
 
 ### Task 3: Policy API and statuses
 
@@ -70,9 +70,9 @@
 - Target body: `{ ticketType, priority, assignMinutes, assignUnit, responseMinutes, responseUnit, resolutionMinutes, resolutionUnit }`; amount null = untracked; `minutes` 1–525,600, `business_days` 1–365. Create makes all 20 rows; PATCH updates given `(ticketType, priority)` pairs. `present()` returns targets ordered by type then priority.
 - `calendar.getPolicy()` → `targets: Map<'type:priority', target>`.
 
-- [ ] Step 1: Failing tests (update existing): `lists Standard with 20 targets`; `creates a policy with a Request/Low 20-business-day resolution target`; `rejects unknown ticket type / unit / 400 business days`; `status PATCH ignores pausesSla` (field gone).
-- [ ] Step 2: Run → FAIL. Step 3: Implement. Step 4: re-run `sla.policies.test.js settings.status.test.js` → PASS.
-- [ ] Step 5: Commit `feat(sla): type × priority targets in the policy API; no pausing statuses`.
+- [x] Step 1: Failing tests (update existing): `lists Standard with 20 targets`; `creates a policy with a Request/Low 20-business-day resolution target`; `rejects unknown ticket type / unit / 400 business days`; `status PATCH ignores pausesSla` (field gone).
+- [x] Step 2: Run → FAIL. Step 3: Implement. Step 4: re-run `sla.policies.test.js settings.status.test.js` → PASS.
+- [x] Step 5: Commit `feat(sla): type × priority targets in the policy API; no pausing statuses`.
 
 ### Task 4: Fixed due dates in the clock engine
 
@@ -87,9 +87,9 @@
 - `recalcTicketSla(ticketId, { policyId })` (Set SLA policy): recompute all three clocks from the ticket's `createdAt` on the new policy, set both `dueAt` and `resolutionOriginalDueAt`, mirror the due date; extension history untouched.
 - `toSlaView` adds `clocks.resolution.originalDueAt` and `changes: [{ kind, fromDueAt, toDueAt, reason, user: {id, displayName} | null, createdAt }]` (detail only; list stays light).
 
-- [ ] Step 1: Failing tests (`sla.duedates.test.js`): `due date comes from the ticket's type and priority`; `a Request/Low 20-business-day target lands 20 open days later at the same time`; `the company's policy wins over the default`; `a blueprint ticket gets its type/priority SLA`; `Ticket.dueDate/dueTime mirror the due in the org time zone across the UTC date line`; `priority, type and company changes leave every SLA date alone`; `a formerly pausing status no longer stops the clock`; `reopening keeps the original due date and is breached if past it`; `Set SLA policy after an extension recomputes original and current due, keeps history`. Update `sla.clocks.test.js` cases that expected retargeting/pausing.
-- [ ] Step 2: Run → FAIL. Step 3: Implement. Step 4: re-run `sla.duedates.test.js sla.clocks.test.js sla.scheduler.test.js sla.api.test.js` → PASS.
-- [ ] Step 5: Commit `feat(sla): due date fixed at creation from type × priority; no pause`.
+- [x] Step 1: Failing tests (`sla.duedates.test.js`): `due date comes from the ticket's type and priority`; `a Request/Low 20-business-day target lands 20 open days later at the same time`; `the company's policy wins over the default`; `a blueprint ticket gets its type/priority SLA`; `Ticket.dueDate/dueTime mirror the due in the org time zone across the UTC date line`; `priority, type and company changes leave every SLA date alone`; `a formerly pausing status no longer stops the clock`; `reopening keeps the original due date and is breached if past it`; `Set SLA policy after an extension recomputes original and current due, keeps history`. Update `sla.clocks.test.js` cases that expected retargeting/pausing.
+- [x] Step 2: Run → FAIL. Step 3: Implement. Step 4: re-run `sla.duedates.test.js sla.clocks.test.js sla.scheduler.test.js sla.api.test.js` → PASS.
+- [x] Step 5: Commit `feat(sla): due date fixed at creation from type × priority; no pause`.
 
 ### Task 5: Changing the due date
 
@@ -102,9 +102,9 @@
 - `PATCH /tickets/:id` with `dueDate`/`dueTime` on a ticket that has a resolution SLA → 400 `VALIDATION_ERROR` "Use Extend due date". Tickets without one: unchanged.
 - Workflow `set_due_date` on an SLA ticket → `changeDueDate(..., { userId: null, kind: 'adjustment', reason: 'Workflow rule: <name>' })`.
 
-- [ ] Step 1: Failing tests: `a later date with a reason extends (history, activity, audit)`; `an earlier date → 403 for a technician, OK for an admin (adjustment)`; `no reason → 403 for a technician, OK for an admin`; `the same date → 400`; `an extension clears warned/breached so they fire again for the new date` (runSlaPass); `PATCH dueDate on an SLA ticket → 400`; `a ticket with no resolution target keeps PATCH dueDate`; `an out-of-scope ticket answers like a missing one`; `a workflow set_due_date is recorded as an adjustment by the rule`; `bad date / time / 1001-char reason → 400`.
-- [ ] Step 2: Run → FAIL. Step 3: Implement. Step 4: re-run `sla.duedates.test.js tickets.core.test.js` → PASS.
-- [ ] Step 5: Commit `feat(sla): extend-only due dates with a reason`.
+- [x] Step 1: Failing tests: `a later date with a reason extends (history, activity, audit)`; `an earlier date → 403 for a technician, OK for an admin (adjustment)`; `no reason → 403 for a technician, OK for an admin`; `the same date → 400`; `an extension clears warned/breached so they fire again for the new date` (runSlaPass); `PATCH dueDate on an SLA ticket → 400`; `a ticket with no resolution target keeps PATCH dueDate`; `an out-of-scope ticket answers like a missing one`; `a workflow set_due_date is recorded as an adjustment by the rule`; `bad date / time / 1001-char reason → 400`.
+- [x] Step 2: Run → FAIL. Step 3: Implement. Step 4: re-run `sla.duedates.test.js tickets.core.test.js` → PASS.
+- [x] Step 5: Commit `feat(sla): extend-only due dates with a reason`.
 
 ### Task 6: Report
 
@@ -112,29 +112,29 @@
 
 **Interfaces:**
 - `summary.resolution` adds `{ metOriginal, pctMetOriginal, metDue, pctMetDue, extended }` (a closed ticket met the original if resolved by `resolutionOriginalDueAt`; met the due date if resolved by the final `resolutionDueAt`). New `tableData`-style `extensions: [{ id, ticketNumber, title, from, to, reason, by, at }]` for tickets in range; CSV export unchanged (breaches).
-- [ ] Step 1: Failing tests: `an extended ticket resolved after its original but before its new due counts as missed-original, met-due`; `lists extensions with reasons`; `respects scope`.
-- [ ] Step 2: Run → FAIL. Step 3: Implement. Step 4: re-run → PASS.
-- [ ] Step 5: Commit `feat(sla): report original SLA vs extended due dates`.
+- [x] Step 1: Failing tests: `an extended ticket resolved after its original but before its new due counts as missed-original, met-due`; `lists extensions with reasons`; `respects scope`.
+- [x] Step 2: Run → FAIL. Step 3: Implement. Step 4: re-run → PASS.
+- [x] Step 5: Commit `feat(sla): report original SLA vs extended due dates`.
 
 ### Task 7: Settings screens
 
 **Files:** Modify `frontend/src/pages/settings/SlaPolicyEditor.jsx` (tabs per ticket type; each cell amount + unit select h/d), `SLAs.jsx` (summary per type), `Statuses.jsx` (remove Pauses SLA); Smoke `backend/test/smoke/sla.settings.smoke.js` (update), `settings.smoke.js` (no change expected)
 
-- [ ] Step 1: Update smoke: `an admin sets Request/Low resolution to 20 days and Incident/High to 4 hours`; remove the Pauses SLA case; `Statuses has no Pauses SLA switch`.
-- [ ] Step 2: Build + run → FAIL. Step 3: Implement. Step 4: build + run → PASS.
-- [ ] Step 5: Commit `feat(sla): policy editor per ticket type with hours/days`.
+- [x] Step 1: Update smoke: `an admin sets Request/Low resolution to 20 days and Incident/High to 4 hours`; remove the Pauses SLA case; `Statuses has no Pauses SLA switch`.
+- [x] Step 2: Build + run → FAIL. Step 3: Implement. Step 4: build + run → PASS.
+- [x] Step 5: Commit `feat(sla): policy editor per ticket type with hours/days`.
 
 ### Task 8: Ticket screens and report page
 
 **Files:** Create `frontend/src/pages/tickets/detail/DueDateModal.jsx`; Modify `frontend/src/pages/tickets/detail/Sidebar.jsx` (SLA tickets: due date shown read-only + "Extend due date" button; "Change due date" when the user has `tickets.adjust_sla_due`), `SlaPanel.jsx` (original due, change history), `frontend/src/pages/reports/SlaComplianceReport.jsx` (original vs due cards, extensions table); Smoke `backend/test/smoke/sla.tickets.smoke.js`
 
-- [ ] Step 1: Failing smoke: `a technician extends the due date with a reason and sees it in the SLA panel`; `the extend dialog won't save without a reason or with an earlier date`; `an admin can move it earlier`; `the report shows original vs extended figures`; `375px: dialog fits`.
-- [ ] Step 2: Build + run → FAIL. Step 3: Implement. Step 4: build + run → PASS.
-- [ ] Step 5: Commit `feat(sla): extend due date on the ticket page; report figures`.
+- [x] Step 1: Failing smoke: `a technician extends the due date with a reason and sees it in the SLA panel`; `the extend dialog won't save without a reason or with an earlier date`; `an admin can move it earlier`; `the report shows original vs extended figures`; `375px: dialog fits`.
+- [x] Step 2: Build + run → FAIL. Step 3: Implement. Step 4: build + run → PASS.
+- [x] Step 5: Commit `feat(sla): extend due date on the ticket page; report figures`.
 
 ### Task 9: Docs, review, full verification, push
 
-- [ ] Step 1: `UPGRADING.md` SLA section: replace the "Pauses SLA" action note with: targets now per type × priority (copied to every type), due dates set automatically, no pausing, Extend due date with a reason, new permission. ROADMAP status Shipped; memory note.
-- [ ] Step 2: Fresh reviewer (most capable model) on the branch diff — security + Review Focus.
-- [ ] Step 3: One fix pass (test-first). Full backend suite, then full smoke, once each, not concurrently.
-- [ ] Step 4: Commit, push `dev`.
+- [x] Step 1: `UPGRADING.md` SLA section: replace the "Pauses SLA" action note with: targets now per type × priority (copied to every type), due dates set automatically, no pausing, Extend due date with a reason, new permission. ROADMAP status Shipped; memory note.
+- [x] Step 2: Fresh reviewer (most capable model) on the branch diff — security + Review Focus.
+- [x] Step 3: One fix pass (test-first). Full backend suite, then full smoke, once each, not concurrently.
+- [x] Step 4: Commit, push `dev`.

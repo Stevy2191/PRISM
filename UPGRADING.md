@@ -14,43 +14,54 @@ Nothing here needs action before upgrading.
 
 ### SLA engine
 
-Tickets now have real SLA clocks: how long they sit **unassigned**, time to
-**first response**, and time to **resolution**. They count your business
-hours, pause while waiting on the customer, warn before a target is missed,
-and can escalate through workflow rules.
+Tickets now have SLA clocks: how long they sit **unassigned**, time to
+**first response**, and time to **resolution**. The resolution target sets
+the ticket's **due date** when the ticket is created. Nothing pauses the
+clocks, and technicians can only extend a due date, with a reason.
 
+- **Targets are per ticket type and priority**, for example Incident/High
+  resolved within 4 hours, Request/Low within 20 days. Hours count business
+  hours; days count business days (same time of day). Each target is
+  optional.
 - **Your SLA settings carry over.** The per-priority response and
-  resolution targets become a policy called **Standard**, the default. It
-  uses your global business-hours schedule if you have one, otherwise it
-  counts every hour (24×7). Settings → SLAs now holds named policies: a
-  schedule, a warning point (75% of the target by default), and per-priority
-  targets for assignment, first response and resolution. A blank target is
-  not tracked. Companies can be put on their own policy there.
+  resolution targets become a policy called **Standard**, the default, and
+  are copied to every ticket type. It uses your global business-hours
+  schedule if you have one, otherwise it counts every hour (24×7). Review
+  the targets per type in Settings → SLAs.
+- **Policies per customer company.** Settings → SLAs holds named policies
+  (schedule, warning point, targets); put a company on a policy there.
+  Companies without one use the default.
+- **Due dates come from the SLA.** On a ticket with a resolution target the
+  due date is set automatically and can only be moved with **Extend due
+  date** (later, with a reason). Every change is kept and shown on the
+  ticket. Moving a due date earlier, or without a reason, needs the new
+  permission **Adjust SLA due dates** (System Administrators have it).
+  Tickets whose type and priority have no resolution target keep a manual
+  due date as before.
+- **No pausing.** Status changes don't stop the clock; reopening a ticket
+  keeps its original due date. Changing a ticket's priority, type or
+  company later doesn't move its SLA dates.
 - **Only tickets created after the upgrade get clocks.** Older tickets show
   "No SLA" rather than all showing as breached.
-- **Set "Pauses SLA" on your waiting statuses** (Settings → Statuses), for
-  example "Pending" or "On Hold". Nothing pauses until you do. Pausing stops
-  the resolution clock only.
 - **First response** is the first reply or public comment a staff member
   posts on the ticket. Private notes, status changes and a customer's own
   emailed reply don't count.
-- Reopening a ticket resumes its resolution clock; time spent closed doesn't
-  count. A breach stays on record even if a later priority change raises the
-  target.
 - New: an SLA badge and "SLA breached" / "SLA at risk" filters in the ticket
   list, an SLA panel on the ticket page, an "SLA at Risk" dashboard panel,
   and "SLA at risk" / "SLA breached" notifications to the assignee (or the
   ticket's team while it's unassigned).
 - Workflow rules gain the triggers **SLA at risk** and **SLA breached**
-  (for any clock or one of them) and the action **Set SLA policy**.
-- **Changed report:** the SLA compliance report now reads the SLA clocks
-  (per-clock % on time, breaches by technician, department and company)
-  instead of comparing due dates. The manual due date is unchanged and
-  separate from SLA targets.
-- **Changed API:** `/sla-policies` is now policy-based (`GET/POST`,
-  `GET/PATCH/DELETE /:id`, `POST /:id/default`); the old
-  `PATCH /sla-policies/:priority` is gone. Ticket responses carry `sla`, and
-  `GET /tickets` takes `?sla=breached|at_risk`.
+  (for any clock or one of them) and the action **Set SLA policy**. A
+  rule's **Set due date** on an SLA ticket is recorded as an adjustment.
+- **Changed report:** the SLA compliance report now reads the SLA clocks:
+  per-clock % on time, % that met the original SLA vs the (extended) due
+  date, breaches, and every due date change with its reason.
+- **Changed API:** `/sla-policies` is policy-based (`GET/POST`,
+  `GET/PATCH/DELETE /:id`, `POST /:id/default`) and targets carry
+  `ticketType` and a unit; the old `PATCH /sla-policies/:priority` is gone.
+  Ticket responses carry `sla`; `GET /tickets` takes `?sla=breached|at_risk`;
+  `POST /tickets/:id/due-date` moves an SLA due date, and `PATCH /tickets/:id`
+  refuses `dueDate` on an SLA ticket (`400`).
 - If you saved the notification types setting before, the two new SLA types
   are switched on for you.
 

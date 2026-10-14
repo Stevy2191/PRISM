@@ -1,7 +1,7 @@
 # SLA due dates — design change
 
 Changes the shipped [SLA engine](2026-10-13-sla-engine-design.md)
-(sub-project 4) after the user's review on 2026-10-13. Status: awaiting review.
+(sub-project 4) after the user's review on 2026-10-13. Status: approved 2026-10-13; built.
 
 ## What the user asked for
 
