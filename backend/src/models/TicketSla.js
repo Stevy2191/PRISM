@@ -29,6 +29,9 @@ module.exports = (sequelize) => {
       slaPolicyId: { type: DataTypes.INTEGER, allowNull: false },
       priority: { type: DataTypes.ENUM('critical', 'high', 'medium', 'low'), allowNull: false },
       ...clockAttributes(),
+      // The resolution due date the SLA first set; extensions move
+      // resolutionDueAt, never this (only Set SLA policy recomputes it).
+      resolutionOriginalDueAt: { type: DataTypes.DATE, allowNull: true },
     },
     {
       sequelize,

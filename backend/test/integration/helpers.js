@@ -115,6 +115,8 @@ async function resetSlaPolicies() {
   await sequelize.query('UPDATE Companies SET slaPolicyId = NULL');
   await sequelize.query('DELETE FROM SlaPolicies WHERE id <> ?', { replacements: [stdId] });
   await sequelize.query("UPDATE SlaPolicies SET name = 'Standard', businessHoursId = NULL, warnAtPercent = 75 WHERE id = ?", { replacements: [stdId] });
+  // Units only exist from migration 061 on (a test may have rolled it back).
+  await sequelize.query("UPDATE SlaTargets SET assignUnit = 'minutes', responseUnit = 'minutes', resolutionUnit = 'minutes' WHERE slaPolicyId = ?", { replacements: [stdId] }).catch(() => {});
   for (const [priority, [resp, resol, biz]] of Object.entries(SLA_SEED)) {
     // eslint-disable-next-line no-await-in-loop
     await sequelize.query(
@@ -129,7 +131,7 @@ async function resetData() {
   const tables = [
     'Comments', 'Attachments', 'TicketWatchers', 'Tasks', 'TicketActivities',
     'TicketRelations', 'TicketFieldValues', 'TimeEntries', 'ActiveTimers',
-    'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'TicketSlas', 'Tickets', 'Contacts',
+    'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'TicketSlas', 'TicketDueDateChanges', 'Tickets', 'Contacts',
     // Project child tables truncate with Projects: TRUNCATE resets
     // AUTO_INCREMENT, so a project created by the next test reuses id 1 and
     // would otherwise inherit the previous test's expenses/time/materials.

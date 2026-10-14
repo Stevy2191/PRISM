@@ -1,6 +1,7 @@
 const Sequelize = require('sequelize');
 const { resetData, closeDb, models, sequelize } = require('./helpers');
 const migration = require('../../migrations/20260101000060-sla-engine');
+const dueDates = require('../../migrations/20260101000061-sla-due-dates');
 
 // SLA engine schema (sub-project 4): the old one-row-per-priority SlaPolicies
 // table becomes a "Standard" default policy with one target per priority.
@@ -26,11 +27,14 @@ const asInstalled = async () => {
   await sequelize.query('ALTER TABLE WorkflowActions MODIFY actionType VARCHAR(50) NOT NULL');
 };
 
+// 061 builds on 060: roll it back for these cases and put it back after.
+beforeAll(async () => { await dueDates.down(qi(), Sequelize); });
 beforeEach(async () => {
   await resetData();
   await asInstalled();
 });
 afterAll(async () => {
+  await dueDates.up(qi(), Sequelize);
   await BusinessHours.destroy({ where: {} });
   await closeDb();
 });
@@ -41,13 +45,16 @@ describe('sla-engine migration', () => {
     await sequelize.query("UPDATE SlaPolicies SET firstResponseHours = 2.5, useBusinessHours = 0 WHERE priority = 'high'");
     await migration.up(qi(), Sequelize);
 
-    const policies = await SlaPolicy.findAll({ include: [{ model: SlaTarget, as: 'targets' }] });
+    // Raw reads: the models already carry the next migration's columns.
+    const sel = (sql) => sequelize.query(sql, { type: Sequelize.QueryTypes.SELECT });
+    const policies = await sel('SELECT id, name, isDefault, warnAtPercent, businessHoursId FROM SlaPolicies');
     expect(policies).toHaveLength(1);
     const [std] = policies;
-    expect([std.name, std.isDefault, std.warnAtPercent, std.businessHoursId]).toEqual(['Standard', true, 75, null]);
-    const byPriority = Object.fromEntries(std.targets.map((t) => [t.priority, t]));
+    expect([std.name, !!std.isDefault, std.warnAtPercent, std.businessHoursId]).toEqual(['Standard', true, 75, null]);
+    const targets = await sel(`SELECT priority, assignMinutes, responseMinutes, resolutionMinutes, useBusinessHours FROM SlaTargets WHERE slaPolicyId = ${std.id}`);
+    const byPriority = Object.fromEntries(targets.map((t) => [t.priority, t]));
     expect(Object.keys(byPriority).sort()).toEqual(['critical', 'high', 'low', 'medium']);
-    expect([byPriority.high.responseMinutes, byPriority.high.useBusinessHours, byPriority.high.assignMinutes]).toEqual([150, false, null]);
+    expect([byPriority.high.responseMinutes, !!byPriority.high.useBusinessHours, byPriority.high.assignMinutes]).toEqual([150, false, null]);
     expect(byPriority.low.resolutionMinutes).toBe(72 * 60);
   });
 
@@ -70,9 +77,8 @@ describe('sla-engine migration', () => {
   });
 
   it('gives ticket statuses a Pauses SLA switch, off by default', async () => {
-    const s = await TicketStatus.create({ name: 'Waiting', behaviorType: 'open', position: 99 });
-    expect(s.pausesSla).toBe(false);
-    await s.destroy();
+    const col = (await qi().describeTable('TicketStatuses')).pausesSla;
+    expect([col.type, col.defaultValue]).toEqual(['TINYINT(1)', '0']);
   });
 
   it('rolls back to the old shape and re-applies', async () => {

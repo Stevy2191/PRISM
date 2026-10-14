@@ -52,16 +52,17 @@ function calendarFor(policy, priority) {
   return t && t.useBusinessHours === false ? null : (policy ? policy.calendar : null);
 }
 
+// SLA clocks never pause (spec 2026-10-13 change): only open vs not.
 async function statusInfo(name, transaction) {
-  const s = name ? await TicketStatus.findOne({ where: { name }, attributes: ['behaviorType', 'pausesSla'], transaction }) : null;
-  return { open: !s || s.behaviorType === 'open', paused: !!(s && s.pausesSla) };
+  const s = name ? await TicketStatus.findOne({ where: { name }, attributes: ['behaviorType'], transaction }) : null;
+  return { open: !s || s.behaviorType === 'open' };
 }
 
 function shouldRun(c, ticket, status, state) {
   if (!status.open) return false;
   if (c === 'assign') return !ticket.assigneeId;
   if (c === 'response') return !state.metAt;
-  return !status.paused;
+  return true;
 }
 
 // The company's policy, else the default.

@@ -14,8 +14,6 @@ module.exports = (sequelize) => {
         defaultValue: 'open',
       },
       position: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
-      // While a ticket sits in this status its SLA resolution clock is paused.
-      pausesSla: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isDefault: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isProtected: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     },
