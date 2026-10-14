@@ -8,6 +8,8 @@ import { initials } from '../../../utils/userDisplay';
 import { formatPhone } from '../../../utils/formatPhone';
 import TimeDropdownPicker from '../../../components/TimeDropdownPicker';
 import SlaPanel from './SlaPanel';
+import DueDateModal from './DueDateModal';
+import { useAuth } from '../../../context/AuthContext';
 import {
   BG,
   CARD_BG,
@@ -150,7 +152,7 @@ function CustomFieldValue({ field, value, disabled, onSave }) {
 }
 
 export function Sidebar({
-  ticket, collapsed, onToggle, isStaff, canEdit = isStaff, canAssign, onStatusChange, patchTicket,
+  ticket, collapsed, onToggle, isStaff, canEdit = isStaff, canAssign, onStatusChange, patchTicket, onTicketReplaced,
   assignableUsers, teams, directory, ticketStatuses,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
@@ -160,6 +162,10 @@ export function Sidebar({
   mobileSheet,
 }) {
   const [tagInput, setTagInput] = useState('');
+  const [dueDateMode, setDueDateMode] = useState(null); // null | 'extend' | 'change'
+  const { hasPermission } = useAuth();
+  // A ticket whose SLA sets its due date: moved only through the dialog.
+  const slaDue = ticket.sla?.clocks?.resolution?.dueAt;
   const [watcherQuery, setWatcherQuery] = useState('');
   const watcherResults = watcherQuery.trim()
     ? directory
@@ -353,6 +359,21 @@ export function Sidebar({
                   {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
+              {slaDue ? (
+                <div className="sm:col-span-2" data-testid="sla-due-date">
+                  <span className="mb-1 block text-xs" style={{ color: MUTED }}>Due (SLA)</span>
+                  <p className="text-sm" style={{ color: TEXT }}>{formatDueDateTime(ticket.dueDate, ticket.dueTime)}</p>
+                  {canEdit && (
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <button type="button" className="btn-secondary text-xs" onClick={() => setDueDateMode('extend')}>Extend due date</button>
+                      {hasPermission('tickets.adjust_sla_due') && (
+                        <button type="button" className="btn-secondary text-xs" onClick={() => setDueDateMode('change')}>Change due date</button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+              <>
               <div>
                 <label className="mb-1 block text-xs" style={{ color: MUTED }}>Due Date</label>
                 <input
@@ -376,9 +397,19 @@ export function Sidebar({
                   />
                 </div>
               </div>
+              </>
+              )}
             </div>
           )}
         </SidebarSection>
+        {dueDateMode && (
+          <DueDateModal
+            ticket={ticket}
+            mode={dueDateMode}
+            onClose={() => setDueDateMode(null)}
+            onSaved={(t) => { setDueDateMode(null); onTicketReplaced?.(t); }}
+          />
+        )}
 
         {!collapsed && ticket.sla !== undefined && (
           <SidebarSection title="SLA" collapsed={collapsed}>

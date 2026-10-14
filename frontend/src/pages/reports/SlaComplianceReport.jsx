@@ -49,6 +49,12 @@ export default function SlaComplianceReport({ filters, onForbidden }) {
         <StatCard label="Open and at risk" value={data.summary.openAtRisk} />
       </div>
 
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <StatCard label="Met the original SLA" value={pct(data.summary.resolution.pctMetOriginal)} sub={`${data.summary.resolution.metOriginal} of ${data.summary.resolution.closed} resolved`} />
+        <StatCard label="Met the due date (with extensions)" value={pct(data.summary.resolution.pctMetDue)} sub={`${data.summary.resolution.metDue} of ${data.summary.resolution.closed} resolved`} />
+        <StatCard label="Tickets extended" value={data.summary.resolution.extended} />
+      </div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <ChartCard title="Resolution met vs breached per tech">
           <GroupedBarChart data={data.chartData.metVsBreachedByTech} bars={bars} />
@@ -78,6 +84,22 @@ export default function SlaComplianceReport({ filters, onForbidden }) {
         rows={data.tableData.rows.map((r, i) => ({ ...r, key: `${r.id}-${r.clock}-${i}` }))}
         emptyMessage="No SLA breaches for tickets created in this period."
       />
+
+      <div>
+        <h3 className="eyebrow mb-2">Due date changes</h3>
+        <SortableTable
+          columns={[
+            { key: 'ticketNumber', label: '#' },
+            { key: 'title', label: 'Title', render: (r) => <Link to={`/tickets/${r.id}`} className="text-prism hover:underline">{r.title}</Link> },
+            { key: 'kind', label: 'Change', render: (r) => (r.kind === 'extension' ? 'Extended' : 'Changed') },
+            { key: 'to', label: 'New due', render: (r) => new Date(r.to).toLocaleString() },
+            { key: 'reason', label: 'Reason' },
+            { key: 'by', label: 'By' },
+          ]}
+          rows={(data.extensions || []).map((r, i) => ({ ...r, key: `${r.id}-${r.at}-${i}` }))}
+          emptyMessage="No due dates were changed for tickets created in this period."
+        />
+      </div>
     </div>
   );
 }

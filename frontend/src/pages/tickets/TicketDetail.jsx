@@ -509,6 +509,7 @@ export default function TicketDetail() {
             canAssign={canAssign}
             onStatusChange={handleStatusChange}
             patchTicket={patchTicket}
+            onTicketReplaced={setTicket}
             assignableUsers={assignableUsers}
             teams={teams}
             directory={directory}
@@ -695,6 +696,7 @@ export default function TicketDetail() {
                 canAssign={canAssign}
                 onStatusChange={handleStatusChange}
                 patchTicket={patchTicket}
+                onTicketReplaced={setTicket}
                 assignableUsers={assignableUsers}
                 teams={teams}
                 directory={directory}

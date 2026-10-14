@@ -29,6 +29,8 @@ function activityDescription(a) {
   const actor = a.user?.displayName || 'Someone';
   if (a.action === 'created') return `${actor} opened this ticket`;
   if (a.action === 'comment') return `${actor} commented on this ticket`;
+  if (a.action === 'due_date_extended') return `${actor} extended the due date to ${new Date(a.toValue).toLocaleString()}`;
+  if (a.action === 'due_date_adjusted') return `${actor} changed the due date to ${new Date(a.toValue).toLocaleString()}`;
   if (a.action === 'time_logged') return `${actor} logged ${a.toValue} of time`;
   if (a.action === 'attachment_added') return `${actor} added attachment "${a.toValue}"`;
   if (a.action === 'relation_added') return `${actor} linked ${a.toValue}`;

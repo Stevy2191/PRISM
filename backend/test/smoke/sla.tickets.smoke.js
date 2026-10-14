@@ -1,5 +1,7 @@
 const { resetData, closeDb, models } = require('../integration/helpers');
-const { makeWorld, makeTicket } = require('../integration/fixtures');
+const {
+  API, expectOk, makeWorld, makeTicket, makeTech,
+} = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
@@ -19,10 +21,17 @@ let breached;
 let risky;
 let calm;
 let legacy;
+let tech;
 beforeAll(async () => {
   smoke = await startSmoke();
   await resetData();
   w = await makeWorld();
+  // The test seed has no resolution targets: set the ones these tickets use.
+  const std = await models.SlaPolicy.findOne({ where: { isDefault: true } });
+  expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({
+    targets: [{ ticketType: 'request', priority: 'medium', responseMinutes: 480, resolutionMinutes: 1440 }],
+  }));
+  tech = await makeTech('tech', w.deptA.id);
   const base = { contactId: w.contact.id, departmentId: w.deptA.id, priority: 'medium' };
   breached = await makeTicket(w.admin.agent, { ...base, title: 'Breached printer' });
   risky = await makeTicket(w.admin.agent, { ...base, title: 'Risky scanner' });
@@ -89,6 +98,70 @@ it('at phone width the SLA panel and list badge fit the screen', async () => {
     expect([path, overflow]).toEqual([path, 0]);
   }
   await phone.getByTestId('sla-badge').first().waitFor();
+});
+
+describe('changing the due date', () => {
+  it('a technician extends the due date with a reason and sees it on the ticket', async () => {
+    const t = await makeTicket(w.admin.agent, { contactId: w.contact.id, departmentId: w.deptA.id, priority: 'medium', title: 'Extend me' });
+    const techPage = await smoke.pageAs('tech');
+    await techPage.goto(`/tickets/${t.id}`);
+    await techPage.getByTestId('sla-due-date').waitFor();
+    expect(await techPage.getByRole('button', { name: 'Change due date' }).count()).toBe(0);
+    await techPage.getByRole('button', { name: 'Extend due date' }).click();
+    const dialog = techPage.getByRole('dialog');
+    const current = (await models.Ticket.findByPk(t.id)).dueDate;
+    const next = new Date(`${current}T12:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 3);
+    const later = next.toISOString().slice(0, 10);
+    // No reason: refused in the dialog.
+    await dialog.getByLabel('New due date').fill(later);
+    await dialog.getByRole('button', { name: 'Extend' }).click();
+    await dialog.getByText('Say why the due date is being extended.').waitFor();
+    // Earlier: refused too.
+    const earlier = new Date(`${current}T12:00:00Z`);
+    earlier.setUTCDate(earlier.getUTCDate() - 1);
+    await dialog.getByLabel('New due date').fill(earlier.toISOString().slice(0, 10));
+    await dialog.getByLabel('Reason').fill('Waiting on parts');
+    await dialog.getByRole('button', { name: 'Extend' }).click();
+    await dialog.getByText('An extension must be later than the current due date.').waitFor();
+    await dialog.getByLabel('New due date').fill(later);
+    await dialog.getByRole('button', { name: 'Extend' }).click();
+    await techPage.getByTestId('sla-due-changes').getByText('Waiting on parts').waitFor();
+    await techPage.getByTestId('sla-original-due').waitFor();
+    expect((await models.Ticket.findByPk(t.id)).dueDate).toBe(later);
+  });
+
+  it('an admin can move a due date earlier', async () => {
+    const t = await makeTicket(w.admin.agent, { contactId: w.contact.id, departmentId: w.deptA.id, priority: 'medium', title: 'Pull in' });
+    await page.goto(`/tickets/${t.id}`);
+    await page.getByRole('button', { name: 'Change due date' }).click();
+    const dialog = page.getByRole('dialog');
+    const current = (await models.Ticket.findByPk(t.id)).dueDate;
+    await dialog.getByLabel('New due date').fill(current);
+    await dialog.getByLabel('Reason (optional)').fill('Customer escalation');
+    // Same day, earlier: change the hour via the picker's first select.
+    await dialog.locator('select').first().selectOption({ index: 1 });
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await page.getByTestId('sla-due-changes').getByText('Customer escalation').waitFor();
+  });
+
+  it('at phone width the dialog fits the screen', async () => {
+    const phone = await smoke.pageAs('admin', undefined, { viewport: { width: 375, height: 800 } });
+    await phone.goto(`/tickets/${calm.id}`);
+    await phone.getByRole('button', { name: 'Details' }).click(); // the sidebar is a sheet on phones
+    await phone.getByRole('button', { name: 'Extend due date' }).click();
+    await phone.getByRole('dialog').waitFor();
+    const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBe(0);
+  });
+});
+
+it('the report shows original SLA and extended due date figures', async () => {
+  await page.goto('/reports');
+  await page.getByRole('button', { name: 'SLA Compliance' }).first().click();
+  await shown(page, 'Met the original SLA').waitFor();
+  await shown(page, 'Met the due date (with extensions)').waitFor();
+  await shown(page, 'Due date changes').waitFor();
 });
 
 async function expectGone(p, titles) {

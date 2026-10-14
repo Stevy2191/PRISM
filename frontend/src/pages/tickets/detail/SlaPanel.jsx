@@ -36,12 +36,28 @@ function ClockRow({ clock, view, now }) {
 export default function SlaPanel({ sla, now = Date.now() }) {
   if (!sla) return <p className="text-xs" style={{ color: MUTED }}>No SLA (created before SLAs were tracked)</p>;
   const rows = ['assign', 'response', 'resolution'].filter((c) => sla.clocks[c].state !== 'untracked');
+  const res = sla.clocks.resolution;
+  const moved = res.originalDueAt && res.dueAt && new Date(res.originalDueAt).getTime() !== new Date(res.dueAt).getTime();
   return (
     <div className="space-y-2">
       {sla.policy?.name && <p className="text-xs" style={{ color: MUTED }}>Policy: {sla.policy.name}</p>}
+      {moved && <p className="text-xs" style={{ color: MUTED }} data-testid="sla-original-due">Original SLA due {formatDue(res.originalDueAt)}</p>}
       {rows.length === 0
         ? <p className="text-xs" style={{ color: MUTED }}>No targets for this priority</p>
         : <ul className="space-y-2">{rows.map((c) => <ClockRow key={c} clock={c} view={sla.clocks[c]} now={now} />)}</ul>}
+      {sla.changes?.length > 0 && (
+        <div data-testid="sla-due-changes">
+          <p className="mt-2 text-xs font-medium" style={{ color: TEXT }}>Due date changes</p>
+          <ul className="mt-1 space-y-1">
+            {sla.changes.map((ch) => (
+              <li key={`${ch.createdAt}-${ch.toDueAt}`} className="text-xs" style={{ color: MUTED }}>
+                {ch.kind === 'extension' ? 'Extended' : 'Changed'} to {formatDue(ch.toDueAt)} by {ch.user?.displayName || 'a workflow rule'}
+                {ch.reason ? <span style={{ color: TEXT }}> — {ch.reason}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
