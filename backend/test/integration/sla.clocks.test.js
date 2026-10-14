@@ -30,7 +30,7 @@ beforeEach(async () => {
   w = await makeWorld();
   tech = await makeTech('tech', w.deptA.id);
   std = await SlaPolicy.findOne({ where: { isDefault: true } });
-  await setStandard([{ priority: 'medium', assignMinutes: 30 }]);
+  await setStandard([{ ticketType: 'request', priority: 'medium', assignMinutes: 30 }]);
   freezeClock(T0);
 });
 afterEach(unfreezeClock);
@@ -58,7 +58,7 @@ describe('starting clocks', () => {
     const acme = await makeCompany(w.admin);
     const contact = await makeContact(w.admin, { companyId: acme.id });
     const gold = expectOk(await w.admin.agent.post(`${API}/sla-policies`).send({
-      name: 'Gold', companyIds: [acme.id], targets: [{ priority: 'medium', responseMinutes: 15 }],
+      name: 'Gold', companyIds: [acme.id], targets: [{ ticketType: 'request', priority: 'medium', responseMinutes: 15 }],
     }), 201).policy;
     const t = await makeTicket(w.admin.agent, { title: 'Acme', contactId: contact.id, priority: 'medium' });
     const s = await sla(t.id);
@@ -122,19 +122,6 @@ describe('first response clock', () => {
 });
 
 describe('resolution clock', () => {
-  it('a pausing status stops only the resolution clock', async () => {
-    expectOk(await w.admin.agent.post(`${API}/ticket-statuses`).send({ name: 'Waiting on customer', pausesSla: true }), 201);
-    const t = await newTicket();
-    advanceClock(20 * MIN);
-    await patchTicket(t.id, { status: 'Waiting on customer' });
-    let s = await sla(t.id);
-    expect([s.resolutionRunningSince, s.resolutionUsedMinutes, iso(s.responseRunningSince)]).toEqual([null, 20, T0]);
-    advanceClock(100 * MIN);
-    await patchTicket(t.id, { status: 'Open' });
-    s = await sla(t.id);
-    expect([iso(s.resolutionRunningSince), iso(s.resolutionDueAt)]).toEqual([at(120), at(120 + 1420)]);
-  });
-
   it('closing stops every clock; reopening resumes without counting the closed time', async () => {
     const t = await newTicket();
     advanceClock(60 * MIN);
@@ -149,7 +136,7 @@ describe('resolution clock', () => {
   });
 
   it('a clock stopped past its target is breached at its due time', async () => {
-    await setStandard([{ priority: 'medium', assignMinutes: 10, responseMinutes: 20, resolutionMinutes: 40 }]);
+    await setStandard([{ ticketType: 'request', priority: 'medium', assignMinutes: 10, responseMinutes: 20, resolutionMinutes: 40 }]);
     const t = await newTicket();
     advanceClock(60 * MIN); // a long jump would expire the login session
     await patchTicket(t.id, { status: 'Closed' });
@@ -171,17 +158,6 @@ describe('changing statuses that tickets are in', () => {
     expectOk(await w.admin.agent.delete(`${API}/ticket-statuses/${done.id}`));
     const s = await sla(t.id);
     expect([iso(s.resolutionRunningSince), s.resolutionMetAt, s.resolutionUsedMinutes]).toEqual([at(60), null, 10]);
-  });
-
-  it('unticking Pauses SLA resumes the tickets paused in that status', async () => {
-    const { status } = expectOk(await w.admin.agent.post(`${API}/ticket-statuses`).send({ name: 'Waiting on customer', pausesSla: true }), 201);
-    const t = await newTicket();
-    advanceClock(10 * MIN);
-    await patchTicket(t.id, { status: 'Waiting on customer' });
-    advanceClock(30 * MIN);
-    expectOk(await w.admin.agent.patch(`${API}/ticket-statuses/${status.id}`).send({ pausesSla: false }));
-    const s = await sla(t.id);
-    expect([iso(s.resolutionRunningSince), s.resolutionUsedMinutes]).toEqual([at(40), 10]);
   });
 
   it('making a status closed stops the clocks of the tickets in it', async () => {
@@ -247,7 +223,7 @@ describe('changing targets', () => {
   it('a priority change keeps used minutes and moves the due time', async () => {
     const t = await newTicket();
     advanceClock(60 * MIN);
-    await patchTicket(t.id, { priority: 'high' }); // Standard high: response 240, resolution 480
+    await patchTicket(t.id, { ticketType: 'request', priority: 'high' }); // Standard high: response 240, resolution 480
     const s = await sla(t.id);
     expect([s.priority, s.responseUsedMinutes, iso(s.responseRunningSince), iso(s.responseDueAt), iso(s.resolutionDueAt)])
       .toEqual(['high', 60, at(60), at(240), at(480)]);
@@ -256,16 +232,16 @@ describe('changing targets', () => {
 
   it('a policy target edited after creation applies on the next change', async () => {
     const t = await newTicket();
-    await setStandard([{ priority: 'high', responseMinutes: 30 }]);
+    await setStandard([{ ticketType: 'request', priority: 'high', responseMinutes: 30 }]);
     advanceClock(10 * MIN);
-    await patchTicket(t.id, { priority: 'high' });
+    await patchTicket(t.id, { ticketType: 'request', priority: 'high' });
     expect(iso((await sla(t.id)).responseDueAt)).toBe(at(30));
   });
 
   it('a ticket from before the SLA engine (no row) stays without one', async () => {
     const t = await newTicket();
     await TicketSla.destroy({ where: { ticketId: t.id } });
-    await patchTicket(t.id, { priority: 'high', assigneeId: tech.user.id });
+    await patchTicket(t.id, { ticketType: 'request', priority: 'high', assigneeId: tech.user.id });
     expect(await sla(t.id)).toBeNull();
   });
 });

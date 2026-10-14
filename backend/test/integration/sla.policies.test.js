@@ -23,7 +23,7 @@ afterAll(async () => {
 const body = (fields = {}) => ({
   name: 'Gold',
   warnAtPercent: 80,
-  targets: [{ priority: 'high', assignMinutes: 15, responseMinutes: 60, resolutionMinutes: 240, useBusinessHours: false }],
+  targets: [{ ticketType: 'incident', priority: 'high', assignMinutes: 15, responseMinutes: 60, resolutionMinutes: 240, useBusinessHours: false }],
   ...fields,
 });
 
@@ -31,8 +31,9 @@ describe('listing and creating', () => {
   it('lists the Standard default policy with four targets', async () => {
     const { policies } = expectOk(await w.admin.agent.get(URL));
     expect(policies).toHaveLength(1);
-    expect([policies[0].name, policies[0].isDefault, policies[0].targets.map((t) => t.priority)])
-      .toEqual(['Standard', true, ['critical', 'high', 'medium', 'low']]);
+    expect([policies[0].name, policies[0].isDefault, policies[0].targets.length]).toEqual(['Standard', true, 20]);
+    expect(policies[0].targets.slice(0, 5).map((t) => `${t.ticketType}:${t.priority}`))
+      .toEqual(['incident:critical', 'incident:high', 'incident:medium', 'incident:low', 'request:critical']);
   });
 
   it('creates a policy with targets and companies, and audits it', async () => {
@@ -40,9 +41,9 @@ describe('listing and creating', () => {
     const hours = await BusinessHours.create({ name: 'Office', timezone: 'America/Chicago' });
     const { policy } = expectOk(await w.admin.agent.post(URL).send(body({ businessHoursId: hours.id, companyIds: [acme.id] })), 201);
     expect([policy.name, policy.isDefault, policy.warnAtPercent, policy.businessHoursId]).toEqual(['Gold', false, 80, hours.id]);
-    const high = policy.targets.find((t) => t.priority === 'high');
+    const high = policy.targets.find((t) => t.ticketType === 'incident' && t.priority === 'high');
     expect([high.assignMinutes, high.responseMinutes, high.resolutionMinutes, high.useBusinessHours]).toEqual([15, 60, 240, false]);
-    const low = policy.targets.find((t) => t.priority === 'low');
+    const low = policy.targets.find((t) => t.ticketType === 'incident' && t.priority === 'low');
     expect([low.assignMinutes, low.responseMinutes, low.resolutionMinutes]).toEqual([null, null, null]);
     expect(policy.companies.map((c) => c.id)).toEqual([acme.id]);
     expect(await AuditLog.count({ where: { action: 'slaPolicy.create' } })).toBe(1);
@@ -54,15 +55,29 @@ describe('listing and creating', () => {
     expect(err(await post(body({ name: '  ' })))).toEqual([400, 'VALIDATION_ERROR']);
     expect(err(await post(body({ warnAtPercent: 100 })))).toEqual([400, 'VALIDATION_ERROR']);
     expect(err(await post(body({ warnAtPercent: 0 })))).toEqual([400, 'VALIDATION_ERROR']);
-    expect(err(await post(body({ targets: [{ priority: 'urgent', responseMinutes: 5 }] })))).toEqual([400, 'VALIDATION_ERROR']);
-    expect(err(await post(body({ targets: [{ priority: 'high', responseMinutes: -5 }] })))).toEqual([400, 'VALIDATION_ERROR']);
-    expect(err(await post(body({ targets: [{ priority: 'high', responseMinutes: 1.5 }] })))).toEqual([400, 'VALIDATION_ERROR']);
-    expect(err(await post(body({ targets: [{ priority: 'high', responseMinutes: 600000 }] })))).toEqual([400, 'VALIDATION_ERROR']);
+    const t = (fields) => body({ targets: [{ ticketType: 'incident', priority: 'high', ...fields }] });
+    expect(err(await post(t({ priority: 'urgent', responseMinutes: 5 })))).toEqual([400, 'VALIDATION_ERROR']);
+    expect(err(await post(t({ ticketType: 'question', responseMinutes: 5 })))).toEqual([400, 'VALIDATION_ERROR']);
+    expect(err(await post(t({ ticketType: undefined, responseMinutes: 5 })))).toEqual([400, 'VALIDATION_ERROR']);
+    expect(err(await post(t({ responseMinutes: -5 })))).toEqual([400, 'VALIDATION_ERROR']);
+    expect(err(await post(t({ responseMinutes: 1.5 })))).toEqual([400, 'VALIDATION_ERROR']);
+    expect(err(await post(t({ responseMinutes: 600000 })))).toEqual([400, 'VALIDATION_ERROR']);
+    expect(err(await post(t({ resolutionMinutes: 5, resolutionUnit: 'weeks' })))).toEqual([400, 'VALIDATION_ERROR']);
+    expect(err(await post(t({ resolutionMinutes: 400, resolutionUnit: 'business_days' })))).toEqual([400, 'VALIDATION_ERROR']);
     expect(err(await post(body({ companyIds: [999999] })))).toEqual([400, 'VALIDATION_ERROR']);
     expect(err(await post(body({ companyIds: ['12abc'] })))).toEqual([400, 'VALIDATION_ERROR']);
     expect(err(await post(body({ businessHoursId: 999999 })))).toEqual([400, 'VALIDATION_ERROR']);
     expect(await SlaPolicy.count()).toBe(1);
   });
+});
+
+it('creates a policy with a Request/Low 20-business-day resolution target', async () => {
+  const { policy } = expectOk(await w.admin.agent.post(URL).send({
+    name: 'Desk', targets: [{ ticketType: 'request', priority: 'low', resolutionMinutes: 20, resolutionUnit: 'business_days' }],
+  }), 201);
+  expect(policy.targets).toHaveLength(20);
+  const t = policy.targets.find((x) => x.ticketType === 'request' && x.priority === 'low');
+  expect([t.resolutionMinutes, t.resolutionUnit, t.responseUnit]).toEqual([20, 'business_days', 'minutes']);
 });
 
 describe('editing', () => {
@@ -78,9 +93,9 @@ describe('editing', () => {
     const acme = await makeCompany(w.admin);
     const gold = expectOk(await w.admin.agent.post(URL).send(body({ companyIds: [acme.id] })), 201).policy;
     const { policy } = expectOk(await w.admin.agent.patch(`${URL}/${gold.id}`).send({
-      name: 'Gold+', warnAtPercent: 50, targets: [{ priority: 'high', responseMinutes: 30 }], companyIds: [],
+      name: 'Gold+', warnAtPercent: 50, targets: [{ ticketType: 'incident', priority: 'high', responseMinutes: 30 }], companyIds: [],
     }));
-    const high = policy.targets.find((t) => t.priority === 'high');
+    const high = policy.targets.find((t) => t.ticketType === 'incident' && t.priority === 'high');
     expect([policy.name, policy.warnAtPercent, high.responseMinutes, high.resolutionMinutes, policy.companies]).toEqual(['Gold+', 50, 30, 240, []]);
     expect(await AuditLog.count({ where: { action: 'slaPolicy.update' } })).toBe(1);
   });
@@ -141,11 +156,9 @@ describe('access', () => {
 });
 
 describe('ticket statuses', () => {
-  it('round-trips the Pauses SLA switch', async () => {
+  it('no longer take a Pauses SLA switch', async () => {
     const { status } = expectOk(await w.admin.agent.post(`${API}/ticket-statuses`).send({ name: 'Waiting on customer', pausesSla: true }), 201);
-    expect(status.pausesSla).toBe(true);
-    const updated = expectOk(await w.admin.agent.patch(`${API}/ticket-statuses/${status.id}`).send({ pausesSla: false })).status;
-    expect(updated.pausesSla).toBe(false);
+    expect(status.pausesSla).toBeUndefined();
     await models.TicketStatus.destroy({ where: { id: status.id } });
   });
 });

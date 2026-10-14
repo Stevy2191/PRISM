@@ -35,6 +35,7 @@ it('backfills the original due date', async () => {
   await migration.up(qi(), Sequelize);
   const row = await TicketSla.findOne({ where: { ticketId: ticket.id } });
   expect(new Date(row.resolutionOriginalDueAt).toISOString()).toBe(due.toISOString());
+  expect(row.ticketType).toBe(ticket.type);
 });
 
 it('drops Pauses SLA from statuses', async () => {

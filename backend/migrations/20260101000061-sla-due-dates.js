@@ -45,6 +45,10 @@ module.exports = {
 
     await qi.addColumn('TicketSlas', 'resolutionOriginalDueAt', { type: dt.DATE, allowNull: true });
     await qi.sequelize.query('UPDATE TicketSlas SET resolutionOriginalDueAt = resolutionDueAt');
+    // The ticket type the targets were read for, next to `priority`.
+    await qi.addColumn('TicketSlas', 'ticketType', { type: dt.ENUM(...TYPES), allowNull: false, defaultValue: 'incident' });
+    await qi.sequelize.query(`UPDATE TicketSlas s JOIN Tickets t ON t.id = s.ticketId
+      SET s.ticketType = t.type WHERE t.type IN (${TYPES.map((v) => `'${v}'`).join(',')})`);
 
     await qi.removeColumn('TicketStatuses', 'pausesSla');
 
@@ -93,6 +97,7 @@ module.exports = {
     await qi.dropTable('TicketDueDateChanges');
     await qi.addColumn('TicketStatuses', 'pausesSla', { type: dt.BOOLEAN, allowNull: false, defaultValue: false });
     await qi.removeColumn('TicketSlas', 'resolutionOriginalDueAt');
+    await qi.removeColumn('TicketSlas', 'ticketType');
 
     await qi.sequelize.query("DELETE FROM SlaTargets WHERE ticketType <> 'incident'");
     for (const c of CLOCKS) {

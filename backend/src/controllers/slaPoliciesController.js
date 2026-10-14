@@ -15,8 +15,11 @@ const { recalcTicketSla } = require('../services/sla/ticketSla');
 // permission (see routes/slaPolicies.js).
 
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
-const TARGET_FIELDS = ['assignMinutes', 'responseMinutes', 'resolutionMinutes'];
-const MAX_MINUTES = 365 * 24 * 60;
+const TICKET_TYPES = ['incident', 'request', 'problem', 'change', 'task'];
+const CLOCKS = ['assign', 'response', 'resolution'];
+const UNITS = ['minutes', 'business_days'];
+const MAX = { minutes: 365 * 24 * 60, business_days: 365 };
+const keyOf = (type, priority) => `${type}:${priority}`;
 const NAME_MAX = 100;
 
 const include = [
@@ -29,8 +32,8 @@ const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 
 function present(policy) {
   const json = policy.toJSON();
-  const byPriority = new Map((json.targets || []).map((t) => [t.priority, t]));
-  json.targets = PRIORITIES.map((p) => byPriority.get(p)).filter(Boolean);
+  const byKey = new Map((json.targets || []).map((t) => [keyOf(t.ticketType, t.priority), t]));
+  json.targets = TICKET_TYPES.flatMap((type) => PRIORITIES.map((p) => byKey.get(keyOf(type, p)))).filter(Boolean);
   json.companies = (json.companies || []).sort((a, b) => a.name.localeCompare(b.name));
   return json;
 }
@@ -42,10 +45,12 @@ async function load(id, options = {}) {
   return policy;
 }
 
-function readMinutes(value, label) {
+function readAmount(value, unit) {
   if (value === null || value === '') return null;
-  if (!Number.isInteger(value) || value < 1 || value > MAX_MINUTES) {
-    throw bad(`${label} must be a whole number of minutes between 1 and ${MAX_MINUTES}`);
+  if (!Number.isInteger(value) || value < 1 || value > MAX[unit]) {
+    throw bad(unit === 'business_days'
+      ? `Each target in days must be a whole number between 1 and ${MAX.business_days}`
+      : `Each target must be a whole number of minutes between 1 and ${MAX.minutes}`);
   }
   return value;
 }
@@ -77,18 +82,27 @@ async function readBody(body, existing) {
     }
   }
 
+  // Map<'type:priority', changes>
   const targets = new Map();
   if (body.targets !== undefined) {
     if (!Array.isArray(body.targets)) throw bad('Targets must be a list');
     body.targets.forEach((t) => {
-      if (!t || !PRIORITIES.includes(t.priority)) throw bad('Each target needs a priority of critical, high, medium or low');
-      if (targets.has(t.priority)) throw bad('Each priority may appear once');
+      if (!t || !TICKET_TYPES.includes(t.ticketType)) throw bad('Each target needs a ticket type of incident, request, problem, change or task');
+      if (!PRIORITIES.includes(t.priority)) throw bad('Each target needs a priority of critical, high, medium or low');
+      const key = keyOf(t.ticketType, t.priority);
+      if (targets.has(key)) throw bad('Each ticket type and priority may appear once');
       const changes = {};
-      TARGET_FIELDS.forEach((f) => {
-        if (t[f] !== undefined) changes[f] = readMinutes(t[f], 'Each target');
+      CLOCKS.forEach((c) => {
+        const unitKey = `${c}Unit`;
+        if (t[unitKey] !== undefined) {
+          if (!UNITS.includes(t[unitKey])) throw bad('A target unit must be minutes or business_days');
+          changes[unitKey] = t[unitKey];
+        }
+        const amountKey = `${c}Minutes`;
+        if (t[amountKey] !== undefined) changes[amountKey] = readAmount(t[amountKey], changes[unitKey] || t[unitKey] || 'minutes');
       });
       if (t.useBusinessHours !== undefined) changes.useBusinessHours = !!t.useBusinessHours;
-      targets.set(t.priority, changes);
+      targets.set(key, { ticketType: t.ticketType, priority: t.priority, changes });
     });
   }
 
@@ -107,18 +121,23 @@ async function readBody(body, existing) {
   return { fields, targets, companyIds };
 }
 
+// A new policy gets all 20 type × priority rows (untracked unless given);
+// an edit changes only the rows named.
 async function saveTargets(policyId, targets, isNew, transaction) {
   // eslint-disable-next-line no-restricted-syntax
-  for (const priority of PRIORITIES) {
-    const changes = targets.get(priority);
-    if (isNew) {
-      // eslint-disable-next-line no-await-in-loop
-      await SlaTarget.create({
-        slaPolicyId: policyId, priority, assignMinutes: null, responseMinutes: null, resolutionMinutes: null, useBusinessHours: true, ...changes,
-      }, { transaction });
-    } else if (changes) {
-      // eslint-disable-next-line no-await-in-loop
-      await SlaTarget.update(changes, { where: { slaPolicyId: policyId, priority }, transaction });
+  for (const ticketType of TICKET_TYPES) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const priority of PRIORITIES) {
+      const entry = targets.get(keyOf(ticketType, priority));
+      if (isNew) {
+        // eslint-disable-next-line no-await-in-loop
+        await SlaTarget.create({
+          slaPolicyId: policyId, ticketType, priority, assignMinutes: null, responseMinutes: null, resolutionMinutes: null, useBusinessHours: true, ...(entry ? entry.changes : {}),
+        }, { transaction });
+      } else if (entry) {
+        // eslint-disable-next-line no-await-in-loop
+        await SlaTarget.update(entry.changes, { where: { slaPolicyId: policyId, ticketType, priority }, transaction });
+      }
     }
   }
 }
@@ -165,7 +184,7 @@ const update = asyncHandler(async (req, res) => {
   });
   slaCalendar.invalidate();
   await writeAudit(req, 'slaPolicy.update', 'SlaPolicy', policy.id, {
-    ...fields, targets: Object.fromEntries(targets), companyIds,
+    ...fields, targets: Object.fromEntries([...targets].map(([k, v]) => [k, v.changes])), companyIds,
   });
   res.json({ policy: present(await load(policy.id)) });
 });

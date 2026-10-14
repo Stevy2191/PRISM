@@ -26,7 +26,7 @@ const FIELDS = {
   BreachedAt: 'breachedAt',
   MetAt: 'metAt',
 };
-const WATCHED = ['status', 'assigneeId', 'priority', 'companyId'];
+const WATCHED = ['status', 'assigneeId', 'priority', 'type', 'companyId'];
 
 function readClock(row, c) {
   const s = {};
@@ -40,15 +40,20 @@ function writeClock(values, c, s) {
 }
 
 const priorityOf = (ticket) => ticket.priority || 'medium';
+const typeOf = (ticket) => ticket.type || 'incident';
 
-function targetFor(policy, priority, c) {
-  const t = policy && policy.targets.get(priority);
+function targetRow(policy, type, priority) {
+  return policy ? policy.targets.get(`${type}:${priority}`) : null;
+}
+
+function targetFor(policy, type, priority, c) {
+  const t = targetRow(policy, type, priority);
   return t ? (t[`${c}Minutes`] ?? null) : null;
 }
 
 // A target with useBusinessHours off counts every minute.
-function calendarFor(policy, priority) {
-  const t = policy && policy.targets.get(priority);
+function calendarFor(policy, type, priority) {
+  const t = targetRow(policy, type, priority);
   return t && t.useBusinessHours === false ? null : (policy ? policy.calendar : null);
 }
 
@@ -116,12 +121,15 @@ async function onTicketCreated(ticket, options = {}) {
   const policy = await slaCalendar.getPolicy(await selectPolicyId(ticket, transaction), transaction);
   if (!policy) return;
   const priority = priorityOf(ticket);
+  const type = typeOf(ticket);
   const status = await statusInfo(ticket.status, transaction);
   const now = new Date();
-  const cal = calendarFor(policy, priority);
-  const values = { ticketId: ticket.id, slaPolicyId: policy.id, priority };
+  const cal = calendarFor(policy, type, priority);
+  const values = {
+    ticketId: ticket.id, slaPolicyId: policy.id, ticketType: type, priority,
+  };
   CLOCKS.forEach((c) => {
-    let s = emptyClock(targetFor(policy, priority, c));
+    let s = emptyClock(targetFor(policy, type, priority, c));
     if (shouldRun(c, ticket, status, s)) s = startClock(s, now, cal, policy.warnAtPercent);
     writeClock(values, c, markMet(c, s, ticket, status, now));
   });
@@ -137,17 +145,18 @@ async function apply(row, ticket, policyId, transaction, { retargetAll = false }
   const priority = priorityOf(ticket);
   const status = await statusInfo(ticket.status, transaction);
   const now = new Date();
-  const retargeting = retargetAll || policy.id !== row.slaPolicyId || priority !== row.priority;
-  const cal = calendarFor(policy, priority);
-  const values = { slaPolicyId: policy.id, priority };
+  const type = typeOf(ticket);
+  const retargeting = retargetAll || policy.id !== row.slaPolicyId || priority !== row.priority || type !== row.ticketType;
+  const cal = calendarFor(policy, type, priority);
+  const values = { slaPolicyId: policy.id, ticketType: type, priority };
 
   CLOCKS.forEach((c) => {
     let s = readClock(row, c);
     const run = shouldRun(c, ticket, status, s);
     if (retargeting) {
       // Bank the running spell on the calendar it ran under.
-      s = stopClock(s, now, calendarFor(oldPolicy, row.priority), oldPolicy ? oldPolicy.warnAtPercent : policy.warnAtPercent);
-      s = retarget(s, targetFor(policy, priority, c), now, cal, policy.warnAtPercent, run);
+      s = stopClock(s, now, calendarFor(oldPolicy, row.ticketType, row.priority), oldPolicy ? oldPolicy.warnAtPercent : policy.warnAtPercent);
+      s = retarget(s, targetFor(policy, type, priority, c), now, cal, policy.warnAtPercent, run);
     } else if (s.runningSince && !run) {
       s = stopClock(s, now, cal, policy.warnAtPercent);
     } else if (!s.runningSince && run) {
@@ -175,7 +184,7 @@ async function recordFirstResponse(ticketId, { transaction } = {}) {
   if (!row || row.responseMetAt) return;
   const policy = await slaCalendar.getPolicy(row.slaPolicyId, transaction);
   const now = new Date();
-  const s = stopClock(readClock(row, 'response'), now, calendarFor(policy, row.priority), policy ? policy.warnAtPercent : 75);
+  const s = stopClock(readClock(row, 'response'), now, calendarFor(policy, row.ticketType, row.priority), policy ? policy.warnAtPercent : 75);
   const values = {};
   writeClock(values, 'response', { ...s, metAt: now });
   markWarned(values);
@@ -207,7 +216,7 @@ async function liveUsedMinutes(row, c, now = new Date()) {
   const used = row[`${c}UsedMinutes`] || 0;
   if (!row[`${c}RunningSince`]) return used;
   const policy = await slaCalendar.getPolicy(row.slaPolicyId);
-  return used + businessMinutesBetween(row[`${c}RunningSince`], now, calendarFor(policy, row.priority));
+  return used + businessMinutesBetween(row[`${c}RunningSince`], now, calendarFor(policy, row.ticketType, row.priority));
 }
 
 module.exports = {

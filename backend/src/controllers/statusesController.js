@@ -9,26 +9,24 @@ const { syncTicketSla } = require('../services/sla/ticketSla');
 // handled identically except for which two models are involved, so this
 // factory avoids maintaining two near-duplicate controllers.
 function buildStatusController(StatusModel, EntityModel, scopeLabel) {
-  // Only ticket statuses can pause the SLA resolution clock.
-  const hasSlaPause = !!StatusModel.rawAttributes.pausesSla;
-
-  // SLA clocks depend on a ticket's status behaviour; bulk status writes skip
-  // the Ticket hooks, so re-sync the tickets they touched.
+  // SLA clocks run while a ticket's status is open-behaviour; bulk status
+  // writes skip the Ticket hooks, so re-sync the tickets they touched.
+  const tracksSla = EntityModel.name === 'Ticket';
   const syncSla = async (ticketIds) => {
-    if (!hasSlaPause) return;
     // eslint-disable-next-line no-restricted-syntax
     for (const id of ticketIds) await syncTicketSla(id); // eslint-disable-line no-await-in-loop
   };
-  const idsInStatus = async (name) => (hasSlaPause
+  const idsInStatus = async (name) => (tracksSla
     ? (await EntityModel.findAll({ where: { status: name }, attributes: ['id'] })).map((r) => r.id)
     : []);
+
   const list = asyncHandler(async (req, res) => {
     const statuses = await StatusModel.findAll({ order: [['position', 'ASC'], ['id', 'ASC']] });
     res.json({ statuses });
   });
 
   const create = asyncHandler(async (req, res) => {
-    const { name, color, behaviorType, pausesSla } = req.body || {};
+    const { name, color, behaviorType } = req.body || {};
     if (!name || !name.trim()) {
       throw new ApiError(400, 'Status name is required', 'VALIDATION_ERROR');
     }
@@ -40,7 +38,6 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
       color: color || '#3b82f6',
       behaviorType: resolvedBehavior,
       position: (Number.isFinite(maxPosition) ? maxPosition : -1) + 1,
-      ...(hasSlaPause && pausesSla !== undefined ? { pausesSla: !!pausesSla } : {}),
     });
     await writeAudit(req, `${scopeLabel}Status.create`, StatusModel.name, status.id, { name: status.name });
     res.status(201).json({ status });
@@ -50,10 +47,9 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
     const status = await StatusModel.findByPk(req.params.id);
     if (!status) throw new ApiError(404, 'Status not found', 'NOT_FOUND');
 
-    const { name, color, behaviorType, pausesSla } = req.body || {};
+    const { name, color, behaviorType } = req.body || {};
     const changes = {};
     if (color !== undefined) changes.color = color;
-    if (hasSlaPause && pausesSla !== undefined) changes.pausesSla = !!pausesSla;
     if (behaviorType !== undefined) {
       if (!['open', 'closed', 'archived'].includes(behaviorType)) {
         throw new ApiError(400, 'Invalid behaviorType', 'VALIDATION_ERROR');
@@ -79,7 +75,7 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
       }
     });
 
-    if (changes.pausesSla !== undefined || changes.behaviorType !== undefined) await syncSla(await idsInStatus(status.name));
+    if (changes.behaviorType !== undefined) await syncSla(await idsInStatus(status.name));
     await writeAudit(req, `${scopeLabel}Status.update`, StatusModel.name, status.id, changes);
     res.json({ status });
   });

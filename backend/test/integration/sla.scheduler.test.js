@@ -37,7 +37,7 @@ beforeEach(async () => {
   tech = await makeTech('tech', w.deptA.id);
   std = await SlaPolicy.findOne({ where: { isDefault: true } });
   // medium: assign 10, response 20, resolution 40; warn at 50%
-  await setStandard({ warnAtPercent: 50, targets: [{ priority: 'medium', assignMinutes: 10, responseMinutes: 20, resolutionMinutes: 40 }] });
+  await setStandard({ warnAtPercent: 50, targets: [{ ticketType: 'request', priority: 'medium', assignMinutes: 10, responseMinutes: 20, resolutionMinutes: 40 }] });
   freezeClock(T0);
 });
 afterEach(unfreezeClock);
@@ -59,7 +59,7 @@ describe('warnings and breaches', () => {
 
   it('breaches once at the due time and fires sla_breached rules', async () => {
     const t = await newTicket({ assigneeId: tech.user.id });
-    const r = await rule('sla_breached', { clock: 'any' }, [{ actionType: 'set_priority', actionValue: { priority: 'critical' } }]);
+    const r = await rule('sla_breached', { clock: 'any' }, [{ actionType: 'set_priority', actionValue: { ticketType: 'request', priority: 'critical' } }]);
     advanceClock(20 * MIN);
     await runSlaPass(now());
     await runSlaPass(now());
@@ -125,11 +125,11 @@ describe('warnings and breaches', () => {
 
 describe('breaches found when a ticket is saved', () => {
   it('a priority change past the new target announces the breach once, with no stale warning', async () => {
-    await setStandard({ targets: [{ priority: 'high', assignMinutes: null, responseMinutes: 10, resolutionMinutes: 600 }] });
+    await setStandard({ targets: [{ ticketType: 'request', priority: 'high', assignMinutes: null, responseMinutes: 10, resolutionMinutes: 600 }] });
     const r = await rule('sla_breached', { clock: 'response' }, [{ actionType: 'add_tag', actionValue: { tag: 'late' } }]);
     const t = await newTicket({ assigneeId: tech.user.id });
     advanceClock(12 * MIN); // medium response (20) not yet due; high's (10) already passed
-    expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ priority: 'high' }));
+    expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ ticketType: 'request', priority: 'high' }));
     expect((await notes(tech.user.id, 'sla_breached')).map((n) => n.message)).toEqual(['First response SLA breached: Printer']);
     expect(await WorkflowRuleLog.count({ where: { ruleId: r.id, ticketId: t.id } })).toBe(1);
     await runSlaPass(now());
@@ -148,7 +148,7 @@ describe('breaches found when a ticket is saved', () => {
 
 describe('workflow rules', () => {
   it('a rule for one clock ignores another clock', async () => {
-    await setStandard({ targets: [{ priority: 'medium', assignMinutes: null, responseMinutes: null, resolutionMinutes: 40 }] });
+    await setStandard({ targets: [{ ticketType: 'request', priority: 'medium', assignMinutes: null, responseMinutes: null, resolutionMinutes: 40 }] });
     const t = await newTicket({ assigneeId: tech.user.id });
     const r = await rule('sla_breached', { clock: 'response' }, [{ actionType: 'add_tag', actionValue: { tag: 'late' } }]);
     advanceClock(40 * MIN);
@@ -159,7 +159,7 @@ describe('workflow rules', () => {
 
   it('set_sla_policy switches the policy and re-times the ticket', async () => {
     const gold = expectOk(await w.admin.agent.post(`${API}/sla-policies`).send({
-      name: 'Gold', targets: [{ priority: 'medium', responseMinutes: 5, resolutionMinutes: 600 }],
+      name: 'Gold', targets: [{ ticketType: 'request', priority: 'medium', responseMinutes: 5, resolutionMinutes: 600 }],
     }), 201).policy;
     await rule('ticket_created', null, [{ actionType: 'set_sla_policy', actionValue: { slaPolicyId: gold.id } }]);
     const t = await newTicket();

@@ -43,7 +43,7 @@ async function loadCalendar(businessHoursId, transaction) {
   };
 }
 
-// → { id, name, warnAtPercent, calendar, targets: Map<priority, SlaTarget> } or null.
+// → { id, name, warnAtPercent, calendar, targets: Map<'type:priority', SlaTarget> } or null.
 // Pass the caller's transaction: a ticket save holds one connection, and a
 // lookup on a second one can starve the pool under concurrent saves.
 async function getPolicy(policyId, transaction) {
@@ -55,7 +55,7 @@ async function getPolicy(policyId, transaction) {
     name: policy.name,
     warnAtPercent: policy.warnAtPercent,
     calendar: await loadCalendar(policy.businessHoursId, transaction),
-    targets: new Map(policy.targets.map((t) => [t.priority, t.toJSON()])),
+    targets: new Map(policy.targets.map((t) => [`${t.ticketType}:${t.priority}`, t.toJSON()])),
   } : null;
   cache.set(policyId, value);
   return value;

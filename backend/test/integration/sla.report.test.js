@@ -27,7 +27,7 @@ beforeEach(async () => {
   const std = await SlaPolicy.findOne({ where: { isDefault: true } });
   // medium: assign 5, response 10, resolution 30
   expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({
-    targets: [{ priority: 'medium', assignMinutes: 5, responseMinutes: 10, resolutionMinutes: 30 }],
+    targets: [{ ticketType: 'request', priority: 'medium', assignMinutes: 5, responseMinutes: 10, resolutionMinutes: 30 }],
   }));
   freezeClock(T0);
 });

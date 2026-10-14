@@ -29,8 +29,8 @@ beforeEach(async () => {
   expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({
     warnAtPercent: 50,
     targets: [
-      { priority: 'medium', responseMinutes: 10, resolutionMinutes: 100 },
-      { priority: 'high', responseMinutes: 100, resolutionMinutes: 200 },
+      { ticketType: 'request', priority: 'medium', responseMinutes: 10, resolutionMinutes: 100 },
+      { ticketType: 'request', priority: 'high', responseMinutes: 100, resolutionMinutes: 200 },
     ],
   }));
   freezeClock(T0);
@@ -60,13 +60,11 @@ describe('ticket responses', () => {
     expect(expectOk(await w.admin.agent.get(`${API}/tickets/${t.id}`)).ticket.sla).toBeNull();
   });
 
-  it('a paused resolution clock shows as paused, a met response as met', async () => {
-    expectOk(await w.admin.agent.post(`${API}/ticket-statuses`).send({ name: 'Waiting on customer', pausesSla: true }), 201);
+  it('a met first response shows as met', async () => {
     const t = await newTicket();
     expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/comments`).send({ body: 'On it' }), 201);
-    expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ status: 'Waiting on customer' }));
     const { sla } = expectOk(await w.admin.agent.get(`${API}/tickets/${t.id}`)).ticket;
-    expect([sla.clocks.response.state, sla.clocks.resolution.state, sla.worst]).toEqual(['met', 'paused', null]);
+    expect([sla.clocks.response.state, sla.clocks.resolution.state]).toEqual(['met', 'running']);
   });
 
   it('the list carries the SLA view too', async () => {
