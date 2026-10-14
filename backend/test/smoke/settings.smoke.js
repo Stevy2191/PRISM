@@ -320,7 +320,7 @@ describe('dark theme', () => {
     await page.evaluate(() => localStorage.setItem('prism.theme', 'dark'));
     await page.goto('/settings/statuses');
     const main = page.getByRole('main');
-    const names = main.locator('li[draggable] input:not([type=color])');
+    const names = main.locator('li[draggable] input[aria-label="Status name"]');
     await names.first().waitFor();
     const rows = main.locator('li[draggable]');
     const backgrounds = await rows.evaluateAll((els) => els.map((e) => getComputedStyle(e).backgroundColor));
