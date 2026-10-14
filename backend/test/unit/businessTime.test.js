@@ -1,4 +1,4 @@
-const { addBusinessMinutes, businessMinutesBetween } = require('../../src/services/sla/businessTime');
+const { addBusinessMinutes, businessMinutesBetween, addBusinessDays } = require('../../src/services/sla/businessTime');
 
 // Mon–Fri 09:00–17:00 in Chicago. 2026-03-09 is a Monday (CDT, UTC-5).
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
@@ -89,5 +89,41 @@ describe('businessMinutesBetween', () => {
     expect(businessMinutesBetween(at('2026-03-08T00:00:00Z'), at('2026-03-09T00:00:00Z'), sundays)).toBe(180);
     // Fall back: 01:00 CDT → 05:00 CST is 5 real hours.
     expect(businessMinutesBetween(at('2026-11-01T00:00:00Z'), at('2026-11-02T00:00:00Z'), sundays)).toBe(300);
+  });
+});
+
+describe('addBusinessDays', () => {
+  // 2026-03-10 is a Tuesday; Chicago is UTC-5 (CDT).
+  it('adds open days keeping the time of day', () => {
+    expect(iso(addBusinessDays(at('2026-03-10T19:15:00Z'), 2, cal()))).toBe('2026-03-12T19:15:00.000Z');
+  });
+
+  it('skips the weekend', () => {
+    expect(iso(addBusinessDays(at('2026-03-12T19:15:00Z'), 2, cal()))).toBe('2026-03-16T19:15:00.000Z');
+  });
+
+  it('skips a holiday', () => {
+    expect(iso(addBusinessDays(at('2026-03-12T19:15:00Z'), 2, cal({ holidays: new Set(['2026-03-16']) })))).toBe('2026-03-17T19:15:00.000Z');
+  });
+
+  it('starts after hours from the next opening (Tue 20:00 + 2 → Fri 09:00)', () => {
+    expect(iso(addBusinessDays(at('2026-03-11T01:00:00Z'), 2, cal()))).toBe('2026-03-13T14:00:00.000Z');
+  });
+
+  it("clamps to a shorter day's closing", () => {
+    const s2 = schedule();
+    s2.friday = { start: '09:00', end: '12:00', enabled: true };
+    // Thu 15:00 + 1 → Fri 15:00, past Friday's 12:00 closing → 12:00
+    expect(iso(addBusinessDays(at('2026-03-12T20:00:00Z'), 1, cal({ schedule: s2 })))).toBe('2026-03-13T17:00:00.000Z');
+  });
+
+  it('24x7 and null are calendar days', () => {
+    const sat = at('2026-03-14T20:00:00Z');
+    expect(iso(addBusinessDays(sat, 3, null))).toBe('2026-03-17T20:00:00.000Z');
+    expect(iso(addBusinessDays(sat, 3, cal({ is24x7: true })))).toBe('2026-03-17T20:00:00.000Z');
+  });
+
+  it('zero days returns the anchor (the next opening when closed)', () => {
+    expect(iso(addBusinessDays(at('2026-03-14T20:00:00Z'), 0, cal()))).toBe('2026-03-16T14:00:00.000Z');
   });
 });

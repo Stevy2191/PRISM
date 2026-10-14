@@ -69,4 +69,42 @@ function businessMinutesBetween(a, b, calendar) {
   return Math.round(total / MINUTE);
 }
 
-module.exports = { addBusinessMinutes, businessMinutesBetween };
+// 'HH:MM' on the zone's wall clock at `ms`.
+function wallClock(ms, tz) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hourCycle: 'h23', hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date(ms)).map((p) => [p.type, p.value]));
+  return `${parts.hour}:${parts.minute}`;
+}
+
+// The same wall-clock time `days` open days later. A start outside open
+// hours counts from the next opening; a time past that day's closing lands
+// at closing (before its opening, at opening). 24x7 / null: calendar days.
+function addBusinessDays(start, days, calendar) {
+  const startMs = new Date(start).getTime();
+  if (isWallClock(calendar)) return new Date(startMs + days * 24 * 60 * MINUTE);
+
+  let day = dateInZone(new Date(startMs), calendar.timezone);
+  let anchor = null;
+  for (let i = 0; i < MAX_DAYS && anchor === null; i += 1) {
+    const w = openWindow(day, calendar);
+    if (w && startMs < w[1]) anchor = Math.max(w[0], startMs);
+    else day = addDays(day, 1);
+  }
+  if (anchor === null) throw new Error('Business-hours schedule has no open hours');
+  if (days <= 0) return new Date(anchor);
+
+  const time = wallClock(anchor, calendar.timezone);
+  const seconds = anchor % MINUTE;
+  let left = days;
+  for (let i = 0; left > 0; i += 1) {
+    if (i >= MAX_DAYS) throw new Error('Business-hours schedule has no open hours');
+    day = addDays(day, 1);
+    if (openWindow(day, calendar)) left -= 1;
+  }
+  const [open, close] = openWindow(day, calendar);
+  const target = zoneWallTime(day, time, calendar.timezone).getTime() + seconds;
+  return new Date(Math.min(close, Math.max(open, target)));
+}
+
+module.exports = { addBusinessMinutes, businessMinutesBetween, addBusinessDays };
