@@ -59,7 +59,7 @@ describe('warnings and breaches', () => {
 
   it('breaches once at the due time and fires sla_breached rules', async () => {
     const t = await newTicket({ assigneeId: tech.user.id });
-    const r = await rule('sla_breached', { clock: 'any' }, [{ actionType: 'set_priority', actionValue: { ticketType: 'request', priority: 'critical' } }]);
+    const r = await rule('sla_breached', { clock: 'any' }, [{ actionType: 'set_priority', actionValue: { priority: 'critical' } }]);
     advanceClock(20 * MIN);
     await runSlaPass(now());
     await runSlaPass(now());
@@ -124,18 +124,6 @@ describe('warnings and breaches', () => {
 });
 
 describe('breaches found when a ticket is saved', () => {
-  it('a priority change past the new target announces the breach once, with no stale warning', async () => {
-    await setStandard({ targets: [{ ticketType: 'request', priority: 'high', assignMinutes: null, responseMinutes: 10, resolutionMinutes: 600 }] });
-    const r = await rule('sla_breached', { clock: 'response' }, [{ actionType: 'add_tag', actionValue: { tag: 'late' } }]);
-    const t = await newTicket({ assigneeId: tech.user.id });
-    advanceClock(12 * MIN); // medium response (20) not yet due; high's (10) already passed
-    expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ ticketType: 'request', priority: 'high' }));
-    expect((await notes(tech.user.id, 'sla_breached')).map((n) => n.message)).toEqual(['First response SLA breached: Printer']);
-    expect(await WorkflowRuleLog.count({ where: { ruleId: r.id, ticketId: t.id } })).toBe(1);
-    await runSlaPass(now());
-    expect(await notes(tech.user.id, 'sla_breached')).toHaveLength(1);
-    expect((await notes(tech.user.id, 'sla_warning')).map((n) => n.message)).not.toContain('First response SLA at risk: Printer');
-  });
 
   it('closing a ticket past its due time before the scheduler ran announces the breach', async () => {
     const t = await newTicket({ assigneeId: tech.user.id });

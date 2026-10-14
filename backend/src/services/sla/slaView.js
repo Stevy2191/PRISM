@@ -31,12 +31,14 @@ function clockView(row, c, nowMs) {
     metAt: metAt || null,
     breachedAt: breachedAt || null,
     atRisk: state === 'running' && !!warnAt && time(warnAt) <= nowMs,
+    ...(c === 'resolution' ? { originalDueAt: row.resolutionOriginalDueAt || null } : {}),
   };
 }
 
-// → { policy, clocks: { assign, response, resolution }, worst } or null.
-// `worst` is the running clock due soonest — what a list badge shows.
-function toSlaView(row, now = new Date()) {
+// → { policy, clocks: { assign, response, resolution }, worst[, changes] }
+// or null. `worst` is the running clock due soonest — what a list badge
+// shows. `changes` (the due date history) only on the ticket detail.
+function toSlaView(row, now = new Date(), changes = undefined) {
   if (!row) return null;
   const nowMs = time(now);
   const clocks = {};
@@ -56,6 +58,16 @@ function toSlaView(row, now = new Date()) {
     policy: row.policy ? { id: row.policy.id, name: row.policy.name } : { id: row.slaPolicyId, name: null },
     clocks,
     worst,
+    ...(changes ? {
+      changes: changes.map((ch) => ({
+        kind: ch.kind,
+        fromDueAt: ch.fromDueAt,
+        toDueAt: ch.toDueAt,
+        reason: ch.reason,
+        user: ch.user ? { id: ch.user.id, displayName: ch.user.displayName } : null,
+        createdAt: ch.createdAt,
+      })),
+    } : {}),
   };
 }
 

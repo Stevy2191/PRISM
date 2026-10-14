@@ -10,9 +10,10 @@
 // per-ticket hooks; the ticket keeps the policy it was given.
 const { TicketSla, TicketStatus, Company, Ticket } = require('../../models');
 const slaCalendar = require('./calendar');
-const { businessMinutesBetween } = require('./businessTime');
+const { businessMinutesBetween, addBusinessMinutes, addBusinessDays } = require('./businessTime');
+const { orgTimeZone, dateInZone, timeInZone } = require('../../utils/orgTime');
 const {
-  emptyClock, startClock, stopClock, retarget,
+  emptyClock, startClock, stopClock, retarget, warnMinutes, fixedClock, stopFixed, startFixed,
 } = require('./clock');
 
 const CLOCKS = ['assign', 'response', 'resolution'];
@@ -26,7 +27,10 @@ const FIELDS = {
   BreachedAt: 'breachedAt',
   MetAt: 'metAt',
 };
-const WATCHED = ['status', 'assigneeId', 'priority', 'type', 'companyId'];
+// The SLA is fixed when the ticket is created (spec 2026-10-13 change):
+// only status (open or not) and assignee move clocks afterwards. Priority,
+// type and company changes leave every SLA date alone.
+const WATCHED = ['status', 'assigneeId'];
 
 function readClock(row, c) {
   const s = {};
@@ -46,9 +50,42 @@ function targetRow(policy, type, priority) {
   return policy ? policy.targets.get(`${type}:${priority}`) : null;
 }
 
+// → { amount, unit } or null (not tracked).
 function targetFor(policy, type, priority, c) {
   const t = targetRow(policy, type, priority);
-  return t ? (t[`${c}Minutes`] ?? null) : null;
+  const amount = t ? t[`${c}Minutes`] : null;
+  return amount ? { amount, unit: t[`${c}Unit`] || 'minutes' } : null;
+}
+
+function dueFrom(start, target, calendar) {
+  return target.unit === 'business_days'
+    ? addBusinessDays(start, target.amount, calendar)
+    : addBusinessMinutes(start, target.amount, calendar);
+}
+
+// A clock fresh from its target, started at `start` if it should run.
+function clockFromTarget(c, start, target, calendar, warnPct, run) {
+  if (!target) return emptyClock(null);
+  if (c === 'resolution') {
+    const s = fixedClock(start, dueFrom(start, target, calendar), calendar, warnPct);
+    return run ? s : stopFixed(s, start, calendar);
+  }
+  const minutes = target.unit === 'business_days'
+    ? businessMinutesBetween(start, dueFrom(start, target, calendar), calendar)
+    : target.amount;
+  const s = emptyClock(minutes);
+  return run ? startClock(s, start, calendar, warnPct) : s;
+}
+
+// Ticket.dueDate / dueTime follow the resolution due instant, on the
+// organization's calendar, so lists, the calendar and overdue filters agree.
+async function mirrorDueDate(ticketId, dueAt, transaction) {
+  if (!dueAt) return;
+  const tz = await orgTimeZone({ transaction });
+  await Ticket.update(
+    { dueDate: dateInZone(new Date(dueAt), tz), dueTime: timeInZone(dueAt, tz) },
+    { where: { id: ticketId }, hooks: false, transaction }
+  );
 }
 
 // A target with useBusinessHours off counts every minute.
@@ -129,38 +166,33 @@ async function onTicketCreated(ticket, options = {}) {
     ticketId: ticket.id, slaPolicyId: policy.id, ticketType: type, priority,
   };
   CLOCKS.forEach((c) => {
-    let s = emptyClock(targetFor(policy, type, priority, c));
-    if (shouldRun(c, ticket, status, s)) s = startClock(s, now, cal, policy.warnAtPercent);
+    const s = clockFromTarget(c, now, targetFor(policy, type, priority, c), cal, policy.warnAtPercent, shouldRun(c, ticket, status, { metAt: null }));
     writeClock(values, c, markMet(c, s, ticket, status, now));
   });
+  values.resolutionOriginalDueAt = values.resolutionDueAt;
   await TicketSla.create(values, { transaction, hooks: false });
+  await mirrorDueDate(ticket.id, values.resolutionDueAt, transaction);
 }
 
-// Brings every clock in line with the ticket's current state. `retargetAll`
-// re-reads targets (priority or policy change) keeping minutes used.
-async function apply(row, ticket, policyId, transaction, { retargetAll = false } = {}) {
-  const oldPolicy = await slaCalendar.getPolicy(row.slaPolicyId, transaction);
-  const policy = (await slaCalendar.getPolicy(policyId, transaction)) || oldPolicy;
+// Starts and stops clocks to match the ticket's status and assignee.
+async function apply(row, ticket, transaction) {
+  const policy = await slaCalendar.getPolicy(row.slaPolicyId, transaction);
   if (!policy) return;
-  const priority = priorityOf(ticket);
   const status = await statusInfo(ticket.status, transaction);
   const now = new Date();
-  const type = typeOf(ticket);
-  const retargeting = retargetAll || policy.id !== row.slaPolicyId || priority !== row.priority || type !== row.ticketType;
-  const cal = calendarFor(policy, type, priority);
-  const values = { slaPolicyId: policy.id, ticketType: type, priority };
-
+  const cal = calendarFor(policy, row.ticketType, row.priority);
+  const pct = policy.warnAtPercent;
+  const values = {};
   CLOCKS.forEach((c) => {
     let s = readClock(row, c);
     const run = shouldRun(c, ticket, status, s);
-    if (retargeting) {
-      // Bank the running spell on the calendar it ran under.
-      s = stopClock(s, now, calendarFor(oldPolicy, row.ticketType, row.priority), oldPolicy ? oldPolicy.warnAtPercent : policy.warnAtPercent);
-      s = retarget(s, targetFor(policy, type, priority, c), now, cal, policy.warnAtPercent, run);
+    if (c === 'resolution') {
+      if (s.runningSince && !run) s = stopFixed(s, now, cal);
+      else if (!s.runningSince && run) s = startFixed(s, now);
     } else if (s.runningSince && !run) {
-      s = stopClock(s, now, cal, policy.warnAtPercent);
+      s = stopClock(s, now, cal, pct);
     } else if (!s.runningSince && run) {
-      s = startClock(s, now, cal, policy.warnAtPercent);
+      s = startClock(s, now, cal, pct);
     }
     writeClock(values, c, markMet(c, s, ticket, status, now));
   });
@@ -175,8 +207,7 @@ async function onTicketUpdated(ticket, options = {}) {
   const { transaction } = options;
   const row = await TicketSla.findOne({ where: { ticketId: ticket.id }, transaction });
   if (!row) return; // tickets from before the SLA engine have no clocks
-  const policyId = ticket.changed('companyId') ? await selectPolicyId(ticket, transaction) : row.slaPolicyId;
-  await apply(row, ticket, policyId, transaction);
+  await apply(row, ticket, transaction);
 }
 
 async function recordFirstResponse(ticketId, { transaction } = {}) {
@@ -193,12 +224,62 @@ async function recordFirstResponse(ticketId, { transaction } = {}) {
   await announceBreaches(ticketId, breached, transaction);
 }
 
-// Re-times a ticket against `policyId` (or its company's / the default).
+// Set SLA policy: re-times the ticket from its creation on `policyId` (or
+// its company's / the default), for its current type and priority. Minutes
+// already used are kept; the resolution due date and the original due date
+// are recomputed; the due date history is left as it is.
 async function recalcTicketSla(ticketId, { policyId, transaction } = {}) {
   const ticket = await Ticket.findByPk(ticketId, { transaction });
   const row = ticket && await TicketSla.findOne({ where: { ticketId }, transaction });
   if (!row) return;
-  await apply(row, ticket, policyId || await selectPolicyId(ticket, transaction), transaction, { retargetAll: true });
+  const policy = await slaCalendar.getPolicy(policyId || await selectPolicyId(ticket, transaction), transaction);
+  if (!policy) return;
+  const oldPolicy = await slaCalendar.getPolicy(row.slaPolicyId, transaction);
+  const type = typeOf(ticket);
+  const priority = priorityOf(ticket);
+  const status = await statusInfo(ticket.status, transaction);
+  const now = new Date();
+  const start = new Date(ticket.createdAt);
+  const cal = calendarFor(policy, type, priority);
+  const pct = policy.warnAtPercent;
+  const values = { slaPolicyId: policy.id, ticketType: type, priority };
+
+  ['assign', 'response'].forEach((c) => {
+    const target = targetFor(policy, type, priority, c);
+    const minutes = target ? businessMinutesBetween(start, dueFrom(start, target, cal), cal) : null;
+    let s = stopClock(readClock(row, c), now, calendarFor(oldPolicy, row.ticketType, row.priority), pct);
+    s = retarget(s, minutes, now, cal, pct, shouldRun(c, ticket, status, s));
+    writeClock(values, c, s);
+  });
+
+  const target = targetFor(policy, type, priority, 'resolution');
+  let s = readClock(row, 'resolution');
+  if (!target) {
+    s = { ...emptyClock(null), usedMinutes: s.usedMinutes };
+  } else {
+    const due = dueFrom(start, target, cal);
+    const span = businessMinutesBetween(start, due, cal);
+    s = {
+      ...s,
+      targetMinutes: span,
+      dueAt: due,
+      warnAt: addBusinessMinutes(start, warnMinutes(span, pct), cal),
+      runningSince: s.runningSince || (status.open ? now : null),
+    };
+    if (due > now) {
+      s.breachedAt = null;
+      if (s.warnAt > now) s.warnedAt = null;
+    } else if (!s.breachedAt && (s.runningSince || (s.metAt && new Date(s.metAt) > due))) {
+      s.breachedAt = due;
+    }
+  }
+  writeClock(values, 'resolution', s);
+  values.resolutionOriginalDueAt = values.resolutionDueAt;
+  markWarned(values);
+  const breached = newlyBreached(row, values);
+  await row.update(values, { transaction, hooks: false });
+  await mirrorDueDate(ticketId, values.resolutionDueAt, transaction);
+  await announceBreaches(ticketId, breached, transaction);
 }
 
 // Brings a ticket's clocks in line with its current state, keeping its
@@ -208,7 +289,7 @@ async function syncTicketSla(ticketId, { transaction } = {}) {
   const ticket = await Ticket.findByPk(ticketId, { transaction });
   const row = ticket && await TicketSla.findOne({ where: { ticketId }, transaction });
   if (!row) return;
-  await apply(row, ticket, row.slaPolicyId, transaction);
+  await apply(row, ticket, transaction);
 }
 
 // Business minutes a clock has used up to `now`, including a running spell.

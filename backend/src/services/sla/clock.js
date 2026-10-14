@@ -65,6 +65,40 @@ function retarget(state, targetMinutes, now, calendar, warnPct, shouldRun) {
   return shouldRun ? startClock(next, now, calendar, warnPct) : derive(next, calendar, warnPct);
 }
 
+// The resolution clock runs to a fixed due instant (spec 2026-10-13
+// change): set once at creation, moved only by an explicit due date change.
+// Stopping banks time but keeps dueAt/warnAt; restarting never moves them.
+function fixedClock(start, dueAt, calendar, warnPct) {
+  const span = businessMinutesBetween(start, dueAt, calendar);
+  return {
+    ...emptyClock(span),
+    runningSince: new Date(start),
+    dueAt: new Date(dueAt),
+    warnAt: addBusinessMinutes(start, warnMinutes(span, warnPct), calendar),
+  };
+}
+
+function stopFixed(state, now, calendar) {
+  if (!state.runningSince) return state;
+  const late = state.dueAt && new Date(now) > new Date(state.dueAt);
+  return {
+    ...state,
+    usedMinutes: state.usedMinutes + businessMinutesBetween(state.runningSince, now, calendar),
+    runningSince: null,
+    breachedAt: state.breachedAt || (late ? new Date(state.dueAt) : null),
+  };
+}
+
+function startFixed(state, now) {
+  if (state.runningSince || state.targetMinutes === null) return state;
+  const late = state.dueAt && new Date(now) > new Date(state.dueAt);
+  return {
+    ...state,
+    runningSince: new Date(now),
+    breachedAt: state.breachedAt || (late ? new Date(state.dueAt) : null),
+  };
+}
+
 module.exports = {
-  emptyClock, derive, startClock, stopClock, retarget,
+  emptyClock, derive, startClock, stopClock, retarget, warnMinutes, fixedClock, stopFixed, startFixed,
 };

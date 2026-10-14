@@ -30,7 +30,10 @@ beforeEach(async () => {
   w = await makeWorld();
   tech = await makeTech('tech', w.deptA.id);
   std = await SlaPolicy.findOne({ where: { isDefault: true } });
-  await setStandard([{ ticketType: 'request', priority: 'medium', assignMinutes: 30 }]);
+  await setStandard([
+    { ticketType: 'request', priority: 'medium', assignMinutes: 30, resolutionMinutes: 1440 },
+    { ticketType: 'request', priority: 'high', resolutionMinutes: 480 },
+  ]);
   freezeClock(T0);
 });
 afterEach(unfreezeClock);
@@ -122,7 +125,7 @@ describe('first response clock', () => {
 });
 
 describe('resolution clock', () => {
-  it('closing stops every clock; reopening resumes without counting the closed time', async () => {
+  it('closing stops every clock; reopening resumes against the original due date', async () => {
     const t = await newTicket();
     advanceClock(60 * MIN);
     await patchTicket(t.id, { status: 'Closed' });
@@ -132,7 +135,8 @@ describe('resolution clock', () => {
     advanceClock(600 * MIN);
     await patchTicket(t.id, { status: 'Open' });
     s = await sla(t.id);
-    expect([iso(s.resolutionRunningSince), iso(s.resolutionDueAt), s.resolutionMetAt]).toEqual([at(660), at(660 + 1380), null]);
+    // The due date is the SLA's, fixed at creation: time while closed counts.
+    expect([iso(s.resolutionRunningSince), iso(s.resolutionDueAt), s.resolutionMetAt]).toEqual([at(660), at(1440), null]);
   });
 
   it('a clock stopped past its target is breached at its due time', async () => {
@@ -220,28 +224,19 @@ describe('under load', () => {
 });
 
 describe('changing targets', () => {
-  it('a priority change keeps used minutes and moves the due time', async () => {
+  it('a priority change no longer moves the due times (the SLA is fixed at creation)', async () => {
     const t = await newTicket();
     advanceClock(60 * MIN);
-    await patchTicket(t.id, { ticketType: 'request', priority: 'high' }); // Standard high: response 240, resolution 480
+    await patchTicket(t.id, { priority: 'high' });
     const s = await sla(t.id);
-    expect([s.priority, s.responseUsedMinutes, iso(s.responseRunningSince), iso(s.responseDueAt), iso(s.resolutionDueAt)])
-      .toEqual(['high', 60, at(60), at(240), at(480)]);
-    expect(s.assignTargetMinutes).toBeNull(); // Standard high tracks no assignment time
+    expect([s.priority, iso(s.responseDueAt), iso(s.resolutionDueAt), s.assignTargetMinutes]).toEqual(['medium', at(480), at(1440), 30]);
   });
 
-  it('a policy target edited after creation applies on the next change', async () => {
-    const t = await newTicket();
-    await setStandard([{ ticketType: 'request', priority: 'high', responseMinutes: 30 }]);
-    advanceClock(10 * MIN);
-    await patchTicket(t.id, { ticketType: 'request', priority: 'high' });
-    expect(iso((await sla(t.id)).responseDueAt)).toBe(at(30));
-  });
 
   it('a ticket from before the SLA engine (no row) stays without one', async () => {
     const t = await newTicket();
     await TicketSla.destroy({ where: { ticketId: t.id } });
-    await patchTicket(t.id, { ticketType: 'request', priority: 'high', assigneeId: tech.user.id });
+    await patchTicket(t.id, { priority: 'high', assigneeId: tech.user.id });
     expect(await sla(t.id)).toBeNull();
   });
 });

@@ -13,9 +13,9 @@ function isValidZone(tz) {
 }
 
 // Read per call (one indexed row): a settings change applies at once.
-async function orgTimeZone() {
+async function orgTimeZone({ transaction } = {}) {
   const { SystemSettings } = require('../models'); // eslint-disable-line global-require
-  const row = await SystemSettings.findOne({ where: { key: 'company.timezone' }, attributes: ['value'] });
+  const row = await SystemSettings.findOne({ where: { key: 'company.timezone' }, attributes: ['value'], transaction });
   const tz = row && row.value ? String(row.value).trim() : 'UTC';
   return isValidZone(tz) ? tz : 'UTC';
 }
@@ -74,6 +74,14 @@ function zoneWallTime(dateStr, hhmm, tz) {
   return new Date(second + offsetAt(new Date(second), tz) === wallUtc ? second : first);
 }
 
+// 'HH:MM' on the wall clock of `tz` at `instant`.
+function timeInZone(instant, tz) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hourCycle: 'h23', hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date(instant)).map((p) => [p.type, p.value]));
+  return `${parts.hour}:${parts.minute}`;
+}
+
 // A real calendar date as YYYY-MM-DD (also the date part of an ISO
 // timestamp), or null. '2026-02-30' is refused, not rolled into March.
 function toDateString(value) {
@@ -85,5 +93,5 @@ function toDateString(value) {
 }
 
 module.exports = {
-  orgTimeZone, isValidZone, dateInZone, todayInZone, zoneDayStart, zoneDayEnd, zoneWallTime, addDays, toDateString,
+  orgTimeZone, isValidZone, dateInZone, todayInZone, zoneDayStart, zoneDayEnd, zoneWallTime, timeInZone, addDays, toDateString,
 };

@@ -104,8 +104,11 @@ async function createUserAndLogin(options) {
 // Truncating rather than dropping keeps the migrated schema intact between
 // suites. Order matters only for the tables with foreign keys between them,
 // so checks are disabled for the duration.
+// Response targets as migrated; no resolution targets, so tickets in
+// suites that aren't about SLAs keep manual due dates (an SLA resolution
+// target sets and locks the due date). SLA suites set the targets they use.
 const SLA_SEED = {
-  critical: [60, 240, false], high: [240, 480, true], medium: [480, 1440, true], low: [1440, 4320, true],
+  critical: [60, null, false], high: [240, null, true], medium: [480, null, true], low: [1440, null, true],
 };
 async function resetSlaPolicies() {
   const [rows] = await sequelize.query('SELECT id FROM SlaPolicies WHERE isDefault = 1').catch(() => [[]]);
