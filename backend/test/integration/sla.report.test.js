@@ -96,3 +96,37 @@ it('exports the breaches as CSV', async () => {
   ]);
   expect(rows.slice(1).map((r) => r.split(',')[6])).toEqual(['3', '5', '10']);
 });
+
+describe('original SLA vs extended due dates', () => {
+  // Request/Medium here: resolution due +30 (09-Mar 15:30Z).
+  async function extendedTicket(agent = w.admin.agent, fields = {}) {
+    const t = await newTicket({ title: 'extended', ...fields });
+    advanceClock(5 * MIN);
+    expectOk(await agent.post(`${API}/tickets/${t.id}/due-date`).send({ dueDate: '2026-03-09', dueTime: '16:00', reason: 'Waiting on parts' }));
+    advanceClock(40 * MIN); // closed at +45: after the original due (+30), before the new one (+60)
+    await close(t);
+    return t;
+  }
+
+  it('an extended ticket resolved after its original due but before the new one missed the original and met the due date', async () => {
+    await extendedTicket();
+    const { summary } = expectOk(await w.admin.agent.get(`${API}/reports/sla-compliance?${RANGE}`));
+    expect(summary.resolution).toEqual({
+      closed: 1, metOriginal: 0, pctMetOriginal: 0, metDue: 1, pctMetDue: 100, extended: 1,
+    });
+  });
+
+  it('lists the due date changes with their reasons', async () => {
+    const t = await extendedTicket(tech.agent);
+    const { extensions } = expectOk(await w.admin.agent.get(`${API}/reports/sla-compliance?${RANGE}`));
+    expect(extensions.map((e) => [e.id, e.kind, e.reason, e.by, e.to])).toEqual([
+      [t.id, 'extension', 'Waiting on parts', tech.user.displayName, '2026-03-09T16:00:00.000Z'],
+    ]);
+  });
+
+  it('only lists changes on tickets the caller can see', async () => {
+    const own = await makeOwnTier(w.admin, 'own', w.deptA.id);
+    await extendedTicket();
+    expect(expectOk(await own.agent.get(`${API}/reports/sla-compliance?${RANGE}`)).extensions).toEqual([]);
+  });
+});

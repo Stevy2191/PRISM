@@ -4,7 +4,7 @@
 // within its target. Clocks still running count only toward the open
 // "breached" and "at risk" figures.
 const {
-  Ticket, TicketSla, User, Department, Company,
+  Ticket, TicketSla, User, Department, Company, TicketDueDateChange,
 } = require('../../models');
 const { asyncHandler } = require('../../middleware/error');
 const { getUserReportScope } = require('../../services/permissionService');
@@ -65,6 +65,8 @@ async function buildSlaComplianceReport(req) {
   const buckets = await getTicketStatusBuckets();
   let openBreached = 0;
   let openAtRisk = 0;
+  // Resolved tickets against the SLA as first set and as finally due.
+  const resolution = { closed: 0, metOriginal: 0, metDue: 0 };
 
   // eslint-disable-next-line no-restricted-syntax
   for (const t of tickets) {
@@ -83,6 +85,12 @@ async function buildSlaComplianceReport(req) {
       const cur = trend.get(key) || { date: key, met: 0, breached: 0 };
       cur[res] += 1;
       trend.set(key, cur);
+    }
+    const doneAt = t.sla.resolutionMetAt && !t.sla.resolutionRunningSince ? new Date(t.sla.resolutionMetAt) : null;
+    if (doneAt && t.sla.resolutionDueAt) {
+      resolution.closed += 1;
+      if (doneAt <= new Date(t.sla.resolutionOriginalDueAt || t.sla.resolutionDueAt)) resolution.metOriginal += 1;
+      if (doneAt <= new Date(t.sla.resolutionDueAt)) resolution.metDue += 1;
     }
     if (buckets.open.includes(t.status)) {
       const view = toSlaView(t.sla, now);
@@ -111,8 +119,41 @@ async function buildSlaComplianceReport(req) {
 
   CLOCKS.forEach((c) => { clocks[c].pctMet = pct(clocks[c].met, clocks[c].breached); });
 
+  // Due date changes on the tickets in this report (already scoped).
+  const byId = new Map(tickets.map((t) => [t.id, t]));
+  const changes = byId.size ? await TicketDueDateChange.findAll({
+    where: { ticketId: [...byId.keys()] },
+    include: [{ model: User, as: 'user', attributes: ['id', 'displayName'] }],
+    order: [['createdAt', 'ASC'], ['id', 'ASC']],
+  }) : [];
+  const extensions = changes.map((ch) => ({
+    id: ch.ticketId,
+    ticketNumber: String(ch.ticketId).padStart(5, '0'),
+    title: byId.get(ch.ticketId).title,
+    kind: ch.kind,
+    from: ch.fromDueAt ? new Date(ch.fromDueAt).toISOString() : null,
+    to: new Date(ch.toDueAt).toISOString(),
+    reason: ch.reason,
+    by: ch.user ? ch.user.displayName : 'Workflow rule',
+    at: new Date(ch.createdAt).toISOString(),
+  }));
+  const extendedTickets = new Set(changes.filter((ch) => ch.kind === 'extension').map((ch) => ch.ticketId));
+
   return {
-    summary: { clocks, openBreached, openAtRisk },
+    summary: {
+      clocks,
+      openBreached,
+      openAtRisk,
+      resolution: {
+        closed: resolution.closed,
+        metOriginal: resolution.metOriginal,
+        pctMetOriginal: pct(resolution.metOriginal, resolution.closed - resolution.metOriginal),
+        metDue: resolution.metDue,
+        pctMetDue: pct(resolution.metDue, resolution.closed - resolution.metDue),
+        extended: extendedTickets.size,
+      },
+    },
+    extensions,
     chartData: {
       metVsBreachedByTech: [...byTech.values()],
       metVsBreachedByDept: [...byDept.values()],
