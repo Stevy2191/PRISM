@@ -8,7 +8,9 @@
 //
 // Bulk Ticket.update() calls (contact moves, company merge) fire no
 // per-ticket hooks; the ticket keeps the policy it was given.
-const { TicketSla, TicketStatus, Company, Ticket } = require('../../models');
+const {
+  TicketSla, TicketStatus, Company, Ticket, TicketDueDateChange,
+} = require('../../models');
 const slaCalendar = require('./calendar');
 const { businessMinutesBetween, addBusinessMinutes, addBusinessDays } = require('./businessTime');
 const { orgTimeZone, dateInZone, timeInZone } = require('../../utils/orgTime');
@@ -292,6 +294,50 @@ async function syncTicketSla(ticketId, { transaction } = {}) {
   await apply(row, ticket, transaction);
 }
 
+// Moves the resolution due date (spec 2026-10-13 change). The caller has
+// checked who may move it which way; this records the change, re-derives the
+// warning point and lets warning and breach fire again for a future date.
+// → { fromDueAt, toDueAt } or null when the ticket has no SLA due date.
+async function changeDueDate(ticketId, {
+  toDueAt, userId = null, reason = null, kind, transaction,
+}) {
+  const ticket = await Ticket.findByPk(ticketId, { attributes: ['id', 'createdAt'], transaction });
+  const row = ticket && await TicketSla.findOne({ where: { ticketId }, transaction });
+  if (!row || !row.resolutionDueAt) return null;
+  const policy = await slaCalendar.getPolicy(row.slaPolicyId, transaction);
+  const cal = calendarFor(policy, row.ticketType, row.priority);
+  const pct = policy ? policy.warnAtPercent : 75;
+  const now = new Date();
+  const to = new Date(toDueAt);
+  const start = new Date(ticket.createdAt);
+  const span = businessMinutesBetween(start, to, cal);
+  let s = readClock(row, 'resolution');
+  s = {
+    ...s,
+    targetMinutes: span,
+    dueAt: to,
+    warnAt: addBusinessMinutes(start, warnMinutes(span, pct), cal),
+  };
+  if (to > now) {
+    s.breachedAt = null;
+    if (s.warnAt > now) s.warnedAt = null;
+  } else if (!s.breachedAt && s.runningSince) {
+    s.breachedAt = to;
+  }
+  const values = {};
+  writeClock(values, 'resolution', s);
+  markWarned(values);
+  const breached = newlyBreached(row, values);
+  const fromDueAt = row.resolutionDueAt;
+  await row.update(values, { transaction, hooks: false });
+  await TicketDueDateChange.create({
+    ticketId, userId, fromDueAt, toDueAt: to, reason: reason || null, kind,
+  }, { transaction });
+  await mirrorDueDate(ticketId, to, transaction);
+  await announceBreaches(ticketId, breached, transaction);
+  return { fromDueAt, toDueAt: to };
+}
+
 // Business minutes a clock has used up to `now`, including a running spell.
 async function liveUsedMinutes(row, c, now = new Date()) {
   const used = row[`${c}UsedMinutes`] || 0;
@@ -301,5 +347,5 @@ async function liveUsedMinutes(row, c, now = new Date()) {
 }
 
 module.exports = {
-  onTicketCreated, onTicketUpdated, recordFirstResponse, recalcTicketSla, syncTicketSla, liveUsedMinutes,
+  onTicketCreated, onTicketUpdated, recordFirstResponse, recalcTicketSla, syncTicketSla, changeDueDate, liveUsedMinutes,
 };

@@ -20,6 +20,7 @@ router.post('/', requirePermission('tickets.create'), ctrl.create);
 router.get('/board', viewMin, ctrl.board);
 router.get('/:id', viewMin, ctrl.get);
 router.patch('/:id', editMin, ctrl.update);
+router.post('/:id/due-date', editMin, ctrl.changeDueDate);
 router.delete('/:id', requirePermission('tickets.delete'), ctrl.remove);
 
 // Comments

@@ -202,6 +202,13 @@ async function executeAction(ticket, action, rule) {
     }
     case 'set_due_date': {
       const ms = (v.unit === 'days' ? 86400000 : 3600000) * Number(v.amount || 0);
+      // A ticket with an SLA due date: the rule's move is recorded as an
+      // adjustment by the rule (an admin built it).
+      // eslint-disable-next-line global-require
+      const moved = await require('./sla/ticketSla').changeDueDate(ticket.id, {
+        toDueAt: new Date(Date.now() + ms), userId: null, reason: `Workflow rule: ${rule.name}`, kind: 'adjustment',
+      });
+      if (moved) return `SLA due date set to ${moved.toDueAt.toISOString()}`;
       const due = new Date(Date.now() + ms).toISOString().slice(0, 10);
       await ticket.update({ dueDate: due });
       return `due date set to ${due}`;

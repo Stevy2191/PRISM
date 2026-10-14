@@ -13,6 +13,7 @@ const {
   TicketFieldValue,
   Contact,
   TicketStatus,
+  TicketSla,
   sequelize,
 } = require('../../models');
 const { Op } = require('sequelize');
@@ -48,7 +49,7 @@ const {
 const { maybeCreateCsatSurvey } = require('../../services/csatService');
 const { logAssetActivity } = require('../../services/assetActivity');
 const {
-  ticketInclude, syncCustomFieldValues, shownTicketFor, ticketAccessFor, assertCanEditTicket,
+  ticketInclude, syncCustomFieldValues, shownTicketFor, ticketAccessFor, ticketDetailFor, assertCanEditTicket,
 } = require('./shared');
 
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
@@ -470,7 +471,7 @@ const get = asyncHandler(async (req, res) => {
   if (!(await canAccessTicket(req.user, ticket))) {
     throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
   }
-  res.json({ ticket: { ...(await shownTicketFor(req.user, ticket)), access: await ticketAccessFor(req.user, ticket) } });
+  res.json({ ticket: await ticketDetailFor(req.user, ticket) });
 });
 
 // A status must be one of the configured ticket statuses (Q25). Returns its
@@ -567,6 +568,14 @@ const update = asyncHandler(async (req, res) => {
       const project = await findAccessibleProject(req.user, changes.projectId);
       if (!project || project.companyId !== targetCompanyId) throw new ApiError(400, 'Project not found', 'VALIDATION_ERROR');
       changes.projectId = project.id;
+    }
+  }
+  // On a ticket with an SLA due date the due date is the SLA's: it moves
+  // only through POST /tickets/:id/due-date (extend with a reason).
+  if (changes.dueDate !== undefined || changes.dueTime !== undefined) {
+    const sla = await TicketSla.findOne({ where: { ticketId: ticket.id }, attributes: ['resolutionDueAt'] });
+    if (sla && sla.resolutionDueAt) {
+      throw new ApiError(400, "This ticket's due date comes from its SLA. Use Extend due date to change it.", 'VALIDATION_ERROR');
     }
   }
   // A dueTime with no dueDate is meaningless — clearing the date always

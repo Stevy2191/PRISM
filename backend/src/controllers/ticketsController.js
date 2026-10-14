@@ -10,5 +10,6 @@ module.exports = {
   ...require('./tickets/watchers'),
   ...require('./tickets/tasks'),
   ...require('./tickets/fields'),
+  ...require('./tickets/dueDate'),
   ...require('./tickets/activity'),
 };

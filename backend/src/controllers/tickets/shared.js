@@ -13,6 +13,7 @@ const {
   Company,
   TicketSla,
   SlaPolicy,
+  TicketDueDateChange,
 } = require('../../models');
 const { toSlaView } = require('../../services/sla/slaView');
 const { Op, col } = require('sequelize');
@@ -184,6 +185,21 @@ async function assertCanEditTicket(user, ticket) {
 
 // What the viewer may do with this ticket, for the screens to follow (the
 // server re-checks every request).
+// The ticket as GET /tickets/:id returns it: the viewer's view, its access
+// flags, and on its SLA the due date history.
+async function ticketDetailFor(viewer, ticket) {
+  const json = await shownTicketFor(viewer, ticket);
+  if (ticket.sla) {
+    const changes = await TicketDueDateChange.findAll({
+      where: { ticketId: ticket.id },
+      include: [{ model: User, as: 'user', attributes: ['id', 'displayName'] }],
+      order: [['createdAt', 'ASC'], ['id', 'ASC']],
+    });
+    json.sla = toSlaView(ticket.sla, new Date(), changes);
+  }
+  return { ...json, access: await ticketAccessFor(viewer, ticket) };
+}
+
 async function ticketAccessFor(viewer, ticket) {
   const edit = await canEditTicket(viewer, ticket);
   return {
@@ -196,6 +212,7 @@ async function ticketAccessFor(viewer, ticket) {
 module.exports = {
   assertCanEditTicket,
   shownTicketFor,
+  ticketDetailFor,
   ticketAccessFor,
   ticketInclude,
   withCustomFields,
