@@ -13,6 +13,7 @@ const { ticketInclude, ticketDetailFor, assertCanEditTicket } = require('./share
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const REASON_MAX = 1000;
+const MAX_AHEAD_MS = 2 * 366 * 24 * 60 * 60 * 1000;
 const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 
 const changeDueDate = asyncHandler(async (req, res) => {
@@ -29,15 +30,21 @@ const changeDueDate = asyncHandler(async (req, res) => {
   const text = (reason || '').trim();
   if (text.length > REASON_MAX) throw bad(`Reason must be ${REASON_MAX} characters or fewer`);
 
-  const sla = await TicketSla.findOne({ where: { ticketId: ticket.id }, attributes: ['resolutionDueAt'] });
+  const to = zoneWallTime(date, dueTime, await orgTimeZone());
+  if (to.getTime() > Date.now() + MAX_AHEAD_MS) throw bad('A due date can be at most two years ahead');
+
+  const sla = await TicketSla.findOne({
+    where: { ticketId: ticket.id }, attributes: ['resolutionDueAt', 'resolutionMetAt', 'resolutionRunningSince'],
+  });
   if (!sla || !sla.resolutionDueAt) throw bad('This ticket has no SLA due date; edit the due date directly');
 
-  const to = zoneWallTime(date, dueTime, await orgTimeZone());
   const current = new Date(sla.resolutionDueAt);
   if (to.getTime() === current.getTime()) throw bad('That is already the due date');
-  const kind = to > current && text ? 'extension' : 'adjustment';
+  // A resolved ticket's SLA result is history: only an adjuster may move it.
+  const resolved = !!sla.resolutionMetAt && !sla.resolutionRunningSince;
+  const kind = to > current && text && !resolved ? 'extension' : 'adjustment';
   if (kind === 'adjustment' && !(await hasPermission(req.user.id, 'tickets.adjust_sla_due'))) {
-    throw new ApiError(403, 'Only someone who can adjust SLA due dates can move a due date earlier or without a reason', 'FORBIDDEN');
+    throw new ApiError(403, 'Only someone who can adjust SLA due dates can move a due date earlier, without a reason, or on a resolved ticket', 'FORBIDDEN');
   }
 
   const moved = await sequelize.transaction((transaction) => moveDueDate(ticket.id, {

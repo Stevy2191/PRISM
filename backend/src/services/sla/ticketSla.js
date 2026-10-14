@@ -12,6 +12,7 @@ const {
   TicketSla, TicketStatus, Company, Ticket, TicketDueDateChange,
 } = require('../../models');
 const slaCalendar = require('./calendar');
+const { ApiError } = require('../../middleware/error');
 const { businessMinutesBetween, addBusinessMinutes, addBusinessDays } = require('./businessTime');
 const { orgTimeZone, dateInZone, timeInZone } = require('../../utils/orgTime');
 const {
@@ -19,6 +20,7 @@ const {
 } = require('./clock');
 
 const CLOCKS = ['assign', 'response', 'resolution'];
+const MAX_AHEAD_MS = 2 * 366 * 24 * 60 * 60 * 1000;
 const FIELDS = {
   TargetMinutes: 'targetMinutes',
   UsedMinutes: 'usedMinutes',
@@ -185,12 +187,27 @@ async function apply(row, ticket, transaction) {
   const cal = calendarFor(policy, row.ticketType, row.priority);
   const pct = policy.warnAtPercent;
   const values = {};
+  let newDue = null;
   CLOCKS.forEach((c) => {
     let s = readClock(row, c);
     const run = shouldRun(c, ticket, status, s);
     if (c === 'resolution') {
       if (s.runningSince && !run) s = stopFixed(s, now, cal);
-      else if (!s.runningSince && run) s = startFixed(s, now);
+      else if (!s.runningSince && run) {
+        if (!s.dueAt && s.targetMinutes !== null) {
+          // A clock from the first SLA build, stopped with no due date:
+          // its remaining minutes become a fixed due date from now.
+          const left = Math.max(0, s.targetMinutes - s.usedMinutes);
+          s = {
+            ...s,
+            dueAt: addBusinessMinutes(now, left, cal),
+            warnAt: addBusinessMinutes(now, Math.max(0, warnMinutes(s.targetMinutes, pct) - s.usedMinutes), cal),
+          };
+          if (!row.resolutionOriginalDueAt) values.resolutionOriginalDueAt = s.dueAt;
+          newDue = s.dueAt;
+        }
+        s = startFixed(s, now);
+      }
     } else if (s.runningSince && !run) {
       s = stopClock(s, now, cal, pct);
     } else if (!s.runningSince && run) {
@@ -201,6 +218,7 @@ async function apply(row, ticket, transaction) {
   markWarned(values);
   const breached = newlyBreached(row, values);
   await row.update(values, { transaction, hooks: false });
+  if (newDue) await mirrorDueDate(ticket.id, newDue, transaction);
   await announceBreaches(ticket.id, breached, transaction);
 }
 
@@ -301,9 +319,21 @@ async function syncTicketSla(ticketId, { transaction } = {}) {
 async function changeDueDate(ticketId, {
   toDueAt, userId = null, reason = null, kind, transaction,
 }) {
+  const to0 = new Date(toDueAt);
+  if (!(to0 <= new Date(Date.now() + MAX_AHEAD_MS))) {
+    // Business-time walks are per day: an absurd date would block the server.
+    throw new ApiError(400, 'A due date can be at most two years ahead', 'VALIDATION_ERROR');
+  }
   const ticket = await Ticket.findByPk(ticketId, { attributes: ['id', 'createdAt'], transaction });
-  const row = ticket && await TicketSla.findOne({ where: { ticketId }, transaction });
+  // Locked, so two changes at once can't turn an extension into a move
+  // earlier than the date the other one set.
+  const row = ticket && await TicketSla.findOne({
+    where: { ticketId }, transaction, ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}),
+  });
   if (!row || !row.resolutionDueAt) return null;
+  if (kind === 'extension' && !(to0 > new Date(row.resolutionDueAt))) {
+    throw new ApiError(409, 'The due date has changed; an extension must be later than the current due date', 'NOT_LATER');
+  }
   const policy = await slaCalendar.getPolicy(row.slaPolicyId, transaction);
   const cal = calendarFor(policy, row.ticketType, row.priority);
   const pct = policy ? policy.warnAtPercent : 75;
@@ -318,7 +348,9 @@ async function changeDueDate(ticketId, {
     dueAt: to,
     warnAt: addBusinessMinutes(start, warnMinutes(span, pct), cal),
   };
-  if (to > now) {
+  // An open ticket's warning and breach can fire again for a future date;
+  // a closed ticket's result is history and stays as it was.
+  if (s.runningSince && to > now) {
     s.breachedAt = null;
     if (s.warnAt > now) s.warnedAt = null;
   } else if (!s.breachedAt && s.runningSince) {

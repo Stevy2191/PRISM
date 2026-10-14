@@ -50,6 +50,19 @@ module.exports = {
     await qi.sequelize.query(`UPDATE TicketSlas s JOIN Tickets t ON t.id = s.ticketId
       SET s.ticketType = t.type WHERE t.type IN (${TYPES.map((v) => `'${v}'`).join(',')})`);
 
+    // Open tickets the first SLA build had paused: nothing pauses now, so
+    // their resolution clock runs from now with the minutes they had left
+    // (wall-clock here; the app re-times on the ticket's next change).
+    await qi.sequelize.query(`UPDATE TicketSlas s
+      JOIN Tickets t ON t.id = s.ticketId
+      JOIN TicketStatuses st ON st.name = t.status
+      JOIN SlaPolicies p ON p.id = s.slaPolicyId
+      SET s.resolutionRunningSince = NOW(),
+          s.resolutionDueAt = NOW() + INTERVAL GREATEST(0, s.resolutionTargetMinutes - s.resolutionUsedMinutes) MINUTE,
+          s.resolutionWarnAt = NOW() + INTERVAL GREATEST(0, CEIL(s.resolutionTargetMinutes * p.warnAtPercent / 100) - s.resolutionUsedMinutes) MINUTE,
+          s.resolutionOriginalDueAt = NOW() + INTERVAL GREATEST(0, s.resolutionTargetMinutes - s.resolutionUsedMinutes) MINUTE
+      WHERE s.resolutionTargetMinutes IS NOT NULL AND s.resolutionRunningSince IS NULL
+        AND s.resolutionMetAt IS NULL AND s.resolutionDueAt IS NULL AND st.behaviorType = 'open'`);
     await qi.removeColumn('TicketStatuses', 'pausesSla');
 
     await qi.createTable('TicketDueDateChanges', {

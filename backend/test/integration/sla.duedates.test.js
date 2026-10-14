@@ -2,7 +2,7 @@ const { resetData, closeDb, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeOwnTier, makeTicket, makeCompany, makeContact, freezeClock, advanceClock, unfreezeClock,
 } = require('./fixtures');
-const { recalcTicketSla } = require('../../src/services/sla/ticketSla');
+const { recalcTicketSla, changeDueDate } = require('../../src/services/sla/ticketSla');
 const { runSlaPass } = require('../../src/services/sla/slaScheduler');
 
 // SLA due dates (spec 2026-10-13 change): the resolution target fixes the
@@ -235,5 +235,60 @@ describe('changing the due date', () => {
     const [change] = await TicketDueDateChange.findAll({ where: { ticketId: t.id } });
     expect([change.kind, change.userId, change.reason]).toEqual(['adjustment', null, 'Workflow rule: Two-day']);
     expect((await Ticket.findByPk(t.id)).dueDate).toBe('2026-03-12');
+  });
+});
+
+describe('review fixes', () => {
+  let tech;
+  beforeEach(async () => { tech = await makeTech('tech', w.deptA.id); });
+  const move = (agent, id, body) => agent.post(`${API}/tickets/${id}/due-date`).send(body);
+
+  it('a due date more than two years out is refused at once', async () => {
+    const t = await newTicket();
+    const started = Date.now();
+    const res = await move(tech.agent, t.id, { dueDate: '9999-12-31', dueTime: '09:00', reason: 'Later' });
+    expect([res.status, res.body.code]).toEqual([400, 'VALIDATION_ERROR']);
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(await TicketDueDateChange.count()).toBe(0);
+  });
+
+  it("a workflow rule can't push a due date past the two-year limit either", async () => {
+    const rule = await WorkflowRule.create({ name: 'Far', triggerEvent: 'ticket_created', isActive: true });
+    await WorkflowAction.create({ ruleId: rule.id, actionType: 'set_due_date', actionValue: { amount: 100000, unit: 'days' }, position: 0 });
+    const t = await newTicket();
+    expect(await TicketDueDateChange.count({ where: { ticketId: t.id } })).toBe(0);
+    expect(iso((await sla(t.id)).resolutionDueAt)).toBe(at(240));
+  });
+
+  it("a closed ticket's due date needs Adjust SLA due dates, and its breach stays on record", async () => {
+    const t = await newTicket({ type: 'change' }); // due +90
+    advanceClock(100 * MIN);
+    expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ status: 'Closed' }));
+    expect(iso((await sla(t.id)).resolutionBreachedAt)).toBe(at(90));
+    const body = { dueDate: '2026-03-11', dueTime: '09:00', reason: 'Tidy up' };
+    expect((await move(tech.agent, t.id, body)).status).toBe(403);
+    expectOk(await move(w.admin.agent, t.id, body));
+    expect(iso((await sla(t.id)).resolutionBreachedAt)).toBe(at(90));
+  });
+
+  it('an extension is checked against the due date inside the save, not before it', async () => {
+    const t = await newTicket(); // due +240
+    await expect(changeDueDate(t.id, { toDueAt: new Date(at(100)), userId: tech.user.id, reason: 'x', kind: 'extension' }))
+      .rejects.toMatchObject({ code: 'NOT_LATER' });
+    expect(await TicketDueDateChange.count()).toBe(0);
+  });
+
+  it('a stopped clock from the first SLA build (no due date) gets one when the ticket reopens', async () => {
+    const t = await newTicket(); // target 240
+    expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ status: 'Closed' }));
+    await TicketSla.update({
+      resolutionDueAt: null, resolutionWarnAt: null, resolutionOriginalDueAt: null, resolutionUsedMinutes: 40, resolutionMetAt: null,
+    }, { where: { ticketId: t.id } });
+    advanceClock(10 * MIN);
+    expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ status: 'Open' }));
+    const s = await sla(t.id);
+    expect([iso(s.resolutionRunningSince), iso(s.resolutionDueAt), iso(s.resolutionOriginalDueAt)]).toEqual([at(10), at(210), at(210)]);
+    const fresh = await Ticket.findByPk(t.id);
+    expect([fresh.dueDate, String(fresh.dueTime).slice(0, 5)]).toEqual(['2026-03-10', '22:45']); // was 23:15
   });
 });

@@ -81,6 +81,17 @@ it('creates a policy with a Request/Low 20-business-day resolution target', asyn
 });
 
 describe('editing', () => {
+  it("a PATCH changing only a target's unit is checked against the stored amount", async () => {
+    const std = await SlaPolicy.findOne({ where: { isDefault: true } });
+    const target = (fields) => ({ targets: [{ ticketType: 'incident', priority: 'high', ...fields }] });
+    expectOk(await w.admin.agent.patch(`${URL}/${std.id}`).send(target({ resolutionMinutes: 4800 })));
+    const res = await w.admin.agent.patch(`${URL}/${std.id}`).send(target({ resolutionUnit: 'business_days' }));
+    expect(err(res)).toEqual([400, 'VALIDATION_ERROR']);
+    expectOk(await w.admin.agent.patch(`${URL}/${std.id}`).send(target({ resolutionMinutes: 10, resolutionUnit: 'business_days' })));
+    const res2 = await w.admin.agent.patch(`${URL}/${std.id}`).send(target({ resolutionMinutes: 4800 }));
+    expect(err(res2)).toEqual([400, 'VALIDATION_ERROR']);
+  });
+
   it('moves a company from one policy to another', async () => {
     const acme = await makeCompany(w.admin);
     const gold = expectOk(await w.admin.agent.post(URL).send(body({ companyIds: [acme.id] })), 201).policy;

@@ -136,6 +136,14 @@ async function saveTargets(policyId, targets, isNew, transaction) {
         }, { transaction });
       } else if (entry) {
         // eslint-disable-next-line no-await-in-loop
+        const row = await SlaTarget.findOne({ where: { slaPolicyId: policyId, ticketType, priority }, transaction });
+        // A unit or an amount sent alone must still fit the other, stored half.
+        CLOCKS.forEach((c) => {
+          const unit = entry.changes[`${c}Unit`] || (row && row[`${c}Unit`]) || 'minutes';
+          const amount = entry.changes[`${c}Minutes`] !== undefined ? entry.changes[`${c}Minutes`] : row && row[`${c}Minutes`];
+          if (amount !== null && amount !== undefined) readAmount(amount, unit);
+        });
+        // eslint-disable-next-line no-await-in-loop
         await SlaTarget.update(entry.changes, { where: { slaPolicyId: policyId, ticketType, priority }, transaction });
       }
     }

@@ -63,3 +63,18 @@ it('rolls back and re-applies', async () => {
   expect(await tables()).toContain('TicketDueDateChanges');
   expect(await SlaTarget.count({ where: { slaPolicyId: std.id } })).toBe(20);
 });
+
+it('starts the resolution clock of open tickets the first SLA build had paused', async () => {
+  const ticket = await models.Ticket.create({
+    title: 'paused', companyId: (await models.Company.findOne({ where: { isInternal: true } })).id, createdBy: 1, status: 'Open',
+  });
+  await migration.down(qi(), Sequelize);
+  await sequelize.query(`UPDATE TicketSlas SET resolutionTargetMinutes = 60, resolutionUsedMinutes = 10,
+    resolutionRunningSince = NULL, resolutionDueAt = NULL, resolutionWarnAt = NULL, resolutionMetAt = NULL WHERE ticketId = ?`, { replacements: [ticket.id] });
+  await migration.up(qi(), Sequelize);
+  const row = await TicketSla.findOne({ where: { ticketId: ticket.id } });
+  expect(row.resolutionRunningSince).not.toBeNull();
+  const left = (new Date(row.resolutionDueAt) - new Date(row.resolutionRunningSince)) / 60000;
+  expect(left).toBe(50);
+  expect(new Date(row.resolutionOriginalDueAt).getTime()).toBe(new Date(row.resolutionDueAt).getTime());
+});
