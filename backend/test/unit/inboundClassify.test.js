@@ -1,4 +1,4 @@
-const { findTicketNumber, classifyInbound } = require('../../src/services/email/inboundClassify');
+const { findTicketNumber, findTicketRef, classifyInbound } = require('../../src/services/email/inboundClassify');
 
 // The one decision function for inbound mail (spec 5a, "Inbound matching"),
 // one case per row of the spec's list.
@@ -63,4 +63,12 @@ it('findTicketNumber: [Ticket #00012], "Re: #12 printer", "PO#12x" (no match), h
   expect(findTicketNumber('#0', null, null)).toBeNull();
   expect(findTicketNumber('#99999999999999999999', null, null)).toBeNull();
   expect(findTicketNumber(undefined, undefined, undefined)).toBeNull();
+});
+
+it('findTicketRef says whether only a bare #N matched', () => {
+  expect(findTicketRef('Re: [Ticket #00012]', null, null)).toEqual({ id: 12, loose: false });
+  expect(findTicketRef('Invoice #4471 overdue', null, null)).toEqual({ id: 4471, loose: true });
+  // PRISM's own threading beats a bare number in the subject.
+  expect(findTicketRef('Invoice #4471', '<prism-ticket-9-1@x.com>', null)).toEqual({ id: 9, loose: false });
+  expect(findTicketRef('nothing', null, null)).toBeNull();
 });

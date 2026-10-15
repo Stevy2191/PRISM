@@ -145,12 +145,16 @@ export default function InboundEmailSection() {
               </select>
             </div>
             <div>
-              <label className="label" htmlFor="trustedAuthServId">Trusted mail server (optional)</label>
+              <label className="label" htmlFor="trustedAuthServId">Trusted mail server</label>
               <input
                 id="trustedAuthServId" className="input" style={fieldStyle} value={form.trustedAuthServId} onChange={set('trustedAuthServId')}
                 placeholder="e.g. mx.google.com"
               />
-              <p className="mt-1 text-xs text-navy-500">Leave blank to use the newest Authentication-Results header.</p>
+              <p className="mt-1 text-xs text-navy-500">
+                The name your mail server signs its checks with (the first word of its Authentication-Results header).
+                In strict mode, mail is only trusted when this server says DMARC passed. Left blank, technicians'
+                mail is always kept as an unverified note, except Microsoft 365 internal mail on a Microsoft 365 mailbox.
+              </p>
             </div>
           </div>
         </fieldset>

@@ -58,6 +58,11 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
       if (!KINDS.includes(behaviorType)) {
         throw new ApiError(400, 'Invalid behaviorType', 'VALIDATION_ERROR');
       }
+      // Replies move tickets into the automatic statuses: making one closed
+      // would close tickets silently.
+      if (status.systemKey && behaviorType !== status.behaviorType) {
+        throw new ApiError(400, 'This status is set automatically and keeps its kind', 'VALIDATION_ERROR');
+      }
       changes.behaviorType = behaviorType;
     }
 

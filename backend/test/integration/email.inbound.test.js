@@ -14,7 +14,8 @@ const { handleParsedMessage } = require('../../src/services/inboundEmailService'
 
 // Inbound mail, fed in as parsed RFC822 messages (test/fixtures/mail).
 
-const CONFIG = { address: 'help@prism.example' };
+// The generic fixtures are stamped by mx.prism.example, the trusted server.
+const CONFIG = { address: 'help@prism.example', trustedAuthServId: 'mx.prism.example' };
 const { Comment, Ticket, EmailProcessingLog } = models;
 
 async function mail(name, vars = {}) {
@@ -110,7 +111,7 @@ describe('staff mail and CC\'d senders', () => {
   });
 
   it('a verified tech CCing the helpdesk with #N adds a via-email reply and sends nothing', async () => {
-    const out = await generic({ FROM: 'Tina <TINA@acme.com>', TO: 'ann@acme.com', SUBJECT: `Re: #${ticket.id} printer` });
+    const out = await generic({ FROM: 'Tina <TINA@acme.com>', TO: 'ann@acme.com', SUBJECT: `Re: [Ticket #${num(ticket.id)}] printer` });
     expect(out).toEqual({ action: 'staff_reply_added', ticketId: ticket.id });
     const [c] = await Comment.findAll({ where: { ticketId: ticket.id } });
     expect([c.type, c.authorId, c.viaEmail, c.body.trim()]).toEqual(['comment_public', tech.user.id, true, 'Ran the update; it should be fixed now.']);
@@ -136,7 +137,7 @@ describe('staff mail and CC\'d senders', () => {
     const { makeStaff } = require('./fixtures'); // eslint-disable-line global-require
     const sam = await makeStaff('sam', w.deptA.id); // edit_own; the ticket is Tina's
     await models.User.update({ email: 'sam@acme.com' }, { where: { id: sam.user.id } });
-    const out = await generic({ FROM: 'sam@acme.com', TO: 'ann@acme.com', SUBJECT: `Re: #${ticket.id}` });
+    const out = await generic({ FROM: 'sam@acme.com', TO: 'ann@acme.com', SUBJECT: `Re: [Ticket #${num(ticket.id)}]` });
     expect(out.action).toBe('unverified_note');
     const [c] = await Comment.findAll({ where: { ticketId: ticket.id } });
     expect([c.type, c.authorId]).toEqual(['comment_private', admin.id]);
@@ -195,5 +196,63 @@ describe('staff mail and CC\'d senders', () => {
     expect(out.action).toBe('ticket_created');
     expect(out.ticketId).not.toBe(ticket.id);
     expect(await Comment.count({ where: { ticketId: ticket.id } })).toBe(0);
+  });
+});
+
+describe('review fixes', () => {
+  const generic = (vars) => handle('generic', {
+    DMARC: 'pass', CC: 'help@prism.example', ID: Math.random().toString(36).slice(2), ...vars,
+  });
+  beforeEach(async () => {
+    await models.User.update({ email: 'tina@acme.com' }, { where: { id: tech.user.id } });
+  });
+
+  it('a tech on the CC list replying goes through the staff check', async () => {
+    await models.TicketCc.create({ ticketId: ticket.id, email: 'tina@acme.com' });
+    const out = await generic({ DMARC: 'fail', FROM: 'tina@acme.com', TO: 'ann@acme.com', SUBJECT: `Re: [Ticket #${num(ticket.id)}]` });
+    expect(out.action).toBe('unverified_note');
+    expect((await Ticket.findByPk(ticket.id)).status).toBe('Open');
+  });
+
+  it('unverified mail keeps its attachments out of the ticket', async () => {
+    const out = await handle('generic-attach', {
+      DMARC: 'fail', FROM: 'tina@acme.com', TO: 'ann@acme.com', SUBJECT: `Re: [Ticket #${num(ticket.id)}]`,
+    });
+    expect(out.action).toBe('unverified_note');
+    expect(await models.Attachment.count()).toBe(0);
+    const [c] = await Comment.findAll({ where: { ticketId: ticket.id } });
+    expect(c.body).toContain('Attachments not saved: invoice.exe');
+    // Verified mail keeps them.
+    await handle('generic-attach', {
+      DMARC: 'pass', FROM: 'tina@acme.com', TO: 'ann@acme.com', SUBJECT: `Re: [Ticket #${num(ticket.id)}]`,
+    });
+    expect(await models.Attachment.count({ where: { ticketId: ticket.id } })).toBe(1);
+  });
+
+  it('a tech\'s "Invoice #N" subject opens a new ticket instead of commenting on ticket N', async () => {
+    const out = await generic({ FROM: 'tina@acme.com', TO: 'x@client.example', SUBJECT: `Invoice #${ticket.id} overdue` });
+    expect(out.action).toBe('staff_ticket_created');
+    expect(out.ticketId).not.toBe(ticket.id);
+    expect(await Comment.count({ where: { ticketId: ticket.id } })).toBe(0);
+  });
+
+  it('a customer reply-all to a tech-opened ticket threads by Message-ID', async () => {
+    const opened = await generic({
+      FROM: 'tina@acme.com', TO: 'new@client.example', SUBJECT: 'Hello', ID: 'orig-1',
+    });
+    expect(opened.action).toBe('staff_ticket_created');
+    const reply = await handle('thread-reply', { FROM: 'new@client.example', SUBJECT: 'Re: Hello', INREPLYTO: '<msg-orig-1@acme.com>' });
+    expect(reply).toEqual({ action: 'reply_added', ticketId: opened.ticketId });
+    // A stranger citing the same Message-ID still gets a ticket of their own.
+    const stranger = await handle('thread-reply', { FROM: 'mallory@evil.example', SUBJECT: 'Re: Hello', INREPLYTO: '<msg-orig-1@acme.com>' });
+    expect(stranger.action).toBe('ticket_created');
+    expect(stranger.ticketId).not.toBe(opened.ticketId);
+  });
+
+  it('two active users with one address are unverified', async () => {
+    const twin = await makeTech('twin', w.deptA.id);
+    await models.User.update({ email: 'TINA@acme.com' }, { where: { id: twin.user.id } });
+    const out = await generic({ FROM: 'tina@acme.com', TO: 'ann@acme.com', SUBJECT: `Re: [Ticket #${num(ticket.id)}]` });
+    expect(out.action).toBe('unverified_note');
   });
 });

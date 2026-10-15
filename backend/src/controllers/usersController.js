@@ -416,8 +416,14 @@ const update = asyncHandler(async (req, res) => {
   if (phone !== undefined) changes.phone = normalizePhone(phone);
   if (jobTitle !== undefined) changes.jobTitle = jobTitle ? jobTitle.trim() : null;
   if (email !== undefined) {
-    changes.email = email ? email.trim() : null;
-    if (user.isLocalAccount && changes.email !== user.email) await assertLocalEmailFree(changes.email, user.id);
+    const next = email ? String(email).trim() : null;
+    // An address decides who counts as staff on inbound mail, so only
+    // people who can edit users change it (user decision 2026-10-15).
+    if ((next || '').toLowerCase() !== (user.email || '').toLowerCase()) {
+      if (!canEditUsers) throw new ApiError(403, 'Changing an email address needs people.edit_users', 'FORBIDDEN');
+      changes.email = next;
+      if (user.isLocalAccount) await assertLocalEmailFree(changes.email, user.id);
+    }
   }
 
   if (firstName !== undefined || lastName !== undefined) {
@@ -511,6 +517,7 @@ const updatePreferences = asyncHandler(async (req, res) => {
   }
 
   await user.update(changes);
+  if (Object.keys(changes).length) await writeAudit(req, 'user.preferences_update', 'User', user.id, { fields: Object.keys(changes) });
   res.json({ user });
 });
 

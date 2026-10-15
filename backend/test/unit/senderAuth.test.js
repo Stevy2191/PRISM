@@ -6,7 +6,10 @@ const { verifySender, isMicrosoftHost } = require('../../src/services/email/send
 // mail also passes, but only on a Microsoft-hosted mailbox.
 
 const FROM = 'tina@acme.com';
-const strict = { mode: 'strict', trustedAuthServId: '', microsoftMailbox: false };
+// Strict mode trusts only the named receiving server (user decision
+// 2026-10-15): with no name, nothing but M365 internal mail can pass.
+const strict = { mode: 'strict', trustedAuthServId: 'mx.google.com', microsoftMailbox: false };
+const unnamed = { ...strict, trustedAuthServId: '' };
 const headers = (obj) => new Map(Object.entries(obj));
 
 const GMAIL_PASS = 'mx.google.com;\r\n       dkim=pass header.i=@acme.com header.s=s1 header.b=AbC;\r\n'
@@ -21,8 +24,12 @@ it('gmail dmarc=pass passes', () => {
   expect(verifySender(headers({ 'authentication-results': GMAIL_PASS }), FROM, strict)).toEqual({ verified: true, reason: expect.any(String) });
 });
 
-it('m365 dmarc=pass passes', () => {
-  expect(verifySender(headers({ 'authentication-results': M365_PASS }), 'Tina@ACME.com', strict).verified).toBe(true);
+it('no trusted server set: even a top-most pass fails (the receiving host may add none)', () => {
+  // A host that stamps nothing leaves the sender's own forged header on top.
+  expect(verifySender(headers({ 'authentication-results': GMAIL_PASS }), FROM, unnamed)).toEqual({ verified: false, reason: expect.stringMatching(/trusted mail server/i) });
+  expect(verifySender(headers({ 'authentication-results': M365_PASS }), 'Tina@ACME.com', unnamed).verified).toBe(false);
+  // M365 internal mail on a Microsoft mailbox still passes without a name.
+  expect(verifySender(headers({ 'x-ms-exchange-organization-authas': 'Internal' }), FROM, { ...unnamed, microsoftMailbox: true }).verified).toBe(true);
 });
 
 it('m365 internal AuthAs passes', () => {
@@ -37,7 +44,7 @@ it('m365 AuthAs on a non-Microsoft mailbox fails', () => {
 });
 
 it('dmarc=fail fails', () => {
-  expect(verifySender(headers({ 'authentication-results': M365_FAIL }), FROM, strict)).toEqual({ verified: false, reason: expect.stringMatching(/dmarc/i) });
+  expect(verifySender(headers({ 'authentication-results': `mx.google.com; ${M365_FAIL}` }), FROM, strict)).toEqual({ verified: false, reason: expect.stringMatching(/dmarc/i) });
   expect(verifySender(headers({ 'authentication-results': 'mx.google.com; dmarc=none header.from=acme.com' }), FROM, strict).verified).toBe(false);
 });
 
@@ -49,6 +56,7 @@ it('no header fails', () => {
 
 it('forged pass below a real fail fails', () => {
   const h = headers({ 'authentication-results': ['mx.google.com; dmarc=fail (p=REJECT) header.from=acme.com', GMAIL_PASS] });
+  expect(verifySender(h, FROM, unnamed).verified).toBe(false);
   expect(verifySender(h, FROM, strict).verified).toBe(false);
 });
 

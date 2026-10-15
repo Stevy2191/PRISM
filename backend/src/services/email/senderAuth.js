@@ -1,9 +1,8 @@
 // Is a staff member's email really from them? (spec 5a, "Sender
 // verification"). PRISM can't check signatures itself after the fact; it
 // trusts only the verdict the receiving mail server stamped on the message:
-// the top-most Authentication-Results header (anything below it may have
-// been written by the sender), or the one from the configured trusted
-// server. Pass = dmarc=pass for exactly the From domain.
+// the Authentication-Results header from the configured trusted server (its
+// authserv-id). Pass = dmarc=pass for exactly the From domain.
 
 // Microsoft's IMAP hosts. Only Exchange strips forged copies of
 // X-MS-Exchange-Organization-AuthAs from outside mail, so that header only
@@ -43,10 +42,14 @@ function verifySender(headers, fromAddress, { mode = 'strict', trustedAuthServId
     if (authAs && authAs.trim().toLowerCase() === 'internal') return { verified: true, reason: 'Microsoft 365 internal mail' };
   }
 
-  const all = headerValues(headers, 'authentication-results').map(parseAuthResults);
+  // Only the named receiving server's verdict counts. Without a name there
+  // is no telling it from one the sender wrote: a host that stamps nothing
+  // leaves the forged header on top (user decision 2026-10-15).
   const trusted = String(trustedAuthServId || '').trim().toLowerCase();
-  const chosen = trusted ? all.find((h) => h.servId === trusted) : all[0];
-  if (!chosen) return { verified: false, reason: trusted ? `No result from ${trusted}` : 'No Authentication-Results header' };
+  if (!trusted) return { verified: false, reason: 'No trusted mail server is set (Settings → Incoming email)' };
+  const all = headerValues(headers, 'authentication-results').map(parseAuthResults);
+  const chosen = all.find((h) => h.servId === trusted);
+  if (!chosen) return { verified: false, reason: `No result from ${trusted}` };
 
   const dmarc = chosen.results.find((r) => /^dmarc\s*=/i.test(r));
   if (!dmarc) return { verified: false, reason: 'No DMARC result' };

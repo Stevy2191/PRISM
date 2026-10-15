@@ -36,12 +36,18 @@ Nothing here needs action before upgrading.
 - **Replies from technicians' own mailboxes are captured.** If a technician
   CCs the helpdesk mailbox with `#123` or `[Ticket #00123]` in the subject,
   the email is added to ticket 123 as their reply (marked "via email") and is
-  not sent again. Without a number it opens a new ticket for the customer,
-  assigned to the technician. This is trusted only when your mail server's
-  DMARC check passed for the sender (Settings → Incoming email → Sender
-  check). Otherwise it is kept as a private "Unverified sender" note.
-  Microsoft 365 internal mail is also accepted when the helpdesk mailbox
-  itself is on Microsoft 365.
+  not sent again. (A bare `#123` only counts for the ticket's own customer
+  or CC list, since numbers like "Invoice #123" match tickets by chance.)
+  Without a number it opens a new ticket for the customer, assigned to the
+  technician, and the customer's reply-all threads back onto it. This is
+  trusted only when **your mail server**, named under Settings → Incoming
+  email → **Trusted mail server** (e.g. `mx.google.com`), says DMARC
+  passed. **Set it, or technicians' mail is always kept as a private
+  "Unverified sender" note** (attachments not saved). Microsoft 365 internal
+  mail is accepted without it when the helpdesk mailbox is on Microsoft 365.
+- **Only administrators who can edit users can change a user's email
+  address** now, because the address decides who counts as staff on
+  incoming mail.
 - **Replies from CC'd people** are now added to the ticket. Before, they
   opened a new ticket.
 

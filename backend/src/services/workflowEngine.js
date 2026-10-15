@@ -11,6 +11,7 @@ const {
 const { parseRecordId } = require('./permissionService');
 const { createNotification, notifyAssigned } = require('./notifications');
 const { assertCanWorkTicket } = require('./ticketPeople');
+const { getTicketStatusBehaviorMap } = require('./statusBehavior');
 
 const ticketEvalInclude = [
   { model: Contact, as: 'contact', include: [{ model: Department, as: 'department' }] },
@@ -182,7 +183,14 @@ async function executeAction(ticket, action, rule) {
       return `round-robin assigned to user #${userId}`;
     }
     case 'set_status': {
+      const wasStatus = ticket.status;
       await ticket.update({ status: v.status });
+      // The "resolved" email follows any move into a closed status (it is
+      // off unless an admin turns it on). Lazy: the mail modules load this.
+      const kinds = await getTicketStatusBehaviorMap();
+      if (kinds.get(v.status) === 'closed' && kinds.get(wasStatus) !== 'closed') {
+        require('./email/ticketMail').queueContactEmail('contact_resolved', ticket); // eslint-disable-line global-require
+      }
       return `status set to "${v.status}"`;
     }
     case 'set_priority': {

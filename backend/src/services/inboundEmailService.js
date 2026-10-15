@@ -16,7 +16,7 @@ const { UPLOAD_ROOT } = require('../middleware/upload');
 const { getFirstTicketStatusByBehavior, getTicketStatusBehaviorMap } = require('./statusBehavior');
 const { getAllSettings } = require('../controllers/settingsController');
 const { sendTicketEmail, buildTicketMessageId } = require('./email/ticketMail');
-const { findTicketNumber, classifyInbound } = require('./email/inboundClassify');
+const { findTicketRef, classifyInbound } = require('./email/inboundClassify');
 const { verifySender, isMicrosoftHost } = require('./email/senderAuth');
 const { isEmail, MAX_EXTRA: MAX_TICKET_CCS } = require('./email/recipients');
 const { ownAddresses } = require('./email/ticketMail');
@@ -283,10 +283,12 @@ function addressesOf(field) {
   return out;
 }
 
-// The active PRISM user an address belongs to, if any.
+// The active PRISM user an address belongs to, if any; `ambiguous` when
+// more than one active account has it.
 async function findStaffByEmail(address) {
-  if (!address) return null;
-  return User.findOne({ where: { email: address, isActive: true }, order: [['id', 'ASC']] });
+  if (!address) return { user: null, ambiguous: false };
+  const users = await User.findAll({ where: { email: address, isActive: true }, order: [['id', 'ASC']], limit: 2 });
+  return { user: users[0] || null, ambiguous: users.length > 1 };
 }
 
 // Adds addresses to a ticket's CC list (from email: addedById null), up to
@@ -303,7 +305,13 @@ async function addCcs(ticketId, addresses) {
   }
 }
 
-const unverifiedBody = (address, textBody) => `Unverified sender ${address}:\n\n${textBody}`;
+// Unverified mail's attachments are not kept: anyone can forge a From
+// address, and a saved file would look like any other ticket attachment.
+function unverifiedBody(address, textBody, attachments) {
+  const names = (Array.isArray(attachments) ? attachments : []).map((a) => a.filename || 'attachment');
+  const dropped = names.length ? `\n\nAttachments not saved: ${names.join(', ')}` : '';
+  return `Unverified sender ${address}:\n\n${textBody}${dropped}`;
+}
 
 // Everything after fetching: decides what a parsed message is (see
 // services/email/inboundClassify.js), acts on it and logs it. Returns
@@ -323,29 +331,43 @@ async function handleParsedMessage(parsed, config) {
     return result;
   }
 
-  const ticketId = findTicketNumber(subject, parsed.inReplyTo, parsed.references);
-  const ticket = ticketId
-    ? await Ticket.findByPk(ticketId, { include: [{ model: Contact, as: 'contact', attributes: ['email'] }] })
+  // Which ticket: "[Ticket #N]" or PRISM's own threading, then the ticket an
+  // email this one replies to was filed on, then a bare "#N".
+  let ref = findTicketRef(subject, parsed.inReplyTo, parsed.references);
+  if (!ref || ref.loose) {
+    const cited = [parsed.inReplyTo, ...(Array.isArray(parsed.references) ? parsed.references : [parsed.references])]
+      .filter((v) => typeof v === 'string' && v.length <= 500);
+    const earlier = cited.length
+      ? await EmailProcessingLog.findOne({ where: { messageId: cited, ticketId: { [Op.ne]: null } }, order: [['id', 'DESC']] })
+      : null;
+    if (earlier) ref = { id: earlier.ticketId, loose: false };
+  }
+  let ticket = ref
+    ? await Ticket.findByPk(ref.id, { include: [{ model: Contact, as: 'contact', attributes: ['email'] }] })
     : null;
 
   // Who is the sender? The subject/In-Reply-To/References headers are
   // attacker-controlled — a ticket number there is not proof the sender
-  // belongs to that ticket. Only its contact or CC list are its side; staff
-  // must pass the receiving server's sender check; anyone else gets a new
-  // ticket of their own instead of injecting content into this one.
+  // belongs to that ticket. Its contact is its side; staff must pass the
+  // receiving server's sender check (even when on the CC list); others on
+  // the CC list are its side too; anyone else gets a new ticket of their
+  // own instead of injecting content into this one.
   let senderKind = 'other';
-  if (ticket && fromAddress) {
-    const isContact = ticket.contact && String(ticket.contact.email || '').toLowerCase() === fromAddress;
-    const isCc = !isContact && !!(await TicketCc.findOne({ where: { ticketId: ticket.id, email: fromAddress } }));
-    if (isContact || isCc) senderKind = 'contact_side';
-  }
-  const staff = senderKind === 'other' ? await findStaffByEmail(fromAddress) : null;
-  if (staff) senderKind = 'staff';
+  const isContact = !!(ticket && fromAddress && ticket.contact
+    && String(ticket.contact.email || '').toLowerCase() === fromAddress);
+  const staffMatch = isContact ? { user: null, ambiguous: false } : await findStaffByEmail(fromAddress);
+  const staff = staffMatch.user;
+  if (isContact) senderKind = 'contact_side';
+  else if (staff) senderKind = 'staff';
+  else if (ticket && fromAddress && (await TicketCc.findOne({ where: { ticketId: ticket.id, email: fromAddress } }))) senderKind = 'contact_side';
+  // A bare "#N" only counts for that ticket's own contact or CC list.
+  if (ticket && ref.loose && senderKind !== 'contact_side') ticket = null;
 
   let verified = false;
   let staffCanEdit = false;
   if (staff) {
-    verified = verifySender(parsed.headers, fromAddress, {
+    // Two active accounts with one address: no telling who sent it.
+    verified = !staffMatch.ambiguous && verifySender(parsed.headers, fromAddress, {
       mode: config.staffSenderCheck || 'strict',
       trustedAuthServId: config.trustedAuthServId || '',
       microsoftMailbox: isMicrosoftHost(config.host),
@@ -363,7 +385,7 @@ async function handleParsedMessage(parsed, config) {
       if (own.has(r.address) || r.address === fromAddress || !isEmail(r.address)) continue; // eslint-disable-line no-continue
       if (customers.some((c) => c.address === r.address)) continue; // eslint-disable-line no-continue
       // eslint-disable-next-line no-await-in-loop
-      if (await findStaffByEmail(r.address)) continue; // eslint-disable-line no-continue
+      if ((await findStaffByEmail(r.address)).user) continue; // eslint-disable-line no-continue
       customers.push(r);
     }
   }
@@ -414,9 +436,8 @@ async function handleParsedMessage(parsed, config) {
 
   if (action === 'unverified_note') {
     await Comment.create({
-      body: unverifiedBody(fromAddress, textBody), authorId: systemActorId, ticketId: ticket.id, type: 'comment_private', viaEmail: true,
+      body: unverifiedBody(fromAddress, textBody, parsed.attachments), authorId: systemActorId, ticketId: ticket.id, type: 'comment_private', viaEmail: true,
     });
-    await saveAttachments(parsed.attachments, ticket.id, systemActorId);
     return done({ action, ticketId: ticket.id });
   }
 
@@ -433,9 +454,9 @@ async function handleParsedMessage(parsed, config) {
     });
     await Comment.create(isVerified
       ? { body: textBody, authorId: staff.id, ticketId: created.id, type: 'comment_public', viaEmail: true }
-      : { body: unverifiedBody(fromAddress, textBody), authorId: systemActorId, ticketId: created.id, type: 'comment_private', viaEmail: true });
+      : { body: unverifiedBody(fromAddress, textBody, parsed.attachments), authorId: systemActorId, ticketId: created.id, type: 'comment_private', viaEmail: true });
     if (isVerified) await addCcs(created.id, others.map((c) => c.address));
-    await saveAttachments(parsed.attachments, created.id, isVerified ? staff.id : systemActorId);
+    if (isVerified) await saveAttachments(parsed.attachments, created.id, staff.id);
     return done({ action, ticketId: created.id });
   }
 

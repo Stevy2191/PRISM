@@ -311,6 +311,10 @@ export default function Preferences() {
 // name shown throughout the app (see backend computeDisplayName). Department
 // is admin-only, managed from Settings -> Users instead.
 function ProfileSection({ user, onSaved }) {
+  // An email address decides who counts as staff on incoming mail, so only
+  // people who can edit users change it (user decision 2026-10-15).
+  const { hasPermission } = useAuth();
+  const canChangeEmail = hasPermission('people.edit_users');
   const [form, setForm] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -365,7 +369,7 @@ function ProfileSection({ user, onSaved }) {
         </div>
         <div>
           <label className="label">Email</label>
-          <input type="email" className="input" value={form.email} onChange={set('email')} />
+          <input type="email" className="input" value={form.email} onChange={set('email')} readOnly={!canChangeEmail} title={canChangeEmail ? undefined : 'Ask an administrator to change your email address'} />
         </div>
         <div>
           <label className="label">Phone</label>

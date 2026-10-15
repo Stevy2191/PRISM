@@ -2,8 +2,8 @@
 
 // Service desk 5a (email). Admin overrides of the code-defined email
 // templates, a CC list per ticket, per-user signatures and email
-// notification preferences, the one-off CC/BCC each reply used, and the new
-// inbound log actions for mail a technician sends from their own mailbox.
+// notification preferences, the one-off CC/BCC each reply used, the new
+// inbound log actions (and an index to match replies by Message-ID) for mail a technician sends from their own mailbox.
 // The new notification type new_in_queue (a ticket landing in a team's
 // queue unassigned) joins the Notifications.type ENUM and, where an admin
 // saved the list, notifications.enabledTypes — that list is an allow-list,
@@ -93,6 +93,11 @@ module.exports = {
     if (!comments.emailBcc) await qi.addColumn('Comments', 'emailBcc', { type: dt.JSON, allowNull: true });
     if (!comments.viaEmail) await qi.addColumn('Comments', 'viaEmail', { type: dt.BOOLEAN, allowNull: false, defaultValue: false });
 
+    // Replies are matched to the ticket an earlier email was filed on.
+    const logIndexes = await qi.showIndex('EmailProcessingLogs');
+    if (!logIndexes.some((i) => i.name === 'email_logs_message_id')) {
+      await qi.addIndex('EmailProcessingLogs', ['messageId'], { name: 'email_logs_message_id' });
+    }
     await changeEnum(qi, 'EmailProcessingLogs', 'action', BASE_LOG_ACTIONS, (v) => [...new Set([...v, ...NEW_LOG_ACTIONS])]);
     await changeEnum(qi, 'Notifications', 'type', BASE_NOTIFICATIONS, (v) => [...new Set([...v, ...NEW_NOTIFICATIONS])]);
     await updateEnabledTypes(qi, Sequelize, (list) => [...new Set([...list, ...NEW_NOTIFICATIONS])]);
@@ -105,6 +110,9 @@ module.exports = {
     await qi.sequelize.query('DELETE FROM EmailProcessingLogs WHERE action IN (:v)', { replacements: { v: NEW_LOG_ACTIONS } });
     await qi.sequelize.query('DELETE FROM Notifications WHERE type IN (:v)', { replacements: { v: NEW_NOTIFICATIONS } });
     await changeEnum(qi, 'EmailProcessingLogs', 'action', [], (v) => v.filter((x) => !NEW_LOG_ACTIONS.includes(x)));
+    if ((await qi.showIndex('EmailProcessingLogs')).some((i) => i.name === 'email_logs_message_id')) {
+      await qi.removeIndex('EmailProcessingLogs', 'email_logs_message_id');
+    }
     await changeEnum(qi, 'Notifications', 'type', [], (v) => v.filter((x) => !NEW_NOTIFICATIONS.includes(x)));
     await updateEnabledTypes(qi, Sequelize, (list) => list.filter((x) => !NEW_NOTIFICATIONS.includes(x)));
 

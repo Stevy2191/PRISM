@@ -168,6 +168,19 @@ on its own. In order:
   - **Setting** `inboundEmail.staffSenderCheck`: `strict` (default) or `off`.
   - Tested with real-shaped Gmail and M365 header sets, including a forged
     lower header.
+- **Final review changes (user decisions 2026-10-15):**
+  - Strict sender check trusts only the configured trusted mail server's
+    Authentication-Results (or M365 internal mail on a Microsoft mailbox).
+    With no server named, staff mail is always unverified: a host that adds
+    no header leaves the sender's forged one on top.
+  - A bare `#N` counts only for that ticket's contact or CC list;
+    `[Ticket #N]` and PRISM threading always count.
+  - Replies are also matched by In-Reply-To/References against Message-IDs
+    PRISM has logged, with the same sender rules.
+  - Sender order: contact, then staff (even on the CC list), then CC list.
+  - Unverified mail's attachments are not saved; the note lists them.
+  - Only `people.edit_users` changes a user's email; two active users with
+    one address make that sender unverified.
 - Every action is written to `EmailProcessingLog`, with new action values for
   the staff cases.
 

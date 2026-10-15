@@ -1,0 +1,11 @@
+From: %FROM%
+To: help@prism.example
+Subject: %SUBJECT%
+Message-ID: <thread-reply-1@client.example>
+In-Reply-To: %INREPLYTO%
+References: %INREPLYTO%
+Date: Wed, 14 Oct 2026 11:00:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Thanks, still broken though.
