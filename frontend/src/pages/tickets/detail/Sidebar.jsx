@@ -8,6 +8,7 @@ import { initials } from '../../../utils/userDisplay';
 import { formatPhone } from '../../../utils/formatPhone';
 import TimeDropdownPicker from '../../../components/TimeDropdownPicker';
 import SlaPanel from './SlaPanel';
+import CcPanel from './CcPanel';
 import DueDateModal from './DueDateModal';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -509,6 +510,10 @@ export function Sidebar({
               </div>
             </div>
           )}
+        </SidebarSection>
+
+        <SidebarSection title="CC" collapsed={collapsed}>
+          <CcPanel ticketId={ticket.id} canEdit={canEdit} collapsed={collapsed} />
         </SidebarSection>
 
         <SidebarSection title="Linked Assets" collapsed={collapsed}>

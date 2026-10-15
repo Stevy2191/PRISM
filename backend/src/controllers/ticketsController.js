@@ -8,6 +8,7 @@ module.exports = {
   ...require('./tickets/relations'),
   ...require('./tickets/csat'),
   ...require('./tickets/watchers'),
+  ...require('./tickets/ccs'),
   ...require('./tickets/tasks'),
   ...require('./tickets/fields'),
   ...require('./tickets/dueDate'),

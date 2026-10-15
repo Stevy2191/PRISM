@@ -56,6 +56,12 @@ router.get('/:id/watchers', ctrl.listWatchers);
 router.post('/:id/watchers', manageWatchers, ctrl.addWatcher);
 router.delete('/:id/watchers/:userId', manageWatchers, ctrl.removeWatcher);
 
+// CC list: gets every public reply (spec 5a). The controller checks the
+// ticket itself: view to list, edit to change.
+router.get('/:id/ccs', viewMin, ctrl.listCcs);
+router.post('/:id/ccs', editMin, ctrl.addCc);
+router.delete('/:id/ccs/:ccId', editMin, ctrl.removeCc);
+
 // Tasks (per-ticket checklist)
 router.get('/:id/tasks', ctrl.listTasks);
 router.post('/:id/tasks', editMin, ctrl.createTask);

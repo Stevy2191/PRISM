@@ -9,23 +9,34 @@ export function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPr
   const [mode, setMode] = useState('reply'); // 'reply' | 'comment'
   const [visibility, setVisibility] = useState('private'); // 'private' | 'public'
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  // One-off Cc/Bcc for this reply (spec 5a), public messages only.
+  const [showCc, setShowCc] = useState(false);
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
   const textareaRef = useRef(null);
 
   const isComment = isStaff && mode === 'comment';
   // Without tickets.view_private_comments, the private/public choice is
   // hidden — comments this user posts are always public.
   const effectiveVisibility = canViewPrivateComments ? visibility : 'public';
+  const isPublic = !isComment || effectiveVisibility === 'public';
 
   const saveDraft = () => { try { localStorage.setItem(draftKey, text); } catch { /* ignore */ } };
 
   const send = async () => {
     if (!text.trim()) return;
     setSending(true);
+    setError('');
     try {
       const type = isComment ? (effectiveVisibility === 'public' ? 'comment_public' : 'comment_private') : 'reply';
-      await onSend(text, type);
+      const recipients = isStaff && isPublic && showCc ? { emailCc: cc, emailBcc: bcc } : {};
+      await onSend(text, type, recipients);
       setText('');
+      setCc(''); setBcc('');
       try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Could not send. Try again.');
     } finally {
       setSending(false);
     }
@@ -56,6 +67,14 @@ export function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPr
         className="input resize-y"
         style={{ ...fieldStyle, minHeight: '80px', borderColor: isComment ? AMBER : BORDER }}
       />
+
+      {isStaff && isPublic && showCc && (
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="Cc: addresses, comma-separated" aria-label="Cc" className="input h-8 text-xs" style={fieldStyle} />
+          <input value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="Bcc: addresses, comma-separated" aria-label="Bcc" className="input h-8 text-xs" style={fieldStyle} />
+        </div>
+      )}
+      {error && <p role="alert" className="mt-2 text-sm text-red-600">{error}</p>}
 
       {isStaff && (
         <div className="mt-2 flex items-center justify-between">
@@ -99,6 +118,11 @@ export function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPr
           <button type="button" onClick={insertAt} title="Mention someone" className="rounded-md border p-2" style={{ borderColor: BORDER, color: MUTED }}>
             <IconAt size={16} />
           </button>
+          {isStaff && isPublic && (
+            <button type="button" onClick={() => setShowCc((v) => !v)} aria-pressed={showCc} className="rounded-md border px-2 py-1.5 text-xs font-medium" style={{ borderColor: BORDER, color: showCc ? TEXT : MUTED }}>
+              Cc/Bcc
+            </button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={saveDraft} className="rounded-md border px-3 py-2 text-sm font-medium" style={{ borderColor: BORDER, color: TEXT }}>

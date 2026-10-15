@@ -18,6 +18,12 @@ function buildTicketMessageId(ticketId, fromEmail) {
   return `<prism-ticket-${ticketId}-${Date.now()}@${ticketDomain(fromEmail)}>`;
 }
 
+// PRISM's own mailboxes: never a recipient, never a customer.
+async function ownAddresses() {
+  const rows = await SystemSettings.findAll({ where: { key: ['inboundEmail.address', 'smtp.fromEmail'] } });
+  return rows.map((r) => String(r.value || '').trim().toLowerCase()).filter(Boolean);
+}
+
 const ticketNumber = (id) => String(id).padStart(5, '0');
 const ticketUrl = (id) => `${surveyBaseUrl()}/tickets/${id}`;
 
@@ -105,5 +111,5 @@ function queueContactEmail(key, ticket) {
 }
 
 module.exports = {
-  buildTicketMessageId, ticketNumber, ticketUrl, ticketContext, sendTicketEmail, queueTicketEmail, queueContactEmail,
+  buildTicketMessageId, ownAddresses, ticketNumber, ticketUrl, ticketContext, sendTicketEmail, queueTicketEmail, queueContactEmail,
 };

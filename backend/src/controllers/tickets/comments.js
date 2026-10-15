@@ -1,5 +1,5 @@
 // Ticket comments: list, create (with the reply email), edit, delete.
-const { Ticket, Comment, User, Contact } = require('../../models');
+const { Ticket, Comment, User, Contact, TicketCc } = require('../../models');
 const { Op } = require('sequelize');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -10,7 +10,8 @@ const {
 } = require('../../services/notifications');
 const { logActivity } = require('../../services/ticketActivity');
 const { recordFirstResponse } = require('../../services/sla/ticketSla');
-const { queueTicketEmail } = require('../../services/email/ticketMail');
+const { queueTicketEmail, ownAddresses } = require('../../services/email/ticketMail');
+const { buildReplyRecipients, normalizeEmailList } = require('../../services/email/recipients');
 const { parsePagination, paginated } = require('../../utils/pagination');
 const {
   hasPermission,
@@ -70,11 +71,32 @@ const createComment = asyncHandler(async (req, res) => {
     }
     resolvedType = type;
   }
+  // One-off recipients, for public replies only (spec 5a).
+  const extraCc = normalizeEmailList(req.body.emailCc);
+  const extraBcc = normalizeEmailList(req.body.emailBcc);
+  if (resolvedType === 'comment_private' && (extraCc.length || extraBcc.length)) {
+    throw new ApiError(400, 'Private notes are never emailed', 'VALIDATION_ERROR');
+  }
+  let recipients = null;
+  let contact = null;
+  if (resolvedType !== 'comment_private') {
+    contact = ticket.contactId ? await Contact.findByPk(ticket.contactId) : null;
+    const ccList = (await TicketCc.findAll({ where: { ticketId: ticket.id }, attributes: ['email'], order: [['id', 'ASC']] })).map((c) => c.email);
+    recipients = buildReplyRecipients({
+      contactEmail: contact && contact.email, ccList, extraCc, extraBcc, ownAddresses: await ownAddresses(),
+    });
+  }
+  const used = (list, sent) => {
+    const kept = list.filter((e) => sent.includes(e));
+    return kept.length ? kept : null;
+  };
   const comment = await Comment.create({
     body: body.trim(),
     authorId: req.user.id,
     ticketId: ticket.id,
     type: resolvedType,
+    emailCc: recipients ? used(extraCc, recipients.cc) : null,
+    emailBcc: recipients ? used(extraBcc, recipients.bcc) : null,
   });
   await writeAudit(req, 'comment.create', 'Comment', comment.id, { ticketId: ticket.id, type: resolvedType });
   // Only a staff reply or public comment through this endpoint is a first
@@ -105,12 +127,9 @@ const createComment = asyncHandler(async (req, res) => {
     // are written directly via Comment.create() in inboundEmailService.js,
     // never through here, so there's no risk of mailing a reply back in
     // response to the email that created it.
-    const contact = ticket.contactId ? await Contact.findByPk(ticket.contactId) : null;
-    if (contact && contact.email) {
-      queueTicketEmail('contact_tech_reply', {
-        ticket, comment, author: req.user, contact, to: [contact.email],
-      });
-    }
+    queueTicketEmail('contact_tech_reply', {
+      ticket, comment, author: req.user, contact, ...recipients,
+    });
   }
 
   await evaluateRules(ticket.id, 'ticket_comment_added');

@@ -285,8 +285,8 @@ export default function TicketDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logVersion]);
 
-  const sendReply = async (body, type) => {
-    const { data } = await api.post(`/tickets/${id}/comments`, { body, type });
+  const sendReply = async (body, type, recipients = {}) => {
+    const { data } = await api.post(`/tickets/${id}/comments`, { body, type, ...recipients });
     setComments((prev) => [...prev, data.comment]);
     reloadActivity();
   };

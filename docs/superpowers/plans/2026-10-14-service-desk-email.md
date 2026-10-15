@@ -307,7 +307,7 @@ full code (user rule).
     bcc })`.
 - `ownAddresses` = the inbound mailbox address plus the SMTP from address.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - unit: `'to/cc/bcc de-duplicate with to winning'`,
     `'own mailbox addresses are dropped'`,
     `'invalid addresses are dropped'`, `'more than 20 extra is a 400'`
@@ -317,11 +317,11 @@ full code (user rule).
   - integration: `'CC list cap and duplicate'`
   - integration: `'an inaccessible contact with that email is not linked'`
   - integration: `'SMTP not configured: the reply still saves (201)'`
-- [ ] Run them and see them fail.
-- [ ] Implement the backend.
-- [ ] Run the tests and see them pass.
-- [ ] Build the UI.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement the backend.
+- [x] Run the tests and see them pass.
+- [x] Build the UI.
+- [x] Commit.
 
 ### Task 7: Inbound refactor (no behaviour change yet)
 
