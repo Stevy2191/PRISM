@@ -45,15 +45,17 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: 'request',
       },
-      // How this ticket came into existence. 'email'/'portal' are only ever
-      // set by the system (inbound email processing / future customer
-      // portal) — never selectable on the manual ticket-creation form,
-      // which only offers 'manual'/'phone'.
+      // How this ticket came into existence. 'portal' and 'recurring' are
+      // only ever set by the system (future customer portal / the recurring
+      // scheduler); staff may pick manual, phone or email by hand.
       source: {
-        type: DataTypes.ENUM('manual', 'email', 'phone', 'portal'),
+        type: DataTypes.ENUM('manual', 'email', 'phone', 'portal', 'recurring'),
         allowNull: false,
         defaultValue: 'manual',
       },
+      // Set when this ticket was merged into another (5b); inbound mail for
+      // it follows the pointer to the live ticket.
+      mergedIntoId: { type: DataTypes.INTEGER, allowNull: true },
       assigneeId: {
         type: DataTypes.INTEGER,
         allowNull: true,

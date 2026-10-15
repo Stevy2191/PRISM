@@ -67,6 +67,8 @@ const TicketSla = require('./TicketSla')(sequelize);
 const TicketDueDateChange = require('./TicketDueDateChange')(sequelize);
 const EmailTemplate = require('./EmailTemplate')(sequelize);
 const TicketCc = require('./TicketCc')(sequelize);
+const CannedResponse = require('./CannedResponse')(sequelize);
+const RecurringTicket = require('./RecurringTicket')(sequelize);
 const EmailProcessingLog = require('./EmailProcessingLog')(sequelize);
 const CsatSurvey = require('./CsatSurvey')(sequelize);
 const AssetCategory = require('./AssetCategory')(sequelize);
@@ -164,6 +166,8 @@ const db = {
   TicketDueDateChange,
   EmailTemplate,
   TicketCc,
+  CannedResponse,
+  RecurringTicket,
   EmailProcessingLog,
   CsatSurvey,
   AssetCategory,
@@ -364,6 +368,17 @@ TicketDueDateChange.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 Ticket.hasMany(TicketCc, { foreignKey: 'ticketId', as: 'ccs', onDelete: 'CASCADE' });
 TicketCc.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 TicketCc.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+
+// Desk tools (5b).
+Ticket.belongsTo(Ticket, { foreignKey: 'mergedIntoId', as: 'mergedInto' });
+CannedResponse.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+CannedResponse.belongsTo(Team, { foreignKey: 'teamId', as: 'team' });
+RecurringTicket.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+RecurringTicket.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+RecurringTicket.belongsTo(Team, { foreignKey: 'teamId', as: 'team' });
+RecurringTicket.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
+RecurringTicket.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
+RecurringTicket.belongsTo(Ticket, { foreignKey: 'lastTicketId', as: 'lastTicket' });
 EmailTemplate.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });
 BusinessHours.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 BusinessHours.belongsTo(HolidayList, { foreignKey: 'holidayListId', as: 'holidayList' });

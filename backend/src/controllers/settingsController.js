@@ -19,7 +19,7 @@ const DEFAULT_LOGIN_BULLETS = JSON.stringify([
 ]);
 
 // Every Notification.type value (see the model's ENUM) — all on by default.
-const ALL_NOTIFICATION_TYPES = ['assigned', 'comment', 'reply', 'overdue', 'due_soon', 'status_change', 'watcher_update', 'workflow', 'sla_warning', 'sla_breached', 'new_in_queue'];
+const ALL_NOTIFICATION_TYPES = ['assigned', 'comment', 'reply', 'overdue', 'due_soon', 'status_change', 'watcher_update', 'workflow', 'sla_warning', 'sla_breached', 'new_in_queue', 'recurring_paused'];
 const DEFAULT_NOTIFICATION_TYPES = JSON.stringify(ALL_NOTIFICATION_TYPES);
 
 // Defaults applied when a setting has not been configured.

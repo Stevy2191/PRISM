@@ -69,7 +69,18 @@ async function getFirstTicketStatusByBehavior(behaviorType) {
   return TicketStatus.findOne({ where: { behaviorType }, order: [['position', 'ASC']] });
 }
 
+// The name of the status "close" moves a ticket into: the protected Closed
+// status (systemKey 'closed', stable across renames), else the first closed
+// kind by position.
+async function closedStatusName() {
+  const keyed = await TicketStatus.findOne({ where: { systemKey: 'closed' } });
+  const row = keyed || await getFirstTicketStatusByBehavior('closed');
+  if (!row) throw new Error('No closed ticket status is configured');
+  return row.name;
+}
+
 module.exports = {
+  closedStatusName,
   getTicketStatusBuckets,
   getTicketStatusBehaviorMap,
   getTicketStatusKindMap,

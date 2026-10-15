@@ -31,6 +31,9 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      // The comment the file arrived with (inbound email), so a split can
+      // move just that comment's files. Null for plain uploads.
+      commentId: { type: DataTypes.INTEGER, allowNull: true },
       uploadedById: {
         type: DataTypes.INTEGER,
         allowNull: false,
