@@ -96,14 +96,14 @@ full code (user rule).
   - Setting `notifications.enabledTypes`: if a stored row exists, append
     `new_in_queue`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'creates the tables and columns'`
   - `'adds new_in_queue to a stored enabledTypes list'`
   - `'round-trips (down then up)'`
-- [ ] Run them and see them fail.
-- [ ] Write the migration and the models, and register the associations.
-- [ ] Run `test:migrate` and the tests, and see them pass.
-- [ ] Commit `feat(email): schema for templates, CCs, signatures, email prefs`.
+- [x] Run them and see them fail.
+- [x] Write the migration and the models, and register the associations.
+- [x] Run `test:migrate` and the tests, and see them pass.
+- [x] Commit `feat(email): schema for templates, CCs, signatures, email prefs`.
 
 ### Task 2: Shared HTML sanitizer
 
@@ -121,15 +121,15 @@ full code (user rule).
   - `textToHtml(text) → string`: escape, then `\n` becomes `<br>`.
   - `escapeHtml(s)`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'strips script, event handlers and javascript: urls'`
   - `'keeps the KB toolbar formatting'`
   - `'htmlToPlainText keeps paragraphs and link urls'`
   - `'textToHtml escapes and keeps line breaks'`
-- [ ] Run them and see them fail.
-- [ ] Implement, and point the KB at the new module.
-- [ ] Run the tests plus `knowledge*.test.js`, and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement, and point the KB at the new module.
+- [x] Run the tests plus `knowledge*.test.js`, and see them pass.
+- [x] Commit.
 
 ### Task 3: Template catalogue and renderer
 

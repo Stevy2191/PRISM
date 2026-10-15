@@ -1,68 +1,22 @@
 const fs = require('fs');
 const path = require('path');
 const { Op } = require('sequelize');
-const sanitizeHtml = require('sanitize-html');
 const { KbArticle, KbCategory, KbAttachment, User } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
+const { sanitizeRichHtml, stripToText } = require('../utils/richHtml');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
 // ==================== HTML sanitization ====================
 
-// Article bodies are authored as HTML in the rich-text editor and later
-// rendered — including on the auth-less public portal — so they MUST be
-// sanitized before storage. This is the real enforcement point (the frontend
-// editor is not trusted). Allows the formatting the toolbar can produce
-// (headings, marks, lists, quotes, code, links, images, tables, text
-// color/highlight, alignment) and nothing script-bearing.
-const colorRe = [/^#(0x)?[0-9a-f]{3,8}$/i, /^rgb\(\s*(\d{1,3}\s*,\s*){2}\d{1,3}\s*\)$/i, /^rgba\(\s*(\d{1,3}\s*,\s*){3}[\d.]+\s*\)$/i, /^[a-z]+$/i];
-const SANITIZE_CONFIG = {
-  allowedTags: [
-    'h1', 'h2', 'h3', 'h4', 'p', 'br', 'hr', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
-    'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'a', 'img', 'span', 'mark',
-    'table', 'thead', 'tbody', 'tr', 'th', 'td', 'colgroup', 'col',
-  ],
-  allowedAttributes: {
-    a: ['href', 'target', 'rel'],
-    img: ['src', 'alt', 'title', 'width', 'height'],
-    span: ['style'],
-    mark: ['style'],
-    p: ['style'], h1: ['style'], h2: ['style'], h3: ['style'], h4: ['style'],
-    li: ['style'], blockquote: ['style'], td: ['style', 'colspan', 'rowspan'], th: ['style', 'colspan', 'rowspan'],
-    col: ['style', 'span'],
-  },
-  allowedStyles: {
-    '*': {
-      'text-align': [/^(left|right|center|justify)$/],
-      color: colorRe,
-      'background-color': colorRe,
-      width: [/^\d+(\.\d+)?(px|%)$/],
-    },
-  },
-  allowedSchemes: ['http', 'https', 'mailto', 'tel'],
-  // Data URIs allowed only for inline images (pasted/embedded), never for
-  // links or other tags.
-  allowedSchemesByTag: { img: ['http', 'https', 'data'] },
-  transformTags: {
-    // Force external links safe — new tab + no referrer/opener leakage.
-    a: (tagName, attribs) => ({ tagName, attribs: { ...attribs, target: '_blank', rel: 'noopener noreferrer nofollow' } }),
-  },
-};
-
-function cleanHtml(html) {
-  if (!html) return '';
-  return sanitizeHtml(String(html), SANITIZE_CONFIG);
-}
-
+// Article bodies are sanitized before storage with the shared rich-HTML
+// config (utils/richHtml.js), the real enforcement point.
+const cleanHtml = sanitizeRichHtml;
 // Strip all tags → plain text, for deriving an excerpt / search preview.
-function toPlainText(html) {
-  return sanitizeHtml(String(html || ''), { allowedTags: [], allowedAttributes: {} })
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+const toPlainText = stripToText;
 
 // ==================== Slugs ====================
 
