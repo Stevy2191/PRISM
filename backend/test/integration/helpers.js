@@ -132,7 +132,7 @@ async function resetSlaPolicies() {
 async function resetData() {
   await ensureSchema();
   const tables = [
-    'Comments', 'Attachments', 'TicketWatchers', 'Tasks', 'TicketActivities',
+    'Comments', 'Attachments', 'TicketWatchers', 'TicketCcs', 'EmailTemplates', 'EmailProcessingLogs', 'Tasks', 'TicketActivities',
     'TicketRelations', 'TicketFieldValues', 'TimeEntries', 'ActiveTimers',
     'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'TicketSlas', 'TicketDueDateChanges', 'Tickets', 'Contacts',
     // Project child tables truncate with Projects: TRUNCATE resets
@@ -179,7 +179,8 @@ async function resetData() {
   // SSO enforcement in particular would fail every subsequent login.
   await sequelize.query(
     "DELETE FROM SystemSettings WHERE `key` LIKE 'sso.%' OR `key` LIKE 'timeTracking.%' "
-    + "OR `key` LIKE 'csat.%' OR `key` LIKE 'integrations.%' OR `key` = 'notifications.enabledTypes' OR `key` = 'company.timezone'"
+    + "OR `key` LIKE 'csat.%' OR `key` LIKE 'integrations.%' OR `key` = 'notifications.enabledTypes' OR `key` = 'company.timezone' "
+    + "OR `key` LIKE 'smtp.%' OR `key` LIKE 'inboundEmail.%' OR `key` = 'notifications.emailDefaults'"
   ).catch(() => {});
   // SLA policies: back to the migrated "Standard" default and its seeded
   // targets, so one test's policies and edits don't leak into the next.

@@ -27,6 +27,11 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: 'reply',
       },
+      // The one-off recipients a public reply was emailed to, as a record.
+      emailCc: { type: DataTypes.JSON, allowNull: true },
+      emailBcc: { type: DataTypes.JSON, allowNull: true },
+      // Captured from a technician's own mailbox rather than posted here.
+      viaEmail: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     },
     {
       sequelize,

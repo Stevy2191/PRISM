@@ -13,7 +13,10 @@ module.exports = (sequelize) => {
       messageId: { type: DataTypes.STRING(500), allowNull: true },
       fromEmail: { type: DataTypes.STRING(255), allowNull: true },
       subject: { type: DataTypes.STRING(998), allowNull: true },
-      action: { type: DataTypes.ENUM('ticket_created', 'reply_added', 'ignored', 'failed'), allowNull: false },
+      action: { type: DataTypes.ENUM(
+        'ticket_created', 'reply_added', 'ignored', 'failed',
+        'staff_reply_added', 'unverified_note', 'staff_ticket_created', 'staff_ticket_unverified'
+      ), allowNull: false },
       ticketId: { type: DataTypes.INTEGER, allowNull: true },
       processedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
       error: { type: DataTypes.TEXT, allowNull: true },

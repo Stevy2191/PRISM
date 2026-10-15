@@ -168,6 +168,11 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: 60,
       },
+      // Sanitized HTML, added to replies emailed to contacts.
+      emailSignature: { type: DataTypes.TEXT, allowNull: true },
+      // { [notification type]: bool } — email on/off per event; a missing
+      // key (or null) follows the admin default notifications.emailDefaults.
+      notificationEmailPrefs: { type: DataTypes.JSON, allowNull: true },
     },
     {
       sequelize,
