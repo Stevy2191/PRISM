@@ -229,3 +229,15 @@ describe('POST /tickets/:id/merge', () => {
     expect(await Ticket.count({ where: { mergedIntoId: target.id } })).toBe(2);
   });
 });
+
+describe('final review fixes', () => {
+  it('merges when one user has timers on two of the tickets: the time is kept on one timer', async () => {
+    const target = await ticket({ title: 'Target' });
+    const source = await ticket({ title: 'Source' });
+    await ActiveTimer.create({ userId: tina.user.id, entityType: 'ticket', entityId: target.id, accumulatedSeconds: 600, runningSince: null });
+    await ActiveTimer.create({ userId: tina.user.id, entityType: 'ticket', entityId: source.id, accumulatedSeconds: 300, runningSince: null });
+    expectOk(await merge(w.admin.agent, target.id, [source.id]));
+    const timers = await ActiveTimer.findAll({ where: { userId: tina.user.id } });
+    expect(timers.map((t) => [t.entityId, t.accumulatedSeconds])).toEqual([[target.id, 900]]);
+  });
+});

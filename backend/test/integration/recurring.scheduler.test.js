@@ -103,3 +103,14 @@ it('run-as user lost the contact company → paused, other rules still run', asy
   const paused = await RecurringTicket.findByPk(lost.id);
   expect([paused.active, paused.lastError]).toEqual([false, 'Contact not found']);
 });
+
+it('an unexpected error pauses the rule with a generic message, not the internal one', async () => {
+  const runner = require('../../src/services/recurring/runRule'); // eslint-disable-line global-require
+  const spy = jest.spyOn(runner, 'runRule').mockRejectedValueOnce(new Error('ER_LOCK_DEADLOCK: table RecurringTickets secret'));
+  const r = await rule();
+  await due(r, '2026-03-02T15:00:00Z');
+  expect(await runDueRecurring(new Date('2026-03-02T15:00:30Z'))).toEqual({ created: 0, paused: 1 });
+  spy.mockRestore();
+  const fresh = await RecurringTicket.findByPk(r.id);
+  expect(fresh.lastError).toBe('Could not create the ticket; see the server log');
+});

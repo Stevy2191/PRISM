@@ -72,6 +72,30 @@ async function moveUnique(Model, keyField, sourceIds, targetId, transaction) {
   }
 }
 
+// Running timers follow the work. A person may have one timer per ticket, so
+// one who also timed the target (or an earlier source) keeps that timer and
+// the moved one's elapsed time is added to it.
+async function moveTimers(sourceIds, targetId, transaction) {
+  const kept = new Map((await ActiveTimer.findAll({ where: { entityType: 'ticket', entityId: targetId }, transaction }))
+    .map((t) => [t.userId, t]));
+  const moving = await ActiveTimer.findAll({
+    where: { entityType: 'ticket', entityId: { [Op.in]: sourceIds } }, order: [['id', 'ASC']], transaction,
+  });
+  const now = Date.now();
+  for (const timer of moving) {
+    const keep = kept.get(timer.userId);
+    if (keep) {
+      const running = timer.runningSince ? Math.max(0, Math.floor((now - new Date(timer.runningSince).getTime()) / 1000)) : 0;
+      // eslint-disable-next-line no-await-in-loop
+      await keep.update({ accumulatedSeconds: keep.accumulatedSeconds + timer.accumulatedSeconds + running }, { transaction });
+      await timer.destroy({ transaction }); // eslint-disable-line no-await-in-loop
+    } else {
+      await timer.update({ entityId: targetId }, { transaction }); // eslint-disable-line no-await-in-loop
+      kept.set(timer.userId, timer);
+    }
+  }
+}
+
 // Tasks keep their order and get codes under the target: top-level tasks
 // continue the target's T-numbers; subtasks keep their S-number under their
 // task's new code.
@@ -171,7 +195,7 @@ async function mergeTickets(req, targetRaw, sourceRaws) {
       files = await copyToTicket(attachments, target.id);
       await Attachment.update({ ticketId: target.id }, { where: { ticketId: { [Op.in]: sourceIds } }, transaction });
       await TimeEntry.update({ ticketId: target.id }, { where: { ticketId: { [Op.in]: sourceIds } }, transaction });
-      await ActiveTimer.update({ entityId: target.id }, { where: { entityType: 'ticket', entityId: { [Op.in]: sourceIds } }, transaction });
+      await moveTimers(sourceIds, target.id, transaction);
       await moveTasks(sources, target, transaction);
       await moveUnique(TicketWatcher, 'userId', sourceIds, target.id, transaction);
       await moveUnique(TicketCc, 'email', sourceIds, target.id, transaction);

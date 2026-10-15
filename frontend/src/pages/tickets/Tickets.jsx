@@ -745,7 +745,12 @@ export default function Tickets() {
                     )}
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-sm" style={{ color: MUTED }}>{formatTicketId(t)}</td>
                     <td className="px-4 py-3">
-                      <Link to={`/tickets/${t.id}`} className="font-medium hover:underline" style={{ color: TEXT }}>{t.title}</Link>
+                      {t.queueOnly ? (
+                        // Seen only as queue work: it opens once taken.
+                        <span className="font-medium" style={{ color: TEXT }} title="Take it to open this ticket">{t.title}</span>
+                      ) : (
+                        <Link to={`/tickets/${t.id}`} className="font-medium hover:underline" style={{ color: TEXT }}>{t.title}</Link>
+                      )}
                       {canViewAllTickets && <DeptPill name={t.department?.name} />}
                       <AgeLine ticket={t} behaviorByName={behaviorByName} />
                     </td>

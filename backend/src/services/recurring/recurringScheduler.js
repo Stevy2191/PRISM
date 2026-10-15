@@ -8,14 +8,18 @@
 const { Op } = require('sequelize');
 const { RecurringTicket } = require('../../models');
 const { nextRun } = require('./schedule');
-const { runRule } = require('./runRule');
+// Called through the module so a test can stand in for it.
+const runner = require('./runRule');
 const { createNotification } = require('../notifications');
 
 const CHECK_INTERVAL_MS = 60 * 1000;
 const BATCH = 100;
 
 async function pause(rule, err) {
-  const message = String((err && err.message) || 'Could not create the ticket').slice(0, 500);
+  // Only a refusal the app phrased (an ApiError below 500) is shown; anything
+  // else may carry internals and is in the server log already.
+  const expected = err && err.status && err.status < 500;
+  const message = expected ? String(err.message).slice(0, 500) : 'Could not create the ticket; see the server log';
   await RecurringTicket.update({ active: false, lastError: message }, { where: { id: rule.id } });
   await createNotification({
     userId: rule.createdById,
@@ -41,7 +45,7 @@ async function runDueRecurring(now = new Date()) {
     if (claimed !== 1) continue; // eslint-disable-line no-continue
     try {
       // eslint-disable-next-line no-await-in-loop
-      await runRule(rule, { now });
+      await runner.runRule(rule, { now });
       result.created += 1;
     } catch (err) {
       if (!err || !err.status || err.status >= 500) console.error(`[recurring] rule ${rule.id} failed:`, err);

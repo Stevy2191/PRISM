@@ -44,7 +44,9 @@ async function queueVisibilityWhere(user) {
   const [scope, company, mine] = await Promise.all([ticketScopeWhere(user), companyScopeWhere(user), myTeamIds(user.id)]);
   // An empty scope means "everything": nothing to widen.
   if (!Object.keys(scope).length && !Object.getOwnPropertySymbols(scope).length) return {};
-  const teamWork = andWhere({ teamId: { [Op.in]: mine.length ? mine : [-1] }, assigneeId: null }, company);
+  // Open work only: a closed ticket isn't queue work (D1).
+  const open = (await getTicketStatusBuckets()).open;
+  const teamWork = andWhere({ teamId: { [Op.in]: mine.length ? mine : [-1] }, assigneeId: null, status: { [Op.in]: open } }, company);
   return { [Op.or]: [scope, teamWork] };
 }
 
@@ -73,8 +75,13 @@ async function queueCount(user) {
 async function takeAccess(user, ticket) {
   const member = !!ticket.teamId && (await TeamMember.count({ where: { teamId: ticket.teamId, userId: user.id } })) > 0;
   const memberInCompany = member && (await canAccessCompany(user, ticket.companyId));
-  const viewable = memberInCompany || (await canAccessTicket(user, ticket));
-  return { viewable, member: memberInCompany, edit: viewable && (await canEditTicket(user, ticket)) };
+  // The queue path reaches only what a queue shows: unassigned open work.
+  // An assigned or closed team ticket is, to a member without normal
+  // access, the same as a missing one (no "Already taken by X" either).
+  const queueWork = memberInCompany && ticket.assigneeId === null
+    && (await getTicketStatusBuckets()).open.includes(ticket.status);
+  const viewable = queueWork || (await canAccessTicket(user, ticket));
+  return { viewable, member: memberInCompany && viewable, edit: viewable && (await canEditTicket(user, ticket)) };
 }
 
 // POST /tickets/:id/take. Claims an unassigned ticket for `req.user`. The
@@ -111,6 +118,18 @@ async function alreadyTaken(assigneeId) {
   return new ApiError(409, `Already taken by ${name}`, 'CONFLICT');
 }
 
+// A queue row for a ticket the viewer sees only as queue work (not through
+// their own tier): enough to triage and take it, nothing more — no
+// description, contact, resolution, custom fields or links.
+const QUEUE_ROW_FIELDS = [
+  'id', 'ticketNumber', 'title', 'status', 'priority', 'type', 'source', 'teamId', 'team', 'assigneeId', 'assignee',
+  'sla', 'dueDate', 'dueTime', 'createdAt', 'updatedAt', 'companyId', 'company', 'departmentId', 'department',
+];
+async function queueRowFor(viewer, ticket, shown) {
+  if (await canAccessTicket(viewer, ticket)) return shown;
+  return { ...Object.fromEntries(QUEUE_ROW_FIELDS.filter((k) => k in shown).map((k) => [k, shown[k]])), queueOnly: true };
+}
+
 // For the ticket page: whether the Take it button applies.
 async function canTake(user, ticket) {
   if (ticket.assigneeId !== null) return false;
@@ -119,5 +138,5 @@ async function canTake(user, ticket) {
 }
 
 module.exports = {
-  myTeamIds, resolveQueueTeamIds, queueVisibilityWhere, queueListWhere, queueCount, takeTicket, canTake,
+  myTeamIds, resolveQueueTeamIds, queueVisibilityWhere, queueListWhere, queueCount, takeTicket, canTake, queueRowFor,
 };

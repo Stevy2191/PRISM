@@ -9,7 +9,9 @@ const { parsePagination, paginated } = require('../../utils/pagination');
 const { andWhere, ticketScopeWhere } = require('../../services/recordScope');
 const { getUserTicketScope, canAccessTicket, parseRecordId } = require('../../services/permissionService');
 const { createTicket, updateTicket, deleteTicket } = require('../../services/tickets/ticketWrite');
-const { queueListWhere, queueCount, takeTicket } = require('../../services/tickets/queue');
+const {
+  queueListWhere, queueCount, takeTicket, queueRowFor,
+} = require('../../services/tickets/queue');
 const { mergeTickets } = require('../../services/tickets/merge');
 const { splitTicket } = require('../../services/tickets/split');
 const {
@@ -196,10 +198,11 @@ const list = asyncHandler(async (req, res) => {
   res.json(paginated(
     'tickets',
     {
-      rows: await Promise.all(tickets.map(async (t) => ({
-        ...(await shownTicketFor(req.user, t)),
-        timeLoggedMinutes: minutesByTicket.get(t.id) || 0,
-      }))),
+      rows: await Promise.all(tickets.map(async (t) => {
+        const row = { ...(await shownTicketFor(req.user, t)), timeLoggedMinutes: minutesByTicket.get(t.id) || 0 };
+        // A queue view can include tickets seen only as queue work: trimmed.
+        return req.query.queue ? queueRowFor(req.user, t, row) : row;
+      })),
       count,
     },
     { page, limit }

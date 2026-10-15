@@ -163,3 +163,34 @@ describe('ticket page access', () => {
     expect(expectOk(await tina.agent.get(`${API}/tickets/${t.id}`)).ticket.access.canTake).toBe(false);
   });
 });
+
+describe('final review fixes', () => {
+  it('take: own-tier member gets not-found, not "Already taken", for a team ticket assigned to someone else', async () => {
+    const t = await ticket({ teamId: desk.id, assigneeId: tina.user.id });
+    const res = await olly.agent.post(`${API}/tickets/${t.id}/take`);
+    const missing = await olly.agent.post(`${API}/tickets/999999/take`);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual(missing.body);
+  });
+
+  it('own-tier widening covers open work only: no closed team tickets in the queue, and none can be taken', async () => {
+    const closed = await ticket({ title: 'old', teamId: desk.id, status: 'Closed' });
+    expect(titles(expectOk(await olly.agent.get(`${API}/tickets?queue=mine&status=closed`)))).toEqual([]);
+    expect((await olly.agent.post(`${API}/tickets/${closed.id}/take`)).status).toBe(404);
+    expect((await models.Ticket.findByPk(closed.id)).assigneeId).toBeNull();
+  });
+
+  it('a queue row visible only through the queue carries no description, contact or other detail', async () => {
+    await ticket({ title: 'claimable', description: 'secret details', teamId: desk.id });
+    const [row] = expectOk(await olly.agent.get(`${API}/tickets?queue=mine`)).tickets;
+    expect(row.title).toBe('claimable');
+    expect(row.queueOnly).toBe(true);
+    for (const key of ['description', 'contact', 'contactId', 'resolution', 'csat', 'csatSurvey', 'linkedAssets', 'fieldValues', 'customFields', 'project']) {
+      expect(row[key]).toBeUndefined();
+    }
+    // Someone with normal access to it gets the full row.
+    const [full] = expectOk(await tina.agent.get(`${API}/tickets?queue=mine`)).tickets;
+    expect(full.description).toBe('secret details');
+    expect(full.queueOnly).toBeUndefined();
+  });
+});
