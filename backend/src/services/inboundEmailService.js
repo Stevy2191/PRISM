@@ -9,7 +9,7 @@ const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const { Op } = require('sequelize');
 const {
-  Ticket, Contact, Comment, Attachment, User, EmailProcessingLog, SystemSettings, Company, CompanyDomain,
+  Ticket, Contact, Comment, Attachment, User, EmailProcessingLog, SystemSettings, Company, CompanyDomain, TicketCc,
 } = require('../models');
 const { decryptToken } = require('../utils/tokenCrypto');
 const { UPLOAD_ROOT } = require('../middleware/upload');
@@ -17,6 +17,11 @@ const { getFirstTicketStatusByBehavior } = require('./statusBehavior');
 const { getAllSettings } = require('../controllers/settingsController');
 const { sendTicketEmail, buildTicketMessageId } = require('./email/ticketMail');
 const { findTicketNumber, classifyInbound } = require('./email/inboundClassify');
+const { verifySender, isMicrosoftHost } = require('./email/senderAuth');
+const { isEmail, MAX_EXTRA: MAX_TICKET_CCS } = require('./email/recipients');
+const { ownAddresses } = require('./email/ticketMail');
+const { assertCanWorkTicket } = require('./ticketPeople');
+const { canEditTicket } = require('./permissionService');
 const { FREE_MAIL_DOMAINS } = require('./companyService');
 const { notifyComment } = require('./notifications');
 
@@ -213,7 +218,9 @@ async function sendAutoReply(ticket, contact) {
   await sendTicketEmail('contact_auto_reply', { ticket, contact, to: [contact.email] });
 }
 
-async function createTicketFromEmail({ contact, subject, textBody }) {
+async function createTicketFromEmail({
+  contact, subject, textBody, assigneeId = null,
+}) {
   const cleanTitle = String(subject || '').replace(/^\s*(re|fwd?)\s*:\s*/gi, '').trim().slice(0, 255) || '(no subject)';
   const firstOpenStatus = await getFirstTicketStatusByBehavior('open');
   return Ticket.create({
@@ -227,7 +234,7 @@ async function createTicketFromEmail({ contact, subject, textBody }) {
     // Spec: the department defaults to the contact's (it is in the
     // contact's company, as the ticket will be).
     departmentId: contact.departmentId || null,
-    assigneeId: null,
+    assigneeId,
     createdBy: null,
   });
 }
@@ -264,6 +271,39 @@ function logResult(parsed, fromAddress, subject, result, error) {
   });
 }
 
+// All addresses in a parsed address header (mailparser groups them).
+function addressesOf(field) {
+  const groups = Array.isArray(field) ? field : (field ? [field] : []);
+  const out = [];
+  groups.forEach((g) => (g.value || []).forEach((a) => {
+    if (a.address) out.push({ address: a.address.trim().toLowerCase(), name: a.name || '' });
+    (a.group || []).forEach((m) => { if (m.address) out.push({ address: m.address.trim().toLowerCase(), name: m.name || '' }); });
+  }));
+  return out;
+}
+
+// The active PRISM user an address belongs to, if any.
+async function findStaffByEmail(address) {
+  if (!address) return null;
+  return User.findOne({ where: { email: address, isActive: true }, order: [['id', 'ASC']] });
+}
+
+// Adds addresses to a ticket's CC list (from email: addedById null), up to
+// the list's cap, skipping invalid ones and ones already on it.
+async function addCcs(ticketId, addresses) {
+  const existing = new Set((await TicketCc.findAll({ where: { ticketId }, attributes: ['email'] })).map((c) => c.email));
+  // eslint-disable-next-line no-restricted-syntax
+  for (const email of addresses) {
+    if (existing.size >= MAX_TICKET_CCS) break;
+    if (!isEmail(email) || existing.has(email)) continue; // eslint-disable-line no-continue
+    existing.add(email);
+    // eslint-disable-next-line no-await-in-loop
+    await TicketCc.create({ ticketId, email, addedById: null });
+  }
+}
+
+const unverifiedBody = (address, textBody) => `Unverified sender ${address}:\n\n${textBody}`;
+
 // Everything after fetching: decides what a parsed message is (see
 // services/email/inboundClassify.js), acts on it and logs it. Returns
 // { action, ticketId }.
@@ -272,10 +312,11 @@ async function handleParsedMessage(parsed, config) {
   const fromName = parsed.from?.value?.[0]?.name || '';
   const subject = parsed.subject || '(no subject)';
   const textBody = parsed.text || htmlToText(parsed.html) || '';
+  const own = new Set([String(config.address || '').toLowerCase(), ...(await ownAddresses())].filter(Boolean));
 
   // Never let PRISM's own outbound mail (auto-replies, tech replies) loop
   // back in as a new "inbound" message if the mailbox ever sees its own sent copy.
-  if (fromAddress && fromAddress === String(config.address || '').toLowerCase()) {
+  if (fromAddress && own.has(fromAddress)) {
     const result = { action: 'ignored', ticketId: null };
     await logResult(parsed, fromAddress, subject, result, 'From address matches the configured inbox itself');
     return result;
@@ -285,16 +326,55 @@ async function handleParsedMessage(parsed, config) {
   const ticket = ticketId
     ? await Ticket.findByPk(ticketId, { include: [{ model: Contact, as: 'contact', attributes: ['email'] }] })
     : null;
-  // The subject/In-Reply-To/References headers are attacker-controlled —
-  // matching a ticket id there is not proof the sender owns that ticket.
-  // Only the ticket's contact counts as its side; anyone else gets a new
+
+  // Who is the sender? The subject/In-Reply-To/References headers are
+  // attacker-controlled — a ticket number there is not proof the sender
+  // belongs to that ticket. Only its contact or CC list are its side; staff
+  // must pass the receiving server's sender check; anyone else gets a new
   // ticket of their own instead of injecting content into this one.
-  const senderKind = ticket && ticket.contact && ticket.contact.email
-    && ticket.contact.email.toLowerCase() === fromAddress ? 'contact_side' : 'other';
+  let senderKind = 'other';
+  if (ticket && fromAddress) {
+    const isContact = ticket.contact && String(ticket.contact.email || '').toLowerCase() === fromAddress;
+    const isCc = !isContact && !!(await TicketCc.findOne({ where: { ticketId: ticket.id, email: fromAddress } }));
+    if (isContact || isCc) senderKind = 'contact_side';
+  }
+  const staff = senderKind === 'other' ? await findStaffByEmail(fromAddress) : null;
+  if (staff) senderKind = 'staff';
+
+  let verified = false;
+  let staffCanEdit = false;
+  if (staff) {
+    verified = verifySender(parsed.headers, fromAddress, {
+      mode: config.staffSenderCheck || 'strict',
+      trustedAuthServId: config.trustedAuthServId || '',
+      microsoftMailbox: isMicrosoftHost(config.host),
+    }).verified;
+    staffCanEdit = !!ticket && (await canEditTicket(staff, ticket));
+  }
+
+  // The customers on a staff email: To/Cc recipients that are not staff,
+  // not PRISM's own mailboxes and not the sender. A contact is never made
+  // for a staff address.
+  const customers = [];
+  if (staff && !ticket) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const r of [...addressesOf(parsed.to), ...addressesOf(parsed.cc)]) {
+      if (own.has(r.address) || r.address === fromAddress || !isEmail(r.address)) continue; // eslint-disable-line no-continue
+      if (customers.some((c) => c.address === r.address)) continue; // eslint-disable-line no-continue
+      // eslint-disable-next-line no-await-in-loop
+      if (await findStaffByEmail(r.address)) continue; // eslint-disable-line no-continue
+      customers.push(r);
+    }
+  }
+
   const action = classifyInbound({
-    ticketFound: !!ticket, senderKind, verified: false, staffCanEdit: false, hasCustomerRecipient: false,
+    ticketFound: !!ticket, senderKind, verified, staffCanEdit, hasCustomerRecipient: customers.length > 0,
   });
   const systemActorId = await getSystemActorUserId();
+  const done = async (result, error) => {
+    await logResult(parsed, fromAddress, subject, result, error);
+    return result;
+  };
 
   if (action === 'reply_added') {
     const comment = await Comment.create({
@@ -302,27 +382,60 @@ async function handleParsedMessage(parsed, config) {
     });
     await saveAttachments(parsed.attachments, ticket.id, systemActorId);
     if (systemActorId) await notifyComment(ticket, comment, systemActorId).catch(() => {});
-    const result = { action, ticketId: ticket.id };
-    await logResult(parsed, fromAddress, subject, result);
-    return result;
+    return done({ action, ticketId: ticket.id });
   }
 
-  const contact = await findOrCreateContact(fromAddress, fromName);
-  if (!contact) {
-    const result = { action: 'ignored', ticketId: null };
-    await logResult(parsed, fromAddress, subject, result, 'No usable From address');
-    return result;
+  if (action === 'staff_reply_added') {
+    // The recipients already have it: never re-sent. Not a first response
+    // either (only the comment endpoint records one).
+    const comment = await Comment.create({
+      body: textBody, authorId: staff.id, ticketId: ticket.id, type: 'comment_public', viaEmail: true,
+    });
+    await saveAttachments(parsed.attachments, ticket.id, staff.id);
+    await notifyComment(ticket, comment, staff.id).catch(() => {});
+    return done({ action, ticketId: ticket.id });
   }
+
+  if (action === 'unverified_note') {
+    await Comment.create({
+      body: unverifiedBody(fromAddress, textBody), authorId: systemActorId, ticketId: ticket.id, type: 'comment_private', viaEmail: true,
+    });
+    await saveAttachments(parsed.attachments, ticket.id, systemActorId);
+    return done({ action, ticketId: ticket.id });
+  }
+
+  if (action === 'ignored') return done({ action, ticketId: null }, 'No customer on the email');
+
+  if (action === 'staff_ticket_created' || action === 'staff_ticket_unverified') {
+    const isVerified = action === 'staff_ticket_created';
+    const [first, ...others] = customers;
+    const contact = await findOrCreateContact(first.address, first.name);
+    // Assigned to the sender only if they can work this company's tickets.
+    const assigneeId = isVerified ? await assertCanWorkTicket(staff.id, contact.companyId, 'Sender').catch(() => null) : null;
+    const created = await createTicketFromEmail({
+      contact, subject, textBody: null, assigneeId,
+    });
+    await Comment.create(isVerified
+      ? { body: textBody, authorId: staff.id, ticketId: created.id, type: 'comment_public', viaEmail: true }
+      : { body: unverifiedBody(fromAddress, textBody), authorId: systemActorId, ticketId: created.id, type: 'comment_private', viaEmail: true });
+    if (isVerified) await addCcs(created.id, others.map((c) => c.address));
+    await saveAttachments(parsed.attachments, created.id, isVerified ? staff.id : systemActorId);
+    return done({ action, ticketId: created.id });
+  }
+
+  // ticket_created: a new ticket for the sender (never a staff address —
+  // staff without a customer recipient were ignored above).
+  const contact = await findOrCreateContact(fromAddress, fromName);
+  if (!contact) return done({ action: 'ignored', ticketId: null }, 'No usable From address');
   const created = await createTicketFromEmail({ contact, subject, textBody });
+  await addCcs(created.id, addressesOf(parsed.cc).map((c) => c.address).filter((e) => !own.has(e) && e !== fromAddress));
   await saveAttachments(parsed.attachments, created.id, systemActorId);
-  const result = { action: 'ticket_created', ticketId: created.id };
-  await logResult(parsed, fromAddress, subject, result);
   setImmediate(() => {
     sendAutoReply(created, contact).catch((err) => {
       console.error('[inbound-email] auto-reply failed for ticket', created.id, err.message);
     });
   });
-  return result;
+  return done({ action: 'ticket_created', ticketId: created.id });
 }
 
 async function processOneMessage(client, uid, config) {

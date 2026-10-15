@@ -443,7 +443,7 @@ full code (user rule).
     (minus own addresses and the sender) to `TicketCcs`.
   - A contact is **never** created for a staff address.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'a CC-listed address replying is appended'`
   - `'a verified tech CCing the helpdesk with #N adds a via-email reply and sends nothing'`
   - `'an unverified tech becomes a private unverified note'`
@@ -453,10 +453,10 @@ full code (user rule).
   - `'only staff recipients: ignored'`
   - `'new ticket from email captures its Cc list minus our mailbox'`
   - `'a contact with "#77" in the subject on someone else\'s ticket 77 gets a new ticket'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run the tests and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run the tests and see them pass.
+- [x] Commit.
 
 ### Task 10: Technician email notifications
 

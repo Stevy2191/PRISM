@@ -1,5 +1,5 @@
 // Conversation tab: the comment thread.
-import { IconLock, IconWorld } from '@tabler/icons-react';
+import { IconLock, IconWorld, IconMail } from '@tabler/icons-react';
 import LoadMore from '../../../components/LoadMore';
 import { initials } from '../../../utils/userDisplay';
 import { TEXT, MUTED, timeAgo } from '../theme';
@@ -26,7 +26,7 @@ export function ConversationTab({ ticket, comments, total, onLoadMore }) {
               {initials(c.author?.displayName)}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold" style={{ color: TEXT }}>{c.author?.displayName}</span>
                 <span
                   className="rounded-[3px] px-2 py-0.5 text-[10px] font-medium"
@@ -46,6 +46,11 @@ export function ConversationTab({ ticket, comments, total, onLoadMore }) {
                 {isPublicComment && (
                   <span className="conv-badge--public flex items-center gap-1 rounded-[3px] px-2 py-0.5 text-[10px] font-medium">
                     <IconWorld size={10} /> Comment
+                  </span>
+                )}
+                {c.viaEmail && (
+                  <span className="flex items-center gap-1 rounded-[3px] border px-2 py-0.5 text-[10px] font-medium" style={{ color: MUTED }} title="Captured from an email sent to the helpdesk mailbox">
+                    <IconMail size={10} /> via email
                   </span>
                 )}
                 <span className="text-xs" style={{ color: MUTED }}>{timeAgo(c.createdAt)}</span>
