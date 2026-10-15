@@ -20,7 +20,7 @@ const { Op } = require('sequelize');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { UPLOAD_ROOT } = require('../../middleware/upload');
-const { notifyAssigned, notifyWatchers } = require('../../services/notifications');
+const { notifyAssigned, notifyWatchers, notifyNewInQueue } = require('../../services/notifications');
 const { logActivity, resolveDisplayValue } = require('../../services/ticketActivity');
 const { slaFilterWhere, SLA_FILTERS } = require('../../services/sla/slaView');
 const {
@@ -455,6 +455,9 @@ const create = asyncHandler(async (req, res) => {
     await notifyWatchers(ticket, `Ticket created: ${ticket.title}`, [req.user.id]);
   }
   await evaluateRules(ticket.id, 'ticket_created');
+  // After the rules, which may have assigned it: only an unassigned ticket
+  // is waiting in its team's queue.
+  await notifyNewInQueue(await Ticket.findByPk(ticket.id), req.user.id);
   // Fire-and-forget — never throws, never awaited on the response path (see
   // calendarPush.js's module comment).
   syncTicketToExternalCalendars(ticket.id);
@@ -665,6 +668,9 @@ const update = asyncHandler(async (req, res) => {
   }
   if (changes.assigneeId !== undefined && ticket.assigneeId !== previousAssigneeId) {
     await evaluateRules(ticket.id, 'ticket_assigned');
+  }
+  if (changes.teamId !== undefined && ticket.teamId && ticket.teamId !== before.teamId) {
+    await notifyNewInQueue(await Ticket.findByPk(ticket.id), req.user.id);
   }
   if (changes.dueDate !== undefined || changes.dueTime !== undefined || changes.assigneeId !== undefined) {
     if (previousAssigneeId && previousAssigneeId !== ticket.assigneeId) {

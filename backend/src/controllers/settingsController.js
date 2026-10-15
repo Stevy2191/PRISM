@@ -19,7 +19,7 @@ const DEFAULT_LOGIN_BULLETS = JSON.stringify([
 ]);
 
 // Every Notification.type value (see the model's ENUM) — all on by default.
-const ALL_NOTIFICATION_TYPES = ['assigned', 'comment', 'reply', 'overdue', 'due_soon', 'status_change', 'watcher_update', 'workflow', 'sla_warning', 'sla_breached'];
+const ALL_NOTIFICATION_TYPES = ['assigned', 'comment', 'reply', 'overdue', 'due_soon', 'status_change', 'watcher_update', 'workflow', 'sla_warning', 'sla_breached', 'new_in_queue'];
 const DEFAULT_NOTIFICATION_TYPES = JSON.stringify(ALL_NOTIFICATION_TYPES);
 
 // Defaults applied when a setting has not been configured.
@@ -69,6 +69,11 @@ const DEFAULTS = {
   // notifications.js's createNotification() — the single choke point every
   // notification (event-driven or derived) already passes through.
   'notifications.enabledTypes': DEFAULT_NOTIFICATION_TYPES,
+  // Settings -> Notifications: whether each emailing event type emails by
+  // default (users can override theirs). See services/email/notificationMail.
+  'notifications.emailDefaults': JSON.stringify({
+    assigned: true, comment: true, new_in_queue: true, sla_warning: true, sla_breached: true, watcher_update: false,
+  }),
 
   // Settings -> Customer Happiness: automated post-close CSAT survey emails
   // (distinct from the older staff-entered happy/neutral/unhappy CsatResponse
@@ -94,7 +99,7 @@ const DEFAULTS = {
 };
 
 // Settings that store JSON-encoded values rather than plain strings.
-const JSON_KEYS = ['branding.loginBullets', 'notifications.enabledTypes'];
+const JSON_KEYS = ['branding.loginBullets', 'notifications.enabledTypes', 'notifications.emailDefaults'];
 
 // Never sent back to the client once saved — GET/PUT/PATCH responses redact
 // these to '' (with a companion `<key>Set` boolean so the UI can still show
@@ -264,6 +269,15 @@ async function upsertSettings(rawIncoming, userId) {
   // The organization's name is also the internal company's (user decision
   // 2026-10-12): checked before anything is written.
   if (keys.includes('company.name')) incoming['company.name'] = await checkOrganizationName(incoming['company.name']);
+  if (keys.includes('notifications.emailDefaults')) {
+    // Lazy: the mail modules load this controller.
+    const { validEmailPrefs } = require('../services/email/notificationMail'); // eslint-disable-line global-require
+    let v = incoming['notifications.emailDefaults'];
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = undefined; } }
+    const checked = validEmailPrefs(v);
+    if (!checked.ok || checked.value === null) throw new ApiError(400, 'Email defaults must be on/off per notification event', 'VALIDATION_ERROR');
+    incoming['notifications.emailDefaults'] = checked.value;
+  }
   for (const key of keys.filter((k) => Object.hasOwn(RANGES, k))) {
     const { min, max, what } = RANGES[key];
     const n = Number(incoming[key]);

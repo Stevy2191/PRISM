@@ -290,6 +290,8 @@ export default function Preferences() {
 
       {isStaff && <SignatureSection user={user} onSaved={refresh} />}
 
+      {isStaff && <EmailNotificationsSection user={user} onSaved={refresh} />}
+
       <CalendarIntegrationsSection />
 
       {user?.isLocalAccount && (
@@ -395,6 +397,65 @@ const PROVIDER_META = {
   microsoft: { label: 'Microsoft', badgeClass: 'bg-sky-50 text-sky-700' },
   ical: { label: 'iCal', badgeClass: 'bg-navy-100 text-navy-600' },
 };
+
+// Which notifications also arrive by email (spec 5a). "Default" follows
+// what an administrator set under Settings → Notifications.
+const EMAIL_EVENTS = [
+  ['assigned', 'A ticket is assigned to me'],
+  ['comment', 'Someone comments on my ticket'],
+  ['new_in_queue', 'A new ticket lands in my team\'s queue'],
+  ['sla_warning', 'An SLA is at risk'],
+  ['sla_breached', 'An SLA is breached'],
+  ['watcher_update', 'A ticket I watch is updated'],
+];
+
+function EmailNotificationsSection({ user, onSaved }) {
+  const initial = user?.notificationEmailPrefs || {};
+  const [prefs, setPrefs] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const choose = async (key, value) => {
+    const next = { ...prefs };
+    if (value === 'default') delete next[key]; else next[key] = value === 'on';
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api.patch(`/users/${user.id}/preferences`, { notificationEmailPrefs: Object.keys(next).length ? next : null });
+      setPrefs(next);
+      setNotice('Saved');
+      onSaved?.();
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card p-5" aria-label="Email notifications">
+      <p className="font-medium text-navy-900">Email notifications</p>
+      <p className="text-sm text-navy-500">Also send these notifications to your email address. "Default" follows your administrator's choice.</p>
+      {error && <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <div className="mt-3 divide-y divide-navy-100">
+        {EMAIL_EVENTS.map(([key, label]) => {
+          const value = typeof prefs[key] === 'boolean' ? (prefs[key] ? 'on' : 'off') : 'default';
+          return (
+            <label key={key} className="flex items-center justify-between gap-3 py-2 text-sm">
+              <span className="text-navy-700">{label}</span>
+              <select className="input h-8 w-auto" value={value} disabled={busy} onChange={(e) => choose(key, e.target.value)} aria-label={`Email: ${label}`}>
+                <option value="default">Default</option>
+                <option value="on">Email me</option>
+                <option value="off">Don't email</option>
+              </select>
+            </label>
+          );
+        })}
+      </div>
+      {notice && <p role="status" className="mt-2 text-sm" style={{ color: 'var(--color-success)' }}>{notice}</p>}
+    </div>
+  );
+}
 
 // Added to the replies you email to contacts (spec 5a). The server
 // sanitizes it on save.

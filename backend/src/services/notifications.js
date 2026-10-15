@@ -6,7 +6,9 @@
 // user's notifications or dashboard are fetched, and idempotently inserts at
 // most one notification per ticket per type.
 const { Op } = require('sequelize');
-const { Notification, Ticket, TicketWatcher, SystemSettings, User } = require('../models');
+const {
+  Notification, Ticket, TicketWatcher, TeamMember, SystemSettings, User,
+} = require('../models');
 const { getTicketStatusBuckets } = require('./statusBehavior');
 
 const DUE_SOON_DAYS = 2;
@@ -48,7 +50,27 @@ async function createNotification({ userId, type, message, ticketId = null }) {
   if (!userId) return null;
   if (!(await isTypeEnabled(type))) return null;
   if (ticketId && !(await canReachTicket(userId, ticketId))) return null;
-  return Notification.create({ userId, type, message, ticketId });
+  const notification = await Notification.create({ userId, type, message, ticketId });
+  // Some types also email the user (their preference, else the admin
+  // default); queued after this request. Lazy: the mail modules load the
+  // settings controller, which loads this one.
+  require('./email/notificationMail').queueNotificationEmail(notification); // eslint-disable-line global-require
+  return notification;
+}
+
+// A ticket landing in a team's queue unassigned (created there, or moved
+// there): every member hears about it, except whoever put it there.
+async function notifyNewInQueue(ticket, actorId) {
+  if (!ticket.teamId || ticket.assigneeId) return;
+  const members = await TeamMember.findAll({ where: { teamId: ticket.teamId }, attributes: ['userId'], order: [['userId', 'ASC']] });
+  // eslint-disable-next-line no-restricted-syntax
+  for (const { userId } of members) {
+    if (userId === actorId) continue; // eslint-disable-line no-continue
+    // eslint-disable-next-line no-await-in-loop
+    await createNotification({
+      userId, type: 'new_in_queue', message: `New ticket in your team's queue: ${ticket.title}`, ticketId: ticket.id,
+    });
+  }
 }
 
 // Ticket assigned (on create or reassignment). Never notifies the actor
@@ -150,5 +172,6 @@ module.exports = {
   notifyAssigned,
   notifyComment,
   notifyWatchers,
+  notifyNewInQueue,
   syncDerivedNotifications,
 };

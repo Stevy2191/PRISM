@@ -15,7 +15,13 @@ const TYPES = [
   ['workflow', 'Workflow rule notification', 'A workflow rule’s "notify" action fires.'],
   ['sla_warning', 'SLA at risk', 'A ticket you’re assigned (or your team, before it’s assigned) is close to an SLA target.'],
   ['sla_breached', 'SLA breached', 'A ticket you’re assigned (or your team, before it’s assigned) missed an SLA target.'],
+  ['new_in_queue', 'New in team queue', 'A ticket lands in your team’s queue with nobody assigned.'],
 ];
+
+// Events that can also email; users can change their own (Preferences).
+const EMAIL_DEFAULTS = {
+  assigned: true, comment: true, new_in_queue: true, sla_warning: true, sla_breached: true, watcher_update: false,
+};
 
 export default function Notifications() {
   const [enabled, setEnabled] = useState(null);
@@ -24,6 +30,8 @@ export default function Notifications() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [snapshot, setSnapshot] = useState(null); // as loaded or last saved
+  const [emailDefaults, setEmailDefaults] = useState(EMAIL_DEFAULTS);
+  const [emailSnapshot, setEmailSnapshot] = useState(EMAIL_DEFAULTS);
 
   useEffect(() => {
     api.get('/settings')
@@ -37,6 +45,11 @@ export default function Notifications() {
         const initial = new Set(Array.isArray(list) ? list : TYPES.map(([key]) => key));
         setEnabled(initial);
         setSnapshot([...initial].sort());
+        let defaults = {};
+        try { defaults = JSON.parse(data.settings['notifications.emailDefaults']) || {}; } catch { defaults = {}; }
+        const merged = { ...EMAIL_DEFAULTS, ...defaults };
+        setEmailDefaults(merged);
+        setEmailSnapshot(merged);
       })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
@@ -53,8 +66,9 @@ export default function Notifications() {
     setSaving(true);
     setError('');
     try {
-      await api.put('/settings', { settings: { 'notifications.enabledTypes': [...enabled] } });
+      await api.put('/settings', { settings: { 'notifications.enabledTypes': [...enabled], 'notifications.emailDefaults': emailDefaults } });
       setSnapshot([...enabled].sort());
+      setEmailSnapshot(emailDefaults);
       setSaved(true);
     } catch (err) {
       setError(errMessage(err));
@@ -66,26 +80,45 @@ export default function Notifications() {
   if (loading || !enabled) return <Spinner />;
 
   return (
-    <SettingsPage description="System-wide switches for which events create an in-app notification. Turning an event off here stops it for everyone, not just you.">
+    <SettingsPage description="System-wide switches for which events create a notification. Turning an event off here stops it for everyone, not just you. Some events can also email; this sets the default, and each person can change theirs in Preferences.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={save} className="card divide-y divide-navy-100">
         {TYPES.map(([key, label, desc]) => (
-          <label key={key} className="flex cursor-pointer items-start justify-between gap-3 p-4">
+          <div key={key} className="flex items-start justify-between gap-3 p-4">
             <div>
               <p className="font-medium text-navy-900">{label}</p>
               <p className="text-sm text-navy-500">{desc}</p>
             </div>
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 flex-shrink-0 rounded border-navy-300 text-prism"
-              checked={enabled.has(key)}
-              onChange={() => toggle(key)}
-            />
-          </label>
+            <div className="flex flex-shrink-0 flex-col items-end gap-1 text-sm text-navy-700">
+              <label className="flex cursor-pointer items-center gap-2">
+                On
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-navy-300 text-prism"
+                  checked={enabled.has(key)}
+                  onChange={() => toggle(key)}
+                  aria-label={`${label}: on`}
+                />
+              </label>
+              {Object.hasOwn(EMAIL_DEFAULTS, key) && (
+                <label className="flex cursor-pointer items-center gap-2" title="Email this by default; each person can change it in Preferences">
+                  Email by default
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-navy-300 text-prism"
+                    checked={!!emailDefaults[key]}
+                    disabled={!enabled.has(key)}
+                    onChange={(e) => { setSaved(false); setEmailDefaults((d) => ({ ...d, [key]: e.target.checked })); }}
+                    aria-label={`${label}: email by default`}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
         ))}
         <div className="p-4">
-          <SaveBar dirty={isDirty([...enabled].sort(), snapshot)} saving={saving} saved={saved} />
+          <SaveBar dirty={isDirty([...enabled].sort(), snapshot) || isDirty(emailDefaults, emailSnapshot)} saving={saving} saved={saved} />
         </div>
       </form>
     </SettingsPage>

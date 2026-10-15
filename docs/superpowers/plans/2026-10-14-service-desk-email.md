@@ -507,7 +507,7 @@ full code (user rule).
 - `updatePreferences` accepts `notificationEmailPrefs` as an object with
   boolean values for known keys only; anything else is a 400.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'assignment emails the assignee when their pref is on, not when off'`
   - `'the admin default applies when the user has no pref'`
   - `'a type turned off system-wide sends neither in-app nor email'`
@@ -516,12 +516,12 @@ full code (user rule).
   - `'an inactive user gets no email'`
   - `'bad notificationEmailPrefs is a 400'`
   - `'SLA warning emails through staff_sla_warning'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run the tests plus `sla*.test.js` and `notifications*`, and see them
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run the tests plus `sla*.test.js` and `notifications*`, and see them
   pass.
-- [ ] Build the UI.
-- [ ] Commit.
+- [x] Build the UI.
+- [x] Commit.
 
 ### Task 11: Ticket status rework (added 2026-10-15, user decisions)
 

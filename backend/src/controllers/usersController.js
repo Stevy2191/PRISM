@@ -5,6 +5,7 @@ const {
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { sanitizeRichHtml } = require('../utils/richHtml');
+const { validEmailPrefs } = require('../services/email/notificationMail');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const {
@@ -456,9 +457,16 @@ const updatePreferences = asyncHandler(async (req, res) => {
 
   const {
     timerMode, timerMinThreshold, timerPromptBeforeLog, timerReminderMinutes, timerReminderRepeatMinutes,
-    emailSignature,
+    emailSignature, notificationEmailPrefs,
   } = req.body || {};
   const changes = {};
+
+  // Email on/off per notification event; null = follow the admin defaults.
+  if (notificationEmailPrefs !== undefined) {
+    const checked = validEmailPrefs(notificationEmailPrefs);
+    if (!checked.ok) throw new ApiError(400, 'notificationEmailPrefs must be on/off per notification event', 'VALIDATION_ERROR');
+    changes.notificationEmailPrefs = checked.value;
+  }
 
   // Rich HTML added to emailed replies: sanitized here, on save.
   if (emailSignature !== undefined) {
