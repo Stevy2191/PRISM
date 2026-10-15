@@ -117,3 +117,16 @@ it('require-time-before-close fails only the tickets without time', async () => 
     { id: without.id, ok: false, error: 'Log time on this ticket before closing it' },
   ]);
 });
+
+it('a view-only user changes nothing: each ticket refuses for lack of edit access', async () => {
+  const { createUserAndLogin, ROLE } = require('./helpers'); // eslint-disable-line global-require
+  const viewer = await createUserAndLogin({ username: 'vera', roleName: ROLE.READ_ONLY, departmentId: w.deptA.id });
+  const t = await ticket();
+  for (const [action, value] of [['status', 'On Hold'], ['priority', 'high'], ['assign', viewer.user.id], ['close', undefined], ['delete', undefined]]) {
+    // eslint-disable-next-line no-await-in-loop
+    const body = expectOk(await bulk(viewer.agent, { ids: [t.id], action, value }));
+    expect(body.results[0].ok).toBe(false);
+  }
+  const fresh = await models.Ticket.findByPk(t.id);
+  expect([fresh.status, fresh.priority, fresh.assigneeId]).toEqual(['Open', 'medium', null]);
+});
