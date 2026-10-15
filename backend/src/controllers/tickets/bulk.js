@@ -10,6 +10,7 @@ const { closedStatusName } = require('../../services/statusBehavior');
 const {
   updateTicket, deleteTicket, addTicketWatcher,
 } = require('../../services/tickets/ticketWrite');
+const { mergeTickets } = require('../../services/tickets/merge');
 
 const MAX_IDS = 100;
 const ACTIONS = ['status', 'priority', 'assign', 'team', 'close', 'add_watcher', 'delete', 'merge'];
@@ -45,8 +46,7 @@ const bulk = asyncHandler(async (req, res) => {
   if (!Array.isArray(ids) || !ids.length || ids.length > MAX_IDS) {
     throw new ApiError(400, `Choose between 1 and ${MAX_IDS} tickets`, 'VALIDATION_ERROR');
   }
-  // 'merge' is wired in with the merge service (plan 5b task 6).
-  if (!ACTIONS.includes(action) || action === 'merge') throw new ApiError(400, 'Unknown action', 'VALIDATION_ERROR');
+  if (!ACTIONS.includes(action)) throw new ApiError(400, 'Unknown action', 'VALIDATION_ERROR');
 
   // De-duplicated, in the order given; an id that doesn't parse keeps its
   // raw value in the result so the caller can match it up.
@@ -59,6 +59,22 @@ const bulk = asyncHandler(async (req, res) => {
     seen.add(key);
     items.push({ raw, id });
   });
+
+  // A merge is one operation: all of it happens or none, so every id gets
+  // the same result.
+  if (action === 'merge') {
+    const valid = items.filter((i) => i.id);
+    let error = valid.length === items.length ? null : NOT_FOUND;
+    if (!error) {
+      try {
+        await mergeTickets(req, value, valid.map((i) => i.id));
+      } catch (err) {
+        error = resultError(err, value);
+      }
+    }
+    res.json({ results: items.map(({ raw, id }) => (error ? { id: id || raw, ok: false, error } : { id, ok: true })) });
+    return;
+  }
 
   const extra = EXTRA_PERMISSION[action];
   const allowed = !extra || (await hasPermission(req.user.id, extra));

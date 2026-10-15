@@ -14,6 +14,7 @@ const {
   TicketSla,
   SlaPolicy,
   TicketDueDateChange,
+  Ticket,
 } = require('../../models');
 const { toSlaView } = require('../../services/sla/slaView');
 const { ticketWaitingView } = require('../../services/ticketWaiting');
@@ -21,7 +22,7 @@ const { Op, col } = require('sequelize');
 const { ApiError } = require('../../middleware/error');
 const { toDateString } = require('../../utils/orgTime');
 const {
-  canEditTicket, canAccessProject, canModerateTicketContent, hasPermission,
+  canEditTicket, canAccessProject, canModerateTicketContent, hasPermission, canAccessTicket,
 } = require('../../services/permissionService');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
@@ -199,6 +200,13 @@ async function ticketDetailFor(viewer, ticket) {
     json.sla = toSlaView(ticket.sla, new Date(), changes);
   }
   json.waiting = await ticketWaitingView(ticket);
+  // Merged away (5b): the live ticket, with its title only for viewers who
+  // can open it.
+  json.mergedInto = null;
+  if (ticket.mergedIntoId) {
+    const into = await Ticket.findByPk(ticket.mergedIntoId, { attributes: ['id', 'title', 'companyId', 'departmentId', 'assigneeId'] });
+    if (into) json.mergedInto = (await canAccessTicket(viewer, into)) ? { id: into.id, title: into.title } : { id: into.id };
+  }
   return { ...json, access: await ticketAccessFor(viewer, ticket) };
 }
 

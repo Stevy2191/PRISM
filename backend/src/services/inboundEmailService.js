@@ -186,7 +186,7 @@ async function findOrCreateContact(fromEmail, fromName) {
   });
 }
 
-async function saveAttachments(mailAttachments, ticketId, uploaderId) {
+async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId = null) {
   if (!Array.isArray(mailAttachments) || !mailAttachments.length || !uploaderId) return;
 
   const settings = await getAllSettings();
@@ -210,6 +210,7 @@ async function saveAttachments(mailAttachments, ticketId, uploaderId) {
       mimeType: att.contentType || null,
       size: att.content.length,
       ticketId,
+      commentId,
       uploadedById: uploaderId,
     });
   }
@@ -342,9 +343,18 @@ async function handleParsedMessage(parsed, config) {
       : null;
     if (earlier) ref = { id: earlier.ticketId, loose: false };
   }
-  let ticket = ref
-    ? await Ticket.findByPk(ref.id, { include: [{ model: Contact, as: 'contact', attributes: ['email'] }] })
-    : null;
+  const withContact = { include: [{ model: Contact, as: 'contact', attributes: ['email'] }] };
+  let ticket = ref ? await Ticket.findByPk(ref.id, withContact) : null;
+  // A merged ticket's mail belongs to the ticket it was merged into (5b).
+  // Followed before the sender is classified, so the contact and CC checks
+  // run against the live ticket. Bounded: a loop or a missing link stops at
+  // the last ticket found.
+  for (let hops = 0; ticket && ticket.mergedIntoId && hops < 10; hops += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const next = await Ticket.findByPk(ticket.mergedIntoId, withContact);
+    if (!next) break;
+    ticket = next;
+  }
 
   // Who is the sender? The subject/In-Reply-To/References headers are
   // attacker-controlled — a ticket number there is not proof the sender
@@ -403,7 +413,7 @@ async function handleParsedMessage(parsed, config) {
     const comment = await Comment.create({
       body: textBody, authorId: systemActorId, ticketId: ticket.id, type: 'reply',
     });
-    await saveAttachments(parsed.attachments, ticket.id, systemActorId);
+    await saveAttachments(parsed.attachments, ticket.id, systemActorId, comment.id);
     // A reply never reopens a closed ticket: a person decides (user
     // decision 2026-10-15). An open or on-hold one moves to User responded.
     const kind = (await getTicketStatusBehaviorMap()).get(ticket.status);
@@ -429,7 +439,7 @@ async function handleParsedMessage(parsed, config) {
     const comment = await Comment.create({
       body: textBody, authorId: staff.id, ticketId: ticket.id, type: 'comment_public', viaEmail: true,
     });
-    await saveAttachments(parsed.attachments, ticket.id, staff.id);
+    await saveAttachments(parsed.attachments, ticket.id, staff.id, comment.id);
     await notifyComment(ticket, comment, staff.id).catch(() => {});
     return done({ action, ticketId: ticket.id });
   }
@@ -452,11 +462,11 @@ async function handleParsedMessage(parsed, config) {
     const created = await createTicketFromEmail({
       contact, subject, textBody: null, assigneeId,
     });
-    await Comment.create(isVerified
+    const firstComment = await Comment.create(isVerified
       ? { body: textBody, authorId: staff.id, ticketId: created.id, type: 'comment_public', viaEmail: true }
       : { body: unverifiedBody(fromAddress, textBody, parsed.attachments), authorId: systemActorId, ticketId: created.id, type: 'comment_private', viaEmail: true });
     if (isVerified) await addCcs(created.id, others.map((c) => c.address));
-    if (isVerified) await saveAttachments(parsed.attachments, created.id, staff.id);
+    if (isVerified) await saveAttachments(parsed.attachments, created.id, staff.id, firstComment.id);
     return done({ action, ticketId: created.id });
   }
 

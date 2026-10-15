@@ -256,3 +256,38 @@ describe('review fixes', () => {
     expect(out.action).toBe('unverified_note');
   });
 });
+
+describe('merged tickets (5b)', () => {
+  const mergeInto = async (targetId, sourceIds) => {
+    const res = await w.admin.agent.post(`/api/v1/tickets/${targetId}/merge`).send({ sourceIds });
+    if (res.status !== 200) throw new Error(JSON.stringify(res.body));
+  };
+
+  it('reply to a merged ticket lands on the target (A→B→C)', async () => {
+    const b = await makeTicket(w.admin.agent, { title: 'B', contactId: ann.id, departmentId: w.deptA.id });
+    const c = await makeTicket(w.admin.agent, { title: 'C', contactId: ann.id, departmentId: w.deptA.id });
+    await mergeInto(b.id, [ticket.id]);
+    await mergeInto(c.id, [b.id]);
+    const out = await handle('contact-reply', { TICKET: num(ticket.id) });
+    expect(out).toEqual({ action: 'reply_added', ticketId: c.id });
+    expect(await Comment.count({ where: { ticketId: c.id, type: 'reply' } })).toBe(1);
+  });
+
+  it('old contact of a merged source replies → contact-side reply on the target', async () => {
+    const bob = await makeContact(w.admin, { firstName: 'Bob', email: 'bob@acme.com', departmentId: w.deptA.id });
+    const target = await makeTicket(w.admin.agent, { title: 'Target', contactId: bob.id, departmentId: w.deptA.id });
+    await mergeInto(target.id, [ticket.id]);
+    const out = await handle('contact-reply', { TICKET: num(ticket.id) });
+    expect(out).toEqual({ action: 'reply_added', ticketId: target.id });
+  });
+
+  it('inbound attachments are stored with their commentId', async () => {
+    const out = await handle('generic-attach', {
+      DMARC: 'pass', FROM: 'ann@acme.com', TO: 'help@prism.example', SUBJECT: `Re: [Ticket #${num(ticket.id)}]`,
+    });
+    expect(out.action).toBe('reply_added');
+    const [att] = await models.Attachment.findAll({ where: { ticketId: ticket.id } });
+    const [reply] = await Comment.findAll({ where: { ticketId: ticket.id, type: 'reply' } });
+    expect(att.commentId).toBe(reply.id);
+  });
+});

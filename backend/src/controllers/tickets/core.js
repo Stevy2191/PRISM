@@ -10,6 +10,7 @@ const { andWhere, ticketScopeWhere } = require('../../services/recordScope');
 const { getUserTicketScope, canAccessTicket, parseRecordId } = require('../../services/permissionService');
 const { createTicket, updateTicket, deleteTicket } = require('../../services/tickets/ticketWrite');
 const { queueListWhere, queueCount, takeTicket } = require('../../services/tickets/queue');
+const { mergeTickets } = require('../../services/tickets/merge');
 const {
   ticketInclude, shownTicketFor, ticketAccessFor, ticketDetailFor,
 } = require('./shared');
@@ -298,7 +299,15 @@ const take = asyncHandler(async (req, res) => {
   res.json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });
 });
 
+// POST /tickets/:id/merge { sourceIds } — the sources move into :id.
+const merge = asyncHandler(async (req, res) => {
+  const { target } = await mergeTickets(req, req.params.id, (req.body || {}).sourceIds);
+  const fresh = await Ticket.findByPk(target.id, { include: ticketInclude });
+  res.json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });
+});
+
 module.exports = {
+  merge,
   queueCount: queueCountHandler,
   take,
   list,
