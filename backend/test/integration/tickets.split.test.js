@@ -24,8 +24,8 @@ beforeEach(async () => {
 afterAll(closeDb);
 
 const split = (agent, ticketId, commentId) => agent.post(`${API}/tickets/${ticketId}/split`).send({ commentId });
-const comment = async (ticketId, body) => expectOk(
-  await w.admin.agent.post(`${API}/tickets/${ticketId}/comments`).send({ body, type: 'comment_private' }), 201
+const comment = async (ticketId, body, type = 'comment_private') => expectOk(
+  await w.admin.agent.post(`${API}/tickets/${ticketId}/comments`).send({ body, type }), 201
 ).comment;
 async function fileFor(ticketId, name, commentId = null) {
   const dir = path.join(UPLOAD_ROOT, String(ticketId));
@@ -41,7 +41,7 @@ it('creates a linked ticket with the original contact, company, department, team
     priority: 'high', type: 'incident', source: 'phone', assigneeId: tina.user.id,
   });
   await TicketCc.create({ ticketId: original.id, email: 'cc@example.com' });
-  const c = await comment(original.id, 'Also my mouse is broken\nand more text');
+  const c = await comment(original.id, 'Also my mouse is broken\nand more text', 'comment_public');
   const created = expectOk(await split(w.admin.agent, original.id, c.id), 201).ticket;
   expect(created).toEqual(expect.objectContaining({
     title: `Split from #${String(original.id).padStart(5, '0')}: Also my mouse is broken`,
@@ -93,4 +93,22 @@ it('refuses without edit rights', async () => {
   const c = await comment(t.id, 'x');
   expect((await split(sam.agent, t.id, c.id)).status).toBe(403);
   expect(await Ticket.count()).toBe(1);
+});
+
+it('a private note: needs view_private_comments (else looks missing) and its text stays out of the title and description', async () => {
+  const t = await makeTicket(w.admin.agent, { title: 'T', contactId: w.contact.id, departmentId: w.deptA.id, assigneeId: tina.user.id });
+  const note = await comment(t.id, 'Root password is hunter2');
+  // Tina can edit the ticket but is denied private comments.
+  expectOk(await w.admin.agent.post(`${API}/users/${tina.user.id}/overrides`).send({ permissionKey: 'tickets.view_private_comments', granted: false }), 201);
+  const hidden = await split(tina.agent, t.id, note.id);
+  const missing = await split(tina.agent, t.id, 999999);
+  expect(hidden.status).toBe(404);
+  expect(hidden.body).toEqual(missing.body);
+  expect(await Ticket.count()).toBe(1);
+
+  const created = expectOk(await split(w.admin.agent, t.id, note.id), 201).ticket;
+  expect(created.title).toBe(`Split from #${String(t.id).padStart(5, '0')}`);
+  expect(created.description).toBeNull();
+  const moved = await Comment.findByPk(note.id);
+  expect([moved.ticketId, moved.type]).toEqual([created.id, 'comment_private']);
 });

@@ -357,6 +357,24 @@ on its own. In order:
   hand. Not scheduled yet. Open question: should a hand-picked Email or
   Portal be told apart from a truly automatic one in reports?
 
+### 5b as built (2026-10-15)
+
+Decisions D1–D17 are in the plan header
+(`docs/superpowers/plans/2026-10-15-service-desk-tools.md`). Beyond the text
+above:
+
+- **Queues and own-tier techs (user OK):** a team member may see, in the
+  queue list and queue count only, and take the unassigned tickets of their
+  own teams, inside their company access, whatever their ticket tier.
+  Opening a ticket by id keeps the normal tier until it is theirs.
+- **Recurring rules run as whoever last saved them** (D17). Pause/resume
+  alone doesn't change that; each run re-checks that person's access.
+- **Ticket source:** staff can pick Manual, Phone or Email; Portal waits for
+  sub-project 7; `recurring` is system-only. Reports don't tell a hand-picked
+  source from an automatic one.
+- Merged sources close quietly (no CSAT, resolved email or `ticket_closed`
+  rules), and a source contact who isn't the target's joins its CC list.
+
 ### 5b testing
 
 - **Integration:**

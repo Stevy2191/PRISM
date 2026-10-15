@@ -37,7 +37,12 @@ beforeEach(async () => {
   w = await makeWorld();
   tech = await makeTech('tina', w.deptA.id);
 });
-afterAll(closeDb);
+// Rolling 064 back drops TicketStatuses.systemKey, which 066 also uses (the
+// Closed status's 'closed' key); 066's up() is idempotent and puts it back.
+afterAll(async () => {
+  await require('../../migrations/20260101000066-service-desk-tools').up(sequelize.getQueryInterface(), Sequelize); // eslint-disable-line global-require
+  await closeDb();
+});
 
 describe('migration', () => {
   const insertTicket = async (status) => {

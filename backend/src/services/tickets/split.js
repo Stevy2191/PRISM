@@ -9,7 +9,9 @@ const {
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
-const { findAccessibleTicket, canEditTicket, parseRecordId } = require('../permissionService');
+const {
+  findAccessibleTicket, canEditTicket, parseRecordId, hasPermission,
+} = require('../permissionService');
 const { logActivity } = require('../ticketActivity');
 const { createTicket } = require('./ticketWrite');
 const { copyToTicket, removeFiles } = require('./attachmentFiles');
@@ -25,11 +27,17 @@ async function splitTicket(req, ticketRaw, commentRaw) {
   const commentId = parseRecordId(commentRaw);
   const comment = commentId ? await Comment.findOne({ where: { id: commentId, ticketId: ticket.id } }) : null;
   if (!comment) throw notFound();
+  // A private note is only for those who may read private comments: anyone
+  // else gets the not-found answer. Its text never becomes the new ticket's
+  // title or description (both reach the customer); it moves as the same
+  // private note.
+  const isPrivate = comment.type === 'comment_private';
+  if (isPrivate && !(await hasPermission(user.id, 'tickets.view_private_comments'))) throw notFound();
 
   const firstLine = String(comment.body || '').split(/\r?\n/).map((l) => l.trim()).find(Boolean) || '(no text)';
   const created = await createTicket(user, {
-    title: `Split from ${num(ticket.id)}: ${firstLine.slice(0, 200)}`,
-    description: comment.body,
+    title: isPrivate ? `Split from ${num(ticket.id)}` : `Split from ${num(ticket.id)}: ${firstLine.slice(0, 200)}`,
+    description: isPrivate ? null : comment.body,
     contactId: ticket.contactId,
     departmentId: ticket.departmentId,
     teamId: ticket.teamId,

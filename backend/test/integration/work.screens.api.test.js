@@ -18,11 +18,12 @@ it('a ticket says what the viewer may do with it', async () => {
   const tech = await makeTech('tech', w.deptA.id);
   const t = await makeTicket(w.admin.agent, { title: 'T', contactId: w.contact.id, departmentId: w.deptA.id });
   const access = async (u) => expectOk(await u.agent.get(`${API}/tickets/${t.id}`)).ticket.access;
-  expect(await access(staff)).toEqual({ edit: false, moderate: false, delete: false });
-  expect(await access(tech)).toEqual({ edit: true, moderate: false, delete: false });
-  expect(await access(w.admin)).toEqual({ edit: true, moderate: true, delete: true });
+  expect(await access(staff)).toEqual({ edit: false, moderate: false, delete: false, canTake: false });
+  // canTake (5b): the ticket is unassigned, and edit access is enough to take it.
+  expect(await access(tech)).toEqual({ edit: true, moderate: false, delete: false, canTake: true });
+  expect(await access(w.admin)).toEqual({ edit: true, moderate: true, delete: true, canTake: true });
   const patched = expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ priority: 'low' })).ticket;
-  expect(patched.access).toEqual({ edit: true, moderate: true, delete: true, canTake: false });
+  expect(patched.access).toEqual({ edit: true, moderate: true, delete: true, canTake: true });
   const created = expectOk(await tech.agent.post(`${API}/tickets`).send({ title: 'New', contactId: w.contact.id }), 201).ticket;
   expect(created.access.edit).toBe(true);
 });
