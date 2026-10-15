@@ -12,6 +12,67 @@ backend start.
 
 Nothing here needs action before upgrading.
 
+### Service desk: email (5a)
+
+- **Branded HTML email from editable templates.** Every email PRISM sends
+  (auto-reply, technician replies, the satisfaction survey, and the new
+  "resolved" and staff emails) now has an HTML and a plain-text part, with your
+  organization name and logo. Edit them under **Settings → Email templates**:
+  subject, body, placeholders such as `{{ticket.number}}`, a live preview, and
+  Reset to default. Each email can be switched off.
+- **"Your request is resolved" email:** new, and **off by default**. When on,
+  it is sent whenever a ticket moves into any closed status.
+- **CC lists.** Each ticket has a CC list (ticket sidebar) that gets every
+  public reply. People who can edit the ticket manage it; Cc addresses on
+  an email that opens a ticket are added automatically. A reply can add
+  one-off Cc/Bcc ("Cc/Bcc" under the reply box). Bcc never shows in To/Cc.
+- **Email signatures.** Technicians set theirs in Preferences; it is added to
+  replies emailed to contacts.
+- **Technician email notifications.** Assignments, comments, SLA warnings and
+  breaches, watched-ticket updates and the new **"New in team queue"** event
+  (a ticket arrives in a team unassigned) can email the technician. Admins set
+  the defaults in Settings → Notifications; each person can change theirs
+  in Preferences. Emails are only sent when outgoing email is set up.
+- **Replies from technicians' own mailboxes are captured.** If a technician
+  CCs the helpdesk mailbox with `#123` or `[Ticket #00123]` in the subject,
+  the email is added to ticket 123 as their reply (marked "via email") and is
+  not sent again. Without a number it opens a new ticket for the customer,
+  assigned to the technician. This is trusted only when your mail server's
+  DMARC check passed for the sender (Settings → Incoming email → Sender
+  check). Otherwise it is kept as a private "Unverified sender" note.
+  Microsoft 365 internal mail is also accepted when the helpdesk mailbox
+  itself is on Microsoft 365.
+- **Replies from CC'd people** are now added to the ticket. Before, they
+  opened a new ticket.
+
+### Ticket statuses reworked
+
+Statuses now have an **On hold** kind next to Open and Closed. On-hold
+tickets still count as open: the SLA keeps running and they stay in open
+lists. The seeded statuses change on upgrade:
+
+| Before | After |
+|---|---|
+| Open | Open |
+| In Progress | Open |
+| Pending | On Hold (on hold) |
+| On Hold | On Hold (on hold) |
+| Resolved | Request completed |
+| Closed | Closed |
+| — | Waiting on User, User responded (open); Postponed (on hold); Request cancelled (closed) |
+
+Tickets and workflow rules follow their status; statuses you created
+yourself are left alone. **Check saved ticket filters or report views that
+name In Progress, Pending or Resolved.**
+
+- **User responded** is set automatically when a customer emails a reply to
+  an open or on-hold ticket. It can't be picked by hand. A reply to a closed
+  ticket leaves it closed and notifies the assignee.
+- **Waiting on User** is set automatically when a technician posts a public
+  reply on a User responded ticket, and can also be picked by hand.
+- The ticket list has an "On hold (all)" filter, and the dashboard's "In
+  Progress" count is now "On hold".
+
 ### SLA engine
 
 Tickets now have SLA clocks: how long they sit **unassigned**, time to

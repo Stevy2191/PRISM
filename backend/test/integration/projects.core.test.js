@@ -396,7 +396,7 @@ describe('stats', () => {
     expectOk(await a.post(`${projUrl(p)}/expenses`).send({ description: 'Cables', amount: 100 }), 201);
     expectOk(await a.post(`${projUrl(p)}/materials`).send({ itemName: 'Switch', quantity: 2, unitCost: 25 }), 201);
     await makeTicket(a, { title: 'Open one', contactId: w.contact.id, projectId: p.id });
-    await makeTicket(a, { title: 'Done one', contactId: w.contact.id, projectId: p.id, status: 'Resolved' });
+    await makeTicket(a, { title: 'Done one', contactId: w.contact.id, projectId: p.id, status: 'Request completed' });
     const expected = {
       completionPercent: 50, totalTasks: 2, closedTasks: 1, totalTimeSeconds: 5400, laborCost: 0, totalCost: 150, openTicketsCount: 1,
     };

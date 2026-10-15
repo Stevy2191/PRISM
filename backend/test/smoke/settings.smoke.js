@@ -105,7 +105,7 @@ describe('the menu', () => {
   let staff1; // made in the first test, reused: the login limiter allows 10 sign-ins per file
   const menu = (page) => page.getByRole('complementary', { name: 'Settings menu' });
 
-  it('an owner sees every group; a System Administrator no Sign-in & email; Department Staff only a few', async () => {
+  it('an owner sees every group; a System Administrator only Email templates under Sign-in & email; Department Staff only a few', async () => {
     const groups = ['You', 'Organization', 'People & access', 'Service desk', 'Hours & SLAs', 'Time & work', 'Assets', 'Sign-in & email', 'System'];
     let page = await as('admin');
     await page.goto('/settings/preferences');
@@ -114,7 +114,11 @@ describe('the menu', () => {
     page = await as('sysadmin2');
     await page.goto('/settings/preferences');
     await menu(page).getByText('Time & work', { exact: true }).waitFor();
-    expect(await menu(page).getByText('Sign-in & email', { exact: true }).count()).toBe(0);
+    // Email templates (plan 5a) is the one Sign-in & email page that needs no owner.
+    await menu(page).getByRole('link', { name: 'Email templates' }).waitFor();
+    for (const ownerOnly of ['Single sign-on', 'Incoming email', 'Outgoing email']) {
+      expect([ownerOnly, await menu(page).getByRole('link', { name: ownerOnly }).count()]).toEqual([ownerOnly, 0]); // eslint-disable-line no-await-in-loop
+    }
     staff1 = await makeUser('staff1', ROLE.DEPARTMENT_STAFF, w.deptA.id);
     page = await as('staff1');
     await page.goto('/settings/preferences');

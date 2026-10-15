@@ -591,12 +591,12 @@ The user asked for this during 5a (see the spec's "Status rework" section).
 - Modify the plan checkboxes.
 - Add release-note lines for 5a under the Phase 1 section of `UPGRADING.md`.
 
-- [ ] Write the smoke tests:
+- [x] Write the smoke tests:
   - `'email templates: edit, preview, reset'`
   - `'preferences: signature saves'`
   - `'ticket: add and remove a CC; reply shows Cc/Bcc toggle'`
 
   Follow the stub/seed recipe in the existing `companies.*.smoke.js`.
-- [ ] Run the full backend suite once, then the full smoke once. Both must
+- [x] Run the full backend suite once, then the full smoke once. Both must
   be green.
-- [ ] Commit the docs, and push to `dev`.
+- [x] Commit the docs, and push to `dev`.
