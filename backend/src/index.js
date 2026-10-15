@@ -13,6 +13,7 @@ const { createApp, createSessionStore } = require('./app');
 const { UPLOAD_ROOT } = require('./middleware/upload');
 const { startWorkflowScheduler } = require('./services/workflowScheduler');
 const { startSlaScheduler } = require('./services/sla/slaScheduler');
+const { startRecurringScheduler } = require('./services/recurring/recurringScheduler');
 const { startAdSyncScheduler } = require('./services/adSyncScheduler');
 const { startCalendarSyncScheduler } = require('./services/calendarSyncScheduler');
 const { startInboundEmailScheduler } = require('./services/inboundEmailScheduler');
@@ -104,6 +105,7 @@ async function start() {
 
     startWorkflowScheduler();
     startSlaScheduler();
+    startRecurringScheduler();
     startAdSyncScheduler();
     startCalendarSyncScheduler();
     startInboundEmailScheduler();
