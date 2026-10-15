@@ -9,6 +9,7 @@ const { parsePagination, paginated } = require('../../utils/pagination');
 const { andWhere, ticketScopeWhere } = require('../../services/recordScope');
 const { getUserTicketScope, canAccessTicket, parseRecordId } = require('../../services/permissionService');
 const { createTicket, updateTicket, deleteTicket } = require('../../services/tickets/ticketWrite');
+const { queueListWhere, queueCount, takeTicket } = require('../../services/tickets/queue');
 const {
   ticketInclude, shownTicketFor, ticketAccessFor, ticketDetailFor,
 } = require('./shared');
@@ -24,7 +25,7 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   const where = {};
   const {
     status, priority, assignee, project, department, contactId, type, team, source,
-    search, myTickets, overdue, unassigned, companyId, sla,
+    search, myTickets, overdue, unassigned, companyId, sla, queue,
   } = req.query;
 
   // "Closed" in the UI covers every status whose behaviorType is 'closed',
@@ -77,7 +78,12 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   const scope = await getUserTicketScope(req.user.id);
   if (myTickets === 'true' && scope !== 'own') where.assigneeId = req.user.id;
 
-  // Scope is ANDed, never merged in: a filter can only narrow it.
+  // A queue view widens the scope by the caller's own teams' unassigned
+  // tickets (services/tickets/queue.js); otherwise scope is ANDed, never
+  // merged in: a filter can only narrow it.
+  if (queue !== undefined && queue !== '' && !ignoreStatus) {
+    return andWhere(where, await queueListWhere(req.user, queue, { statusGiven: !!status }));
+  }
   return andWhere(where, await ticketScopeWhere(req.user));
 }
 
@@ -107,7 +113,9 @@ async function resolveCustomFieldSort(sortBy) {
 // than tickets, and LIMIT applies to joined rows too. Selecting bare ids first —
 // no hasMany joins — keeps both honest, and the second query needs no limit at all
 // because it is already constrained to one page of ids.
-async function fetchTicketPage(where, { limit, offset, sortBy, sortDir }) {
+async function fetchTicketPage(where, {
+  limit, offset, sortBy, sortDir, queueOrder = false,
+}) {
   const orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
   const cfSort = await resolveCustomFieldSort(sortBy);
 
@@ -132,6 +140,17 @@ async function fetchTicketPage(where, { limit, offset, sortBy, sortDir }) {
     // Tickets with no value for the field still appear (LEFT JOIN), they just
     // sort together as NULLs. `id` breaks ties so paging stays stable.
     idQuery.order = [[cfSort.orderExpr, orderDir], ['id', 'DESC']];
+  } else if (queueOrder) {
+    // Queue order: unassigned first, then the earliest SLA due date (no SLA
+    // last), then oldest. Fixed SQL, no request values.
+    const due = '(SELECT s.resolutionDueAt FROM TicketSlas s WHERE s.ticketId = Ticket.id)';
+    idQuery.order = [
+      [sequelize.literal('(Ticket.assigneeId IS NULL)'), 'DESC'],
+      [sequelize.literal(`(${due} IS NULL)`), 'ASC'],
+      [sequelize.literal(due), 'ASC'],
+      ['createdAt', 'ASC'],
+      ['id', 'ASC'],
+    ];
   } else {
     const column = SORTABLE_COLUMNS.includes(sortBy) ? sortBy : 'updatedAt';
     idQuery.order = [[column, orderDir], ['id', 'DESC']];
@@ -167,6 +186,7 @@ const list = asyncHandler(async (req, res) => {
   const { page, limit, offset } = parsePagination(req);
   const { tickets, count } = await fetchTicketPage(where, {
     limit, offset, sortBy: req.query.sortBy, sortDir: req.query.sortDir,
+    queueOrder: !!req.query.queue && !req.query.sortBy,
   });
 
   const minutesByTicket = await timeLoggedByTicket(tickets.map((t) => t.id));
@@ -266,7 +286,21 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /tickets/queue-count — unassigned open tickets waiting in my teams.
+const queueCountHandler = asyncHandler(async (req, res) => {
+  res.json({ count: await queueCount(req.user) });
+});
+
+// POST /tickets/:id/take
+const take = asyncHandler(async (req, res) => {
+  const ticket = await takeTicket(req, req.params.id);
+  const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
+  res.json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });
+});
+
 module.exports = {
+  queueCount: queueCountHandler,
+  take,
   list,
   board,
   create,
