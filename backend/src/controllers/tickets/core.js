@@ -11,6 +11,7 @@ const { getUserTicketScope, canAccessTicket, parseRecordId } = require('../../se
 const { createTicket, updateTicket, deleteTicket } = require('../../services/tickets/ticketWrite');
 const { queueListWhere, queueCount, takeTicket } = require('../../services/tickets/queue');
 const { mergeTickets } = require('../../services/tickets/merge');
+const { splitTicket } = require('../../services/tickets/split');
 const {
   ticketInclude, shownTicketFor, ticketAccessFor, ticketDetailFor,
 } = require('./shared');
@@ -306,8 +307,16 @@ const merge = asyncHandler(async (req, res) => {
   res.json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });
 });
 
+// POST /tickets/:id/split { commentId } — the comment becomes a new ticket.
+const split = asyncHandler(async (req, res) => {
+  const created = await splitTicket(req, req.params.id, (req.body || {}).commentId);
+  const fresh = await Ticket.findByPk(created.id, { include: ticketInclude });
+  res.status(201).json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });
+});
+
 module.exports = {
   merge,
+  split,
   queueCount: queueCountHandler,
   take,
   list,

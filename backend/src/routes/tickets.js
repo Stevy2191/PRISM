@@ -26,6 +26,7 @@ router.patch('/:id', editMin, ctrl.update);
 router.post('/:id/due-date', editMin, ctrl.changeDueDate);
 router.post('/:id/take', viewMin, ctrl.take);
 router.post('/:id/merge', editMin, ctrl.merge);
+router.post('/:id/split', editMin, ctrl.split);
 router.post('/:id/canned/:cannedId/render', viewMin, canned.render);
 router.delete('/:id', requirePermission('tickets.delete'), ctrl.remove);
 
