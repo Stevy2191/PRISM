@@ -348,6 +348,15 @@ on its own. In order:
 - **Settings → Recurring tickets:** list, editor with a "next 5 runs"
   preview, pause/resume, "Run now".
 
+### Side note: ticket source on the create form (user, 2026-10-15)
+
+- The New ticket form's Source offers only Manual and Phone. The backend
+  limits a caller to those two on purpose: `email` is set by inbound
+  processing and `portal` by the future client portal (sub-project 7).
+- The user wants Email (and Portal) choosable when a tech logs a ticket by
+  hand. Not scheduled yet. Open question: should a hand-picked Email or
+  Portal be told apart from a truly automatic one in reports?
+
 ### 5b testing
 
 - **Integration:**
