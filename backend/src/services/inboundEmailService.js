@@ -540,4 +540,5 @@ module.exports = {
   resolveInboundEmailConfig, readInboundEmailSettingsRows, isInboundConfigured,
   testImapConnection, pollInbox, buildTicketMessageId, findOrCreateContact,
   createTicketFromEmail, sendAutoReply, handleParsedMessage, // exported for the integration tests
+  getSystemActorUserId,
 };
