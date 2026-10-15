@@ -44,8 +44,6 @@ export default function Tickets() {
   const { isStaff } = useAuth();
   const canCreateTickets = usePermission('tickets.create');
   const canViewAllTickets = usePermission('tickets.view_all');
-  const canAssignTickets = usePermission('tickets.assign');
-  const canCloseTickets = usePermission('tickets.close');
   const navigate = useNavigate();
 
   const [tickets, setTickets] = useState([]);
@@ -529,8 +527,6 @@ export default function Tickets() {
           setBulkValue={setBulkValue}
           ticketStatuses={ticketStatuses}
           assignableUsers={assignableUsers}
-          canAssignTickets={canAssignTickets}
-          canCloseTickets={canCloseTickets}
           applyBulkAction={applyBulkAction}
           bulkSaving={bulkSaving}
           clearSelection={clearSelection}

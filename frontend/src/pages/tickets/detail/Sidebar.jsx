@@ -152,7 +152,7 @@ function CustomFieldValue({ field, value, disabled, onSave }) {
 }
 
 export function Sidebar({
-  ticket, collapsed, onToggle, isStaff, canEdit = isStaff, canAssign, onStatusChange, patchTicket, onTicketReplaced,
+  ticket, collapsed, onToggle, isStaff, canEdit = isStaff, onStatusChange, patchTicket, onTicketReplaced,
   assignableUsers, teams, directory, ticketStatuses,
   tags, onAddTag, onRemoveTag,
   watchers, onAddWatcher, onRemoveWatcher,
@@ -331,21 +331,19 @@ export function Sidebar({
                   {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
-              {canAssign && (
-                <div>
-                  <label className="mb-1 block text-xs" style={{ color: MUTED }}>Assignee</label>
-                  <select
-                    disabled={!canEdit}
-                    value={ticket.assigneeId || ''}
-                    onChange={(e) => patchTicket({ assigneeId: e.target.value || null })}
-                    className="input h-9 text-sm"
-                    style={fieldStyle}
-                  >
-                    <option value="">Unassigned</option>
-                    {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="mb-1 block text-xs" style={{ color: MUTED }}>Assignee</label>
+                <select
+                  disabled={!canEdit}
+                  value={ticket.assigneeId || ''}
+                  onChange={(e) => patchTicket({ assigneeId: e.target.value || null })}
+                  className="input h-9 text-sm"
+                  style={fieldStyle}
+                >
+                  <option value="">Unassigned</option>
+                  {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="mb-1 block text-xs" style={{ color: MUTED }}>Team</label>
                 <select

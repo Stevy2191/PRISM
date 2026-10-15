@@ -18,8 +18,6 @@ export function BulkActionBar({
   setBulkValue,
   ticketStatuses,
   assignableUsers,
-  canAssignTickets,
-  canCloseTickets,
   applyBulkAction,
   bulkSaving,
   clearSelection,
@@ -69,8 +67,8 @@ export function BulkActionBar({
         <option value="">Choose action…</option>
         <option value="status">Change status</option>
         <option value="priority">Change priority</option>
-        {canAssignTickets && <option value="reassign">Reassign</option>}
-        {canCloseTickets && <option value="close">Close selected</option>}
+        <option value="reassign">Reassign</option>
+        <option value="close">Close selected</option>
       </select>
       {bulkActionType === 'status' && (
         <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>

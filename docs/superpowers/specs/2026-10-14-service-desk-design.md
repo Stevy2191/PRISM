@@ -46,10 +46,11 @@ Three plans, built and shipped in this order: **5a Email**, **5b Desk tools**,
 - There are no canned responses, merge/split, recurring tickets, categories,
   CC lists or signatures.
 - The ticket type (incident/request/…) is a fixed enum and stays as it is.
-- **S18 (fixed 2026-10-14, before this spec):** `tickets.assign` was checked
-  only in the UI. The API now enforces it: without it you may take an
-  unassigned ticket, drop your own, or resend the current assignee, but never
-  give a ticket to someone else or take one from them.
+- **Reassign and close (user rule 2026-10-14, done before this spec):** anyone
+  who can edit a ticket may reassign it, to themselves or anyone else (for
+  example when a tech is out sick), and close it from the ticket.
+  `tickets.assign` and `tickets.close` only hid controls in the UI; they were
+  retired (migration 062), and edit access is the gate.
 
 ## Decisions (agreed 2026-10-14)
 
@@ -143,8 +144,7 @@ on its own. In order:
    - **No ticket + staff + verified** → new ticket:
      - The contact is the first To/Cc recipient that is not staff or the
        helpdesk mailbox (found or created as today).
-     - It is assigned to the sender (the S18 rule applies, so the
-       self-assign is fine).
+     - It is assigned to the sender.
      - Remaining non-staff recipients go on the CC list.
      - The email is the first comment, authored by the tech.
      - No auto-reply is sent.
@@ -213,10 +213,9 @@ on its own. In order:
   earliest SLA due date. A badge on the nav shows the unassigned count in my
   queues.
 - **Take it** (`POST /tickets/:id/take`): allowed when the ticket is
-  unassigned, the user can view it, and they are a member of its team or
-  hold `tickets.assign`. It is a self-assign under S18, so no new permission
-  is needed. It is atomic: `UPDATE … WHERE assigneeId IS NULL`, and a lost
-  race returns 409 "Already taken by X".
+  unassigned and the user can either edit it or view it and is a member of
+  its team. That lets edit_own techs claim queue work. It is atomic: `UPDATE …
+  WHERE assigneeId IS NULL`, and a lost race returns 409 "Already taken by X".
 
 ### Canned responses
 
@@ -240,8 +239,7 @@ on its own. In order:
   - Actions: `status`, `priority`, `assign`, `team`, `add_watcher`, `close`,
     `delete`, `merge` (`value` = target id).
   - Each ticket goes through the **same service function** as the single
-    edit: edit/assign/delete checks, activity log, workflow rules,
-    notifications.
+    edit: edit/delete checks, activity log, workflow rules, notifications.
   - The response is `{ results: [{ id, ok, error? }] }`, with "not found" and
     "no access" looking the same.
 - The bulk bar adds team, add watcher, merge and delete, and shows the result
@@ -374,10 +372,3 @@ on its own. In order:
 - Per-company category trees.
 - Parsing forwarded emails to find the original sender.
 - Stripping quoted text from inbound replies.
-
-## Open question for the user
-
-- **`tickets.close`** is only checked by the bulk "Close selected" button;
-  anyone who can edit a ticket can close it on its page and through the API.
-  Should closing require `tickets.close` everywhere (it would be enforced in
-  5b's shared status path), or should the permission be retired?

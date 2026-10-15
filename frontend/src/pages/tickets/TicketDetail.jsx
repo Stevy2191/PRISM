@@ -75,7 +75,6 @@ function dueDateColor(dueDate) {
 export default function TicketDetail() {
   const { id } = useParams();
   const { user, isStaff, canLogTimeForOthers, hasPermission, hasAnyPermission } = useAuth();
-  const canAssign = usePermission('tickets.assign');
   const canViewPrivateComments = usePermission('tickets.view_private_comments');
   const fileRef = useRef(null);
 
@@ -506,7 +505,6 @@ export default function TicketDetail() {
             onToggle={() => setCollapsed((c) => !c)}
             isStaff={isStaff}
             canEdit={isStaff && !!ticket.access?.edit}
-            canAssign={canAssign}
             onStatusChange={handleStatusChange}
             patchTicket={patchTicket}
             onTicketReplaced={setTicket}
@@ -693,7 +691,6 @@ export default function TicketDetail() {
                 onToggle={() => {}}
                 isStaff={isStaff}
                 canEdit={isStaff && !!ticket.access?.edit}
-                canAssign={canAssign}
                 onStatusChange={handleStatusChange}
                 patchTicket={patchTicket}
                 onTicketReplaced={setTicket}
