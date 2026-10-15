@@ -134,6 +134,7 @@ async function resetData() {
   const tables = [
     'Comments', 'Attachments', 'TicketWatchers', 'TicketCcs', 'EmailTemplates', 'EmailProcessingLogs', 'Tasks', 'TicketActivities',
     'TicketRelations', 'TicketFieldValues', 'TimeEntries', 'ActiveTimers',
+    'CannedResponses', 'RecurringTickets',
     'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'TicketSlas', 'TicketDueDateChanges', 'Tickets', 'Contacts',
     // Project child tables truncate with Projects: TRUNCATE resets
     // AUTO_INCREMENT, so a project created by the next test reuses id 1 and

@@ -48,6 +48,7 @@ const knowledgeRoutes = require('./knowledge');
 const kbPublicRoutes = require('./kbPublic');
 const ssoRoutes = require('./sso');
 const ssoAdminRoutes = require('./ssoAdmin');
+const cannedResponsesRoutes = require('./cannedResponses');
 
 const { getVersionInfo } = require('../utils/version');
 
@@ -89,6 +90,7 @@ router.use('/departments', guard, departmentsRoutes);
 router.use('/companies', guard, companiesRoutes);
 router.use('/projects', guard, projectsRoutes);
 router.use('/tickets', guard, ticketsRoutes);
+router.use('/canned-responses', guard, cannedResponsesRoutes);
 router.use('/apikeys', guard, apikeysRoutes);
 router.use('/reports', guard, reportsRoutes);
 router.use('/blueprints', guard, blueprintsRoutes);

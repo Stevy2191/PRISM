@@ -103,6 +103,14 @@ async function branding() {
   return { orgName, logoPath };
 }
 
+// Plain text with placeholders (canned responses). Only `allowedNames` are
+// filled, anything else renders empty; nothing is escaped, because the
+// result goes into a reply box as text and is escaped when it is emailed.
+function renderPlainText(body, context, allowedNames) {
+  const allowed = new Set(allowedNames || []);
+  return String(body || '').replace(PLACEHOLDER, (m, name) => (allowed.has(name) ? lookup(context || {}, name) : ''));
+}
+
 // `override` ({ subject, bodyHtml }) renders unsaved text (the editor's
 // preview) with the key's placeholder list.
 async function render(key, context, override) {
@@ -123,5 +131,5 @@ async function render(key, context, override) {
 }
 
 module.exports = {
-  TRUSTED_HTML, renderTemplate, render, getTemplate,
+  TRUSTED_HTML, renderTemplate, renderPlainText, render, getTemplate, branding,
 };

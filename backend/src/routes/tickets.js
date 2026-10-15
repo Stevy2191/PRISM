@@ -1,5 +1,6 @@
 const express = require('express');
 const ctrl = require('../controllers/ticketsController');
+const canned = require('../controllers/cannedResponsesController');
 const { requirePermission } = require('../middleware/requirePermission');
 const { upload, enforceMaxAttachmentSize, verifyFileSignature } = require('../middleware/upload');
 
@@ -23,6 +24,7 @@ router.get('/:id', viewMin, ctrl.get);
 router.patch('/:id', editMin, ctrl.update);
 router.post('/:id/due-date', editMin, ctrl.changeDueDate);
 router.post('/:id/take', viewMin, ctrl.take);
+router.post('/:id/canned/:cannedId/render', viewMin, canned.render);
 router.delete('/:id', requirePermission('tickets.delete'), ctrl.remove);
 
 // Comments
