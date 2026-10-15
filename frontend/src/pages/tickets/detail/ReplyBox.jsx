@@ -2,6 +2,7 @@
 import { useRef, useState } from 'react';
 import { IconPaperclip, IconAt, IconLock, IconWorld } from '@tabler/icons-react';
 import { CARD_BG, BORDER, TEXT, MUTED, BLUE, fieldStyle, AMBER } from '../theme';
+import CannedPicker from '../../../components/CannedPicker';
 
 export function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPrivateComments }) {
   const draftKey = `prism.ticket.${ticket.id}.draft`;
@@ -47,6 +48,14 @@ export function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPr
     if (!el) return;
     const pos = el.selectionStart ?? text.length;
     setText(text.slice(0, pos) + '@' + text.slice(pos));
+  };
+
+  // A canned response goes in at the cursor (or replaces the selection).
+  const insertText = (snippet) => {
+    const el = textareaRef.current;
+    const start = el ? el.selectionStart ?? text.length : text.length;
+    const end = el ? el.selectionEnd ?? start : start;
+    setText(text.slice(0, start) + snippet + text.slice(end));
   };
 
   const tabStyle = (active, activeColor) => ({
@@ -118,6 +127,7 @@ export function ReplyBox({ ticket, onSend, fileRef, onAttach, isStaff, canViewPr
           <button type="button" onClick={insertAt} title="Mention someone" className="rounded-md border p-2" style={{ borderColor: BORDER, color: MUTED }}>
             <IconAt size={16} />
           </button>
+          {isStaff && <CannedPicker ticketId={ticket.id} onInsert={insertText} currentText={text} />}
           {isStaff && isPublic && (
             <button type="button" onClick={() => setShowCc((v) => !v)} aria-pressed={showCc} className="rounded-md border px-2 py-1.5 text-xs font-medium" style={{ borderColor: BORDER, color: showCc ? TEXT : MUTED }}>
               Cc/Bcc

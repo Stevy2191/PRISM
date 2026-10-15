@@ -47,6 +47,7 @@ import SettingsAssetCategories from './pages/settings/AssetCategories';
 import SettingsAssetAlerts from './pages/settings/AssetAlerts';
 import SettingsTimeTracking from './pages/settings/TimeTracking';
 import SettingsWorkTypes from './pages/settings/WorkTypes';
+import SettingsCannedResponses from './pages/settings/CannedResponses';
 import SettingsSingleSignOn from './pages/settings/SingleSignOn';
 import SLAs from './pages/settings/SLAs';
 import Schedules from './pages/settings/Schedules';
@@ -108,7 +109,7 @@ const SETTINGS_COMPONENTS = {
   users: AdminUsers, 'user-detail': UserDetail, teams: SettingsTeams, departments: AdminDepartments,
   roles: AdminRoles, 'role-new': RoleEditor, 'role-edit': RoleEditor, 'api-keys': AdminApiKeys,
   statuses: SettingsStatuses, 'custom-fields': SettingsLayouts, blueprints: AdminBlueprints,
-  'workflow-rules': WorkflowRules,
+  'workflow-rules': WorkflowRules, 'canned-responses': SettingsCannedResponses,
   'workflow-rule-new': WorkflowRuleEditor, 'workflow-rule-edit': WorkflowRuleEditor,
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
   slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays,
