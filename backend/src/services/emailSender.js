@@ -51,7 +51,7 @@ function buildTransport(config) {
 // `messageId` overrides nodemailer's auto-generated one — inboundEmailService
 // .js sets this to a ticket-encoding value so replies can be threaded back
 // without a separate lookup table (see its buildTicketMessageId()).
-async function sendMail({ to, subject, text, html, attachments, headers, replyTo, messageId, inReplyTo, references }) {
+async function sendMail({ to, cc, bcc, subject, text, html, attachments, headers, replyTo, messageId, inReplyTo, references }) {
   const config = await resolveSmtpConfig();
   if (!isSmtpConfigured(config)) {
     const e = new Error('Outgoing email is not set up yet (Settings → Outgoing email)');
@@ -63,6 +63,8 @@ async function sendMail({ to, subject, text, html, attachments, headers, replyTo
     return await transport.sendMail({
       from: config.fromName ? `"${config.fromName}" <${config.fromEmail}>` : config.fromEmail,
       to,
+      cc,
+      bcc,
       replyTo: replyTo || config.fromEmail,
       subject,
       text,

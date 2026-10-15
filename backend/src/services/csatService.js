@@ -52,64 +52,29 @@ async function maybeCreateCsatSurvey(ticket) {
   });
 }
 
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// Shared by the scheduler (real send) and the settings-page preview button —
-// takes plain values rather than model instances so the preview endpoint can
-// call it with fabricated sample data without touching the database.
-function buildSurveyEmail({ contactFirstName, ticketId, ticketTitle, question, surveyToken, expiryDays, companyName }) {
-  const base = surveyBaseUrl();
-  const surveyUrl = `${base}/survey/${surveyToken}`;
-  const ticketNumber = String(ticketId).padStart(5, '0');
-  const subject = `How did we do? — Ticket #${ticketNumber} ${ticketTitle}`;
-  const firstName = contactFirstName || 'there';
-
+// The survey email, rendered through the contact_csat_survey template.
+// Returns { subject, html, text, attachments, enabled, surveyUrl }.
+async function buildSurveyEmail({
+  ticket, contact, question, surveyToken,
+}) {
+  // Lazy: ticketMail requires this module (surveyBaseUrl).
+  /* eslint-disable global-require */
+  const { ticketContext } = require('./email/ticketMail');
+  const { render } = require('./email/templates');
+  const { escapeHtml } = require('../utils/richHtml');
+  /* eslint-enable global-require */
+  const surveyUrl = `${surveyBaseUrl()}/survey/${surveyToken}`;
+  // Server-built HTML: the url is ours and escaped.
   const starLinks = [1, 2, 3, 4, 5]
     .map((n) => {
       const stars = '★'.repeat(n) + '☆'.repeat(5 - n);
-      return `<a href="${surveyUrl}?rating=${n}" style="display:inline-block;margin:0 6px;padding:8px 14px;background:#fef3c7;border-radius:8px;color:#b45309;text-decoration:none;font-size:20px;letter-spacing:2px;">${stars}</a>`;
+      return `<a href="${escapeHtml(`${surveyUrl}?rating=${n}`)}" style="display:inline-block;margin:0 6px;padding:8px 14px;background:#fef3c7;border-radius:8px;color:#b45309;text-decoration:none;font-size:20px;letter-spacing:2px;">${stars}</a>`;
     })
     .join('');
-
-  const html = `
-<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a;">
-  <p>Hi ${escapeHtml(firstName)},</p>
-  <p>Your recent support request has been resolved. We'd love to hear how we did.</p>
-  <p style="font-weight:600;font-size:16px;margin-top:24px;">${escapeHtml(question)}</p>
-  <div style="text-align:center;margin:20px 0;">${starLinks}</div>
-  <p style="text-align:center;">
-    <a href="${surveyUrl}" style="color:#2563eb;">Or click here to leave detailed feedback</a>
-  </p>
-  <hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0 12px;" />
-  <p style="font-size:12px;color:#64748b;">
-    ${escapeHtml(companyName)}<br/>
-    This survey expires in ${expiryDays} day${expiryDays === 1 ? '' : 's'}.
-  </p>
-</div>`.trim();
-
-  const text = [
-    `Hi ${firstName},`,
-    '',
-    "Your recent support request has been resolved. We'd love to hear how we did.",
-    '',
-    question,
-    '',
-    'Rate your experience (1-5 stars):',
-    ...[1, 2, 3, 4, 5].map((n) => `  ${n} star${n === 1 ? '' : 's'}: ${surveyUrl}?rating=${n}`),
-    '',
-    `Or leave detailed feedback: ${surveyUrl}`,
-    '',
-    `${companyName}`,
-    `This survey expires in ${expiryDays} day${expiryDays === 1 ? '' : 's'}.`,
-  ].join('\n');
-
-  return { subject, html, text, surveyUrl };
+  const context = await ticketContext({
+    ticket, contact, extra: { survey: { question, starLinks, url: surveyUrl } },
+  });
+  return { ...(await render('contact_csat_survey', context)), surveyUrl };
 }
 
 module.exports = { maybeCreateCsatSurvey, buildSurveyEmail, surveyBaseUrl };

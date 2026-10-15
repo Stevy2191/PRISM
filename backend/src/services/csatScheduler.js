@@ -6,6 +6,7 @@ const { CsatSurvey, Ticket, Contact, SystemSettings } = require('../models');
 const { getAllSettings } = require('../controllers/settingsController');
 const { buildSurveyEmail } = require('./csatService');
 const { sendMail } = require('./emailSender');
+const { buildTicketMessageId, ticketNumber } = require('./email/ticketMail');
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -24,8 +25,6 @@ async function sendDueSurveys() {
   if (!due.length) return;
 
   const question = settings['csat.surveyQuestion'] || 'How satisfied were you with the support you received?';
-  const expiryDays = Number(settings['csat.expiryDays']) || 7;
-  const companyName = settings['company.name'] || 'Support';
 
   // eslint-disable-next-line no-restricted-syntax
   for (const survey of due) {
@@ -37,17 +36,28 @@ async function sendDueSurveys() {
       continue; // eslint-disable-line no-continue
     }
     try {
-      const { subject, html, text } = buildSurveyEmail({
-        contactFirstName: survey.contact.firstName,
-        ticketId: survey.ticket.id,
-        ticketTitle: survey.ticket.title,
-        question,
-        surveyToken: survey.surveyToken,
-        expiryDays,
-        companyName,
-      });
       // eslint-disable-next-line no-await-in-loop
-      await sendMail({ to: survey.contact.email, subject, html, text });
+      const email = await buildSurveyEmail({
+        ticket: survey.ticket, contact: survey.contact, question, surveyToken: survey.surveyToken,
+      });
+      if (!email.enabled) {
+        // The survey email is switched off: stop polling this survey.
+        // eslint-disable-next-line no-await-in-loop
+        await survey.update({ status: 'expired' });
+        continue; // eslint-disable-line no-continue
+      }
+      // eslint-disable-next-line no-await-in-loop
+      const fromRow = await SystemSettings.findOne({ where: { key: 'smtp.fromEmail' } });
+      // eslint-disable-next-line no-await-in-loop
+      await sendMail({
+        to: [survey.contact.email],
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+        attachments: email.attachments,
+        headers: { 'X-PRISM-Ticket-ID': ticketNumber(survey.ticket.id) },
+        messageId: buildTicketMessageId(survey.ticket.id, fromRow?.value),
+      });
       // eslint-disable-next-line no-await-in-loop
       await survey.update({ sentAt: new Date() });
     } catch (err) {

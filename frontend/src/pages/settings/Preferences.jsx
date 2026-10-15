@@ -7,6 +7,7 @@ import { useTheme, THEME_OPTIONS } from '../../context/ThemeContext';
 import { useNavStyle, NAV_STYLE_OPTIONS } from '../../context/NavStyleContext';
 import { formatPhone } from '../../utils/formatPhone';
 import SettingsPage from '../../components/settings/SettingsPage';
+import RichTextEditor from '../../components/RichTextEditor';
 
 // Reminders for running timers (user decision 2026-10-12). Minutes.
 const REMINDER_FIRST = [
@@ -287,6 +288,8 @@ export default function Preferences() {
 
       <ProfileSection user={user} onSaved={refresh} />
 
+      {isStaff && <SignatureSection user={user} onSaved={refresh} />}
+
       <CalendarIntegrationsSection />
 
       {user?.isLocalAccount && (
@@ -392,6 +395,48 @@ const PROVIDER_META = {
   microsoft: { label: 'Microsoft', badgeClass: 'bg-sky-50 text-sky-700' },
   ical: { label: 'iCal', badgeClass: 'bg-navy-100 text-navy-600' },
 };
+
+// Added to the replies you email to contacts (spec 5a). The server
+// sanitizes it on save.
+function SignatureSection({ user, onSaved }) {
+  const [html, setHtml] = useState(user?.emailSignature || '');
+  const [saved, setSaved] = useState(user?.emailSignature || '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const { data } = await api.patch(`/users/${user.id}/preferences`, { emailSignature: html });
+      const stored = data.user?.emailSignature || '';
+      setHtml(stored);
+      setSaved(stored);
+      setNotice('Signature saved');
+      onSaved?.();
+    } catch (err) {
+      setError(errMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={save} className="card space-y-3 p-5" aria-label="Email signature">
+      <div>
+        <p className="font-medium text-navy-900">Email signature</p>
+        <p className="text-sm text-navy-500">Added to the replies you email to contacts.</p>
+      </div>
+      {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <RichTextEditor value={html} onChange={setHtml} />
+      <div className="flex items-center justify-end gap-3">
+        {notice && html === saved && <span role="status" className="text-sm" style={{ color: 'var(--color-success)' }}>{notice}</span>}
+        <button type="submit" className="btn-primary" disabled={busy || html === saved}>{busy ? 'Saving…' : 'Save signature'}</button>
+      </div>
+    </form>
+  );
+}
 
 function relativeSync(lastSynced) {
   if (!lastSynced) return 'Never synced';

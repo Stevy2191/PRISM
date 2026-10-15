@@ -47,6 +47,7 @@ const {
   removeTicketFromExternalCalendars,
 } = require('../../services/calendarPush');
 const { maybeCreateCsatSurvey } = require('../../services/csatService');
+const { queueContactEmail } = require('../../services/email/ticketMail');
 const { logAssetActivity } = require('../../services/assetActivity');
 const {
   ticketInclude, syncCustomFieldValues, shownTicketFor, ticketAccessFor, ticketDetailFor, assertCanEditTicket,
@@ -655,6 +656,8 @@ const update = asyncHandler(async (req, res) => {
     if (isClosed && !wasClosed) {
       await evaluateRules(ticket.id, 'ticket_closed');
       await maybeCreateCsatSurvey(ticket);
+      // Off by default; any move into a closed status (user decision 2026-10-15).
+      queueContactEmail('contact_resolved', ticket);
     }
   }
   if (changes.priority !== undefined && ticket.priority !== before.priority) {

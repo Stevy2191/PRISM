@@ -4,6 +4,7 @@ const {
   User, Department, Role, UserRole, UserCompanyAccess, Permission, UserPermissionOverride, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
+const { sanitizeRichHtml } = require('../utils/richHtml');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const {
@@ -455,8 +456,21 @@ const updatePreferences = asyncHandler(async (req, res) => {
 
   const {
     timerMode, timerMinThreshold, timerPromptBeforeLog, timerReminderMinutes, timerReminderRepeatMinutes,
+    emailSignature,
   } = req.body || {};
   const changes = {};
+
+  // Rich HTML added to emailed replies: sanitized here, on save.
+  if (emailSignature !== undefined) {
+    if (emailSignature !== null && typeof emailSignature !== 'string') {
+      throw new ApiError(400, 'emailSignature must be text', 'VALIDATION_ERROR');
+    }
+    const clean = sanitizeRichHtml(emailSignature || '');
+    if (clean.length > 20000) {
+      throw new ApiError(400, 'The signature can be at most 20,000 characters', 'VALIDATION_ERROR');
+    }
+    changes.emailSignature = clean || null;
+  }
 
   if (timerMode !== undefined) {
     if (!['manual', 'automatic'].includes(timerMode)) {

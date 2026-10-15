@@ -258,17 +258,17 @@ full code (user rule).
 - Signature: ≤ 20,000 characters after sanitizing. Self or admin can set it,
   as with today's preferences.
 
-- [ ] Write and update the tests:
+- [x] Write and update the tests:
   - `'a public reply emails an html+text message with the subject tag and thread headers'`
   - `'the tech signature is included; a signature with script is stored stripped'`
   - `'a disabled contact_tech_reply sends nothing'`
   - `'auto-reply and csat survey use their templates'`
   - `'contact_resolved is off by default and sends once enabled'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run the tests and see them pass.
-- [ ] Build the signature editor UI.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run the tests and see them pass.
+- [x] Build the signature editor UI.
+- [x] Commit.
 
 ### Task 6: Ticket CC list and reply recipients
 

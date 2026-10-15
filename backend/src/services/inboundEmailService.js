@@ -15,7 +15,7 @@ const { decryptToken } = require('../utils/tokenCrypto');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const { getFirstTicketStatusByBehavior } = require('./statusBehavior');
 const { getAllSettings } = require('../controllers/settingsController');
-const { sendMail } = require('./emailSender');
+const { sendTicketEmail, buildTicketMessageId } = require('./email/ticketMail');
 const { FREE_MAIL_DOMAINS } = require('./companyService');
 const { notifyComment } = require('./notifications');
 
@@ -113,17 +113,8 @@ async function testImapConnection(config) {
 }
 
 // ---- Message-ID based threading ----
-// Every outbound email PRISM sends about a ticket (auto-reply or a tech's
-// reply) gets a Message-ID that encodes the ticket id directly, so replies
-// to it (In-Reply-To/References) can be matched back to that ticket without
-// a separate lookup table.
-function ticketDomain(fromEmail) {
-  const at = String(fromEmail || '').split('@')[1];
-  return at || 'prism.local';
-}
-function buildTicketMessageId(ticketId, fromEmail) {
-  return `<prism-ticket-${ticketId}-${Date.now()}@${ticketDomain(fromEmail)}>`;
-}
+// Outbound ticket mail carries a Message-ID that encodes the ticket id
+// (services/email/ticketMail.js), matched again below.
 function detectTicketId(subject, inReplyTo, references) {
   const subjectMatch = /\[Ticket #0*(\d+)\]/i.exec(subject || '');
   if (subjectMatch) return parseInt(subjectMatch[1], 10);
@@ -229,17 +220,7 @@ async function saveAttachments(mailAttachments, ticketId, uploaderId) {
 }
 
 async function sendAutoReply(ticket, contact) {
-  const settings = await getAllSettings();
-  const companyName = settings['branding.appName'] || settings['company.name'] || 'PRISM';
-  const ticketNumber = String(ticket.id).padStart(5, '0');
-  const smtpFromRow = await SystemSettings.findOne({ where: { key: 'smtp.fromEmail' } });
-  await sendMail({
-    to: contact.email,
-    subject: `Your request has been received [Ticket #${ticketNumber}]`,
-    text: `Hi ${contact.firstName || contact.displayName || 'there'},\n\nWe have received your request and created ticket #${ticketNumber}. Our team will be in touch shortly.\n\n— ${companyName}`,
-    headers: { 'X-PRISM-Ticket-ID': ticketNumber },
-    messageId: buildTicketMessageId(ticket.id, smtpFromRow?.value),
-  });
+  await sendTicketEmail('contact_auto_reply', { ticket, contact, to: [contact.email] });
 }
 
 async function createTicketFromEmail({ contact, subject, textBody }) {
@@ -387,5 +368,5 @@ async function pollInbox() {
 module.exports = {
   resolveInboundEmailConfig, readInboundEmailSettingsRows, isInboundConfigured,
   testImapConnection, pollInbox, buildTicketMessageId, findOrCreateContact,
-  createTicketFromEmail, // exported for the integration tests
+  createTicketFromEmail, sendAutoReply, // exported for the integration tests
 };

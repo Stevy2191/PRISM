@@ -1,5 +1,5 @@
 // Ticket comments: list, create (with the reply email), edit, delete.
-const { Ticket, Comment, User, Contact, SystemSettings } = require('../../models');
+const { Ticket, Comment, User, Contact } = require('../../models');
 const { Op } = require('sequelize');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -10,8 +10,7 @@ const {
 } = require('../../services/notifications');
 const { logActivity } = require('../../services/ticketActivity');
 const { recordFirstResponse } = require('../../services/sla/ticketSla');
-const { sendMail } = require('../../services/emailSender');
-const { buildTicketMessageId } = require('../../services/inboundEmailService');
+const { queueTicketEmail } = require('../../services/email/ticketMail');
 const { parsePagination, paginated } = require('../../utils/pagination');
 const {
   hasPermission,
@@ -50,25 +49,6 @@ const listComments = asyncHandler(async (req, res) => {
   });
   res.json(paginated('comments', { rows: rows.slice().reverse(), count }, { page, limit }));
 });
-
-// Emails a customer-visible reply out to the ticket's contact — fire-and-
-// forget from the caller's perspective (see call site below): an
-// unconfigured or briefly-down SMTP server must never block the comment
-// itself from saving, so this is never awaited on the response path.
-async function sendReplyEmailToContact(ticket, comment, authorUser) {
-  const contact = await Contact.findByPk(ticket.contactId);
-  if (!contact || !contact.email) return;
-
-  const ticketNumber = String(ticket.id).padStart(5, '0');
-  const smtpFromRow = await SystemSettings.findOne({ where: { key: 'smtp.fromEmail' } });
-  await sendMail({
-    to: contact.email,
-    subject: `Re: [Ticket #${ticketNumber}] ${ticket.title}`,
-    text: `${comment.body}\n\n--\nReply to this email to respond to your ticket.`,
-    headers: { 'X-PRISM-Ticket-ID': ticketNumber },
-    messageId: buildTicketMessageId(ticket.id, smtpFromRow?.value),
-  });
-}
 
 // POST /tickets/:id/comments
 const createComment = asyncHandler(async (req, res) => {
@@ -125,9 +105,12 @@ const createComment = asyncHandler(async (req, res) => {
     // are written directly via Comment.create() in inboundEmailService.js,
     // never through here, so there's no risk of mailing a reply back in
     // response to the email that created it.
-    sendReplyEmailToContact(ticket, comment, req.user).catch((err) => {
-      console.error('[ticket-reply-email] failed to send for ticket', ticket.id, err.message);
-    });
+    const contact = ticket.contactId ? await Contact.findByPk(ticket.contactId) : null;
+    if (contact && contact.email) {
+      queueTicketEmail('contact_tech_reply', {
+        ticket, comment, author: req.user, contact, to: [contact.email],
+      });
+    }
   }
 
   await evaluateRules(ticket.id, 'ticket_comment_added');

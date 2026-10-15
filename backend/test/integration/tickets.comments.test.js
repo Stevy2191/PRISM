@@ -152,16 +152,20 @@ describe('comments', () => {
 });
 
 describe('reply email to the contact', () => {
-  it('emails a reply to the ticket\'s contact', async () => {
-    expectOk(await tech.agent.post(commentsUrl()).send({ body: 'On my way' }), 201);
+  it('a public reply emails an html+text message with the subject tag and thread headers', async () => {
+    expectOk(await tech.agent.post(commentsUrl()).send({ body: 'On my way <now>\nsee you' }), 201);
     await waitFor(() => sendMail.mock.calls.length === 1);
-    expect(sendMail).toHaveBeenCalledWith({
-      to: w.contact.email,
+    const mail = sendMail.mock.calls[0][0];
+    expect(mail).toEqual(expect.objectContaining({
+      to: [w.contact.email],
       subject: 'Re: [Ticket #00001] Printer offline',
-      text: 'On my way\n\n--\nReply to this email to respond to your ticket.',
       headers: { 'X-PRISM-Ticket-ID': '00001' },
-      messageId: expect.any(String),
-    });
+      messageId: expect.stringMatching(/^<prism-ticket-1-\d+@[^>]+>$/),
+    }));
+    expect(mail.html).toContain('On my way &lt;now&gt;<br>see you');
+    expect(mail.html).toContain('<!doctype html>');
+    expect(mail.text).toContain('On my way <now>\nsee you');
+    expect(mail.text).toContain('Reply to this email to respond to your ticket.');
   });
 
   it('emails a public note the same way', async () => {
