@@ -53,6 +53,7 @@ import Schedules from './pages/settings/Schedules';
 import SettingsImport from './pages/settings/Import';
 import SettingsExport from './pages/settings/Export';
 import SettingsNotifications from './pages/settings/Notifications';
+import SettingsEmailTemplates from './pages/settings/EmailTemplates';
 import WorkflowRules from './pages/settings/WorkflowRules';
 import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
 import DirectorySync from './pages/settings/DirectorySync';
@@ -114,7 +115,7 @@ const SETTINGS_COMPONENTS = {
   'time-tracking': SettingsTimeTracking, 'work-types': SettingsWorkTypes,
   'asset-categories': SettingsAssetCategories, 'asset-alerts': SettingsAssetAlerts,
   'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory, 'directory-sync': DirectorySync,
-  'incoming-email': SettingsIncomingEmail, 'outgoing-email': SettingsOutgoingEmail, 'email-log': EmailLog,
+  'incoming-email': SettingsIncomingEmail, 'outgoing-email': SettingsOutgoingEmail, 'email-log': EmailLog, 'email-templates': SettingsEmailTemplates,
   calendar: CalendarIntegration, schedules: Schedules, import: SettingsImport,
   export: SettingsExport, 'audit-log': AuditLog, system: SettingsSystemInfo,
 };

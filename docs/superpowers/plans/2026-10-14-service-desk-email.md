@@ -210,18 +210,18 @@ full code (user rule).
   clickable placeholder chips that insert `{{name}}`, an enabled switch, a
   preview pane (iframe `srcdoc`, `sandbox=""`), Save and "Reset to default".
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'lists every catalogue key with isDefault true at first'`
   - `'saving sanitizes the body and audits'`
   - `'reset returns the default'`
   - `'unknown key is 404'`
   - `'preview renders without saving'`
   - `'needs manage-system: technician gets 403'`
-- [ ] Run them and see them fail.
-- [ ] Implement the backend.
-- [ ] Run the tests and see them pass.
-- [ ] Build the page, and run `npm run build` (frontend).
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement the backend.
+- [x] Run the tests and see them pass.
+- [x] Build the page, and run `npm run build` (frontend).
+- [x] Commit.
 
 ### Task 5: Existing emails move onto templates, plus signatures
 

@@ -33,10 +33,10 @@ test('ids and paths are unique, and no redirect shadows a route', () => {
 
 test('the placeholders are gone and the split pages exist', () => {
   const paths = allRoutes().map((r) => r.path);
-  for (const gone of ['/settings/email-templates', '/settings/macros', '/settings/supervisor-rules', '/settings/recycle-bin', '/admin/settings', '/settings/branding', '/settings/assignment-rules', '/settings/modules']) {
+  for (const gone of ['/settings/macros', '/settings/supervisor-rules', '/settings/recycle-bin', '/admin/settings', '/settings/branding', '/settings/assignment-rules', '/settings/modules']) {
     assert.ok(!paths.includes(gone), gone);
   }
-  for (const added of ['/settings/directory', '/settings/incoming-email', '/settings/outgoing-email', '/settings/system']) {
+  for (const added of ['/settings/email-templates', '/settings/directory', '/settings/incoming-email', '/settings/outgoing-email', '/settings/system']) {
     assert.ok(paths.includes(added), added);
   }
 });
@@ -79,6 +79,7 @@ test('visibleGroups keeps the menu order and drops groups with nothing to open',
   assert.deepEqual(staff.find((g) => g.name === 'You').pages.map((p) => p.id), ['preferences', 'about']);
   const all = visibleGroups(owner).map((g) => g.name);
   assert.deepEqual(all, GROUPS);
-  const sysadmin = visibleGroups({ ...owner, isOwner: false }).map((g) => g.name);
-  assert.ok(!sysadmin.includes('Sign-in & email'));
+  // Non-owner administrators see only the email templates under Sign-in & email.
+  const sysadmin = visibleGroups({ ...owner, isOwner: false });
+  assert.deepEqual(sysadmin.find((g) => g.name === 'Sign-in & email').pages.map((p) => p.id), ['email-templates']);
 });

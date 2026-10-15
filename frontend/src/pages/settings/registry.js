@@ -48,6 +48,7 @@ export const PAGES = [
   { id: 'directory-sync', group: 'Sign-in & email', name: 'Directory sync', desc: 'Contacts from Active Directory', keywords: ['ad sync', 'contacts', 'group mapping'], path: '/settings/directory-sync', access: OWNER, width: 'narrow' },
   { id: 'incoming-email', group: 'Sign-in & email', name: 'Incoming email', desc: 'Turn emails into tickets', keywords: ['imap', 'mailbox', 'email to ticket'], path: '/settings/incoming-email', access: OWNER, width: 'narrow' },
   { id: 'outgoing-email', group: 'Sign-in & email', name: 'Outgoing email', desc: 'How PRISM sends mail', keywords: ['smtp', 'mail server', 'from address'], path: '/settings/outgoing-email', access: OWNER, width: 'narrow' },
+  { id: 'email-templates', group: 'Sign-in & email', name: 'Email templates', desc: 'What PRISM emails say', keywords: ['template', 'auto-reply', 'signature', 'branding', 'placeholder', 'survey email'], path: '/settings/email-templates', access: SYSTEM, width: 'wide' },
   { id: 'email-log', group: 'Sign-in & email', name: 'Email log', desc: 'What came in and what was sent', keywords: ['mail log', 'bounce', 'delivery'], path: '/settings/email-log', access: OWNER, width: 'wide' },
   { id: 'calendar', group: 'Sign-in & email', name: 'Calendar', desc: 'Google and Microsoft calendar sync', keywords: ['google', 'microsoft', 'outlook', 'oauth'], path: '/settings/calendar-integration', access: OWNER, width: 'narrow' },
   // System
@@ -62,7 +63,6 @@ export const REDIRECTS = [
   ['/admin/settings', '/settings'],
   ['/settings/branding', '/settings/company'],
   ['/settings/blueprints', '/admin/blueprints'],
-  ['/settings/email-templates', '/settings'],
   ['/settings/macros', '/settings'],
   ['/settings/supervisor-rules', '/settings'],
   ['/settings/recycle-bin', '/settings'],

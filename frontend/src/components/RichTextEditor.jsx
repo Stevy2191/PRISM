@@ -65,7 +65,9 @@ const EDITOR_EXTENSIONS = [
 // Full-formatting rich text editor (TipTap). Controlled by `value` (HTML
 // string) / `onChange(html)`. The stored HTML is sanitized server-side on
 // save, so the editor itself only needs to worry about authoring UX.
-export default function RichTextEditor({ value, onChange }) {
+// `onReady(editor)` hands the TipTap editor to a parent that inserts text at
+// the caret (e.g. the email template editor's placeholder chips).
+export default function RichTextEditor({ value, onChange, onReady }) {
   const editor = useEditor({
     extensions: EDITOR_EXTENSIONS,
     content: value || '',
@@ -82,6 +84,11 @@ export default function RichTextEditor({ value, onChange }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
+
+  useEffect(() => {
+    if (editor && onReady) onReady(editor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
 
   if (!editor) return null;
 
