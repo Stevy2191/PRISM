@@ -355,16 +355,16 @@ full code (user rule).
 
   The cases follow the spec's list, and Task 9 wires them all.
 
-- [ ] Write the tests: one unit test per row of the spec's matching list,
+- [x] Write the tests: one unit test per row of the spec's matching list,
   plus `'findTicketNumber: [Ticket #00012], "Re: #12 printer", "PO#12x" (no match), headers'`.
-- [ ] Write an integration test pinning today's behaviour through
+- [x] Write an integration test pinning today's behaviour through
   `handleParsedMessage`: `'contact reply appends'`,
   `'stranger with a guessed number gets a new ticket'`,
   `'own-mailbox loop is ignored'`.
-- [ ] Run them and see them fail.
-- [ ] Implement the refactor.
-- [ ] Run the tests plus `companies.inbound.test.js`, and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement the refactor.
+- [x] Run the tests plus `companies.inbound.test.js`, and see them pass.
+- [x] Commit.
 
 ### Task 8: Sender verification
 

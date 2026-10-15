@@ -16,6 +16,7 @@ const { UPLOAD_ROOT } = require('../middleware/upload');
 const { getFirstTicketStatusByBehavior } = require('./statusBehavior');
 const { getAllSettings } = require('../controllers/settingsController');
 const { sendTicketEmail, buildTicketMessageId } = require('./email/ticketMail');
+const { findTicketNumber, classifyInbound } = require('./email/inboundClassify');
 const { FREE_MAIL_DOMAINS } = require('./companyService');
 const { notifyComment } = require('./notifications');
 
@@ -115,19 +116,6 @@ async function testImapConnection(config) {
 // ---- Message-ID based threading ----
 // Outbound ticket mail carries a Message-ID that encodes the ticket id
 // (services/email/ticketMail.js), matched again below.
-function detectTicketId(subject, inReplyTo, references) {
-  const subjectMatch = /\[Ticket #0*(\d+)\]/i.exec(subject || '');
-  if (subjectMatch) return parseInt(subjectMatch[1], 10);
-
-  const refList = Array.isArray(references) ? references : (references ? [references] : []);
-  const candidates = [inReplyTo, ...refList].filter(Boolean);
-  for (const header of candidates) {
-    const m = /prism-ticket-(\d+)-/i.exec(header);
-    if (m) return parseInt(m[1], 10);
-  }
-  return null;
-}
-
 function htmlToText(html) {
   if (!html) return '';
   return html
@@ -262,64 +250,85 @@ async function markProcessed(client, uid) {
   }
 }
 
-async function processOneMessage(client, uid, config) {
-  const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
-  if (!msg || !msg.source) return;
+function logResult(parsed, fromAddress, subject, result, error) {
+  return EmailProcessingLog.create({
+    messageId: parsed.messageId || null,
+    fromEmail: fromAddress || null,
+    subject,
+    action: result.action,
+    ticketId: result.ticketId,
+    processedAt: new Date(),
+    error: error || null,
+  });
+}
 
-  const parsed = await simpleParser(msg.source);
+// Everything after fetching: decides what a parsed message is (see
+// services/email/inboundClassify.js), acts on it and logs it. Returns
+// { action, ticketId }.
+async function handleParsedMessage(parsed, config) {
   const fromAddress = (parsed.from?.value?.[0]?.address || '').toLowerCase();
   const fromName = parsed.from?.value?.[0]?.name || '';
   const subject = parsed.subject || '(no subject)';
   const textBody = parsed.text || htmlToText(parsed.html) || '';
-  const messageId = parsed.messageId || null;
 
   // Never let PRISM's own outbound mail (auto-replies, tech replies) loop
   // back in as a new "inbound" message if the mailbox ever sees its own sent copy.
-  if (fromAddress && fromAddress === config.address.toLowerCase()) {
-    await markProcessed(client, uid);
-    await EmailProcessingLog.create({ messageId, fromEmail: fromAddress, subject, action: 'ignored', processedAt: new Date(), error: 'From address matches the configured inbox itself' });
-    return;
+  if (fromAddress && fromAddress === String(config.address || '').toLowerCase()) {
+    const result = { action: 'ignored', ticketId: null };
+    await logResult(parsed, fromAddress, subject, result, 'From address matches the configured inbox itself');
+    return result;
   }
 
-  const ticketId = detectTicketId(subject, parsed.inReplyTo, parsed.references);
+  const ticketId = findTicketNumber(subject, parsed.inReplyTo, parsed.references);
+  const ticket = ticketId
+    ? await Ticket.findByPk(ticketId, { include: [{ model: Contact, as: 'contact', attributes: ['email'] }] })
+    : null;
+  // The subject/In-Reply-To/References headers are attacker-controlled —
+  // matching a ticket id there is not proof the sender owns that ticket.
+  // Only the ticket's contact counts as its side; anyone else gets a new
+  // ticket of their own instead of injecting content into this one.
+  const senderKind = ticket && ticket.contact && ticket.contact.email
+    && ticket.contact.email.toLowerCase() === fromAddress ? 'contact_side' : 'other';
+  const action = classifyInbound({
+    ticketFound: !!ticket, senderKind, verified: false, staffCanEdit: false, hasCustomerRecipient: false,
+  });
   const systemActorId = await getSystemActorUserId();
 
-  if (ticketId) {
-    const ticket = await Ticket.findByPk(ticketId, { include: [{ model: Contact, as: 'contact', attributes: ['email'] }] });
-    // The subject/In-Reply-To/References headers are attacker-controlled —
-    // matching a ticket id there is not proof the sender owns that ticket.
-    // Only append as a reply when the From address is the ticket's actual
-    // contact; otherwise fall through to the "unmatched" path below, which
-    // opens a new ticket from this sender instead of letting anyone inject
-    // content into an arbitrary ticket by guessing its id.
-    if (ticket && ticket.contact && ticket.contact.email.toLowerCase() === fromAddress) {
-      const comment = await Comment.create({
-        body: textBody, authorId: systemActorId, ticketId: ticket.id, type: 'reply',
-      });
-      await saveAttachments(parsed.attachments, ticket.id, systemActorId);
-      if (systemActorId) await notifyComment(ticket, comment, systemActorId).catch(() => {});
-      await markProcessed(client, uid);
-      await EmailProcessingLog.create({ messageId, fromEmail: fromAddress, subject, action: 'reply_added', ticketId: ticket.id, processedAt: new Date() });
-      return;
-    }
+  if (action === 'reply_added') {
+    const comment = await Comment.create({
+      body: textBody, authorId: systemActorId, ticketId: ticket.id, type: 'reply',
+    });
+    await saveAttachments(parsed.attachments, ticket.id, systemActorId);
+    if (systemActorId) await notifyComment(ticket, comment, systemActorId).catch(() => {});
+    const result = { action, ticketId: ticket.id };
+    await logResult(parsed, fromAddress, subject, result);
+    return result;
   }
 
   const contact = await findOrCreateContact(fromAddress, fromName);
   if (!contact) {
-    await markProcessed(client, uid);
-    await EmailProcessingLog.create({ messageId, fromEmail: fromAddress, subject, action: 'ignored', processedAt: new Date(), error: 'No usable From address' });
-    return;
+    const result = { action: 'ignored', ticketId: null };
+    await logResult(parsed, fromAddress, subject, result, 'No usable From address');
+    return result;
   }
-  const ticket = await createTicketFromEmail({ contact, subject, textBody });
-  await saveAttachments(parsed.attachments, ticket.id, systemActorId);
-  await markProcessed(client, uid);
-  await EmailProcessingLog.create({ messageId, fromEmail: fromAddress, subject, action: 'ticket_created', ticketId: ticket.id, processedAt: new Date() });
+  const created = await createTicketFromEmail({ contact, subject, textBody });
+  await saveAttachments(parsed.attachments, created.id, systemActorId);
+  const result = { action: 'ticket_created', ticketId: created.id };
+  await logResult(parsed, fromAddress, subject, result);
+  setImmediate(() => {
+    sendAutoReply(created, contact).catch((err) => {
+      console.error('[inbound-email] auto-reply failed for ticket', created.id, err.message);
+    });
+  });
+  return result;
+}
 
-  try {
-    await sendAutoReply(ticket, contact);
-  } catch (err) {
-    console.error('[inbound-email] auto-reply failed for ticket', ticket.id, err.message);
-  }
+async function processOneMessage(client, uid, config) {
+  const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
+  if (!msg || !msg.source) return;
+  const parsed = await simpleParser(msg.source);
+  await handleParsedMessage(parsed, config);
+  await markProcessed(client, uid);
 }
 
 // Runs one full poll cycle. Never throws — every failure is caught and
@@ -368,5 +377,5 @@ async function pollInbox() {
 module.exports = {
   resolveInboundEmailConfig, readInboundEmailSettingsRows, isInboundConfigured,
   testImapConnection, pollInbox, buildTicketMessageId, findOrCreateContact,
-  createTicketFromEmail, sendAutoReply, // exported for the integration tests
+  createTicketFromEmail, sendAutoReply, handleParsedMessage, // exported for the integration tests
 };
