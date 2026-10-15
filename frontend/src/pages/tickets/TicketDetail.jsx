@@ -125,6 +125,20 @@ export default function TicketDetail() {
     try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? 'collapsed' : 'expanded'); } catch { /* ignore */ }
   }, [collapsed]);
 
+  // Take it (5b): claim this unassigned ticket.
+  const [taking, setTaking] = useState(false);
+  const takeTicket = async () => {
+    setTaking(true);
+    try {
+      await api.post(`/tickets/${id}/take`);
+    } catch (err) {
+      alert(errMessage(err));
+    } finally {
+      setTaking(false);
+      load(); // eslint-disable-line no-use-before-define
+    }
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -417,6 +431,16 @@ export default function TicketDetail() {
               {PRIORITY_META[ticket.priority].label}
             </span>
             <CsatBadge survey={ticket.csatSurvey} />
+            {ticket.access?.canTake && (
+              <button
+                type="button"
+                onClick={takeTicket}
+                disabled={taking}
+                className="btn-primary h-7 px-2.5 text-xs"
+              >
+                {taking ? 'Taking…' : 'Take it'}
+              </button>
+            )}
             {isStaff && ticket.access?.edit && (
               <button
                 type="button"

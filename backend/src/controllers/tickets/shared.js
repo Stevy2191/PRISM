@@ -212,10 +212,13 @@ async function ticketDetailFor(viewer, ticket) {
 
 async function ticketAccessFor(viewer, ticket) {
   const edit = await canEditTicket(viewer, ticket);
+  // Lazy: the queue service loads the ticket write service, which loads this file.
+  const { canTake } = require('../../services/tickets/queue'); // eslint-disable-line global-require
   return {
     edit,
     moderate: await canModerateTicketContent(viewer, ticket),
     delete: edit && (await hasPermission(viewer.id, 'tickets.delete')),
+    canTake: await canTake(viewer, ticket),
   };
 }
 

@@ -9,6 +9,7 @@ import NotificationsDropdown from './NotificationsDropdown';
 import TimerIndicator from './work/TimerIndicator';
 import GlobalSearch from './GlobalSearch';
 import ThemeToggle from './ThemeToggle';
+import QueueBadge from './QueueBadge';
 
 // Renders a nav item with `subItems` (currently just Assets: Assets/
 // Licenses/Contracts) as a click-to-open dropdown rather than a plain link —
@@ -144,6 +145,7 @@ export default function TopNav() {
               })}
             >
               {n.label}
+              {n.key === 'tickets' && <QueueBadge />}
             </NavLink>
           )))}
         </nav>
@@ -168,6 +170,7 @@ export default function TopNav() {
             >
               <span className="text-sm leading-none">{n.icon}</span>
               <span className="truncate leading-none">{n.label}</span>
+              {n.key === 'tickets' && <QueueBadge compact />}
             </NavLink>
           )))}
         </nav>

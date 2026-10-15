@@ -22,7 +22,7 @@ it('a ticket says what the viewer may do with it', async () => {
   expect(await access(tech)).toEqual({ edit: true, moderate: false, delete: false });
   expect(await access(w.admin)).toEqual({ edit: true, moderate: true, delete: true });
   const patched = expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ priority: 'low' })).ticket;
-  expect(patched.access).toEqual({ edit: true, moderate: true, delete: true });
+  expect(patched.access).toEqual({ edit: true, moderate: true, delete: true, canTake: false });
   const created = expectOk(await tech.agent.post(`${API}/tickets`).send({ title: 'New', contactId: w.contact.id }), 201).ticket;
   expect(created.access.edit).toBe(true);
 });

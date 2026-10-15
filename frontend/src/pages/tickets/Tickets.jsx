@@ -41,7 +41,7 @@ import {
 // ---- Main page ----
 
 export default function Tickets() {
-  const { isStaff } = useAuth();
+  const { isStaff, user } = useAuth();
   const canCreateTickets = usePermission('tickets.create');
   const canViewAllTickets = usePermission('tickets.view_all');
   const navigate = useNavigate();
@@ -69,11 +69,16 @@ export default function Tickets() {
   const [newFromEmail, setNewFromEmail] = useState(false);
   const [searchParams] = useSearchParams();
   const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
-  const [sort, setSort] = useState({ key: 'updatedAt', dir: 'desc' });
+  // Queue view (5b): '' = no queue, 'mine' = every team I'm in, or a team id.
+  // A queue sorts unassigned first, then earliest SLA due (server side), until
+  // a column header is clicked.
+  const [queue, setQueue] = useState(searchParams.get('queue') || '');
+  const [teams, setTeams] = useState([]);
+  const [sort, setSort] = useState(() => (searchParams.get('queue') ? { key: 'queue', dir: 'asc' } : { key: 'updatedAt', dir: 'desc' }));
 
   // Any change to a filter has to send the table back to page 1 — otherwise
   // narrowing the results while on page 5 shows an empty table.
-  const filterKey = JSON.stringify([search, status, priority, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, sort]);
+  const filterKey = JSON.stringify([search, status, priority, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, queue, sort]);
   const pager = usePagination({ filterKey, storageKey: 'prism.tickets.pageSize' });
 
   const [view, setView] = useState('table');
@@ -133,7 +138,14 @@ export default function Tickets() {
     api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
     api.get('/saved-filters').then(({ data }) => setSavedFilters(data.savedFilters)).catch(() => {});
     api.get('/ticket-statuses').then(({ data }) => setTicketStatuses(data.statuses)).catch(() => {});
+    api.get('/teams').then(({ data }) => setTeams(data.teams || [])).catch(() => {});
   }, []);
+  const myTeams = useMemo(
+    () => teams.filter((t) => (t.memberships || []).some((m) => m.userId === user?.id)),
+    [teams, user]
+  );
+  // A single team can be picked if I'm in it, or if I can see every ticket.
+  const queueTeams = canViewAllTickets ? teams : myTeams;
 
   const clearActiveSavedFilter = () => setActiveSavedFilterId(null);
 
@@ -150,14 +162,17 @@ export default function Tickets() {
     if (unassigned) params.unassigned = 'true';
     if (slaFilter) params.sla = slaFilter;
     if (newFromEmail) { params.source = 'email'; params.unassigned = 'true'; }
+    if (queue) params.queue = queue;
     // A `cf:`-prefixed key is passed through as-is — the server resolves it
     // to the custom field and sorts on its value in SQL. (This used to be
     // sorted in the browser, which only works while the whole result set is
     // in memory.)
-    params.sortBy = sort.key.startsWith('cf:') ? sort.key : (SORTABLE_COLUMNS[sort.key] || 'updatedAt');
-    params.sortDir = sort.dir;
+    if (sort.key !== 'queue') {
+      params.sortBy = sort.key.startsWith('cf:') ? sort.key : (SORTABLE_COLUMNS[sort.key] || 'updatedAt');
+      params.sortDir = sort.dir;
+    }
     return params;
-  }, [search, status, priority, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, sort]);
+  }, [search, status, priority, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, queue, sort]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -241,6 +256,26 @@ export default function Tickets() {
   const toggleUnassigned = () => { clearActiveSavedFilter(); setUnassigned((v) => !v); };
   const toggleSla = (kind) => () => { clearActiveSavedFilter(); setSlaFilter((v) => (v === kind ? '' : kind)); };
   const toggleNewFromEmail = () => { clearActiveSavedFilter(); setNewFromEmail((v) => !v); };
+  const pickQueue = (value) => {
+    clearActiveSavedFilter();
+    setQueue(value);
+    setSort(value ? { key: 'queue', dir: 'asc' } : { key: 'updatedAt', dir: 'desc' });
+  };
+
+  // Take it (5b): claim an unassigned queue ticket. A lost race shows the
+  // server's "Already taken by X" and refreshes the list.
+  const [taking, setTaking] = useState(null);
+  const takeTicket = async (id) => {
+    setTaking(id);
+    try {
+      await api.post(`/tickets/${id}/take`);
+    } catch (err) {
+      alert(errMessage(err));
+    } finally {
+      setTaking(null);
+      load();
+    }
+  };
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -416,6 +451,20 @@ export default function Tickets() {
 
           {/* Quick-filter chips — horizontally scrollable on mobile/tablet, inline on desktop. */}
           <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:contents lg:overflow-visible lg:px-0 lg:pb-0">
+            {(myTeams.length > 0 || canViewAllTickets) && (
+              <select
+                value={queue}
+                onChange={(e) => pickQueue(e.target.value)}
+                aria-label="Queue"
+                data-testid="queue-picker"
+                className="input h-9 max-w-[11rem] flex-shrink-0 text-sm"
+                style={{ backgroundColor: 'var(--color-input-bg)', borderColor: queue ? BLUE : 'var(--color-input-border)', color: TEXT }}
+              >
+                <option value="">All tickets</option>
+                {myTeams.length > 0 && <option value="mine">My queues</option>}
+                {queueTeams.map((t) => <option key={t.id} value={String(t.id)}>Queue: {t.name}</option>)}
+              </select>
+            )}
             <button
               type="button"
               onClick={toggleMyTickets}
@@ -679,7 +728,16 @@ export default function Tickets() {
                         {key === 'status' && <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />}
                         {key === 'dueDate' && <DueDateCell dueDate={t.dueDate} />}
                         {key === 'sla' && <SlaBadge sla={t.sla} />}
-                        {key === 'assignee' && <Avatar name={t.assignee?.displayName} />}
+                        {key === 'assignee' && (queue && !t.assigneeId ? (
+                          <button
+                            type="button"
+                            onClick={() => takeTicket(t.id)}
+                            disabled={taking === t.id}
+                            className="btn-primary h-7 px-2.5 text-xs"
+                          >
+                            {taking === t.id ? 'Taking…' : 'Take it'}
+                          </button>
+                        ) : <Avatar name={t.assignee?.displayName} />)}
                         {key === 'type' && <span className="text-sm capitalize" style={{ color: TEXT }}>{t.type}</span>}
                         {key === 'source' && <SourceCell source={t.source} />}
                         {key === 'team' && <span className="text-sm" style={{ color: TEXT }}>{t.team?.name || '—'}</span>}

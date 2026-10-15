@@ -152,3 +152,14 @@ describe('POST /tickets/:id/take', () => {
     expect(activity.map((a) => a.action)).toContain('assigneeId');
   });
 });
+
+describe('ticket page access', () => {
+  it('access.canTake true for a viewing team member on an unassigned ticket, false once assigned', async () => {
+    const t = await ticket({ teamId: desk.id });
+    expect(expectOk(await tina.agent.get(`${API}/tickets/${t.id}`)).ticket.access.canTake).toBe(true);
+    // Dana can view it (department) but isn't in Desk and can't edit it.
+    expect(expectOk(await dana.agent.get(`${API}/tickets/${t.id}`)).ticket.access.canTake).toBe(false);
+    expectOk(await tina.agent.post(`${API}/tickets/${t.id}/take`));
+    expect(expectOk(await tina.agent.get(`${API}/tickets/${t.id}`)).ticket.access.canTake).toBe(false);
+  });
+});
