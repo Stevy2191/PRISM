@@ -9,13 +9,18 @@ module.exports = (sequelize) => {
       name: { type: DataTypes.STRING(100), allowNull: false },
       color: { type: DataTypes.STRING(9), allowNull: false, defaultValue: '#3b82f6' },
       behaviorType: {
-        type: DataTypes.ENUM('open', 'closed', 'archived'),
+        // on_hold (user decision 2026-10-15) never counts as closed: the SLA
+        // keeps running and the ticket stays in open lists.
+        type: DataTypes.ENUM('open', 'closed', 'archived', 'on_hold'),
         allowNull: false,
         defaultValue: 'open',
       },
       position: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       isDefault: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isProtected: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      // 'user_responded' | 'waiting_on_user': statuses replies move tickets
+      // into automatically (see services/statusMoves.js).
+      systemKey: { type: DataTypes.STRING(32), allowNull: true, unique: true },
     },
     {
       sequelize,

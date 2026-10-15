@@ -327,7 +327,7 @@ describe('staff-entered CSAT', () => {
     A = await makeTicket(w.admin.agent, { title: 'Alpha', contactId: w.contact.id, departmentId: w.deptA.id, assigneeId: tech.user.id });
   });
   const url = () => `${API}/tickets/${A.id}/csat`;
-  const resolve = async () => expectOk(await tech.agent.patch(`${API}/tickets/${A.id}`).send({ status: 'Resolved' }));
+  const resolve = async () => expectOk(await tech.agent.patch(`${API}/tickets/${A.id}`).send({ status: 'Request completed' }));
 
   it('won\'t take a rating until the ticket is closed', async () => {
     const res = await tech.agent.post(url()).send({ rating: 'happy' });

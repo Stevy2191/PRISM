@@ -334,9 +334,9 @@ function TicketsTab({ tickets, statuses, total, onLoadMore }) {
   const behaviorByName = new Map(statuses.map((s) => [s.name, s.behaviorType]));
   const filtered = tickets.filter((t) => {
     if (filter === 'All') return true;
-    if (filter === 'Open') return behaviorByName.get(t.status) === 'open';
+    if (filter === 'Open') return ['open', 'on_hold'].includes(behaviorByName.get(t.status));
     if (filter === 'Closed') return behaviorByName.get(t.status) === 'closed';
-    if (filter === 'On Hold') return t.status === 'On Hold';
+    if (filter === 'On Hold') return behaviorByName.get(t.status) === 'on_hold';
     return true;
   });
 

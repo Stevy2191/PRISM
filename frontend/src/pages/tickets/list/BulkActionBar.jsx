@@ -73,7 +73,7 @@ export function BulkActionBar({
       {bulkActionType === 'status' && (
         <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
           <option value="">Select status…</option>
-          {ticketStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+          {ticketStatuses.filter((s) => s.systemKey !== 'user_responded').map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
         </select>
       )}
       {bulkActionType === 'priority' && (

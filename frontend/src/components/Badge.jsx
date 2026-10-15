@@ -5,10 +5,12 @@
 const STYLES = {
   // Ticket status
   Open: 'bg-blue-100 text-blue-800',
-  'In Progress': 'bg-amber-100 text-amber-800',
-  Pending: 'bg-amber-100 text-amber-800',
+  'Waiting on User': 'bg-violet-100 text-violet-800',
+  'User responded': 'bg-pink-100 text-pink-800',
   'On Hold': 'bg-gray-200 text-gray-700',
-  Resolved: 'bg-green-100 text-green-800',
+  Postponed: 'bg-gray-200 text-gray-700',
+  'Request completed': 'bg-green-100 text-green-800',
+  'Request cancelled': 'bg-navy-100 text-navy-700',
   Closed: 'bg-navy-100 text-navy-700',
   // Priority
   low: 'bg-gray-100 text-gray-600',

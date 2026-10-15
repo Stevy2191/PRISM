@@ -6,18 +6,34 @@ const { TicketStatus, ProjectStatus } = require('../models');
 // without hardcoding a fixed list of status name strings — a custom status
 // an admin creates (or renames) is picked up immediately because this reads
 // the ticket_statuses table directly rather than a baked-in constant.
+//
+// The "on hold" kind (user decision 2026-10-15) never counts as closed, so
+// it is reported as open here and every caller (SLA clocks, overdue, open
+// lists) treats it that way; `onHold` names those statuses for the places
+// that show it separately.
 async function getTicketStatusBuckets() {
   const rows = await TicketStatus.findAll({ attributes: ['name', 'behaviorType'] });
-  const buckets = { open: [], closed: [], archived: [] };
+  const buckets = {
+    open: [], closed: [], archived: [], onHold: [],
+  };
   rows.forEach((r) => {
-    if (buckets[r.behaviorType]) buckets[r.behaviorType].push(r.name);
+    if (r.behaviorType === 'on_hold') {
+      buckets.open.push(r.name);
+      buckets.onHold.push(r.name);
+    } else if (buckets[r.behaviorType]) buckets[r.behaviorType].push(r.name);
   });
   return buckets;
 }
 
 // Same, but as a Map<statusName, behaviorType> for O(1) per-ticket lookups
-// (e.g. when classifying a list of tickets one at a time).
+// (e.g. when classifying a list of tickets one at a time). On hold → 'open'.
 async function getTicketStatusBehaviorMap() {
+  const rows = await TicketStatus.findAll({ attributes: ['name', 'behaviorType'] });
+  return new Map(rows.map((r) => [r.name, r.behaviorType === 'on_hold' ? 'open' : r.behaviorType]));
+}
+
+// The real kind, including 'on_hold'.
+async function getTicketStatusKindMap() {
   const rows = await TicketStatus.findAll({ attributes: ['name', 'behaviorType'] });
   return new Map(rows.map((r) => [r.name, r.behaviorType]));
 }
@@ -56,6 +72,7 @@ async function getFirstTicketStatusByBehavior(behaviorType) {
 module.exports = {
   getTicketStatusBuckets,
   getTicketStatusBehaviorMap,
+  getTicketStatusKindMap,
   getProjectStatusBuckets,
   getProjectStatusBehaviorMap,
   getFirstProjectStatusByBehavior,

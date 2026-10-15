@@ -11,7 +11,8 @@ const BASE_STATUS_OPTIONS = [
 
 export function buildStatusFilterOptions(ticketStatuses) {
   const openOnes = ticketStatuses.filter((s) => s.behaviorType !== 'closed').map((s) => ({ value: s.name, label: s.name }));
-  return [...BASE_STATUS_OPTIONS, ...openOnes, { value: 'closed', label: 'Closed' }];
+  // 'on_hold' is another aggregate: every on-hold status.
+  return [...BASE_STATUS_OPTIONS, ...openOnes, { value: 'on_hold', label: 'On hold (all)' }, { value: 'closed', label: 'Closed' }];
 }
 
 export const PRIORITY_OPTIONS = [

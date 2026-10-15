@@ -41,7 +41,7 @@ describe('POST /tickets', () => {
 
   it('keeps every explicit field', async () => {
     const fields = {
-      description: 'd', priority: 'high', type: 'incident', status: 'In Progress', departmentId: w.deptA.id,
+      description: 'd', priority: 'high', type: 'incident', status: 'Waiting on User', departmentId: w.deptA.id,
       assigneeId: tech.user.id, dueDate: '2026-12-01', dueTime: '14:30:00', tags: ['vpn', 'urgent'],
     };
     const t = await makeTicket(tech.agent, { ...base(), ...fields });
@@ -79,7 +79,7 @@ describe('POST /tickets', () => {
   });
 
   it('stamps resolvedAt when created closed', async () => {
-    const t = await makeTicket(tech.agent, { ...base(), status: 'Resolved' });
+    const t = await makeTicket(tech.agent, { ...base(), status: 'Request completed' });
     expect(typeof t.resolvedAt).toBe('string');
   });
 
@@ -160,7 +160,7 @@ describe('PATCH /tickets/:id', () => {
     const project = await makeProject(w.admin.agent, { name: 'P', ownerDepartmentId: w.deptA.id });
     const t = await makeTicket(tech.agent, base());
     const changes = {
-      title: 'Renamed', description: 'New text', status: 'Pending', priority: 'critical', type: 'change',
+      title: 'Renamed', description: 'New text', status: 'On Hold', priority: 'critical', type: 'change',
       assigneeId: tech.user.id, teamId: team.id, contactId: contact2.id, projectId: project.id,
       departmentId: w.deptB.id, dueDate: '2026-11-02', dueTime: '08:15:00', tags: ['x'], resolution: 'Swapped toner',
     };
@@ -215,7 +215,7 @@ describe('PATCH /tickets/:id', () => {
     freezeClock('2026-03-11T17:00:00Z');
     const t = await makeTicket(tech.agent, base());
     const patch = async (status) => expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ status })).ticket;
-    expect((await patch('Resolved')).resolvedAt).toBe('2026-03-11T17:00:00.000Z');
+    expect((await patch('Request completed')).resolvedAt).toBe('2026-03-11T17:00:00.000Z');
     advanceClock(60 * 1000);
     expect((await patch('Closed')).resolvedAt).toBe('2026-03-11T17:00:00.000Z');
     expect((await patch('Open')).resolvedAt).toBeNull();
@@ -225,14 +225,14 @@ describe('PATCH /tickets/:id', () => {
     const team = await makeTeam(w.admin, 'Desk team', [{ userId: tech.user.id, isLead: false }]);
     const t = await makeTicket(tech.agent, base());
     expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({
-      status: 'In Progress', priority: 'high', type: 'incident', assigneeId: tech.user.id, teamId: team.id,
+      status: 'Waiting on User', priority: 'high', type: 'incident', assigneeId: tech.user.id, teamId: team.id,
       // The ticket starts in the contact's department (A), so move it to B.
       departmentId: w.deptB.id, dueDate: '2026-12-01', dueTime: '09:00:00', title: 'Renamed',
     }));
     const activity = await activityOf(tech.agent, t.id);
     expect(activity).toEqual(expect.arrayContaining([
       ['created', null, null],
-      ['status', 'Open', 'In Progress'],
+      ['status', 'Open', 'Waiting on User'],
       ['priority', 'medium', 'high'],
       ['type', 'request', 'incident'],
       ['assigneeId', null, 'Test tech'],
@@ -314,7 +314,7 @@ describe('GET /tickets', () => {
         ...base(), title: 'Bravo', priority: 'low', source: 'phone', departmentId: w.deptB.id, description: 'printer jam',
       });
       const charlie = await makeTicket(a, { ...base(), title: 'Charlie', projectId: project.id, dueDate: '2026-03-01' });
-      expectOk(await a.patch(`${API}/tickets/${charlie.id}`).send({ status: 'Resolved' }));
+      expectOk(await a.patch(`${API}/tickets/${charlie.id}`).send({ status: 'Request completed' }));
       const delta = await makeTicket(a, { ...base(), title: 'Delta', teamId: team.id, contactId: contact2.id, dueDate: '2026-03-11' });
       ids = { tech: tech.user.id, project: project.id, deptB: w.deptB.id, contact2: contact2.id, team: team.id };
       expect([alpha.id, bravo.id, charlie.id, delta.id]).toEqual([1, 2, 3, 4]);
@@ -333,7 +333,7 @@ describe('GET /tickets', () => {
       ['team', () => `team=${ids.team}`, ['Delta']],
       ['unassigned=true', () => 'unassigned=true', ['Bravo', 'Charlie', 'Delta']],
       ['overdue=true', () => 'overdue=true', ['Alpha']],
-      ['overdue=true&status=Resolved', () => 'overdue=true&status=Resolved', ['Charlie']],
+      ['overdue=true&status=Request completed', () => 'overdue=true&status=Request%20completed', ['Charlie']],
       ['search=jam', () => 'search=jam', ['Bravo']],
       ['search=#00002', () => 'search=%2300002', ['Bravo']],
       ['search=0002', () => 'search=0002', ['Bravo']],
@@ -391,7 +391,7 @@ describe('GET /tickets', () => {
 describe('GET /tickets/board', () => {
   it('has one column per non-archived status, in order', async () => {
     const { columns } = expectOk(await tech.agent.get(`${API}/tickets/board`));
-    expect(columns.map((c) => c.status.name)).toEqual(['Open', 'In Progress', 'Pending', 'On Hold', 'Resolved', 'Closed']);
+    expect(columns.map((c) => c.status.name)).toEqual(['Open', 'Waiting on User', 'User responded', 'On Hold', 'Postponed', 'Request completed', 'Request cancelled', 'Closed']);
     columns.forEach((c) => expect(c).toEqual({ status: expect.any(Object), total: 0, limit: 100, tickets: [] }));
   });
 

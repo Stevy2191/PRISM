@@ -9,6 +9,8 @@ const { syncTicketSla } = require('../services/sla/ticketSla');
 // handled identically except for which two models are involved, so this
 // factory avoids maintaining two near-duplicate controllers.
 function buildStatusController(StatusModel, EntityModel, scopeLabel) {
+  // Only ticket statuses have the "on hold" kind (user decision 2026-10-15).
+  const KINDS = EntityModel.name === 'Ticket' ? ['open', 'on_hold', 'closed', 'archived'] : ['open', 'closed', 'archived'];
   // SLA clocks run while a ticket's status is open-behaviour; bulk status
   // writes skip the Ticket hooks, so re-sync the tickets they touched.
   const tracksSla = EntityModel.name === 'Ticket';
@@ -30,8 +32,10 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
     if (!name || !name.trim()) {
       throw new ApiError(400, 'Status name is required', 'VALIDATION_ERROR');
     }
-    const allowedBehaviors = ['open', 'closed', 'archived'];
-    const resolvedBehavior = allowedBehaviors.includes(behaviorType) ? behaviorType : 'open';
+    if (behaviorType !== undefined && !KINDS.includes(behaviorType)) {
+      throw new ApiError(400, 'Invalid behaviorType', 'VALIDATION_ERROR');
+    }
+    const resolvedBehavior = behaviorType || 'open';
     const maxPosition = await StatusModel.max('position');
     const status = await StatusModel.create({
       name: name.trim(),
@@ -51,7 +55,7 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
     const changes = {};
     if (color !== undefined) changes.color = color;
     if (behaviorType !== undefined) {
-      if (!['open', 'closed', 'archived'].includes(behaviorType)) {
+      if (!KINDS.includes(behaviorType)) {
         throw new ApiError(400, 'Invalid behaviorType', 'VALIDATION_ERROR');
       }
       changes.behaviorType = behaviorType;

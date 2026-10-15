@@ -148,7 +148,7 @@ function overduePill(ev, todayStr, openStatusNames) {
 // Avoids threading openStatusNames through every intermediate component
 // prop signature — child components that need it (EventPill, EventPopover)
 // just read it here instead.
-const OpenStatusContext = createContext(new Set(['Open', 'In Progress', 'Pending', 'On Hold', 'Active']));
+const OpenStatusContext = createContext(new Set(['Open', 'Waiting on User', 'User responded', 'On Hold', 'Postponed', 'Active']));
 
 // ==================== Event pill (month/week views) ====================
 function EventPill({ event, todayStr, onClick }) {
@@ -675,7 +675,7 @@ export default function Calendar() {
 
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [miniOpen, setMiniOpen] = useState(true);
-  const [openStatusNames, setOpenStatusNames] = useState(new Set(['Open', 'In Progress', 'Pending', 'On Hold', 'Active']));
+  const [openStatusNames, setOpenStatusNames] = useState(new Set(['Open', 'Waiting on User', 'User responded', 'On Hold', 'Postponed', 'Active']));
 
   const [integrations, setIntegrations] = useState([]);
   const [externalEvents, setExternalEvents] = useState([]);
@@ -710,7 +710,7 @@ export default function Calendar() {
   useEffect(() => {
     Promise.all([api.get('/ticket-statuses'), api.get('/project-statuses')])
       .then(([t, p]) => {
-        const names = [...t.data.statuses, ...p.data.statuses].filter((s) => s.behaviorType === 'open').map((s) => s.name);
+        const names = [...t.data.statuses, ...p.data.statuses].filter((s) => s.behaviorType === 'open' || s.behaviorType === 'on_hold').map((s) => s.name);
         setOpenStatusNames(new Set(names));
       })
       .catch(() => {});

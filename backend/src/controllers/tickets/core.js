@@ -67,10 +67,14 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
     search, myTickets, overdue, unassigned, companyId, sla,
   } = req.query;
 
-  // "Closed" in the UI covers every status whose behaviorType is 'closed';
-  // everything else maps to the matching column value directly.
+  // "Closed" in the UI covers every status whose behaviorType is 'closed',
+  // and "On hold" every on-hold status; anything else is a status name.
   const buckets = await getTicketStatusBuckets();
-  if (status && !ignoreStatus) where.status = status === 'closed' ? { [Op.in]: buckets.closed } : status;
+  if (status && !ignoreStatus) {
+    if (status === 'closed') where.status = { [Op.in]: buckets.closed };
+    else if (status === 'on_hold') where.status = { [Op.in]: buckets.onHold };
+    else where.status = status;
+  }
   if (priority) where.priority = priority;
   if (type) where.type = type;
   if (source) where.source = source;
@@ -481,9 +485,14 @@ const get = asyncHandler(async (req, res) => {
 // A status must be one of the configured ticket statuses (Q25). Returns its
 // real name: the database matches names in any letter case, the behaviour
 // map does not, so a ticket always stores the configured spelling.
-async function ticketStatusName(name) {
+// User responded is set only by the system, when a customer replies (user
+// decision 2026-10-15); a ticket already in it may keep it.
+async function ticketStatusName(name, current = null) {
   const row = typeof name === 'string' ? await TicketStatus.findOne({ where: { name } }) : null;
   if (!row) throw new ApiError(400, 'Unknown ticket status', 'VALIDATION_ERROR');
+  if (row.systemKey === 'user_responded' && row.name !== current) {
+    throw new ApiError(400, `"${row.name}" is set automatically when the customer replies`, 'VALIDATION_ERROR');
+  }
   return row.name;
 }
 
@@ -530,7 +539,7 @@ const update = asyncHandler(async (req, res) => {
     }
     changes.title = changes.title.trim();
   }
-  if (changes.status !== undefined && changes.status !== ticket.status) changes.status = await ticketStatusName(changes.status);
+  if (changes.status !== undefined && changes.status !== ticket.status) changes.status = await ticketStatusName(changes.status, ticket.status);
   // Same rules as create for the contact and project (S7, S6). Re-sending the
   // ticket's current value unchanged (a client PATCHing the whole ticket
   // back) reveals nothing new, so it isn't re-checked.

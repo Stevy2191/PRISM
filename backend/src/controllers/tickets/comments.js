@@ -9,6 +9,7 @@ const {
   createNotification,
 } = require('../../services/notifications');
 const { logActivity } = require('../../services/ticketActivity');
+const { moveToSystemStatus } = require('../../services/statusMoves');
 const { recordFirstResponse } = require('../../services/sla/ticketSla');
 const { queueTicketEmail, ownAddresses } = require('../../services/email/ticketMail');
 const { buildReplyRecipients, normalizeEmailList } = require('../../services/email/recipients');
@@ -103,6 +104,10 @@ const createComment = asyncHandler(async (req, res) => {
   // response; inbound email replies are written elsewhere and never count.
   if (resolvedType !== 'comment_private') await recordFirstResponse(ticket.id);
   await logActivity(ticket.id, req.user.id, 'comment', null, null);
+  // A public answer to a customer's reply: now we wait on them.
+  if (resolvedType !== 'comment_private') {
+    await moveToSystemStatus(ticket, 'waiting_on_user', req.user.id, { from: 'user_responded' });
+  }
 
   if (resolvedType === 'comment_private') {
     // Internal-only note: notify the assignee, never any watcher who might

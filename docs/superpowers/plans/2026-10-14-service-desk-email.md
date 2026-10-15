@@ -568,7 +568,7 @@ The user asked for this during 5a (see the spec's "Status rework" section).
     hooks and workflow rules see it.
 - `contact_resolved` fires on any move into a closed-kind status (Task 5).
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'migration maps In Progress, Pending, Resolved and keeps admin statuses'`
   - `'round-trips (down then up)'`
   - `'on-hold tickets still count as open and keep their SLA running'`
@@ -577,11 +577,11 @@ The user asked for this during 5a (see the spec's "Status rework" section).
   - `'a contact reply to a closed ticket stays closed and notifies the assignee'`
   - `'a tech public reply moves User responded to Waiting on User; a private note does not'`
   - `'on_hold is refused for project statuses'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run the tests plus `settings.status*.test.js`, `sla*.test.js`, and see them pass.
-- [ ] Build the UI.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run the tests plus `settings.status*.test.js`, `sla*.test.js`, and see them pass.
+- [x] Build the UI.
+- [x] Commit.
 
 ### Task 12: Smoke, docs, push
 

@@ -36,7 +36,7 @@ export function TicketBoard({
               // Overdue is shown as a highlight on the card, not a
               // separate column — a ticket keeps its real status column
               // and is flagged red only while that status is still open.
-              const isOverdue = col.behaviorType === 'open' && t.dueDate && t.dueDate < todayStr();
+              const isOverdue = (col.behaviorType === 'open' || col.behaviorType === 'on_hold') && t.dueDate && t.dueDate < todayStr();
               return (
                 <div
                   key={t.id}

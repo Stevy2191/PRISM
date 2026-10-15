@@ -98,7 +98,7 @@ describe('audit rows', () => {
       return { actor: tech, entityType: 'TicketRelation', entityId: relation.id, meta: { ticketId: String(t.id) } };
     }],
     ['csat.submit', async () => {
-      await ok(tech.agent.patch(tUrl()).send({ status: 'Resolved' }));
+      await ok(tech.agent.patch(tUrl()).send({ status: 'Request completed' }));
       await ok(tech.agent.post(tUrl('/csat')).send({ rating: 'happy' }), 201);
       return { actor: tech, entityType: 'CsatResponse', entityId: t.id, meta: { rating: 'happy' } };
     }],
@@ -282,8 +282,8 @@ describe('notifications', () => {
     const watcher = await makeTech('watcher', w.deptA.id);
     await watch(watcher);
     await watch(tech);
-    await ok(w.admin.agent.patch(tUrl()).send({ status: 'In Progress' }));
-    expect(await inbox(watcher)).toEqual([['watcher_update', 'Status changed to "In Progress" on ticket: Printer']]);
+    await ok(w.admin.agent.patch(tUrl()).send({ status: 'Waiting on User' }));
+    expect(await inbox(watcher)).toEqual([['watcher_update', 'Status changed to "Waiting on User" on ticket: Printer']]);
     expect(await inbox(tech)).toEqual([['assigned', 'Ticket assigned to you: Printer']]);
   });
 
@@ -349,11 +349,11 @@ describe('workflow rules', () => {
   const triggers = [
     ['ticket_created', async () => makeTicket(w.admin.agent, { title: 'WF', contactId: w.contact.id }), null],
     ['ticket_updated', async () => { await ok(tech.agent.patch(tUrl()).send({ priority: 'high' })); return t; }, 'changed: priority'],
-    ['ticket_status_changed', async () => { await ok(tech.agent.patch(tUrl()).send({ status: 'In Progress' })); return t; }, null],
+    ['ticket_status_changed', async () => { await ok(tech.agent.patch(tUrl()).send({ status: 'Waiting on User' })); return t; }, null],
     ['ticket_priority_changed', async () => { await ok(tech.agent.patch(tUrl()).send({ priority: 'high' })); return t; }, null],
     ['ticket_assigned', async () => { await ok(tech.agent.patch(tUrl()).send({ assigneeId: w.admin.user.id })); return t; }, null],
     ['ticket_comment_added', async () => { await ok(tech.agent.post(tUrl('/comments')).send({ body: 'hi' }), 201); return t; }, null],
-    ['ticket_closed', async () => { await ok(tech.agent.patch(tUrl()).send({ status: 'Resolved' })); return t; }, null],
+    ['ticket_closed', async () => { await ok(tech.agent.patch(tUrl()).send({ status: 'Request completed' })); return t; }, null],
   ];
 
   it.each(triggers)('%s runs its rules', async (triggerEvent, perform, notes) => {
@@ -367,7 +367,7 @@ describe('workflow rules', () => {
 
   it('ticket_closed fires on entering a closed status only', async () => {
     const rule = await makeRule({ triggerEvent: 'ticket_closed' });
-    await ok(tech.agent.patch(tUrl()).send({ status: 'Resolved' }));
+    await ok(tech.agent.patch(tUrl()).send({ status: 'Request completed' }));
     await ok(tech.agent.patch(tUrl()).send({ status: 'Closed' }));
     expect(await logsOf(rule)).toHaveLength(1);
   });
@@ -404,14 +404,14 @@ describe('CSAT surveys', () => {
   const setStatus = (status, ticket = t) => ok(w.admin.agent.patch(tUrl('', ticket)).send({ status }));
 
   it('no survey while surveys are off', async () => {
-    await setStatus('Resolved');
+    await setStatus('Request completed');
     expect(await surveyOf()).toBeNull();
   });
 
   it('closing creates one pending survey, token hidden', async () => {
     freezeClock('2026-03-11T17:00:00Z');
     await setSettings(w.admin, { 'csat.enabled': 'true', 'csat.sendDelayHours': '2' });
-    await setStatus('Resolved');
+    await setStatus('Request completed');
     const survey = await surveyOf();
     expect(survey).toEqual(expect.objectContaining({
       status: 'pending', contactId: w.contact.id, assignedToUserId: tech.user.id, dueToSendAt: '2026-03-11T19:00:00.000Z',
@@ -421,7 +421,7 @@ describe('CSAT surveys', () => {
 
   it('reopening and re-closing doesn\'t make a second survey', async () => {
     await setSettings(w.admin, { 'csat.enabled': 'true' });
-    await setStatus('Resolved');
+    await setStatus('Request completed');
     const first = await surveyOf();
     await setStatus('Open');
     await setStatus('Closed');
@@ -432,7 +432,7 @@ describe('CSAT surveys', () => {
     await setSettings(w.admin, { 'csat.enabled': 'true' });
     const quiet = await makeContact(w.admin, { firstName: 'Quiet', email: null });
     const q = await makeTicket(w.admin.agent, { title: 'Quiet', contactId: quiet.id });
-    await setStatus('Resolved', q);
+    await setStatus('Request completed', q);
     expect(await surveyOf(q)).toBeNull();
   });
 });
@@ -442,7 +442,7 @@ describe('time before close', () => {
 
   it('requireBeforeClose blocks closing with no time', async () => {
     await requireTime();
-    const res = await tech.agent.patch(tUrl()).send({ status: 'Resolved' });
+    const res = await tech.agent.patch(tUrl()).send({ status: 'Request completed' });
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: true, message: 'Log time on this ticket before closing it', code: 'TIME_REQUIRED_BEFORE_CLOSE' });
     expect((await ok(tech.agent.get(tUrl()))).ticket.status).toBe('Open');
@@ -451,11 +451,11 @@ describe('time before close', () => {
   it('requireBeforeClose allows closing once time is logged', async () => {
     await requireTime();
     await ok(tech.agent.post(tUrl('/time')).send({ durationMinutes: 5 }), 201);
-    expect((await tech.agent.patch(tUrl()).send({ status: 'Resolved' })).status).toBe(200);
+    expect((await tech.agent.patch(tUrl()).send({ status: 'Request completed' })).status).toBe(200);
   });
 
   it('requireBeforeClose ignores closed→closed and non-status edits', async () => {
-    const x = await makeTicket(tech.agent, { title: 'X', contactId: w.contact.id, status: 'Resolved' });
+    const x = await makeTicket(tech.agent, { title: 'X', contactId: w.contact.id, status: 'Request completed' });
     await requireTime();
     expect((await tech.agent.patch(tUrl('', x)).send({ status: 'Closed' })).status).toBe(200);
     expect((await tech.agent.patch(tUrl()).send({ priority: 'low' })).status).toBe(200);
@@ -469,6 +469,6 @@ describe('time before close', () => {
   });
 
   it('with the setting off, tickets close freely', async () => {
-    expect((await tech.agent.patch(tUrl()).send({ status: 'Resolved' })).status).toBe(200);
+    expect((await tech.agent.patch(tUrl()).send({ status: 'Request completed' })).status).toBe(200);
   });
 });

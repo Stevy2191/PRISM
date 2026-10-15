@@ -304,7 +304,9 @@ export function Sidebar({
                   className="input h-9 text-sm"
                   style={fieldStyle}
                 >
-                  {ticketStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  {/* User responded is set by the system only, when a customer replies. */}
+                  {ticketStatuses.filter((s) => s.systemKey !== 'user_responded' || s.name === ticket.status)
+                    .map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </div>
               <div>

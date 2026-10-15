@@ -209,7 +209,7 @@ describe('team performance timings', () => {
     advanceClock(30 * 60 * 1000);
     expectOk(await comment({ body: 'On my way' }), 201);
     advanceClock(2 * 60 * 60 * 1000);
-    expectOk(await tina.agent.patch(`${API}/tickets/${t.id}`).send({ status: 'Resolved' }));
+    expectOk(await tina.agent.patch(`${API}/tickets/${t.id}`).send({ status: 'Request completed' }));
     await makeTicket(w.admin.agent, { title: 'Late', contactId: w.contact.id, assigneeId: tina.user.id, dueDate: '2026-03-10' });
 
     const body = await get(w.admin.agent, 'team-performance');

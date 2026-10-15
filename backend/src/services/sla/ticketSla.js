@@ -101,7 +101,8 @@ function calendarFor(policy, type, priority) {
 // SLA clocks never pause (spec 2026-10-13 change): only open vs not.
 async function statusInfo(name, transaction) {
   const s = name ? await TicketStatus.findOne({ where: { name }, attributes: ['behaviorType'], transaction }) : null;
-  return { open: !s || s.behaviorType === 'open' };
+  // On hold never stops the clock (user decision 2026-10-15).
+  return { open: !s || s.behaviorType === 'open' || s.behaviorType === 'on_hold' };
 }
 
 function shouldRun(c, ticket, status, state) {

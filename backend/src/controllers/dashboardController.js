@@ -39,7 +39,7 @@ function startOfWeek(date) {
 function displayStatus(ticket, behaviorByName) {
   if (behaviorByName.get(ticket.status) === 'closed') return 'closed';
   if (ticket.dueDate && ticket.dueDate < todayStr()) return 'overdue';
-  if (ticket.status === 'In Progress') return 'in_progress';
+  if (behaviorByName.get(ticket.status) === 'on_hold') return 'on_hold';
   return 'open';
 }
 
@@ -463,6 +463,7 @@ const get = asyncHandler(async (req, res) => {
   buckets.open.forEach((name) => behaviorByName.set(name, 'open'));
   buckets.closed.forEach((name) => behaviorByName.set(name, 'closed'));
   buckets.archived.forEach((name) => behaviorByName.set(name, 'archived'));
+  buckets.onHold.forEach((name) => behaviorByName.set(name, 'on_hold'));
 
   if (requestedUserId && isDepartmentView) {
     const targetCheck = await User.findByPk(requestedUserId, { attributes: ['id', 'departmentId'] });

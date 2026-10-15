@@ -171,10 +171,13 @@ export default function Statuses() {
                   className="input w-32 flex-shrink-0"
                 >
                   {BEHAVIOR_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  {/* Only ticket statuses have an on-hold kind (user decision 2026-10-15). */}
+                  {scope === 'ticket' && <option value="on_hold">On hold</option>}
                 </select>
                 {/* A fixed slot on every row, so the columns line up with or without the badge. */}
                 <span className="w-16 flex-shrink-0 text-center">
                   {s.isDefault && <span className="rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-600">Default</span>}
+                  {s.systemKey && <span className="rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-600" title={s.systemKey === 'user_responded' ? 'Set when a customer replies by email' : 'Set when a technician answers a customer’s reply'}>Auto</span>}
                 </span>
                 <button
                   type="button"

@@ -41,7 +41,7 @@ const DUE_BADGE = {
 
 const TICKET_STATUS = {
   open: { label: 'Open', color: 'var(--color-accent)' },
-  in_progress: { label: 'In Progress', color: 'var(--color-success)' },
+  on_hold: { label: 'On hold', color: 'var(--color-warning)' },
   overdue: { label: 'Overdue', color: 'var(--color-danger)' },
   closed: { label: 'Closed', color: 'var(--color-text-muted)' },
 };
