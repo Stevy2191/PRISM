@@ -21,6 +21,7 @@ import {
   PRIORITY_META,
   formatDate,
   formatDueDateTime,
+  formatMinutes,
 } from './theme';
 import TimerButton from '../../components/work/TimerButton';
 import TimeEntryForm from '../../components/work/TimeEntryForm';
@@ -471,6 +472,16 @@ export default function TicketDetail() {
           <span>Assignee: <span style={{ color: TEXT }}>{ticket.assignee?.displayName || 'Unassigned'}</span></span>
           <span>Due: <span style={{ color: dueDateColor(ticket.dueDate) }}>{ticket.dueDate ? formatDueDateTime(ticket.dueDate, ticket.dueTime) : '—'}</span></span>
           <span>Created: <span style={{ color: TEXT }}>{formatDate(ticket.createdAt)}</span></span>
+          {ticket.waiting && (
+            <span data-testid="ticket-waiting" title="Time in statuses that count as waiting on the customer (Settings → Statuses). Lifecycle times and the SLA still include it.">
+              Waiting on customer:{' '}
+              <span style={{ color: TEXT }}>
+                {formatMinutes(ticket.waiting.minutes)}
+                {ticket.waiting.pct !== null && ` (${ticket.waiting.pct}%)`}
+                {ticket.waiting.now && ' · waiting now'}
+              </span>
+            </span>
+          )}
         </div>
       </div>
 

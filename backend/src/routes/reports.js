@@ -28,6 +28,9 @@ router.get('/team-performance/export', canExport, ctrl.teamPerformanceExport);
 router.get('/sla-compliance', ctrl.slaCompliance);
 router.get('/sla-compliance/export', canExport, ctrl.slaComplianceExport);
 
+router.get('/customer-waiting', ctrl.customerWaiting);
+router.get('/customer-waiting/export', canExport, ctrl.customerWaitingExport);
+
 router.get('/time-billing', ctrl.timeBilling);
 router.get('/time-billing/export', canExport, ctrl.timeBillingExport);
 

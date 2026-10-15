@@ -201,6 +201,23 @@ on its own. In order:
 - `contact_resolved` is sent on any move into a closed-kind status.
 - Next, after 5a: a report of how much of each ticket's life was spent
   waiting on the customer. Lifecycle times still include all of it.
+  - Built 2026-10-15. Each ticket status has a "counts as waiting on the
+    customer" switch (`TicketStatuses.countsAsWaiting`, migration 065), on
+    only for Waiting on User, which can't be switched off. The figure is
+    worked out from the status activity log when it is read, so it covers
+    old tickets and follows the switch backwards in time. It uses
+    wall-clock time; a ticket's life ends when it closes (`resolvedAt`) or
+    now.
+  - Shown on the ticket page, in the ticket PDF, as two columns of Ticket
+    Volume, and in a new **Waiting on Customer** report (`/reports/
+    customer-waiting`): totals, average per ticket and % of life, by
+    current assignee, company and creation period, with a closed-only
+    filter and CSV export.
+  - The log stores status names, so a status rename rewrites its
+    activity rows, and 065 carried 064's retired names (In Progress,
+    Pending, Resolved) over. Workflow `set_status` and status deletion
+    now log their changes. Where a row's "from" disagrees with the row
+    before it (an older unlogged change), the row's own "from" wins.
 
 ### Technician email notifications
 

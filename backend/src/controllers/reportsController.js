@@ -15,6 +15,7 @@ module.exports = {
   ...require('./reports/tickets'),
   ...require('./reports/team'),
   ...require('./reports/sla'),
+  ...require('./reports/waiting'),
   ...require('./reports/time'),
   ...require('./reports/projects'),
   ...require('./reports/contacts'),

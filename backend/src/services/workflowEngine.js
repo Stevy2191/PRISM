@@ -12,6 +12,7 @@ const { parseRecordId } = require('./permissionService');
 const { createNotification, notifyAssigned } = require('./notifications');
 const { assertCanWorkTicket } = require('./ticketPeople');
 const { getTicketStatusBehaviorMap } = require('./statusBehavior');
+const { logActivity, resolveDisplayValue } = require('./ticketActivity');
 
 const ticketEvalInclude = [
   { model: Contact, as: 'contact', include: [{ model: Department, as: 'department' }] },
@@ -185,6 +186,11 @@ async function executeAction(ticket, action, rule) {
     case 'set_status': {
       const wasStatus = ticket.status;
       await ticket.update({ status: v.status });
+      // Logged like a manual change (no user: shown as the workflow rule),
+      // so the timeline and the waiting-on-customer figure see it.
+      if (wasStatus !== v.status) {
+        await logActivity(ticket.id, null, 'status', await resolveDisplayValue('status', wasStatus), await resolveDisplayValue('status', v.status));
+      }
       // The "resolved" email follows any move into a closed status (it is
       // off unless an admin turns it on). Lazy: the mail modules load this.
       const kinds = await getTicketStatusBehaviorMap();

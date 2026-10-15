@@ -78,6 +78,8 @@ export default function TicketVolumeReport({ filters, onForbidden }) {
           { key: 'createdAt', label: 'Created' },
           { key: 'resolvedAt', label: 'Closed' },
           { key: 'resolutionHours', label: 'Resolution (hrs)' },
+          { key: 'waitingHours', label: 'Waiting (hrs)' },
+          { key: 'waitingPct', label: '% waiting', render: (r) => (r.waitingPct === '' ? '—' : `${r.waitingPct}%`) },
           { key: 'assignee', label: 'Assignee' },
         ]}
         rows={data.tableData.rows}

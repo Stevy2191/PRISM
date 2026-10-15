@@ -1,7 +1,11 @@
-const { TicketStatus, ProjectStatus, Ticket, Project, sequelize } = require('../models');
+const {
+  TicketStatus, ProjectStatus, Ticket, Project, TicketActivity, sequelize,
+} = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { syncTicketSla } = require('../services/sla/ticketSla');
+const { logActivity } = require('../services/ticketActivity');
+const { shownStatusName } = require('../services/waitingTime');
 
 // Builds the list/create/update/delete/reorder handlers for one status
 // scope (ticket or project) against its StatusModel + the EntityModel whose
@@ -17,6 +21,18 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
   const syncSla = async (ticketIds) => {
     // eslint-disable-next-line no-restricted-syntax
     for (const id of ticketIds) await syncTicketSla(id); // eslint-disable-line no-await-in-loop
+  };
+  // "Counts as waiting on the customer" (user decision 2026-10-15) is a
+  // ticket-status switch; Waiting on User always counts.
+  const readWaiting = (body, status = null) => {
+    if (!tracksSla || body.countsAsWaiting === undefined) return undefined;
+    if (typeof body.countsAsWaiting !== 'boolean') {
+      throw new ApiError(400, 'countsAsWaiting must be true or false', 'VALIDATION_ERROR');
+    }
+    if (status && status.systemKey === 'waiting_on_user' && !body.countsAsWaiting) {
+      throw new ApiError(400, 'Waiting on User always counts as waiting on the customer', 'VALIDATION_ERROR');
+    }
+    return body.countsAsWaiting;
   };
   const idsInStatus = async (name) => (tracksSla
     ? (await EntityModel.findAll({ where: { status: name }, attributes: ['id'] })).map((r) => r.id)
@@ -36,12 +52,14 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
       throw new ApiError(400, 'Invalid behaviorType', 'VALIDATION_ERROR');
     }
     const resolvedBehavior = behaviorType || 'open';
+    const countsAsWaiting = readWaiting(req.body || {});
     const maxPosition = await StatusModel.max('position');
     const status = await StatusModel.create({
       name: name.trim(),
       color: color || '#3b82f6',
       behaviorType: resolvedBehavior,
       position: (Number.isFinite(maxPosition) ? maxPosition : -1) + 1,
+      ...(countsAsWaiting !== undefined ? { countsAsWaiting } : {}),
     });
     await writeAudit(req, `${scopeLabel}Status.create`, StatusModel.name, status.id, { name: status.name });
     res.status(201).json({ status });
@@ -54,6 +72,8 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
     const { name, color, behaviorType } = req.body || {};
     const changes = {};
     if (color !== undefined) changes.color = color;
+    const countsAsWaiting = readWaiting(req.body || {}, status);
+    if (countsAsWaiting !== undefined) changes.countsAsWaiting = countsAsWaiting;
     if (behaviorType !== undefined) {
       if (!KINDS.includes(behaviorType)) {
         throw new ApiError(400, 'Invalid behaviorType', 'VALIDATION_ERROR');
@@ -81,6 +101,14 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
           { status: changes.name },
           { where: { status: oldName }, transaction: t }
         );
+        // The waiting-on-customer figure reads status names from the
+        // activity log, so the log follows the rename too (written in
+        // its display form, as the log stores it).
+        if (tracksSla) {
+          const [from, to] = [shownStatusName(oldName), shownStatusName(changes.name)];
+          await TicketActivity.update({ fromValue: to }, { where: { action: 'status', fromValue: from }, transaction: t });
+          await TicketActivity.update({ toValue: to }, { where: { action: 'status', toValue: from }, transaction: t });
+        }
       }
     });
 
@@ -114,6 +142,8 @@ function buildStatusController(StatusModel, EntityModel, scopeLabel) {
       await status.destroy({ transaction: t });
     });
     await syncSla(movedIds);
+    // eslint-disable-next-line no-restricted-syntax
+    for (const id of movedIds) await logActivity(id, req.user.id, 'status', shownStatusName(status.name), shownStatusName(defaultStatus.name)); // eslint-disable-line no-await-in-loop
 
     await writeAudit(req, `${scopeLabel}Status.delete`, StatusModel.name, req.params.id, {
       name: status.name,

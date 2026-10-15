@@ -5,6 +5,7 @@ const { asyncHandler } = require('../../middleware/error');
 const { getUserReportScope } = require('../../services/permissionService');
 const { andWhere, companyFilterWhere } = require('../../services/recordScope');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
+const { waitingForTickets, pctOf } = require('../../services/ticketWaiting');
 const {
   parseDateRange,
   dateWhere,
@@ -43,6 +44,7 @@ async function buildTicketVolumeReport(req) {
   const buckets = await getTicketStatusBuckets();
   const currentlyOpen = await Ticket.count({ where: andWhere(openNowWhere, { status: { [Op.in]: buckets.open } }) });
 
+  const waiting = await waitingForTickets(tickets);
   const closed = tickets.filter((t) => t.resolvedAt);
   const totalResolutionHours = closed.reduce((sum, t) => sum + hoursBetween(t.createdAt, t.resolvedAt), 0);
   const avgResolutionHours = closed.length ? totalResolutionHours / closed.length : null;
@@ -87,6 +89,8 @@ async function buildTicketVolumeReport(req) {
         { key: 'createdAt', label: 'Created' },
         { key: 'resolvedAt', label: 'Closed' },
         { key: 'resolutionHours', label: 'Resolution (hrs)' },
+        { key: 'waitingHours', label: 'Waiting (hrs)' },
+        { key: 'waitingPct', label: '% waiting' },
         { key: 'assignee', label: 'Assignee' },
       ],
       rows: tickets.map((t) => ({
@@ -100,6 +104,8 @@ async function buildTicketVolumeReport(req) {
         createdAt: t.createdAt.toISOString().slice(0, 10),
         resolvedAt: t.resolvedAt ? t.resolvedAt.toISOString().slice(0, 10) : '',
         resolutionHours: t.resolvedAt ? Math.round(hoursBetween(t.createdAt, t.resolvedAt) * 10) / 10 : '',
+        waitingHours: Math.round(waiting.get(t.id).waitingMs / 360000) / 10,
+        waitingPct: pctOf(waiting.get(t.id).waitingMs, waiting.get(t.id).lifeMs) ?? '',
         assignee: t.assignee?.displayName || 'Unassigned',
       })),
     },

@@ -185,6 +185,10 @@ async function resetData() {
   // SLA policies: back to the migrated "Standard" default and its seeded
   // targets, so one test's policies and edits don't leak into the next.
   await resetSlaPolicies();
+  // TicketStatuses are not reset, but the "counts as waiting" switch goes
+  // back to its seeded state: migration round trips (064) re-create Waiting
+  // on User with it off. Missing column = schema before 065.
+  await sequelize.query("UPDATE TicketStatuses SET countsAsWaiting = (systemKey <=> 'waiting_on_user')").catch(() => {});
   invalidateAllPermissions();
   // Otherwise one case's login attempts rate-limit the next.
   resetRateLimits();

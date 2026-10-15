@@ -16,6 +16,7 @@ const {
   TicketDueDateChange,
 } = require('../../models');
 const { toSlaView } = require('../../services/sla/slaView');
+const { ticketWaitingView } = require('../../services/ticketWaiting');
 const { Op, col } = require('sequelize');
 const { ApiError } = require('../../middleware/error');
 const { toDateString } = require('../../utils/orgTime');
@@ -197,6 +198,7 @@ async function ticketDetailFor(viewer, ticket) {
     });
     json.sla = toSlaView(ticket.sla, new Date(), changes);
   }
+  json.waiting = await ticketWaitingView(ticket);
   return { ...json, access: await ticketAccessFor(viewer, ticket) };
 }
 

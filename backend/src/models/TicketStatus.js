@@ -21,6 +21,9 @@ module.exports = (sequelize) => {
       // 'user_responded' | 'waiting_on_user': statuses replies move tickets
       // into automatically (see services/statusMoves.js).
       systemKey: { type: DataTypes.STRING(32), allowNull: true, unique: true },
+      // Time in this status counts as waiting on the customer (reports and
+      // the ticket page; always on for Waiting on User).
+      countsAsWaiting: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     },
     {
       sequelize,

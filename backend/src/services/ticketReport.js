@@ -6,6 +6,7 @@ const {
   newDocument, drawHeader, sectionTitle, fieldGrid, paragraph, table, streamPdfResponse, ensureSpace,
   MUTED, TEXT, CONTENT_WIDTH, PAGE_MARGIN,
 } = require('./pdfReport');
+const { ticketWaitingView } = require('./ticketWaiting');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 
@@ -74,12 +75,14 @@ async function loadTicketReportData(ticketId) {
   ]);
 
   return {
-    ticket, comments, timeEntries, attachments, activity,
+    ticket, comments, timeEntries, attachments, activity, waiting: await ticketWaitingView(ticket),
   };
 }
 
 async function renderTicketReportPdf(doc, data) {
-  const { ticket, comments, timeEntries, attachments, activity } = data;
+  const {
+    ticket, comments, timeEntries, attachments, activity, waiting,
+  } = data;
   const ticketNumber = `#${String(ticket.id).padStart(5, '0')}`;
 
   await drawHeader(doc, 'Ticket Report');
@@ -97,6 +100,7 @@ async function renderTicketReportPdf(doc, data) {
     ['Created', fmtDate(ticket.createdAt)],
     ['Closed', ticket.resolvedAt ? fmtDate(ticket.resolvedAt) : 'Still open'],
     ['Total time open', `${totalOpenHours.toFixed(1)}h`],
+    ['Waiting on customer', waiting ? `${(waiting.minutes / 60).toFixed(1)}h${waiting.pct !== null ? ` (${waiting.pct}%)` : ''}` : '—'],
     ['Tags', Array.isArray(ticket.tags) && ticket.tags.length ? ticket.tags.join(', ') : '—'],
   ]);
 

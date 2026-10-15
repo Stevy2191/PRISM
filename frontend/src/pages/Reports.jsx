@@ -9,6 +9,7 @@ import TicketVolumeReport from './reports/TicketVolumeReport';
 import TicketTrendsReport from './reports/TicketTrendsReport';
 import TeamPerformanceReport from './reports/TeamPerformanceReport';
 import SlaComplianceReport from './reports/SlaComplianceReport';
+import CustomerWaitingReport from './reports/CustomerWaitingReport';
 import TimeBillingReport from './reports/TimeBillingReport';
 import ProjectsReport from './reports/ProjectsReport';
 import ContactsReport from './reports/ContactsReport';
@@ -30,6 +31,9 @@ const CATEGORIES = [
     reports: [
       { key: 'ticket-volume', label: 'Ticket Volume', endpoint: 'ticket-volume', showAssignee: true },
       { key: 'ticket-trends', label: 'Ticket Trends', endpoint: 'ticket-trends', showAssignee: false },
+      {
+        key: 'customer-waiting', label: 'Waiting on Customer', endpoint: 'customer-waiting', showAssignee: true, showClosedOnly: true,
+      },
     ],
   },
   {
@@ -91,6 +95,7 @@ const REPORT_COMPONENTS = {
   'ticket-trends': TicketTrendsReport,
   'team-performance': TeamPerformanceReport,
   'sla-compliance': SlaComplianceReport,
+  'customer-waiting': CustomerWaitingReport,
   'time-billing': TimeBillingReport,
   projects: ProjectsReport,
   contacts: ContactsReport,
@@ -117,6 +122,7 @@ export default function Reports() {
   const [companyId, setCompanyId] = useState('');
   const { multiCompany } = useCompanySummary();
   const [assigneeId, setAssigneeId] = useState('');
+  const [closedOnly, setClosedOnly] = useState(false);
   const [departments, setDepartments] = useState([]);
   const [assignableUsers, setAssignableUsers] = useState([]);
   const [savedViews, setSavedViews] = useState([]);
@@ -175,7 +181,8 @@ export default function Reports() {
     // Not gated by canViewAll: the company fence already limits it.
     companyId,
     assigneeId: activeReport?.showAssignee ? assigneeId : '',
-  }), [range, canViewAll, departmentId, companyId, assigneeId, activeReport]);
+    closedOnly: activeReport?.showClosedOnly ? closedOnly : false,
+  }), [range, canViewAll, departmentId, companyId, assigneeId, closedOnly, activeReport]);
 
   const exportCsv = async () => {
     try {
@@ -185,6 +192,7 @@ export default function Reports() {
       if (filters.departmentId) params.departmentId = filters.departmentId;
       if (filters.companyId) params.companyId = filters.companyId;
       if (filters.assigneeId) params.assigneeId = filters.assigneeId;
+      if (filters.closedOnly) params.closedOnly = 'true';
       const res = await api.get(`/reports/${activeReport.endpoint}/export`, { params, responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
@@ -205,7 +213,9 @@ export default function Reports() {
       await api.post('/reports/saved-views', {
         reportType: activeKey,
         name: saveViewName.trim(),
-        filters: { preset, customRange, departmentId, companyId, assigneeId },
+        filters: {
+          preset, customRange, departmentId, companyId, assigneeId, closedOnly,
+        },
       });
       setSaveViewName('');
       setSaveViewOpen(false);
@@ -222,6 +232,7 @@ export default function Reports() {
     setDepartmentId(f.departmentId || '');
     setCompanyId(f.companyId || '');
     setAssigneeId(f.assigneeId || '');
+    setClosedOnly(Boolean(f.closedOnly));
   };
 
   const deleteView = async (id) => {
@@ -392,6 +403,13 @@ export default function Reports() {
                 {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
               </select>
             </div>
+          )}
+
+          {activeReport?.showClosedOnly && (
+            <label className="flex h-9 items-center gap-2 text-sm">
+              <input type="checkbox" checked={closedOnly} onChange={(e) => setClosedOnly(e.target.checked)} />
+              Closed tickets only
+            </label>
           )}
 
           <div className="ml-auto flex gap-2">

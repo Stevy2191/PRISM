@@ -174,6 +174,27 @@ export default function Statuses() {
                   {/* Only ticket statuses have an on-hold kind (user decision 2026-10-15). */}
                   {scope === 'ticket' && <option value="on_hold">On hold</option>}
                 </select>
+                {scope === 'ticket' && (
+                  <label
+                    className="flex flex-shrink-0 items-center gap-1 text-xs"
+                    title={s.systemKey === 'waiting_on_user' ? 'Waiting on User always counts' : 'Time in this status counts as waiting on the customer in reports and on the ticket'}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={Boolean(s.countsAsWaiting)}
+                      disabled={s.systemKey === 'waiting_on_user'}
+                      onChange={(e) => {
+                        // Shown at once; a refused save reloads the list.
+                        const countsAsWaiting = e.target.checked;
+                        setStatuses((list) => list.map((x) => (x.id === s.id ? { ...x, countsAsWaiting } : x)));
+                        patchStatus(s.id, { countsAsWaiting });
+                      }}
+                      aria-label={`${s.name} counts as waiting on the customer`}
+                    />
+                    <span className="sm:hidden">Waiting</span>
+                    <span className="hidden sm:inline">Waiting on customer</span>
+                  </label>
+                )}
                 {/* A fixed slot on every row, so the columns line up with or without the badge. */}
                 <span className="w-16 flex-shrink-0 text-center">
                   {s.isDefault && <span className="rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-600">Default</span>}
