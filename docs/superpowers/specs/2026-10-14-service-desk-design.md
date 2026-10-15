@@ -169,6 +169,24 @@ on its own. In order:
 - Every action is written to `EmailProcessingLog`, with new action values for
   the staff cases.
 
+### Status rework (added 2026-10-15, user decisions)
+
+- Kinds: open, **on hold** (new), closed, archived. On hold never counts as
+  closed: the SLA keeps running (no pausing, as decided 2026-10-13), and it
+  stays in open lists, counts and overdue alerts. Filters, the Statuses page
+  and reports can pick it out on its own.
+- Seeded: Open, Waiting on User, User responded (open); On Hold, Postponed
+  (on hold); Request completed, Request cancelled, Closed (closed). Today's
+  In Progress → Open, Pending → On Hold, Resolved → Request completed. Admins
+  can still create their own statuses of any kind.
+- User responded is set only by the system: a contact-side email reply on an
+  open or on-hold ticket. A reply to a closed ticket keeps it closed and
+  notifies the assignee; a human decides whether to reopen.
+- A tech's public reply on a User responded ticket → Waiting on User.
+- `contact_resolved` is sent on any move into a closed-kind status.
+- Next, after 5a: a report of how much of each ticket's life was spent
+  waiting on the customer. Lifecycle times still include all of it.
+
 ### Technician email notifications
 
 - **`Users.notificationEmailPrefs`** (JSON, nullable = use defaults).

@@ -29,7 +29,7 @@ full code (user rule).
   `TZ=America/Chicago`. Integration tests run serially on one DB. Before
   `npm run test:migrate`, load the env: `set -a; . ./.env.test; set +a`.
 - No new npm dependency.
-- One migration, `20260101000063-service-desk-email.js`, with a working
+- Migration `20260101000063-service-desk-email.js` (plus `…064-ticket-status-rework.js`, Task 11), each with a working
   `down()` and a round-trip test that leaves the schema as the full chain
   does.
 - Mutating endpoints: permission check plus `writeAudit`. Fetch-by-id
@@ -237,7 +237,8 @@ full code (user rule).
 - Modify `frontend/src/pages/settings/Preferences.jsx` (signature editor).
 - Modify the ticket status-change path in
   `backend/src/controllers/tickets/core.js`: send `contact_resolved` when the
-  status moves into the `resolved` behaviour and the template is enabled.
+  status moves into any closed-kind status (user decision 2026-10-15) and the
+  template is enabled.
 - Test: update `tickets.comments.test.js` and the CSAT tests; add
   `backend/test/integration/email.signature.test.js`.
 
@@ -521,7 +522,67 @@ full code (user rule).
 - [ ] Build the UI.
 - [ ] Commit.
 
-### Task 11: Smoke, docs, push
+### Task 11: Ticket status rework (added 2026-10-15, user decisions)
+
+The user asked for this during 5a (see the spec's "Status rework" section).
+
+**Files:**
+- Create `backend/migrations/20260101000064-ticket-status-rework.js`, a
+  migration of its own with a working `down()`.
+- Modify `backend/src/models/TicketStatus.js`, `services/statusBehavior.js`,
+  `controllers/statusesController.js`, `controllers/tickets/core.js`
+  (PATCH/create refuse User responded), `comments.js` (tech public reply),
+  and `inboundEmailService.js` (contact-side reply).
+- Frontend: the Statuses settings page (On hold kind), ticket status pickers
+  (hide User responded), the list/filter "On hold" option, and badges.
+- Test `backend/test/integration/statuses.rework.test.js`.
+
+**Interfaces:**
+- `TicketStatuses.behaviorType` ENUM gains `on_hold` (tickets only; project
+  statuses keep open/closed/archived).
+- `TicketStatuses.systemKey STRING(32) null unique`: `user_responded` and
+  `waiting_on_user`. Both rows are protected.
+- Seeded set and moves: Open (open), Waiting on User (open), User responded
+  (open), On Hold (on_hold), Postponed (on_hold), Request completed (closed),
+  Request cancelled (closed), Closed (closed).
+  - In Progress → Open, Pending → On Hold, Resolved → Request completed.
+  - Only the seeded rows are touched, matched by name. An admin's own
+    statuses stay. Tickets follow, and so do workflow condition and action
+    values that name a moved status.
+- On hold never counts as closed. `getTicketStatusBuckets().open` and
+  `getTicketStatusBehaviorMap()` keep reporting on-hold names as open, so
+  every existing caller (SLA clocks, overdue, open lists) is unchanged.
+  `buckets.onHold` and `getTicketStatusKindMap()` (the real kind) exist for
+  filters, the settings page and reports.
+- User responded is set only by the system. PATCH and create return 400 for
+  it, unless the ticket is already in it and the status is unchanged.
+- Automatic moves:
+  - A contact-side inbound reply on an open or on-hold ticket → User
+    responded.
+  - A reply to a closed ticket keeps its status, and the assignee gets a
+    `comment` notification "Customer replied to closed ticket #N".
+  - A tech's public reply (`reply`/`comment_public`) through the comment
+    endpoint on a User responded ticket → Waiting on User.
+  - Each move goes through the normal ticket update path, so activity, SLA
+    hooks and workflow rules see it.
+- `contact_resolved` fires on any move into a closed-kind status (Task 5).
+
+- [ ] Write the tests:
+  - `'migration maps In Progress, Pending, Resolved and keeps admin statuses'`
+  - `'round-trips (down then up)'`
+  - `'on-hold tickets still count as open and keep their SLA running'`
+  - `'User responded cannot be chosen by hand'`
+  - `'a contact reply moves an open ticket to User responded'`
+  - `'a contact reply to a closed ticket stays closed and notifies the assignee'`
+  - `'a tech public reply moves User responded to Waiting on User; a private note does not'`
+  - `'on_hold is refused for project statuses'`
+- [ ] Run them and see them fail.
+- [ ] Implement.
+- [ ] Run the tests plus `settings.status*.test.js`, `sla*.test.js`, and see them pass.
+- [ ] Build the UI.
+- [ ] Commit.
+
+### Task 12: Smoke, docs, push
 
 **Files:**
 - Create `backend/test/smoke/email.smoke.js`.
