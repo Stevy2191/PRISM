@@ -69,13 +69,13 @@ describe('POST /tickets', () => {
     expect(res.body).toEqual({ error: true, message: 'A contact is required', code: 'VALIDATION_ERROR' });
   });
 
-  it('lets callers pick only manual or phone as the source', async () => {
+  it('lets callers pick manual, phone or email as the source (portal and recurring are system-only)', async () => {
     const stored = [];
-    for (const source of ['phone', 'email', 'portal', 'bogus']) {
+    for (const source of ['phone', 'email', 'portal', 'recurring', 'bogus']) {
       // eslint-disable-next-line no-await-in-loop
       stored.push((await makeTicket(tech.agent, { ...base(), source })).source);
     }
-    expect(stored).toEqual(['phone', 'manual', 'manual', 'manual']);
+    expect(stored).toEqual(['phone', 'email', 'manual', 'manual', 'manual']);
   });
 
   it('stamps resolvedAt when created closed', async () => {

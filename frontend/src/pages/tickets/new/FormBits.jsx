@@ -23,6 +23,7 @@ export const PRIORITY_OPTIONS = [
 export const SOURCE_OPTIONS = [
   { value: 'manual', label: 'Manual' },
   { value: 'phone', label: 'Phone' },
+  { value: 'email', label: 'Email' },
 ];
 
 function Required() {
