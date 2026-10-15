@@ -169,7 +169,7 @@ full code (user rule).
 - Produces `async getTemplate(key) → { key, subject, bodyHtml, enabled,
   isDefault }`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'replaces whitelisted placeholders'`
   - `'unknown placeholders render empty'`
   - `'escapes values unless the placeholder is html'`
@@ -177,10 +177,10 @@ full code (user rule).
   - `'text part is derived from the html'`
   - `'layout carries the org name and a cid logo only when hasLogo'`
   - `'every catalogue default only uses its own placeholders'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run the tests and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run the tests and see them pass.
+- [x] Commit.
 
 ### Task 4: Templates API and Settings page
 
