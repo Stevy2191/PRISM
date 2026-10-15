@@ -6,7 +6,7 @@ import { TEXT, MUTED, timeAgo } from '../theme';
 
 // ---- Conversation tab ----
 
-export function ConversationTab({ ticket, comments, total, onLoadMore }) {
+export function ConversationTab({ ticket, comments, total, onLoadMore, onSplit }) {
   return (
     <div className="space-y-4">
       {/* Older messages sit above the thread, where they'd be if they were
@@ -54,6 +54,17 @@ export function ConversationTab({ ticket, comments, total, onLoadMore }) {
                   </span>
                 )}
                 <span className="text-xs" style={{ color: MUTED }}>{timeAgo(c.createdAt)}</span>
+                {onSplit && (
+                  <button
+                    type="button"
+                    onClick={() => onSplit(c)}
+                    className="ml-auto text-xs hover:underline"
+                    style={{ color: MUTED }}
+                    title="Make this message a new ticket"
+                  >
+                    Split to new ticket
+                  </button>
+                )}
               </div>
               {/* Bubble colors are hardcoded per theme via CSS classes (not
                   --color-* variables) so they stay readable no matter what

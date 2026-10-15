@@ -18,6 +18,9 @@ export function BulkActionBar({
   setBulkValue,
   ticketStatuses,
   assignableUsers,
+  teams = [],
+  bulkResult = null,
+  setBulkResult = () => {},
   applyBulkAction,
   bulkSaving,
   clearSelection,
@@ -68,7 +71,11 @@ export function BulkActionBar({
         <option value="status">Change status</option>
         <option value="priority">Change priority</option>
         <option value="reassign">Reassign</option>
+        <option value="team">Move to team</option>
+        <option value="add_watcher">Add watcher</option>
         <option value="close">Close selected</option>
+        <option value="merge">Merge into…</option>
+        <option value="delete">Delete</option>
       </select>
       {bulkActionType === 'status' && (
         <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="input h-9 max-w-[9rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
@@ -88,16 +95,47 @@ export function BulkActionBar({
           {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
         </select>
       )}
+      {bulkActionType === 'team' && (
+        <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} aria-label="Team" className="input h-9 max-w-[11rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
+          <option value="">Select team…</option>
+          {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      )}
+      {bulkActionType === 'add_watcher' && (
+        <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} aria-label="Watcher" className="input h-9 max-w-[11rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>
+          <option value="">Select person…</option>
+          {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+        </select>
+      )}
+      {bulkActionType === 'merge' && (
+        <input
+          value={bulkValue}
+          onChange={(e) => setBulkValue(e.target.value)}
+          placeholder="Target ticket #"
+          aria-label="Merge into ticket number"
+          title="The selected tickets move into this one. It can be one of the selected tickets."
+          className="input h-9 w-36 flex-shrink-0 font-mono text-sm"
+          style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+        />
+      )}
       <button
         type="button"
         onClick={applyBulkAction}
-        disabled={bulkSaving || !bulkActionType || (bulkActionType !== 'close' && !bulkValue)}
+        disabled={bulkSaving || !bulkActionType || (!['close', 'delete'].includes(bulkActionType) && !bulkValue)}
         className="flex-shrink-0 rounded-md px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
         style={{ backgroundColor: BLUE }}
       >
         Apply
       </button>
 
+      {bulkResult && (
+        <span role="status" className="flex-shrink-0 text-xs" style={{ color: bulkResult.failed.length ? 'var(--color-danger)' : MUTED }} data-testid="bulk-result">
+          {bulkResult.ok} updated{bulkResult.failed.length ? `, ${bulkResult.failed.length} failed: ` : ''}
+          {bulkResult.failed.slice(0, 5).map((f) => `#${String(f.id).padStart(5, '0')} ${f.error}`).join('; ')}
+          {bulkResult.failed.length > 5 ? '; …' : ''}
+          <button type="button" onClick={() => setBulkResult(null)} className="ml-2 underline">dismiss</button>
+        </span>
+      )}
       <button
         type="button"
         onClick={clearSelection}

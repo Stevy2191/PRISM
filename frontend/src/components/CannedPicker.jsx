@@ -76,7 +76,7 @@ export default function CannedPicker({ ticketId, onInsert, currentText }) {
         >
           <div className="p-2">
             <input
-              autoFocus // eslint-disable-line jsx-a11y/no-autofocus
+              autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search canned responses…"

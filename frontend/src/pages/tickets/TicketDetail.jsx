@@ -1,7 +1,7 @@
 // Ticket detail page: header, tabs and sidebar. The panels live in ./detail/.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import CompanyTag from '../../components/companies/CompanyTag';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { IconLink, IconFileText } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
@@ -31,6 +31,7 @@ import { LinkTicketModal, RelationshipsTab } from './detail/RelationshipsTab';
 import { GenerateReportModal } from './detail/GenerateReportModal';
 import { Sidebar } from './detail/Sidebar';
 import { ConversationTab } from './detail/ConversationTab';
+import { MergeDialog } from './detail/MergeDialog';
 import { ResolutionTab } from './detail/ResolutionTab';
 import { AttachmentsTab } from './detail/AttachmentsTab';
 import { ActivityTab } from './detail/ActivityTab';
@@ -75,6 +76,7 @@ function dueDateColor(dueDate) {
 
 export default function TicketDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user, isStaff, canLogTimeForOthers, hasPermission, hasAnyPermission } = useAuth();
   const canViewPrivateComments = usePermission('tickets.view_private_comments');
   const fileRef = useRef(null);
@@ -113,6 +115,7 @@ export default function TicketDetail() {
 
   const [activeTab, setActiveTab] = useState('conversation');
   const [headerLinkModalOpen, setHeaderLinkModalOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'collapsed'; } catch { return false; }
@@ -125,6 +128,17 @@ export default function TicketDetail() {
     try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? 'collapsed' : 'expanded'); } catch { /* ignore */ }
   }, [collapsed]);
 
+  // Split (5b): one message becomes a new ticket, which opens next.
+  const splitComment = async (comment) => {
+    if (!confirm('Make this message a new ticket? It moves there, with its attachments.')) return;
+    try {
+      const { data } = await api.post(`/tickets/${id}/split`, { commentId: comment.id });
+      navigate(`/tickets/${data.ticket.id}`);
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
   // Take it (5b): claim this unassigned ticket.
   const [taking, setTaking] = useState(false);
   const takeTicket = async () => {
@@ -135,7 +149,7 @@ export default function TicketDetail() {
       alert(errMessage(err));
     } finally {
       setTaking(false);
-      load(); // eslint-disable-line no-use-before-define
+      load();
     }
   };
 
@@ -452,6 +466,16 @@ export default function TicketDetail() {
                 Link ticket
               </button>
             )}
+            {isStaff && ticket.access?.edit && !ticket.mergedInto && (
+              <button
+                type="button"
+                onClick={() => setMergeOpen(true)}
+                className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
+                style={{ borderColor: BORDER, color: MUTED }}
+              >
+                Merge…
+              </button>
+            )}
             {isStaff && (
               <button
                 type="button"
@@ -522,6 +546,18 @@ export default function TicketDetail() {
         />
       )}
 
+      {ticket.mergedInto && (
+        <div role="status" data-testid="merged-banner" className="flex-shrink-0 px-6 py-2 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 12%, transparent)', color: TEXT, borderBottom: `1px solid ${BORDER}` }}>
+          This ticket was merged into{' '}
+          <Link to={`/tickets/${ticket.mergedInto.id}`} className="font-medium hover:underline" style={{ color: BLUE }}>
+            #{String(ticket.mergedInto.id).padStart(5, '0')}{ticket.mergedInto.title ? ` ${ticket.mergedInto.title}` : ''}
+          </Link>
+          . New replies go there.
+        </div>
+      )}
+      {mergeOpen && (
+        <MergeDialog ticket={ticket} onClose={() => setMergeOpen(false)} onMerged={load} />
+      )}
       {headerLinkModalOpen && (
         <LinkTicketModal ticketId={id} onClose={() => setHeaderLinkModalOpen(false)} onLinked={reloadActivityAndRelations} />
       )}
@@ -591,6 +627,7 @@ export default function TicketDetail() {
                 comments={comments}
                 total={commentTotal}
                 onLoadMore={() => setCommentLimit((n) => n + SUBLIST_STEP)}
+                onSplit={isStaff && ticket.access?.edit ? splitComment : undefined}
               />
             )}
             {activeTab === 'resolution' && (

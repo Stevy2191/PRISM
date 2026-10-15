@@ -297,26 +297,44 @@ export default function Tickets() {
     setBulkValue('');
   };
 
+  // Bulk actions run on the server (5b): one call per 100 tickets, each
+  // ticket checked and logged like a single edit, with a result per ticket.
+  const [bulkResult, setBulkResult] = useState(null);
   const applyBulkAction = async () => {
     if (!selectedIds.size || !bulkActionType) return;
-    if (bulkActionType !== 'close' && !bulkValue) return;
+    if (!['close', 'delete'].includes(bulkActionType) && !bulkValue) return;
     setBulkSaving(true);
+    setBulkResult(null);
     try {
       // When the user opted into "all N matching", the ids beyond the current
-      // page have to be fetched before anything is patched — the page only
+      // page have to be fetched before anything is changed — the page only
       // holds the rows on screen.
       let ids = [...selectedIds];
       if (selectAllMatching) {
         const { data } = await api.get('/tickets', { params: { ...filterParams(), limit: 'all' } });
         ids = data.tickets.map((t) => t.id);
       }
-      let changes;
-      if (bulkActionType === 'status') changes = { status: bulkValue };
-      else if (bulkActionType === 'priority') changes = { priority: bulkValue };
-      else if (bulkActionType === 'reassign') changes = { assigneeId: bulkValue || null };
-      else changes = { status: 'Closed' };
-      await Promise.all(ids.map((id) => api.patch(`/tickets/${id}`, changes)));
-      clearSelection();
+      const action = bulkActionType === 'reassign' ? 'assign' : bulkActionType;
+      let value = bulkValue || null;
+      if (action === 'merge') {
+        const target = Number(String(bulkValue).replace(/[^0-9]/g, ''));
+        if (!target) { alert('Enter the ticket number to merge into'); return; }
+        value = target;
+        ids = ids.filter((id) => id !== target);
+        // A merge is all or nothing, so it can't be split into batches.
+        if (ids.length > 100) { alert('Merge at most 100 tickets at once'); return; }
+        if (!confirm(`Merge ${ids.length} ticket(s) into #${String(target).padStart(5, '0')}? Their comments, files, time and tasks move there, and they are closed.`)) return;
+      }
+      if (action === 'delete' && !confirm(`Delete ${ids.length} ticket(s)? This cannot be undone.`)) return;
+      const results = [];
+      for (let i = 0; i < ids.length; i += 100) {
+        // eslint-disable-next-line no-await-in-loop
+        const { data } = await api.post('/tickets/bulk', { ids: ids.slice(i, i + 100), action, value });
+        results.push(...data.results);
+      }
+      const failed = results.filter((r) => !r.ok);
+      setBulkResult({ ok: results.length - failed.length, failed });
+      if (!failed.length) clearSelection();
       load();
     } catch (err) {
       alert(errMessage(err));
@@ -560,6 +578,12 @@ export default function Tickets() {
       {/* Bulk action bar — a full-width strip flush between the toolbar and
           the table (no rounded corners, no floating card). Tinted with the
           accent color at low opacity so it reads as distinct from both. */}
+      {isStaff && view === 'table' && !showBulkBar && bulkResult && (
+        <div role="status" data-testid="bulk-result" className="flex flex-shrink-0 items-center gap-2 px-4 py-2 text-xs" style={{ color: MUTED, borderBottom: `1px solid ${BORDER}` }}>
+          {bulkResult.ok} updated.
+          <button type="button" onClick={() => setBulkResult(null)} className="underline">dismiss</button>
+        </div>
+      )}
       {isStaff && view === 'table' && showBulkBar && (
         <BulkActionBar
           bulkBarClosing={bulkBarClosing}
@@ -576,6 +600,9 @@ export default function Tickets() {
           setBulkValue={setBulkValue}
           ticketStatuses={ticketStatuses}
           assignableUsers={assignableUsers}
+          teams={teams}
+          bulkResult={bulkResult}
+          setBulkResult={setBulkResult}
           applyBulkAction={applyBulkAction}
           bulkSaving={bulkSaving}
           clearSelection={clearSelection}

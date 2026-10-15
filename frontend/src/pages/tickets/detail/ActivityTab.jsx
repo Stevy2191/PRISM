@@ -18,6 +18,10 @@ const ACTIVITY_DOT = {
   time_logged: 'var(--color-success)',
   attachment_added: 'var(--color-text-muted)',
   relation_added: 'var(--color-relation-accent-light)',
+  merged: 'var(--color-relation-accent)',
+  merged_into: 'var(--color-relation-accent)',
+  split_to: 'var(--color-relation-accent)',
+  split_from: 'var(--color-relation-accent)',
 };
 
 const ACTIVITY_FIELD_LABEL = {
@@ -28,6 +32,10 @@ const ACTIVITY_FIELD_LABEL = {
 function activityDescription(a) {
   const actor = a.user?.displayName || 'Someone';
   if (a.action === 'created') return `${actor} opened this ticket`;
+  if (a.action === 'merged') return `${actor} merged ${a.toValue} into this ticket`;
+  if (a.action === 'merged_into') return `${actor} merged this ticket into ${a.toValue}`;
+  if (a.action === 'split_to') return `${actor} split a message off into ${a.toValue}`;
+  if (a.action === 'split_from') return `${actor} split this ticket off from ${a.fromValue}`;
   if (a.action === 'comment') return `${actor} commented on this ticket`;
   if (a.action === 'due_date_extended') return `${actor} extended the due date to ${new Date(a.toValue).toLocaleString()}`;
   if (a.action === 'due_date_adjusted') return `${actor} changed the due date to ${new Date(a.toValue).toLocaleString()}`;
