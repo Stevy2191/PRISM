@@ -20,6 +20,7 @@ router.post('/', requirePermission('tickets.create'), ctrl.create);
 // Must precede '/:id' — otherwise 'board' is read as a ticket id.
 router.get('/board', viewMin, ctrl.board);
 router.get('/queue-count', viewMin, ctrl.queueCount);
+router.post('/bulk', viewMin, ctrl.bulk);
 router.get('/:id', viewMin, ctrl.get);
 router.patch('/:id', editMin, ctrl.update);
 router.post('/:id/due-date', editMin, ctrl.changeDueDate);

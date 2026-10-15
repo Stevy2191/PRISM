@@ -13,4 +13,5 @@ module.exports = {
   ...require('./tickets/fields'),
   ...require('./tickets/dueDate'),
   ...require('./tickets/activity'),
+  ...require('./tickets/bulk'),
 };
