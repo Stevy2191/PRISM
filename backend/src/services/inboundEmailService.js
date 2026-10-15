@@ -40,6 +40,8 @@ async function resolveInboundEmailConfig(db) {
     username: values['inboundEmail.username'] || values['inboundEmail.address'] || '',
     password: values['inboundEmail.password'] ? (decryptToken(values['inboundEmail.password']) || '') : '',
     pollInterval: values['inboundEmail.pollInterval'] ? Number(values['inboundEmail.pollInterval']) : 5,
+    staffSenderCheck: values['inboundEmail.staffSenderCheck'] === 'off' ? 'off' : 'strict',
+    trustedAuthServId: values['inboundEmail.trustedAuthServId'] || '',
   };
 }
 

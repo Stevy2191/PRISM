@@ -385,10 +385,11 @@ full code (user rule).
     **top-most** header counts.
   - It passes when `dmarc=pass` and `header.from` equals the From domain.
   - It also passes when `x-ms-exchange-organization-authas: Internal` is
-    present.
+    present and `microsoftMailbox` is true (the inbound IMAP host is
+    Microsoft's; user decision 2026-10-15). Test `'m365 AuthAs on a non-Microsoft mailbox fails'`.
   - Comparisons are case-insensitive.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'gmail dmarc=pass passes'`
   - `'m365 dmarc=pass passes'`
   - `'m365 internal AuthAs passes'`
@@ -398,10 +399,10 @@ full code (user rule).
   - `'header.from of another domain fails'`
   - `'trustedAuthServId picks the matching header'`
   - `'off mode always verifies'`
-- [ ] Run them and see them fail.
-- [ ] Implement, including the settings fields.
-- [ ] Run the tests and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement, including the settings fields.
+- [x] Run the tests and see them pass.
+- [x] Commit.
 
 ### Task 9: Capture staff mail and CC'd senders
 

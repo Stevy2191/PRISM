@@ -20,6 +20,8 @@ const INBOUND_KEYS = {
   username: 'inboundEmail.username',
   password: 'inboundEmail.password',
   pollInterval: 'inboundEmail.pollInterval',
+  staffSenderCheck: 'inboundEmail.staffSenderCheck',
+  trustedAuthServId: 'inboundEmail.trustedAuthServId',
 };
 const VALID_POLL_INTERVALS = [1, 2, 5, 10];
 
@@ -36,6 +38,8 @@ const getInbound = asyncHandler(async (req, res) => {
     username: config.username,
     password: db['inboundEmail.password'] ? '***' : '',
     pollInterval: config.pollInterval,
+    staffSenderCheck: config.staffSenderCheck,
+    trustedAuthServId: config.trustedAuthServId,
   });
 });
 
@@ -58,6 +62,17 @@ const updateInbound = asyncHandler(async (req, res) => {
     const n = Number(body.pollInterval);
     if (!VALID_POLL_INTERVALS.includes(n)) throw new ApiError(400, 'Invalid poll interval', 'VALIDATION_ERROR');
     updates.push({ key: INBOUND_KEYS.pollInterval, value: String(n) });
+  }
+  // Staff mail captured from a tech's own mailbox must pass the receiving
+  // server's DMARC check unless this is 'off' (spec 5a).
+  if (body.staffSenderCheck !== undefined) {
+    if (!['strict', 'off'].includes(body.staffSenderCheck)) throw new ApiError(400, 'staffSenderCheck must be "strict" or "off"', 'VALIDATION_ERROR');
+    updates.push({ key: INBOUND_KEYS.staffSenderCheck, value: body.staffSenderCheck });
+  }
+  if (body.trustedAuthServId !== undefined) {
+    const id = String(body.trustedAuthServId ?? '').trim().toLowerCase();
+    if (id && !/^[a-z0-9.-]{1,253}$/.test(id)) throw new ApiError(400, 'The trusted mail server must be a host name', 'VALIDATION_ERROR');
+    updates.push({ key: INBOUND_KEYS.trustedAuthServId, value: id });
   }
   // Write-only password: blank/"***" means "leave unchanged" — same
   // convention as the LDAP bind password and OAuth client secrets.

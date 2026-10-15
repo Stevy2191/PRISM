@@ -6,6 +6,7 @@ const POLL_INTERVALS = [[1, 'Every 1 min'], [2, 'Every 2 min'], [5, 'Every 5 min
 
 const EMPTY_FORM = {
   enabled: false, host: '', port: 993, ssl: true, address: '', username: '', password: '', pollInterval: 5,
+  staffSenderCheck: 'strict', trustedAuthServId: '',
 };
 
 export default function InboundEmailSection() {
@@ -24,6 +25,7 @@ export default function InboundEmailSection() {
         setForm({
           enabled: data.enabled, host: data.host, port: data.port, ssl: data.ssl,
           address: data.address, username: data.username, password: '', pollInterval: data.pollInterval,
+          staffSenderCheck: data.staffSenderCheck || 'strict', trustedAuthServId: data.trustedAuthServId || '',
         });
         setPasswordSet(data.password === '***');
       })
@@ -127,6 +129,31 @@ export default function InboundEmailSection() {
           <input type="checkbox" checked={form.ssl} onChange={set('ssl')} className="h-4 w-4 rounded border-navy-300 text-prism" />
           <span className="text-sm text-navy-700">Use SSL</span>
         </label>
+
+        <fieldset className="space-y-3 border-t border-navy-100 pt-4">
+          <legend className="text-sm font-medium text-navy-900">Mail from technicians' own mailboxes</legend>
+          <p className="text-sm text-navy-500">
+            When a technician CCs this mailbox, the email is added to the ticket as their reply only if your mail
+            server confirmed it is really from them (DMARC). Otherwise it is kept as a private "unverified sender" note.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="staffSenderCheck">Sender check</label>
+              <select id="staffSenderCheck" className="input" style={fieldStyle} value={form.staffSenderCheck} onChange={set('staffSenderCheck')}>
+                <option value="strict">Strict (recommended)</option>
+                <option value="off">Off: trust the From address</option>
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="trustedAuthServId">Trusted mail server (optional)</label>
+              <input
+                id="trustedAuthServId" className="input" style={fieldStyle} value={form.trustedAuthServId} onChange={set('trustedAuthServId')}
+                placeholder="e.g. mx.google.com"
+              />
+              <p className="mt-1 text-xs text-navy-500">Leave blank to use the newest Authentication-Results header.</p>
+            </div>
+          </div>
+        </fieldset>
 
         <div className="flex items-center justify-end gap-3 border-t border-navy-100 pt-4">
           {savedAt && <span className="text-sm text-green-600">Saved</span>}

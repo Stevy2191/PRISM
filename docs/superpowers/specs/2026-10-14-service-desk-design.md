@@ -161,7 +161,9 @@ on its own. In order:
     meaning the top-most `Authentication-Results` header, or the one whose
     authserv-id equals a configured "trusted mail server" value. Microsoft
     365 internal mail is also accepted when
-    `X-MS-Exchange-Organization-AuthAs: Internal` is present.
+    `X-MS-Exchange-Organization-AuthAs: Internal` is present **and the
+    incoming-mail IMAP host is Microsoft's** (user decision 2026-10-15:
+    only Exchange strips forged copies of that header).
   - **Pass:** `dmarc=pass` with `header.from` equal to the From domain.
   - **Setting** `inboundEmail.staffSenderCheck`: `strict` (default) or `off`.
   - Tested with real-shaped Gmail and M365 header sets, including a forged

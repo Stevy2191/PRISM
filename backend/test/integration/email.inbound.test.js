@@ -72,3 +72,17 @@ describe('today\'s behaviour', () => {
     expect((await EmailProcessingLog.findOne()).error).toMatch(/inbox itself/);
   });
 });
+
+describe('sender check settings', () => {
+  const URL = '/api/v1/settings/inbound-email';
+  it('default strict; owners set off and a trusted server id; bad values are 400', async () => {
+    const before = (await w.admin.agent.get(URL)).body;
+    expect([before.staffSenderCheck, before.trustedAuthServId]).toEqual(['strict', '']);
+    expect((await w.admin.agent.patch(URL).send({ staffSenderCheck: 'off', trustedAuthServId: ' MX.Receiver.example ' })).status).toBe(200);
+    const after = (await w.admin.agent.get(URL)).body;
+    expect([after.staffSenderCheck, after.trustedAuthServId]).toEqual(['off', 'mx.receiver.example']);
+    expect((await w.admin.agent.patch(URL).send({ staffSenderCheck: 'loose' })).status).toBe(400);
+    expect((await w.admin.agent.patch(URL).send({ trustedAuthServId: 'bad id; dmarc=pass' })).status).toBe(400);
+    expect((await tech.agent.patch(URL).send({ staffSenderCheck: 'off' })).status).toBe(403);
+  });
+});
