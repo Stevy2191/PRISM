@@ -132,7 +132,7 @@ lists tasks, interfaces and test names, not full code (user rule).
 - `statusBehavior.closedStatusName() → Promise<string>`: the status with
   `systemKey='closed'`, else the first closed-kind status by `sortOrder`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'adds mergedIntoId, Attachments.commentId and the two tables'`
   - `'source enum accepts recurring'`
   - `'marks the protected Closed status with systemKey closed'`
@@ -140,10 +140,10 @@ lists tasks, interfaces and test names, not full code (user rule).
   - `'appends recurring_paused to a saved notifications.enabledTypes list'`
   - `'down then up leaves the schema as the full chain does'`
   - unit `'closedStatusName prefers systemKey closed, falls back to first closed kind'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run `npm run test:migrate` (with `.env.test` loaded) and the tests, and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run `npm run test:migrate` (with `.env.test` loaded) and the tests, and see them pass.
+- [x] Commit.
 
 ### Task 2: Ticket write services (extraction, plus the source side note)
 
@@ -183,15 +183,15 @@ unchanged.
   already found, and `updateTicket`/`deleteTicket` still call
   `canAccessTicket` + `assertCanEditTicket` themselves.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'create accepts source email; portal and recurring become manual'`
   - `'create and update refuse an unknown teamId with 400'`
   - `'updateTicket quiet close skips CSAT, resolved email and ticket_closed rules'`
   - `'createTicket with createdById records the given creator and checks the actor'`
-- [ ] Run them and see them fail.
-- [ ] Implement. Move the code without rewriting it, then add the team check and the source change.
-- [ ] Run the new file plus `tickets.core`, `tickets.extras`, `tickets.ccs`, `tickets.comments`, `companies.ticketpeople`, `email.notifications` and the SLA ticket suites, and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement. Move the code without rewriting it, then add the team check and the source change.
+- [x] Run the new file plus `tickets.core`, `tickets.extras`, `tickets.ccs`, `tickets.comments`, `companies.ticketpeople`, `email.notifications` and the SLA ticket suites, and see them pass.
+- [x] Commit.
 
 ### Task 3: Queues and Take it (backend)
 
@@ -224,7 +224,7 @@ unchanged.
     fire, then call `runTicketUpdateEffects` after commit.
   - Audit `ticket.take`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'queue=mine lists only my teams, unassigned first then earliest SLA due'`
   - `'queue view hides closed tickets unless a status is asked for'`
   - `'queue=<team I am not in> is refused without view_all'`
@@ -235,10 +235,10 @@ unchanged.
   - `'take: view-only non-member is refused; out of scope looks like missing'`
   - `'take: member fenced out of the ticket company is refused'`
   - `'take: logs assignee activity and fires ticket_assigned rules'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run them and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run them and see them pass.
+- [x] Commit.
 
 ### Task 4: Canned responses (backend)
 
@@ -276,7 +276,7 @@ unchanged.
   5a). Unknown placeholders render empty.
 - Audit `canned.create|update|delete`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - unit `'renderPlainText fills allowed placeholders, blanks unknown ones, does not escape'`
   - `'any user creates a personal response; team/everyone need canned.manage'`
   - `'picker shows own, my teams and everyone; never another user's personal one'`
@@ -285,10 +285,10 @@ unchanged.
   - `'manage=1 lists all shared responses for canned.manage holders only'`
   - `'search escapes LIKE wildcards'`
   - `'render fills ticket placeholders; refused with no ticket access or unseen response'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run them and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run them and see them pass.
+- [x] Commit.
 
 ### Task 5: Bulk endpoint (backend)
 
@@ -321,7 +321,7 @@ unchanged.
 - `merge` needs Task 6. Until then the action returns `400 "Unknown action"`,
   and Task 6 wires it in with its own test.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'refuses more than 100 ids and unknown actions'`
   - `'mixed access: unseen and missing ids get the same error, the rest apply'`
   - `'status bulk matches single PATCH: activity rows and ticket_status_changed rules fire'`
@@ -329,10 +329,10 @@ unchanged.
   - `'assign and team go through the same checks as PATCH (company fence, unknown team)'`
   - `'add_watcher needs manage_watchers; delete needs tickets.delete'`
   - `'require-time-before-close fails only the tickets without time'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run them and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run them and see them pass.
+- [x] Commit.
 
 ### Task 6: Merge (backend + inbound follow)
 
@@ -382,7 +382,7 @@ unchanged.
 - Inbound attachments: comments are created first, and `saveAttachments(…,
   commentId)` stores `commentId` (D11).
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'moves comments with timestamps, attachments and files, time, tasks with new codes, timers, watchers, CCs, assets, relations'`
   - `'drops relations among merged tickets and duplicate links'`
   - `'refuses across companies, already-merged sources, a merged target, and the target as its own source'`
@@ -396,10 +396,10 @@ unchanged.
   - inbound `'reply to a merged ticket lands on the target (A→B→C)'`
   - inbound `'old contact of a merged source replies → contact-side reply on the target'`
   - inbound `'inbound attachments are stored with their commentId'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run them plus the whole `email.inbound.test.js`, and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run them plus the whole `email.inbound.test.js`, and see them pass.
+- [x] Commit.
 
 ### Task 7: Split (backend)
 
@@ -423,15 +423,15 @@ unchanged.
   - Activity `split_to` / `split_from`, and audit `ticket.split`.
 - `POST /tickets/:id/split { commentId }` (route `editMin`) → `201 { ticket }`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'creates a linked ticket with the original contact, company, department, team, priority, type, source and CCs; unassigned with an SLA'`
   - `'moves the comment and only its own attachments (with files)'`
   - `'refuses a comment from another ticket the same way as a missing one'`
   - `'refuses without edit rights'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run them and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run them and see them pass.
+- [x] Commit.
 
 ### Task 8: `nextRun` schedule function
 
@@ -458,7 +458,7 @@ unchanged.
   `HH:MM`; `isValidZone`; endDate ≥ startDate.
 - `previewRuns(rule, from, n = 5) → Date[]`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'daily interval 3 from start date'`
   - `'weekly on Mon/Thu every 2 weeks'`
   - `'monthly on the 31st clamps to Feb 28 and Apr 30'`
@@ -467,10 +467,10 @@ unchanged.
   - `'strictly after: a run at exactly after is skipped'`
   - `'returns null past endDate'`
   - `'validateSchedule rejects bad frequency, interval 0, empty weekdays, bad zone, end before start'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run them and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run them and see them pass.
+- [x] Commit.
 
 ### Task 9: Recurring tickets API
 
@@ -510,7 +510,7 @@ unchanged.
   - Sets `lastRunAt` and `lastTicketId`.
 - Audit `recurring.create|update|delete|run`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'needs tickets.recurring.manage for every route'`
   - `'list and get hide rules whose contact company the viewer cannot reach'`
   - `'save validates contact, department, team and assignee against the saver'`
@@ -518,10 +518,10 @@ unchanged.
   - `'pause and resume; resume recomputes from now'`
   - `'run now creates a recurring-source ticket with tasks, created by the system actor, nextRunAt unchanged'`
   - `'preview returns five runs and rejects a bad schedule'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run them and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run them and see them pass.
+- [x] Commit.
 
 ### Task 10: Recurring scheduler
 
@@ -545,17 +545,17 @@ unchanged.
 - `startRecurringScheduler()`: a 60-s `setInterval`, with errors logged and
   never thrown.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `'creates one ticket for a due rule and advances nextRunAt'`
   - `'two concurrent ticks create exactly one ticket'`
   - `'after downtime it skips to the next future run (no backlog)'`
   - `'past endDate the rule deactivates after its last run'`
   - `'run-as user deactivated → no ticket, paused with lastError, notified'`
   - `'run-as user lost the contact company → paused, other rules still run'`
-- [ ] Run them and see them fail.
-- [ ] Implement.
-- [ ] Run them and see them pass.
-- [ ] Commit.
+- [x] Run them and see them fail.
+- [x] Implement.
+- [x] Run them and see them pass.
+- [x] Commit.
 
 ### Task 11: Screens — queues, Take it, source
 
@@ -570,10 +570,10 @@ unchanged.
 - The detail page's `access` (from `ticketAccessFor`) gains `canTake:
   boolean`, computed with the same rules as the endpoint (added to `shared.js`).
 
-- [ ] Add `canTake` to `ticketAccessFor` with an integration test: `'access.canTake true for a viewing team member on an unassigned ticket, false once assigned'`.
-- [ ] Build the screens.
-- [ ] `npm --prefix frontend run build` passes.
-- [ ] Commit.
+- [x] Add `canTake` to `ticketAccessFor` with an integration test: `'access.canTake true for a viewing team member on an unassigned ticket, false once assigned'`.
+- [x] Build the screens.
+- [x] `npm --prefix frontend run build` passes.
+- [x] Commit.
 
 ### Task 12: Screens — canned responses
 
@@ -588,9 +588,9 @@ unchanged.
   to people with that permission.
 - The body is a plain `<textarea>` with a placeholder help list.
 
-- [ ] Build the screens.
-- [ ] Build passes; `npm --prefix frontend test` passes.
-- [ ] Commit.
+- [x] Build the screens.
+- [x] Build passes; `npm --prefix frontend test` passes.
+- [x] Commit.
 
 ### Task 13: Screens — bulk bar, merge, split
 
@@ -608,9 +608,9 @@ unchanged.
   ticket" item in each comment's menu (with edit access) that navigates to
   the new ticket.
 
-- [ ] Build the screens.
-- [ ] Build passes.
-- [ ] Commit.
+- [x] Build the screens.
+- [x] Build passes.
+- [x] Commit.
 
 ### Task 14: Screens — recurring tickets
 
@@ -629,9 +629,9 @@ unchanged.
   runs" panel from `POST /recurring-tickets/preview` (debounced). It also
   shows the note "Runs as you once saved".
 
-- [ ] Build the screens.
-- [ ] Build passes; `npm --prefix frontend test` passes.
-- [ ] Commit.
+- [x] Build the screens.
+- [x] Build passes; `npm --prefix frontend test` passes.
+- [x] Commit.
 
 ### Task 15: Smoke, docs, review, push
 
@@ -639,12 +639,12 @@ unchanged.
 - Create `backend/test/smoke/desktools.smoke.js`.
 - Modify `docs/ROADMAP.md` (5b → Shipped), the spec (add "built" notes and D17), and `UPGRADING.md` if this repo's practice for unreleased work needs it.
 
-- [ ] Smoke tests:
+- [x] Smoke tests:
   - `'queue view lists team tickets and Take it assigns me'`
   - `'merge dialog merges a ticket and the source shows the merged banner'`
   - `'recurring editor shows five next runs and saves a rule'`
   - `'canned picker inserts a rendered response into the reply box'`
-- [ ] Run the full backend suite once (`npm test`) and the full smoke once (`npm run test:smoke`). Both must be green, and the counts get recorded.
-- [ ] **MODEL SWITCH to Opus.** Then a fresh reviewer subagent goes over the whole branch diff with a security focus (permission checks, company fences, missing equals no-access, transactions and file moves, the scheduler claim).
-- [ ] Fix the findings test-first, re-run the affected tests, then push to `dev`.
-- [ ] Update memory (service desk) and `docs/ROADMAP.md`.
+- [x] Run the full backend suite once (`npm test`) and the full smoke once (`npm run test:smoke`). Both must be green, and the counts get recorded.
+- [x] **MODEL SWITCH to Opus.** Then a fresh reviewer subagent goes over the whole branch diff with a security focus (permission checks, company fences, missing equals no-access, transactions and file moves, the scheduler claim).
+- [x] Fix the findings test-first, re-run the affected tests, then push to `dev`.
+- [x] Update memory (service desk) and `docs/ROADMAP.md`.
