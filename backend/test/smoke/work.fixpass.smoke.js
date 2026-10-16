@@ -3,6 +3,7 @@ const {
   API, expectOk, makeWorld, makeTicket,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
 // Plan 3c's final review: the screen findings fixed in its one fix pass.
 
@@ -26,6 +27,9 @@ afterEach(async () => {
   await models.User.update({ timerMode: 'manual' }, { where: { id: w.admin.user.id } });
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
+// Each test loads several pages; the per-user request limit (200/min) is
+// for people, not a browser run.
+beforeEach(resetRateLimits);
 
 it('C1: automatic mode starts this ticket\'s timer and leaves a timer running elsewhere alone', async () => {
   expectOk(await w.admin.agent.post(`${API}/timer/start`).send({ type: 'ticket', id: B.id, label: 'Ticket B' }), 201);

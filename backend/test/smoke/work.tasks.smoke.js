@@ -3,6 +3,7 @@ const {
   API, expectOk, makeWorld, makeTicket, makeProject, makeTask,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
 // Plan 3c: one task list on tickets and projects — a compact checklist that
 // expands into the task's details, subtasks, time and a timer on the task.
@@ -26,6 +27,9 @@ beforeAll(async () => {
   await makeTask(w.admin.agent, project.id, { title: 'Second' });
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
+// Each test loads several pages; the per-user request limit (200/min) is
+// for people, not a browser run.
+beforeEach(resetRateLimits);
 
 it('a ticket task expands: status, a subtask, and time on the task', async () => {
   const page = await smoke.pageAs('admin');

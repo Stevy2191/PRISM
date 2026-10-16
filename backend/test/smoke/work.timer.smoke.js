@@ -3,6 +3,7 @@ const {
   API, expectOk, makeWorld, makeProject, makeTicket,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
 // Timers (plan 3c; several at once, user decision 2026-10-12): they start
 // from a page, pause and resume, show in "My timers" on any page, remind the
@@ -34,6 +35,9 @@ afterEach(async () => {
   await models.User.update({ timerMode: 'manual', timerReminderMinutes: 120 }, { where: { id: w.admin.user.id } });
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
+// Each test loads several pages; the per-user request limit (200/min) is
+// for people, not a browser run.
+beforeEach(resetRateLimits);
 
 it('starts, pauses, resumes and shows in the top bar', async () => {
   const page = await smoke.pageAs('admin');
