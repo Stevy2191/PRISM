@@ -13,6 +13,8 @@ const {
 } = require('../models');
 const { decryptToken } = require('../utils/tokenCrypto');
 const { UPLOAD_ROOT } = require('../middleware/upload');
+const { writeAudit } = require('../middleware/audit');
+const virusScan = require('./virusScan');
 const { getFirstTicketStatusByBehavior, getTicketStatusBehaviorMap } = require('./statusBehavior');
 const { getAllSettings } = require('../controllers/settingsController');
 const { sendTicketEmail, buildTicketMessageId } = require('./email/ticketMail');
@@ -186,19 +188,54 @@ async function findOrCreateContact(fromEmail, fromName) {
   });
 }
 
-async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId = null) {
-  if (!Array.isArray(mailAttachments) || !mailAttachments.length || !uploaderId) return;
+// Every attachment is scanned (in memory) before it is written. Clean ones are
+// saved as before; an infected one is dropped and audited, and when the
+// scanner can't be reached nothing is saved (fail closed). Returns what was
+// skipped so the caller can tell staff in a private note — the ticket itself
+// is always still created.
+async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId = null, from = null) {
+  const skipped = [];
+  if (!Array.isArray(mailAttachments) || !mailAttachments.length || !uploaderId) return { skipped };
 
   const settings = await getAllSettings();
   const maxMB = Number(settings['system.maxAttachmentSizeMB']) || 25;
   const maxBytes = maxMB * 1024 * 1024;
 
   const dir = path.join(UPLOAD_ROOT, String(ticketId));
-  await fs.promises.mkdir(dir, { recursive: true });
+  let scannerDown = false;
 
   // eslint-disable-next-line no-restricted-syntax
   for (const att of mailAttachments) {
     if (!att.content || att.content.length > maxBytes) continue; // eslint-disable-line no-continue
+    const name = att.filename || 'attachment';
+    if (scannerDown) { skipped.push({ name, reason: 'unscanned' }); continue; } // eslint-disable-line no-continue
+    let verdict;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      verdict = await virusScan.scanBuffer(att.content);
+    } catch (err) {
+      if (!(err instanceof virusScan.ScannerUnavailableError)) throw err;
+      scannerDown = true;
+      skipped.push({ name, reason: 'unscanned' });
+      continue; // eslint-disable-line no-continue
+    }
+    if (!verdict.clean) {
+      skipped.push({ name, reason: 'virus', signature: verdict.signature });
+      // eslint-disable-next-line no-await-in-loop
+      await writeAudit({ user: null }, 'upload.virus_blocked', 'Ticket', ticketId, {
+        filename: name, signature: verdict.signature, route: 'inbound-email', from,
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await virusScan.notifyVirusBlocked({
+        place: `Ticket #${String(ticketId).padStart(5, '0')} (email from ${from || 'unknown sender'})`,
+        filename: name,
+        signature: verdict.signature,
+        who: 'inbound email',
+      });
+      continue; // eslint-disable-line no-continue
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await fs.promises.mkdir(dir, { recursive: true });
     const ext = path.extname(att.filename || '') || '';
     const storedName = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
     // eslint-disable-next-line no-await-in-loop
@@ -206,7 +243,7 @@ async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId 
     // eslint-disable-next-line no-await-in-loop
     await Attachment.create({
       filename: storedName,
-      originalName: att.filename || 'attachment',
+      originalName: name,
       mimeType: att.contentType || null,
       size: att.content.length,
       ticketId,
@@ -214,6 +251,21 @@ async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId 
       uploadedById: uploaderId,
     });
   }
+  if (scannerDown) await virusScan.notifyScannerUnavailable();
+  return { skipped };
+}
+
+// One private note listing what the scan kept off the ticket. Nothing when
+// everything was saved.
+async function addSkippedAttachmentsNote(ticketId, skipped, authorId) {
+  if (!skipped || !skipped.length) return;
+  const lines = skipped.map((s) => (s.reason === 'virus'
+    ? `Removed: ${s.name} — virus detected (${s.signature})`
+    : `Not saved: ${s.name} — the virus scanner wasn't reachable`));
+  await Comment.create({
+    body: `Attachments from this email were not saved:\n${lines.join('\n')}`,
+    authorId, ticketId, type: 'comment_private',
+  });
 }
 
 async function sendAutoReply(ticket, contact) {
@@ -413,7 +465,8 @@ async function handleParsedMessage(parsed, config) {
     const comment = await Comment.create({
       body: textBody, authorId: systemActorId, ticketId: ticket.id, type: 'reply',
     });
-    await saveAttachments(parsed.attachments, ticket.id, systemActorId, comment.id);
+    const saved = await saveAttachments(parsed.attachments, ticket.id, systemActorId, comment.id, fromAddress);
+    await addSkippedAttachmentsNote(ticket.id, saved.skipped, systemActorId);
     // A reply never reopens a closed ticket: a person decides (user
     // decision 2026-10-15). An open or on-hold one moves to User responded.
     const kind = (await getTicketStatusBehaviorMap()).get(ticket.status);
@@ -439,7 +492,8 @@ async function handleParsedMessage(parsed, config) {
     const comment = await Comment.create({
       body: textBody, authorId: staff.id, ticketId: ticket.id, type: 'comment_public', viaEmail: true,
     });
-    await saveAttachments(parsed.attachments, ticket.id, staff.id, comment.id);
+    const saved = await saveAttachments(parsed.attachments, ticket.id, staff.id, comment.id, fromAddress);
+    await addSkippedAttachmentsNote(ticket.id, saved.skipped, systemActorId);
     await notifyComment(ticket, comment, staff.id).catch(() => {});
     return done({ action, ticketId: ticket.id });
   }
@@ -466,7 +520,10 @@ async function handleParsedMessage(parsed, config) {
       ? { body: textBody, authorId: staff.id, ticketId: created.id, type: 'comment_public', viaEmail: true }
       : { body: unverifiedBody(fromAddress, textBody, parsed.attachments), authorId: systemActorId, ticketId: created.id, type: 'comment_private', viaEmail: true });
     if (isVerified) await addCcs(created.id, others.map((c) => c.address));
-    if (isVerified) await saveAttachments(parsed.attachments, created.id, staff.id, firstComment.id);
+    if (isVerified) {
+      const saved = await saveAttachments(parsed.attachments, created.id, staff.id, firstComment.id, fromAddress);
+      await addSkippedAttachmentsNote(created.id, saved.skipped, systemActorId);
+    }
     return done({ action, ticketId: created.id });
   }
 
@@ -476,7 +533,8 @@ async function handleParsedMessage(parsed, config) {
   if (!contact) return done({ action: 'ignored', ticketId: null }, 'No usable From address');
   const created = await createTicketFromEmail({ contact, subject, textBody });
   await addCcs(created.id, addressesOf(parsed.cc).map((c) => c.address).filter((e) => !own.has(e) && e !== fromAddress));
-  await saveAttachments(parsed.attachments, created.id, systemActorId);
+  const saved = await saveAttachments(parsed.attachments, created.id, systemActorId, null, fromAddress);
+  await addSkippedAttachmentsNote(created.id, saved.skipped, systemActorId);
   setImmediate(() => {
     sendAutoReply(created, contact).catch((err) => {
       console.error('[inbound-email] auto-reply failed for ticket', created.id, err.message);

@@ -11,6 +11,8 @@ const {
   makeWorld, makeTech, makeTicket, makeContact, waitFor,
 } = require('./fixtures');
 const { handleParsedMessage } = require('../../src/services/inboundEmailService');
+const { startFakeClamd } = require('../helpers/fakeClamd');
+const { _resetThrottleForTest } = require('../../src/services/virusScan');
 
 // Inbound mail, fed in as parsed RFC822 messages (test/fixtures/mail).
 
@@ -289,5 +291,115 @@ describe('merged tickets (5b)', () => {
     const [att] = await models.Attachment.findAll({ where: { ticketId: ticket.id } });
     const [reply] = await Comment.findAll({ where: { ticketId: ticket.id, type: 'reply' } });
     expect(att.commentId).toBe(reply.id);
+  });
+});
+
+describe('virus scanning', () => {
+  let fake;
+  const file = (filename, text) => ({ filename, content: Buffer.from(text), contentType: 'application/octet-stream' });
+  // The fake flags a stream "FOUND" for the whole connection, so each file
+  // needs its own verdict: mode is switched per attachment by content.
+  const scannerOn = async (mode) => {
+    fake = await startFakeClamd({ mode });
+    process.env.CLAMAV_ENABLED = 'true';
+    process.env.CLAMAV_HOST = '127.0.0.1';
+    process.env.CLAMAV_PORT = String(fake.port);
+  };
+  const mailWith = async (name, vars, attachments) => {
+    const parsed = await mail(name, vars);
+    parsed.attachments = attachments;
+    return handleParsedMessage(parsed, CONFIG);
+  };
+  const replyVars = () => ({
+    DMARC: 'pass', FROM: 'ann@acme.com', TO: 'help@prism.example', CC: '', SUBJECT: `Re: [Ticket #${num(ticket.id)}]`, ID: 'v1',
+  });
+  const newVars = () => ({
+    DMARC: 'pass', FROM: 'newcomer@acme.com', TO: 'help@prism.example', CC: '', SUBJECT: 'Brand new', ID: 'v2',
+  });
+  const notes = (id) => Comment.findAll({ where: { ticketId: id, type: 'comment_private' } });
+
+  beforeEach(() => { _resetThrottleForTest(); jest.spyOn(console, 'error').mockImplementation(() => {}); });
+  afterEach(async () => {
+    if (fake) await fake.close();
+    fake = null;
+    delete process.env.CLAMAV_ENABLED;
+    delete process.env.CLAMAV_HOST;
+    delete process.env.CLAMAV_PORT;
+    jest.restoreAllMocks();
+  });
+
+  it('clean attachments are saved as before', async () => {
+    await scannerOn('ok');
+    const out = await mailWith('generic', replyVars(), [file('a.txt', 'one'), file('b.txt', 'two')]);
+    expect(out.action).toBe('reply_added');
+    expect(await models.Attachment.count({ where: { ticketId: ticket.id } })).toBe(2);
+    expect(await notes(ticket.id)).toHaveLength(0);
+  });
+
+  it('an infected attachment is not written; the note, audit and admin notification record it', async () => {
+    await scannerOn('found');
+    const before = fs.existsSync(path.join(process.env.UPLOAD_DIR, String(ticket.id)))
+      ? fs.readdirSync(path.join(process.env.UPLOAD_DIR, String(ticket.id))).length : 0;
+    const out = await mailWith('generic', replyVars(), [file('evil.pdf', 'x')]);
+    expect(out.action).toBe('reply_added');
+    expect(await models.Attachment.count({ where: { ticketId: ticket.id } })).toBe(0);
+    const dir = path.join(process.env.UPLOAD_DIR, String(ticket.id));
+    expect(fs.existsSync(dir) ? fs.readdirSync(dir).length : 0).toBe(before);
+    const [note] = await notes(ticket.id);
+    expect(note.body).toContain('Removed: evil.pdf — virus detected (Eicar-Test-Signature)');
+    const audit = await models.AuditLog.findOne({ where: { action: 'upload.virus_blocked' } });
+    expect(audit).toMatchObject({ userId: null, entityType: 'Ticket', entityId: ticket.id });
+    expect(audit.meta).toMatchObject({ filename: 'evil.pdf', signature: 'Eicar-Test-Signature', route: 'inbound-email', from: 'ann@acme.com' });
+    expect(await models.Notification.count({ where: { type: 'virus_blocked', userId: w.admin.user.id } })).toBe(1);
+  });
+
+  it('a mix: clean saved, infected listed, ticket still created', async () => {
+    // clamd verdicts come from a script keyed on call order: ok, found, ok.
+    fake = await startFakeClamd({ mode: 'ok' });
+    process.env.CLAMAV_ENABLED = 'true';
+    process.env.CLAMAV_HOST = '127.0.0.1';
+    process.env.CLAMAV_PORT = String(fake.port);
+    const scan = require('../../src/services/virusScan'); // eslint-disable-line global-require
+    const real = scan.scanBuffer;
+    jest.spyOn(scan, 'scanBuffer').mockImplementation(async (buf) => (buf.toString() === 'bad' ? { clean: false, signature: 'Test.Sig' } : real(buf)));
+    const out = await mailWith('generic', newVars(), [file('ok1.txt', 'good1'), file('bad.exe.pdf', 'bad'), file('ok2.txt', 'good2')]);
+    expect(out.action).toBe('ticket_created');
+    const saved = await models.Attachment.findAll({ where: { ticketId: out.ticketId } });
+    expect(saved.map((a) => a.originalName).sort()).toEqual(['ok1.txt', 'ok2.txt']);
+    const [note] = await notes(out.ticketId);
+    expect(note.body).toContain('Removed: bad.exe.pdf — virus detected (Test.Sig)');
+    expect(note.body).not.toContain('ok1.txt');
+  });
+
+  it('scanner down: nothing saved, ticket still created, each listed as not saved, admins notified once', async () => {
+    await scannerOn('error');
+    const out = await mailWith('generic', newVars(), [file('a.txt', 'one'), file('b.txt', 'two')]);
+    expect(out.action).toBe('ticket_created');
+    expect(await Ticket.findByPk(out.ticketId)).toBeTruthy();
+    expect(await models.Attachment.count({ where: { ticketId: out.ticketId } })).toBe(0);
+    const [note] = await notes(out.ticketId);
+    expect(note.body).toContain("Not saved: a.txt — the virus scanner wasn't reachable");
+    expect(note.body).toContain("Not saved: b.txt — the virus scanner wasn't reachable");
+    expect(await models.Notification.count({ where: { type: 'scanner_unavailable', userId: w.admin.user.id } })).toBe(1);
+    // A second message inside the hour does not notify again.
+    await mailWith('generic', { ...newVars(), ID: 'v3', SUBJECT: 'Another' }, [file('c.txt', 'three')]);
+    expect(await models.Notification.count({ where: { type: 'scanner_unavailable', userId: w.admin.user.id } })).toBe(1);
+  });
+
+  it('the note is private (never a customer-visible comment)', async () => {
+    await scannerOn('found');
+    await mailWith('generic', replyVars(), [file('evil.pdf', 'x')]);
+    const [note] = await notes(ticket.id);
+    expect(note.type).toBe('comment_private');
+    expect(await Comment.count({ where: { ticketId: ticket.id, body: { [require('sequelize').Op.like]: '%Removed:%' }, type: ['reply', 'comment_public'] } })).toBe(0);
+    expect(sendMail).not.toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Removed:') }));
+  });
+
+  it('scanning off: attachments saved without contacting the scanner', async () => {
+    await scannerOn('found');
+    process.env.CLAMAV_ENABLED = 'false';
+    await mailWith('generic', replyVars(), [file('a.txt', 'one')]);
+    expect(fake.received).toHaveLength(0);
+    expect(await models.Attachment.count({ where: { ticketId: ticket.id } })).toBe(1);
   });
 });
