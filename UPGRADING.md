@@ -10,7 +10,25 @@ backend start.
 
 ## Unreleased
 
-Nothing here needs action before upgrading.
+**Action needed: pull the new `docker-compose.yml`.** Attachments are now
+virus-scanned, which needs a `clamav` service that the new compose file adds
+(and a `clamav_data` volume). With your old compose file, every upload and every
+emailed attachment is refused until the scanner exists. The scanner needs about
+1.2 GB of RAM (2.4 GB during its daily signature reload); the first start takes a
+few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
+`.env`.
+
+### Attachment virus scanning (5d)
+
+- Every file uploaded to tickets, projects, assets, licenses, contracts, the
+  Knowledge Base and branding, and every email attachment, is scanned with
+  ClamAV before it is stored. An infected file is refused ("Upload blocked: a
+  virus was detected"); if the scanner is down, uploads are refused too.
+- Inbound email: the ticket is still created; infected or unscanned attachments
+  are left off and listed in a private note.
+- Users holding *Manage system settings* get a notification when a virus is
+  blocked or the scanner goes down (these can't be switched off). The scanner's
+  state is shown under **Settings → System info**.
 
 ### Service desk: email (5a)
 

@@ -27,6 +27,21 @@ services:
       timeout: 5s
       retries: 10
 
+  # ClamAV virus scanner. The backend streams every uploaded and emailed file
+  # to it (port 3310, internal network only) and refuses the file if it can't
+  # be scanned. Needs ~1.2 GB RAM idle and ~2.4 GB during the daily signature
+  # reload; the first start downloads signatures and takes a few minutes.
+  clamav:
+    image: clamav/clamav:1.5
+    restart: unless-stopped
+    environment:
+      # Match the 100 MB upload ceiling, and report (don't skip) bigger files.
+      CLAMD_CONF_StreamMaxLength: 101M
+      CLAMD_CONF_MaxFileSize: 101M
+      CLAMD_CONF_AlertExceedsMax: "yes"
+    volumes:
+      - clamav_data:/var/lib/clamav
+
   backend:
     build: ./backend
     restart: unless-stopped
@@ -61,3 +76,4 @@ services:
 volumes:
   mariadb_data:
   uploads_data:
+  clamav_data:

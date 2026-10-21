@@ -66,7 +66,9 @@ the Contacts module rather than creating accounts for them.
 
 ## Quick start
 
-Requirements: Docker + Docker Compose.
+Requirements: Docker + Docker Compose, and a host with 3-4 GB of RAM (the ClamAV
+virus scanner that checks every attachment uses about 1.2 GB, 2.4 GB while it
+reloads its signatures each day).
 
 ```bash
 git clone https://github.com/Stevy2191/PRISM.git
