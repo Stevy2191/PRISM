@@ -104,6 +104,38 @@ async function hasPermission(userId, permissionKey) {
 
 // Any of the given keys being granted satisfies the check (used for
 // "requires X minimum" routes where X is the lowest of several tiers).
+// Every active user holding one permission, worked out in a handful of
+// queries instead of resolving each user in turn. Same rules as
+// resolveUserPermissions: an owner holds every permission; otherwise an
+// unexpired override wins over the roles (main role + held roles).
+async function activeUserIdsWithPermission(permissionKey) {
+  const users = await User.findAll({ where: { isActive: true }, attributes: ['id', 'roleId', 'ownerLevel'] });
+  if (!users.length) return [];
+  const ids = users.map((u) => u.id);
+  const permission = await Permission.findOne({ where: { key: permissionKey }, attributes: ['id'] });
+  const [grants, userRoles, overrides] = await Promise.all([
+    permission ? RolePermission.findAll({ where: { permissionId: permission.id, granted: true }, attributes: ['roleId'] }) : [],
+    UserRole.findAll({ where: { userId: { [Op.in]: ids } }, attributes: ['userId', 'roleId'] }),
+    UserPermissionOverride.findAll({
+      where: {
+        userId: { [Op.in]: ids },
+        permissionKey,
+        [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
+      },
+      attributes: ['userId', 'granted'],
+      order: [['id', 'ASC']],
+    }),
+  ]);
+  const grantingRoles = new Set(grants.map((g) => g.roleId));
+  const byRole = new Set(userRoles.filter((ur) => grantingRoles.has(ur.roleId)).map((ur) => ur.userId));
+  const override = new Map(overrides.map((o) => [o.userId, !!o.granted])); // later rows win, as there
+  return users.filter((u) => {
+    if (u.ownerLevel) return !!permission;
+    if (override.has(u.id)) return override.get(u.id);
+    return byRole.has(u.id) || grantingRoles.has(u.roleId);
+  }).map((u) => u.id);
+}
+
 async function hasAnyPermission(userId, permissionKeys) {
   const permissions = await resolveUserPermissions(userId);
   return permissionKeys.some((key) => !!permissions[key]);
@@ -405,6 +437,7 @@ async function canModerateProjectContent(user, project) {
 }
 
 module.exports = {
+  activeUserIdsWithPermission,
   noteOwnerLevel,
   getUserCompanyIds,
   canAccessCompany,

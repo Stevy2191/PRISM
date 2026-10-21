@@ -386,6 +386,15 @@ describe('virus scanning', () => {
     expect(await models.Notification.count({ where: { type: 'scanner_unavailable', userId: w.admin.user.id } })).toBe(1);
   });
 
+  it('one email with several infected attachments sends one alert per admin, naming them all', async () => {
+    await scannerOn('found');
+    await mailWith('generic', replyVars(), [file('a.pdf', 'x'), file('b.pdf', 'y'), file('c.pdf', 'z')]);
+    const rows = await models.Notification.findAll({ where: { type: 'virus_blocked', userId: w.admin.user.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].message).toMatch(/3 files \("a\.pdf".*"b\.pdf".*"c\.pdf"/);
+    expect(await models.AuditLog.count({ where: { action: 'upload.virus_blocked' } })).toBe(3);
+  });
+
   it('the note is private (never a customer-visible comment)', async () => {
     await scannerOn('found');
     await mailWith('generic', replyVars(), [file('evil.pdf', 'x')]);

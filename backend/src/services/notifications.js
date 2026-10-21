@@ -174,16 +174,13 @@ async function syncDerivedNotifications(userId) {
 // upload it is about.
 async function notifySecurityAdmins({ type, message }) {
   try {
-    const { hasPermission } = require('./permissionService'); // eslint-disable-line global-require
-    const users = await User.findAll({ where: { isActive: true }, attributes: ['id'] });
+    const { activeUserIdsWithPermission } = require('./permissionService'); // eslint-disable-line global-require
+    const userIds = await activeUserIdsWithPermission('settings.manage_system');
     let sent = 0;
-    for (const u of users) {
+    for (const userId of userIds) {
       // eslint-disable-next-line no-await-in-loop
-      if (await hasPermission(u.id, 'settings.manage_system')) {
-        // eslint-disable-next-line no-await-in-loop
-        await Notification.create({ userId: u.id, type, message, ticketId: null });
-        sent += 1;
-      }
+      await Notification.create({ userId, type, message, ticketId: null });
+      sent += 1;
     }
     return sent;
   } catch (e) {

@@ -225,13 +225,6 @@ async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId 
       await writeAudit({ user: null }, 'upload.virus_blocked', 'Ticket', ticketId, {
         filename: name, signature: verdict.signature, route: 'inbound-email', from,
       });
-      // eslint-disable-next-line no-await-in-loop
-      await virusScan.notifyVirusBlocked({
-        place: `Ticket #${String(ticketId).padStart(5, '0')} (email from ${from || 'unknown sender'})`,
-        filename: name,
-        signature: verdict.signature,
-        who: 'inbound email',
-      });
       continue; // eslint-disable-line no-continue
     }
     // eslint-disable-next-line no-await-in-loop
@@ -249,6 +242,15 @@ async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId 
       ticketId,
       commentId,
       uploadedById: uploaderId,
+    });
+  }
+  // One alert per email, however many attachments were infected.
+  const infected = skipped.filter((x) => x.reason === 'virus');
+  if (infected.length) {
+    await virusScan.notifyVirusBlocked({
+      place: `Ticket #${String(ticketId).padStart(5, '0')} (email from ${from || 'unknown sender'})`,
+      who: 'inbound email',
+      files: infected.map((x) => ({ filename: x.name, signature: x.signature })),
     });
   }
   if (scannerDown) await virusScan.notifyScannerUnavailable();

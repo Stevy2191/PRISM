@@ -32,7 +32,9 @@ services:
   # be scanned. Needs ~1.2 GB RAM idle and ~2.4 GB during the daily signature
   # reload; the first start downloads signatures and takes a few minutes.
   clamav:
-    image: clamav/clamav:1.5
+    # Pinned to a patch release; bump it deliberately. The image ships its own
+    # healthcheck (clamdcheck.sh), so `docker compose ps` shows when it is ready.
+    image: clamav/clamav:1.5.4
     restart: unless-stopped
     environment:
       # Match the 100 MB upload ceiling, and report (don't skip) bigger files.

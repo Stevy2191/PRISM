@@ -154,35 +154,67 @@ async function getStatus() {
 }
 
 // ---- Admin alerts -------------------------------------------------------
-const UNAVAILABLE_NOTICE_INTERVAL_MS = 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+// Anyone who can email the support inbox can send virus test files, and these
+// alerts can't be switched off: at most this many per hour, then a pause.
+const VIRUS_ALERTS_PER_HOUR = 10;
+const LISTED_FILES = 5;
 let lastUnavailableNoticeAt = 0;
-function _resetThrottleForTest() { lastUnavailableNoticeAt = 0; }
+let virusWindow = { start: 0, sent: 0, held: 0 };
+function _resetThrottleForTest() {
+  lastUnavailableNoticeAt = 0;
+  virusWindow = { start: 0, sent: 0, held: 0 };
+}
 
 // Sender-controlled text (a filename, a From address) goes into an alert
 // admins trust: no control characters, no double quotes to break out of the
 // quoted name, and a length cap.
 // eslint-disable-next-line no-control-regex
 const plain = (v, max) => String(v ?? '').replace(/[\x00-\x1f\x7f]/g, ' ').replace(/"/g, "'").slice(0, max);
+const named = (f) => `"${plain(f.filename, 120)}" (${plain(f.signature, 100)})`;
 
-async function notifyVirusBlocked({ place, filename, signature, who }) {
+// One alert per upload or per email: `files` lists every blocked file
+// (or pass a single filename + signature).
+async function notifyVirusBlocked({
+  place, who, filename, signature, files,
+}) {
+  const list = files && files.length ? files : [{ filename, signature }];
+  const now = Date.now();
+  if (!virusWindow.start || now - virusWindow.start >= HOUR_MS) virusWindow = { start: now, sent: 0, held: virusWindow.held };
+  if (virusWindow.sent >= VIRUS_ALERTS_PER_HOUR) {
+    virusWindow.held += list.length;
+    return;
+  }
+  virusWindow.sent += 1;
+
+  const what = list.length === 1
+    ? named(list[0])
+    : `${list.length} files (${list.slice(0, LISTED_FILES).map(named).join(', ')}${list.length > LISTED_FILES ? `, +${list.length - LISTED_FILES} more` : ''})`;
+  let message = `Virus blocked: ${what} uploaded by ${plain(who, 80)} to ${plain(place, 120)}`;
+  if (virusWindow.held) {
+    message += ` (${virusWindow.held} more blocked while alerts were paused)`;
+    virusWindow.held = 0;
+  }
+  if (virusWindow.sent === VIRUS_ALERTS_PER_HOUR) {
+    message += '. Further virus alerts are paused for the next hour; infected files are still refused.';
+  }
   const { notifySecurityAdmins } = require('./notifications'); // eslint-disable-line global-require
-  await notifySecurityAdmins({
-    type: 'virus_blocked',
-    message: `Virus blocked: "${plain(filename, 120)}" (${plain(signature, 100)}) uploaded by ${plain(who, 80)} to ${plain(place, 120)}`,
-  });
+  await notifySecurityAdmins({ type: 'virus_blocked', message });
 }
 
 // At most one "scanner unavailable" notice per hour per process, so an outage
-// during a busy period doesn't flood admins.
+// during a busy period doesn't flood admins. A notice that reached nobody
+// (e.g. the database was down too) doesn't start the hour.
 async function notifyScannerUnavailable() {
   const now = Date.now();
-  if (lastUnavailableNoticeAt && now - lastUnavailableNoticeAt < UNAVAILABLE_NOTICE_INTERVAL_MS) return;
+  if (lastUnavailableNoticeAt && now - lastUnavailableNoticeAt < HOUR_MS) return;
   lastUnavailableNoticeAt = now;
   const { notifySecurityAdmins } = require('./notifications'); // eslint-disable-line global-require
-  await notifySecurityAdmins({
+  const sent = await notifySecurityAdmins({
     type: 'scanner_unavailable',
     message: "The virus scanner isn't reachable, so file uploads are being refused. Check the ClamAV service.",
   });
+  if (!sent && lastUnavailableNoticeAt === now) lastUnavailableNoticeAt = 0;
 }
 
 module.exports = {
