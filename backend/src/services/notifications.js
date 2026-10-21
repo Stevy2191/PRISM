@@ -167,7 +167,33 @@ async function syncDerivedNotifications(userId) {
   }
 }
 
+// Security alerts (virus blocked, scanner unavailable) go to every active
+// user holding settings.manage_system. Always on: written directly, so the
+// admin's per-type switches (isTypeEnabled) can't silence them, and no ticket
+// or email is involved. Never throws — an alert failing must not fail the
+// upload it is about.
+async function notifySecurityAdmins({ type, message }) {
+  try {
+    const { hasPermission } = require('./permissionService'); // eslint-disable-line global-require
+    const users = await User.findAll({ where: { isActive: true }, attributes: ['id'] });
+    let sent = 0;
+    for (const u of users) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await hasPermission(u.id, 'settings.manage_system')) {
+        // eslint-disable-next-line no-await-in-loop
+        await Notification.create({ userId: u.id, type, message, ticketId: null });
+        sent += 1;
+      }
+    }
+    return sent;
+  } catch (e) {
+    console.error(`[virus-scan] could not notify admins: ${e.message}`);
+    return 0;
+  }
+}
+
 module.exports = {
+  notifySecurityAdmins,
   createNotification,
   notifyAssigned,
   notifyComment,

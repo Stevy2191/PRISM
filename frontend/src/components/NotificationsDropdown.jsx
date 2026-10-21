@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   IconBell, IconMessageReply, IconUserCheck, IconAlertTriangle, IconMessageCircle,
-  IconHourglass, IconRefresh, IconBolt, IconEye,
+  IconHourglass, IconRefresh, IconBolt, IconEye, IconShieldExclamation, IconShieldOff,
 } from '@tabler/icons-react';
 import api from '../api/api';
 
@@ -15,7 +15,12 @@ const NOTIF_TYPE = {
   status_change: { Icon: IconRefresh, color: 'var(--color-success)' },
   watcher_update: { Icon: IconEye, color: 'var(--color-accent)' },
   workflow: { Icon: IconBolt, color: 'var(--color-relation-accent)' },
+  virus_blocked: { Icon: IconShieldExclamation, color: 'var(--color-danger)' },
+  scanner_unavailable: { Icon: IconShieldOff, color: 'var(--color-warning)' },
 };
+
+// Security alerts have no ticket; they open the page that explains them.
+const NOTIF_LINK = { virus_blocked: '/settings/audit-log', scanner_unavailable: '/settings/system' };
 
 function tint(color) {
   return `color-mix(in srgb, ${color} 18%, var(--color-bg))`;
@@ -73,7 +78,8 @@ export default function NotificationsDropdown({ align = 'right' }) {
 
   const openNotification = (n) => {
     setOpen(false);
-    if (n.ticket) navigate(`/tickets/${n.ticket.id}`);
+    if (NOTIF_LINK[n.type]) navigate(NOTIF_LINK[n.type]);
+    else if (n.ticket) navigate(`/tickets/${n.ticket.id}`);
   };
 
   return (

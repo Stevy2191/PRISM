@@ -138,4 +138,31 @@ async function getStatus() {
   }
 }
 
-module.exports = { isEnabled, scanFile, scanBuffer, getStatus, ScannerUnavailableError, _setTimeoutsForTest };
+// ---- Admin alerts -------------------------------------------------------
+const UNAVAILABLE_NOTICE_INTERVAL_MS = 60 * 60 * 1000;
+let lastUnavailableNoticeAt = 0;
+function _resetThrottleForTest() { lastUnavailableNoticeAt = 0; }
+
+async function notifyVirusBlocked({ place, filename, signature, who }) {
+  const { notifySecurityAdmins } = require('./notifications'); // eslint-disable-line global-require
+  await notifySecurityAdmins({
+    type: 'virus_blocked',
+    message: `Virus blocked: "${filename}" (${signature}) uploaded by ${who} to ${place}`,
+  });
+}
+
+// At most one "scanner unavailable" notice per hour per process, so an outage
+// during a busy period doesn't flood admins.
+async function notifyScannerUnavailable() {
+  const now = Date.now();
+  if (lastUnavailableNoticeAt && now - lastUnavailableNoticeAt < UNAVAILABLE_NOTICE_INTERVAL_MS) return;
+  lastUnavailableNoticeAt = now;
+  const { notifySecurityAdmins } = require('./notifications'); // eslint-disable-line global-require
+  await notifySecurityAdmins({
+    type: 'scanner_unavailable',
+    message: "The virus scanner isn't reachable, so file uploads are being refused. Check the ClamAV service.",
+  });
+}
+
+module.exports = {
+  notifyVirusBlocked, notifyScannerUnavailable, _resetThrottleForTest, isEnabled, scanFile, scanBuffer, getStatus, ScannerUnavailableError, _setTimeoutsForTest };
