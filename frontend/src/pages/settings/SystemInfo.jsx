@@ -15,6 +15,55 @@ function Info({ label, children }) {
   );
 }
 
+const SCAN_STATE = {
+  ok: { label: 'Connected', color: 'var(--color-success)' },
+  unreachable: { label: 'Unreachable', color: 'var(--color-danger)' },
+  off: { label: 'Off', color: 'var(--color-text-muted)' },
+};
+
+function AttachmentScanning() {
+  const [status, setStatus] = useState(null);
+  const [checking, setChecking] = useState(false);
+
+  const check = async () => {
+    setChecking(true);
+    try {
+      const { data } = await api.get('/settings/virus-scan/status');
+      setStatus(data);
+    } catch {
+      setStatus({ state: 'unreachable', version: null, signatureDate: null });
+    } finally {
+      setChecking(false);
+    }
+  };
+  useEffect(() => { check(); }, []);
+
+  const st = status && SCAN_STATE[status.state];
+  const test = (
+    <button type="button" className="btn-secondary" onClick={check} disabled={checking}>
+      {checking ? 'Checking…' : 'Test'}
+    </button>
+  );
+  return (
+    <SettingsPanel title="Attachment scanning" description="Every uploaded and emailed file is checked for viruses before it is stored." actions={test}>
+      <div className="flex justify-between gap-4 px-5 py-2.5 text-sm" data-testid="scan-status">
+        <span className="text-navy-500">Scanner</span>
+        <span className="font-medium" style={{ color: st ? st.color : 'var(--color-text-muted)' }}>{st ? st.label : 'Checking…'}</span>
+      </div>
+      {status?.state === 'ok' && <Info label="Version">{status.version}</Info>}
+      {status?.state === 'ok' && <Info label="Signatures updated">{status.signatureDate ? new Date(status.signatureDate).toLocaleString() : null}</Info>}
+      {status?.state === 'unreachable' && (
+        <p className="px-5 py-2.5 text-sm text-navy-500">
+          Files can't be uploaded or received by email until the scanner is back. Check that the ClamAV service is running.
+        </p>
+      )}
+      {status?.state === 'off' && (
+        <p className="px-5 py-2.5 text-sm text-navy-500">Scanning is switched off (CLAMAV_ENABLED=false). Files are stored without being checked.</p>
+      )}
+    </SettingsPanel>
+  );
+}
+
 export default function SystemInfo() {
   const [config, setConfig] = useState(null);
   const [size, setSize] = useState('');
@@ -61,6 +110,7 @@ export default function SystemInfo() {
         </SettingsPanel>
         <SaveBar dirty={isDirty(size, snapshot)} saving={saving} saved={saved} />
       </form>
+      <AttachmentScanning />
       <SettingsPanel title="Database">
         <Info label="Host">{config.database.host}</Info>
         <Info label="Port">{config.database.port}</Info>

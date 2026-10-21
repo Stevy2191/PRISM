@@ -335,6 +335,12 @@ const patch = asyncHandler(async (req, res) => {
 });
 
 // POST /settings/logo — Admin. Uploads a new logo (multipart field "file").
+// GET /settings/virus-scan/status — whether the ClamAV scanner is reachable.
+// Only { state, version, signatureDate }: never the host, port or a raw socket error.
+const virusScanStatus = asyncHandler(async (req, res) => {
+  res.json(await require('../services/virusScan').getStatus()); // eslint-disable-line global-require
+});
+
 const uploadLogo = asyncHandler(async (req, res) => {
   if (!req.file) throw new ApiError(400, 'No file uploaded (field name must be "file")', 'NO_FILE');
 
@@ -417,6 +423,7 @@ module.exports = {
   get,
   update,
   patch,
+  virusScanStatus,
   uploadLogo,
   removeLogo,
   uploadFavicon,

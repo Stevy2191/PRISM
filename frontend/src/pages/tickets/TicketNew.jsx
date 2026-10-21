@@ -204,13 +204,22 @@ export default function TicketNew() {
       const { data } = await api.post('/tickets', payload);
       const ticketId = data.ticket.id;
 
+      // The ticket exists by now, so a refused file (a virus, an unreachable
+      // scanner) must not leave the form open to be submitted again — that
+      // would create a duplicate. Report it and carry on to the ticket.
+      const refused = [];
       // eslint-disable-next-line no-restricted-syntax
       for (const f of files) {
         const fd = new FormData();
         fd.append('file', f.file);
-        // eslint-disable-next-line no-await-in-loop
-        await api.post(`/tickets/${ticketId}/attachments`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await api.post(`/tickets/${ticketId}/attachments`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        } catch (uploadErr) {
+          refused.push(`${f.file.name}: ${errMessage(uploadErr)}`);
+        }
       }
+      if (refused.length) alert(`The ticket was created, but some files were not attached:\n${refused.join('\n')}`);
 
       navigate(`/tickets/${ticketId}`);
     } catch (err) {

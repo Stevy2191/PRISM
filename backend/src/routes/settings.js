@@ -88,6 +88,7 @@ router.put('/email-templates/:key', manageSystem, templatesCtrl.update);
 router.delete('/email-templates/:key', manageSystem, templatesCtrl.reset);
 router.post('/email-templates/:key/preview', manageSystem, templatesCtrl.preview);
 router.get('/status', ownerSettings, ctrl.status);
+router.get('/virus-scan/status', manageSystem, ctrl.virusScanStatus);
 router.post('/logo', manageBranding, logoUpload.single('file'), verifyFileSignature, scanUpload('Branding'), ctrl.uploadLogo);
 router.delete('/logo', manageBranding, ctrl.removeLogo);
 router.post('/favicon', manageBranding, faviconUpload.single('file'), verifyFileSignature, scanUpload('Branding'), ctrl.uploadFavicon);
