@@ -5,6 +5,9 @@ const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
 const { SystemSettings } = require('../models');
+const { ApiError } = require('./error');
+const { writeAudit } = require('./audit');
+const virusScan = require('../services/virusScan');
 
 const UPLOAD_ROOT = process.env.UPLOAD_DIR || '/uploads';
 // Multer's own limit is a fixed safety ceiling, set at server startup — it
@@ -270,6 +273,42 @@ async function enforceMaxAttachmentSize(req, res, next) {
   }
 }
 
+const PLACE_LABELS = { KnowledgeArticle: 'Knowledge article', Branding: 'Branding' };
+
+// Last step before the controller on every disk-backed upload route: scans
+// the file multer already wrote. Fails closed — a virus or an unreachable
+// scanner deletes the file and refuses the request, so nothing reaches a
+// record. Runs after the extension / signature / size checks so files those
+// reject never hit the scanner.
+function scanUpload(entityType) {
+  return async function scanUploadMiddleware(req, res, next) {
+    if (!req.file) return next();
+    const remove = () => fs.promises.unlink(req.file.path).catch(() => {});
+    try {
+      const verdict = await virusScan.scanFile(req.file.path);
+      if (verdict.clean) return next();
+      await remove();
+      const entityId = parseInt(req.params.id, 10) || null;
+      const filename = req.file.originalname;
+      await writeAudit(req, 'upload.virus_blocked', entityType, entityId, {
+        filename, signature: verdict.signature, route: req.originalUrl,
+      });
+      const label = PLACE_LABELS[entityType] || entityType;
+      await virusScan.notifyVirusBlocked({
+        place: entityId ? `${label} #${entityId}` : label,
+        filename,
+        signature: verdict.signature,
+        who: req.user?.displayName || req.user?.username || 'unknown user',
+      });
+      return next(new ApiError(422, `Upload blocked: a virus was detected (${verdict.signature})`, 'VIRUS_FOUND'));
+    } catch (err) {
+      await remove();
+      if (err instanceof virusScan.ScannerUnavailableError) await virusScan.notifyScannerUnavailable();
+      return next(err);
+    }
+  };
+}
+
 // Contact CSV import — parsed in-memory and discarded, never written to
 // disk (the wizard re-sends the parsed rows on later steps instead of the
 // raw file, so there's nothing to persist here).
@@ -291,5 +330,5 @@ const csvUpload = multer({
 
 module.exports = {
   upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload, kbUpload,
-  UPLOAD_ROOT, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature,
+  UPLOAD_ROOT, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature, scanUpload,
 };

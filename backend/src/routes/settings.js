@@ -11,7 +11,7 @@ const { authenticate } = require('../middleware/auth');
 const { blockUntilPasswordChanged } = require('../middleware/role');
 const { requirePermission } = require('../middleware/requirePermission');
 const { requireOwner } = require('../services/ownership');
-const { verifyFileSignature } = require('../middleware/upload');
+const { verifyFileSignature, scanUpload } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -88,9 +88,9 @@ router.put('/email-templates/:key', manageSystem, templatesCtrl.update);
 router.delete('/email-templates/:key', manageSystem, templatesCtrl.reset);
 router.post('/email-templates/:key/preview', manageSystem, templatesCtrl.preview);
 router.get('/status', ownerSettings, ctrl.status);
-router.post('/logo', manageBranding, logoUpload.single('file'), verifyFileSignature, ctrl.uploadLogo);
+router.post('/logo', manageBranding, logoUpload.single('file'), verifyFileSignature, scanUpload('Branding'), ctrl.uploadLogo);
 router.delete('/logo', manageBranding, ctrl.removeLogo);
-router.post('/favicon', manageBranding, faviconUpload.single('file'), verifyFileSignature, ctrl.uploadFavicon);
+router.post('/favicon', manageBranding, faviconUpload.single('file'), verifyFileSignature, scanUpload('Branding'), ctrl.uploadFavicon);
 router.delete('/favicon', manageBranding, ctrl.removeFavicon);
 
 module.exports = router;

@@ -5,6 +5,7 @@
 const net = require('net');
 const fs = require('fs');
 const { once } = require('events');
+const { ApiError } = require('../middleware/error');
 
 const CHUNK = 64 * 1024;
 const UNAVAILABLE_MESSAGE =
@@ -15,12 +16,12 @@ function _setTimeoutsForTest(t = {}) {
   timeouts = { connectMs: 3000, scanMs: 60000, ...t };
 }
 
-class ScannerUnavailableError extends Error {
+// An ApiError so the central handler keeps the message on a 5xx instead of
+// replacing it with "Internal server error".
+class ScannerUnavailableError extends ApiError {
   constructor(cause) {
-    super(UNAVAILABLE_MESSAGE);
+    super(503, UNAVAILABLE_MESSAGE, 'SCANNER_UNAVAILABLE');
     this.name = 'ScannerUnavailableError';
-    this.code = 'SCANNER_UNAVAILABLE';
-    this.status = 503;
     if (cause) this.cause = cause;
   }
 }

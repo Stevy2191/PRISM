@@ -1,7 +1,7 @@
 const express = require('express');
 const ctrl = require('../controllers/knowledgeController');
 const { requirePermission } = require('../middleware/requirePermission');
-const { kbUpload, verifyFileSignature } = require('../middleware/upload');
+const { kbUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.patch('/articles/:id', canManage, ctrl.updateArticle);
 router.delete('/articles/:id', canManage, ctrl.deleteArticle);
 
 // Attachments
-router.post('/articles/:id/attachments', canManage, kbUpload.single('file'), verifyFileSignature, ctrl.createAttachment);
+router.post('/articles/:id/attachments', canManage, kbUpload.single('file'), verifyFileSignature, scanUpload('KnowledgeArticle'), ctrl.createAttachment);
 router.get('/articles/:id/attachments/:attachmentId/download', ctrl.downloadAttachment);
 router.delete('/articles/:id/attachments/:attachmentId', canManage, ctrl.removeAttachment);
 

@@ -2,7 +2,7 @@ const express = require('express');
 const ctrl = require('../controllers/ticketsController');
 const canned = require('../controllers/cannedResponsesController');
 const { requirePermission } = require('../middleware/requirePermission');
-const { upload, enforceMaxAttachmentSize, verifyFileSignature } = require('../middleware/upload');
+const { upload, enforceMaxAttachmentSize, verifyFileSignature, scanUpload } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -38,7 +38,7 @@ router.delete('/:id/comments/:commentId', editMin, ctrl.removeComment);
 
 // Attachments
 router.get('/:id/attachments', ctrl.listAttachments);
-router.post('/:id/attachments', editMin, upload.single('file'), verifyFileSignature, enforceMaxAttachmentSize, ctrl.createAttachment);
+router.post('/:id/attachments', editMin, upload.single('file'), verifyFileSignature, enforceMaxAttachmentSize, scanUpload('Ticket'), ctrl.createAttachment);
 router.get('/:id/attachments/:attachmentId/download', ctrl.downloadAttachment);
 router.delete('/:id/attachments/:attachmentId', editMin, ctrl.removeAttachment);
 

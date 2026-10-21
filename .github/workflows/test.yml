@@ -41,6 +41,7 @@ jobs:
       LDAP_ENABLED: 'false'
       COOKIE_SECURE: 'false'
       UPLOAD_DIR: /tmp/prism-test-uploads
+      CLAMAV_ENABLED: 'false'
 
     steps:
       - name: Checkout

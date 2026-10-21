@@ -41,7 +41,8 @@ function errorHandler(err, req, res, next) {
   }
 
   if (status >= 500) {
-    console.error('[error]', err);
+    // The scanner service already logged its own cause once.
+    if (code !== 'SCANNER_UNAVAILABLE') console.error('[error]', err);
     // Unexpected (non-ApiError) failures may carry internal details (file
     // paths, driver messages); log them but don't hand them to the client.
     if (!(err instanceof ApiError)) {

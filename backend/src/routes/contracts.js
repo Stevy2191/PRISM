@@ -3,7 +3,7 @@ const ctrl = require('../controllers/contractsController');
 const { requirePermission } = require('../middleware/requirePermission');
 const { fenceParam } = require('../middleware/companyFence');
 const { Contract } = require('../models');
-const { contractUpload, verifyFileSignature } = require('../middleware/upload');
+const { contractUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.post('/:id/assets', canManage, ctrl.linkAsset);
 router.delete('/:id/assets/:assetId', canManage, ctrl.unlinkAsset);
 
 router.get('/:id/attachments', ctrl.listAttachments);
-router.post('/:id/attachments', canManage, contractUpload.single('file'), verifyFileSignature, ctrl.createAttachment);
+router.post('/:id/attachments', canManage, contractUpload.single('file'), verifyFileSignature, scanUpload('Contract'), ctrl.createAttachment);
 router.get('/:id/attachments/:attachmentId/download', ctrl.downloadAttachment);
 router.delete('/:id/attachments/:attachmentId', canManage, ctrl.removeAttachment);
 
