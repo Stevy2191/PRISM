@@ -1,6 +1,6 @@
 // Minimal fake clamd for tests. Speaks just enough of the protocol:
 // zINSTREAM\0 + (uint32-BE length + bytes)* + 4 zero bytes, and zVERSION\0.
-// Modes: ok | found | error | sizeLimit | hang | split | garbage
+// Modes: ok | found | error | sizeLimit | hang | split | garbage | stall | noNul
 const net = require('net');
 
 const EICAR_SIG = 'Eicar-Test-Signature';
@@ -12,6 +12,7 @@ function startFakeClamd({ mode = 'ok', signature = EICAR_SIG, version = 'ClamAV 
     sockets.add(sock);
     sock.on('close', () => sockets.delete(sock));
     sock.on('error', () => {});
+    if (mode === 'stall') { sock.pause(); return; } // accepts, never reads
     let buf = Buffer.alloc(0);
     let command = null;
     let streamDone = false;
@@ -57,6 +58,7 @@ function startFakeClamd({ mode = 'ok', signature = EICAR_SIG, version = 'ClamAV 
   }
   function verdict(sock) {
     if (mode === 'hang') return; // never answers
+    if (mode === 'noNul') return sock.end('stream: OK'); // truncated: no terminator
     if (mode === 'found') return reply(sock, `stream: ${signature} FOUND`);
     if (mode === 'error') return reply(sock, 'INSTREAM size limit exceeded. ERROR');
     if (mode === 'garbage') return reply(sock, 'banana');

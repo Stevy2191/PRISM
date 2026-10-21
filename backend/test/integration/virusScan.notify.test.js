@@ -56,6 +56,19 @@ describe('notifyVirusBlocked', () => {
   });
 });
 
+describe('alert text', () => {
+  it('a hostile filename cannot forge the message: control chars stripped, quotes escaped, length capped', async () => {
+    const { user: admin } = await createUser({ username: 'sec-admin7', roleName: ROLE.ADMIN });
+    await notifyVirusBlocked({
+      place: 'Ticket #4', filename: `x.pdf" (clean) uploaded by CEO\n${'a'.repeat(500)}`, signature: 'Sig', who: 'sam',
+    });
+    const { message } = await Notification.findOne({ where: { userId: admin.id } });
+    expect(message).not.toMatch(/[\n\r]/);
+    expect(message).not.toContain('x.pdf" (clean)');
+    expect(message.length).toBeLessThan(300);
+  });
+});
+
 describe('notifyScannerUnavailable throttle', () => {
   it('two calls in an hour → one row per admin; after 61 minutes → a second', async () => {
     const { user: admin } = await createUser({ username: 'sec-admin6', roleName: ROLE.ADMIN });

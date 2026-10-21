@@ -260,6 +260,8 @@ async function assertCanWriteKeys(req, incoming) {
 
 // Settings with a fixed range, checked before anything is written.
 const RANGES = {
+  // Capped at the scanner's 101M stream limit; the UI already stops at 100.
+  'system.maxAttachmentSizeMB': { min: 1, max: 100, what: 'The maximum attachment size must be a whole number of MB from 1 to 100' },
   'timeTracking.maxEntryHours': { min: 1, max: 24, what: 'The longest time entry must be a whole number of hours from 1 to 24' },
 };
 
@@ -334,13 +336,13 @@ const patch = asyncHandler(async (req, res) => {
   res.json({ settings: redactSettings(values), public: publicShape(values) });
 });
 
-// POST /settings/logo — Admin. Uploads a new logo (multipart field "file").
 // GET /settings/virus-scan/status — whether the ClamAV scanner is reachable.
 // Only { state, version, signatureDate }: never the host, port or a raw socket error.
 const virusScanStatus = asyncHandler(async (req, res) => {
   res.json(await require('../services/virusScan').getStatus()); // eslint-disable-line global-require
 });
 
+// POST /settings/logo — Admin. Uploads a new logo (multipart field "file").
 const uploadLogo = asyncHandler(async (req, res) => {
   if (!req.file) throw new ApiError(400, 'No file uploaded (field name must be "file")', 'NO_FILE');
 

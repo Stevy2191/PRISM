@@ -70,3 +70,12 @@ it('body never contains host, port or socket errors', async () => {
   expect(text).not.toMatch(/127\.0\.0\.1|ECONNREFUSED|clamav|connect/i);
   expect(text).not.toContain(port);
 });
+
+it('the max attachment size cannot be set above clamd\'s stream limit', async () => {
+  for (const bad of ['101', '0', '500', 'abc']) {
+    // eslint-disable-next-line no-await-in-loop
+    const res = await admin.agent.patch('/api/v1/settings').send({ settings: { 'system.maxAttachmentSizeMB': bad } });
+    expect(res.status).toBe(400);
+  }
+  expect((await admin.agent.patch('/api/v1/settings').send({ settings: { 'system.maxAttachmentSizeMB': '100' } })).status).toBe(200);
+});

@@ -20,7 +20,7 @@ const NOTIF_TYPE = {
 };
 
 // Security alerts have no ticket; they open the page that explains them.
-const NOTIF_LINK = { virus_blocked: '/settings/audit-log', scanner_unavailable: '/settings/system' };
+const NOTIF_LINK = { virus_blocked: '/settings/system', scanner_unavailable: '/settings/system' };
 
 function tint(color) {
   return `color-mix(in srgb, ${color} 18%, var(--color-bg))`;

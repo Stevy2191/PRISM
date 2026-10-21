@@ -113,6 +113,25 @@ describe('scanFile', () => {
   });
 });
 
+describe('review fixes', () => {
+  it('a stalled clamd (never reads) times out and the file read stream is closed', async () => {
+    await start({ mode: 'stall' });
+    vs._setTimeoutsForTest({ scanMs: 300 });
+    const streams = [];
+    const real = fs.createReadStream;
+    jest.spyOn(fs, 'createReadStream').mockImplementation((...a) => { const st = real(...a); streams.push(st); return st; });
+    await expect(vs.scanFile(write('stall.bin', Buffer.alloc(40 * 1024 * 1024, 2)))).rejects.toMatchObject({ code: 'SCANNER_UNAVAILABLE' });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(streams).toHaveLength(1);
+    expect(streams[0].destroyed).toBe(true);
+  });
+
+  it('a reply without the NUL terminator is not a verdict', async () => {
+    await start({ mode: 'noNul' });
+    await expect(vs.scanFile(write('nonul.txt', 'x'))).rejects.toMatchObject({ code: 'SCANNER_UNAVAILABLE' });
+  });
+});
+
 describe('scanBuffer', () => {
   it('uses the same framing and returns the verdict', async () => {
     await start({ mode: 'found' });

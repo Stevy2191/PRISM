@@ -4,7 +4,6 @@
 // Config is read from process.env on every call so tests can switch it.
 const net = require('net');
 const fs = require('fs');
-const { once } = require('events');
 const { ApiError } = require('../middleware/error');
 
 const CHUNK = 64 * 1024;
@@ -64,8 +63,11 @@ function exchange(send) {
       chunks.push(d);
       if (d.includes(0)) finish(null, reply());
     });
-    sock.on('end', () => finish(null, reply()));
-    sock.on('close', () => finish(null, reply()));
+    // Every reply is NUL-terminated (z-commands); one that just stops is cut
+    // short and must not be read as a verdict.
+    const ended = () => finish(reply().includes('\0') ? null : new Error('incomplete clamd reply'), reply());
+    sock.on('end', ended);
+    sock.on('close', ended);
     sock.once('connect', () => {
       clearTimeout(connectTimer);
       Promise.resolve(send(sock)).catch((e) => finish(e));
@@ -84,7 +86,16 @@ async function pump(sock, source) {
   sock.write('zINSTREAM\0');
   for await (const buf of source) {
     if (sock.destroyed) throw new Error('socket closed during upload');
-    if (!writeChunk(sock, buf)) await once(sock, 'drain');
+    if (!writeChunk(sock, buf)) {
+      // A destroyed socket never emits 'drain' or 'error', so wait for either
+      // drain or close — otherwise this (and the open file) would hang forever.
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => {
+        const done = () => { sock.off('drain', done); sock.off('close', done); resolve(); };
+        sock.once('drain', done);
+        sock.once('close', done);
+      });
+    }
   }
   sock.write(Buffer.alloc(4));
 }
@@ -110,6 +121,9 @@ async function scan(source) {
   try {
     return parseVerdict(await exchange((sock) => pump(sock, source)));
   } catch (e) {
+    // Release the file (or buffer) now, not whenever the pump notices.
+    if (typeof source.destroy === 'function') source.destroy();
+    if (typeof source.return === 'function') source.return().catch(() => {});
     console.error(`[virus-scan] scan failed: ${e.message}`);
     throw new ScannerUnavailableError(e);
   }
@@ -144,11 +158,17 @@ const UNAVAILABLE_NOTICE_INTERVAL_MS = 60 * 60 * 1000;
 let lastUnavailableNoticeAt = 0;
 function _resetThrottleForTest() { lastUnavailableNoticeAt = 0; }
 
+// Sender-controlled text (a filename, a From address) goes into an alert
+// admins trust: no control characters, no double quotes to break out of the
+// quoted name, and a length cap.
+// eslint-disable-next-line no-control-regex
+const plain = (v, max) => String(v ?? '').replace(/[\x00-\x1f\x7f]/g, ' ').replace(/"/g, "'").slice(0, max);
+
 async function notifyVirusBlocked({ place, filename, signature, who }) {
   const { notifySecurityAdmins } = require('./notifications'); // eslint-disable-line global-require
   await notifySecurityAdmins({
     type: 'virus_blocked',
-    message: `Virus blocked: "${filename}" (${signature}) uploaded by ${who} to ${place}`,
+    message: `Virus blocked: "${plain(filename, 120)}" (${plain(signature, 100)}) uploaded by ${plain(who, 80)} to ${plain(place, 120)}`,
   });
 }
 
