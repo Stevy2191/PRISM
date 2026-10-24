@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { buildIndex, pathLabel } from '../../components/categoryTree';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
@@ -34,6 +35,7 @@ const STATIC_CONDITION_FIELDS = [
   { value: 'department', label: 'Department (ticket)', kind: 'department' },
   { value: 'assignee', label: 'Assignee', kind: 'assignee' },
   { value: 'team', label: 'Team', kind: 'team' },
+  { value: 'category', label: 'Category', kind: 'category' },
   { value: 'tag', label: 'Tag', kind: 'text' },
   { value: 'title', label: 'Title', kind: 'text' },
   { value: 'contact_department', label: "Contact's department", kind: 'department' },
@@ -47,6 +49,13 @@ const TEXT_OPERATORS = [
   { value: 'not_equals', label: 'does not equal' },
   { value: 'contains', label: 'contains' },
   { value: 'not_contains', label: 'does not contain' },
+  { value: 'is_empty', label: 'is empty' },
+  { value: 'is_not_empty', label: 'is not empty' },
+];
+// A category condition names a node: "is" that node, "is under" it or anything below it.
+const CATEGORY_OPERATORS = [
+  { value: 'is', label: 'is' },
+  { value: 'is_under', label: 'is under' },
   { value: 'is_empty', label: 'is empty' },
   { value: 'is_not_empty', label: 'is not empty' },
 ];
@@ -87,9 +96,9 @@ function fieldKind(field, customFieldDefs) {
 }
 
 // ==================== Condition row ====================
-function ConditionRow({ condition, onChange, onDelete, statuses, departments, assignableUsers, teams, roles, customFieldDefs }) {
+function ConditionRow({ condition, onChange, onDelete, statuses, departments, assignableUsers, teams, roles, customFieldDefs, categories }) {
   const kind = fieldKind(condition.field, customFieldDefs);
-  const operators = kind === 'number' ? NUMBER_OPERATORS : TEXT_OPERATORS;
+  const operators = kind === 'category' ? CATEGORY_OPERATORS : (kind === 'number' ? NUMBER_OPERATORS : TEXT_OPERATORS);
   const needsValue = !['is_empty', 'is_not_empty'].includes(condition.operator);
 
   const fieldOptions = [
@@ -99,7 +108,12 @@ function ConditionRow({ condition, onChange, onDelete, statuses, departments, as
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-navy-100 p-2.5">
-      <select className="input h-9 max-w-[13rem] text-sm" value={condition.field} onChange={(e) => onChange({ ...condition, field: e.target.value, value: '' })}>
+      <select className="input h-9 max-w-[13rem] text-sm" value={condition.field} onChange={(e) => {
+        // Category conditions have their own operators; keep the operator valid for the new field.
+        const nextKind = fieldKind(e.target.value, customFieldDefs);
+        const valid = (nextKind === 'category' ? CATEGORY_OPERATORS : (nextKind === 'number' ? NUMBER_OPERATORS : TEXT_OPERATORS)).some((o) => o.value === condition.operator);
+        onChange({ ...condition, field: e.target.value, value: '', operator: valid ? condition.operator : (nextKind === 'category' ? 'is_under' : 'equals') });
+      }}>
         {fieldOptions.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
       </select>
       <select className="input h-9 max-w-[10rem] text-sm" value={condition.operator} onChange={(e) => onChange({ ...condition, operator: e.target.value })}>
@@ -117,6 +131,7 @@ function ConditionRow({ condition, onChange, onDelete, statuses, departments, as
           teams={teams}
           roles={roles}
           customFieldDefs={customFieldDefs}
+          categories={categories}
         />
       )}
       <button type="button" onClick={onDelete} className="ml-auto text-red-500">✕</button>
@@ -124,8 +139,20 @@ function ConditionRow({ condition, onChange, onDelete, statuses, departments, as
   );
 }
 
-function ConditionValueInput({ kind, field, value, onChange, statuses, departments, assignableUsers, teams, roles, customFieldDefs }) {
+function ConditionValueInput({ kind, field, value, onChange, statuses, departments, assignableUsers, teams, roles, customFieldDefs, categories = [] }) {
   const cls = 'input h-9 flex-1 text-sm';
+  if (kind === 'category') {
+    // Any node by its full path (a parent is the usual "is under" target).
+    const index = buildIndex(categories);
+    const options = categories.map((c) => ({ id: c.id, label: pathLabel(index, c.id), active: c.effectiveActive }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return (
+      <select className={cls} value={value} onChange={(e) => onChange(e.target.value)} aria-label="Category">
+        <option value="">Select category…</option>
+        {options.map((o) => <option key={o.id} value={String(o.id)}>{o.label}{o.active ? '' : ' (retired)'}</option>)}
+      </select>
+    );
+  }
   if (kind === 'status') {
     return (
       <select className={cls} value={value} onChange={(e) => onChange(e.target.value)}>
@@ -427,6 +454,7 @@ export default function WorkflowRuleEditor() {
 
   const [statuses, setStatuses] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [assignableUsers, setAssignableUsers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -443,6 +471,7 @@ export default function WorkflowRuleEditor() {
   useEffect(() => {
     api.get('/ticket-statuses').then(({ data }) => setStatuses(data.statuses)).catch(() => {});
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
+    api.get('/ticket-categories').then(({ data }) => setCategories(data.categories || [])).catch(() => {});
     api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
     api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
     api.get('/sla-policies').then(({ data }) => setSlaPolicies(data.policies)).catch(() => {});
@@ -602,6 +631,7 @@ export default function WorkflowRuleEditor() {
                   teams={teams}
                   roles={roles}
                   customFieldDefs={customFieldDefs}
+                  categories={categories}
                 />
               ))}
             </div>

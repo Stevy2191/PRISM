@@ -249,13 +249,15 @@ export default function TicketDetail() {
     }
   };
 
-  // Active custom fields for this ticket's type (Settings -> Layouts & Fields).
+  // Active custom fields for this ticket's type and category (Settings ->
+  // Layouts & Fields). Values in fields outside the category stay stored but
+  // aren't shown.
   useEffect(() => {
     if (!ticket?.type) return;
-    api.get('/custom-fields', { params: { ticketType: ticket.type } })
+    api.get('/custom-fields', { params: { ticketType: ticket.type, categoryId: ticket.categoryId || '' } })
       .then(({ data }) => setCustomFieldDefs(data.customFields))
       .catch(() => setCustomFieldDefs([]));
-  }, [ticket?.type]);
+  }, [ticket?.type, ticket?.categoryId]);
 
   const saveCustomFieldValue = async (fieldKey, value) => {
     try {

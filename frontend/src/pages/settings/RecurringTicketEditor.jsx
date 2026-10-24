@@ -3,6 +3,7 @@
 // template against your access on save and the rule then runs as you.
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import CategoryPicker from '../../components/CategoryPicker';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
@@ -15,7 +16,7 @@ const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver
 const today = () => new Date().toISOString().slice(0, 10);
 
 const EMPTY = {
-  title: '', description: '', priority: 'medium', type: 'request', contactId: null, departmentId: '', teamId: '', assigneeId: '',
+  title: '', description: '', priority: 'medium', type: 'request', contactId: null, departmentId: '', teamId: '', assigneeId: '', categoryId: null,
   tasks: [], frequency: 'weekly', interval: 1, weekdays: [1], dayOfMonth: 1, monthOfYear: 1, timeOfDay: '09:00',
   timezone: '', startDate: today(), endDate: '',
 };
@@ -29,6 +30,7 @@ export default function RecurringTicketEditor() {
   const [departments, setDepartments] = useState([]);
   const [teams, setTeams] = useState([]);
   const [users, setUsers] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [runsAs, setRunsAs] = useState(null);
   const [preview, setPreview] = useState({ runs: [], error: '' });
   const [newTask, setNewTask] = useState('');
@@ -39,6 +41,7 @@ export default function RecurringTicketEditor() {
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
     api.get('/teams').then(({ data }) => setTeams(data.teams || [])).catch(() => {});
     api.get('/users/assignable').then(({ data }) => setUsers(data.users)).catch(() => {});
+    api.get('/ticket-categories').then(({ data }) => setCategories(data.categories || [])).catch(() => {});
     if (isNew) {
       api.get('/settings').then(({ data }) => {
         const tz = data?.settings?.['company.timezone'] || data?.['company.timezone'];
@@ -93,7 +96,7 @@ export default function RecurringTicketEditor() {
       const body = {
         title: form.title, description: form.description || null, priority: form.priority, type: form.type,
         contactId: contact?.id || null, departmentId: form.departmentId || null, teamId: form.teamId || null,
-        assigneeId: form.assigneeId || null, tasks: form.tasks, ...schedule,
+        assigneeId: form.assigneeId || null, categoryId: form.categoryId || null, tasks: form.tasks, ...schedule,
       };
       if (isNew) await api.post('/recurring-tickets', body);
       else await api.patch(`/recurring-tickets/${id}`, body);
@@ -151,6 +154,21 @@ export default function RecurringTicketEditor() {
                 {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
+            {categories.length > 0 && (
+              <div className="sm:col-span-2">
+                <label className="label" htmlFor="rt-category">Category</label>
+                <CategoryPicker
+                  categories={categories}
+                  value={form.categoryId}
+                  onChange={(categoryId) => setForm((f) => ({ ...f, categoryId }))}
+                  includeRetiredValue
+                  id="rt-category"
+                />
+                {form.categoryRetired && (
+                  <p className="mt-1 text-xs" style={{ color: 'var(--color-warning)' }}>This category was retired: runs create the ticket without one until you pick another.</p>
+                )}
+              </div>
+            )}
             <div>
               <label className="label" htmlFor="rt-assignee">Assignee</label>
               <select id="rt-assignee" className="input" value={form.assigneeId} onChange={set('assigneeId')}>

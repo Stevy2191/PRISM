@@ -2,6 +2,7 @@
 // while tickets are selected. The page owns all the state; this only renders it.
 import { TEXT, MUTED, BLUE } from '../theme';
 import { PRIORITY_OPTIONS } from './listHelpers';
+import CategoryPicker from '../../../components/CategoryPicker';
 
 export function BulkActionBar({
   bulkBarClosing,
@@ -19,6 +20,7 @@ export function BulkActionBar({
   ticketStatuses,
   assignableUsers,
   teams = [],
+  categories = [],
   bulkResult = null,
   setBulkResult = () => {},
   applyBulkAction,
@@ -72,6 +74,7 @@ export function BulkActionBar({
         <option value="priority">Change priority</option>
         <option value="reassign">Reassign</option>
         <option value="team">Move to team</option>
+        {categories.length > 0 && <option value="category">Set category</option>}
         <option value="add_watcher">Add watcher</option>
         <option value="close">Close selected</option>
         <option value="merge">Merge into…</option>
@@ -100,6 +103,9 @@ export function BulkActionBar({
           <option value="">Select team…</option>
           {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
+      )}
+      {bulkActionType === 'category' && (
+        <CategoryPicker categories={categories} value={bulkValue || null} onChange={(v) => setBulkValue(v || '')} id="bulk-category" />
       )}
       {bulkActionType === 'add_watcher' && (
         <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} aria-label="Watcher" className="input h-9 max-w-[11rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>

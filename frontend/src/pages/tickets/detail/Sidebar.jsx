@@ -7,6 +7,7 @@ import api from '../../../api/api';
 import { initials } from '../../../utils/userDisplay';
 import { formatPhone } from '../../../utils/formatPhone';
 import TimeDropdownPicker from '../../../components/TimeDropdownPicker';
+import CategoryPicker from '../../../components/CategoryPicker';
 import SlaPanel from './SlaPanel';
 import CcPanel from './CcPanel';
 import DueDateModal from './DueDateModal';
@@ -164,7 +165,11 @@ export function Sidebar({
 }) {
   const [tagInput, setTagInput] = useState('');
   const [dueDateMode, setDueDateMode] = useState(null); // null | 'extend' | 'change'
+  const [categories, setCategories] = useState([]);
   const { hasPermission } = useAuth();
+  useEffect(() => {
+    api.get('/ticket-categories').then(({ data }) => setCategories(data.categories)).catch(() => {});
+  }, []);
   // A ticket whose SLA sets its due date: moved only through the dialog.
   const slaDue = ticket.sla?.clocks?.resolution?.dueAt;
   const [watcherQuery, setWatcherQuery] = useState('');
@@ -360,6 +365,19 @@ export function Sidebar({
                   {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
+              {categories.length > 0 && (
+                <div className="sm:col-span-2" data-testid="sidebar-category">
+                  <span className="mb-1 block text-xs" style={{ color: MUTED }}>Category</span>
+                  <CategoryPicker
+                    categories={categories}
+                    value={ticket.categoryId}
+                    onChange={(categoryId) => patchTicket({ categoryId })}
+                    includeRetiredValue
+                    disabled={!canEdit}
+                    id="sidebar-category"
+                  />
+                </div>
+              )}
               {slaDue ? (
                 <div className="sm:col-span-2" data-testid="sla-due-date">
                   <span className="mb-1 block text-xs" style={{ color: MUTED }}>Due (SLA)</span>

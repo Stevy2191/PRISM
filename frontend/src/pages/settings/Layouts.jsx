@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { buildIndex, pathLabel } from '../../components/categoryTree';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
@@ -45,6 +46,13 @@ function FieldEditorModal({ field, onClose, onSaved }) {
   const [keyTouched, setKeyTouched] = useState(!isNew);
   const [fieldType, setFieldType] = useState(field?.fieldType || 'text');
   const [ticketTypes, setTicketTypes] = useState(field?.ticketTypes || []);
+  const [categoryIds, setCategoryIds] = useState(field?.categoryIds || []);
+  const [categories, setCategories] = useState([]);
+  useEffect(() => {
+    api.get('/ticket-categories').then(({ data }) => setCategories(data.categories || [])).catch(() => {});
+  }, []);
+  const categoryIndex = useMemo(() => buildIndex(categories), [categories]);
+  const toggleCategory = (id) => setCategoryIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
   const [isRequired, setIsRequired] = useState(field?.isRequired || false);
   const [isActive, setIsActive] = useState(field?.isActive !== false);
   const [placeholder, setPlaceholder] = useState(field?.placeholder || '');
@@ -95,6 +103,7 @@ function FieldEditorModal({ field, onClose, onSaved }) {
         fieldKey,
         fieldType,
         ticketTypes,
+        categoryIds,
         isRequired,
         isActive,
         placeholder: placeholder || null,
@@ -180,6 +189,29 @@ function FieldEditorModal({ field, onClose, onSaved }) {
           </div>
           <p className="mt-1 text-xs text-navy-400">Leave all unchecked to apply to every ticket type.</p>
         </div>
+
+        {categories.length > 0 && (
+          <div>
+            <label className="label">Show for categories</label>
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border border-navy-100 p-2" data-testid="field-categories">
+              {categories
+                .map((c) => ({ id: c.id, label: pathLabel(categoryIndex, c.id), active: c.effectiveActive }))
+                .sort((a, b) => a.label.localeCompare(b.label))
+                .map((c) => (
+                  <label key={c.id} className="flex items-center gap-1.5 text-sm text-navy-700">
+                    <input
+                      type="checkbox"
+                      checked={categoryIds.includes(c.id)}
+                      onChange={() => toggleCategory(c.id)}
+                      className="h-4 w-4 rounded border-navy-300 text-prism"
+                    />
+                    {c.label}{c.active ? '' : ' (retired)'}
+                  </label>
+                ))}
+            </div>
+            <p className="mt-1 text-xs text-navy-400">The field shows for these categories and everything under them. Leave all unchecked to show it for every ticket.</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
@@ -298,6 +330,7 @@ function FieldRow({ field, dragging, onDragStart, onDragOver, onDrop, onDragEnd,
         </div>
         <p className="mt-0.5 text-xs text-navy-400">
           <code className="font-mono">{field.fieldKey}</code> · Applies to: <AppliesToText ticketTypes={field.ticketTypes} />
+          {field.categoryIds?.length > 0 && ` · ${field.categoryIds.length} ${field.categoryIds.length === 1 ? 'category' : 'categories'}`}
         </p>
       </div>
       <Switch checked={field.isActive} onChange={onToggleActive} label={field.isActive ? 'Active' : 'Inactive'} />

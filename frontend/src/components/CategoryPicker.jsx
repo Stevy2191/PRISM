@@ -9,6 +9,7 @@ import {
 
 export default function CategoryPicker({
   categories, value, onChange, includeRetiredValue = false, required = false, id = 'category', disabled = false,
+  emptyLabel = 'No category', compact = false,
 }) {
   const index = useMemo(() => buildIndex(categories), [categories]);
   const chosen = pathIds(index, value);
@@ -47,19 +48,19 @@ export default function CategoryPicker({
   if (!levels.length) return <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>No categories yet.</p>;
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={compact ? 'contents' : 'flex flex-wrap gap-2'}>
       {levels.map((l) => (
         <select
           key={l.depth}
           id={l.depth === 0 ? id : `${id}-${l.depth + 1}`}
           aria-label={`Category level ${l.depth + 1}`}
-          className="input w-auto min-w-[10rem]"
+          className={compact ? 'input h-9 w-auto max-w-[11rem] text-sm' : 'input w-auto min-w-[10rem]'}
           value={l.selected}
           required={required && l.depth === 0}
           disabled={disabled}
           onChange={(e) => pick(l.depth, e.target.value)}
         >
-          <option value="">{l.depth === 0 ? 'No category' : 'Any'}</option>
+          <option value="">{l.depth === 0 ? emptyLabel : 'Any'}</option>
           {l.options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
       ))}

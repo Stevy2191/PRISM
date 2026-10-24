@@ -68,6 +68,7 @@ export default function RecurringTickets() {
                   {r.contact ? `For ${r.contact.displayName}` : 'No contact'} · Next run {r.active ? fmt(r.nextRunAt) : '—'} · Runs as {r.runsAs?.displayName || '—'}
                 </p>
                 {r.lastError && <p className="mt-1 text-xs" style={{ color: 'var(--color-danger)' }}>{r.lastError}</p>}
+                {r.categoryRetired && <p className="mt-1 text-xs" style={{ color: 'var(--color-warning)' }} data-testid="category-retired-badge">Category retired: tickets are created without a category</p>}
               </div>
               <div className="flex flex-shrink-0 flex-wrap gap-3 text-xs">
                 <button type="button" disabled={busy === r.id} className="hover:underline" style={{ color: 'var(--color-accent)' }} onClick={() => runNow(r)}>Run now</button>

@@ -26,7 +26,7 @@ const ACTIVITY_DOT = {
 
 const ACTIVITY_FIELD_LABEL = {
   status: 'status', priority: 'priority', type: 'type', assigneeId: 'assignee',
-  teamId: 'team', departmentId: 'department', dueDate: 'due date', dueTime: 'due time',
+  teamId: 'team', departmentId: 'department', categoryId: 'category', dueDate: 'due date', dueTime: 'due time',
 };
 
 function activityDescription(a) {

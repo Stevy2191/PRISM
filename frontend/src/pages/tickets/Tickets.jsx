@@ -26,6 +26,7 @@ import { CARD_BG, BORDER, TEXT, MUTED, BLUE } from './theme';
 import { SavedFiltersMenu } from './list/SavedFiltersMenu';
 import { ColumnsMenu } from './list/ColumnsMenu';
 import { BulkActionBar } from './list/BulkActionBar';
+import CategoryPicker from '../../components/CategoryPicker';
 import { TicketBoard } from './list/TicketBoard';
 import {
   Avatar,
@@ -61,6 +62,8 @@ export default function Tickets() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
+  const [category, setCategory] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [assignee, setAssignee] = useState('');
   const [myTickets, setMyTickets] = useState(false);
   const [overdue, setOverdue] = useState(false);
@@ -78,7 +81,7 @@ export default function Tickets() {
 
   // Any change to a filter has to send the table back to page 1 — otherwise
   // narrowing the results while on page 5 shows an empty table.
-  const filterKey = JSON.stringify([search, status, priority, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, queue, sort]);
+  const filterKey = JSON.stringify([search, status, priority, category, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, queue, sort]);
   const pager = usePagination({ filterKey, storageKey: 'prism.tickets.pageSize' });
 
   const [view, setView] = useState('table');
@@ -139,6 +142,7 @@ export default function Tickets() {
     api.get('/saved-filters').then(({ data }) => setSavedFilters(data.savedFilters)).catch(() => {});
     api.get('/ticket-statuses').then(({ data }) => setTicketStatuses(data.statuses)).catch(() => {});
     api.get('/teams').then(({ data }) => setTeams(data.teams || [])).catch(() => {});
+    api.get('/ticket-categories').then(({ data }) => setCategories(data.categories || [])).catch(() => {});
   }, []);
   const myTeams = useMemo(
     () => teams.filter((t) => (t.memberships || []).some((m) => m.userId === user?.id)),
@@ -155,6 +159,8 @@ export default function Tickets() {
     if (search.trim()) params.search = search.trim();
     if (status) params.status = status;
     if (priority) params.priority = priority;
+    // A category includes everything below it (server side).
+    if (category) params.category = category;
     if (assignee) params.assignee = assignee;
     if (companyId) params.companyId = companyId;
     if (myTickets) params.myTickets = 'true';
@@ -172,7 +178,7 @@ export default function Tickets() {
       params.sortDir = sort.dir;
     }
     return params;
-  }, [search, status, priority, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, queue, sort]);
+  }, [search, status, priority, category, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, queue, sort]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -214,6 +220,7 @@ export default function Tickets() {
     setSearch(fj.search || '');
     setStatus(fj.status || '');
     setPriority(fj.priority || '');
+    setCategory(fj.category || null);
     setAssignee(fj.assignee || '');
     setMyTickets(!!fj.myTickets);
     setOverdue(!!fj.overdue);
@@ -225,7 +232,7 @@ export default function Tickets() {
   };
 
   const saveCurrentFilter = async (name) => {
-    const filterJson = { search, status, priority, assignee, myTickets, overdue, unassigned, sla: slaFilter, newFromEmail, sortKey: sort.key, sortDir: sort.dir };
+    const filterJson = { search, status, priority, category, assignee, myTickets, overdue, unassigned, sla: slaFilter, newFromEmail, sortKey: sort.key, sortDir: sort.dir };
     try {
       const { data } = await api.post('/saved-filters', { name, filterJson });
       setSavedFilters((prev) => [...prev, data.savedFilter]);
@@ -251,6 +258,7 @@ export default function Tickets() {
   const setStatusTracked = wrapFilterSetter(setStatus);
   const setPriorityTracked = wrapFilterSetter(setPriority);
   const setAssigneeTracked = wrapFilterSetter(setAssignee);
+  const setCategoryTracked = wrapFilterSetter(setCategory);
   const toggleMyTickets = () => { clearActiveSavedFilter(); setMyTickets((v) => !v); };
   const toggleOverdue = () => { clearActiveSavedFilter(); setOverdue((v) => !v); };
   const toggleUnassigned = () => { clearActiveSavedFilter(); setUnassigned((v) => !v); };
@@ -381,7 +389,7 @@ export default function Tickets() {
   // extend the selection rather than pretending the page is everything.
   const canOfferSelectAllMatching = allSelected && pager.total > tickets.length;
   const selectionCount = selectAllMatching ? pager.total : selectedIds.size;
-  const activeFilterCount = [status, priority, assignee].filter(Boolean).length;
+  const activeFilterCount = [status, priority, category, assignee].filter(Boolean).length;
 
   return (
     <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
@@ -455,6 +463,9 @@ export default function Tickets() {
             >
               {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+            {categories.length > 0 && (
+              <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category-inline" emptyLabel="All categories" compact />
+            )}
             <CompanyFilter value={companyId} onChange={setCompanyId} style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} />
             <select
               value={assignee}
@@ -601,6 +612,7 @@ export default function Tickets() {
           ticketStatuses={ticketStatuses}
           assignableUsers={assignableUsers}
           teams={teams}
+          categories={categories}
           bulkResult={bulkResult}
           setBulkResult={setBulkResult}
           applyBulkAction={applyBulkAction}
@@ -856,6 +868,12 @@ export default function Tickets() {
                   {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
+              {categories.length > 0 && (
+                <div className="sm:col-span-2" data-testid="filter-category">
+                  <label className="label" htmlFor="filter-category">Category</label>
+                  <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category" emptyLabel="All categories" />
+                </div>
+              )}
               <div>
                 <label className="label">Assignee</label>
                 <select

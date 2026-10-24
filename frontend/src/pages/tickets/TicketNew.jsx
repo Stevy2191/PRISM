@@ -1,6 +1,7 @@
 // New ticket page.
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import CategoryPicker from '../../components/CategoryPicker';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { assignableContactDepartments } from '../../utils/contactDepartments';
@@ -48,6 +49,9 @@ export default function TicketNew() {
   const [files, setFiles] = useState([]);
 
   const [customFields, setCustomFields] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [categoryRequired, setCategoryRequired] = useState(false);
+  const [categoryId, setCategoryId] = useState(null);
   const [customFieldValues, setCustomFieldValues] = useState({});
 
   const [error, setError] = useState('');
@@ -73,12 +77,19 @@ export default function TicketNew() {
     ? departments.filter((d) => d.companyId === selectedContact.companyId)
     : departments;
 
-  // Additional Details section — active custom fields scoped to the
-  // currently-selected ticket type. Re-fetched whenever type changes; values
-  // for fields no longer shown are dropped so a stale hidden value can't be
-  // submitted.
   useEffect(() => {
-    api.get('/custom-fields', { params: { ticketType: type } })
+    api.get('/ticket-categories').then(({ data }) => {
+      setCategories(data.categories);
+      setCategoryRequired(data.categoryRequired);
+    }).catch(() => {});
+  }, []);
+
+  // Additional Details section — active custom fields scoped to the
+  // currently-selected ticket type and category. Re-fetched whenever either
+  // changes; values for fields no longer shown are dropped so a stale hidden
+  // value can't be submitted.
+  useEffect(() => {
+    api.get('/custom-fields', { params: { ticketType: type, categoryId: categoryId || '' } })
       .then(({ data }) => {
         setCustomFields(data.customFields);
         setCustomFieldValues((prev) => {
@@ -92,7 +103,7 @@ export default function TicketNew() {
         });
       })
       .catch(() => setCustomFields([]));
-  }, [type]);
+  }, [type, categoryId]);
 
   const setCustomFieldValue = (key, value) => setCustomFieldValues((prev) => ({ ...prev, [key]: value }));
 
@@ -188,6 +199,7 @@ export default function TicketNew() {
         type,
         priority,
         source,
+        categoryId: categoryId || null,
         tags: tags.length ? tags : undefined,
         departmentId: customerDeptId || undefined,
         dueDate: dueDate || undefined,
@@ -288,6 +300,12 @@ export default function TicketNew() {
               </select>
             </div>
           </div>
+          {categories.length > 0 && (
+            <div>
+              <Label required={categoryRequired}>Category</Label>
+              <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} required={categoryRequired} id="ticket-category" />
+            </div>
+          )}
           <div>
             <Label>Tags</Label>
             <TagInput tags={tags} onChange={setTags} />
