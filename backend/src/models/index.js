@@ -68,6 +68,7 @@ const TicketDueDateChange = require('./TicketDueDateChange')(sequelize);
 const EmailTemplate = require('./EmailTemplate')(sequelize);
 const TicketCc = require('./TicketCc')(sequelize);
 const CannedResponse = require('./CannedResponse')(sequelize);
+const TicketCategory = require('./TicketCategory')(sequelize);
 const RecurringTicket = require('./RecurringTicket')(sequelize);
 const EmailProcessingLog = require('./EmailProcessingLog')(sequelize);
 const CsatSurvey = require('./CsatSurvey')(sequelize);
@@ -167,6 +168,7 @@ const db = {
   EmailTemplate,
   TicketCc,
   CannedResponse,
+  TicketCategory,
   RecurringTicket,
   EmailProcessingLog,
   CsatSurvey,
@@ -372,6 +374,8 @@ TicketCc.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 // Desk tools (5b).
 Ticket.belongsTo(Ticket, { foreignKey: 'mergedIntoId', as: 'mergedInto' });
 CannedResponse.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+TicketCategory.hasMany(TicketCategory, { foreignKey: 'parentId', as: 'children' });
+TicketCategory.belongsTo(TicketCategory, { foreignKey: 'parentId', as: 'parent' });
 CannedResponse.belongsTo(Team, { foreignKey: 'teamId', as: 'team' });
 RecurringTicket.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 RecurringTicket.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });

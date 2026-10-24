@@ -22,6 +22,9 @@ module.exports = (sequelize) => {
       },
       // JSON array of ticket type strings; null/empty = every type.
       ticketTypes: { type: DataTypes.JSON, allowNull: true },
+      // JSON array of category ids; the field applies to those nodes and
+      // everything below them. null/empty = every category (and none).
+      categoryIds: { type: DataTypes.JSON, allowNull: true },
       isRequired: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       placeholder: { type: DataTypes.STRING(255), allowNull: true },

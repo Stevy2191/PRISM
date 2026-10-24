@@ -56,6 +56,8 @@ module.exports = (sequelize) => {
       // Set when this ticket was merged into another (5b); inbound mail for
       // it follows the pointer to the live ticket.
       mergedIntoId: { type: DataTypes.INTEGER, allowNull: true },
+      // Deepest chosen node of the category tree (5c); null = uncategorized.
+      categoryId: { type: DataTypes.INTEGER, allowNull: true },
       assigneeId: {
         type: DataTypes.INTEGER,
         allowNull: true,

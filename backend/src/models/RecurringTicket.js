@@ -16,6 +16,7 @@ module.exports = (sequelize) => {
       contactId: { type: DataTypes.INTEGER, allowNull: true },
       departmentId: { type: DataTypes.INTEGER, allowNull: true },
       teamId: { type: DataTypes.INTEGER, allowNull: true },
+      categoryId: { type: DataTypes.INTEGER, allowNull: true },
       assigneeId: { type: DataTypes.INTEGER, allowNull: true },
       tasks: { type: DataTypes.JSON, allowNull: true },
       frequency: { type: DataTypes.ENUM('daily', 'weekly', 'monthly', 'yearly'), allowNull: false },

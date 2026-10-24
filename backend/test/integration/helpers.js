@@ -143,7 +143,7 @@ async function resetData() {
     'ProjectActivities', 'ProjectMembers',
     'ProjectIdSequences', 'Projects',
     'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
-    'CustomFields', 'TeamMembers', 'Teams',
+    'CustomFields', 'TicketCategories', 'TeamMembers', 'Teams',
     'AuditLogs', 'SystemAuditLogs',
     'Sites', 'CompanyDomains', 'UserCompanyAccess', 'RoleCompanyAccess',
     'SsoAuthRequests', 'SsoGroupMappings', 'SsoIdentities', 'SsoProviders',
@@ -183,6 +183,7 @@ async function resetData() {
     + "OR `key` LIKE 'csat.%' OR `key` LIKE 'integrations.%' OR `key` = 'notifications.enabledTypes' OR `key` = 'company.timezone' "
     + "OR `key` LIKE 'smtp.%' OR `key` LIKE 'inboundEmail.%' OR `key` = 'notifications.emailDefaults'"
   ).catch(() => {});
+  await sequelize.query("UPDATE SystemSettings SET value = 'false' WHERE `key` = 'tickets.categoryRequired'").catch(() => {});
   // SLA policies: back to the migrated "Standard" default and its seeded
   // targets, so one test's policies and edits don't leak into the next.
   await resetSlaPolicies();
