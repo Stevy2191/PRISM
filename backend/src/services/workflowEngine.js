@@ -78,7 +78,20 @@ function departmentValue(ticket, condition) {
   return { value: dept?.name || null };
 }
 
+// "category": is (that node), is_under (it or anything below), is_empty.
+function categoryCondition(ticket, condition) {
+  const id = Number(condition.value);
+  switch (condition.operator) {
+    case 'is': return ticket.categoryId != null && ticket.categoryId === id;
+    case 'is_under': return (ticket._categoryPathIds || []).includes(id);
+    case 'is_empty': return ticket.categoryId == null;
+    case 'is_not_empty': return ticket.categoryId != null;
+    default: return false;
+  }
+}
+
 function evaluateCondition(ticket, condition) {
+  if (condition.field === 'category') return categoryCondition(ticket, condition);
   const { value, isArray } = Object.hasOwn(DEPARTMENT_FIELDS, condition.field)
     ? departmentValue(ticket, condition)
     : extractFieldValue(ticket, condition.field);
@@ -279,7 +292,14 @@ async function executeAction(ticket, action, rule) {
 }
 
 async function loadTicketForEvaluation(ticketId) {
-  return Ticket.findByPk(ticketId, { include: ticketEvalInclude });
+  const ticket = await Ticket.findByPk(ticketId, { include: ticketEvalInclude });
+  // Category ids root → leaf, for the "category is under" condition.
+  if (ticket) {
+    // Lazy: the category service loads permissionService alongside this file.
+    const { loadTree, pathOf } = require('./tickets/categories'); // eslint-disable-line global-require
+    ticket._categoryPathIds = ticket.categoryId ? pathOf(await loadTree(), ticket.categoryId).map((n) => n.id) : [];
+  }
+  return ticket;
 }
 
 async function getActiveRulesForTrigger(triggerEvent) {

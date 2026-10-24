@@ -5,6 +5,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { testRule } = require('../services/workflowEngine');
 const { parseRecordId } = require('../services/permissionService');
+const { loadTree: loadCategoryTree } = require('../services/tickets/categories');
 
 const TRIGGER_EVENTS = [
   'ticket_created', 'ticket_updated', 'ticket_status_changed', 'ticket_priority_changed',
@@ -13,7 +14,11 @@ const TRIGGER_EVENTS = [
 ];
 const SLA_TRIGGERS = ['sla_warning', 'sla_breached'];
 const SLA_CLOCKS = ['any', 'assign', 'response', 'resolution'];
-const OPERATORS = ['equals', 'not_equals', 'contains', 'not_contains', 'is_empty', 'is_not_empty', 'greater_than', 'less_than'];
+const OPERATORS = ['equals', 'not_equals', 'contains', 'not_contains', 'is_empty', 'is_not_empty', 'greater_than', 'less_than', 'is', 'is_under'];
+// The category condition (5c) names a node by id: "is" that node, or "is
+// under" it (the node or anything below). is/is_under mean nothing elsewhere.
+const CATEGORY_OPERATORS = ['is', 'is_under', 'is_empty', 'is_not_empty'];
+const TREE_ONLY_OPERATORS = ['is', 'is_under'];
 const ACTION_TYPES = [
   'assign_to_user', 'assign_to_team', 'assign_round_robin', 'set_status', 'set_priority',
   'add_tag', 'remove_tag', 'set_due_date', 'send_notification', 'add_private_comment', 'escalate_to_user',
@@ -26,8 +31,9 @@ const detailInclude = [
   { model: User, as: 'creator', attributes: ['id', 'displayName'] },
 ];
 
-function validateConditions(conditions) {
+async function validateConditions(conditions) {
   if (!Array.isArray(conditions)) return [];
+  const tree = conditions.some((c) => c && String(c.field).trim() === 'category') ? await loadCategoryTree() : null;
   return conditions.map((c, idx) => {
     if (!c.field || !String(c.field).trim()) {
       throw new ApiError(400, `Condition ${idx + 1} is missing a field`, 'VALIDATION_ERROR');
@@ -35,7 +41,23 @@ function validateConditions(conditions) {
     if (!OPERATORS.includes(c.operator)) {
       throw new ApiError(400, `Condition ${idx + 1} has an invalid operator`, 'VALIDATION_ERROR');
     }
-    return { field: String(c.field).trim(), operator: c.operator, value: c.value ?? null, position: idx + 1 };
+    const field = String(c.field).trim();
+    let value = c.value ?? null;
+    if (field === 'category') {
+      if (!CATEGORY_OPERATORS.includes(c.operator)) {
+        throw new ApiError(400, `Condition ${idx + 1}: a category condition uses is, is under, is empty or is not empty`, 'VALIDATION_ERROR');
+      }
+      if (TREE_ONLY_OPERATORS.includes(c.operator)) {
+        const id = parseRecordId(String(value ?? '').trim());
+        if (!id || !tree.has(id)) throw new ApiError(400, `Condition ${idx + 1}: category not found`, 'VALIDATION_ERROR');
+        value = String(id);
+      } else {
+        value = null;
+      }
+    } else if (TREE_ONLY_OPERATORS.includes(c.operator)) {
+      throw new ApiError(400, `Condition ${idx + 1}: "is" and "is under" are for the category field`, 'VALIDATION_ERROR');
+    }
+    return { field, operator: c.operator, value, position: idx + 1 };
   });
 }
 
@@ -132,7 +154,7 @@ const get = asyncHandler(async (req, res) => {
 // POST /workflow-rules
 const create = asyncHandler(async (req, res) => {
   const data = validateRuleBody(req.body || {});
-  const conditions = validateConditions(req.body?.conditions);
+  const conditions = await validateConditions(req.body?.conditions);
   const actions = await validateActions(req.body?.actions);
 
   const maxPosition = await WorkflowRule.max('position');
@@ -163,7 +185,7 @@ const update = asyncHandler(async (req, res) => {
   if (req.body?.triggerConfig !== undefined && !data.triggerEvent) {
     data.triggerConfig = readTriggerConfig(rule.triggerEvent, req.body.triggerConfig);
   }
-  const conditions = req.body?.conditions !== undefined ? validateConditions(req.body.conditions) : null;
+  const conditions = req.body?.conditions !== undefined ? await validateConditions(req.body.conditions) : null;
   const actions = req.body?.actions !== undefined ? await validateActions(req.body.actions) : null;
 
   await sequelize.transaction(async (t) => {

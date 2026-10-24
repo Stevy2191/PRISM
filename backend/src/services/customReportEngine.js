@@ -11,6 +11,7 @@ const { andWhere, companyFilterWhere } = require('./recordScope');
 const { getTicketStatusBuckets } = require('./statusBehavior');
 const { computeProjectCompletion } = require('./projectCompletion');
 const rc = require('../controllers/reportsController'); // reuse scope/date-range helpers, not routes
+const { loadTree: loadCategoryTree, pathOf: categoryPathOf } = require('./tickets/categories');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -27,6 +28,7 @@ const FIELD_DEFS = {
     { key: 'contactDepartment', label: 'Contact department', type: 'string' },
     { key: 'assignee', label: 'Assignee', type: 'string' },
     { key: 'team', label: 'Team', type: 'string' },
+    { key: 'category', label: 'Category', type: 'string' },
     { key: 'createdAt', label: 'Created date', type: 'date' },
     { key: 'closedAt', label: 'Closed date', type: 'date' },
     { key: 'dueDate', label: 'Due date', type: 'date' },
@@ -91,7 +93,7 @@ const FIELD_DEFS = {
 };
 
 const GROUP_BY_OPTIONS = {
-  tickets: ['department', 'assignee', 'status', 'priority', 'month', 'type', 'source'],
+  tickets: ['department', 'assignee', 'status', 'priority', 'month', 'type', 'source', 'category'],
   projects: ['department', 'status', 'month'],
   time_entries: ['tech', 'month', 'ticket', 'project'],
   expenses_materials: [],
@@ -157,6 +159,8 @@ async function loadTicketRecords(req, filters) {
     : [];
   const minutesByTicket = new Map();
   timeTotals.forEach((r) => minutesByTicket.set(r.ticketId, (minutesByTicket.get(r.ticketId) || 0) + r.durationSeconds / 60));
+  const categoryTree = await loadCategoryTree();
+  const categoryPath = (id) => categoryPathOf(categoryTree, id).map((n) => n.name).join(' › ');
 
   let records = tickets.map((t) => {
     const resolutionHours = t.resolvedAt ? Math.round(((new Date(t.resolvedAt) - new Date(t.createdAt)) / 3600000) * 10) / 10 : null;
@@ -171,6 +175,7 @@ async function loadTicketRecords(req, filters) {
       contactDepartment: t.contact?.department?.name || '',
       assignee: t.assignee?.displayName || 'Unassigned',
       team: t.team?.name || '',
+      category: categoryPath(t.categoryId),
       createdAt: t.createdAt ? t.createdAt.toISOString().slice(0, 10) : '',
       closedAt: t.resolvedAt ? new Date(t.resolvedAt).toISOString().slice(0, 10) : '',
       dueDate: t.dueDate || '',
@@ -421,6 +426,7 @@ function groupKeyFor(dataSource, groupBy, record) {
     if (groupBy === 'type') return record.type;
     if (groupBy === 'source') return record.source;
     if (groupBy === 'month') return record._month;
+    if (groupBy === 'category') return record.category || 'Uncategorized';
   }
   if (dataSource === 'projects') {
     if (groupBy === 'department') return record._departmentName;
