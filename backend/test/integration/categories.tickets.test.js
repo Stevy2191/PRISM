@@ -10,6 +10,7 @@ const {
   API, expectOk, makeWorld, makeOwnTier,
 } = require('./fixtures');
 const { handleParsedMessage } = require('../../src/services/inboundEmailService');
+const { runDueRecurring } = require('../../src/services/recurring/recurringScheduler');
 
 // Ticket categories (5c) on tickets: create, update, read, list filter.
 
@@ -166,5 +167,74 @@ describe('list filter', () => {
     const owen = await makeOwnTier(w.admin, 'owen', w.deptA.id);
     expectOk(await patch(tBattery.id, { assigneeId: owen.user.id }));
     expect(await ids(`category=${hw.id}`, owen.agent)).toEqual([tBattery.id]);
+  });
+});
+
+describe('bulk and recurring', () => {
+  const bulk = (body) => w.admin.agent.post(`${API}/tickets/bulk`).send(body);
+
+  it('bulk category sets it on every selected ticket', async () => {
+    const a = expectOk(await create({ title: 'A' }), 201).ticket;
+    const b = expectOk(await create({ title: 'B', categoryId: sw.id }), 201).ticket;
+    const res = expectOk(await bulk({ ids: [a.id, b.id], action: 'category', value: laptop.id }));
+    expect(res.results.every((r) => r.ok)).toBe(true);
+    expect((await models.Ticket.findAll({ where: { id: [a.id, b.id] } })).map((t) => t.categoryId)).toEqual([laptop.id, laptop.id]);
+    // null clears it.
+    expectOk(await bulk({ ids: [a.id], action: 'category', value: null }));
+    expect((await models.Ticket.findByPk(a.id)).categoryId).toBeNull();
+  });
+
+  it('bulk with a requireChild parent: every ticket reported failed, none changed', async () => {
+    const a = expectOk(await create({ title: 'A', categoryId: sw.id }), 201).ticket;
+    const b = expectOk(await create({ title: 'B' }), 201).ticket;
+    const res = expectOk(await bulk({ ids: [a.id, b.id], action: 'category', value: hw.id }));
+    expect(res.results.every((r) => !r.ok && r.error === 'Choose a sub-category under Hardware')).toBe(true);
+    expect((await models.Ticket.findAll({ where: { id: [a.id, b.id] }, order: [['id', 'ASC']] })).map((t) => t.categoryId)).toEqual([sw.id, null]);
+  });
+
+  const daily = {
+    frequency: 'daily', interval: 1, timeOfDay: '09:00', timezone: 'America/Chicago', startDate: '2026-01-01',
+  };
+  const saveRule = (fields) => w.admin.agent.post(`${API}/recurring-tickets`).send({
+    title: 'Daily check', contactId: w.contact.id, departmentId: w.deptA.id, ...daily, ...fields,
+  });
+  const runOnce = async (ruleId) => {
+    await models.RecurringTicket.update({ nextRunAt: new Date('2026-03-02T15:00:00Z') }, { where: { id: ruleId } });
+    return runDueRecurring(new Date('2026-03-02T15:00:30Z'));
+  };
+
+  it('a recurring rule saves categoryId; a retired or requireChild category is refused on save', async () => {
+    const r = expectOk(await saveRule({ categoryId: laptop.id }), 201).rule;
+    expect(r.category).toEqual({ id: laptop.id, path: ['Hardware', 'Laptop'] });
+    expect(r.categoryRetired).toBe(false);
+    expect((await saveRule({ categoryId: hw.id })).status).toBe(400);
+    await retire(sw.id);
+    expect((await saveRule({ categoryId: sw.id })).status).toBe(400);
+    expect((await saveRule({ categoryId: `${sw.id}x` })).status).toBe(400);
+  });
+
+  it('an active template category: the ticket carries it', async () => {
+    const r = expectOk(await saveRule({ categoryId: battery.id }), 201).rule;
+    expect(await runOnce(r.id)).toEqual({ created: 1, paused: 0 });
+    expect((await models.Ticket.findOne({ where: { source: 'recurring' } })).categoryId).toBe(battery.id);
+  });
+
+  it('retired template category → ticket created uncategorized, rule still active, list shows categoryRetired', async () => {
+    const r = expectOk(await saveRule({ categoryId: battery.id }), 201).rule;
+    await retire(laptop.id);
+    expect(await runOnce(r.id)).toEqual({ created: 1, paused: 0 });
+    expect((await models.Ticket.findOne({ where: { source: 'recurring' } })).categoryId).toBeNull();
+    expect((await models.RecurringTicket.findByPk(r.id)).active).toBe(true);
+    const listed = expectOk(await w.admin.agent.get(`${API}/recurring-tickets`)).rules.find((x) => x.id === r.id);
+    expect(listed.categoryRetired).toBe(true);
+    // Saving the rule again without touching the category keeps it.
+    expectOk(await w.admin.agent.patch(`${API}/recurring-tickets/${r.id}`).send({ title: 'Renamed' }));
+  });
+
+  it('a template category that later gained requireChild: created uncategorized, not paused', async () => {
+    const r = expectOk(await saveRule({ categoryId: laptop.id }), 201).rule;
+    expectOk(await w.admin.agent.patch(`${CAT}/${laptop.id}`).send({ requireChild: true }));
+    expect(await runOnce(r.id)).toEqual({ created: 1, paused: 0 });
+    expect((await models.Ticket.findOne({ where: { source: 'recurring' } })).categoryId).toBeNull();
   });
 });

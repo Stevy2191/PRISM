@@ -18,11 +18,12 @@ const { assertTeamExists } = require('../services/tickets/ticketWrite');
 const { nextRun, previewRuns, validateSchedule } = require('../services/recurring/schedule');
 const { runRule } = require('../services/recurring/runRule');
 const { orgTimeZone } = require('../utils/orgTime');
+const categories = require('../services/tickets/categories');
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const TYPES = ['incident', 'request', 'problem', 'task', 'change'];
 const SCHEDULE_FIELDS = ['frequency', 'interval', 'weekdays', 'dayOfMonth', 'monthOfYear', 'timeOfDay', 'timezone', 'startDate', 'endDate'];
-const TEMPLATE_FIELDS = ['title', 'description', 'priority', 'type', 'contactId', 'departmentId', 'teamId', 'assigneeId', 'tasks'];
+const TEMPLATE_FIELDS = ['title', 'description', 'priority', 'type', 'contactId', 'departmentId', 'teamId', 'assigneeId', 'categoryId', 'tasks'];
 const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 const notFound = () => new ApiError(404, 'Recurring ticket not found', 'NOT_FOUND');
 
@@ -45,7 +46,9 @@ async function findVisible(req) {
   return rule;
 }
 
-const shown = (r) => ({
+// `tree`: the category tree. A stored category that has since been retired
+// (or no longer passes requireChild) is flagged: runs leave it off the ticket.
+const shown = (r, tree) => ({
   id: r.id,
   title: r.title,
   description: r.description,
@@ -56,6 +59,9 @@ const shown = (r) => ({
   departmentId: r.departmentId,
   teamId: r.teamId,
   assigneeId: r.assigneeId,
+  categoryId: r.categoryId,
+  category: categories.categoryJson(tree, r.categoryId),
+  categoryRetired: !!r.categoryId && !categories.isUsableOnRun(tree, r.categoryId),
   tasks: r.tasks || [],
   ...Object.fromEntries(SCHEDULE_FIELDS.map((f) => [f, r[f]])),
   nextRunAt: r.nextRunAt,
@@ -67,7 +73,7 @@ const shown = (r) => ({
 });
 
 // The template, checked against the saver exactly as a new ticket would be.
-async function cleanTemplate(user, input) {
+async function cleanTemplate(user, input, current = null) {
   const title = typeof input.title === 'string' ? input.title.trim() : '';
   if (!title || title.length > 255) throw bad('Title is required (at most 255 characters)');
   const description = input.description === null || input.description === undefined ? null : String(input.description);
@@ -86,13 +92,16 @@ async function cleanTemplate(user, input) {
   }
   const teamId = await assertTeamExists(input.teamId);
   const assigneeId = input.assigneeId ? await assertCanWorkTicket(input.assigneeId, contact.companyId, 'Assignee') : null;
+  // The stored value re-sent unchanged isn't re-checked (it may since have
+  // been retired: runs then leave it off, see runRule).
+  const categoryId = await categories.resolveCategoryForSave(input.categoryId ?? null, { current: current ? current.categoryId : undefined });
   const list = input.tasks === null || input.tasks === undefined ? [] : input.tasks;
   if (!Array.isArray(list) || list.length > 50
     || !list.every((t) => typeof t === 'string' && t.trim() && t.trim().length <= 255)) {
     throw bad('Tasks must be up to 50 titles of at most 255 characters');
   }
   return {
-    title, description, priority, type, contactId: contact.id, departmentId, teamId, assigneeId, tasks: list.map((t) => t.trim()),
+    title, description, priority, type, contactId: contact.id, departmentId, teamId, assigneeId, categoryId, tasks: list.map((t) => t.trim()),
   };
 }
 
@@ -100,7 +109,7 @@ async function cleanTemplate(user, input) {
 // against the saver, who becomes the person it runs as.
 async function cleanRule(req, body, current = null) {
   const pick = (fields) => Object.fromEntries(fields.map((f) => [f, body[f] !== undefined ? body[f] : current && current[f]]));
-  const template = await cleanTemplate(req.user, pick(TEMPLATE_FIELDS));
+  const template = await cleanTemplate(req.user, pick(TEMPLATE_FIELDS), current);
   const scheduleInput = pick(SCHEDULE_FIELDS);
   if (!scheduleInput.timezone) scheduleInput.timezone = await orgTimeZone();
   const schedule = validateSchedule(scheduleInput);
@@ -114,16 +123,17 @@ async function cleanRule(req, body, current = null) {
 // GET /recurring-tickets
 const list = asyncHandler(async (req, res) => {
   const rows = await RecurringTicket.findAll({ include, order: [['title', 'ASC'], ['id', 'ASC']] });
+  const tree = await categories.loadTree();
   const visible = [];
   for (const r of rows) {
-    if (await canSeeRule(req.user, r)) visible.push(shown(r)); // eslint-disable-line no-await-in-loop
+    if (await canSeeRule(req.user, r)) visible.push(shown(r, tree)); // eslint-disable-line no-await-in-loop
   }
   res.json({ rules: visible });
 });
 
 // GET /recurring-tickets/:id
 const get = asyncHandler(async (req, res) => {
-  res.json({ rule: shown(await findVisible(req)) });
+  res.json({ rule: shown(await findVisible(req), await categories.loadTree()) });
 });
 
 // POST /recurring-tickets
@@ -131,7 +141,7 @@ const create = asyncHandler(async (req, res) => {
   const data = await cleanRule(req, req.body || {});
   const row = await RecurringTicket.create(data);
   await writeAudit(req, 'recurring.create', 'RecurringTicket', row.id, { title: row.title });
-  res.status(201).json({ rule: shown(await RecurringTicket.findByPk(row.id, { include })) });
+  res.status(201).json({ rule: shown(await RecurringTicket.findByPk(row.id, { include }), await categories.loadTree()) });
 });
 
 // PATCH /recurring-tickets/:id. Only { active } pauses or resumes without
@@ -156,7 +166,7 @@ const update = asyncHandler(async (req, res) => {
     await rule.update(data);
     await writeAudit(req, 'recurring.update', 'RecurringTicket', rule.id, { title: rule.title });
   }
-  res.json({ rule: shown(await RecurringTicket.findByPk(rule.id, { include })) });
+  res.json({ rule: shown(await RecurringTicket.findByPk(rule.id, { include }), await categories.loadTree()) });
 });
 
 // DELETE /recurring-tickets/:id

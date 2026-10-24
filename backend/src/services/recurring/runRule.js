@@ -5,6 +5,7 @@ const { User } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { hasPermission } = require('../permissionService');
 const { createTicket } = require('../tickets/ticketWrite');
+const { loadTree, isUsableOnRun } = require('../tickets/categories');
 const tasks = require('../tasks');
 
 async function systemActor() {
@@ -24,6 +25,9 @@ async function runRule(rule, { now = new Date() } = {}) {
   if (!rule.contactId) throw new ApiError(400, "This rule's contact no longer exists", 'VALIDATION_ERROR');
   const actor = await systemActor();
   const req = { user: actor };
+  // A template category retired since the rule was saved is left off: the
+  // ticket still gets made and the rule keeps running (the list flags it).
+  const categoryId = rule.categoryId && isUsableOnRun(await loadTree(), rule.categoryId) ? rule.categoryId : null;
   const ticket = await createTicket(runAs, {
     title: rule.title,
     description: rule.description,
@@ -33,6 +37,7 @@ async function runRule(rule, { now = new Date() } = {}) {
     departmentId: rule.departmentId,
     teamId: rule.teamId,
     assigneeId: rule.assigneeId,
+    categoryId,
   }, { req, createdById: actor.id, source: 'recurring' });
   const parent = tasks.ticketParent(ticket);
   for (const title of Array.isArray(rule.tasks) ? rule.tasks : []) {

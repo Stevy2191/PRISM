@@ -39,4 +39,15 @@ async function resolveCategoryForSave(raw, { current = undefined, required = fal
   return id;
 }
 
-module.exports = { ...tree, loadTree, resolveCategoryForSave };
+// Would a new save accept this category now? (Effectively active, and not a
+// requireChild node that still has active children.) Recurring runs use it
+// to leave a since-retired template category off instead of failing.
+function isUsableOnRun(t, id) {
+  if (!tree.isEffectivelyActive(t, id)) return false;
+  const node = t.get(Number(id));
+  return !(node.requireChild && tree.activeChildren(t, node.id).length);
+}
+
+module.exports = {
+  ...tree, loadTree, resolveCategoryForSave, isUsableOnRun,
+};

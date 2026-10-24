@@ -13,7 +13,7 @@ const {
 const { mergeTickets } = require('../../services/tickets/merge');
 
 const MAX_IDS = 100;
-const ACTIONS = ['status', 'priority', 'assign', 'team', 'close', 'add_watcher', 'delete', 'merge'];
+const ACTIONS = ['status', 'priority', 'assign', 'team', 'category', 'close', 'add_watcher', 'delete', 'merge'];
 // Actions that need a permission beyond edit access, checked once.
 const EXTRA_PERMISSION = { add_watcher: 'tickets.manage_watchers', delete: 'tickets.delete' };
 const NOT_FOUND = 'Ticket not found';
@@ -34,6 +34,7 @@ async function applyOne(req, action, value, id) {
     case 'priority': return updateTicket(req, ticket, { priority: value });
     case 'assign': return updateTicket(req, ticket, { assigneeId: value || null });
     case 'team': return updateTicket(req, ticket, { teamId: value || null });
+    case 'category': return updateTicket(req, ticket, { categoryId: value ?? null });
     case 'close': return updateTicket(req, ticket, { status: await closedStatusName() });
     case 'add_watcher': return addTicketWatcher(req, ticket, value);
     case 'delete': return deleteTicket(req, ticket);
