@@ -9,7 +9,7 @@ const { parsePagination, paginated } = require('../../utils/pagination');
 const { andWhere, ticketScopeWhere } = require('../../services/recordScope');
 const { getUserTicketScope, canAccessTicket, parseRecordId } = require('../../services/permissionService');
 const { createTicket, updateTicket, deleteTicket } = require('../../services/tickets/ticketWrite');
-const { loadTree: loadCategoryTree, descendantIds } = require('../../services/tickets/categories');
+const { loadTree: loadCategoryTree, descendantIds, activeChildren } = require('../../services/tickets/categories');
 const { categoryRequired } = require('../ticketCategoriesController');
 const {
   queueListWhere, queueCount, takeTicket, queueRowFor,
@@ -268,8 +268,10 @@ const board = asyncHandler(async (req, res) => {
 
 // POST /tickets
 const create = asyncHandler(async (req, res) => {
-  // Settings -> Ticket categories: required on this (staff) form only.
-  const requireCategory = await categoryRequired();
+  // Settings -> Ticket categories: required on this (staff) form only, and
+  // only while there is an active category to pick (otherwise nobody could
+  // create a ticket at all).
+  const requireCategory = (await categoryRequired()) && activeChildren(await loadCategoryTree(), null).length > 0;
   const ticket = await createTicket(req.user, req.body, { req, requireCategory });
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
   res.status(201).json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });

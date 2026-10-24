@@ -166,6 +166,16 @@ export function Sidebar({
   const [tagInput, setTagInput] = useState('');
   const [dueDateMode, setDueDateMode] = useState(null); // null | 'extend' | 'change'
   const [categories, setCategories] = useState([]);
+  // While a pick still has sub-categories it stays a draft here (not saved),
+  // so a "must choose a sub-category" parent can be drilled into and no
+  // half-way pick fires rules. undefined = not editing.
+  const [categoryDraft, setCategoryDraft] = useState(undefined);
+  const saveCategory = (categoryId) => { setCategoryDraft(undefined); patchTicket({ categoryId }); };
+  const pickCategory = (categoryId) => {
+    const hasChildren = categoryId != null && categories.some((c) => c.parentId === categoryId && c.active);
+    if (hasChildren) setCategoryDraft(categoryId);
+    else saveCategory(categoryId);
+  };
   const { hasPermission } = useAuth();
   useEffect(() => {
     api.get('/ticket-categories').then(({ data }) => setCategories(data.categories)).catch(() => {});
@@ -370,12 +380,19 @@ export function Sidebar({
                   <span className="mb-1 block text-xs" style={{ color: MUTED }}>Category</span>
                   <CategoryPicker
                     categories={categories}
-                    value={ticket.categoryId}
-                    onChange={(categoryId) => patchTicket({ categoryId })}
-                    includeRetiredValue
+                    value={categoryDraft !== undefined ? categoryDraft : ticket.categoryId}
+                    onChange={pickCategory}
+                    onChangeRetired={() => setCategoryDraft(null)}
+                    includeRetiredValue={categoryDraft === undefined}
                     disabled={!canEdit}
                     id="sidebar-category"
                   />
+                  {categoryDraft !== undefined && (
+                    <div className="mt-1 flex gap-2">
+                      <button type="button" className="btn-primary text-xs" onClick={() => saveCategory(categoryDraft)}>Save</button>
+                      <button type="button" className="btn-secondary text-xs" onClick={() => setCategoryDraft(undefined)}>Cancel</button>
+                    </div>
+                  )}
                 </div>
               )}
               {slaDue ? (

@@ -1,6 +1,10 @@
 const Sequelize = require('sequelize');
 const { resetData, closeDb, sequelize } = require('./helpers');
 const migration = require('../../migrations/20260101000066-service-desk-tools');
+// 066's down drops RecurringTickets; up recreates it as 066 left it, without
+// the columns later migrations add. Re-apply those (idempotent) afterwards so
+// the next test files see the full schema.
+const later = [require('../../migrations/20260101000068-ticket-categories')];
 const { closedStatusName } = require('../../src/services/statusBehavior');
 const { TicketStatus } = require('../../src/models');
 
@@ -17,7 +21,10 @@ const enumOf = async (table, column) => {
 };
 
 beforeEach(resetData);
-afterAll(closeDb);
+afterAll(async () => {
+  for (const m of later) await m.up(qi(), Sequelize); // eslint-disable-line no-await-in-loop
+  await closeDb();
+});
 
 it('adds mergedIntoId, Attachments.commentId and the two tables', async () => {
   expect(await tables()).toEqual(expect.arrayContaining(['CannedResponses', 'RecurringTickets']));

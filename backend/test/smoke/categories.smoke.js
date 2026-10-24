@@ -144,6 +144,50 @@ describe('picker on tickets', () => {
     expectOk(await w.admin.agent.patch(`${CAT}/${laptop.id}`).send({ active: true }));
   });
 
+  it('sidebar: a requireChild parent opens the next level instead of saving; the leaf saves', async () => {
+    expectOk(await w.admin.agent.patch(`${CAT}/${hw.id}`).send({ requireChild: true }));
+    const t = await makeTicket(w.admin.agent, { title: 'Sidebar pick', contactId: w.contact.id, departmentId: w.deptA.id });
+    await page.goto(`/tickets/${t.id}`);
+    const box = page.getByTestId('sidebar-category').filter({ visible: true }).first();
+    const patches = [];
+    page.on('request', (r) => { if (r.method() === 'PATCH' && r.url().endsWith(`/tickets/${t.id}`)) patches.push(r.postData()); });
+    await box.getByLabel('Category level 1').selectOption(String(hw.id));
+    await box.getByLabel('Category level 2').selectOption(String(laptop.id));
+    await page.waitForResponse((r) => r.url().endsWith(`/tickets/${t.id}`) && r.request().method() === 'PATCH');
+    expect(patches).toHaveLength(1);
+    expect(JSON.parse(patches[0])).toEqual({ categoryId: laptop.id });
+    expect((await models.Ticket.findByPk(t.id)).categoryId).toBe(laptop.id);
+    expectOk(await w.admin.agent.patch(`${CAT}/${hw.id}`).send({ requireChild: false }));
+  });
+
+  it('sidebar: "change" on a retired category opens the picker without clearing it', async () => {
+    const t = await makeTicket(w.admin.agent, { title: 'Retired change', contactId: w.contact.id, departmentId: w.deptA.id, categoryId: sw.id });
+    expectOk(await w.admin.agent.patch(`${CAT}/${sw.id}`).send({ active: false }));
+    await page.goto(`/tickets/${t.id}`);
+    const box = page.getByTestId('sidebar-category').filter({ visible: true }).first();
+    await box.getByRole('button', { name: 'change' }).click();
+    await box.getByLabel('Category level 1').waitFor();
+    expect((await models.Ticket.findByPk(t.id)).categoryId).toBe(sw.id);
+    await box.getByRole('button', { name: 'Cancel' }).click();
+    await box.getByText('(retired)').waitFor();
+    expectOk(await w.admin.agent.patch(`${CAT}/${sw.id}`).send({ active: true }));
+  });
+
+  it('a saved list filter on a retired category shows it and can be cleared', async () => {
+    const t = await makeTicket(w.admin.agent, { title: 'Filtered retired', contactId: w.contact.id, departmentId: w.deptA.id, categoryId: sw.id });
+    expect(t.category.id).toBe(sw.id);
+    expectOk(await w.admin.agent.post(`${API}/saved-filters`).send({ name: 'Software view', filterJson: { category: sw.id } }), 201);
+    expectOk(await w.admin.agent.patch(`${CAT}/${sw.id}`).send({ active: false }));
+    await page.goto('/tickets');
+    await page.getByTitle('Saved filters').click();
+    await page.getByRole('button', { name: 'Software view' }).click();
+    const inline = page.getByTestId('filter-category-inline-box').filter({ visible: true }).first();
+    await inline.getByText('(retired)').waitFor();
+    await inline.getByRole('button', { name: 'change' }).click();
+    expect(await page.locator('#filter-category-inline').filter({ visible: true }).first().inputValue()).toBe('');
+    expectOk(await w.admin.agent.patch(`${CAT}/${sw.id}`).send({ active: true }));
+  });
+
   it('the list filter by Hardware shows the Laptop ticket', async () => {
     await makeTicket(w.admin.agent, { title: 'Laptop filter ticket', contactId: w.contact.id, departmentId: w.deptA.id, categoryId: laptop.id });
     await makeTicket(w.admin.agent, { title: 'Software filter ticket', contactId: w.contact.id, departmentId: w.deptA.id, categoryId: sw.id });

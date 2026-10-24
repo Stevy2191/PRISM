@@ -9,7 +9,7 @@ import {
 
 export default function CategoryPicker({
   categories, value, onChange, includeRetiredValue = false, required = false, id = 'category', disabled = false,
-  emptyLabel = 'No category', compact = false,
+  emptyLabel = 'No category', compact = false, onChangeRetired = null,
 }) {
   const index = useMemo(() => buildIndex(categories), [categories]);
   const chosen = pathIds(index, value);
@@ -21,7 +21,7 @@ export default function CategoryPicker({
         <span style={{ color: 'var(--color-text-primary)' }}>{pathLabel(index, value)}</span>
         <span className="eyebrow">(retired)</span>
         {!disabled && (
-          <button type="button" className="text-xs hover:underline" style={{ color: 'var(--color-accent)' }} onClick={() => onChange(null)}>
+          <button type="button" className="text-xs hover:underline" style={{ color: 'var(--color-accent)' }} onClick={() => (onChangeRetired ? onChangeRetired() : onChange(null))}>
             change
           </button>
         )}

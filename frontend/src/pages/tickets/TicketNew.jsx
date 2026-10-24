@@ -52,6 +52,8 @@ export default function TicketNew() {
   const [categories, setCategories] = useState([]);
   const [categoryRequired, setCategoryRequired] = useState(false);
   const [categoryId, setCategoryId] = useState(null);
+  // Required only while there is an active category to pick (as the server rules).
+  const categoryNeeded = categoryRequired && categories.some((c) => c.parentId == null && c.active);
   const [customFieldValues, setCustomFieldValues] = useState({});
 
   const [error, setError] = useState('');
@@ -302,8 +304,8 @@ export default function TicketNew() {
           </div>
           {categories.length > 0 && (
             <div>
-              <Label required={categoryRequired}>Category</Label>
-              <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} required={categoryRequired} id="ticket-category" />
+              <Label required={categoryNeeded}>Category</Label>
+              <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} required={categoryNeeded} id="ticket-category" />
             </div>
           )}
           <div>

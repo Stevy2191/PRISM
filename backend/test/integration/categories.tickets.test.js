@@ -86,6 +86,16 @@ describe('create', () => {
     expectOk(await create({ categoryId: sw.id }), 201);
   });
 
+  it('categoryRequired=true with no active categories: creating still works (nothing to pick)', async () => {
+    expectOk(await w.admin.agent.put(`${CAT}/settings`).send({ categoryRequired: true }));
+    await retire(hw.id);
+    await retire(sw.id);
+    expect(expectOk(await create({}), 201).ticket.category).toBeNull();
+    // With one active root again, it is required again.
+    expectOk(await w.admin.agent.patch(`${CAT}/${sw.id}`).send({ active: true }));
+    expect((await create({})).status).toBe(400);
+  });
+
   it('categoryRequired=true: inbound email still creates an uncategorized ticket', async () => {
     expectOk(await w.admin.agent.put(`${CAT}/settings`).send({ categoryRequired: true }));
     let raw = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'mail', 'generic.eml'), 'utf8');

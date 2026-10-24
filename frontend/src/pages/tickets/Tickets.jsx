@@ -464,7 +464,9 @@ export default function Tickets() {
               {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             {categories.length > 0 && (
-              <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category-inline" emptyLabel="All categories" compact />
+              <span className="contents" data-testid="filter-category-inline-box">
+                <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category-inline" emptyLabel="All categories" compact includeRetiredValue />
+              </span>
             )}
             <CompanyFilter value={companyId} onChange={setCompanyId} style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} />
             <select
@@ -871,7 +873,7 @@ export default function Tickets() {
               {categories.length > 0 && (
                 <div className="sm:col-span-2" data-testid="filter-category">
                   <label className="label" htmlFor="filter-category">Category</label>
-                  <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category" emptyLabel="All categories" />
+                  <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category" emptyLabel="All categories" includeRetiredValue />
                 </div>
               )}
               <div>

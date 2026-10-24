@@ -18,6 +18,22 @@ emailed attachment is refused until the scanner exists. The scanner needs about
 few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
 `.env`.
 
+### Ticket categories (5c)
+
+- **Settings → Ticket categories** builds a category tree up to 5 levels deep.
+  Tickets get a cascading category picker (create form, ticket sidebar, bulk
+  edit, recurring tickets). A category can require a sub-category; retiring one
+  hides it (and everything under it) from pickers while tickets keep it.
+- An optional switch requires a category on the staff create form; tickets
+  from email and recurring tickets may still be uncategorized.
+- Custom fields can be limited to category branches; the ticket list filters
+  by category (including sub-categories); workflow rules get "category is /
+  is under" conditions; the custom report builder gets a Category column and
+  grouping.
+- Migration 068 runs automatically. The new permission **Manage ticket
+  categories** is granted to System Administrator only — add it to other roles
+  under Roles if they should edit the tree. Everyone can read it.
+
 ### Attachment virus scanning (5d)
 
 - Every file uploaded to tickets, projects, assets, licenses, contracts, the
