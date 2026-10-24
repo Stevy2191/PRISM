@@ -9,6 +9,8 @@ const { parsePagination, paginated } = require('../../utils/pagination');
 const { andWhere, ticketScopeWhere } = require('../../services/recordScope');
 const { getUserTicketScope, canAccessTicket, parseRecordId } = require('../../services/permissionService');
 const { createTicket, updateTicket, deleteTicket } = require('../../services/tickets/ticketWrite');
+const { loadTree: loadCategoryTree, descendantIds } = require('../../services/tickets/categories');
+const { categoryRequired } = require('../ticketCategoriesController');
 const {
   queueListWhere, queueCount, takeTicket, queueRowFor,
 } = require('../../services/tickets/queue');
@@ -49,6 +51,13 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   if (contactId) where.contactId = contactId;
   if (team) where.teamId = team;
   if (companyId) where.companyId = parseRecordId(companyId) || -1;
+  // A category matches it and everything below it; an unknown or malformed
+  // id matches nothing (never every ticket).
+  if (req.query.category) {
+    const categoryId = parseRecordId(req.query.category);
+    const tree = categoryId ? await loadCategoryTree() : null;
+    where.categoryId = { [Op.in]: tree && tree.has(categoryId) ? descendantIds(tree, categoryId) : [-1] };
+  }
 
   if (search && search.trim()) {
     const term = search.trim();
@@ -194,12 +203,13 @@ const list = asyncHandler(async (req, res) => {
   });
 
   const minutesByTicket = await timeLoggedByTicket(tickets.map((t) => t.id));
+  const categoryTree = await loadCategoryTree();
 
   res.json(paginated(
     'tickets',
     {
       rows: await Promise.all(tickets.map(async (t) => {
-        const row = { ...(await shownTicketFor(req.user, t)), timeLoggedMinutes: minutesByTicket.get(t.id) || 0 };
+        const row = { ...(await shownTicketFor(req.user, t, { tree: categoryTree })), timeLoggedMinutes: minutesByTicket.get(t.id) || 0 };
         // A queue view can include tickets seen only as queue work: trimmed.
         return req.query.queue ? queueRowFor(req.user, t, row) : row;
       })),
@@ -241,6 +251,7 @@ const board = asyncHandler(async (req, res) => {
   const minutesByTicket = await timeLoggedByTicket(
     columns.flatMap((c) => c.tickets.map((t) => t.id))
   );
+  const categoryTree = await loadCategoryTree();
 
   res.json({
     columns: await Promise.all(columns.map(async (c) => ({
@@ -248,7 +259,7 @@ const board = asyncHandler(async (req, res) => {
       total: c.total,
       limit: BOARD_COLUMN_LIMIT,
       tickets: await Promise.all(c.tickets.map(async (t) => ({
-        ...(await shownTicketFor(req.user, t)),
+        ...(await shownTicketFor(req.user, t, { tree: categoryTree })),
         timeLoggedMinutes: minutesByTicket.get(t.id) || 0,
       }))),
     }))),
@@ -257,7 +268,9 @@ const board = asyncHandler(async (req, res) => {
 
 // POST /tickets
 const create = asyncHandler(async (req, res) => {
-  const ticket = await createTicket(req.user, req.body, { req });
+  // Settings -> Ticket categories: required on this (staff) form only.
+  const requireCategory = await categoryRequired();
+  const ticket = await createTicket(req.user, req.body, { req, requireCategory });
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
   res.status(201).json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });
 });

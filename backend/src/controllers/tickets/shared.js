@@ -157,8 +157,13 @@ function withCustomFields(ticket) {
 
 // A ticket as a viewer may see it: its project shows only its id when the
 // viewer can't open that project (as a restricted linked ticket does, Q18).
-async function shownTicketFor(viewer, ticket) {
+// `tree`: the category tree, loaded once by callers that show many tickets.
+async function shownTicketFor(viewer, ticket, { tree = null } = {}) {
   const json = withCustomFields(ticket);
+  // Lazy: the category service loads permissionService, which this file's
+  // importers load first.
+  const categories = require('../../services/tickets/categories'); // eslint-disable-line global-require
+  json.category = ticket.categoryId ? categories.categoryJson(tree || await categories.loadTree(), ticket.categoryId) : null;
   // Only when the SLA row was loaded: null then means "no SLA".
   if (ticket.sla !== undefined) json.sla = toSlaView(ticket.sla);
   if (ticket.project) {

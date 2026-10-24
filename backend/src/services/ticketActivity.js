@@ -40,6 +40,12 @@ async function resolveDisplayValue(field, value) {
     const dept = await Department.findByPk(value);
     return dept ? dept.name : `Department #${value}`;
   }
+  if (field === 'categoryId') {
+    // Lazy: the category service loads the models this file is loaded beside.
+    const { loadTree, pathOf } = require('./tickets/categories'); // eslint-disable-line global-require
+    const path = pathOf(await loadTree(), value);
+    return path.length ? path.map((n) => n.name).join(' › ') : `Category #${value}`;
+  }
   return String(value).replace(/_/g, ' ');
 }
 

@@ -25,6 +25,7 @@ const { maybeCreateCsatSurvey } = require('../csatService');
 const { queueContactEmail } = require('../email/ticketMail');
 const { logAssetActivity } = require('../assetActivity');
 const { syncCustomFieldValues, assertCanEditTicket } = require('../../controllers/tickets/shared');
+const { resolveCategoryForSave } = require('./categories');
 
 
 // A status must be one of the configured ticket statuses (Q25). Returns its
@@ -55,11 +56,13 @@ async function assertTeamExists(raw) {
 // credited to (the same person, except for the recurring scheduler, which
 // runs as a user's access but is created by the system actor). `systemSource`
 // forces the source ('recurring'). `req` only supplies the audit trail.
-async function createTicket(actor, input, { req, createdById = actor.id, source: systemSource = null } = {}) {
+async function createTicket(actor, input, {
+  req, createdById = actor.id, source: systemSource = null, requireCategory = false,
+} = {}) {
   const {
     title, description, priority, type, status, projectId, departmentId, dueDate, dueTime,
     blueprintId, customFields, teamId, tags, watcherIds, parentTicketId, childTicketIds, relatedTicketIds,
-    assigneeId, contactId, source, assetIds,
+    assigneeId, contactId, source, assetIds, categoryId,
   } = input || {};
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
@@ -118,6 +121,7 @@ async function createTicket(actor, input, { req, createdById = actor.id, source:
   const contact = await findAccessibleContact(actor, contactId);
   if (!contact) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
   const resolvedTeamId = await assertTeamExists(teamId);
+  const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { required: requireCategory });
   // Links stay inside one company: the new ticket's is its contact's.
   if (linkedTickets.some((t) => t.companyId !== contact.companyId)) {
     throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
@@ -183,6 +187,7 @@ async function createTicket(actor, input, { req, createdById = actor.id, source:
       source: resolvedSource,
       assigneeId: resolvedAssigneeId,
       teamId: resolvedTeamId,
+      categoryId: resolvedCategoryId,
       contactId: contact.id,
       projectId: resolvedProjectId,
       departmentId: resolvedDepartmentId,
@@ -274,6 +279,7 @@ async function prepareTicketUpdate(req, ticket, body) {
     'customFields',
     'tags',
     'resolution',
+    'categoryId',
   ];
 
   const changes = {};
@@ -281,6 +287,7 @@ async function prepareTicketUpdate(req, ticket, body) {
     if (body[key] !== undefined) changes[key] = body[key];
   }
   if (changes.teamId !== undefined) changes.teamId = await assertTeamExists(changes.teamId);
+  if (changes.categoryId !== undefined) changes.categoryId = await resolveCategoryForSave(changes.categoryId, { current: ticket.categoryId });
   if (changes.title !== undefined) {
     if (typeof changes.title !== 'string' || !changes.title.trim()) {
       throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
@@ -349,7 +356,7 @@ async function prepareTicketUpdate(req, ticket, body) {
     changes.resolutionUpdatedBy = req.user.id;
     changes.resolutionUpdatedAt = new Date();
   }
-  const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime'];
+  const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId'];
   const before = {};
   TRACKED_ACTIVITY_FIELDS.forEach((f) => { before[f] = ticket[f]; });
   const previousStatus = ticket.status;
@@ -440,7 +447,7 @@ async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = fa
   }
 }
 
-const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime'];
+const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId'];
 const snapshotBefore = (ticket) => Object.fromEntries(TRACKED_ACTIVITY_FIELDS.map((f) => [f, ticket[f]]));
 
 // Edits a ticket: access + edit-tier checks, validation, save, side effects.
