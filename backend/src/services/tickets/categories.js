@@ -48,6 +48,22 @@ function isUsableOnRun(t, id) {
   return !(node.requireChild && tree.activeChildren(t, node.id).length);
 }
 
+// A JSON id list as stored (MariaDB can hand JSON columns back as strings).
+function idList(raw) {
+  let v = raw;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } }
+  return Array.isArray(v) ? v.map(Number).filter(Number.isInteger) : [];
+}
+
+// A custom field limited to category branches applies to a ticket whose
+// category is one of those nodes or below one. Unscoped fields apply always.
+function fieldAppliesToCategory(field, t, categoryId) {
+  const scope = idList(field.categoryIds);
+  if (!scope.length) return true;
+  if (!categoryId) return false;
+  return tree.pathOf(t, categoryId).some((n) => scope.includes(n.id));
+}
+
 module.exports = {
-  ...tree, loadTree, resolveCategoryForSave, isUsableOnRun,
+  ...tree, loadTree, resolveCategoryForSave, isUsableOnRun, idList, fieldAppliesToCategory,
 };

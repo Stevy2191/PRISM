@@ -30,7 +30,7 @@ const updateCustomFieldValues = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'values must be an object of { fieldKey: value }', 'VALIDATION_ERROR');
   }
 
-  await sequelize.transaction((t) => syncCustomFieldValues(ticket.id, values, t));
+  await sequelize.transaction((t) => syncCustomFieldValues(ticket.id, values, t, { categoryId: ticket.categoryId }));
   await writeAudit(req, 'ticket.custom_fields', 'Ticket', ticket.id, { keys: Object.keys(values) });
   await logActivity(ticket.id, req.user.id, 'custom_fields', null, null);
 

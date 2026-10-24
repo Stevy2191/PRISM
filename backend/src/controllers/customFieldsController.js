@@ -2,7 +2,8 @@ const { Op } = require('sequelize');
 const { CustomField, TicketFieldValue, User } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
-const { hasPermission } = require('../services/permissionService');
+const { hasPermission, parseRecordId } = require('../services/permissionService');
+const categories = require('../services/tickets/categories');
 
 const FIELD_TYPES = [
   'text', 'textarea', 'number', 'date', 'datetime',
@@ -76,6 +77,17 @@ async function validate(body, existing) {
     out.ticketTypes = types.length ? types : null;
   }
 
+  // Category branches (5c): any node; the field applies to it and below.
+  if (body.categoryIds !== undefined && body.categoryIds !== null) {
+    if (!Array.isArray(body.categoryIds)) throw new ApiError(400, 'categoryIds must be a list of category ids', 'VALIDATION_ERROR');
+    const tree = await categories.loadTree();
+    const ids = [...new Set(body.categoryIds.map(parseRecordId))];
+    if (ids.some((id) => !id || !tree.has(id))) throw new ApiError(400, 'Category not found', 'VALIDATION_ERROR');
+    out.categoryIds = ids.length ? ids : null;
+  } else if (body.categoryIds === null) {
+    out.categoryIds = null;
+  }
+
   if (OPTION_TYPES.includes(fieldType)) {
     if (body.options !== undefined || !existing) {
       const options = Array.isArray(body.options)
@@ -101,11 +113,15 @@ async function validate(body, existing) {
 // GET /custom-fields — admins see every field; everyone else sees active
 // fields only. ?ticketType=incident narrows to active fields that apply to
 // that type (unscoped or explicitly listing it) — used to populate forms.
+// ?categoryId=<id> (with or without ticketType) narrows to fields for that
+// category: unscoped ones, plus those scoped to it or an ancestor. A form
+// asking with no (or an unknown) category gets no branch-scoped fields.
 const list = asyncHandler(async (req, res) => {
   const { ticketType } = req.query;
+  const forForm = !!ticketType || req.query.categoryId !== undefined;
   const where = {};
 
-  if (ticketType) {
+  if (forForm) {
     where.isActive = true;
   } else if (!(await hasPermission(req.user.id, 'settings.manage_system'))) {
     where.isActive = true;
@@ -117,9 +133,14 @@ const list = asyncHandler(async (req, res) => {
     order: [['position', 'ASC'], ['id', 'ASC']],
   });
 
-  const filtered = ticketType
+  let filtered = ticketType
     ? fields.filter((f) => !f.ticketTypes || f.ticketTypes.length === 0 || f.ticketTypes.includes(ticketType))
     : fields;
+  if (forForm) {
+    const tree = await categories.loadTree();
+    const categoryId = parseRecordId(req.query.categoryId);
+    filtered = filtered.filter((f) => categories.fieldAppliesToCategory(f, tree, categoryId));
+  }
 
   res.json({ customFields: filtered });
 });

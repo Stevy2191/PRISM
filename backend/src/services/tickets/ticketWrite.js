@@ -200,7 +200,7 @@ async function createTicket(actor, input, {
     }, { transaction: t });
 
     if (input.customFieldValues) {
-      await syncCustomFieldValues(created.id, input.customFieldValues, t);
+      await syncCustomFieldValues(created.id, input.customFieldValues, t, { categoryId: resolvedCategoryId });
     }
 
     if (parentId) {
@@ -463,7 +463,7 @@ async function updateTicket(req, ticket, body, { quiet = false } = {}) {
   await sequelize.transaction(async (t) => {
     await ticket.update(changes, { transaction: t });
     if (body.customFieldValues) {
-      await syncCustomFieldValues(ticket.id, body.customFieldValues, t);
+      await syncCustomFieldValues(ticket.id, body.customFieldValues, t, { categoryId: ticket.categoryId });
     }
   });
   await writeAudit(req, 'ticket.update', 'Ticket', ticket.id, changes);

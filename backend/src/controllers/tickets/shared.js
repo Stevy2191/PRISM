@@ -98,19 +98,32 @@ function fitsField(field, raw) {
   }
 }
 
-async function syncCustomFieldValues(ticketId, values, t) {
+// `opts.categoryId`: the ticket's category as it will be saved (looked up
+// when not given). A non-empty value for a field outside that category's
+// branch is refused; clearing one is always allowed, and values already
+// stored stay when the ticket moves to another branch.
+async function syncCustomFieldValues(ticketId, values, t, opts = {}) {
   if (!values || typeof values !== 'object') return;
   const keys = Object.keys(values);
   if (!keys.length) return;
 
   const fields = await CustomField.findAll({ where: { fieldKey: keys }, transaction: t });
   const fieldByKey = new Map(fields.map((f) => [f.fieldKey, f]));
+  // Lazy: the category service loads permissionService, which loads this file's importers.
+  const categories = require('../../services/tickets/categories'); // eslint-disable-line global-require
+  const categoryId = Object.hasOwn(opts, 'categoryId')
+    ? opts.categoryId
+    : (await Ticket.findByPk(ticketId, { attributes: ['categoryId'], transaction: t }))?.categoryId ?? null;
+  const tree = fields.some((f) => categories.idList(f.categoryIds).length) ? await categories.loadTree({ transaction: t }) : null;
 
   for (const key of keys) {
     const field = fieldByKey.get(key);
     if (!field) continue; // eslint-disable-line no-continue
     const raw = values[key];
     const empty = raw === undefined || raw === null || raw === '' || (Array.isArray(raw) && !raw.length);
+    if (!empty && tree && !categories.fieldAppliesToCategory(field, tree, categoryId)) {
+      throw new ApiError(400, `"${field.label}" doesn't apply to this ticket's category`, 'VALIDATION_ERROR');
+    }
     if (!empty && !fitsField(field, raw)) {
       throw new ApiError(400, `"${field.label}" doesn't accept that value`, 'VALIDATION_ERROR');
     }
