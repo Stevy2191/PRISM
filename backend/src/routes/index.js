@@ -49,6 +49,7 @@ const kbPublicRoutes = require('./kbPublic');
 const ssoRoutes = require('./sso');
 const ssoAdminRoutes = require('./ssoAdmin');
 const cannedResponsesRoutes = require('./cannedResponses');
+const ticketCategoriesRoutes = require('./ticketCategories');
 const recurringTicketsRoutes = require('./recurringTickets');
 
 const { getVersionInfo } = require('../utils/version');
@@ -92,6 +93,7 @@ router.use('/companies', guard, companiesRoutes);
 router.use('/projects', guard, projectsRoutes);
 router.use('/tickets', guard, ticketsRoutes);
 router.use('/canned-responses', guard, cannedResponsesRoutes);
+router.use('/ticket-categories', guard, ticketCategoriesRoutes);
 router.use('/recurring-tickets', guard, recurringTicketsRoutes);
 router.use('/apikeys', guard, apikeysRoutes);
 router.use('/reports', guard, reportsRoutes);
