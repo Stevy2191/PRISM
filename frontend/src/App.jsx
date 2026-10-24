@@ -48,6 +48,7 @@ import SettingsAssetAlerts from './pages/settings/AssetAlerts';
 import SettingsTimeTracking from './pages/settings/TimeTracking';
 import SettingsWorkTypes from './pages/settings/WorkTypes';
 import SettingsCannedResponses from './pages/settings/CannedResponses';
+import SettingsTicketCategories from './pages/settings/TicketCategories';
 import SettingsRecurringTickets from './pages/settings/RecurringTickets';
 import RecurringTicketEditor from './pages/settings/RecurringTicketEditor';
 import SettingsSingleSignOn from './pages/settings/SingleSignOn';
@@ -111,7 +112,7 @@ const SETTINGS_COMPONENTS = {
   users: AdminUsers, 'user-detail': UserDetail, teams: SettingsTeams, departments: AdminDepartments,
   roles: AdminRoles, 'role-new': RoleEditor, 'role-edit': RoleEditor, 'api-keys': AdminApiKeys,
   statuses: SettingsStatuses, 'custom-fields': SettingsLayouts, blueprints: AdminBlueprints,
-  'workflow-rules': WorkflowRules, 'canned-responses': SettingsCannedResponses,
+  'workflow-rules': WorkflowRules, 'canned-responses': SettingsCannedResponses, 'ticket-categories': SettingsTicketCategories,
   'recurring-tickets': SettingsRecurringTickets, 'recurring-ticket-new': RecurringTicketEditor, 'recurring-ticket-edit': RecurringTicketEditor,
   'workflow-rule-new': WorkflowRuleEditor, 'workflow-rule-edit': WorkflowRuleEditor,
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
