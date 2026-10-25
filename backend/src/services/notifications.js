@@ -7,7 +7,7 @@
 // most one notification per ticket per type.
 const { Op } = require('sequelize');
 const {
-  Notification, Ticket, TicketWatcher, TeamMember, SystemSettings, User,
+  Notification, Ticket, Project, TicketWatcher, TeamMember, SystemSettings, User,
 } = require('../models');
 const { getTicketStatusBuckets } = require('./statusBehavior');
 
@@ -46,11 +46,24 @@ async function canReachTicket(userId, ticketId) {
   return !!(user && ticket && (await canAccessCompany(user, ticket.companyId)));
 }
 
-async function createNotification({ userId, type, message, ticketId = null }) {
+// A notification about a project names its tasks, so it only goes to someone
+// who can still open the project (current scope rules) and still work its
+// company: a helper can be fenced off from the company after being added.
+async function canReachProject(userId, projectId) {
+  // Lazy: permissionService requires the models this file is loaded beside.
+  const { canAccessProject } = require('./permissionService'); // eslint-disable-line global-require
+  const [user, project] = await Promise.all([User.findByPk(userId), Project.findByPk(projectId)]);
+  return !!(user && user.isActive && project && (await canAccessProject(user, project)));
+}
+
+async function createNotification({
+  userId, type, message, ticketId = null, projectId = null,
+}) {
   if (!userId) return null;
   if (!(await isTypeEnabled(type))) return null;
   if (ticketId && !(await canReachTicket(userId, ticketId))) return null;
-  const notification = await Notification.create({ userId, type, message, ticketId });
+  if (projectId && !(await canReachProject(userId, projectId))) return null;
+  const notification = await Notification.create({ userId, type, message, ticketId, projectId });
   // Some types also email the user (their preference, else the admin
   // default); queued after this request. Lazy: the mail modules load the
   // settings controller, which loads this one.
@@ -190,6 +203,7 @@ async function notifySecurityAdmins({ type, message }) {
 }
 
 module.exports = {
+  canReachProject,
   notifySecurityAdmins,
   createNotification,
   notifyAssigned,

@@ -34,6 +34,13 @@ router.patch('/:id/tasks/:taskId/subtasks/:subtaskId', editMin, ctrl.updateSubta
 router.delete('/:id/tasks/:taskId/subtasks/:subtaskId', editMin, ctrl.removeSubtask);
 router.patch('/:id/tasks/:taskId/subtasks/:subtaskId/code', editMin, ctrl.renumberSubtask);
 
+// Helpers: view access is checked in the controller (the main assignee can add one
+// without the edit tier; a helper can remove themselves).
+router.post('/:id/tasks/:taskId/helpers', ctrl.addHelper);
+router.delete('/:id/tasks/:taskId/helpers/:userId', ctrl.removeHelper);
+router.post('/:id/tasks/:taskId/subtasks/:subtaskId/helpers', ctrl.addSubtaskHelper);
+router.delete('/:id/tasks/:taskId/subtasks/:subtaskId/helpers/:userId', ctrl.removeSubtaskHelper);
+
 // Phases
 router.get('/:id/phases', ctrl.listPhases);
 router.post('/:id/phases', editMin, ctrl.createPhase);

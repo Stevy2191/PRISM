@@ -131,6 +131,13 @@ async function syncLeadMembership(project, previousLeadId) {
   }
 }
 
+// Adding a helper (decision 15): the edit tier on the project, or being the
+// task's main assignee. Call after the view check.
+async function assertCanAddHelper(req, project, task) {
+  if (task.assigneeId === req.user.id) return;
+  if (!(await canEditProject(req.user, project))) throw new ApiError(403, 'You do not have permission to add helpers to this task', 'FORBIDDEN');
+}
+
 // What the viewer may do with this project, for the screens to follow.
 async function projectAccessFor(viewer, project) {
   const edit = await canEditProject(viewer, project);
@@ -143,6 +150,7 @@ async function projectAccessFor(viewer, project) {
 
 module.exports = {
   assertCanEditProject,
+  assertCanAddHelper,
   projectAccessFor,
   assertCanWorkProject,
   assertCanManageMembers,

@@ -5,6 +5,7 @@ const { Project } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { canAccessProject } = require('../../services/permissionService');
 const tasks = require('../../services/tasks');
+const helpers = require('../../services/projects/helpers');
 const { assertCanEditProject } = require('./shared');
 
 // Reading needs view access; changing tasks needs the edit tier (Q26).
@@ -32,7 +33,7 @@ async function subtaskFor(parent, req) {
 
 // GET /projects/:id/tasks — top-level tasks with their subtasks
 const listTasks = asyncHandler(async (req, res) => {
-  res.json({ tasks: await tasks.listTasks(await projectFor(req, { edit: false }), req.user) });
+  res.json({ tasks: await tasks.listTasks(await projectFor(req, { edit: false }), req.user, { mine: req.query.mine }) });
 });
 
 // POST /projects/:id/tasks — { title, description?, statusId?, priority?, assigneeId?, dueDate?, estimateMinutes?, parentTaskId?, linkedTicketId? }
@@ -90,7 +91,37 @@ const removeSubtask = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Helpers (decision 15) ----
+
+// POST/DELETE .../helpers — the task id is checked first (404), then the
+// service checks who may add or remove.
+const addHelper = asyncHandler(async (req, res) => {
+  const parent = await projectFor(req, { edit: false });
+  const task = await taskFor(parent, req.params.taskId);
+  res.status(201).json({ task: await helpers.addHelper(req, parent, task, req.body?.userId) });
+});
+
+const removeHelper = asyncHandler(async (req, res) => {
+  const parent = await projectFor(req, { edit: false });
+  const task = await taskFor(parent, req.params.taskId);
+  res.json({ task: await helpers.removeHelper(req, parent, task, req.params.userId) });
+});
+
+const addSubtaskHelper = asyncHandler(async (req, res) => {
+  const parent = await projectFor(req, { edit: false });
+  res.status(201).json({ task: await helpers.addHelper(req, parent, await subtaskFor(parent, req), req.body?.userId) });
+});
+
+const removeSubtaskHelper = asyncHandler(async (req, res) => {
+  const parent = await projectFor(req, { edit: false });
+  res.json({ task: await helpers.removeHelper(req, parent, await subtaskFor(parent, req), req.params.userId) });
+});
+
 module.exports = {
+  addHelper,
+  removeHelper,
+  addSubtaskHelper,
+  removeSubtaskHelper,
   listTasks,
   createTask,
   updateTask,

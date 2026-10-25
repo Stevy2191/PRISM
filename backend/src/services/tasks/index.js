@@ -3,7 +3,7 @@
 // ticket and project controllers only find the parent and check access.
 const { Op } = require('sequelize');
 const {
-  Task, TaskStatus, ProjectPhase, TimeEntry, ActiveTimer, ProjectExpense, ProjectMaterial, ProjectFile, User, Ticket, sequelize,
+  Task, TaskAssignee, TaskStatus, ProjectPhase, TimeEntry, ActiveTimer, ProjectExpense, ProjectMaterial, ProjectFile, User, Ticket, sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -42,12 +42,15 @@ function taskIncludes(parent) {
   // resolving them, so one object shared by two levels breaks the query.
   const status = () => ({ model: TaskStatus, as: 'status' });
   const assignee = () => ({ model: User, as: 'assignee', attributes: userAttrs });
+  // Helpers are project-only (decision 15); the join row is not shown.
+  const helpers = () => ({ model: User, as: 'helpers', attributes: userAttrs, through: { attributes: [] } });
+  const people = parent.kind === 'project' ? [helpers()] : [];
   const linked = parent.kind === 'project'
     ? [{ model: Ticket, as: 'linkedTicket', attributes: ['id', 'title', 'departmentId', 'assigneeId', 'companyId'], where: { companyId: parent.companyId }, required: false }]
     : [];
   return [
-    assignee(), status(), ...linked,
-    { model: Task, as: 'subtasks', separate: true, order: ORDER, include: [assignee(), status()] },
+    assignee(), status(), ...people, ...linked,
+    { model: Task, as: 'subtasks', separate: true, order: ORDER, include: [assignee(), status(), ...people] },
   ];
 }
 
@@ -74,13 +77,41 @@ async function loggedSecondsByTask(parent) {
   return new Map(rows.map((r) => [r.taskId, Number(r.seconds) || 0]));
 }
 
+// Distinct people with time on each task (each task's own entries), as
+// Map(taskId -> Set(userId)).
+async function loggersByTask(parent) {
+  const rows = await TimeEntry.findAll({
+    where: { ...parent.where, taskId: { [Op.ne]: null } },
+    attributes: ['taskId', 'userId'],
+    group: ['taskId', 'userId'],
+    raw: true,
+  });
+  const out = new Map();
+  for (const r of rows) {
+    if (!out.has(r.taskId)) out.set(r.taskId, new Set());
+    out.get(r.taskId).add(r.userId);
+  }
+  return out;
+}
+
+const shownPerson = (u) => ({ id: u.id, name: u.displayName || u.username, avatar: null });
+
 // logged: loggedSecondsByTask. A task's loggedSeconds counts its subtasks'.
-async function annotate(task, behavior, viewer, logged = new Map()) {
+// loggers: loggersByTask. Hours are person-hours: loggedSeconds is everyone's
+// time and loggedBy counts the people behind it.
+async function annotate(task, behavior, viewer, logged = new Map(), loggers = new Map()) {
   const json = task.toJSON();
   const subs = task.subtasks || [];
   json.loggedSeconds = (logged.get(task.id) || 0) + subs.reduce((n, st) => n + (logged.get(st.id) || 0), 0);
+  json.loggedBy = new Set([task.id, ...subs.map((st) => st.id)].flatMap((id) => [...(loggers.get(id) || [])])).size;
+  if (Array.isArray(json.helpers)) json.helpers = json.helpers.map(shownPerson);
   if (Array.isArray(json.subtasks)) {
-    json.subtasks = json.subtasks.map((st) => ({ ...st, loggedSeconds: logged.get(st.id) || 0 }));
+    json.subtasks = json.subtasks.map((st) => ({
+      ...st,
+      loggedSeconds: logged.get(st.id) || 0,
+      loggedBy: (loggers.get(st.id) || new Set()).size,
+      ...(Array.isArray(st.helpers) ? { helpers: st.helpers.map(shownPerson) } : {}),
+    }));
   }
   if (json.parentTaskId === null) {
     json.isComplete = isTaskComplete(task, task.subtasks || [], behavior);
@@ -93,14 +124,34 @@ async function annotate(task, behavior, viewer, logged = new Map()) {
 // viewer: the user the task is shown to, for the linked ticket (Q19).
 async function loadTask(parent, id, viewer) {
   const task = await Task.findByPk(id, { include: taskIncludes(parent) });
-  return annotate(task, await taskStatusBehaviorMap(), viewer, await loggedSecondsByTask(parent));
+  return annotate(task, await taskStatusBehaviorMap(), viewer, await loggedSecondsByTask(parent), await loggersByTask(parent));
 }
 
-async function listTasks(parent, viewer) {
-  const tasks = await Task.findAll({ where: { ...parent.where, parentTaskId: null }, include: taskIncludes(parent), order: ORDER });
+// Top-level tasks of a project where this user is the main assignee or a
+// helper, on the task or on one of its subtasks (the subtasks all still show).
+async function topTaskIdsFor(parent, userId) {
+  const helping = await TaskAssignee.findAll({ where: { userId }, attributes: ['taskId'], raw: true });
+  const rows = await Task.findAll({
+    where: { ...parent.where, [Op.or]: [{ assigneeId: userId }, { id: helping.map((h) => h.taskId) }] },
+    attributes: ['id', 'parentTaskId'],
+    raw: true,
+  });
+  return [...new Set(rows.map((r) => r.parentTaskId || r.id))];
+}
+
+// options.mine: a user id; keeps only the tasks that user works on.
+async function listTasks(parent, viewer, { mine } = {}) {
+  const where = { ...parent.where, parentTaskId: null };
+  if (given(mine)) {
+    const userId = parseRecordId(mine);
+    if (!userId) throw bad('mine must be a user id');
+    where.id = parent.kind === 'project' ? await topTaskIdsFor(parent, userId) : (await Task.findAll({ where: { ...parent.where, assigneeId: userId }, attributes: ['id'], raw: true })).map((t) => t.id);
+  }
+  const tasks = await Task.findAll({ where, include: taskIncludes(parent), order: ORDER });
   const behavior = await taskStatusBehaviorMap();
   const logged = await loggedSecondsByTask(parent);
-  return Promise.all(tasks.map((t) => annotate(t, behavior, viewer, logged)));
+  const loggers = await loggersByTask(parent);
+  return Promise.all(tasks.map((t) => annotate(t, behavior, viewer, logged, loggers)));
 }
 
 // ---- Field rules ----
@@ -350,6 +401,8 @@ async function updateTask(req, parent, task, body = {}) {
   if (!Object.keys(changes).length) return loadTask(parent, task.id, req.user);
 
   await task.update(changes);
+  // A new main assignee who was a helper is no longer one (decision 15).
+  if (changes.assigneeId) await TaskAssignee.destroy({ where: { taskId: task.id, userId: changes.assigneeId } });
   if (statusEvent) await recordTaskEvent(req, parent, task, statusEvent);
   if (fields.length) {
     await recordTaskEvent(req, parent, task, 'updated', { from: null, to: fields.join(', '), detail: { fields } });

@@ -16,6 +16,7 @@ const TYPES = [
   ['sla_warning', 'SLA at risk', 'A ticket you’re assigned (or your team, before it’s assigned) is close to an SLA target.'],
   ['sla_breached', 'SLA breached', 'A ticket you’re assigned (or your team, before it’s assigned) missed an SLA target.'],
   ['new_in_queue', 'New in team queue', 'A ticket lands in your team’s queue with nobody assigned.'],
+  ['task_added', 'Added to a project task', 'Someone adds you as a helper on a project task.'],
 ];
 
 // Events that can also email; users can change their own (Preferences).
