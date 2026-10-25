@@ -1,6 +1,6 @@
 # Project management, full feature (sub-project 6) — design
 
-> Status: **draft for approval** (2026-10-25). Plan:
+> Status: **approved** (2026-10-25). Plan:
 > `docs/superpowers/plans/2026-10-25-project-management.md`.
 > Mockups (look A, all project screens): https://claude.ai/artifact/NXd5ZYb4P98kk8VjxHwx3H
 
