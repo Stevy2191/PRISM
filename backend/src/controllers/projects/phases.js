@@ -2,7 +2,7 @@
 // phase's dates and counts are derived from its tasks, never stored.
 const { Op } = require('sequelize');
 const {
-  Project, ProjectPhase, Task, TimeEntry, sequelize,
+  Project, ProjectPhase, Task, sequelize,
 } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -10,6 +10,7 @@ const { canAccessProject, parseRecordId } = require('../../services/permissionSe
 const { taskStatusBehaviorMap } = require('../../services/tasks/statuses');
 const { isTaskComplete } = require('../../services/projectCompletion');
 const { phaseSpan } = require('../../services/projects/schedule');
+const { cleanBudgetMinutes, phaseSeconds } = require('../../services/projects/budget');
 const { assertCanEditProject } = require('./shared');
 
 const ORDER = [['position', 'ASC'], ['id', 'ASC']];
@@ -39,13 +40,6 @@ function cleanName(value) {
   return name;
 }
 
-function cleanBudget(value) {
-  if (value === null || value === '') return null;
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 0) throw bad('Hour budget must be a whole number of minutes');
-  return n;
-}
-
 async function phaseSummaries(project) {
   const phases = await ProjectPhase.findAll({ where: { projectId: project.id }, order: ORDER });
   if (!phases.length) return [];
@@ -55,18 +49,10 @@ async function phaseSummaries(project) {
   });
   const behavior = await taskStatusBehaviorMap();
   // Time on a phase's tasks and their subtasks, from every user (the ledger).
-  const ids = tasks.flatMap((t) => [t.id, ...t.subtasks.map((s) => s.id)]);
-  const rows = ids.length ? await TimeEntry.findAll({
-    where: { projectId: project.id, taskId: ids },
-    attributes: ['taskId', [sequelize.fn('SUM', sequelize.col('durationSeconds')), 'seconds']],
-    group: ['taskId'],
-    raw: true,
-  }) : [];
-  const seconds = new Map(rows.map((r) => [r.taskId, Number(r.seconds) || 0]));
+  const seconds = await phaseSeconds(project.id);
   return phases.map((phase) => {
     const own = tasks.filter((t) => t.phaseId === phase.id);
     const span = phaseSpan(own) || { startDate: null, dueDate: null };
-    const secs = own.reduce((n, t) => n + (seconds.get(t.id) || 0) + t.subtasks.reduce((m, s) => m + (seconds.get(s.id) || 0), 0), 0);
     return {
       id: phase.id,
       name: phase.name,
@@ -76,7 +62,7 @@ async function phaseSummaries(project) {
       dueDate: span.dueDate,
       taskCount: own.length,
       doneCount: own.filter((t) => isTaskComplete(t, t.subtasks, behavior)).length,
-      loggedMinutes: Math.round(secs / 60),
+      loggedMinutes: Math.round((seconds.get(phase.id) || 0) / 60),
       estimateMinutes: own.reduce((n, t) => n + (t.estimateMinutes || 0), 0),
     };
   });
@@ -105,7 +91,7 @@ const updatePhase = asyncHandler(async (req, res) => {
   const phase = await phaseFor(project, req.params.phaseId);
   const changes = {};
   if (req.body?.name !== undefined) changes.name = cleanName(req.body.name);
-  if (req.body?.hourBudgetMinutes !== undefined) changes.hourBudgetMinutes = cleanBudget(req.body.hourBudgetMinutes);
+  if (req.body?.hourBudgetMinutes !== undefined) changes.hourBudgetMinutes = cleanBudgetMinutes(req.body.hourBudgetMinutes);
   if (Object.keys(changes).length) {
     await phase.update(changes);
     await audit(req, 'update', project, phase.id, { fields: Object.keys(changes) });

@@ -10,6 +10,7 @@ const { writeAudit } = require('../../middleware/audit');
 const { logActivity } = require('../ticketActivity');
 const { logProjectActivity } = require('../projectActivity');
 const { canWorkCompany } = require('../ticketPeople');
+const { checkBudgetAlertsSafely } = require('../projects/budget');
 const { hasPermission, parseRecordId } = require('../permissionService');
 const { calculateLaborCost } = require('../../utils/laborCost');
 const {
@@ -221,6 +222,10 @@ async function logged(req, parent, entry, action) {
   else await logProjectActivity(parent.record.id, req.user.id, 'time_logged', { minutes });
 }
 
+// A project's hours changed: look at its budget alerts. The time write has
+// committed; this never fails the request.
+const budgetCheck = (parent) => (parent.kind === 'project' ? checkBudgetAlertsSafely(parent.record.id) : undefined);
+
 async function createEntry(req, parent, body = {}) {
   const duration = readDuration(body, true);
   await assertWithinLimit(duration.durationSeconds);
@@ -242,6 +247,7 @@ async function createEntry(req, parent, body = {}) {
     laborCost: calculateLaborCost(target, { durationSeconds: duration.durationSeconds }),
   });
   await logged(req, parent, entry, 'time.create');
+  await budgetCheck(parent);
   return loadEntry(entry.id);
 }
 
@@ -271,6 +277,7 @@ async function updateEntry(req, parent, entry, body = {}) {
   }
   await entry.update(changes);
   await writeAudit(req, 'time.update', 'TimeEntry', entry.id, { ...parent.where, fields: Object.keys(changes) }); // Q2
+  await budgetCheck(parent);
   return loadEntry(entry.id);
 }
 
@@ -278,6 +285,7 @@ async function deleteEntry(req, parent, entry) {
   await assertCanChange(req, entry, 'remove');
   await entry.destroy();
   await writeAudit(req, 'time.delete', 'TimeEntry', entry.id, { ...parent.where, durationSeconds: entry.durationSeconds });
+  await budgetCheck(parent);
 }
 
 // The running timer's time: a span from its start, by the person running it,
@@ -306,6 +314,7 @@ async function logTimerEntry(req, parent, { startedAt, endedAt, taskId, note }) 
     laborCost: calculateLaborCost(req.user, { durationSeconds }),
   });
   await logged(req, parent, entry, 'timer.log');
+  await budgetCheck(parent);
   return loadEntry(entry.id);
 }
 

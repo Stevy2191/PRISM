@@ -42,6 +42,7 @@ const {
   parseRecordId,
 } = require('../../services/permissionService');
 const { generateProjectCode } = require('../../services/projectCodeService');
+const { cleanBudgetMinutes, budgetSummary, rearmBudgetAlerts } = require('../../services/projects/budget');
 const {
   userAttrs, projectInclude, buildProjectStats, getProjectWithDetail, assertCanEditProject,
   assertCanWorkProject, assertCanManageMembers, syncLeadMembership, projectAccessFor,
@@ -299,6 +300,26 @@ const get = asyncHandler(async (req, res) => {
   res.json({ project: { ...project, access: await projectAccessFor(req.user, project) } });
 });
 
+const BUDGET_FIELDS = ['hourBudgetMinutes', 'budgetAlert80', 'budgetAlert100', 'startDate'];
+const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
+
+// Checks the budget fields of a PATCH in place: minutes (or null), two
+// booleans, and a real 'YYYY-MM-DD' start date no later than the due date.
+function cleanBudgetFields(project, changes) {
+  if (changes.hourBudgetMinutes !== undefined) changes.hourBudgetMinutes = cleanBudgetMinutes(changes.hourBudgetMinutes);
+  for (const key of ['budgetAlert80', 'budgetAlert100']) {
+    if (changes[key] !== undefined && typeof changes[key] !== 'boolean') throw bad(`${key} must be true or false`);
+  }
+  const validDate = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
+  if (changes.startDate === '') changes.startDate = null;
+  if (changes.startDate !== undefined && changes.startDate !== null && !validDate(changes.startDate)) {
+    throw bad('Start date must be a date like 2026-03-02');
+  }
+  const start = changes.startDate !== undefined ? changes.startDate : project.startDate;
+  const due = changes.dueDate !== undefined ? changes.dueDate : project.dueDate;
+  if (start && due && validDate(due) && start > due) throw bad('Start date can\'t be after the due date');
+}
+
 // PATCH /projects/:id — Admin/Technician. Updates any field.
 const update = asyncHandler(async (req, res) => {
   const project = await Project.findByPk(req.params.id);
@@ -312,12 +333,13 @@ const update = asyncHandler(async (req, res) => {
 
   const allowed = [
     'name', 'description', 'status', 'ownerDepartmentId', 'forDepartmentId',
-    'assignedToUserId', 'teamId', 'dueDate', 'tags',
+    'assignedToUserId', 'teamId', 'dueDate', 'tags', ...BUDGET_FIELDS,
   ];
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
+  cleanBudgetFields(project, changes);
   if (changes.name !== undefined) {
     if (typeof changes.name !== 'string' || !changes.name.trim()) {
       throw new ApiError(400, 'Project name is required', 'VALIDATION_ERROR');
@@ -372,7 +394,16 @@ const update = asyncHandler(async (req, res) => {
 
   await project.update(changes);
   await syncLeadMembership(project, previousLeadId);
-  await writeAudit(req, 'project.update', 'Project', project.id, changes);
+  const budgetChanges = Object.fromEntries(Object.entries(changes).filter(([k]) => BUDGET_FIELDS.includes(k)));
+  const otherChanges = Object.fromEntries(Object.entries(changes).filter(([k]) => !BUDGET_FIELDS.includes(k)));
+  if (!Object.keys(budgetChanges).length || Object.keys(otherChanges).length) {
+    await writeAudit(req, 'project.update', 'Project', project.id, otherChanges);
+  }
+  if (Object.keys(budgetChanges).length) {
+    await writeAudit(req, 'project.budget', 'Project', project.id, budgetChanges);
+    // A new budget re-arms the alert levels; it never notifies.
+    try { await rearmBudgetAlerts(project.id); } catch (err) { console.error('[budget] re-arm failed:', err.message); }
+  }
   if (statusChanged) {
     await logProjectActivity(project.id, req.user.id, 'status_changed', { from: previousStatus, to: changes.status });
   }
@@ -424,7 +455,17 @@ const getStats = asyncHandler(async (req, res) => {
   res.json({ stats: await buildProjectStats(project) });
 });
 
+// GET /projects/:id/budget — hours used against the budget, by phase and person.
+const getBudget = asyncHandler(async (req, res) => {
+  const id = parseRecordId(req.params.id);
+  const project = id && await Project.findByPk(id);
+  if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  res.json({ budget: await budgetSummary(project.id) });
+});
+
 module.exports = {
+  getBudget,
   list,
   listTags,
   create,
