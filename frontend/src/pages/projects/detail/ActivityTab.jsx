@@ -3,7 +3,7 @@ import LoadMore from '../../../components/LoadMore';
 import { CARD_BG, BORDER, TEXT, MUTED } from '../theme';
 
 // ==================== Activity tab ====================
-const ACTIVITY_LABELS = {
+export const ACTIVITY_LABELS = {
   project_created: 'created the project',
   status_changed: 'changed the status',
   task_created: 'created a task',

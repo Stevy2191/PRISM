@@ -247,6 +247,7 @@ export default function ProjectDetail() {
           timerLabel={`${project.projectCode} ${project.name}`}
           today={today}
           addFocus={addFocus}
+          activity={activity}
           onStopRequest={setStoppedTimer}
           onChanged={reloadAll}
         />

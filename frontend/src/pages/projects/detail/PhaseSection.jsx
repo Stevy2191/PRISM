@@ -63,14 +63,16 @@ export default function PhaseSection({
       {!collapsed && (
         <>
           {tasks.length > 0 && (
-            <div className="hidden h-[34px] grid-cols-[28px_120px_minmax(0,1fr)_150px_120px_160px_104px] items-center gap-x-3 border-t border-navy-100 px-[18px] text-xs font-medium text-navy-400 md:grid">
-              <span /><span>Code</span><span>Task</span><span>Assignee</span><span>Dates</span><span>Logged / est.</span><span />
+            <div className={`hidden h-[34px] items-center gap-x-3 border-t border-navy-100 px-[18px] text-xs font-medium text-navy-400 md:grid ${ctx.compact ? 'grid-cols-[28px_minmax(0,1fr)_150px_88px]' : 'grid-cols-[28px_120px_minmax(0,1fr)_150px_120px_160px_104px]'}`}>
+              {ctx.compact
+                ? <><span /><span>Task</span><span>Assignee</span><span /></>
+                : <><span /><span>Code</span><span>Task</span><span>Assignee</span><span>Dates</span><span>Logged / est.</span><span /></>}
             </div>
           )}
           {tasks.map((task) => (
             <div key={task.id}>
               <TaskRow task={task} ctx={ctx} />
-              {(task.subtasks || []).map((st) => <TaskRow key={st.id} task={st} sub ctx={ctx} />)}
+              {(task.subtasks || []).map((st) => <TaskRow key={st.id} task={st} sub parentId={task.id} ctx={ctx} />)}
             </div>
           ))}
           {tasks.length === 0 && <p className="border-t border-navy-100 px-[18px] py-3 text-sm text-navy-400">{ctx.filtered ? 'No tasks match this filter.' : 'No tasks in this phase yet.'}</p>}

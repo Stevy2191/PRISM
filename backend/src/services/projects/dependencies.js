@@ -90,12 +90,13 @@ async function removeLink(req, project, rawId) {
 }
 
 // After a due date moved later: the unfinished tasks downstream, to offer to
-// move by the same number of days. null when there is nothing to offer.
+// move by the same number of days (only those with dates: shiftDependents
+// has nothing to move on an undated task). null when there is nothing to offer.
 async function shiftOffer(project, task, oldDue, newDue) {
   if (task.parentTaskId || !oldDue || !newDue || newDue <= oldDue) return null;
   const graph = await loadGraph(project.id);
   const behavior = await taskStatusBehaviorMap();
-  const open = downstream(graph.deps, task.id).map((id) => graph.tasks.get(id)).filter((t) => t && !isDone(behavior, t));
+  const open = downstream(graph.deps, task.id).map((id) => graph.tasks.get(id)).filter((t) => t && !isDone(behavior, t) && (t.startDate || t.dueDate));
   if (!open.length) return null;
   return { days: daysBetween(oldDue, newDue), tasks: open.map((t) => ({ id: t.id, code: t.code, title: t.title })) };
 }

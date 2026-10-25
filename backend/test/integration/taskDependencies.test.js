@@ -166,6 +166,18 @@ describe('shift offer and shift dependents', () => {
     expect(res.task.shiftOffer).toBeUndefined();
   });
 
+  it('shiftOffer lists only downstream tasks that have dates (the ones shift-dependents will move)', async () => {
+    const e = await mk({ title: 'E undated' });
+    await link(d.id, e.id);
+    const res = expectOk(await patch(a, { dueDate: '2026-03-08' }));
+    expect(res.shiftOffer.tasks.map((t) => t.id)).toEqual([b.id, c.id, d.id]);
+    // an undated task alone downstream: nothing to offer
+    const lone = await mk({ title: 'Lone', startDate: '2026-04-01', dueDate: '2026-04-02' });
+    const loose = await mk({ title: 'Loose' });
+    await link(lone.id, loose.id);
+    expect((await patch(lone, { dueDate: '2026-04-04' })).body.shiftOffer).toBeUndefined();
+  });
+
   it('moving earlier returns no shiftOffer', async () => {
     const res = expectOk(await patch(a, { dueDate: '2026-03-04' }));
     expect(res.shiftOffer).toBeUndefined();

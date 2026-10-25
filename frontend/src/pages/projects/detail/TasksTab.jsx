@@ -1,20 +1,26 @@
 // The Tasks tab: filter pills, tasks grouped by phase (each collapsible, with
-// a quick-add row) and the inline task details.
+// a quick-add row), the shift-dependents banner and the docked task panel.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import api, { errMessage } from '../../../api/api';
 import Pill from '../../../components/ui/Pill';
-import TaskDetails from '../../../components/work/TaskDetails';
 import { workPaths } from '../../../components/work/workPaths';
 import PhaseSection from './PhaseSection';
-import { FILTERS, filterTasks, groupByPhase, isDone } from './taskFilters';
+import ShiftBanner from './ShiftBanner';
+import TaskPanel from './TaskPanel';
+import { useListKeys } from './useListKeys';
+import {
+  FILTERS, filterTasks, groupByPhase, isDone, shortCode,
+} from './taskFilters';
 
 export default function TasksTab({
   projectId, tasks, phases, statuses, assignableUsers, canEdit, canLog, canManageOthers, currentUser, timerLabel,
-  today, addFocus, onStopRequest, onChanged,
+  today, addFocus, activity, onStopRequest, onChanged,
 }) {
   const paths = workPaths('project', projectId);
   const [filter, setFilter] = useState('all');
-  const [openId, setOpenId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [offer, setOffer] = useState(null); // the shift-dependents banner
+  const [shifting, setShifting] = useState(false);
   // Only phases the person has opened or closed by hand are in here; the rest
   // follow the default (a finished phase starts collapsed).
   const [collapsedBy, setCollapsedBy] = useState({});
@@ -76,6 +82,21 @@ export default function TasksTab({
     saveOrder(peers);
   };
 
+  const selected = tasks.find((t) => t.id === selectedId) || null;
+  const closePanel = () => setSelectedId(null);
+
+  // A due date moved later: the server names what waits on it.
+  const showOffer = (task, found) => setOffer({
+    taskId: task.id, code: shortCode(task.code), days: found.days, count: found.tasks.length,
+  });
+  const shiftThem = async () => {
+    setShifting(true);
+    try { await api.post(`${paths.task(offer.taskId)}/shift-dependents`, { days: offer.days }); } catch (err) { alert(errMessage(err)); }
+    setShifting(false);
+    setOffer(null);
+    await onChanged();
+  };
+
   const quickAdd = (title, phaseId) => call(() => api.post(paths.tasks, phaseId ? { title, phaseId } : { title }));
 
   const isCollapsed = (g) => {
@@ -100,8 +121,9 @@ export default function TasksTab({
     canLog,
     today,
     timerLabel,
-    openId,
-    setOpenId,
+    selectedId,
+    onSelect: setSelectedId,
+    compact: !!selected,
     isDone,
     filtered: filter !== 'all',
     onToggle: toggle,
@@ -120,14 +142,6 @@ export default function TasksTab({
     },
     onDrop: dropOn,
     onStopRequest,
-    renderDetails: (task) => (
-      <TaskDetails
-        key={task.id}
-        kind="project" parentId={projectId} task={task} tasks={tasks} statuses={statuses}
-        assignableUsers={assignableUsers} canEdit={canEdit} canLog={canLog} canManageOthers={canManageOthers}
-        currentUser={currentUser} timerLabel={timerLabel} onChanged={onChanged}
-      />
-    ),
   };
 
   // First phase with unfinished work is the one drawn in the accent colour.
@@ -136,8 +150,15 @@ export default function TasksTab({
     return g ? g.phase.id : null;
   })();
 
-  return (
-    <div>
+  // J/K walk the rows showing now, in order (a collapsed phase has none).
+  const keyIds = groups
+    .filter((g) => !isCollapsed(g))
+    .flatMap((g) => g.tasks.map((t) => t.id));
+  useListKeys({ ids: keyIds, selectedId: selected ? selected.id : null, onSelect: setSelectedId, onClose: closePanel });
+
+  const list = (
+    <div className="min-w-0 flex-1">
+      {offer && <ShiftBanner offer={offer} busy={shifting} onMove={shiftThem} onLeave={() => setOffer(null)} />}
       <div role="group" aria-label="Filter tasks" className="my-4 flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (
           <Pill key={f.id} on={filter === f.id} onClick={() => setFilter(f.id)}>{f.label}</Pill>
@@ -169,6 +190,24 @@ export default function TasksTab({
           group={{ phase: null, tasks: [] }} ctx={ctx} allTasks={[]} collapsed={false} active={false}
           onToggle={() => {}} onQuickAdd={quickAdd} quickRef={(el) => { quickRefs.current.none = el; }}
         />
+      )}
+    </div>
+  );
+
+  return (
+    <div className="flex items-start gap-5">
+      {list}
+      {selected && (
+        <div className="w-full max-w-[480px] flex-shrink-0 max-md:contents md:sticky md:top-4 md:w-[440px] lg:w-[480px]">
+          <TaskPanel
+            key={selected.id}
+            task={selected} projectId={projectId} tasks={tasks} phases={phases} statuses={statuses}
+            users={assignableUsers} canEdit={canEdit} canLog={canLog} currentUser={currentUser}
+            timerLabel={timerLabel} today={today} activity={activity}
+            onClose={closePanel} onSelect={setSelectedId} onChanged={onChanged}
+            onShiftOffer={showOffer} onStopRequest={onStopRequest}
+          />
+        </div>
       )}
     </div>
   );

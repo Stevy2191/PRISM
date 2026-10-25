@@ -34,9 +34,10 @@ function People({ task }) {
   );
 }
 
-export default function TaskRow({ task, sub = false, ctx }) {
+export default function TaskRow({ task, sub = false, parentId = null, ctx }) {
   const done = sub ? task.status?.behaviorType === 'closed' : isDone(task);
-  const open = ctx.openId === task.id;
+  const selectedId = sub ? parentId : task.id;
+  const selected = ctx.selectedId === selectedId;
   const overdue = !done && !!task.dueDate && task.dueDate < ctx.today;
   const waiting = !done && !sub ? task.waitingOn || [] : [];
   const subs = sub ? [] : task.subtasks || [];
@@ -47,8 +48,10 @@ export default function TaskRow({ task, sub = false, ctx }) {
     <div
       onDragOver={ctx.reorderable && !sub ? (e) => ctx.onDragOver(e, task) : undefined}
       onDrop={ctx.reorderable && !sub ? (e) => { e.preventDefault(); ctx.onDrop(task); } : undefined}
-      className={`group grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 border-t border-navy-100 px-4 hover:bg-[var(--color-hover)] md:px-[18px] md:grid-cols-[28px_120px_minmax(0,1fr)_150px_120px_160px_104px] ${sub ? 'min-h-[40px]' : 'min-h-[52px]'} max-md:py-2`}
+      aria-current={selected && !sub ? 'true' : undefined}
+      className={`group grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 border-t border-navy-100 px-4 hover:bg-[var(--color-hover)] md:px-[18px] ${ctx.compact ? 'md:grid-cols-[28px_minmax(0,1fr)_150px_88px]' : 'md:grid-cols-[28px_120px_minmax(0,1fr)_150px_120px_160px_104px]'} ${sub ? 'min-h-[40px]' : 'min-h-[52px]'} max-md:py-2`}
       style={{
+        ...(selected && !sub ? { backgroundColor: 'var(--color-accent-soft)', boxShadow: 'inset 3px 0 0 var(--color-accent)' } : {}),
         ...(sub ? { backgroundColor: 'color-mix(in srgb, var(--color-text-primary) 2%, transparent)' } : {}),
         ...(ctx.draggedId === task.id ? { opacity: 0.5 } : {}),
         ...(ctx.overId === task.id && ctx.draggedId !== task.id ? { boxShadow: 'inset 0 2px 0 var(--color-accent)' } : {}),
@@ -63,13 +66,12 @@ export default function TaskRow({ task, sub = false, ctx }) {
         className="h-4 w-4 max-md:h-6 max-md:w-6"
         style={{ accentColor: 'var(--color-accent)' }}
       />
-      <span className="num hidden text-[13px] text-navy-400 md:block">{sub ? shortCode(task.code) : task.code}</span>
+      <span className={`num hidden text-[13px] text-navy-400 ${ctx.compact ? '' : 'md:block'}`}>{sub ? shortCode(task.code) : task.code}</span>
       <div className={`flex min-w-0 flex-wrap items-center gap-2 py-1 ${sub ? 'md:pl-5' : ''}`}>
           {task.isMilestone && <span className="inline-block h-[11px] w-[11px] rotate-45 rounded-[2px] bg-navy-900" aria-label="Milestone" />}
           <button
             type="button"
-            aria-expanded={open}
-            onClick={() => ctx.setOpenId(open ? null : task.id)}
+            onClick={() => ctx.onSelect(selectedId)}
             className={`text-left ${task.isMilestone ? 'font-semibold' : 'font-medium'} ${done ? 'text-navy-400 line-through' : ''}`}
           >
             {task.title}
@@ -92,14 +94,14 @@ export default function TaskRow({ task, sub = false, ctx }) {
           {dueSoon != null && dueSoon >= 0 && dueSoon <= 7 && (
             <span className="text-xs text-navy-400">{dueSoon === 0 ? 'today' : `in ${dueSoon} d`}</span>
           )}
-          <span className="num text-[13px] text-navy-400 md:hidden">{sub ? shortCode(task.code) : task.code}</span>
+          <span className={`num text-[13px] text-navy-400 ${ctx.compact ? '' : 'md:hidden'}`}>{sub ? shortCode(task.code) : task.code}</span>
       </div>
       <div className="col-span-3 flex flex-wrap items-center gap-x-4 gap-y-1 pb-1 pl-10 max-md:order-3 md:col-span-1 md:contents md:p-0">
           <People task={task} />
-          <span className="num text-[13px] text-navy-400">{dateRange(task.startDate, task.dueDate)}</span>
-          <span className={`num text-[13px] ${over ? 'font-semibold' : 'text-navy-500'}`} style={over ? { color: 'var(--color-danger)' } : undefined}>
+          {!ctx.compact && <span className="num text-[13px] text-navy-400">{dateRange(task.startDate, task.dueDate)}</span>}
+          {!ctx.compact && <span className={`num text-[13px] ${over ? 'font-semibold' : 'text-navy-500'}`} style={over ? { color: 'var(--color-danger)' } : undefined}>
             {loggedText(task)}
-          </span>
+          </span>}
       </div>
       <div className="flex items-center justify-end gap-1">
         {ctx.reorderable && !sub && (
@@ -131,9 +133,6 @@ export default function TaskRow({ task, sub = false, ctx }) {
             label={`${ctx.timerLabel} · ${task.title}`} onStopRequest={ctx.onStopRequest} />
         )}
       </div>
-      {open && (
-        <div className="col-span-3 pb-3 max-md:order-4 md:col-span-7">{ctx.renderDetails(task)}</div>
-      )}
     </div>
   );
 }
