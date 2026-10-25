@@ -12,14 +12,14 @@ const { createNotification } = require('../notifications');
 // 100,000 hours: far past any real project, well inside an INT.
 const MAX_BUDGET_MINUTES = 6000000;
 
-// A budget in whole minutes, or null for none. Used by the project and its phases.
+// A budget in whole minutes, or null for none (0 counts as none). Used by the project and its phases.
 function cleanBudgetMinutes(value) {
   if (value === null || value === '') return null;
   const n = typeof value === 'number' || (typeof value === 'string' && /^\d{1,9}$/.test(value.trim())) ? Number(value) : NaN;
   if (!Number.isInteger(n) || n < 0 || n > MAX_BUDGET_MINUTES) {
     throw new ApiError(400, `Hour budget must be a whole number of minutes, 0 to ${MAX_BUDGET_MINUTES}`, 'VALIDATION_ERROR');
   }
-  return n;
+  return n || null; // 0 hours is no budget
 }
 
 // Seconds logged per task for the project (taskId null = no task).
@@ -97,7 +97,9 @@ async function currentLevel(project) {
 }
 
 // Lowers the remembered level to match the hours, without notifying. Run when
-// the budget changes, and by checkBudgetAlerts when hours fall.
+// the budget changes, and by checkBudgetAlerts when hours fall. The recompute
+// is not atomic with a concurrent ledger change; a stale level self-heals on
+// the next ledger change, which runs the check again.
 async function rearmBudgetAlerts(projectId) {
   const project = await Project.findByPk(projectId, { attributes: ['id', 'hourBudgetMinutes', 'budgetAlertLevel'] });
   if (!project || project.budgetAlertLevel === 0) return;

@@ -1,3 +1,4 @@
+const { checkBudgetAlerts } = require('../../src/services/projects/budget');
 const { resetData, closeDb, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeStaff, makeOwnTier, makeProject, makeTask, makeSubtask,
@@ -74,6 +75,14 @@ describe('budget fields', () => {
     expect(expectOk(await setBudget({ hourBudgetMinutes: null, startDate: null })).project.hourBudgetMinutes).toBeNull();
   });
 
+  it('a budget of 0 is stored as none, for the project and its phases', async () => {
+    expect(expectOk(await setBudget({ hourBudgetMinutes: 0 })).project.hourBudgetMinutes).toBeNull();
+    const phase = expectOk(await w.admin.agent.post(`${timeUrl}/${proj.id}/phases`).send({ name: 'Build' }), 201).phase;
+    const res = expectOk(await w.admin.agent.patch(`${timeUrl}/${proj.id}/phases/${phase.id}`).send({ hourBudgetMinutes: 0 }));
+    expect(res.phase.hourBudgetMinutes).toBeNull();
+    expect((await budget()).budgetMinutes).toBeNull();
+  });
+
   it('rejects bad values', async () => {
     for (const body of [
       { hourBudgetMinutes: -1 }, { hourBudgetMinutes: 1.5 }, { hourBudgetMinutes: true }, { hourBudgetMinutes: [] },
@@ -131,6 +140,25 @@ describe('alerts', () => {
     const tech = await makeTech('tech', w.deptA.id);
     await Promise.all([logTime(w.admin.agent, 50), logTime(tech.agent, 50)]);
     expect(await alerts('budget_warning')).toHaveLength(1);
+  });
+
+  it('concurrent checks after one crossing -> exactly one budget_warning', async () => {
+    // Seeded directly, so no request has run a check: all three race on the level.
+    await models.TimeEntry.create({
+      projectId: proj.id, userId: w.admin.user.id, loggedById: w.admin.user.id, entryDate: '2026-03-02',
+      durationSeconds: 490 * 60, billable: true, workTypeId: (await models.WorkType.findOne()).id,
+    });
+    await Promise.all([checkBudgetAlerts(proj.id), checkBudgetAlerts(proj.id), checkBudgetAlerts(proj.id)]);
+    expect(await alerts('budget_warning')).toHaveLength(1);
+    expect(await level()).toBe(80);
+  });
+
+  it('a timer stop that crosses 80% sends one budget_warning', async () => {
+    await logTime(w.admin.agent, 470);
+    const timer = expectOk(await w.admin.agent.post(`${API}/timer/start`).send({ type: 'project', id: proj.id }), 201).timer;
+    expectOk(await w.admin.agent.post(`${API}/timer/${timer.timerId}/stop`).send({ entry: { durationMinutes: 20 } }));
+    const rows = await alerts();
+    expect(rows.map((n) => n.type)).toEqual(['budget_warning']);
   });
 
   it('deleting time back under 80% re-arms without notifying', async () => {
