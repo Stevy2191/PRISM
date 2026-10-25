@@ -177,14 +177,14 @@ export default function TopNav() {
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="mr-1 hidden h-9 items-center gap-2 rounded-md border px-2.5 text-sm md:flex xl:w-64"
+            className="mr-1 hidden h-9 items-center gap-2 rounded-md border px-2.5 text-sm md:flex 2xl:w-64"
             style={{ color: 'var(--color-text-muted)', backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
             title="Search (Ctrl+K)"
             aria-label="Search"
           >
             <IconSearch size={16} stroke={1.8} />
-            <span className="hidden flex-1 text-left xl:inline">Search</span>
-            <kbd className="hidden rounded border px-1.5 text-xs xl:inline" style={{ borderColor: 'var(--color-border)', fontFamily: 'inherit' }}>Ctrl K</kbd>
+            <span className="hidden flex-1 text-left 2xl:inline">Search</span>
+            <kbd className="hidden rounded border px-1.5 text-xs 2xl:inline" style={{ borderColor: 'var(--color-border)', fontFamily: 'inherit' }}>Ctrl K</kbd>
           </button>
 
           <TimerIndicator />
