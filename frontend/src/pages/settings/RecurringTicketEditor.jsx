@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import CategoryPicker from '../../components/CategoryPicker';
+import { buildIndex, isEffectivelyActive } from '../../components/categoryTree';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
@@ -31,6 +32,19 @@ export default function RecurringTicketEditor() {
   const [teams, setTeams] = useState([]);
   const [users, setUsers] = useState([]);
   const [categories, setCategories] = useState([]);
+  // Worked out from the category picked now (not the saved rule): the
+  // same test the run uses before putting the category on the ticket.
+  const categoryWarning = (() => {
+    if (!form.categoryId) return '';
+    const index = buildIndex(categories);
+    const node = index.get(Number(form.categoryId));
+    if (!node) return '';
+    if (!isEffectivelyActive(index, node.id)) return 'This category is retired: runs create the ticket without one until you pick another.';
+    if (node.requireChild && categories.some((c) => c.parentId === node.id && c.active)) {
+      return 'This category needs a sub-category: runs create the ticket without one until you pick one.';
+    }
+    return '';
+  })();
   const [runsAs, setRunsAs] = useState(null);
   const [preview, setPreview] = useState({ runs: [], error: '' });
   const [newTask, setNewTask] = useState('');
@@ -164,8 +178,8 @@ export default function RecurringTicketEditor() {
                   includeRetiredValue
                   id="rt-category"
                 />
-                {form.categoryRetired && (
-                  <p className="mt-1 text-xs" style={{ color: 'var(--color-warning)' }}>This category was retired: runs create the ticket without one until you pick another.</p>
+                {categoryWarning && (
+                  <p className="mt-1 text-xs" style={{ color: 'var(--color-warning)' }} data-testid="rt-category-warning">{categoryWarning}</p>
                 )}
               </div>
             )}

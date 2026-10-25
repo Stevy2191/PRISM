@@ -105,7 +105,15 @@ export function BulkActionBar({
         </select>
       )}
       {bulkActionType === 'category' && (
-        <CategoryPicker categories={categories} value={bulkValue || null} onChange={(v) => setBulkValue(v || '')} id="bulk-category" />
+        <>
+          {bulkValue !== 'none' && (
+            <CategoryPicker categories={categories} value={bulkValue || null} onChange={(v) => setBulkValue(v || '')} id="bulk-category" emptyLabel="Select category…" compact />
+          )}
+          <label className="flex flex-shrink-0 items-center gap-1 text-xs" style={{ color: MUTED }}>
+            <input type="checkbox" checked={bulkValue === 'none'} onChange={(e) => setBulkValue(e.target.checked ? 'none' : '')} />
+            Remove the category
+          </label>
+        </>
       )}
       {bulkActionType === 'add_watcher' && (
         <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} aria-label="Watcher" className="input h-9 max-w-[11rem] flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}>

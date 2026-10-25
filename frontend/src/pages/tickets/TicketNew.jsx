@@ -1,5 +1,5 @@
 // New ticket page.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import CategoryPicker from '../../components/CategoryPicker';
 import api, { errMessage } from '../../api/api';
@@ -90,9 +90,15 @@ export default function TicketNew() {
   // currently-selected ticket type and category. Re-fetched whenever either
   // changes; values for fields no longer shown are dropped so a stale hidden
   // value can't be submitted.
+  // Only the latest request's answer counts: a slow one for an earlier type
+  // or category must not replace the fields for the current one.
+  const fieldsRequest = useRef(0);
   useEffect(() => {
+    fieldsRequest.current += 1;
+    const mine = fieldsRequest.current;
     api.get('/custom-fields', { params: { ticketType: type, categoryId: categoryId || '' } })
       .then(({ data }) => {
+        if (mine !== fieldsRequest.current) return;
         setCustomFields(data.customFields);
         setCustomFieldValues((prev) => {
           const keys = new Set(data.customFields.map((f) => f.fieldKey));
@@ -104,7 +110,7 @@ export default function TicketNew() {
           return next;
         });
       })
-      .catch(() => setCustomFields([]));
+      .catch(() => { if (mine === fieldsRequest.current) setCustomFields([]); });
   }, [type, categoryId]);
 
   const setCustomFieldValue = (key, value) => setCustomFieldValues((prev) => ({ ...prev, [key]: value }));

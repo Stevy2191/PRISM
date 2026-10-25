@@ -102,12 +102,15 @@ describe('picker on tickets', () => {
     expect((await models.Ticket.findByPk(id)).categoryId).toBe(laptop.id);
   });
 
-  it('a requireChild parent alone shows the API message', async () => {
+  it('a requireChild parent alone can\'t be submitted: the sub-category level is required', async () => {
     expectOk(await w.admin.agent.patch(`${CAT}/${hw.id}`).send({ requireChild: true }));
     await openForm();
     await level(page, 1).selectOption(String(hw.id));
+    const before = await models.Ticket.count();
     await submit();
-    await shown(page, 'Choose a sub-category under Hardware').waitFor();
+    expect(await level(page, 2).evaluate((el) => el.validity.valueMissing)).toBe(true);
+    expect(page.url()).toMatch(/\/tickets\/new/);
+    expect(await models.Ticket.count()).toBe(before);
     expectOk(await w.admin.agent.patch(`${CAT}/${hw.id}`).send({ requireChild: false }));
   });
 
@@ -176,16 +179,73 @@ describe('picker on tickets', () => {
   it('a saved list filter on a retired category shows it and can be cleared', async () => {
     const t = await makeTicket(w.admin.agent, { title: 'Filtered retired', contactId: w.contact.id, departmentId: w.deptA.id, categoryId: sw.id });
     expect(t.category.id).toBe(sw.id);
-    expectOk(await w.admin.agent.post(`${API}/saved-filters`).send({ name: 'Software view', filterJson: { category: sw.id } }), 201);
+    // Saved filters outlive resetData: a unique name per run.
+    const viewName = `Software view ${Date.now()}`;
+    expectOk(await w.admin.agent.post(`${API}/saved-filters`).send({ name: viewName, filterJson: { category: sw.id } }), 201);
     expectOk(await w.admin.agent.patch(`${CAT}/${sw.id}`).send({ active: false }));
     await page.goto('/tickets');
     await page.getByTitle('Saved filters').click();
-    await page.getByRole('button', { name: 'Software view' }).click();
+    await page.getByRole('button', { name: viewName }).click();
     const inline = page.getByTestId('filter-category-inline-box').filter({ visible: true }).first();
     await inline.getByText('(retired)').waitFor();
     await inline.getByRole('button', { name: 'change' }).click();
     expect(await page.locator('#filter-category-inline').filter({ visible: true }).first().inputValue()).toBe('');
     expectOk(await w.admin.agent.patch(`${CAT}/${sw.id}`).send({ active: true }));
+  });
+
+  it('a slow custom-field answer for an earlier category doesn\'t replace the current one', async () => {
+    const field = await models.CustomField.findOne({ where: { label: 'Serial number' } });
+    expect(field).toBeTruthy();
+    await openForm();
+    // Hold back the answer for Hardware until after Software's has arrived.
+    await page.route(`**/custom-fields?*categoryId=${hw.id}*`, async (route) => {
+      await new Promise((r) => { setTimeout(r, 1500); });
+      await route.continue();
+    });
+    const slow = page.waitForResponse((r) => r.url().includes(`categoryId=${hw.id}`));
+    await level(page, 1).selectOption(String(hw.id));
+    await level(page, 1).selectOption(String(sw.id));
+    await slow;
+    await page.waitForTimeout(300);
+    expect(await page.getByText('Serial number').filter({ visible: true }).count()).toBe(0);
+    await page.unroute(`**/custom-fields?*categoryId=${hw.id}*`);
+  });
+
+  it('after a parent that needs a sub-category, the next level says so and is required', async () => {
+    expectOk(await w.admin.agent.patch(`${CAT}/${hw.id}`).send({ requireChild: true }));
+    await openForm();
+    await level(page, 1).selectOption(String(hw.id));
+    const second = level(page, 2);
+    expect(await second.locator('option').first().textContent()).toBe('Choose a sub-category…');
+    expect(await second.getAttribute('required')).not.toBeNull();
+    expectOk(await w.admin.agent.patch(`${CAT}/${hw.id}`).send({ requireChild: false }));
+  });
+
+  it('the recurring editor warns about the category it has now, in the right words', async () => {
+    const rule = expectOk(await w.admin.agent.post(`${API}/recurring-tickets`).send({
+      title: 'Weekly cat', contactId: w.contact.id, departmentId: w.deptA.id, categoryId: hw.id,
+      frequency: 'weekly', interval: 1, weekdays: [1], timeOfDay: '09:00', timezone: 'America/Chicago', startDate: '2026-01-01',
+    }), 201).rule;
+    expectOk(await w.admin.agent.patch(`${CAT}/${hw.id}`).send({ requireChild: true }));
+    await page.goto(`/settings/recurring-tickets/${rule.id}`);
+    const warn = page.getByTestId('rt-category-warning');
+    await warn.waitFor();
+    expect(await warn.textContent()).toMatch(/needs a sub-category/);
+    await level(page, 2).selectOption(String(laptop.id));
+    await warn.waitFor({ state: 'hidden' });
+    expectOk(await w.admin.agent.patch(`${CAT}/${hw.id}`).send({ requireChild: false }));
+    await models.RecurringTicket.destroy({ where: { id: rule.id } });
+  });
+
+  it('bulk edit can remove the category', async () => {
+    const t = await makeTicket(w.admin.agent, { title: 'Bulk clear me', contactId: w.contact.id, departmentId: w.deptA.id, categoryId: sw.id });
+    await page.goto('/tickets');
+    await page.locator('tr', { hasText: 'Bulk clear me' }).filter({ visible: true }).locator('input[type=checkbox]').check();
+    await page.locator('select').filter({ hasText: 'Choose action…' }).filter({ visible: true }).first().selectOption('category');
+    await page.getByLabel('Remove the category').check();
+    await page.getByRole('button', { name: 'Apply' }).filter({ visible: true }).first().click();
+    await page.getByTestId('bulk-result').waitFor();
+    expect((await models.Ticket.findByPk(t.id)).categoryId).toBeNull();
   });
 
   it('the list filter by Hardware shows the Laptop ticket', async () => {

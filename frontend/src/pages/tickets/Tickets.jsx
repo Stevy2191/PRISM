@@ -324,6 +324,8 @@ export default function Tickets() {
       }
       const action = bulkActionType === 'reassign' ? 'assign' : bulkActionType;
       let value = bulkValue || null;
+      // "Remove the category" is sent as null.
+      if (action === 'category' && bulkValue === 'none') value = null;
       if (action === 'merge') {
         const target = Number(String(bulkValue).replace(/[^0-9]/g, ''));
         if (!target) { alert('Enter the ticket number to merge into'); return; }

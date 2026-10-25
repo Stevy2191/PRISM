@@ -35,7 +35,11 @@ export default function CategoryPicker({
   for (let depth = 0; depth < 5; depth += 1) {
     const options = childrenOf(index, parent);
     if (!options.length) break;
-    levels.push({ depth, options, selected: chosen[depth] ?? '' });
+    // Under a "must choose a sub-category" parent, this level isn't optional.
+    const mustChoose = parent != null && !!index.get(parent)?.requireChild;
+    levels.push({
+      depth, options, selected: chosen[depth] ?? '', mustChoose,
+    });
     if (chosen[depth] == null) break;
     parent = chosen[depth];
   }
@@ -56,11 +60,11 @@ export default function CategoryPicker({
           aria-label={`Category level ${l.depth + 1}`}
           className={compact ? 'input h-9 w-auto max-w-[11rem] text-sm' : 'input w-auto min-w-[10rem]'}
           value={l.selected}
-          required={required && l.depth === 0}
+          required={(required && l.depth === 0) || l.mustChoose}
           disabled={disabled}
           onChange={(e) => pick(l.depth, e.target.value)}
         >
-          <option value="">{l.depth === 0 ? emptyLabel : 'Any'}</option>
+          <option value="">{l.depth === 0 ? emptyLabel : (l.mustChoose ? 'Choose a sub-category…' : 'Any')}</option>
           {l.options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
       ))}
