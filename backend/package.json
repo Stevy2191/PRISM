@@ -12,7 +12,7 @@
     "owner:transfer": "node scripts/owner-transfer.js",
     "seed": "sequelize-cli db:seed:all",
     "test": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=3072\" jest",
-    "test:smoke": "npm --prefix ../frontend run build && cross-env NODE_OPTIONS=--experimental-vm-modules jest -c jest.smoke.config.js",
+    "test:smoke": "npm --prefix ../frontend run build && cross-env NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=3072\" jest -c jest.smoke.config.js",
     "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules jest test/unit",
     "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest test/integration",
     "test:migrate": "cross-env NODE_ENV=test sequelize-cli db:migrate --env test"

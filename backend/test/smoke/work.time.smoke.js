@@ -61,7 +61,7 @@ it('edits a duration-only entry without inventing times', async () => {
 it('logs and deletes time on a project the same way', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/projects/${project.id}`);
-  await page.getByRole('tab', { name: /^Time/ }).filter({ visible: true }).first().click(); // the project page's look A tab strip
+  await page.getByRole('tab', { name: /^Time(?!line)/ }).filter({ visible: true }).first().click(); // the project page's look A tab strip
   await button(page, 'Log time').click();
   await dialog(page).getByLabel('Note').fill('Rack and stack');
   await dialog(page).getByRole('button', { name: 'Save time entry' }).click();
