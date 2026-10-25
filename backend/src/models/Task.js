@@ -23,6 +23,10 @@ module.exports = (sequelize) => {
       assigneeId: { type: DataTypes.INTEGER, allowNull: true },
       dueDate: { type: DataTypes.DATEONLY, allowNull: true },
       estimateMinutes: { type: DataTypes.INTEGER, allowNull: true },
+      // Project tasks only. Dates are DATEONLY strings; startDate may be null.
+      phaseId: { type: DataTypes.INTEGER, allowNull: true },
+      startDate: { type: DataTypes.DATEONLY, allowNull: true },
+      isMilestone: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       position: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       completedAt: { type: DataTypes.DATE, allowNull: true },
       // Project tasks only; same company as the project.

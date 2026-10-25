@@ -15,7 +15,7 @@ module.exports = (sequelize) => {
         allowNull: false,
       },
       type: {
-        type: DataTypes.ENUM('reply', 'assigned', 'overdue', 'comment', 'due_soon', 'status_change', 'watcher_update', 'workflow', 'sla_warning', 'sla_breached', 'new_in_queue', 'recurring_paused', 'virus_blocked', 'scanner_unavailable'),
+        type: DataTypes.ENUM('reply', 'assigned', 'overdue', 'comment', 'due_soon', 'status_change', 'watcher_update', 'workflow', 'sla_warning', 'sla_breached', 'new_in_queue', 'recurring_paused', 'virus_blocked', 'scanner_unavailable', 'task_unblocked', 'task_added', 'budget_warning', 'budget_reached'),
         allowNull: false,
       },
       message: {
@@ -23,6 +23,10 @@ module.exports = (sequelize) => {
         allowNull: false,
       },
       ticketId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      projectId: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },

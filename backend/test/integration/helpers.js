@@ -132,7 +132,7 @@ async function resetSlaPolicies() {
 async function resetData() {
   await ensureSchema();
   const tables = [
-    'Comments', 'Attachments', 'TicketWatchers', 'TicketCcs', 'EmailTemplates', 'EmailProcessingLogs', 'Tasks', 'TicketActivities',
+    'Comments', 'Attachments', 'TicketWatchers', 'TicketCcs', 'EmailTemplates', 'EmailProcessingLogs', 'TaskDependencies', 'TaskAssignees', 'Tasks', 'TicketActivities',
     'TicketRelations', 'TicketFieldValues', 'TimeEntries', 'ActiveTimers',
     'CannedResponses', 'RecurringTickets',
     'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'TicketSlas', 'TicketDueDateChanges', 'Tickets', 'Contacts',
@@ -141,7 +141,7 @@ async function resetData() {
     // would otherwise inherit the previous test's expenses/time/materials.
     'ProjectExpenses', 'ProjectMaterials', 'ProjectFiles',
     'ProjectActivities', 'ProjectMembers',
-    'ProjectIdSequences', 'Projects',
+    'ProjectIdSequences', 'ProjectPhases', 'Projects',
     'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
     'CustomFields', 'TicketCategories', 'TeamMembers', 'Teams',
     'AuditLogs', 'SystemAuditLogs',

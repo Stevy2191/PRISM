@@ -7,6 +7,9 @@ const Department = require('./Department')(sequelize);
 const Project = require('./Project')(sequelize);
 const ProjectMember = require('./ProjectMember')(sequelize);
 const Task = require('./Task')(sequelize);
+const ProjectPhase = require('./ProjectPhase')(sequelize);
+const TaskDependency = require('./TaskDependency')(sequelize);
+const TaskAssignee = require('./TaskAssignee')(sequelize);
 const TaskStatus = require('./TaskStatus')(sequelize);
 const WorkType = require('./WorkType')(sequelize);
 const ProjectExpense = require('./ProjectExpense')(sequelize);
@@ -132,6 +135,9 @@ const db = {
   Attachment,
   TimeEntry,
   Task,
+  ProjectPhase,
+  TaskDependency,
+  TaskAssignee,
   TaskStatus,
   WorkType,
   ApiKey,
@@ -309,6 +315,24 @@ Task.belongsTo(TaskStatus, { foreignKey: 'statusId', as: 'status' });
 Task.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
 Task.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 Task.belongsTo(Ticket, { foreignKey: 'linkedTicketId', as: 'linkedTicket' });
+
+// Project structure (sub-project 6): phases, dependencies, helpers
+Project.hasMany(ProjectPhase, { foreignKey: 'projectId', as: 'phases', onDelete: 'CASCADE' });
+ProjectPhase.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+ProjectPhase.hasMany(Task, { foreignKey: 'phaseId', as: 'tasks', onDelete: 'SET NULL' });
+Task.belongsTo(ProjectPhase, { foreignKey: 'phaseId', as: 'phase' });
+Task.hasMany(TaskDependency, { foreignKey: 'successorId', as: 'predecessorLinks', onDelete: 'CASCADE' });
+Task.hasMany(TaskDependency, { foreignKey: 'predecessorId', as: 'successorLinks', onDelete: 'CASCADE' });
+TaskDependency.belongsTo(Task, { foreignKey: 'predecessorId', as: 'predecessor' });
+TaskDependency.belongsTo(Task, { foreignKey: 'successorId', as: 'successor' });
+TaskDependency.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+// Helpers only; Tasks.assigneeId stays the main assignee.
+Task.belongsToMany(User, { through: TaskAssignee, foreignKey: 'taskId', otherKey: 'userId', as: 'helpers' });
+User.belongsToMany(Task, { through: TaskAssignee, foreignKey: 'userId', otherKey: 'taskId', as: 'helpingTasks' });
+Task.hasMany(TaskAssignee, { foreignKey: 'taskId', as: 'helperLinks', onDelete: 'CASCADE' });
+TaskAssignee.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+TaskAssignee.belongsTo(User, { foreignKey: 'addedBy', as: 'adder' });
+Notification.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 ProjectExpense.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
 ProjectMaterial.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
 ProjectFile.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });

@@ -63,6 +63,13 @@ module.exports = (sequelize) => {
         type: DataTypes.DATEONLY,
         allowNull: true,
       },
+      startDate: { type: DataTypes.DATEONLY, allowNull: true },
+      // Minutes; null = no budget.
+      hourBudgetMinutes: { type: DataTypes.INTEGER, allowNull: true },
+      // Highest budget alert already sent: 0, 80 or 100.
+      budgetAlertLevel: { type: DataTypes.TINYINT, allowNull: false, defaultValue: 0 },
+      budgetAlert80: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      budgetAlert100: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       closedAt: {
         type: DataTypes.DATE,
         allowNull: true,
