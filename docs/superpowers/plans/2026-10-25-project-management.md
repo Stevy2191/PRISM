@@ -254,13 +254,13 @@
 - `groupByPhase(tasks, phases) → [{ phase|null, tasks }]` (phase order, "No phase" last, empty phases kept)
 - `daysUntil(today, date) → number`
 
-- [ ] Tests:
+- [x] Tests:
   - Backend: `stats nextMilestone is the earliest open milestone`, `waitingCount counts waiting open tasks`
   - Frontend: `groupByPhase keeps empty phases and puts No phase last`, `filter waiting/overdue/mine`, `mine includes tasks I help on`, `daysUntil uses string dates`
   - Row shows stacked avatars (main first) and "3 h logged by 2 people" when `loggedBy > 1`
   - Smoke: `quick-add in a phase creates a task in that phase`, `Costs tab shows expenses and materials`, `collapsing a phase hides its rows`
-- [ ] Implement against the Main board, then run the build and tests.
-- [ ] Commit `feat(projects): look A project page, phases on the Tasks tab, Costs tab`.
+- [x] Implement against the Main board, then run the build and tests.
+- [x] Commit `feat(projects): look A project page, phases on the Tasks tab, Costs tab`.
 
 ### Task 6: Docked task panel, quick time, keys, shift banner
 
@@ -272,11 +272,11 @@
 - Consumes: helpers endpoints (Task 3b); the task PATCH `shiftOffer` and `POST shift-dependents` (Task 4), and the existing `POST /projects/:id/time-entries {taskId, durationSeconds, entryDate}`.
 - Produces: `nextIndex(current, delta, length) → number` (clamped); `<TaskPanel taskId onClose>`.
 
-- [ ] Tests:
+- [x] Tests:
   - Unit: `nextIndex clamps at both ends`
   - Smoke: `People field: Add a helper picks a person and shows them; helper can remove themselves`, `clicking a task opens the panel and the list stays clickable`, `J/K move the selection, Esc closes`, `keys ignored while typing in an input`, `30 min logs an entry for today on that task`, `moving a due date later shows the banner; Move 3 tasks shifts them; Leave them dismisses`, `view-only user sees no edit controls but can log time`
-- [ ] Implement against the TaskPanel board and run.
-- [ ] Commit `feat(projects): docked task panel, quick time, keyboard, shift-dependents banner`.
+- [x] Implement against the TaskPanel board and run.
+- [x] Commit `feat(projects): docked task panel, quick time, keyboard, shift-dependents banner`.
 
 ### Task 7: Timeline tab
 
@@ -291,11 +291,11 @@
 - `dragResult(task, mode: 'move'|'start'|'end', dayDelta) → { startDate, dueDate }` (never start > due; a milestone only moves)
 - `arrowPath(fromRect, toRect, rowGap) → string` (SVG path)
 
-- [ ] Tests:
+- [x] Tests:
   - Unit: `dayToX/xToDay round trip`, `barRect null when undated`, `dragResult end before start clamps to one day`, `milestone resize is a move`
   - Smoke: `dragging a bar 2 days saves new dates and shows the shift banner when it has dependents`, `zoom switch keeps today in view`, `under 768px the timeline scrolls and bars cannot be dragged`
-- [ ] Implement against the Timeline board and run.
-- [ ] Commit `feat(projects): timeline tab with drag, resize and dependency arrows`.
+- [x] Implement against the Timeline board and run.
+- [x] Commit `feat(projects): timeline tab with drag, resize and dependency arrows`.
 
 ## Stage 4 — Hour budgets
 
