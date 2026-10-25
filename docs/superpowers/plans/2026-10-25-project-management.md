@@ -108,11 +108,11 @@
 - `meterLevel(used: number, budget: number|null) → 'none'|'ok'|'near'|'over'` (near ≥ 80%, over > 100%)
 - `<Button variant="primary|default|quiet|icon" size="sm|md">`, `<Pill on>`, `<Tabs items={[{id,label,count?}]} value onChange>`, `<Meter used budget>`, `<Notice tone="info|warn|bad">`, `<Field label hint>`
 
-- [ ] Unit tests: `meterLevel null budget is none`, `79.9% is ok, 80% is near, 100% is near, 100.1% is over`.
+- [x] Unit tests: `meterLevel null budget is none`, `79.9% is ok, 80% is near, 100% is near, 100.1% is over`.
 - Modify also: `frontend/index.html` (pre-mount default `'dark'`), `frontend/src/context/ThemeContext.jsx` (default `'dark'`), `frontend/src/pages/settings/Preferences.jsx` (option order Dark, Light, Match my system).
-- [ ] Smoke tests: `fresh browser with no stored theme opens dark (no light flash: data-theme is dark before React mounts)`, `stored light is kept`, `body uses Instrument Sans`, `dark theme sets a dark --color-bg`, `Settings → Appearance custom accent still overrides --color-accent in dark and light`.
-- [ ] Implement, then run `npm run build` and the smoke file.
-- [ ] Commit `feat(look): look A tokens, Instrument Sans, shared UI primitives`.
+- [x] Smoke tests: `fresh browser with no stored theme opens dark (no light flash: data-theme is dark before React mounts)`, `stored light is kept`, `body uses Instrument Sans`, `dark theme sets a dark --color-bg`, `Settings → Appearance custom accent still overrides --color-accent in dark and light`.
+- [x] Implement, then run `npm run build` and the smoke file.
+- [x] Commit `feat(look): look A tokens, Instrument Sans, shared UI primitives`.
 
 ## Stage 2 — Structure: phases, milestones, dependencies
 
