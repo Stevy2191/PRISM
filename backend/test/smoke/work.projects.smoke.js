@@ -39,7 +39,7 @@ it('every tab opens and shows its content', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/projects/${project.id}`);
   await shown(page, 'Office move').waitFor();
-  await tab(page, /^Time/);
+  await tab(page, /^Time(?!line)/); // not the Timeline tab
   await shown(page, 'Seeded project time').waitFor();
   await tab(page, /^Costs/);
   await shown(page, 'Seeded expense').waitFor();

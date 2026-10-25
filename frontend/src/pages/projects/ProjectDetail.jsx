@@ -19,6 +19,7 @@ import ProjectHeader from './detail/ProjectHeader';
 import SummaryRow from './detail/SummaryRow';
 import TasksTab from './detail/TasksTab';
 import CostsTab from './detail/CostsTab';
+import TimelineTab from './detail/TimelineTab';
 import GenerateProjectReportModal from './detail/ReportModal';
 import { hoursFromMinutes, localToday } from './detail/taskFilters';
 
@@ -186,6 +187,7 @@ export default function ProjectDetail() {
   const estimateMinutes = tasks.reduce((n, t) => n + (t.estimateMinutes || 0), 0);
   const tabs = [
     { id: 'tasks', label: 'Tasks', count: stats.tasksTotal },
+    { id: 'timeline', label: 'Timeline' },
     { id: 'time', label: 'Time', count: `${hoursFromMinutes(stats.loggedMinutes)} h` },
     { id: 'costs', label: 'Costs' },
     { id: 'files', label: 'Files', count: files.length },
@@ -249,6 +251,16 @@ export default function ProjectDetail() {
           addFocus={addFocus}
           activity={activity}
           onStopRequest={setStoppedTimer}
+          onChanged={reloadAll}
+        />
+      )}
+      {tab === 'timeline' && (
+        <TimelineTab
+          projectId={project.id}
+          tasks={tasks}
+          phases={phases}
+          canEdit={canEdit}
+          today={today}
           onChanged={reloadAll}
         />
       )}
