@@ -3,6 +3,7 @@
 module.exports = {
   ...require('./projects/core'),
   ...require('./projects/tasks'),
+  ...require('./projects/phases'),
   ...require('./projects/time'),
   ...require('./projects/expenses'),
   ...require('./projects/materials'),

@@ -34,6 +34,13 @@ router.patch('/:id/tasks/:taskId/subtasks/:subtaskId', editMin, ctrl.updateSubta
 router.delete('/:id/tasks/:taskId/subtasks/:subtaskId', editMin, ctrl.removeSubtask);
 router.patch('/:id/tasks/:taskId/subtasks/:subtaskId/code', editMin, ctrl.renumberSubtask);
 
+// Phases
+router.get('/:id/phases', ctrl.listPhases);
+router.post('/:id/phases', editMin, ctrl.createPhase);
+router.patch('/:id/phases/reorder', editMin, ctrl.reorderPhases); // must precede /:phaseId
+router.patch('/:id/phases/:phaseId', editMin, ctrl.updatePhase);
+router.delete('/:id/phases/:phaseId', editMin, ctrl.removePhase);
+
 // Time entries (time.log; the same rules as ticket time)
 router.get('/:id/time-entries', ctrl.listTimeEntries);
 router.get('/:id/time-entries/log-for', logTime, ctrl.listLogFor);

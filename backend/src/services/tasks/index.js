@@ -3,7 +3,7 @@
 // ticket and project controllers only find the parent and check access.
 const { Op } = require('sequelize');
 const {
-  Task, TaskStatus, TimeEntry, ActiveTimer, ProjectExpense, ProjectMaterial, ProjectFile, User, Ticket, sequelize,
+  Task, TaskStatus, ProjectPhase, TimeEntry, ActiveTimer, ProjectExpense, ProjectMaterial, ProjectFile, User, Ticket, sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -122,12 +122,14 @@ function resolvePriority(value) {
   return value;
 }
 
-function resolveDueDate(value) {
+// Strict 'YYYY-MM-DD' only (no timestamps, no impossible days).
+function resolveDate(value, label) {
   if (!given(value)) return null;
-  const date = toDateString(value);
-  if (!date || String(value).length > 10) throw bad('Invalid due date');
+  const date = typeof value === 'string' && value.length === 10 ? toDateString(value) : null;
+  if (!date) throw bad(`Invalid ${label}`);
   return date;
 }
+const resolveDueDate = (value) => resolveDate(value, 'due date');
 
 function resolveEstimate(value) {
   if (!given(value)) return null;
@@ -165,6 +167,58 @@ async function resolveLinkedTicket(req, parent, value, current) {
   return linked.id;
 }
 
+// ---- Project-only fields: phase, start date, milestone (sub-project 6) ----
+
+const projectOnly = (message) => new ApiError(400, message, 'PROJECT_TASK_ONLY');
+const milestoneHasSubtasks = () => new ApiError(400, "A milestone can't have subtasks", 'MILESTONE_HAS_SUBTASKS');
+const PROJECT_ONLY_FIELDS = ['phaseId', 'startDate', 'isMilestone'];
+
+// A ticket task refuses a real value for these (a client sending the task
+// back whole, with the empty defaults, is not refused).
+function refuseProjectOnly(parent, body) {
+  if (parent.kind === 'project') return;
+  const sent = PROJECT_ONLY_FIELDS.filter((k) => given(body[k]) && body[k] !== false);
+  if (sent.length) throw projectOnly(`${sent.join(', ')} can only be set on project tasks`);
+}
+
+// The phase must be in this project, else 404 — checked before any other
+// validation. null clears it.
+async function resolvePhase(parent, value) {
+  if (!given(value)) return null;
+  const id = parseRecordId(value);
+  const phase = id && await ProjectPhase.findOne({ where: { id, projectId: parent.record.id } });
+  if (!phase) throw new ApiError(404, 'Phase not found', 'NOT_FOUND');
+  return phase.id;
+}
+
+const resolveStartDate = (value) => resolveDate(value, 'start date');
+
+function resolveMilestoneFlag(value) {
+  if (typeof value !== 'boolean') throw bad('isMilestone must be true or false');
+  return value;
+}
+
+// Dates and estimate after the change, for a task whose effective state is
+// `now` (existing values merged with the body). A milestone has one date and
+// no estimate; any other task needs start <= due.
+function settleDates(body, now, becomingMilestone) {
+  const out = { startDate: now.startDate, dueDate: now.dueDate, estimateMinutes: now.estimateMinutes };
+  if (body.startDate !== undefined) out.startDate = resolveStartDate(body.startDate);
+  if (body.dueDate !== undefined) out.dueDate = resolveDueDate(body.dueDate);
+  if (now.isMilestone) {
+    const anySent = body.startDate !== undefined || body.dueDate !== undefined;
+    const sent = [body.dueDate !== undefined && out.dueDate, body.startDate !== undefined && out.startDate].filter(Boolean);
+    if (sent.length === 2 && sent[0] !== sent[1]) throw bad('A milestone has a single date');
+    // Only one date sent: both take it. Clearing the only date clears both.
+    out.startDate = anySent ? sent[0] || null : out.dueDate || out.startDate;
+    out.dueDate = out.startDate;
+    out.estimateMinutes = null;
+  } else if (out.startDate && out.dueDate && out.startDate > out.dueDate) {
+    throw new ApiError(400, 'Start date is after the due date', 'START_AFTER_DUE');
+  }
+  return out;
+}
+
 // ---- Activity and audit (Q8, Q23) ----
 
 async function recordTaskEvent(req, parent, task, event, extra = {}) {
@@ -188,12 +242,17 @@ function audit(req, parent, verb, task, meta = {}) {
 // ---- Create / update / delete ----
 
 async function createTask(req, parent, body = {}) {
+  refuseProjectOnly(parent, body);
+  const phaseId = parent.kind === 'project' && !given(body.parentTaskId) ? await resolvePhase(parent, body.phaseId) : null;
   let parentTask = null;
   if (given(body.parentTaskId)) {
     parentTask = await findTask(parent, body.parentTaskId);
     if (!parentTask) throw bad('Parent task not found');
     if (parentTask.parentTaskId) throw bad("Subtasks can't have subtasks");
+    if (parentTask.isMilestone) throw milestoneHasSubtasks();
   }
+  const isMilestone = parent.kind === 'project' && body.isMilestone !== undefined ? resolveMilestoneFlag(body.isMilestone) : false;
+  if (isMilestone && parentTask) throw bad("A subtask can't be a milestone");
   const title = cleanTitle(body.title, parentTask ? 'Subtask' : 'Task');
   const status = given(body.statusId) ? await resolveStatus(parent, body.statusId) : await defaultTaskStatus(parent.kind);
   if (!status) throw bad('No open task status is configured');
@@ -205,8 +264,12 @@ async function createTask(req, parent, body = {}) {
     statusId: status.id,
     priority: given(body.priority) ? resolvePriority(body.priority) : 'medium',
     assigneeId: await resolveAssignee(parent, body.assigneeId, null),
-    dueDate: resolveDueDate(body.dueDate),
-    estimateMinutes: resolveEstimate(body.estimateMinutes),
+    ...settleDates(
+      { startDate: body.startDate, dueDate: body.dueDate },
+      { startDate: null, dueDate: null, estimateMinutes: resolveEstimate(body.estimateMinutes), isMilestone },
+    ),
+    phaseId,
+    isMilestone,
     linkedTicketId: await resolveLinkedTicket(req, parent, body.linkedTicketId, null),
     completedAt: status.behaviorType === 'closed' ? new Date() : null, // Q31
     createdBy: req.user.id,
@@ -224,14 +287,42 @@ async function createTask(req, parent, body = {}) {
 
 const sameDate = (a, b) => (a || null) === (b || null);
 
+// Milestone flag, start date, due date and estimate of a project task,
+// settled together (a milestone keeps one date and no estimate).
+async function applyProjectFields(task, body, changes) {
+  let isMilestone = task.isMilestone;
+  if (body.isMilestone !== undefined) {
+    isMilestone = resolveMilestoneFlag(body.isMilestone);
+    if (isMilestone && task.parentTaskId) throw bad("A subtask can't be a milestone");
+    if (isMilestone && !task.isMilestone && await Task.count({ where: { parentTaskId: task.id } })) throw milestoneHasSubtasks();
+    changes.isMilestone = isMilestone;
+  }
+  const touched = ['startDate', 'dueDate'].some((k) => body[k] !== undefined) || changes.isMilestone === true || changes.estimateMinutes !== undefined;
+  if (!touched) return;
+  const now = {
+    startDate: task.startDate || null,
+    dueDate: task.dueDate || null,
+    estimateMinutes: changes.estimateMinutes !== undefined ? changes.estimateMinutes : task.estimateMinutes,
+    isMilestone,
+  };
+  Object.assign(changes, settleDates(body, now));
+}
+
 async function updateTask(req, parent, task, body = {}) {
+  refuseProjectOnly(parent, body);
   const label = task.parentTaskId ? 'Subtask' : 'Task';
   const changes = {};
+  if (parent.kind === 'project' && body.phaseId !== undefined) {
+    // A subtask follows its parent: a phase sent for it is ignored.
+    const phaseId = await resolvePhase(parent, body.phaseId);
+    if (!task.parentTaskId) changes.phaseId = phaseId;
+  }
   if (body.title !== undefined) changes.title = cleanTitle(body.title, label);
   if (body.description !== undefined) changes.description = cleanText(body.description);
   if (body.priority !== undefined) changes.priority = resolvePriority(body.priority);
-  if (body.dueDate !== undefined) changes.dueDate = resolveDueDate(body.dueDate);
   if (body.estimateMinutes !== undefined) changes.estimateMinutes = resolveEstimate(body.estimateMinutes);
+  if (parent.kind === 'project') await applyProjectFields(task, body, changes);
+  else if (body.dueDate !== undefined) changes.dueDate = resolveDueDate(body.dueDate);
   if (body.assigneeId !== undefined) changes.assigneeId = await resolveAssignee(parent, body.assigneeId, task.assigneeId);
   if (body.linkedTicketId !== undefined) {
     changes.linkedTicketId = await resolveLinkedTicket(req, parent, body.linkedTicketId, task.linkedTicketId);
@@ -249,7 +340,7 @@ async function updateTask(req, parent, task, body = {}) {
   }
   // Keep only real changes, so a client PATCHing the whole task back logs nothing.
   for (const key of Object.keys(changes)) {
-    const same = key === 'dueDate' ? sameDate(changes[key], task.dueDate) : changes[key] === task[key];
+    const same = key === 'dueDate' || key === 'startDate' ? sameDate(changes[key], task.dueDate) : changes[key] === task[key];
     if (same && key !== 'completedAt') delete changes[key];
   }
   if (changes.statusId === undefined) delete changes.completedAt;
