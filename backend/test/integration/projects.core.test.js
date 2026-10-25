@@ -37,6 +37,7 @@ describe('POST /projects', () => {
     expect(p.ownerDepartment).toEqual({ id: w.deptA.id, name: 'Service Desk' });
     expect(p.stats).toEqual({
       completionPercent: 0, totalTasks: 0, closedTasks: 0, totalTimeSeconds: 0, laborCost: 0, totalCost: 0, openTicketsCount: 0,
+      tasksDone: 0, tasksTotal: 0, loggedMinutes: 0, hourBudgetMinutes: null, nextMilestone: null, waitingCount: 0,
     });
   });
 
@@ -399,6 +400,7 @@ describe('stats', () => {
     await makeTicket(a, { title: 'Done one', contactId: w.contact.id, projectId: p.id, status: 'Request completed' });
     const expected = {
       completionPercent: 50, totalTasks: 2, closedTasks: 1, totalTimeSeconds: 5400, laborCost: 0, totalCost: 150, openTicketsCount: 1,
+      tasksDone: 1, tasksTotal: 2, loggedMinutes: 90, hourBudgetMinutes: null, nextMilestone: null, waitingCount: 0,
     };
     expect(expectOk(await a.get(projUrl(p))).project.stats).toEqual(expected);
     expect(expectOk(await a.get(`${projUrl(p)}/stats`)).stats).toEqual(expected);

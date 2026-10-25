@@ -12,6 +12,7 @@ const {
   Ticket,
   Team,
   Company,
+  sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const {
@@ -20,6 +21,9 @@ const {
 const { canWorkCompany } = require('../../services/ticketPeople');
 const { getTicketStatusBuckets } = require('../../services/statusBehavior');
 const { computeProjectCompletion } = require('../../services/projectCompletion');
+const { taskStatusBehaviorMap } = require('../../services/tasks/statuses');
+const dependencies = require('../../services/projects/dependencies');
+const { waitingOn } = require('../../services/projects/schedule');
 
 // Chunk size for the "load more" lists on a project's detail page. Tasks are
 // deliberately excluded — they are drag-reorderable, and a reorder that can
@@ -41,15 +45,39 @@ const projectInclude = [
   { model: Company, as: 'company', attributes: ['id', 'name'] },
 ];
 
+// The earliest open milestone (undated ones last) and how many open tasks
+// still wait on an unfinished predecessor.
+async function milestoneAndWaiting(projectId) {
+  const behavior = await taskStatusBehaviorMap();
+  const open = (t) => behavior.get(t.statusId) !== 'closed';
+  const milestones = await Task.findAll({
+    where: { projectId, parentTaskId: null, isMilestone: true },
+    attributes: ['id', 'code', 'title', 'dueDate', 'statusId'],
+    order: [[sequelize.literal('dueDate IS NULL'), 'ASC'], ['dueDate', 'ASC'], ['id', 'ASC']],
+  });
+  const next = milestones.find(open);
+  const graph = await dependencies.loadGraph(projectId);
+  const doneIds = new Set([...graph.tasks.values()].filter((t) => !open(t)).map((t) => t.id));
+  const waitingCount = [...graph.tasks.values()]
+    .filter((t) => open(t) && waitingOn(t.id, graph.deps, doneIds).length > 0).length;
+  return {
+    nextMilestone: next ? {
+      id: next.id, code: next.code, title: next.title, dueDate: next.dueDate || null,
+    } : null,
+    waitingCount,
+  };
+}
+
 async function buildProjectStats(project) {
   const projectId = project.id;
-  const [completion, timeSum, laborSum, expenseSum, materialSum, ticketBuckets] = await Promise.all([
+  const [completion, timeSum, laborSum, expenseSum, materialSum, ticketBuckets, extra] = await Promise.all([
     computeProjectCompletion(projectId),
     TimeEntry.sum('durationSeconds', { where: { projectId } }),
     TimeEntry.sum('laborCost', { where: { projectId } }),
     ProjectExpense.sum('amount', { where: { projectId } }),
     ProjectMaterial.sum('totalCost', { where: { projectId } }),
     getTicketStatusBuckets(),
+    milestoneAndWaiting(projectId),
   ]);
   // Tickets in the project's company only (a link can outlive a move).
   const openTicketsCount = await Ticket.count({ where: { projectId, companyId: project.companyId, status: { [Op.in]: ticketBuckets.open } } });
@@ -62,6 +90,11 @@ async function buildProjectStats(project) {
     laborCost: Number(laborSum || 0),
     totalCost: Number(expenseSum || 0) + Number(materialSum || 0) + Number(laborSum || 0),
     openTicketsCount,
+    tasksDone: completion.closedTasks,
+    tasksTotal: completion.totalTasks,
+    loggedMinutes: Math.round(Number(timeSum || 0) / 60),
+    hourBudgetMinutes: project.hourBudgetMinutes ?? null,
+    ...extra,
   };
 }
 

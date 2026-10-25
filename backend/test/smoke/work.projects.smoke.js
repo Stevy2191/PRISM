@@ -7,7 +7,8 @@ const { startSmoke } = require('./harness');
 // Plan 3a guard for the project page: every tab renders its seeded content.
 
 const shown = (page, text) => page.getByText(text).filter({ visible: true }).first();
-const tab = (page, name) => page.getByRole('button', { name }).filter({ visible: true }).first().click();
+// The project page's tabs are a look A tab strip (role tab).
+const tab = (page, name) => page.getByRole('tab', { name }).filter({ visible: true }).first().click();
 
 let smoke;
 let project;
@@ -38,11 +39,10 @@ it('every tab opens and shows its content', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/projects/${project.id}`);
   await shown(page, 'Office move').waitFor();
-  await tab(page, /^Time Entries/);
+  await tab(page, /^Time/);
   await shown(page, 'Seeded project time').waitFor();
-  await tab(page, /^Expenses/);
+  await tab(page, /^Costs/);
   await shown(page, 'Seeded expense').waitFor();
-  await tab(page, /^Materials/);
   await shown(page, 'Seeded material').waitFor();
   await tab(page, /^People/);
   await shown(page, '+ Add person').waitFor();
