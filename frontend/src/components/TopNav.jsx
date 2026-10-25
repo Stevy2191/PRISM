@@ -38,12 +38,12 @@ function NavDropdown({ item, iconOnly }) {
         onClick={() => setOpen((o) => !o)}
         className={
           iconOnly
-            ? `relative flex h-full flex-shrink-0 flex-col items-center justify-center gap-0.5 px-2.5 text-[11px] font-medium transition ${isActive ? '' : 'hover:opacity-80'}`
-            : `relative flex h-[52px] items-center gap-1 px-3 text-sm font-medium transition ${isActive ? '' : 'hover:opacity-80'}`
+            ? `relative my-1.5 flex flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-md px-2.5 text-[11px] font-medium transition ${isActive ? '' : 'hover:bg-[var(--color-hover)]'}`
+            : `relative flex h-9 items-center gap-1 rounded-md px-3 text-sm font-medium transition ${isActive ? '' : 'hover:bg-[var(--color-hover)]'}`
         }
         style={{
-          color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-          borderBottom: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
+          color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+          backgroundColor: isActive ? 'var(--color-accent-soft)' : undefined,
         }}
       >
         {iconOnly && <span className="text-sm leading-none">{item.icon}</span>}
@@ -52,7 +52,7 @@ function NavDropdown({ item, iconOnly }) {
       </button>
       {open && (
         <div
-          className="absolute left-0 top-full z-40 w-44 overflow-hidden rounded-b-md border-x border-b shadow-lg"
+          className="absolute left-0 top-full z-40 w-44 overflow-hidden rounded-xl border shadow-lg mt-1"
           style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
         >
           {item.subItems.map((s) => (
@@ -107,19 +107,14 @@ export default function TopNav() {
   return (
     <>
       <header
-        className="fixed inset-x-0 top-0 z-40 flex items-center gap-1 border-b px-4"
-        style={{ height: 52, backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+        className="fixed inset-x-0 top-0 z-40 flex items-center gap-1 border-b px-4 lg:px-7"
+        style={{ height: 56, backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
       >
         <Link to="/dashboard" className="mr-4 flex flex-shrink-0 items-center gap-2">
           {settings.logoUrl ? (
             <img src={settings.logoUrl} alt="logo" className="h-6 w-6 rounded object-contain" />
           ) : (
-            <svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="1" y="1" width="11" height="11" rx="2.5" fill="#1d3461" stroke="var(--color-accent)" strokeWidth="1.4" />
-              <rect x="14" y="1" width="11" height="11" rx="2.5" fill="var(--color-card)" stroke="#1e3a5f" strokeWidth="1.4" />
-              <rect x="1" y="14" width="11" height="11" rx="2.5" fill="var(--color-card)" stroke="#1e3a5f" strokeWidth="1.4" />
-              <rect x="14" y="14" width="11" height="11" rx="2.5" fill="var(--color-card)" stroke="var(--color-border)" strokeWidth="1.4" />
-            </svg>
+            <span className="block h-[22px] w-[22px] rounded-md" style={{ backgroundColor: 'var(--color-accent)' }} aria-hidden="true" />
           )}
           <span className="hidden truncate text-base font-bold tracking-wide sm:inline" style={{ color: 'var(--color-text-primary)' }}>
             {settings.appName || settings.branding?.appName || 'PRISM'}
@@ -135,13 +130,13 @@ export default function TopNav() {
               key={n.to}
               to={n.to}
               className={({ isActive }) =>
-                `relative flex h-[52px] items-center px-3 text-sm font-medium transition ${
-                  isActive ? '' : 'hover:opacity-80'
+                `relative flex h-9 items-center rounded-md px-3 text-sm font-medium transition ${
+                  isActive ? '' : 'hover:bg-[var(--color-hover)]'
                 }`
               }
               style={({ isActive }) => ({
-                color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                borderBottom: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
+                color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                backgroundColor: isActive ? 'var(--color-accent-soft)' : undefined,
               })}
             >
               {n.label}
@@ -159,13 +154,13 @@ export default function TopNav() {
               key={n.to}
               to={n.to}
               className={({ isActive }) =>
-                `relative flex flex-shrink-0 flex-col items-center justify-center gap-0.5 px-2.5 text-[11px] font-medium transition ${
-                  isActive ? '' : 'hover:opacity-80'
+                `relative my-1.5 flex flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-md px-2.5 text-[11px] font-medium transition ${
+                  isActive ? '' : 'hover:bg-[var(--color-hover)]'
                 }`
               }
               style={({ isActive }) => ({
-                color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                borderBottom: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
+                color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                backgroundColor: isActive ? 'var(--color-accent-soft)' : undefined,
               })}
             >
               <span className="text-sm leading-none">{n.icon}</span>
@@ -182,11 +177,14 @@ export default function TopNav() {
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="hidden h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--color-hover)] md:flex"
-            style={{ color: 'var(--color-text-secondary)' }}
+            className="mr-1 hidden h-9 items-center gap-2 rounded-md border px-2.5 text-sm md:flex xl:w-64"
+            style={{ color: 'var(--color-text-muted)', backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
             title="Search (Ctrl+K)"
+            aria-label="Search"
           >
-            <IconSearch size={18} stroke={1.8} />
+            <IconSearch size={16} stroke={1.8} />
+            <span className="hidden flex-1 text-left xl:inline">Search</span>
+            <kbd className="hidden rounded border px-1.5 text-xs xl:inline" style={{ borderColor: 'var(--color-border)', fontFamily: 'inherit' }}>Ctrl K</kbd>
           </button>
 
           <TimerIndicator />
@@ -208,8 +206,8 @@ export default function TopNav() {
           <div className="relative ml-1 hidden md:block" ref={userMenuRef}>
             <button type="button" onClick={() => setUserMenuOpen((o) => !o)} title={user?.displayName}>
               <span
-                className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
-                style={{ backgroundColor: colorForDepartment(user?.departmentId) }}
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-full text-xs font-semibold"
+                style={{ backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg)' }}
               >
                 {initials(user)}
               </span>
@@ -217,7 +215,7 @@ export default function TopNav() {
 
             {userMenuOpen && (
               <div
-                className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-md border shadow-lg"
+                className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border shadow-lg"
                 style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
               >
                 <div className="border-b px-4 py-3" style={{ borderColor: 'var(--color-border)' }}>
@@ -275,7 +273,7 @@ export default function TopNav() {
             className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col shadow-2xl"
             style={{ backgroundColor: 'var(--color-card)' }}
           >
-            <div className="flex flex-shrink-0 items-center justify-between border-b px-4" style={{ height: 52, borderColor: 'var(--color-border)' }}>
+            <div className="flex flex-shrink-0 items-center justify-between border-b px-4" style={{ height: 56, borderColor: 'var(--color-border)' }}>
               <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Menu</span>
               <button
                 type="button"

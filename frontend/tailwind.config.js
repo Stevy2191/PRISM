@@ -36,33 +36,26 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
-        // The "data face" — the signature of the operations-console direction.
-        // Every identifier, metric, timestamp and SLA readout renders in this,
-        // so a strong system-mono stack (no webfont download to fail) carries
-        // the look reliably. A user's JetBrains Mono / SF Mono is used if
-        // present; otherwise it falls back cleanly to the platform monospace.
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+        sans: ['"Instrument Sans"', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+        // Look A has a single typeface. `font-mono` is kept so existing
+        // identifier/metric markup keeps working: it resolves to the same sans
+        // (tabular figures come from index.css). Code blocks use --font-mono.
+        mono: ['"Instrument Sans"', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
-      // Sharper than Tailwind's defaults across the board — an operations
-      // console reads as precise, not soft. Existing `rounded-md/lg/xl` usages
-      // tighten automatically without touching every file. `full` is untouched
-      // so avatars and status dots stay circular.
+      // Look A radii: 8 controls, 10 inner panels, 12 cards. `full` untouched.
       borderRadius: {
-        DEFAULT: '3px',
-        sm: '2px',
-        md: '4px',
-        lg: '5px',
-        xl: '7px',
-        '2xl': '9px',
-        '3xl': '12px',
+        DEFAULT: '6px',
+        sm: '4px',
+        md: '8px',
+        lg: '10px',
+        xl: '12px',
+        '2xl': '16px',
+        '3xl': '20px',
       },
-      // Hairline-first depth: shadows are tight and low-opacity so surfaces are
-      // delineated by borders, with shadow only as a faint lift.
       boxShadow: {
-        sm: '0 1px 2px 0 rgb(0 0 0 / 0.10)',
-        DEFAULT: '0 1px 2px 0 rgb(0 0 0 / 0.14)',
-        md: '0 2px 6px -1px rgb(0 0 0 / 0.18)',
+        sm: '0 1px 2px 0 rgb(0 0 0 / 0.06)',
+        DEFAULT: '0 1px 2px 0 rgb(0 0 0 / 0.08)',
+        md: '0 2px 6px -1px rgb(0 0 0 / 0.14)',
         lg: '0 8px 24px -6px rgb(0 0 0 / 0.28)',
       },
       letterSpacing: {

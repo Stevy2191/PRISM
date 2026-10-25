@@ -14,93 +14,105 @@
    no longer collide. */
 :root,
 [data-theme='light'] {
-  --color-bg: #f8fafc;
-  --color-sidebar: #f1f5f9;
+  /* Look A, light: cool paper, white cards, one blue accent. */
+  --color-bg: #f3f5f7;
+  --color-sidebar: #ffffff;          /* top bar / compact sidebar surface */
   --color-card: #ffffff;
-  --color-border: #e2e8f0;
-  --color-border-strong: #cbd5e1;
-  --color-accent: #2563eb;
-  --color-accent-hover: #1d4ed8;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #64748b;
-  --color-text-faint: #94a3b8;
-  --color-success: #16a34a;
-  --color-warning: #d97706;
-  --color-danger: #dc2626;
+  --color-border: #dfe3e8;
+  --color-border-strong: #cbd2da;
+  --color-accent: #2448c9;
+  --color-accent-hover: #16328f;
+  --color-accent-soft: #e8edfb;      /* active nav, selected segment, info fill */
+  --color-on-accent: #ffffff;        /* text on an accent fill */
+  --color-text-primary: #16202b;
+  --color-text-secondary: #4a5663;
+  --color-text-muted: #5b6875;
+  --color-text-faint: #6a7683;
+  --color-success: #1c9a5a;
+  --color-warning: #c27a00;
+  --color-danger: #b42318;
+  --color-waiting: #8a4b00;          /* waiting on customer / on hold: text */
+  --color-waiting-bg: #fff3df;       /* ... and its fill */
   --color-input-bg: #ffffff;
-  --color-input-border: #cbd5e1;
-  --color-hover: #f1f5f9;
-  --color-timer: #16a34a;
+  --color-input-border: #cbd2da;
+  --color-hover: #eef1f5;
+  --color-timer: #14603a;
+  --color-timer-bg: #ecf8f1;
+  --color-timer-border: #bfe3cf;
   --color-relation-accent: #7c3aed;
   --color-relation-accent-light: #ede9fe;
 
-  --brand-primary-rgb: 37 99 235;    /* #2563eb, mirrors --color-accent */
+  --brand-primary-rgb: 36 72 201;    /* #2448c9, mirrors --color-accent */
   --brand-accent-rgb: 14 165 233;    /* #0ea5e9 */
 
-  --navy-50: 248 250 252;
-  --navy-100: 226 232 240;
-  --navy-200: 203 213 225;
-  --navy-300: 148 163 184;
-  --navy-400: 100 116 139;
-  --navy-500: 71 85 105;
-  --navy-600: 51 65 85;
-  --navy-700: 30 41 59;
-  --navy-800: 15 23 42;
-  --navy-900: 8 15 30;
-  --navy-950: 2 6 16;
+  --navy-50: 243 245 247;
+  --navy-100: 223 227 232;
+  --navy-200: 203 210 218;
+  --navy-300: 154 165 177;
+  --navy-400: 91 104 117;
+  --navy-500: 74 86 99;
+  --navy-600: 60 71 84;
+  --navy-700: 43 54 65;
+  --navy-800: 31 41 51;
+  --navy-900: 22 32 43;
+  --navy-950: 11 18 26;
   --surface: 255 255 255;            /* cards / inputs */
   color-scheme: light;
 
-  /* Mono "data face" exposed as a variable for inline-style consumers
-     (matches tailwind.config.js fontFamily.mono). Theme-independent. */
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Real monospace, only for code blocks. Numbers use Instrument Sans with
+     tabular figures (.num); Tailwind's font-mono now maps to the same sans. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 [data-theme='dark'] {
-  /* Softened dark theme — backgrounds sit at a muted dark slate rather than
-     near-black so the page and its contents stay comfortably legible, with an
-     elevation ladder (bg < sidebar-ish < card < hover) and borders light
-     enough to actually delineate surfaces. Text tiers are lifted for contrast:
-     muted/faint used to collapse into the background and are now readable. */
-  --color-bg: #161b28;               /* page — soft dark slate, not near-black */
-  --color-sidebar: #12161f;          /* slightly deeper than bg for separation */
-  --color-card: #1e2533;             /* elevated surface, unified with --surface */
-  --color-border: #2f3849;           /* now visibly distinct against bg/card */
-  --color-border-strong: #3d4759;
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;     /* a touch brighter over the lighter bg */
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #b3becd;   /* was #94a3b8 — brighter */
-  --color-text-muted: #8592a6;       /* was #475569 — now legible */
-  --color-text-faint: #64748b;       /* was #334155 — now legible */
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-input-bg: #1e2533;         /* matches card surface */
-  --color-input-border: #3d4759;
-  --color-hover: #262f40;
+  /* Look A, dark (the default theme). Same roles as light: an elevation
+     ladder bg < card < hover with visible hairlines, and text tiers that all
+     clear 4.5:1 on bg, card and hover (checked). The accent is a lighter
+     blue so it reads as text and links on dark; fills use --color-on-accent. */
+  --color-bg: #0f141a;
+  --color-sidebar: #0b1015;
+  --color-card: #171e26;
+  --color-border: #26303b;
+  --color-border-strong: #36424f;
+  --color-accent: #7c93f5;
+  --color-accent-hover: #9aadf8;
+  --color-accent-soft: #1e2a52;
+  --color-on-accent: #0b1220;
+  --color-text-primary: #f2f5f8;
+  --color-text-secondary: #b6c0cc;
+  --color-text-muted: #93a0ae;
+  --color-text-faint: #8693a1;
+  --color-success: #3dcb86;
+  --color-warning: #e5a33a;
+  --color-danger: #f26b5b;
+  --color-waiting: #f0b561;
+  --color-waiting-bg: #2e2310;
+  --color-input-bg: #171e26;
+  --color-input-border: #36424f;
+  --color-hover: #202934;
   --color-timer: #4ade80;
-  --color-relation-accent: #a78bfa;  /* brighter purple over dark */
+  --color-timer-bg: #11291d;
+  --color-timer-border: #1f4d36;
+  --color-relation-accent: #a78bfa;
   --color-relation-accent-light: #a78bfa;
 
-  --brand-primary-rgb: 59 130 246;   /* #3b82f6, mirrors --color-accent */
-  --brand-accent-rgb: 56 189 248;    /* #38bdf8 */
+  --brand-primary-rgb: 59 88 214;    /* #3b58d6: white text on it is 5.9:1 */
+  --brand-accent-rgb: 124 147 245;   /* #7c93f5 */
 
   /* Navy scale remapped so low indices are dark (backgrounds) and high
      indices are light (text). */
-  --navy-50: 22 27 40;     /* #161b28 page background, matches --color-bg */
-  --navy-100: 47 56 73;    /* #2f3849 dividers / subtle borders / chips */
-  --navy-200: 61 71 89;    /* #3d4759 input borders */
-  --navy-300: 133 146 166; /* #8592a6 muted text / placeholders — legible */
-  --navy-400: 148 163 184;
-  --navy-500: 148 163 184;
+  --navy-50: 15 20 26;     /* #0f141a page, matches --color-bg */
+  --navy-100: 38 48 59;    /* #26303b dividers / subtle borders / chips */
+  --navy-200: 54 66 79;    /* #36424f input borders */
+  --navy-300: 134 147 161; /* #8693a1 muted text / placeholders */
+  --navy-400: 147 160 174; /* #93a0ae */
+  --navy-500: 160 172 185;
   --navy-600: 203 213 225;
   --navy-700: 203 213 225;
   --navy-800: 226 232 240; /* body text */
-  --navy-900: 241 245 249; /* headings */
+  --navy-900: 242 245 248; /* headings */
   --navy-950: 248 250 252;
-  --surface: 30 37 51;     /* #1e2533 cards / inputs */
+  --surface: 23 30 38;     /* #171e26 cards / inputs */
   color-scheme: dark;
 }
 
@@ -119,10 +131,11 @@
     overflow-x: hidden;
   }
 
-  /* Operations-console typography. The mono "data face" always carries
-     tabular figures so IDs, metrics and time columns line up digit-for-digit
-     — the core of the console readout feel. */
-  .font-mono {
+  /* Look A has one typeface (Instrument Sans). Numbers that must line up —
+     IDs, hours, money, timers — use .num; the old .font-mono class is kept
+     (it now resolves to the same face) and also gets tabular figures. */
+  .font-mono,
+  .num {
     font-variant-numeric: tabular-nums;
   }
   /* Display headings are set tight and deliberate rather than default-loose. */
@@ -160,7 +173,7 @@
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-prism-accent focus:ring-offset-1 focus:ring-offset-[var(--color-bg)] disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-prism-accent focus:ring-offset-1 focus:ring-offset-[var(--color-bg)] disabled:opacity-50 disabled:cursor-not-allowed;
     /* Console buttons press in on click for a tactile, physical feel. */
     @apply active:translate-y-px;
     /* Minimum 44x44 tap target on touch screens (WCAG 2.5.5 / task spec) —
@@ -169,13 +182,18 @@
     @apply max-sm:min-h-[44px];
   }
   .btn-primary {
-    @apply btn bg-prism text-white hover:opacity-90;
+    @apply btn border border-transparent hover:opacity-90;
+    /* Driven by --color-accent so a custom accent colour repaints it. */
+    background-color: var(--color-accent);
+    color: var(--color-on-accent);
   }
   .btn-secondary {
     @apply btn bg-surface text-navy-700 border border-navy-200 hover:bg-navy-100 hover:border-navy-300;
   }
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700;
+    @apply btn border border-transparent hover:opacity-90;
+    background-color: var(--color-danger);
+    color: #fff;
   }
   .input {
     @apply w-full rounded-md border border-navy-200 bg-surface px-3 py-2 text-sm text-navy-900 placeholder-navy-300 transition-colors focus:border-prism focus:outline-none focus:ring-1 focus:ring-prism;
@@ -187,44 +205,40 @@
     @apply rounded-lg border border-navy-100 bg-surface shadow-sm;
   }
 
-  /* ── Operations-console primitives ──────────────────────────────────────
-     The design language: small tracked uppercase eyebrows label regions,
-     status reads as a squared chip or a bare dot, identifiers/metrics render
-     in the mono data face, and page headers open with an accent tick. */
+  /* ── Look A shared classes ──────────────────────────────────────────────
+     (Names kept from the earlier console look so existing pages keep working;
+     the React primitives live in components/ui/.) */
 
-  /* Tiny tracked uppercase label that heads a panel or section. Encodes
-     structure the way a control panel labels its readouts. */
+  /* Small label that heads a panel or section (sentence case, no tracking). */
   .eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-eyebrow text-navy-400;
+    @apply text-xs font-semibold tracking-normal text-navy-400;
   }
 
-  /* Page title — tight, deliberate display weight. Replaces ad-hoc
-     `text-2xl font-bold` headers so every page opens the same way. */
+  /* Page title, as on the look A boards. */
   .page-title {
-    @apply text-2xl font-bold tracking-tight text-navy-900;
+    @apply text-3xl font-semibold tracking-tight text-navy-900;
   }
 
-  /* Header strip inside a .card / panel: hairline-ruled, left accent tick. */
+  /* Header strip inside a .card / panel: hairline-ruled. */
   .panel-header {
     @apply flex items-center justify-between gap-3 border-b border-navy-100 px-4 py-3;
   }
 
-  /* Squared status/type chip — the console alternative to the pill. Pair with
-     a .status-dot for the classic dot-plus-label readout. */
+  /* Rounded status/type chip. Pair with a .status-dot for dot-plus-label. */
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-[3px] px-2 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold;
   }
   .status-dot {
     @apply inline-block h-2 w-2 flex-shrink-0 rounded-full;
   }
 
-  /* Squared badge (was a full pill) — status/priority markers read as console
-     tags. Kept text-transform-free so callers' `capitalize` still governs. */
+  /* Status/priority marker. Kept text-transform-free so callers' `capitalize`
+     still governs. */
   .badge {
-    @apply inline-flex items-center rounded-[3px] px-2 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
   }
   .table-th {
-    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-eyebrow text-navy-400;
+    @apply px-4 py-3 text-left text-xs font-semibold text-navy-400;
   }
   .table-td {
     @apply px-4 py-3 text-sm text-navy-800;

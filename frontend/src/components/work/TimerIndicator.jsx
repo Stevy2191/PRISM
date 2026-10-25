@@ -63,9 +63,13 @@ export default function TimerIndicator({ compact = false }) {
         </button>
       ) : (
         <button type="button" onClick={() => setOpen((o) => !o)} title={`My timers: ${summary}`} aria-label={`My timers: ${summary}`}
-          className="relative flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-xs font-semibold"
-          style={{ color, backgroundColor: 'var(--color-hover)' }}>
-          {running.length ? <IconClockPlay size={13} /> : <IconPlayerPauseFilled size={13} />}
+          className="num relative flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-semibold"
+          style={running.length
+            ? { color, backgroundColor: 'var(--color-timer-bg)', borderColor: 'var(--color-timer-border)' }
+            : { color: 'var(--color-waiting)', backgroundColor: 'var(--color-waiting-bg)', borderColor: 'transparent' }}>
+          {running.length
+            ? <span className="h-2 w-2 flex-shrink-0 animate-pulse rounded-full" style={{ backgroundColor: 'var(--color-timer)' }} aria-hidden="true" />
+            : <IconPlayerPauseFilled size={13} />}
           <span className="hidden max-w-[10rem] truncate font-sans sm:inline">{nameOf(shown)}</span>
           {formatHMS(ctx.elapsedOf(shown))}
           {ctx.timers.length > 1 && <Badge n={running.length || ctx.timers.length} color={color} />}

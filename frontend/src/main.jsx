@@ -9,6 +9,10 @@ import { ThemeProvider } from './context/ThemeContext';
 import { NavStyleProvider } from './context/NavStyleContext';
 import { ToastProvider } from './context/ToastContext';
 import { CompanyProvider } from './context/CompanyContext';
+import '@fontsource/instrument-sans/400.css';
+import '@fontsource/instrument-sans/500.css';
+import '@fontsource/instrument-sans/600.css';
+import '@fontsource/instrument-sans/700.css';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

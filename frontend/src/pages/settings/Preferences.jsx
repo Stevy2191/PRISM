@@ -39,15 +39,15 @@ const THRESHOLD_OPTIONS = [
 // looks like regardless of which theme is currently active, so they're
 // literal values rather than the live --color-* variables.
 const THEME_PREVIEWS = {
-  light: { bg: '#f8fafc', card: '#ffffff', accent: '#2563eb', border: '#e2e8f0' },
-  dark: { bg: '#161b28', card: '#1e2533', accent: '#3b82f6', border: '#2f3849' },
+  light: { bg: '#f3f5f7', card: '#ffffff', accent: '#2448c9', border: '#dfe3e8' },
+  dark: { bg: '#0f141a', card: '#171e26', accent: '#7c93f5', border: '#26303b' },
 };
 
 function ThemeSwatch({ value }) {
   if (value === 'system') {
     return (
       <span className="flex h-9 w-16 overflow-hidden rounded border border-navy-200">
-        {['light', 'dark'].map((half) => (
+        {['dark', 'light'].map((half) => (
           <span key={half} className="flex-1" style={{ backgroundColor: THEME_PREVIEWS[half].bg }}>
             <span className="block h-2.5 w-full" style={{ backgroundColor: THEME_PREVIEWS[half].accent }} />
             <span className="m-1 block h-3 rounded-sm" style={{ backgroundColor: THEME_PREVIEWS[half].card, border: `1px solid ${THEME_PREVIEWS[half].border}` }} />
@@ -151,7 +151,7 @@ export default function Preferences() {
             </label>
           ))}
         </div>
-        <p className="mt-2 text-xs text-navy-400">“System” follows your operating system’s light/dark setting. Your choice applies immediately and is saved on this device.</p>
+        <p className="mt-2 text-xs text-navy-400">“Match my system” follows your operating system’s light/dark setting. Your choice applies immediately and is saved on this device.</p>
 
         <label className="label mt-5">Navigation style</label>
         <div className="grid grid-cols-2 gap-3">

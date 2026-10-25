@@ -21,9 +21,9 @@ function applyDomTheme(pref) {
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
     try {
-      return localStorage.getItem(STORAGE_KEY) || 'light';
+      return localStorage.getItem(STORAGE_KEY) || 'dark';
     } catch {
-      return 'light';
+      return 'dark';
     }
   });
 
@@ -63,7 +63,7 @@ export function useTheme() {
 }
 
 export const THEME_OPTIONS = [
-  { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'system', label: 'Match my system' },
 ];
