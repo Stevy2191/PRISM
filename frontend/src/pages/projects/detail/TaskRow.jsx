@@ -1,6 +1,6 @@
 // One task (or subtask) row on the Tasks tab: checkbox, code, title with
 // chips, stacked people, dates, hours and a timer.
-import { IconChevronUp, IconChevronDown } from '@tabler/icons-react';
+import { IconChevronUp, IconChevronDown, IconGripVertical } from '@tabler/icons-react';
 import Avatar from '../../../components/work/Avatar';
 import TimerButton from '../../../components/work/TimerButton';
 import StatusChip from '../../../components/ui/StatusChip';
@@ -45,8 +45,14 @@ export default function TaskRow({ task, sub = false, ctx }) {
   const dueSoon = task.isMilestone && !done && task.dueDate ? daysUntil(ctx.today, task.dueDate) : null;
   return (
     <div
+      onDragOver={ctx.reorderable && !sub ? (e) => ctx.onDragOver(e, task) : undefined}
+      onDrop={ctx.reorderable && !sub ? (e) => { e.preventDefault(); ctx.onDrop(task); } : undefined}
       className={`group grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 border-t border-navy-100 px-4 hover:bg-[var(--color-hover)] md:px-[18px] md:grid-cols-[28px_120px_minmax(0,1fr)_150px_120px_160px_104px] ${sub ? 'min-h-[40px]' : 'min-h-[52px]'} max-md:py-2`}
-      style={sub ? { backgroundColor: 'color-mix(in srgb, var(--color-text-primary) 2%, transparent)' } : undefined}
+      style={{
+        ...(sub ? { backgroundColor: 'color-mix(in srgb, var(--color-text-primary) 2%, transparent)' } : {}),
+        ...(ctx.draggedId === task.id ? { opacity: 0.5 } : {}),
+        ...(ctx.overId === task.id && ctx.draggedId !== task.id ? { boxShadow: 'inset 0 2px 0 var(--color-accent)' } : {}),
+      }}
     >
       <input
         type="checkbox"
@@ -96,6 +102,18 @@ export default function TaskRow({ task, sub = false, ctx }) {
           </span>
       </div>
       <div className="flex items-center justify-end gap-1">
+        {ctx.reorderable && !sub && (
+          <span
+            draggable
+            aria-label={`Drag ${task.title}`}
+            title="Drag to reorder"
+            onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; ctx.onDragStart(task); }}
+            onDragEnd={ctx.onDragEnd}
+            className="cursor-grab text-navy-300 opacity-100 active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100"
+          >
+            <IconGripVertical size={16} />
+          </span>
+        )}
         {ctx.canEdit && !sub && (
           <div className="flex flex-col opacity-100 md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
             <button type="button" aria-label={`Move ${task.title} up`} title="Move up" disabled={!ctx.canMove(task, -1)}

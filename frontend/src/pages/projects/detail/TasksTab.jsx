@@ -18,6 +18,8 @@ export default function TasksTab({
   // Only phases the person has opened or closed by hand are in here; the rest
   // follow the default (a finished phase starts collapsed).
   const [collapsedBy, setCollapsedBy] = useState({});
+  const [draggedId, setDraggedId] = useState(null);
+  const [overId, setOverId] = useState(null);
   const quickRefs = useRef({});
 
   const visible = useMemo(
@@ -42,19 +44,36 @@ export default function TasksTab({
 
   // Swap with the neighbour in the same phase; the server wants every task's id.
   const peersOf = (task) => tasks.filter((t) => (t.phaseId ?? null) === (task.phaseId ?? null));
+  // Moving needs the whole list showing: with a filter on, a hidden neighbour
+  // would make a move look like it did nothing.
+  const reorderable = canEdit && filter === 'all';
   const canMove = (task, dir) => {
+    if (!reorderable) return false;
     const peers = peersOf(task);
     const i = peers.findIndex((t) => t.id === task.id);
     return i + dir >= 0 && i + dir < peers.length;
+  };
+  // Put the phase's tasks in the given order, keeping every other task where it is.
+  const saveOrder = (peers) => {
+    const slots = new Set(peers);
+    let k = 0;
+    const order = tasks.map((t) => (slots.has(t.id) ? peers[k++] : t.id));
+    call(() => api.patch(paths.reorder, { order }));
   };
   const move = (task, dir) => {
     const peers = peersOf(task).map((t) => t.id);
     const i = peers.indexOf(task.id);
     [peers[i], peers[i + dir]] = [peers[i + dir], peers[i]];
-    const slots = new Set(peers);
-    let k = 0;
-    const order = tasks.map((t) => (slots.has(t.id) ? peers[k++] : t.id));
-    call(() => api.patch(paths.reorder, { order }));
+    saveOrder(peers);
+  };
+  const endDrag = () => { setDraggedId(null); setOverId(null); };
+  const dropOn = (target) => {
+    const dragged = tasks.find((t) => t.id === draggedId);
+    endDrag();
+    if (!dragged || dragged.id === target.id || (dragged.phaseId ?? null) !== (target.phaseId ?? null)) return;
+    const peers = peersOf(dragged).map((t) => t.id).filter((id) => id !== dragged.id);
+    peers.splice(peers.indexOf(target.id), 0, dragged.id);
+    saveOrder(peers);
   };
 
   const quickAdd = (title, phaseId) => call(() => api.post(paths.tasks, phaseId ? { title, phaseId } : { title }));
@@ -88,6 +107,18 @@ export default function TasksTab({
     onToggle: toggle,
     onMove: move,
     canMove,
+    reorderable,
+    draggedId,
+    overId,
+    onDragStart: (task) => setDraggedId(task.id),
+    onDragEnd: endDrag,
+    onDragOver: (e, task) => {
+      const dragged = tasks.find((t) => t.id === draggedId);
+      if (!dragged || (dragged.phaseId ?? null) !== (task.phaseId ?? null)) return;
+      e.preventDefault();
+      setOverId(task.id);
+    },
+    onDrop: dropOn,
     onStopRequest,
     renderDetails: (task) => (
       <TaskDetails

@@ -26,6 +26,7 @@ beforeAll(async () => {
   const placed = await makeTask(a, project.id, { title: 'Pull cable' });
   expectOk(await a.patch(`${API}/projects/${project.id}/tasks/${placed.id}`).send({ phaseId: build.id }));
   await makeTask(a, project.id, { title: 'Loose task' });
+  await makeTask(a, project.id, { title: 'Assigned task', assigneeId: w.admin.user.id });
   expectOk(await a.post(`${API}/projects/${project.id}/expenses`).send({ description: 'Seeded expense', amount: 12 }), 201);
   expectOk(await a.post(`${API}/projects/${project.id}/materials`).send({ itemName: 'Seeded material', quantity: 1, unitCost: 3 }), 201);
 });
@@ -73,8 +74,41 @@ it('the Unassigned pill keeps only unassigned tasks', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/projects/${project.id}`);
   await shown(page, 'Loose task').waitFor();
+  await shown(page, 'Pull cable').waitFor();
+  await page.getByRole('button', { name: 'Unassigned', exact: true }).filter({ visible: true }).first().click();
+  await shown(page, 'Pull cable').waitFor();
+  await shown(page, 'Assigned task').waitFor({ state: 'hidden' });
+});
+
+it('the Mine pill keeps only my tasks', async () => {
+  const page = await smoke.pageAs('admin');
+  await page.goto(`/projects/${project.id}`);
+  await shown(page, 'Loose task').waitFor();
   await page.getByRole('button', { name: 'Mine', exact: true }).filter({ visible: true }).first().click();
+  await shown(page, 'Assigned task').waitFor();
   await shown(page, 'Loose task').waitFor({ state: 'hidden' });
+});
+
+it('dragging a task within a phase reorders it', async () => {
+  const a = w.admin.agent;
+  const p = await makeProject(a, { name: 'Drag project', ownerDepartmentId: w.deptA.id });
+  const ph = expectOk(await a.post(`${API}/projects/${p.id}/phases`).send({ name: 'Work' }), 201).phase;
+  const first = await makeTask(a, p.id, { title: 'Drag first' });
+  const second = await makeTask(a, p.id, { title: 'Drag second' });
+  for (const t of [first, second]) expectOk(await a.patch(`${API}/projects/${p.id}/tasks/${t.id}`).send({ phaseId: ph.id }));
+  const page = await smoke.pageAs('admin');
+  await page.goto(`/projects/${p.id}`);
+  await shown(page, 'Drag second').waitFor();
+  const saved = waitFor(page, 'PATCH', '/tasks/reorder');
+  await page.getByLabel('Drag Drag second').filter({ visible: true }).first()
+    .dragTo(page.getByRole('button', { name: 'Drag first', exact: true }).filter({ visible: true }).first());
+  await saved;
+  await page.reload();
+  await shown(page, 'Drag first').waitFor();
+  expect(expectOk(await a.get(`${API}/projects/${p.id}/tasks`)).tasks.map((t) => t.title)).toEqual(['Drag second', 'Drag first']);
+  // With a filter on, moving is off.
+  await page.getByRole('button', { name: 'Unassigned', exact: true }).filter({ visible: true }).first().click();
+  expect(await page.getByLabel('Drag Drag first').count()).toBe(0);
 });
 
 it('Costs tab shows expenses and materials', async () => {
