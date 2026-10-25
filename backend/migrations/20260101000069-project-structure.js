@@ -26,6 +26,22 @@ async function changeEnum(qi, table, column, base, change, extra = 'NOT NULL') {
   await qi.sequelize.query(`ALTER TABLE \`${table}\` MODIFY \`${column}\` ENUM(${next.map((v) => `'${v}'`).join(',')}) ${extra}`);
 }
 
+// A saved notifications.enabledTypes allow-list would otherwise keep the
+// new types off (as migrations 063 and 066 did for theirs).
+async function updateEnabledTypes(qi, Sequelize, change) {
+  const [row] = await qi.sequelize.query(
+    "SELECT value FROM SystemSettings WHERE `key` = 'notifications.enabledTypes'",
+    { type: Sequelize.QueryTypes.SELECT }
+  );
+  let list;
+  try { list = JSON.parse(row && row.value); } catch { list = null; }
+  if (!Array.isArray(list)) return;
+  await qi.sequelize.query(
+    "UPDATE SystemSettings SET value = ? WHERE `key` = 'notifications.enabledTypes'",
+    { replacements: [JSON.stringify(change(list))] }
+  );
+}
+
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     const qi = queryInterface;
@@ -83,10 +99,20 @@ module.exports = {
 
     await changeEnum(qi, 'Notifications', 'type', BASE_NOTIFICATIONS, (v) => [...new Set([...v, ...NEW_NOTIFICATIONS])]);
     if (!(await has('Notifications', 'projectId'))) await qi.addColumn('Notifications', 'projectId', fk('Projects', 'CASCADE'));
+    await updateEnabledTypes(qi, dt, (list) => [...new Set([...list, ...NEW_NOTIFICATIONS])]);
+
+    // People added as a task helper become members with this role: they can
+    // open the project and log time, but never count as editors.
+    await changeEnum(qi, 'ProjectMembers', 'role', ['lead', 'member'], (v) => [...new Set([...v, 'helper'])], "NOT NULL DEFAULT 'member'");
   },
 
-  down: async (queryInterface) => {
+  down: async (queryInterface, Sequelize) => {
     const qi = queryInterface;
+    // Helper rows become plain members (they keep their access).
+    await qi.sequelize.query("UPDATE ProjectMembers SET role = 'member' WHERE role = 'helper'");
+    await changeEnum(qi, 'ProjectMembers', 'role', ['lead', 'member'], (v) => v.filter((x) => x !== 'helper'), "NOT NULL DEFAULT 'member'");
+    await updateEnabledTypes(qi, Sequelize, (list) => list.filter((x) => !NEW_NOTIFICATIONS.includes(x)));
+
     const has = async (table, column) => Boolean((await qi.describeTable(table))[column]);
 
     if (await has('Notifications', 'projectId')) await qi.removeColumn('Notifications', 'projectId');

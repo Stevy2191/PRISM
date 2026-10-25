@@ -1,5 +1,6 @@
 const Sequelize = require('sequelize');
 const { resetData, closeDb, createUser, ROLE, sequelize, models } = require('./helpers');
+const { makeWorld, makeProject, makeStaff } = require('./fixtures');
 const migration = require('../../migrations/20260101000069-project-structure');
 
 const qi = () => sequelize.getQueryInterface();
@@ -63,4 +64,45 @@ it('up again succeeds', async () => {
   await migration.up(qi(), Sequelize); // idempotent
   expect(await tables()).toEqual(expect.arrayContaining(['ProjectPhases', 'TaskDependencies', 'TaskAssignees']));
   expect(await enumOf()).toEqual(expect.arrayContaining(NEW_TYPES));
+});
+
+const setAllowList = (list) => models.SystemSettings.upsert({ key: 'notifications.enabledTypes', value: JSON.stringify(list) });
+const readAllowList = async () => {
+  const [rows] = await sequelize.query("SELECT value FROM SystemSettings WHERE `key` = 'notifications.enabledTypes'");
+  return JSON.parse(rows[0].value);
+};
+const memberRoles = async () => {
+  const [rows] = await sequelize.query("SHOW COLUMNS FROM `ProjectMembers` LIKE 'role'");
+  return [...String(rows[0].Type).matchAll(/'([^']*)'/g)].map((m) => m[1]);
+};
+
+it('up adds the helper member role; down turns helper rows into members', async () => {
+  expect(await memberRoles()).toEqual(expect.arrayContaining(['lead', 'member', 'helper']));
+  const w = await makeWorld();
+  const project = await makeProject(w.admin.agent, { name: 'P', ownerDepartmentId: w.deptA.id });
+  const user = (await makeStaff('ps-helper', w.deptA.id)).user;
+  await models.ProjectMember.create({ projectId: project.id, userId: user.id, role: 'helper' });
+  await migration.down(qi(), Sequelize);
+  try {
+    expect(await memberRoles()).toEqual(['lead', 'member']);
+    expect((await models.ProjectMember.findOne({ where: { userId: user.id } })).role).toBe('member');
+  } finally {
+    await migration.up(qi(), Sequelize);
+  }
+});
+
+it('a saved notifications.enabledTypes list gets the new types on up and loses them on down', async () => {
+  await setAllowList(['assigned', 'comment']);
+  await migration.down(qi(), Sequelize);
+  try {
+    expect(await readAllowList()).toEqual(['assigned', 'comment']);
+    await migration.up(qi(), Sequelize);
+    expect(await readAllowList()).toEqual(['assigned', 'comment', ...NEW_TYPES]);
+    await migration.up(qi(), Sequelize); // no duplicates
+    expect(await readAllowList()).toEqual(['assigned', 'comment', ...NEW_TYPES]);
+    await migration.down(qi(), Sequelize);
+    expect(await readAllowList()).toEqual(['assigned', 'comment']);
+  } finally {
+    await migration.up(qi(), Sequelize);
+  }
 });

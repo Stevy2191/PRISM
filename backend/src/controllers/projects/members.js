@@ -39,9 +39,11 @@ const addMember = asyncHandler(async (req, res) => {
   const user = await User.findByPk(userId);
 
   const existing = await ProjectMember.findOne({ where: { projectId: project.id, userId } });
-  if (existing) throw new ApiError(409, 'User is already a member of this project', 'ALREADY_MEMBER');
+  // A task helper added by someone else's task becomes a full member here.
+  if (existing && existing.role !== 'helper') throw new ApiError(409, 'User is already a member of this project', 'ALREADY_MEMBER');
 
-  const member = await ProjectMember.create({ projectId: project.id, userId, role: 'member' });
+  const member = existing || await ProjectMember.create({ projectId: project.id, userId, role: 'member' });
+  if (existing) await existing.update({ role: 'member' });
   if (role === 'lead') {
     // A project has one lead (Q30): adding someone as lead makes them the
     // project's lead, and the old lead stays a member.

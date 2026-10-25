@@ -392,7 +392,8 @@ async function canEditProject(user, project) {
   if (!(await canAccessProject(user, project))) return false;
   const p = await resolveUserPermissions(user.id);
   if (p['projects.edit_all']) return true;
-  const isMember = !!(await ProjectMember.findOne({ where: { projectId: project.id, userId: user.id } }));
+  // A task helper's membership lets them view and log time, never edit.
+  const isMember = !!(await ProjectMember.findOne({ where: { projectId: project.id, userId: user.id, role: { [Op.ne]: 'helper' } } }));
   if (p['projects.edit_department']
     && (sameDept(project.ownerDepartmentId, user.departmentId) || sameDept(project.forDepartmentId, user.departmentId) || isMember)) {
     return true;

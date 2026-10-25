@@ -8,7 +8,7 @@ module.exports = (sequelize) => {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       projectId: { type: DataTypes.INTEGER, allowNull: false },
       userId: { type: DataTypes.INTEGER, allowNull: false },
-      role: { type: DataTypes.ENUM('lead', 'member'), allowNull: false, defaultValue: 'member' },
+      role: { type: DataTypes.ENUM('lead', 'member', 'helper'), allowNull: false, defaultValue: 'member' },
       addedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     },
     {

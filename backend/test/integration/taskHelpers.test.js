@@ -74,10 +74,36 @@ describe('adding and removing helpers', () => {
     expect((await outsider.agent.get(`${API}/projects/${proj.id}`)).status).toBe(403);
     expectOk(await addHelper(w.admin.agent, outsider.user.id), 201);
     const member = await models.ProjectMember.findOne({ where: { projectId: proj.id, userId: outsider.user.id } });
-    expect(member.role).toBe('member');
-    expect((await audits('projectMember.autoAdd')).length).toBe(1);
+    expect(member.role).toBe('helper');
+    const [auto] = await audits('projectMember.autoAdd');
+    expect(auto.meta.role).toBe('helper');
     expect((await outsider.agent.get(`${API}/projects/${proj.id}`)).status).toBe(200);
     expectOk(await outsider.agent.post(`${API}/projects/${proj.id}/time-entries`).send({ entryDate: '2026-03-03', durationMinutes: 30, taskId: task.id }), 201);
+  });
+
+  it('helper auto-added by a non-editor main assignee gets role helper: can GET the project and log time, but PATCH /projects/:id → 403 even with projects.edit_own', async () => {
+    const lead = await makeStaff('lead', w.deptA.id);
+    const helper = await makeStaff('helper', w.deptB.id);
+    expectOk(await w.admin.agent.post(`${API}/users/${helper.user.id}/overrides`).send({ permissionKey: 'projects.edit_own', granted: true }), 201);
+    expectOk(await w.admin.agent.patch(`${API}/projects/${proj.id}/tasks/${task.id}`).send({ assigneeId: lead.user.id }));
+    expectOk(await addHelper(lead.agent, helper.user.id), 201);
+    expect((await models.ProjectMember.findOne({ where: { projectId: proj.id, userId: helper.user.id } })).role).toBe('helper');
+    expect((await helper.agent.get(`${API}/projects/${proj.id}`)).status).toBe(200);
+    expectOk(await helper.agent.post(`${API}/projects/${proj.id}/time-entries`).send({ entryDate: '2026-03-03', durationMinutes: 30, taskId: task.id }), 201);
+    expect((await helper.agent.patch(`${API}/projects/${proj.id}`).send({ name: 'Hijack' })).status).toBe(403);
+    expect((await helper.agent.post(`${API}/projects/${proj.id}/tasks`).send({ title: 'x' })).status).toBe(403);
+    const { members } = expectOk(await helper.agent.get(`${API}/projects/${proj.id}/members`));
+    expect(members.find((m) => m.userId === helper.user.id).role).toBe('helper');
+  });
+
+  it('manage_members adding an existing helper upgrades them to member', async () => {
+    const helper = await makeStaff('helper', w.deptB.id);
+    expectOk(await addHelper(w.admin.agent, helper.user.id), 201);
+    const res = expectOk(await w.admin.agent.post(`${API}/projects/${proj.id}/members`).send({ userId: helper.user.id }), 201);
+    expect(res.member.role).toBe('member');
+    expect(await models.ProjectMember.count({ where: { projectId: proj.id, userId: helper.user.id } })).toBe(1);
+    // A real member is still a duplicate.
+    expect((await w.admin.agent.post(`${API}/projects/${proj.id}/members`).send({ userId: helper.user.id })).status).toBe(409);
   });
 
   it('an existing member is not re-added or audited as autoAdd', async () => {

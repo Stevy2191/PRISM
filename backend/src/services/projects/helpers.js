@@ -43,7 +43,7 @@ async function addHelper(req, parent, task, rawUserId) {
     await sequelize.transaction(async (transaction) => {
       await TaskAssignee.create({ taskId: task.id, userId, addedBy: req.user.id }, { transaction });
       const [, created] = await ProjectMember.findOrCreate({
-        where: { projectId: parent.record.id, userId }, defaults: { role: 'member' }, transaction,
+        where: { projectId: parent.record.id, userId }, defaults: { role: 'helper' }, transaction,
       });
       autoAdded = created;
     });
@@ -52,7 +52,7 @@ async function addHelper(req, parent, task, rawUserId) {
     throw err;
   }
   await writeAudit(req, 'task.helperAdd', 'Task', task.id, { projectId: parent.record.id, userId });
-  if (autoAdded) await writeAudit(req, 'projectMember.autoAdd', 'Project', parent.record.id, { userId, taskId: task.id });
+  if (autoAdded) await writeAudit(req, 'projectMember.autoAdd', 'Project', parent.record.id, { userId, taskId: task.id, role: 'helper' });
   if (userId !== req.user.id) {
     const actor = await User.findByPk(req.user.id, { attributes: ['displayName', 'username'] });
     await createNotification({
