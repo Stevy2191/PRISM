@@ -2,7 +2,9 @@ const Sequelize = require('sequelize');
 const { sequelize, closeDb, resetData, models, ROLE } = require('./helpers');
 const { makeWorld, makeTicket, makeTech, makeUser } = require('./fixtures');
 
-const migration = require('../../migrations/20260101000050-one-work-model');
+const { aroundLater, reapplyLater } = require('./laterMigrations');
+
+const migration = aroundLater(require('../../migrations/20260101000050-one-work-model'));
 
 // The one-work-model migration (spec: Migration, Testing). Seeds today's
 // shape with raw SQL — including the awkward rows a real install has — then
@@ -32,6 +34,7 @@ afterAll(async () => {
   // Leave the schema migrated and empty for later suites.
   const names = (await qi().showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
   if (!names.includes('legacy_TimeEntries')) await migration.up(qi(), Sequelize);
+  await reapplyLater(); // idempotent; covers a test that failed between down and up
   await resetData();
   await closeDb();
 });
@@ -148,7 +151,7 @@ describe('the one-work-model migration', () => {
     const u = w.admin.user.id;
     // Another project's task (id 5): subtask offsets now start above 5, so a
     // reference to a deleted task 6 would otherwise land on subtask 1.
-    const other = await models.Project.create({ name: 'Other', projectCode: 'SD-P00002', ownerDepartmentId: w.deptA.id, status: 'Active' });
+    const other = await models.Project.create({ name: 'Other', projectCode: 'SD-P00002', ownerDepartmentId: w.deptA.id, status: 'Active' }, { fields: ['name', 'projectCode', 'ownerDepartmentId', 'status', 'companyId', 'createdAt', 'updatedAt'] });
     await run(`INSERT INTO ProjectTasks (id, projectId, taskCode, title, statusId, priority, position, createdBy, createdAt, updatedAt)
       VALUES (5, :o, 'SD-P00002-T01', 'Theirs', :active, 'medium', 1, :u, NOW(), NOW())`, { o: other.id, active: statuses.Active, u });
     // Project time logged in the ticket table before migration 19 and never removed: no ticket.

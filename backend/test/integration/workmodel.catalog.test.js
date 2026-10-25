@@ -53,7 +53,10 @@ it('both lists need a login', async () => {
 it('the new models load with their associations', () => {
   const { Task, TimeEntry } = models;
   expect(Object.keys(Task.associations).sort()).toEqual(
-    ['assignee', 'creator', 'linkedTicket', 'parentTask', 'project', 'status', 'subtasks', 'ticket']
+    [
+      'assignee', 'creator', 'helperLinks', 'helpers', 'linkedTicket', 'parentTask', 'phase', 'predecessorLinks',
+      'project', 'status', 'subtasks', 'successorLinks', 'ticket',
+    ]
   );
   expect(Object.keys(TimeEntry.associations).sort()).toEqual(['loggedBy', 'project', 'task', 'ticket', 'user', 'workType']);
   expect(models.TicketTask).toBeUndefined();
