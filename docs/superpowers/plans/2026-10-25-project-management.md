@@ -139,10 +139,10 @@
 - `shiftTasks(tasks, ids, days) → [{ id, startDate, dueDate }]` (null dates stay null)
 - `stretch(offset: number, length: number, ratio: number) → { offset, length }` (rounded, length ≥ 1; milestone length 0 stays 0)
 
-- [ ] Unit tests: `addDays across DST and month end`, `phaseSpan ignores undated tasks and is null when none dated`, `waitingOn excludes done predecessors`, `wouldCycle true for self, direct and 3-step loop`, `downstream is transitive and deduplicated on a diamond`, `shiftTasks keeps null dates`, `stretch keeps length ≥ 1 and milestones at 0`.
-- [ ] Migration test: `up adds tables and columns`, `down removes them and the enum values (rows with new types are deleted first)`, `up again succeeds`.
-- [ ] Implement, apply the migration to the test DB, and run both test files.
-- [ ] Commit `feat(projects): phases, dependencies and budget columns; schedule module`.
+- [x] Unit tests: `addDays across DST and month end`, `phaseSpan ignores undated tasks and is null when none dated`, `waitingOn excludes done predecessors`, `wouldCycle true for self, direct and 3-step loop`, `downstream is transitive and deduplicated on a diamond`, `shiftTasks keeps null dates`, `stretch keeps length ≥ 1 and milestones at 0`.
+- [x] Migration test: `up adds tables and columns`, `down removes them and the enum values (rows with new types are deleted first)`, `up again succeeds`.
+- [x] Implement, apply the migration to the test DB, and run both test files.
+- [x] Commit `feat(projects): phases, dependencies and budget columns; schedule module`.
 
 ### Task 3: Phases API and the new task fields
 
@@ -158,7 +158,7 @@
 - `DELETE /projects/:id/phases/:phaseId` (edit) → its tasks get `phaseId: null`
 - `PATCH /projects/:id/tasks/:taskId` accepts `phaseId|null, startDate|null, isMilestone`
 
-- [ ] Tests:
+- [x] Tests:
   - `phases list with derived dates and counts`
   - `create/rename/reorder/delete are audited`
   - `reorder missing an id → 400`
@@ -171,8 +171,8 @@
   - `milestone on a task with subtasks → 400 MILESTONE_HAS_SUBTASKS`
   - `subtask under a milestone → 400 MILESTONE_HAS_SUBTASKS`
   - `subtask phaseId ignored, follows parent`
-- [ ] Implement and run.
-- [ ] Commit `feat(projects): phases API, task start dates and milestones`.
+- [x] Implement and run.
+- [x] Commit `feat(projects): phases API, task start dates and milestones`.
 
 ### Task 3b: Helpers on project tasks
 
@@ -186,7 +186,7 @@
 - `peopleOn(task) → number[]` (the main assignee first, then helpers; no nulls). Used by Tasks 4, 5 and 12.
 - `addHelper(req, parent, task, rawUserId) → task`, `removeHelper(req, parent, task, rawUserId) → task`
 
-- [ ] Tests:
+- [x] Tests:
   - `edit-access user adds a helper; audited task.helperAdd; helper notified task_added`
   - `main assignee without edit access can add a helper`
   - `other non-edit member → 403`
@@ -199,8 +199,8 @@
   - `task with 1 h from each of two people: loggedMinutes 120, loggedBy 2, phase and budget used 120`
   - `mine filter includes tasks I help on`
   - `helper who can no longer work the company → no task_added/task_unblocked notification, time still counted`
-- [ ] Implement and run.
-- [ ] Commit `feat(projects): helpers on project tasks, person-hours`.
+- [x] Implement and run.
+- [x] Commit `feat(projects): helpers on project tasks, person-hours`.
 
 ### Task 4: Dependencies, shift dependents, unblocked notifications
 
@@ -216,7 +216,7 @@
 - `notifyUnblocked(task, actorId) → Promise<void>` in `services/projects/dependencies.js`
 - `canReachProject(userId, projectId) → Promise<boolean>` in `services/notifications.js`
 
-- [ ] Tests:
+- [x] Tests:
   - `create link; duplicate → 409 DEPENDENCY_EXISTS`
   - `self link and loop → 400 DEPENDENCY_CYCLE`
   - `subtask or other-project task → 400 DEPENDENCY_SCOPE`
@@ -230,8 +230,8 @@
   - `finishing one of two predecessors notifies nobody`
   - `assignee who lost project access is not notified`
   - Unit: `task_unblocked email default off`, `budget_* email default on`
-- [ ] Implement and run.
-- [ ] Commit `feat(projects): finish-to-start dependencies, shift offer, unblocked notifications`.
+- [x] Implement and run.
+- [x] Commit `feat(projects): finish-to-start dependencies, shift offer, unblocked notifications`.
 
 ## Stage 3 — Project page in look A
 
