@@ -25,7 +25,7 @@ const { maybeCreateCsatSurvey } = require('../csatService');
 const { queueContactEmail } = require('../email/ticketMail');
 const { logAssetActivity } = require('../assetActivity');
 const { syncCustomFieldValues, assertCanEditTicket } = require('../../controllers/tickets/shared');
-const { resolveCategoryForSave } = require('./categories');
+const { resolveCategoryForSave, loadTree: loadCategoryTree } = require('./categories');
 
 
 // A status must be one of the configured ticket statuses (Q25). Returns its
@@ -259,7 +259,8 @@ async function createTicket(actor, input, {
 
 // Validates a PATCH body against the ticket and returns what to write. Throws
 // ApiError for anything refused. Does not write.
-async function prepareTicketUpdate(req, ticket, body) {
+// `categoryTree`: a tree the caller already loaded (bulk edits share one).
+async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = {}) {
   // Every PRISM user is staff now (the requester tier moved to Contacts,
   // who don't call this API), so there's one edit surface — resolution
   // stays customer-visible read-only, editable here by staff only.
@@ -287,7 +288,7 @@ async function prepareTicketUpdate(req, ticket, body) {
     if (body[key] !== undefined) changes[key] = body[key];
   }
   if (changes.teamId !== undefined) changes.teamId = await assertTeamExists(changes.teamId);
-  if (changes.categoryId !== undefined) changes.categoryId = await resolveCategoryForSave(changes.categoryId, { current: ticket.categoryId });
+  if (changes.categoryId !== undefined) changes.categoryId = await resolveCategoryForSave(changes.categoryId, { current: ticket.categoryId, tree: categoryTree });
   if (changes.title !== undefined) {
     if (typeof changes.title !== 'string' || !changes.title.trim()) {
       throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
@@ -383,7 +384,11 @@ async function prepareTicketUpdate(req, ticket, body) {
 // The side effects of an update that has been saved: activity rows,
 // notifications, workflow rules, CSAT, the resolved email and the calendar.
 // `quiet` is for a ticket closed because it was merged away.
-async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = false } = {}) {
+async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = false, categoryTree = null } = {}) {
+  // The category's old and new paths both come from one tree.
+  const displayTree = changes.categoryId !== undefined && String(before.categoryId ?? '') !== String(ticket.categoryId ?? '')
+    ? categoryTree || await loadCategoryTree()
+    : null;
   const previousAssigneeId = before.assigneeId;
   const previousStatus = before.status;
   // eslint-disable-next-line no-restricted-syntax
@@ -393,9 +398,9 @@ async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = fa
     const afterVal = ticket[field];
     if (String(beforeVal ?? '') === String(afterVal ?? '')) continue; // eslint-disable-line no-continue
     // eslint-disable-next-line no-await-in-loop
-    const fromDisplay = await resolveDisplayValue(field, beforeVal);
+    const fromDisplay = await resolveDisplayValue(field, beforeVal, { categoryTree: displayTree });
     // eslint-disable-next-line no-await-in-loop
-    const toDisplay = await resolveDisplayValue(field, afterVal);
+    const toDisplay = await resolveDisplayValue(field, afterVal, { categoryTree: displayTree });
     // eslint-disable-next-line no-await-in-loop
     await logActivity(ticket.id, req.user.id, field, fromDisplay, toDisplay);
   }
@@ -451,7 +456,7 @@ const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'te
 const snapshotBefore = (ticket) => Object.fromEntries(TRACKED_ACTIVITY_FIELDS.map((f) => [f, ticket[f]]));
 
 // Edits a ticket: access + edit-tier checks, validation, save, side effects.
-async function updateTicket(req, ticket, body, { quiet = false } = {}) {
+async function updateTicket(req, ticket, body, { quiet = false, categoryTree = null } = {}) {
   // editMin only checked "has ANY edit tier" at the route level — same gap
   // as get() (see comment there) but for writes: without this, an
   // 'own'/'department'-scoped user could edit any ticket by id.
@@ -459,7 +464,7 @@ async function updateTicket(req, ticket, body, { quiet = false } = {}) {
     throw new ApiError(403, 'You do not have access to this ticket', 'FORBIDDEN');
   }
   await assertCanEditTicket(req.user, ticket);
-  const { changes, before } = await prepareTicketUpdate(req, ticket, body);
+  const { changes, before } = await prepareTicketUpdate(req, ticket, body, { categoryTree });
   await sequelize.transaction(async (t) => {
     await ticket.update(changes, { transaction: t });
     if (body.customFieldValues) {
@@ -467,7 +472,7 @@ async function updateTicket(req, ticket, body, { quiet = false } = {}) {
     }
   });
   await writeAudit(req, 'ticket.update', 'Ticket', ticket.id, changes);
-  await runTicketUpdateEffects(req, ticket, before, changes, { quiet });
+  await runTicketUpdateEffects(req, ticket, before, changes, { quiet, categoryTree });
   return ticket;
 }
 

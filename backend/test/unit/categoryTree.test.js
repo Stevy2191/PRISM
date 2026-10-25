@@ -64,6 +64,12 @@ describe('category tree helpers', () => {
     expect(tree.categoryJson(make(), 3)).toEqual({ id: 3, path: ['Hardware', 'Laptop', 'Battery'] });
   });
 
+  it('subtreeHeight and descendantIds stay finite on a (corrupt) cycle', () => {
+    const t = new Map([node(1, 2, 'A'), node(2, 1, 'B')]);
+    expect(tree.subtreeHeight(t, 1)).toBeLessThanOrEqual(2);
+    expect(tree.descendantIds(t, 1).sort()).toEqual([1, 2]);
+  });
+
   it('MAX_DEPTH is 5', () => {
     expect(tree.MAX_DEPTH).toBe(5);
   });

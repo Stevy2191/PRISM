@@ -26,7 +26,7 @@ async function shownActivity(viewer, rows) {
 
 // Resolves a raw field value to a display string for the activity log.
 // `field` matches the Ticket column name (assigneeId, teamId, departmentId, ...).
-async function resolveDisplayValue(field, value) {
+async function resolveDisplayValue(field, value, { categoryTree = null } = {}) {
   if (value === null || value === undefined || value === '') return null;
   if (field === 'assigneeId') {
     const user = await User.findByPk(value);
@@ -43,7 +43,7 @@ async function resolveDisplayValue(field, value) {
   if (field === 'categoryId') {
     // Lazy: the category service loads the models this file is loaded beside.
     const { loadTree, pathOf } = require('./tickets/categories'); // eslint-disable-line global-require
-    const path = pathOf(await loadTree(), value);
+    const path = pathOf(categoryTree || await loadTree(), value);
     return path.length ? path.map((n) => n.name).join(' › ') : `Category #${value}`;
   }
   return String(value).replace(/_/g, ' ');

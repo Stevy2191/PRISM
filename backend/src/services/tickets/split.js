@@ -48,6 +48,9 @@ async function splitTicket(req, ticketRaw, commentRaw) {
   let files = { copied: [], originals: [] };
   try {
     await sequelize.transaction(async (transaction) => {
+      // The split-off ticket keeps the source's category as it stands (tickets
+      // keep a retired category, so it isn't re-checked like a new pick).
+      if (ticket.categoryId) await created.update({ categoryId: ticket.categoryId }, { transaction });
       await comment.update({ ticketId: created.id }, { transaction, silent: true });
       const attachments = await Attachment.findAll({ where: { ticketId: ticket.id, commentId: comment.id }, transaction });
       files = await copyToTicket(attachments, created.id);

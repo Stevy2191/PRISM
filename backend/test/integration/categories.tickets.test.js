@@ -183,6 +183,19 @@ describe('list filter', () => {
 describe('bulk and recurring', () => {
   const bulk = (body) => w.admin.agent.post(`${API}/tickets/bulk`).send(body);
 
+  it('a bulk category change loads the tree once, not per ticket (besides one per ticket for rules)', async () => {
+    const ids = [];
+    for (let i = 0; i < 4; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      ids.push(expectOk(await create({ title: `T${i}` }), 201).ticket.id);
+    }
+    const spy = jest.spyOn(models.TicketCategory, 'findAll');
+    expectOk(await bulk({ ids, action: 'category', value: laptop.id }));
+    const calls = spy.mock.calls.length;
+    spy.mockRestore();
+    expect(calls).toBeLessThanOrEqual(1 + ids.length);
+  });
+
   it('bulk category sets it on every selected ticket', async () => {
     const a = expectOk(await create({ title: 'A' }), 201).ticket;
     const b = expectOk(await create({ title: 'B', categoryId: sw.id }), 201).ticket;
@@ -246,5 +259,16 @@ describe('bulk and recurring', () => {
     expectOk(await w.admin.agent.patch(`${CAT}/${laptop.id}`).send({ requireChild: true }));
     expect(await runOnce(r.id)).toEqual({ created: 1, paused: 0 });
     expect((await models.Ticket.findOne({ where: { source: 'recurring' } })).categoryId).toBeNull();
+  });
+});
+
+describe('split', () => {
+  it('the split-off ticket keeps the source ticket\'s category, even a retired one', async () => {
+    const t = expectOk(await create({ categoryId: laptop.id }), 201).ticket;
+    const c = expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/comments`).send({ body: 'Second problem', type: 'comment_public' }), 201).comment;
+    await retire(laptop.id);
+    const res = expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/split`).send({ commentId: c.id }), 201);
+    const newId = (res.ticket || res.created || {}).id;
+    expect((await models.Ticket.findByPk(newId)).categoryId).toBe(laptop.id);
   });
 });

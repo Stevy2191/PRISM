@@ -78,6 +78,50 @@ it('two roots named "Hardware" / " hardware " → second is 409 DUPLICATE_NAME',
   expect(res.body.code).toBe('DUPLICATE_NAME');
 });
 
+it('names differing only by accents or case are duplicates, at the root and under a parent', async () => {
+  await add('Café');
+  const root = await w.admin.agent.post(URL).send({ name: 'cafe' });
+  expect([root.status, root.body.code]).toEqual([409, 'DUPLICATE_NAME']);
+  const hw = await add('Hardware');
+  await add('Écran', hw.id);
+  const kid = await w.admin.agent.post(URL).send({ name: 'ecran', parentId: hw.id });
+  expect([kid.status, kid.body.code]).toEqual([409, 'DUPLICATE_NAME']);
+});
+
+it('concurrent creates of the same root name: exactly one wins, the rest are 409', async () => {
+  const results = await Promise.all([1, 2, 3, 4, 5].map(() => w.admin.agent.post(URL).send({ name: 'Racing' })));
+  expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+  expect(results.filter((r) => r.status === 409)).toHaveLength(4);
+  expect(await models.TicketCategory.count({ where: { name: 'Racing' } })).toBe(1);
+});
+
+it('concurrent opposing moves (A under B, B under A) never make a cycle', async () => {
+  const a = await add('A');
+  const b = await add('B');
+  const [ra, rb] = await Promise.all([
+    w.admin.agent.patch(`${URL}/${a.id}`).send({ parentId: b.id }),
+    w.admin.agent.patch(`${URL}/${b.id}`).send({ parentId: a.id }),
+  ]);
+  expect([ra.status, rb.status].sort()).toEqual([200, 400]);
+  const rows = await models.TicketCategory.findAll({ raw: true });
+  expect(rows.some((r) => r.parentId === null)).toBe(true);
+});
+
+it('a delete waits for an in-flight custom field save that uses the category, then refuses', async () => {
+  const hw = await add('Hardware');
+  const { lockCategoriesShared } = require('../../src/services/tickets/categories'); // eslint-disable-line global-require
+  const t = await models.sequelize.transaction();
+  await lockCategoriesShared([hw.id], t);
+  // supertest sends on .then(); start it now so it runs while the lock is held.
+  const pending = w.admin.agent.delete(`${URL}/${hw.id}`).then((r) => r);
+  await new Promise((r) => { setTimeout(r, 300); });
+  await models.CustomField.create({ label: 'Late', fieldKey: 'late_field', fieldType: 'text', categoryIds: [hw.id] }, { transaction: t });
+  await t.commit();
+  const res = await pending;
+  expect(res.status).toBe(409);
+  expect(res.body.usage).toMatchObject({ fields: 1 });
+});
+
 it('rename to a sibling\'s name is 409; rename to its own name in another case is fine', async () => {
   const a = await add('Alpha');
   await add('Beta');

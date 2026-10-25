@@ -20,6 +20,11 @@ afterAll(closeDb);
 
 it('up creates the table and columns', expectUp);
 
+it('Tickets.categoryId has exactly one index (the FK uses it)', async () => {
+  const [rows] = await sequelize.query("SHOW INDEX FROM Tickets WHERE Column_name = 'categoryId'");
+  expect(rows).toHaveLength(1);
+});
+
 it('grants tickets.categories.manage to System Administrator', async () => {
   const rows = await select(
     `SELECT p.\`key\` FROM Permissions p

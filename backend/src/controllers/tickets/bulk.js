@@ -4,6 +4,7 @@
 // checks, activity, workflow rules, SLA hooks and notifications all apply.
 // A missing ticket and one the caller can't see get the same answer.
 const { Ticket } = require('../../models');
+const { loadTree: loadCategoryTree } = require('../../services/tickets/categories');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { canAccessTicket, hasPermission, parseTicketId } = require('../../services/permissionService');
 const { closedStatusName } = require('../../services/statusBehavior');
@@ -26,7 +27,7 @@ function resultError(err, id) {
   return 'Could not update this ticket';
 }
 
-async function applyOne(req, action, value, id) {
+async function applyOne(req, action, value, id, { categoryTree = null } = {}) {
   const ticket = id ? await Ticket.findByPk(id) : null;
   if (!ticket || !(await canAccessTicket(req.user, ticket))) throw new ApiError(404, NOT_FOUND, 'NOT_FOUND');
   switch (action) {
@@ -34,7 +35,7 @@ async function applyOne(req, action, value, id) {
     case 'priority': return updateTicket(req, ticket, { priority: value });
     case 'assign': return updateTicket(req, ticket, { assigneeId: value || null });
     case 'team': return updateTicket(req, ticket, { teamId: value || null });
-    case 'category': return updateTicket(req, ticket, { categoryId: value ?? null });
+    case 'category': return updateTicket(req, ticket, { categoryId: value ?? null }, { categoryTree });
     case 'close': return updateTicket(req, ticket, { status: await closedStatusName() });
     case 'add_watcher': return addTicketWatcher(req, ticket, value);
     case 'delete': return deleteTicket(req, ticket);
@@ -80,6 +81,8 @@ const bulk = asyncHandler(async (req, res) => {
   const extra = EXTRA_PERMISSION[action];
   const allowed = !extra || (await hasPermission(req.user.id, extra));
 
+  // One category tree for the whole batch, not one per ticket.
+  const categoryTree = action === 'category' ? await loadCategoryTree() : null;
   const results = [];
   for (const { raw, id } of items) {
     if (!allowed) {
@@ -92,7 +95,7 @@ const bulk = asyncHandler(async (req, res) => {
       // eslint-disable-next-line no-await-in-loop
       if (!id) throw new ApiError(404, NOT_FOUND, 'NOT_FOUND');
       // eslint-disable-next-line no-await-in-loop
-      await applyOne(req, action, value, id);
+      await applyOne(req, action, value, id, { categoryTree });
       results.push({ id, ok: true });
     } catch (err) {
       results.push({ id: id || raw, ok: false, error: resultError(err, id) });

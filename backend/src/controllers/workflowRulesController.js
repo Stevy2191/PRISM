@@ -5,7 +5,14 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { testRule } = require('../services/workflowEngine');
 const { parseRecordId } = require('../services/permissionService');
-const { loadTree: loadCategoryTree } = require('../services/tickets/categories');
+const { loadTree: loadCategoryTree, lockCategoriesShared } = require('../services/tickets/categories');
+
+// Shared lock on the categories the conditions name, so a concurrent
+// category delete either counts this rule or this save finds it gone.
+const lockConditionCategories = (conditions, t) => lockCategoriesShared(
+  conditions.filter((c) => c.field === 'category' && c.value).map((c) => Number(c.value)),
+  t
+);
 
 const TRIGGER_EVENTS = [
   'ticket_created', 'ticket_updated', 'ticket_status_changed', 'ticket_priority_changed',
@@ -159,6 +166,7 @@ const create = asyncHandler(async (req, res) => {
 
   const maxPosition = await WorkflowRule.max('position');
   const rule = await sequelize.transaction(async (t) => {
+    await lockConditionCategories(conditions, t);
     const created = await WorkflowRule.create(
       { ...data, position: (maxPosition || 0) + 1, createdBy: req.user.id },
       { transaction: t }
@@ -190,6 +198,7 @@ const update = asyncHandler(async (req, res) => {
 
   await sequelize.transaction(async (t) => {
     await rule.update(data, { transaction: t });
+    if (conditions) await lockConditionCategories(conditions, t);
     if (conditions) {
       await WorkflowCondition.destroy({ where: { ruleId: rule.id }, transaction: t });
       await Promise.all(conditions.map((c) => WorkflowCondition.create({ ...c, ruleId: rule.id }, { transaction: t })));

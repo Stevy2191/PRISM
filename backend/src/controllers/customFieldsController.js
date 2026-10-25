@@ -1,5 +1,7 @@
 const { Op } = require('sequelize');
-const { CustomField, TicketFieldValue, User } = require('../models');
+const {
+  CustomField, TicketFieldValue, User, sequelize,
+} = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { hasPermission, parseRecordId } = require('../services/permissionService');
@@ -155,7 +157,12 @@ const get = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const data = await validate(req.body || {});
   const maxPosition = await CustomField.max('position');
-  const field = await CustomField.create({ ...data, position: (maxPosition || 0) + 1, createdBy: req.user.id });
+  // Shared lock on the field's categories: a concurrent category delete
+  // waits and then sees this field (or this save finds the category gone).
+  const field = await sequelize.transaction(async (transaction) => {
+    await categories.lockCategoriesShared(categories.idList(data.categoryIds), transaction);
+    return CustomField.create({ ...data, position: (maxPosition || 0) + 1, createdBy: req.user.id }, { transaction });
+  });
   await writeAudit(req, 'customField.create', 'CustomField', field.id, { label: field.label });
   const fresh = await CustomField.findByPk(field.id, { include });
   res.status(201).json({ customField: fresh });
@@ -166,7 +173,10 @@ const update = asyncHandler(async (req, res) => {
   const field = await CustomField.findByPk(req.params.id);
   if (!field) throw new ApiError(404, 'Custom field not found', 'NOT_FOUND');
   const data = await validate(req.body || {}, field);
-  await field.update(data);
+  await sequelize.transaction(async (transaction) => {
+    await categories.lockCategoriesShared(categories.idList(data.categoryIds), transaction);
+    await field.update(data, { transaction });
+  });
   await writeAudit(req, 'customField.update', 'CustomField', field.id, { label: field.label });
   const fresh = await CustomField.findByPk(field.id, { include });
   res.json({ customField: fresh });

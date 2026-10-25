@@ -1,6 +1,6 @@
 // Ticket categories (5c): loading the tree, plus the DB-side helpers built on
 // the pure ones in categoryTree.js.
-const { TicketCategory } = require('../../models');
+const { TicketCategory, sequelize } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { parseRecordId } = require('../permissionService');
 const tree = require('./categoryTree');
@@ -64,6 +64,43 @@ function fieldAppliesToCategory(field, t, categoryId) {
   return tree.pathOf(t, categoryId).some((n) => scope.includes(n.id));
 }
 
+// Every change to the tree runs inside this: a locking read of the whole
+// table (next-key locks, so concurrent inserts wait too) serializes tree
+// writes, and the tree handed to `fn` is read after the lock is held.
+// Two such locks taken at once on an (almost) empty table can deadlock on
+// their gap locks; InnoDB rolls one back, and that one is simply run again —
+// it then sees the other's committed change.
+const isDeadlock = (err) => [err?.parent?.code, err?.original?.code, err?.code].includes('ER_LOCK_DEADLOCK');
+async function withTreeLock(fn, { attempts = 5 } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      return await sequelize.transaction(async (transaction) => {
+        await sequelize.query('SELECT id FROM TicketCategories FOR UPDATE', { transaction });
+        const t = await loadTree({ transaction });
+        return fn(t, transaction);
+      });
+    } catch (err) {
+      if (!isDeadlock(err) || attempt >= attempts) throw err;
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => { setTimeout(r, 10 + Math.random() * 40 * attempt); });
+    }
+  }
+}
+
+// A save that will reference these categories (a custom field's branches, a
+// workflow condition) takes a shared lock on them in its own transaction:
+// a concurrent delete then waits for it and sees the new use, and a save
+// that comes after a delete finds the category gone. Throws if one is gone.
+async function lockCategoriesShared(ids, transaction) {
+  const list = [...new Set((ids || []).map(Number).filter(Number.isInteger))];
+  if (!list.length) return;
+  const rows = await sequelize.query('SELECT id FROM TicketCategories WHERE id IN (:ids) LOCK IN SHARE MODE', {
+    replacements: { ids: list }, transaction, type: sequelize.QueryTypes.SELECT,
+  });
+  if (rows.length !== list.length) throw notFound();
+}
+
 module.exports = {
-  ...tree, loadTree, resolveCategoryForSave, isUsableOnRun, idList, fieldAppliesToCategory,
+  ...tree, loadTree, resolveCategoryForSave, isUsableOnRun, idList, fieldAppliesToCategory, withTreeLock, lockCategoriesShared,
 };

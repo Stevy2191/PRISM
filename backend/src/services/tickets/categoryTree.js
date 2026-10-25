@@ -42,10 +42,11 @@ function descendantIds(tree, id) {
 }
 
 // Levels from the node down to its deepest descendant (a leaf = 1).
-function subtreeHeight(tree, id) {
+function subtreeHeight(tree, id, seen = new Set()) {
   const node = tree.get(Number(id));
-  if (!node) return 0;
-  const below = childrenOf(tree, node.id).map((c) => subtreeHeight(tree, c.id));
+  if (!node || seen.has(node.id)) return 0;
+  seen.add(node.id);
+  const below = childrenOf(tree, node.id).map((c) => subtreeHeight(tree, c.id, seen));
   return 1 + (below.length ? Math.max(...below) : 0);
 }
 
