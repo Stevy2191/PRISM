@@ -340,7 +340,7 @@ async function updateTask(req, parent, task, body = {}) {
   }
   // Keep only real changes, so a client PATCHing the whole task back logs nothing.
   for (const key of Object.keys(changes)) {
-    const same = key === 'dueDate' || key === 'startDate' ? sameDate(changes[key], task.dueDate) : changes[key] === task[key];
+    const same = key === 'dueDate' || key === 'startDate' ? sameDate(changes[key], task[key]) : changes[key] === task[key];
     if (same && key !== 'completedAt') delete changes[key];
   }
   if (changes.statusId === undefined) delete changes.completedAt;

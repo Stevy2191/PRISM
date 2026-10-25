@@ -145,6 +145,21 @@ describe('task fields', () => {
     expect([created.startDate, created.dueDate, created.estimateMinutes]).toEqual(['2026-05-01', '2026-05-01', null]);
   });
 
+  it('startDate equal to dueDate is saved', async () => {
+    const task = await makeTask(w.admin.agent, proj.id, { dueDate: '2026-03-10' });
+    const res = expectOk(await patchTask(task, { startDate: '2026-03-10' })).task;
+    expect([res.startDate, res.dueDate]).toEqual(['2026-03-10', '2026-03-10']);
+    expect((await models.Task.findByPk(task.id)).startDate).toBe('2026-03-10');
+  });
+
+  it('converting a task that already has a dueDate to a milestone sets startDate = dueDate', async () => {
+    const task = await makeTask(w.admin.agent, proj.id, { dueDate: '2026-03-10' });
+    const res = expectOk(await patchTask(task, { isMilestone: true })).task;
+    expect([res.isMilestone, res.startDate, res.dueDate]).toEqual([true, '2026-03-10', '2026-03-10']);
+    const row = await models.Task.findByPk(task.id);
+    expect([row.startDate, row.dueDate]).toEqual(['2026-03-10', '2026-03-10']);
+  });
+
   it('milestone on a task with subtasks → 400 MILESTONE_HAS_SUBTASKS', async () => {
     const task = await makeTask(w.admin.agent, proj.id);
     await makeSubtask(w.admin.agent, proj.id, task.id);
