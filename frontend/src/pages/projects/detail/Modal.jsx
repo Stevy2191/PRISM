@@ -5,6 +5,9 @@ export function Modal({ title, children, onClose, wide }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className={`w-full max-h-[100dvh] overflow-y-auto rounded-none border p-5 sm:max-h-[90vh] sm:rounded-[10px] ${wide ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
         style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
         onClick={(e) => e.stopPropagation()}

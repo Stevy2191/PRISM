@@ -1,5 +1,6 @@
 // Keyboard moves through the task list: J next, K previous, Esc closes the
-// panel. Ignored while typing and with Ctrl/Alt/Cmd held.
+// panel. Ignored while typing, with Ctrl/Alt/Cmd held, and while a dialog
+// (the stop-timer form, a confirm) is open: the keys belong to it.
 import { useEffect, useRef } from 'react';
 
 // The index after moving `delta` rows from `current` (-1: nothing selected),
@@ -18,7 +19,8 @@ export function useListKeys({ ids, selectedId, onSelect, onClose }) {
   latest.current = { ids, selectedId, onSelect, onClose };
   useEffect(() => {
     const onKey = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (document.querySelector('[role="dialog"], [aria-modal="true"]')) return;
       const t = e.target;
       if (t && (TYPING.has(t.tagName) || t.isContentEditable)) return;
       const { ids: list, selectedId: sel, onSelect: select, onClose: close } = latest.current;

@@ -86,8 +86,9 @@ export default function TasksTab({
   const closePanel = () => setSelectedId(null);
 
   // A due date moved later: the server names what waits on it.
-  const showOffer = (task, found) => setOffer({
-    taskId: task.id, code: shortCode(task.code), days: found.days, count: found.tasks.length,
+  const showOffer = (task, found) => setOffer((cur) => {
+    if (found) return { taskId: task.id, code: shortCode(task.code), days: found.days, count: found.tasks.length };
+    return cur && cur.taskId === task.id ? null : cur;
   });
   const shiftThem = async () => {
     setShifting(true);
@@ -123,7 +124,7 @@ export default function TasksTab({
     timerLabel,
     selectedId,
     onSelect: setSelectedId,
-    compact: !!selected,
+    compact: !!selected, // only drawn at lg+, where the panel sits beside the list
     isDone,
     filtered: filter !== 'all',
     onToggle: toggle,
@@ -198,7 +199,7 @@ export default function TasksTab({
     <div className="flex items-start gap-5">
       {list}
       {selected && (
-        <div className="w-full max-w-[480px] flex-shrink-0 max-md:contents md:sticky md:top-4 md:w-[440px] lg:w-[480px]">
+        <div className="w-full max-w-[480px] flex-shrink-0 max-lg:contents lg:sticky lg:top-4 lg:w-[480px]">
           <TaskPanel
             key={selected.id}
             task={selected} projectId={projectId} tasks={tasks} phases={phases} statuses={statuses}

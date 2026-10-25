@@ -169,3 +169,88 @@ it('view-only user sees no edit controls but can log time', async () => {
   const [entry] = await models.TimeEntry.findAll({ where: { taskId: t3.id } });
   expect([entry.durationSeconds, entry.userId]).toEqual([900, viewer.user.id]);
 });
+
+it('J/K and Esc are left alone while a dialog is open', async () => {
+  const page = await smoke.pageAs('admin');
+  const panel = await open(page, 'Configure VLANs');
+  await page.evaluate(() => {
+    const d = document.createElement('div');
+    d.setAttribute('role', 'dialog');
+    d.id = 'fake-dialog';
+    document.body.appendChild(d);
+  });
+  await page.keyboard.press('j');
+  await page.keyboard.press('Escape');
+  expect(await panel.getByLabel('Task title').inputValue()).toBe('Configure VLANs');
+  await page.evaluate(() => document.getElementById('fake-dialog').remove());
+  await page.keyboard.press('Escape');
+  await panelOf(page).waitFor({ state: 'hidden' });
+});
+
+it('typing a date does not save until you leave the field', async () => {
+  const page = await smoke.pageAs('admin');
+  const panel = await open(page, 'Test every jack');
+  let patches = 0;
+  page.on('request', (r) => { if (r.method() === 'PATCH' && r.url().includes(`/tasks/${t4.id}`)) patches += 1; });
+  const due = panel.getByLabel('Due date');
+  await due.focus();
+  for (const v of ['0002-11-20', '0020-11-20', '0202-11-20']) await due.fill(v);
+  expect(patches).toBe(0);
+  const saved = waitFor(page, 'PATCH', `/tasks/${t4.id}`);
+  await due.fill('2026-11-30');
+  await due.blur();
+  await saved;
+  expect(patches).toBe(1);
+  expect((await models.Task.findByPk(t4.id)).dueDate).toBe('2026-11-30');
+});
+
+it('the activity list reaches past the latest 25 project rows', async () => {
+  const a = w.admin.agent;
+  for (let i = 0; i < 28; i += 1) {
+    expectOk(await a.patch(`${API}/projects/${project.id}/tasks/${t5.id}`).send({ title: `Noise ${i}` }));
+  }
+  expectOk(await a.patch(`${API}/projects/${project.id}/tasks/${t5.id}`).send({ title: 'Undated cleanup' }));
+  const page = await smoke.pageAs('admin');
+  const panel = await open(page, 'Firewall licence arrives');
+  await panel.getByText('Nothing yet.').waitFor({ state: 'hidden' });
+  await panel.getByText(/created a task|edited a task/).first().waitFor();
+});
+
+it('at 800px wide the panel is an overlay and the list title column stays readable', async () => {
+  const page = await smoke.pageAs('admin');
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.goto(`/projects/${project.id}`);
+  const title = rowTitle(page, 'Configure VLANs');
+  const before = (await title.boundingBox()).width;
+  await title.click();
+  const panel = panelOf(page);
+  await panel.waitFor();
+  const box = await panel.boundingBox();
+  expect(box.width).toBeGreaterThanOrEqual(780);
+  await page.keyboard.press('Escape');
+  await panelOf(page).waitFor({ state: 'hidden' });
+  expect((await title.boundingBox()).width).toBeGreaterThanOrEqual(before - 1);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await rowTitle(page, 'Configure VLANs').click();
+  await panelOf(page).waitFor();
+  expect((await rowTitle(page, 'Configure VLANs').boundingBox()).width).toBeGreaterThan(100);
+});
+
+it('a later save of the same task with no offer clears the shift banner', async () => {
+  const page = await smoke.pageAs('admin');
+  const panel = await open(page, 'Firewall licence arrives');
+  const first = waitFor(page, 'PATCH', `/tasks/${t1.id}`);
+  const due = panel.getByLabel('Due date');
+  const current = (await models.Task.findByPk(t1.id)).dueDate;
+  const later = new Date(`${current}T00:00:00Z`);
+  later.setUTCDate(later.getUTCDate() + 1);
+  await due.fill(later.toISOString().slice(0, 10));
+  await due.blur();
+  await first;
+  const banner = page.getByRole('alert').filter({ hasText: 'wait on it' }).filter({ visible: true }).first();
+  await banner.waitFor();
+  const second = waitFor(page, 'PATCH', `/tasks/${t1.id}`);
+  await panel.getByLabel('Priority').selectOption('high');
+  await second;
+  await banner.waitFor({ state: 'hidden' });
+});

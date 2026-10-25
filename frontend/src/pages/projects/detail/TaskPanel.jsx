@@ -1,6 +1,7 @@
 // The docked task panel on the Tasks tab: editable fields, helpers, what the
 // task waits on and holds up, subtasks, quick time, notes and activity. Each
-// field saves as it changes; with no edit access it all reads as text.
+// field saves as it changes (dates when you leave them); with no edit access
+// it all reads as text.
 import { useEffect, useState } from 'react';
 import { IconX } from '@tabler/icons-react';
 import api, { errMessage } from '../../../api/api';
@@ -39,6 +40,28 @@ function Section({ title, hint, children }) {
   );
 }
 
+// A date input shows what is typed; it saves on blur or Enter, and only a
+// complete, plausible date (or none) counts: Chrome reports 0002, 0020, 0202
+// on the way to typing 2026.
+const plausible = (v) => v === '' || (/^\d{4}-\d{2}-\d{2}$/.test(v) && v.slice(0, 4) >= '1970' && v.slice(0, 4) <= '2200');
+
+function DateField({ label, value, onSave }) {
+  const [draft, setDraft] = useState(value || '');
+  useEffect(() => { setDraft(value || ''); }, [value]);
+  const commit = () => {
+    if (draft === (value || '')) return;
+    if (plausible(draft)) onSave(draft || null);
+    else setDraft(value || '');
+  };
+  return (
+    <input
+      aria-label={label} type="date" className="input !h-9 !w-auto" value={draft}
+      onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
+    />
+  );
+}
+
 export default function TaskPanel({
   task, projectId, tasks, phases, statuses, users, canEdit, canLog, currentUser, timerLabel, today,
   activity, onClose, onSelect, onChanged, onShiftOffer, onStopRequest,
@@ -53,6 +76,17 @@ export default function TaskPanel({
   useEffect(() => { setNotes(task.description || ''); }, [task.description]);
   useEffect(() => { setEstimate(task.estimateMinutes == null ? '' : String(task.estimateMinutes / 60)); }, [task.estimateMinutes]);
 
+  // This task's own history from the server (the project feed is only the
+  // latest rows); refetched whenever the project's feed reloads.
+  const [mine, setMine] = useState(null);
+  useEffect(() => {
+    let live = true;
+    api.get(`/projects/${projectId}/activity`, { params: { taskId: task.id } })
+      .then(({ data }) => { if (live) setMine(data.activity.slice(0, 8)); })
+      .catch(() => { if (live) setMine([]); });
+    return () => { live = false; };
+  }, [projectId, task.id, activity]);
+
   const me = currentUser?.id;
   const done = isDone(task);
   const isMilestone = !!task.isMilestone;
@@ -60,7 +94,8 @@ export default function TaskPanel({
   const save = async (changes, id = task.id) => {
     try {
       const { data } = await api.patch(paths.task(id), changes);
-      if (id === task.id && data.shiftOffer) onShiftOffer(data.task || task, data.shiftOffer);
+      // A new offer replaces the banner; any save of this task that brings none clears a stale one.
+      if (id === task.id) onShiftOffer(data.task || task, data.shiftOffer || null);
     } catch (err) { alert(errMessage(err)); }
     await onChanged();
   };
@@ -86,14 +121,13 @@ export default function TaskPanel({
 
   const subs = task.subtasks || [];
   const subsDone = subs.filter((s) => s.status?.behaviorType === 'closed').length;
-  const mine = (activity || []).filter((a) => a.detail?.taskId === task.id).slice(0, 8);
   const phase = phases.find((p) => p.id === task.phaseId);
   const canAddHelper = canEdit || (!!me && task.assigneeId === me);
 
   return (
     <aside
       aria-label="Task details"
-      className="flex max-h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-xl border border-navy-100 bg-surface shadow-lg max-md:fixed max-md:inset-0 max-md:z-40 max-md:max-h-none max-md:rounded-none"
+      className="flex max-h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-xl border border-navy-100 bg-surface shadow-lg max-lg:fixed max-lg:inset-0 max-lg:z-40 max-lg:max-h-none max-lg:rounded-none"
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-navy-100 px-[18px] py-3.5">
         <EditableCode
@@ -158,10 +192,10 @@ export default function TaskPanel({
             {canEdit ? (
               <>
                 {!isMilestone && (
-                  <input aria-label="Start date" type="date" className="input !h-9 !w-auto" value={task.startDate || ''} onChange={(e) => save({ startDate: e.target.value || null })} />
+                  <DateField label="Start date" value={task.startDate} onSave={(v) => save({ startDate: v })} />
                 )}
                 {!isMilestone && <span className="text-navy-400">→</span>}
-                <input aria-label="Due date" type="date" className="input !h-9 !w-auto" value={task.dueDate || ''} onChange={(e) => save({ dueDate: e.target.value || null })} />
+                <DateField label="Due date" value={task.dueDate} onSave={(v) => save({ dueDate: v })} />
               </>
             ) : <span className="num">{dateRange(task.startDate, task.dueDate) || 'No dates'}</span>}
           </Row>
@@ -243,8 +277,8 @@ export default function TaskPanel({
         </Section>
 
         <Section title="Activity">
-          {mine.length === 0 && <p className="text-sm text-navy-400">Nothing yet.</p>}
-          {mine.map((a) => (
+          {mine && mine.length === 0 && <p className="text-sm text-navy-400">Nothing yet.</p>}
+          {(mine || []).map((a) => (
             <div key={a.id} className="flex gap-2.5 py-1 text-[13px] text-navy-500">
               <Avatar name={a.user?.displayName} size={22} />
               <span className="min-w-0 flex-1">
