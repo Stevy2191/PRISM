@@ -479,6 +479,14 @@ driven and stored inline on the ticket.
 
 ---
 
+## Roadmap and development
+
+What has been built, what's next, and the notes for working on the code
+(test database, test runs, CI) are in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Each sub-project's design and step-by-step plan are in
+`docs/superpowers/specs/` and `docs/superpowers/plans/`. Release notes are
+in [`UPGRADING.md`](UPGRADING.md).
+
 ## Running the tests
 
 The backend has a Jest + supertest suite covering authentication, the

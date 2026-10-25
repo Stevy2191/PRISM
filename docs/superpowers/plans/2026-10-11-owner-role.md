@@ -1,5 +1,7 @@
 # The Owner Role Implementation Plan
 
+> **Status: shipped** (see `docs/ROADMAP.md`). The checkboxes below were not ticked as the work went; they don't mean the steps are undone.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Put an **Owner** above System Administrator, so that one rogue System Administrator can't take over the system.

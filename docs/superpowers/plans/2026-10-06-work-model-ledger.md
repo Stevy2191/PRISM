@@ -1,5 +1,7 @@
 # One Work Model — Tasks and the Ledger (plan 3b-1) Implementation Plan
 
+> **Status: shipped** (see `docs/ROADMAP.md`). The checkboxes below were not ticked as the work went; they don't mean the steps are undone.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the three task tables and the two time tables with one `Tasks` table and one `TimeEntries` ledger, behind one task service and one time service. This covers the timer and every reader of time and tasks, plus the task and time quirk fixes. Today's screens keep working on the new API.

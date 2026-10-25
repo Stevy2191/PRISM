@@ -46,6 +46,39 @@ few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
   blocked or the scanner goes down (these can't be switched off). The scanner's
   state is shown under **Settings → System info**.
 
+### Service desk: desk tools (5b)
+
+- **Team queues.** The ticket list has a queue view: unassigned, open
+  tickets in your teams first, then by SLA due time. The nav badge counts
+  them, and **Take it** assigns a ticket to you.
+- **Canned responses** (Settings → Canned responses) are reusable replies
+  with placeholders such as `{{contact.firstName}}`, inserted from the reply
+  box. Everyone keeps personal ones; the new permission **Manage shared
+  canned responses** creates team-wide and everyone-wide ones.
+- **Bulk actions** run on the server, one result per ticket: status,
+  priority, reassign, team, close, add watcher, merge and delete. Each
+  ticket is checked and logged like a single edit.
+- **Merge and split.** Merge moves comments, files, time and tasks into one
+  ticket and closes the others with a pointer. Split moves one message
+  (with its attachments) into a new ticket.
+- **Recurring tickets** (Settings → Recurring tickets) create a ticket, with
+  tasks, on a daily, weekly, monthly or yearly schedule. A rule runs as
+  the person who saved it. If that person can no longer create the ticket,
+  the rule pauses and says why. Needs the new permission **Manage recurring
+  tickets**.
+- Both new permissions are granted to System Administrator only. Add them to
+  other roles under Roles as needed. Staff can now also pick **Email** as a
+  ticket's source by hand.
+
+### Time waiting on the customer
+
+- Each status has a **Counts as waiting on the customer** switch
+  (Settings → Statuses), on for Waiting on User. Time spent in those
+  statuses shows on the ticket page and PDF, as two Ticket Volume columns,
+  and in a new **Waiting on Customer** report (by technician, company and
+  period, with a closed-only filter and CSV). It is worked out from the
+  status history, so older tickets are covered too. SLA times are unchanged.
+
 ### Service desk: email (5a)
 
 - **Branded HTML email from editable templates.** Every email PRISM sends

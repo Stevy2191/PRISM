@@ -1,5 +1,7 @@
 # Client Companies — Screens, Vendors, Merge and Import (plan 2b) Implementation Plan
 
+> **Status: shipped** (see `docs/ROADMAP.md`). The checkboxes below were not ticked as the work went; they don't mean the steps are undone.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Finish sub-project 2. Add every client-company screen, vendor companies on assets, licenses, contracts and materials, company merge, and the CSV import's Company column, so sub-project 2 can be marked Shipped.

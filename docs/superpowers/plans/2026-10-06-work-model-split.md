@@ -1,5 +1,7 @@
 # One Work Model — Split and Guard (plan 3a) Implementation Plan
 
+> **Status: shipped** (see `docs/ROADMAP.md`). The checkboxes below were not ticked as the work went; they don't mean the steps are undone.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Split the oversized ticket, project and report files into small, single-purpose modules without changing any behaviour, guarded by browser smoke tests, so plans 3b and 3c can change the model on files that fit in one reading.

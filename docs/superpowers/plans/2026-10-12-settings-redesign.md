@@ -1,5 +1,7 @@
 # Settings Redesign Implementation Plan
 
+> **Status: shipped** (see `docs/ROADMAP.md`). The checkboxes below were not ticked as the work went; they don't mean the steps are undone.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give Settings one left-hand menu (option A), a search, an overview home, regrouped pages and one shared page layout, with the menu and the page guards built from a single registry.

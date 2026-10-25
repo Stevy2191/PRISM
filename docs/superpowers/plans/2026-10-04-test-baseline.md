@@ -1,5 +1,7 @@
 # Test Baseline (Sub-project 1) Implementation Plan
 
+> **Status: shipped** (see `docs/ROADMAP.md`). The checkboxes below were not ticked as the work went; they don't mean the steps are undone.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Pin down, as integration tests, how PRISM's tickets, projects, tasks, subtasks, time, timer and the readers of time data behave today, and fix the security gaps found doing it, so that sub-projects 2 and 3 fail loudly when they change something by accident.

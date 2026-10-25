@@ -1,5 +1,7 @@
 # One Work Model — The Screens (plan 3c) Implementation Plan
 
+> **Status: shipped** (see `docs/ROADMAP.md`). The checkboxes below were not ticked as the work went; they don't mean the steps are undone.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Put the ticket and project pages on shared task, time and timer components; make Settings edit the four status lists and the work types; and show the plan-3b access rules in the screens.

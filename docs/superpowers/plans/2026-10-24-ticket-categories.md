@@ -1,5 +1,7 @@
 # Ticket Categories (5c) Implementation Plan
 
+> **Status: shipped** to `dev` 2026-10-24, all tasks done (final review findings fixed; see `docs/ROADMAP.md`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 > Per the user's token-efficiency rule this plan lists tasks, interfaces and test names, not full code.
 
@@ -75,10 +77,10 @@
 - `categoryJson(tree, id) → { id, path: string[] } | null`
 - `MAX_DEPTH = 5`
 
-- [ ] Unit tests (build the Map by hand, no DB): `pathOf returns root→leaf`, `depthOf root is 1`, `subtreeHeight of leaf is 1 and of a 3-level chain is 3`, `descendantIds includes self and all levels`, `isEffectivelyActive false when an ancestor is retired`, `activeChildren excludes retired and orders by sortOrder then name`, `wouldCycle true for self and for a descendant, false otherwise`, `categoryJson null for unknown/null id`.
-- [ ] Migration tests (pattern: `desktools.migration.test.js`): `up creates table and columns`, `grants tickets.categories.manage to System Administrator`, `seeds tickets.categoryRequired=false`, `down then up leaves the schema as the full chain does`.
-- [ ] Run → FAIL. Implement. Apply the migration to the test DB: `cd backend && set -a && . ./.env.test && set +a && npx sequelize-cli db:migrate --env test` (`npm run test:migrate` alone fails silently here). Run → PASS.
-- [ ] Commit `feat(categories): schema, model and tree helpers`.
+- [x] Unit tests (build the Map by hand, no DB): `pathOf returns root→leaf`, `depthOf root is 1`, `subtreeHeight of leaf is 1 and of a 3-level chain is 3`, `descendantIds includes self and all levels`, `isEffectivelyActive false when an ancestor is retired`, `activeChildren excludes retired and orders by sortOrder then name`, `wouldCycle true for self and for a descendant, false otherwise`, `categoryJson null for unknown/null id`.
+- [x] Migration tests (pattern: `desktools.migration.test.js`): `up creates table and columns`, `grants tickets.categories.manage to System Administrator`, `seeds tickets.categoryRequired=false`, `down then up leaves the schema as the full chain does`.
+- [x] Run → FAIL. Implement. Apply the migration to the test DB: `cd backend && set -a && . ./.env.test && set +a && npx sequelize-cli db:migrate --env test` (`npm run test:migrate` alone fails silently here). Run → PASS.
+- [x] Commit `feat(categories): schema, model and tree helpers`.
 
 ### Task 2: Categories API
 
@@ -100,7 +102,7 @@
 - Error codes: `400 VALIDATION_ERROR` (name, depth, cycle, bad reorder), `404 NOT_FOUND`, `409 DUPLICATE_NAME`, `409 CATEGORY_IN_USE`.
 - Workflow-rule usage is counted from `WorkflowConditions` where `field='category'` and `value` is one of the subtree ids, as a string.
 
-- [ ] Tests:
+- [x] Tests:
   - **Permissions:** `any staff can GET; technician without the permission gets 403 on every write`.
   - **Create and rename:**
     - `create root and child; path builds`;
@@ -125,7 +127,7 @@
   - **Usage counts:** `?usage=1 shows counts for a manager and is omitted for a technician`.
   - **Settings:** `PUT /settings toggles categoryRequired; non-boolean → 400; non-manager → 403`.
   - **Audit:** `every write leaves its audit row`.
-- [ ] Run → FAIL. Implement. Run → PASS. Commit `feat(categories): category tree API`.
+- [x] Run → FAIL. Implement. Run → PASS. Commit `feat(categories): category tree API`.
 
 ### Task 3: Category on tickets (create, update, read, list filter)
 
@@ -152,7 +154,7 @@
 - Ticket GET/PATCH/POST responses include `category: { id, path } | null`.
 - `GET /tickets?category=<id>`. This also applies to the bulk "every ticket matching these filters" path, which shares the builder.
 
-- [ ] Tests:
+- [x] Tests:
   - **Create:**
     - `create with a leaf → category path in response`;
     - `create with requireChild parent → 400 "Choose a sub-category under Hardware"`;
@@ -175,7 +177,7 @@
     - `?category=unknown → empty list`;
     - `?category=12abc → 400 or empty, never all tickets`.
   - **Access:** `category is not a way around ticket scope: own-tier user sees only own tickets under ?category`.
-- [ ] Run → FAIL. Implement. Run → PASS. Also run the existing `tickets.*`, `sideEffects` and `email.inbound` tests. Commit `feat(categories): categories on tickets`.
+- [x] Run → FAIL. Implement. Run → PASS. Also run the existing `tickets.*`, `sideEffects` and `email.inbound` tests. Commit `feat(categories): categories on tickets`.
 
 ### Task 4: Bulk edit and recurring tickets
 
@@ -189,13 +191,13 @@
 
 **Interfaces.** Consumes `resolveCategoryForSave`, `isEffectivelyActive`, `categoryJson` (Tasks 1 and 3). Produces the bulk action `{ action: 'category', value: id|null }` and recurring fields `categoryId`, `category` and `categoryRetired`.
 
-- [ ] Tests:
+- [x] Tests:
   - **Bulk:** `bulk category sets it on every selected ticket`; `bulk with a requireChild parent → every ticket reported failed, none changed`.
   - **Recurring:**
     - `recurring rule saves categoryId; retired category refused on save`;
     - **`retired template category → ticket created uncategorized, rule still active, list shows categoryRetired`** (Review Focus 5);
     - `active template category → ticket carries it`.
-- [ ] Run → FAIL. Implement. Run → PASS. Commit `feat(categories): bulk and recurring`.
+- [x] Run → FAIL. Implement. Run → PASS. Commit `feat(categories): bulk and recurring`.
 
 ### Task 5: Custom fields scoped to category branches
 
@@ -210,7 +212,7 @@
 
 **Interfaces.** Consumes Task 1 helpers and `Tickets.categoryId`. Produces `CustomFields.categoryIds` in the custom-field API, `GET /custom-fields?ticketType=&categoryId=`, and `fieldAppliesToCategory`.
 
-- [ ] Tests:
+- [x] Tests:
   - **Field setup:** `field scoped to Hardware: save with unknown category id → 400`.
   - **Listing:**
     - `listed for Hardware/Laptop (descendant), not for Software`;
@@ -220,7 +222,7 @@
     - `value accepted on create when category is in branch; refused (400) when out of branch`;
     - **`after moving to another branch, PATCH title works and GET custom-field-values still returns the old value; PATCH that field → 400; clearing it → 200`** (Review Focus 4).
   - **Combined scopes:** `ticketTypes and categoryIds combine (both must match)`.
-- [ ] Run → FAIL. Implement. Run → PASS. Also run the existing custom-field tests (`grep -l custom-field test/integration`). Commit `feat(categories): custom fields scoped to category branches`.
+- [x] Run → FAIL. Implement. Run → PASS. Also run the existing custom-field tests (`grep -l custom-field test/integration`). Commit `feat(categories): custom fields scoped to category branches`.
 
 ### Task 6: Workflow condition and report builder
 
@@ -240,7 +242,7 @@
 
 **Interfaces.** Consumes Task 1 helpers. Produces the condition `{ field: 'category', operator: 'is'|'is_under'|'is_empty'|'is_not_empty', value: '<id>' }`, the report field `category` and the groupBy `category`.
 
-- [ ] Tests:
+- [x] Tests:
   - **Workflow:**
     - `is matches the exact node only`;
     - `is_under matches the node and descendants, not siblings`;
@@ -249,7 +251,7 @@
     - `category condition with unknown id → 400`;
     - `rule fires on ticket_created with a category condition (end to end)`.
   - **Report:** `report column shows "Hardware › Laptop"`; `group by category groups by full path and puts uncategorized under "Uncategorized"`.
-- [ ] Run → FAIL. Implement. Run → PASS. Also run the existing workflow and custom-report tests. Commit `feat(categories): workflow condition and report column`.
+- [x] Run → FAIL. Implement. Run → PASS. Also run the existing workflow and custom-report tests. Commit `feat(categories): workflow condition and report column`.
 
 ### Task 7: Picker component and Settings tree editor
 
@@ -269,12 +271,12 @@
 
 **Interfaces.** Consumes the Task 2 API. Produces `<CategoryPicker>` and the `categoryTree.js` helpers, which Task 8 uses.
 
-- [ ] Unit tests: `childrenOf orders by sortOrder then name and skips retired`; `pathIds root→leaf`; `isEffectivelyActive false under a retired ancestor`.
-- [ ] Smoke tests (fixture: `beforeEach(resetRateLimits)`):
+- [x] Unit tests: `childrenOf orders by sortOrder then name and skips retired`; `pathIds root→leaf`; `isEffectivelyActive false under a retired ancestor`.
+- [x] Smoke tests (fixture: `beforeEach(resetRateLimits)`):
   - `admin adds Hardware › Laptop in the tree editor and it persists after reload`;
   - `retire hides it from the picker on the create form`;
   - `delete of a used category shows the in-use message`.
-- [ ] Run → FAIL. Implement. `npm --prefix frontend test` → PASS. Build, then run the smoke file → PASS. Commit `feat(categories): picker and settings tree editor`.
+- [x] Run → FAIL. Implement. `npm --prefix frontend test` → PASS. Build, then run the smoke file → PASS. Commit `feat(categories): picker and settings tree editor`.
 
 ### Task 8: Picker everywhere, filters and editors
 
@@ -292,19 +294,19 @@
 
 **Interfaces.** Consumes `<CategoryPicker>` (Task 7) and the backend contracts of Tasks 3–6.
 
-- [ ] Smoke tests:
+- [x] Smoke tests:
   - `create form: picking Hardware then Laptop sends the leaf; changing level 1 clears level 2`;
   - `requireChild parent alone shows the API message`;
   - `a field scoped to Hardware appears only after Hardware is picked`;
   - `sidebar shows a retired category as "(retired)" and the ticket still saves a title change`;
   - `list filter by Hardware shows the Laptop ticket`.
-- [ ] Run → FAIL. Implement. Build, then run the smoke file → PASS. Commit `feat(categories): picker on tickets, bulk, recurring, filters and editors`.
+- [x] Run → FAIL. Implement. Build, then run the smoke file → PASS. Commit `feat(categories): picker on tickets, bulk, recurring, filters and editors`.
 
 ### Task 9: Finish
 
-- [ ] Run the full backend suite once (`npm test`), the full smoke suite once (`npm run test:smoke`) and the frontend build.
-- [ ] Docs:
+- [x] Run the full backend suite once (`npm test`), the full smoke suite once (`npm run test:smoke`) and the frontend build.
+- [x] Docs:
   - `docs/ROADMAP.md`: 5c → Built and a plan link; sub-project 5 → Built once 5c ships;
   - `UPGRADING.md` Unreleased: a categories section (migration runs automatically; new permission granted to System Administrator only; other roles need it added in Roles).
-- [ ] Security-relevant? Moderate: there's a new permission, and the filter could bypass ticket scope. Run one fresh reviewer over the branch diff, focusing on the scope bypass via `?category`, the permission gating and the delete-in-use completeness. Fix findings test-first.
-- [ ] Update memory (new `ticket_categories_build.md` + MEMORY.md line), push to dev, and confirm that the CI image build succeeded. The test workflow only runs on `main` and pull requests.
+- [x] Security-relevant? Moderate: there's a new permission, and the filter could bypass ticket scope. Run one fresh reviewer over the branch diff, focusing on the scope bypass via `?category`, the permission gating and the delete-in-use completeness. Fix findings test-first.
+- [x] Update memory (new `ticket_categories_build.md` + MEMORY.md line), push to dev, and confirm that the CI run (tests, then image build) is green.
