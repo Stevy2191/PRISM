@@ -36,6 +36,12 @@
   - Top-level tasks and milestones of the same project only, otherwise 400 `DEPENDENCY_SCOPE`.
   - No self-link and no cycle: 400 `DEPENDENCY_CYCLE`.
   - Unique `(predecessorId, successorId)`: 409 `DEPENDENCY_EXISTS`.
+- **Helpers (spec decision 15):** project tasks and subtasks only, otherwise 400 `PROJECT_TASK_ONLY`.
+  - A helper can't be the main assignee: adding the assignee as a helper → 409 `ALREADY_ON_TASK`. Naming a helper as the new main assignee removes them from the helpers.
+  - **Add:** project edit access **or** being the task's main assignee. **Remove:** the same, or removing yourself.
+  - The person added passes `canWorkCompany` (same as `resolveAssignee`). If they aren't a `ProjectMember`, they are added with role `member` in the same transaction (audit `projectMember.autoAdd`).
+  - Logged minutes on a task = all users' entries. On Workload, the remaining estimate is shared by the main assignee and the helpers: `remaining / peopleCount`, with the last person taking the rounding remainder.
+- **Theme (spec decision 16):** with no stored `prism.theme`, the theme is `dark`, both in `index.html`'s pre-mount script and in `ThemeContext`. A stored `light`, `dark` or `system` is respected unchanged.
 - **"Waiting":** a task is waiting while any predecessor's status is not in the done category. It is derived, never stored.
 - **Hour budgets:** stored as minutes (`hourBudgetMinutes`, INT, null = none), shown as hours with up to one decimal. Used hours = the sum of `TimeEntries.durationSeconds` for the project, billable or not.
 - **Alert levels:**
@@ -50,12 +56,13 @@
   - **`projects.manage_templates`** (category `projects`, "Manage project templates", "Create, edit and delete project templates"): granted to System Administrator.
   - **`workload.view`** (category `workload`, "View workload", "Open the Workload screen"): granted to every role that has `tickets.view_all` or `projects.view_all`.
   - Use migration 068's permission pattern. `down` deletes RolePermissions and UserPermissionOverrides.
-- **New notification types:** `task_unblocked`, `budget_warning` and `budget_reached`. `Notifications.projectId` is a nullable FK.
-  - Email events: `budget_warning` → `staff_budget_warning` and `budget_reached` → `staff_budget_reached` (default on); `task_unblocked` → `staff_task_unblocked` (default off).
+- **New notification types:** `task_unblocked`, `task_added`, `budget_warning` and `budget_reached`. `Notifications.projectId` is a nullable FK.
+  - Email events: `budget_warning` → `staff_budget_warning`, `budget_reached` → `staff_budget_reached` and `task_added` → `staff_task_added` (default on); `task_unblocked` → `staff_task_unblocked` (default off).
   - A project notification goes only to someone who can still view the project (`canReachProject`).
 - **Audit actions:**
   - `projectPhase.create|update|reorder|delete`
   - `taskDependency.create|delete`
+  - `task.helperAdd|helperRemove`, `projectMember.autoAdd`
   - `task.shiftDependents`
   - `project.budget`
   - `projectTemplate.create|update|delete|saveFromProject`
@@ -83,7 +90,8 @@
    - Tests in Task 3 and Task 4: `DELETE phase → its tasks have phaseId null`, `DELETE predecessor → successor waitingOn is empty`.
 3. **Evening time zones.** A client whose local date is a day behind UTC must see its own today on Workload and in "in N days". Test in Task 12: `GET /workload?from=2026-11-02&today=2026-11-02 at 2026-11-03T03:30Z → today column is Nov 2`. Test in Task 2: `addDays('2026-11-01', 1) is '2026-11-02' across the DST change`.
 4. **Two people logging at once past 80%.** The lead gets one alert, not two. Test in Task 8: `two concurrent time entries crossing 80% → exactly one budget_warning`.
-5. **Hidden work on Workload.** A ticket assigned to a visible person, in a company or department the viewer can't see, is neither listed nor counted. Test in Task 12: `restricted viewer: other-company ticket assigned to a shown tech → absent from items and from cell minutes`.
+5. **A helper who later loses access** to the company (moved or restricted). They must drop out of notifications and of the project's Workload rows, and their logged time stays in the totals. Test in Task 3b: `helper who can no longer work the company → no task_added/task_unblocked notification, time still counted`.
+6. **Hidden work on Workload.** A ticket assigned to a visible person, in a company or department the viewer can't see, is neither listed nor counted. Test in Task 12: `restricted viewer: other-company ticket assigned to a shown tech → absent from items and from cell minutes`.
 
 ---
 
@@ -101,7 +109,8 @@
 - `<Button variant="primary|default|quiet|icon" size="sm|md">`, `<Pill on>`, `<Tabs items={[{id,label,count?}]} value onChange>`, `<Meter used budget>`, `<Notice tone="info|warn|bad">`, `<Field label hint>`
 
 - [ ] Unit tests: `meterLevel null budget is none`, `79.9% is ok, 80% is near, 100% is near, 100.1% is over`.
-- [ ] Smoke tests: `light theme body uses Instrument Sans`, `dark theme sets a dark --color-bg`, `Settings → Appearance custom accent still overrides --color-accent`.
+- Modify also: `frontend/index.html` (pre-mount default `'dark'`), `frontend/src/context/ThemeContext.jsx` (default `'dark'`), `frontend/src/pages/settings/Preferences.jsx` (option order Dark, Light, Match my system).
+- [ ] Smoke tests: `fresh browser with no stored theme opens dark (no light flash: data-theme is dark before React mounts)`, `stored light is kept`, `body uses Instrument Sans`, `dark theme sets a dark --color-bg`, `Settings → Appearance custom accent still overrides --color-accent in dark and light`.
 - [ ] Implement, then run `npm run build` and the smoke file.
 - [ ] Commit `feat(look): look A tokens, Instrument Sans, shared UI primitives`.
 
@@ -115,8 +124,9 @@
   - the `TaskDependencies` table: `id, predecessorId FK Tasks CASCADE, successorId FK Tasks CASCADE, createdBy FK Users SET NULL, createdAt`, with UNIQUE `(predecessorId, successorId)`;
   - on `Tasks`: `phaseId` (FK `ProjectPhases`, SET NULL), `startDate` (DATEONLY null) and `isMilestone` (BOOL default false);
   - on `Projects`: `startDate` (DATEONLY null), `hourBudgetMinutes` (INT null), `budgetAlertLevel` (TINYINT default 0), `budgetAlert80` (BOOL default true) and `budgetAlert100` (BOOL default true);
-  - on `Notifications`: the type enum gains `task_unblocked`, `budget_warning` and `budget_reached`, and a `projectId` column is added (FK CASCADE, null).
-- Create: `backend/src/models/ProjectPhase.js`, `backend/src/models/TaskDependency.js`. Modify: `models/index.js`, `Task.js`, `Project.js`, `Notification.js`.
+  - the `TaskAssignees` table: `id, taskId FK Tasks CASCADE, userId FK Users CASCADE, addedBy FK Users SET NULL, createdAt`, with UNIQUE `(taskId, userId)`. This holds the helpers; `Tasks.assigneeId` stays the main assignee;
+  - on `Notifications`: the type enum gains `task_unblocked`, `task_added`, `budget_warning` and `budget_reached`, and a `projectId` column is added (FK CASCADE, null).
+- Create: `backend/src/models/ProjectPhase.js`, `backend/src/models/TaskDependency.js`, `backend/src/models/TaskAssignee.js` (`Task.belongsToMany(User, { through: TaskAssignee, as: 'helpers' })`). Modify: `models/index.js`, `Task.js`, `Project.js`, `Notification.js`.
 - Create: `backend/src/services/projects/schedule.js`
 - Test: `backend/test/unit/projectSchedule.test.js`, `backend/test/integration/projectStructure.migration.test.js`
 
@@ -164,6 +174,34 @@
 - [ ] Implement and run.
 - [ ] Commit `feat(projects): phases API, task start dates and milestones`.
 
+### Task 3b: Helpers on project tasks
+
+**Files:**
+- Create: `backend/src/services/projects/helpers.js`. Modify: `controllers/projects/tasks.js`, `routes/projects.js`, `services/tasks/index.js` (task JSON gains `helpers: [{id, name, avatar}]` and `loggedBy: number`, the count of distinct people with time; `listTasks` accepts `mine=userId`, which matches the assignee **or** a helper; a new main assignee who was a helper is removed from the helpers), `controllers/projects/shared.js` (`assertCanAddHelper(req, project, task)`).
+- Test: `backend/test/integration/taskHelpers.test.js`
+
+**Interfaces, produced:**
+- `POST /projects/:id/tasks/:taskId/helpers {userId}` → task. Also works on subtasks: `/tasks/:taskId/subtasks/:subtaskId/helpers`.
+- `DELETE /projects/:id/tasks/:taskId/helpers/:userId` (and the subtask form) → task
+- `peopleOn(task) → number[]` (the main assignee first, then helpers; no nulls). Used by Tasks 4, 5 and 12.
+- `addHelper(req, parent, task, rawUserId) → task`, `removeHelper(req, parent, task, rawUserId) → task`
+
+- [ ] Tests:
+  - `edit-access user adds a helper; audited task.helperAdd; helper notified task_added`
+  - `main assignee without edit access can add a helper`
+  - `other non-edit member → 403`
+  - `helper can remove themselves but not others`
+  - `helper not yet a member becomes a member (projectMember.autoAdd) and can GET the project and log time`
+  - `user who can't work the company → 400, no member row`
+  - `adding the main assignee → 409 ALREADY_ON_TASK; duplicate helper → 409 ALREADY_ON_TASK`
+  - `making a helper the main assignee removes them from helpers`
+  - `ticket task helper → 400 PROJECT_TASK_ONLY`
+  - `task with 1 h from each of two people: loggedMinutes 120, loggedBy 2, phase and budget used 120`
+  - `mine filter includes tasks I help on`
+  - `helper who can no longer work the company → no task_added/task_unblocked notification, time still counted`
+- [ ] Implement and run.
+- [ ] Commit `feat(projects): helpers on project tasks, person-hours`.
+
 ### Task 4: Dependencies, shift dependents, unblocked notifications
 
 **Files:**
@@ -188,7 +226,7 @@
   - `moving dueDate 2 days later returns shiftOffer with downstream tasks`
   - `moving earlier returns no shiftOffer`
   - `shift-dependents moves the chain by 2 and skips done tasks`
-  - `finishing the last predecessor notifies the successor assignee once`
+  - `finishing the last predecessor notifies the successor assignee and its helpers once each`
   - `finishing one of two predecessors notifies nobody`
   - `assignee who lost project access is not notified`
   - Unit: `task_unblocked email default off`, `budget_* email default on`
@@ -212,13 +250,14 @@
 - Test: `frontend/src/pages/projects/detail/taskFilters.test.js`, `backend/test/integration/projectStats.test.js` (extend), `frontend/test/smoke/projectPage.smoke.js`
 
 **Interfaces, produced:**
-- `filterTasks(tasks, filter: 'all'|'mine'|'waiting'|'overdue'|'unassigned'|'done', { userId, today }) → tasks`
+- `filterTasks(tasks, filter: 'all'|'mine'|'waiting'|'overdue'|'unassigned'|'done', { userId, today }) → tasks` (mine = assignee or helper)
 - `groupByPhase(tasks, phases) → [{ phase|null, tasks }]` (phase order, "No phase" last, empty phases kept)
 - `daysUntil(today, date) → number`
 
 - [ ] Tests:
   - Backend: `stats nextMilestone is the earliest open milestone`, `waitingCount counts waiting open tasks`
-  - Frontend: `groupByPhase keeps empty phases and puts No phase last`, `filter waiting/overdue/mine`, `daysUntil uses string dates`
+  - Frontend: `groupByPhase keeps empty phases and puts No phase last`, `filter waiting/overdue/mine`, `mine includes tasks I help on`, `daysUntil uses string dates`
+  - Row shows stacked avatars (main first) and "3 h logged by 2 people" when `loggedBy > 1`
   - Smoke: `quick-add in a phase creates a task in that phase`, `Costs tab shows expenses and materials`, `collapsing a phase hides its rows`
 - [ ] Implement against the Main board, then run the build and tests.
 - [ ] Commit `feat(projects): look A project page, phases on the Tasks tab, Costs tab`.
@@ -230,12 +269,12 @@
 - Test: `frontend/src/pages/projects/detail/useListKeys.test.js` (pure `nextIndex`), `frontend/test/smoke/taskPanel.smoke.js`
 
 **Interfaces:**
-- Consumes: the task PATCH `shiftOffer` and `POST shift-dependents` (Task 4), and the existing `POST /projects/:id/time-entries {taskId, durationSeconds, entryDate}`.
+- Consumes: helpers endpoints (Task 3b); the task PATCH `shiftOffer` and `POST shift-dependents` (Task 4), and the existing `POST /projects/:id/time-entries {taskId, durationSeconds, entryDate}`.
 - Produces: `nextIndex(current, delta, length) → number` (clamped); `<TaskPanel taskId onClose>`.
 
 - [ ] Tests:
   - Unit: `nextIndex clamps at both ends`
-  - Smoke: `clicking a task opens the panel and the list stays clickable`, `J/K move the selection, Esc closes`, `keys ignored while typing in an input`, `30 min logs an entry for today on that task`, `moving a due date later shows the banner; Move 3 tasks shifts them; Leave them dismisses`, `view-only user sees no edit controls but can log time`
+  - Smoke: `People field: Add a helper picks a person and shows them; helper can remove themselves`, `clicking a task opens the panel and the list stays clickable`, `J/K move the selection, Esc closes`, `keys ignored while typing in an input`, `30 min logs an entry for today on that task`, `moving a due date later shows the banner; Move 3 tasks shifts them; Leave them dismisses`, `view-only user sees no edit controls but can log time`
 - [ ] Implement against the TaskPanel board and run.
 - [ ] Commit `feat(projects): docked task panel, quick time, keyboard, shift-dependents banner`.
 
@@ -376,7 +415,8 @@
   - No dates → the `'none'` key.
   - If the window has no working days, everything goes on the due date.
 - `itemMinutes(item, defaultTicketMinutes) → minutes`:
-  - A task: `max(estimate − logged, 0)`.
+  - A task: `max(estimate − logged by everyone, 0)`.
+- `shareMinutes(minutes, peopleIds) → Map<userId, minutes>` (even split, the last person takes the remainder). A task appears in the row of each person on it with their share.
   - A ticket: the sum of its open tasks' remaining estimates, or else the default ticket size.
 - `buildWorkload(viewer, { from, days: 5|10, today, teamId?, kinds: 'all'|'tickets'|'tasks' }) → { days: [{date, holiday?}], people: [{ id, name, avatar, cells: { [date|'none']: { minutes, capacity, count, overdue } } }], unassigned: [item], items: { [personId]: [item] } }`. Here `item` is `{ kind: 'ticket'|'task', id, projectId?, code, title, company, minutes, startDate, dueDate, plannedDate?, overdue, canEdit }`.
   - **Items:** open tickets inside `ticketScopeWhere`, and open top-level tasks of open projects inside `projectScopeWhere`.
@@ -393,8 +433,11 @@
     - `no dates goes to none`
     - `window with no working days goes to due date`
     - `ticket with no tasks uses the default size`
+    - `4 h task with a main assignee and one helper → 2 h each`
+    - `7 min split between 2 → 3 and 4`
   - Integration:
     - `without workload.view → 403`
+    - `task with a helper appears in both people's rows with half the remaining estimate`
     - `restricted viewer: other-company ticket assigned to a shown tech → absent from items and from cell minutes`
     - `GET /workload?from=2026-11-02&today=2026-11-02 at 2026-11-03T03:30Z → today column is Nov 2`
     - `global and own-department holidays count, other departments' do not`
@@ -418,6 +461,7 @@
 - Produces: `dropPatch(item, personId, date) → { url, body }`. A ticket gets assignee + plannedDate. A dated task keeps its length with start = date. An undated task gets start = due = date. Dropping on the "No date" column changes only the assignee.
 
 - [ ] Tests:
+  - Dragging a task between people changes only the main assignee; helpers stay.
   - Unit: `ticket drop sets plannedDate not dueDate`, `dated task keeps its length`, `undated task gets one day`, `No date column only reassigns`
   - Smoke:
     - `drag an unassigned ticket onto Sam Thu → assigned and planned, lane shrinks`
@@ -451,7 +495,9 @@
   - the new permissions and who got them;
   - the Holidays page moved in Settings;
   - the new font dependency (rebuild the frontend image);
-  - budget alert emails on by default.
+  - budget alert emails on by default;
+  - dark is now the default theme for anyone who never picked one;
+  - tasks can have helpers, and their time counts as person-hours.
 - [ ] Run the full backend suite and `npm run test:smoke` once. Both must be green. Paste the failure output if not.
 - [ ] Because this touches scope checks on new endpoints, run a fresh reviewer subagent over the branch with a security focus: id scoping, workload visibility and template copy access. Fix its findings.
 - [ ] Commit `docs: sub-project 6 release notes and roadmap`, then push to `dev`.

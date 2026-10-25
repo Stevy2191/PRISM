@@ -117,6 +117,40 @@ ticket tasks (ticket tasks are unchanged).
 13. **Ticket tasks** are unchanged.
 14. **Out of scope** as listed under Non-goals.
 
+## Added after review (2026-10-25)
+
+15. **Helpers on a task.** A project task (or subtask) keeps one main
+    assignee and can also have **helpers**. The user's example: someone
+    asks you to help on their task and adds you to it. If you both spend
+    an hour on it, that is two working hours.
+    - **Who can add a helper:** anyone with edit access on the project, and
+      also the task's main assignee. A helper can remove themselves.
+    - **The person added** must be able to work for the project's company
+      (the existing assignee check).
+      - If they aren't a project member yet, adding them makes them a
+        member, so they can open the project and log time.
+      - The change is audited.
+      - They are notified ("Priya added you to T17 on Riverside Clinic
+        network refresh").
+    - **Hours are person-hours.** Each person logs their own time. The
+      task's logged hours, the phase's hours and the budget are the total
+      of everyone's time, so 1 h each by two people is 2 h. The row shows
+      "3 h logged by 2 people".
+    - **On Workload,** a task's remaining estimate is shared evenly between
+      the main assignee and the helpers. For example, an estimate of 4 h
+      with two people puts 2 h on each person's days. The estimate means
+      the total work, not the length of time it takes.
+    - **Who counts as "mine":** helpers count for the "Mine" filter, for the
+      phone's Mine list, and for "Waiting on you" notifications when the
+      task can start.
+    - Ticket tasks don't get helpers (decision 13 stands).
+16. **Dark mode is the default.**
+    - Anyone who hasn't picked a theme gets dark. Light (and "match my
+      system") stays one click away in Preferences.
+    - People who already chose a theme keep their choice.
+    - Dark is therefore the primary design of look A, not an afterthought:
+      every screen is built and checked in dark first, then light.
+
 ## Decided on the mockups (2026-10-25)
 
 - **Look A, "Clear desk":** a light grey ground, white surfaces, one blue
@@ -125,8 +159,10 @@ ticket tasks (ticket tasks are unchanged).
   - Numbers use tabular figures.
   - Soft 8–12 px radii.
   - It replaces the operations-console look (mono data face, squared chips).
-  - It must stay themeable: light and dark both designed, and Settings →
-    Appearance custom colours still layered on the `--color-*` variables.
+  - It must stay themeable: **dark first** (the default, decision 16)
+    with light fully designed too, and Settings → Appearance custom
+    colours still layered on the `--color-*` variables. The mockups are
+    drawn in light; the dark values follow the same roles.
 - **Project page:**
   - Header: name, code, status, client and lead, with Start timer, Add task
     and a menu (Edit, Save as template, Report, Delete).
@@ -221,10 +257,17 @@ ticket tasks (ticket tasks are unchanged).
 - **Budget alert levels** are remembered on the project, so each alert fires
   once. Raising the budget, or deleting time so that hours fall back under a
   level, re-arms that level.
-- **The new notification types** are `task_unblocked`, `budget_warning` and
-  `budget_reached`. All three show in PRISM.
-  - Budget emails are on by default.
+- **The new notification types** are `task_unblocked`, `task_added`,
+  `budget_warning` and `budget_reached`. All four show in PRISM.
+  - Budget emails and `task_added` email are on by default.
   - `task_unblocked` email is off by default; each person can turn it on.
+- **A task's main assignee can add helpers** without project edit access
+  (decision 15), which also makes the helper a project member. That is
+  the scenario the user described, but it does let an assignee widen who
+  sees the project, within the company check.
+- **Dark default and other pages:** the dark default also covers the login
+  page, the public knowledge base and survey pages, which use the same
+  theme.
 - **The Instrument Sans font** is bundled from `@fontsource/instrument-sans`
   (OFL). This is a new frontend dependency; it gives a working font on
   installs with no internet.
@@ -248,7 +291,7 @@ ticket tasks (ticket tasks are unchanged).
 
 ## Left to the builder
 
-Exact spacing and type scale within look A, dark-mode colour values,
+Exact spacing and type scale within look A, exact dark-mode colour values,
 animation (only on direct actions), endpoint names beyond those the plan
 fixes, and how the timeline is drawn (DOM bars with SVG arrows is the
 expected approach).
