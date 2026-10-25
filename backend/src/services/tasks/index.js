@@ -19,6 +19,7 @@ const {
 } = require('./codes');
 const { toDateString } = require('../../utils/orgTime');
 const { isTaskComplete, subtaskCompletionPercent } = require('../projectCompletion');
+const dependencies = require('../projects/dependencies');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const PRIORITIES = ['urgent', 'high', 'medium', 'low'];
@@ -99,7 +100,8 @@ const shownPerson = (u) => ({ id: u.id, name: u.displayName || u.username, avata
 // logged: loggedSecondsByTask. A task's loggedSeconds counts its subtasks'.
 // loggers: loggersByTask. Hours are person-hours: loggedSeconds is everyone's
 // time and loggedBy counts the people behind it.
-async function annotate(task, behavior, viewer, logged = new Map(), loggers = new Map()) {
+// graph: dependencies.loadGraph (project tasks only).
+async function annotate(task, behavior, viewer, logged = new Map(), loggers = new Map(), graph = null) {
   const json = task.toJSON();
   const subs = task.subtasks || [];
   json.loggedSeconds = (logged.get(task.id) || 0) + subs.reduce((n, st) => n + (logged.get(st.id) || 0), 0);
@@ -117,6 +119,7 @@ async function annotate(task, behavior, viewer, logged = new Map(), loggers = ne
     json.isComplete = isTaskComplete(task, task.subtasks || [], behavior);
     json.subtaskPercent = subtaskCompletionPercent(task.subtasks || [], behavior);
   }
+  if (graph && json.parentTaskId === null) Object.assign(json, dependencies.linksFor(task.id, graph, behavior));
   if (json.linkedTicket !== undefined) json.linkedTicket = await shownLinkedTicket(viewer, task.linkedTicket);
   return json;
 }
@@ -124,7 +127,8 @@ async function annotate(task, behavior, viewer, logged = new Map(), loggers = ne
 // viewer: the user the task is shown to, for the linked ticket (Q19).
 async function loadTask(parent, id, viewer) {
   const task = await Task.findByPk(id, { include: taskIncludes(parent) });
-  return annotate(task, await taskStatusBehaviorMap(), viewer, await loggedSecondsByTask(parent), await loggersByTask(parent));
+  const graph = parent.kind === 'project' ? await dependencies.loadGraph(parent.record.id) : null;
+  return annotate(task, await taskStatusBehaviorMap(), viewer, await loggedSecondsByTask(parent), await loggersByTask(parent), graph);
 }
 
 // Top-level tasks of a project where this user is the main assignee or a
@@ -151,7 +155,8 @@ async function listTasks(parent, viewer, { mine } = {}) {
   const behavior = await taskStatusBehaviorMap();
   const logged = await loggedSecondsByTask(parent);
   const loggers = await loggersByTask(parent);
-  return Promise.all(tasks.map((t) => annotate(t, behavior, viewer, logged, loggers)));
+  const graph = parent.kind === 'project' ? await dependencies.loadGraph(parent.record.id) : null;
+  return Promise.all(tasks.map((t) => annotate(t, behavior, viewer, logged, loggers, graph)));
 }
 
 // ---- Field rules ----
@@ -400,6 +405,7 @@ async function updateTask(req, parent, task, body = {}) {
   const fields = Object.keys(changes).filter((k) => k !== 'completedAt' && !(k === 'statusId' && statusEvent));
   if (!Object.keys(changes).length) return loadTask(parent, task.id, req.user);
 
+  const oldDue = task.dueDate || null;
   await task.update(changes);
   // A new main assignee who was a helper is no longer one (decision 15).
   if (changes.assigneeId) await TaskAssignee.destroy({ where: { taskId: task.id, userId: changes.assigneeId } });
@@ -408,7 +414,13 @@ async function updateTask(req, parent, task, body = {}) {
     await recordTaskEvent(req, parent, task, 'updated', { from: null, to: fields.join(', '), detail: { fields } });
   }
   await audit(req, parent, 'update', task, { fields: Object.keys(changes) });
-  return loadTask(parent, task.id, req.user);
+  if (parent.kind === 'project' && statusEvent === 'closed') await dependencies.notifyUnblocked(task, req.user.id);
+  const json = await loadTask(parent, task.id, req.user);
+  // A due date moved later: offer to move what waits on this task by as much.
+  const offer = parent.kind === 'project' && changes.dueDate !== undefined
+    ? await dependencies.shiftOffer(parent.record, task, oldDue, task.dueDate || null) : null;
+  if (offer) json.shiftOffer = offer;
+  return json;
 }
 
 // The task and its subtasks go; their time, expenses, materials, files and

@@ -80,7 +80,8 @@ it('every catalogue default only uses its own placeholders', () => {
   const keys = Object.keys(CATALOG);
   expect(keys.sort()).toEqual([
     'contact_auto_reply', 'contact_csat_survey', 'contact_resolved', 'contact_tech_reply',
-    'staff_assigned', 'staff_new_in_queue', 'staff_reply', 'staff_sla_breached', 'staff_sla_warning', 'staff_watcher_update',
+    'staff_assigned', 'staff_budget_reached', 'staff_budget_warning', 'staff_new_in_queue', 'staff_reply', 'staff_sla_breached',
+    'staff_sla_warning', 'staff_task_added', 'staff_task_unblocked', 'staff_watcher_update',
   ]);
   expect(Object.isFrozen(CATALOG)).toBe(true);
   for (const key of keys) {
@@ -88,7 +89,8 @@ it('every catalogue default only uses its own placeholders', () => {
     const allowed = new Set(t.placeholders.map((p) => p.name));
     const used = [...`${t.subject} ${t.bodyHtml}`.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((m) => m[1]);
     expect({ key, unknown: used.filter((u) => !allowed.has(u)) }).toEqual({ key, unknown: [] });
-    expect(t.subject).toContain('[Ticket #{{ticket.number}}]');
+    // Project notifications (sub-project 6) name the project instead of a ticket.
+    expect(t.subject).toContain(/^staff_(task_|budget_)/.test(key) ? '[{{project.name}}]' : '[Ticket #{{ticket.number}}]');
     expect(['contact', 'staff']).toContain(t.audience);
     const htmlOnes = t.placeholders.filter((p) => p.html).map((p) => p.name);
     expect(htmlOnes.every((n) => ['signature', 'survey.starLinks'].includes(n))).toBe(true);

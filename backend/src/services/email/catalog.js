@@ -34,6 +34,22 @@ const staff = (name, subject, intro) => ({
   defaultEnabled: true,
 });
 
+const PROJECT = [
+  { name: 'project.name', description: 'Project name' },
+  { name: 'project.url', description: 'Link to the project' },
+  { name: 'org.name', description: 'Your organization name' },
+];
+
+// Project notifications (sub-project 6): the message says what happened.
+const staffProject = (name, subject, intro) => ({
+  audience: 'staff',
+  name,
+  subject,
+  bodyHtml: `<p>${intro}</p><p><strong>{{project.name}}</strong></p><p><a href="{{project.url}}">Open project</a></p>`,
+  placeholders: [...PROJECT, NOTIFICATION],
+  defaultEnabled: true,
+});
+
 const CATALOG = Object.freeze({
   contact_auto_reply: {
     audience: 'contact',
@@ -79,6 +95,10 @@ const CATALOG = Object.freeze({
   staff_new_in_queue: staff('New ticket in your queue', '[Ticket #{{ticket.number}}] New in your queue: {{ticket.title}}', '{{notification.message}}'),
   staff_sla_warning: staff('SLA warning', '[Ticket #{{ticket.number}}] SLA warning: {{ticket.title}}', '{{notification.message}}'),
   staff_sla_breached: staff('SLA breached', '[Ticket #{{ticket.number}}] SLA breached: {{ticket.title}}', '{{notification.message}}'),
+  staff_task_added: staffProject('Added to a project task', '[{{project.name}}] You were added to a task', '{{notification.message}}'),
+  staff_task_unblocked: staffProject('Project task ready to start', '[{{project.name}}] A task you are on is ready to start', '{{notification.message}}'),
+  staff_budget_warning: staffProject('Project budget warning', '[{{project.name}}] Budget warning', '{{notification.message}}'),
+  staff_budget_reached: staffProject('Project budget reached', '[{{project.name}}] Budget reached', '{{notification.message}}'),
 });
 
 Object.values(CATALOG).forEach((t) => Object.freeze(t));

@@ -48,6 +48,12 @@ router.patch('/:id/phases/reorder', editMin, ctrl.reorderPhases); // must preced
 router.patch('/:id/phases/:phaseId', editMin, ctrl.updatePhase);
 router.delete('/:id/phases/:phaseId', editMin, ctrl.removePhase);
 
+// Dependencies between top-level tasks (finish-to-start), and shifting what waits on a task
+router.get('/:id/dependencies', ctrl.listDependencies);
+router.post('/:id/dependencies', editMin, ctrl.createDependency);
+router.delete('/:id/dependencies/:depId', editMin, ctrl.removeDependency);
+router.post('/:id/tasks/:taskId/shift-dependents', editMin, ctrl.shiftDependents);
+
 // Time entries (time.log; the same rules as ticket time)
 router.get('/:id/time-entries', ctrl.listTimeEntries);
 router.get('/:id/time-entries/log-for', logTime, ctrl.listLogFor);

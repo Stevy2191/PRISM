@@ -44,7 +44,8 @@ const createTask = asyncHandler(async (req, res) => {
 // PATCH /projects/:id/tasks/:taskId
 const updateTask = asyncHandler(async (req, res) => {
   const parent = await projectFor(req);
-  res.json({ task: await tasks.updateTask(req, parent, await taskFor(parent, req.params.taskId), req.body) });
+  const { shiftOffer, ...task } = await tasks.updateTask(req, parent, await taskFor(parent, req.params.taskId), req.body);
+  res.json({ task, ...(shiftOffer ? { shiftOffer } : {}) });
 });
 
 // DELETE /projects/:id/tasks/:taskId

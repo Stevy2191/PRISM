@@ -17,11 +17,15 @@ const TYPES = [
   ['sla_breached', 'SLA breached', 'A ticket you’re assigned (or your team, before it’s assigned) missed an SLA target.'],
   ['new_in_queue', 'New in team queue', 'A ticket lands in your team’s queue with nobody assigned.'],
   ['task_added', 'Added to a project task', 'Someone adds you as a helper on a project task.'],
+  ['task_unblocked', 'Project task ready to start', 'A task you are on stops waiting on another task.'],
+  ['budget_warning', 'Project budget warning', 'A project you work on is close to its hour budget.'],
+  ['budget_reached', 'Project budget reached', 'A project you work on has used its hour budget.'],
 ];
 
 // Events that can also email; users can change their own (Preferences).
 const EMAIL_DEFAULTS = {
   assigned: true, comment: true, new_in_queue: true, sla_warning: true, sla_breached: true, watcher_update: false,
+  task_added: true, task_unblocked: false, budget_warning: true, budget_reached: true,
 };
 
 export default function Notifications() {

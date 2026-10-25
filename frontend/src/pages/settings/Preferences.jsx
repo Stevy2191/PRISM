@@ -411,6 +411,10 @@ const EMAIL_EVENTS = [
   ['sla_warning', 'An SLA is at risk'],
   ['sla_breached', 'An SLA is breached'],
   ['watcher_update', 'A ticket I watch is updated'],
+  ['task_added', 'I am added to a project task'],
+  ['task_unblocked', 'A project task I am on is ready to start'],
+  ['budget_warning', 'A project I work on is close to its budget'],
+  ['budget_reached', 'A project I work on reaches its budget'],
 ];
 
 function EmailNotificationsSection({ user, onSaved }) {

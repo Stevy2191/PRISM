@@ -3,10 +3,11 @@
 // admin default (notifications.emailDefaults). createNotification has
 // already applied the system-wide switch and the "can reach the ticket"
 // check before anything gets here.
-const { User, Ticket } = require('../../models');
+const { User, Ticket, Project } = require('../../models');
 const { getAllSettings } = require('../../controllers/settingsController');
 const { resolveSmtpConfig, isSmtpConfigured } = require('../emailSender');
 const { sendTicketEmail } = require('./ticketMail');
+const { sendProjectEmail } = require('./projectMail');
 
 // Notification type → staff template. Other types never email.
 const EMAIL_EVENTS = Object.freeze({
@@ -16,10 +17,15 @@ const EMAIL_EVENTS = Object.freeze({
   new_in_queue: 'staff_new_in_queue',
   sla_warning: 'staff_sla_warning',
   sla_breached: 'staff_sla_breached',
+  task_added: 'staff_task_added',
+  task_unblocked: 'staff_task_unblocked',
+  budget_warning: 'staff_budget_warning',
+  budget_reached: 'staff_budget_reached',
 });
 
 const DEFAULT_EMAIL_PREFS = Object.freeze({
   assigned: true, comment: true, new_in_queue: true, sla_warning: true, sla_breached: true, watcher_update: false,
+  task_added: true, task_unblocked: false, budget_warning: true, budget_reached: true,
 });
 
 // { type: bool } with known types only, or null. Anything else → null.
@@ -50,12 +56,18 @@ function parseDefaults(raw) {
 
 async function sendNotificationEmail(notification) {
   const key = EMAIL_EVENTS[notification.type];
-  if (!key || !notification.ticketId) return;
+  if (!key || !(notification.ticketId || notification.projectId)) return;
   const user = await User.findByPk(notification.userId, { attributes: ['id', 'email', 'isActive', 'notificationEmailPrefs'] });
   if (!user || !user.isActive || !user.email) return;
   const settings = await getAllSettings();
   if (!effectiveEmailPref(user, notification.type, parseDefaults(settings['notifications.emailDefaults']))) return;
   if (!isSmtpConfigured(await resolveSmtpConfig())) return;
+  if (!notification.ticketId) {
+    // createNotification already checked that the user can reach the project.
+    const project = await Project.findByPk(notification.projectId);
+    if (project) await sendProjectEmail(key, { project, to: [user.email], extra: { notification: { message: notification.message } } });
+    return;
+  }
   const ticket = await Ticket.findByPk(notification.ticketId);
   if (!ticket) return;
   await sendTicketEmail(key, {
