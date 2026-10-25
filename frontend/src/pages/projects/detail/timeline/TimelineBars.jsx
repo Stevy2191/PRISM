@@ -4,7 +4,7 @@ import { dragResult, barRect, formatDay, daysBetween } from './geometry';
 
 export const ROW = 36;
 
-const edge = 'absolute top-0 h-full w-2';
+const edge = 'absolute top-0 h-full';
 
 function barStyle(task, done, waiting) {
   if (done) return { background: 'var(--color-border-strong)', border: '1px solid var(--color-border-strong)' };
@@ -45,6 +45,8 @@ function TaskBar({ row, lay, drag, isDone, onBegin }) {
       {drag.delta !== 0 && ` · ${Math.abs(drag.delta)} ${Math.abs(drag.delta) === 1 ? 'day' : 'days'} ${drag.delta > 0 ? 'later' : 'earlier'}`}
     </Tip>
   ) : null;
+  // Short bars keep a body to grab: handles are at most a third of the bar.
+  const handleW = Math.min(8, Math.floor(shown.width / 3));
   const cursor = onBegin ? { cursor: 'grab', touchAction: 'none' } : {};
 
   if (task.isMilestone) {
@@ -82,14 +84,14 @@ function TaskBar({ row, lay, drag, isDone, onBegin }) {
           ...(dragging ? { borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--color-accent)', boxShadow: '0 6px 16px rgba(0,0,0,0.3)' } : {}),
         }}
       >
-        {onBegin && (
+        {onBegin && shown.width >= 12 && (
           <>
             <span
-              data-handle="start" className={`${edge} left-0`} style={{ cursor: 'ew-resize' }}
+              data-handle="start" className={`${edge} left-0`} style={{ cursor: 'ew-resize', width: handleW }}
               onPointerDown={(e) => { e.stopPropagation(); onBegin(e, task, 'start'); }}
             />
             <span
-              data-handle="end" className={`${edge} right-0`} style={{ cursor: 'ew-resize' }}
+              data-handle="end" className={`${edge} right-0`} style={{ cursor: 'ew-resize', width: handleW }}
               onPointerDown={(e) => { e.stopPropagation(); onBegin(e, task, 'end'); }}
             />
           </>

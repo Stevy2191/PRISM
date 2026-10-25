@@ -15,6 +15,7 @@ import {
 import { useBarDrag } from './timeline/useBarDrag';
 
 const LABEL_W = 280;
+const LABEL_W_NARROW = 112;
 const HEAD_H = 40;
 const ZOOMS = [['week', 'Week'], ['month', 'Month'], ['quarter', 'Quarter']];
 
@@ -52,6 +53,10 @@ export default function TimelineTab({ projectId, tasks, phases, canEdit, today, 
   const scroller = useRef(null);
   const narrow = useNarrow();
   const zoom = ZOOM[zoomKey];
+  const labelW = narrow ? LABEL_W_NARROW : LABEL_W;
+  // Dropped bars stay where they were put until the save and reload finish.
+  const [pending, setPending] = useState({});
+  const shownTasks = useMemo(() => tasks.map((t) => (pending[t.id] ? { ...t, ...pending[t.id] } : t)), [tasks, pending]);
 
   // Re-read the arrows whenever the tasks change (a drag reloads them).
   useEffect(() => {
@@ -64,7 +69,7 @@ export default function TimelineTab({ projectId, tasks, phases, canEdit, today, 
 
   const { from, days } = useMemo(() => chartRange(tasks, phases, today), [tasks, phases, today]);
   const lay = useMemo(() => layout({ from, days, zoom }), [from, days, zoom]);
-  const groups = useMemo(() => groupByPhase(tasks, phases), [tasks, phases]);
+  const groups = useMemo(() => groupByPhase(shownTasks, phases), [shownTasks, phases]);
 
   // Rows: a phase row (when it has a span or tasks) then its dated tasks.
   const { rows, unscheduled } = useMemo(() => {
@@ -82,6 +87,7 @@ export default function TimelineTab({ projectId, tasks, phases, canEdit, today, 
 
   const onCommit = useCallback(async (task, mode, delta) => {
     const next = dragResult(task, mode, delta);
+    setPending((p) => ({ ...p, [task.id]: next }));
     try {
       const { data } = await api.patch(paths.task(task.id), next);
       const found = data.shiftOffer;
@@ -90,6 +96,7 @@ export default function TimelineTab({ projectId, tasks, phases, canEdit, today, 
         : null);
     } catch (err) { alert(errMessage(err)); }
     await onChanged();
+    setPending((p) => { const { [task.id]: _gone, ...rest } = p; return rest; });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, onChanged]);
 
@@ -108,9 +115,10 @@ export default function TimelineTab({ projectId, tasks, phases, canEdit, today, 
   const showToday = useCallback(() => {
     const el = scroller.current;
     if (!el) return;
-    el.scrollLeft = Math.max(0, LABEL_W + lay.dayToX(today) - el.clientWidth / 2);
-  }, [lay, today]);
-  useLayoutEffect(showToday, [zoomKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Centre today in the part of the viewport right of the sticky labels.
+    el.scrollLeft = Math.max(0, lay.dayToX(today) + zoom / 2 - (el.clientWidth - labelW) / 2);
+  }, [lay, today, labelW, zoom]);
+  useLayoutEffect(showToday, [zoomKey, narrow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const todayX = lay.dayToX(today) + zoom / 2;
   const chartH = rows.length * ROW;
@@ -139,7 +147,7 @@ export default function TimelineTab({ projectId, tasks, phases, canEdit, today, 
   for (let i = 0; i < days; i += 1) if (isWeekend(addDays(from, i))) weekends.push(i);
 
   const marks = ticks(lay, zoomKey);
-  const gridW = LABEL_W + lay.width;
+  const gridW = labelW + lay.width;
 
   return (
     <div>
@@ -175,7 +183,7 @@ export default function TimelineTab({ projectId, tasks, phases, canEdit, today, 
         ) : (
           <div className="relative" style={{ width: gridW }}>
             <div className="flex border-b border-navy-100" style={{ height: HEAD_H }}>
-              <div className="sticky left-0 z-30 flex items-center bg-surface px-4 text-[12.5px] font-medium text-navy-500" style={{ width: LABEL_W, flex: 'none' }}>Task</div>
+              <div className="sticky left-0 z-30 flex items-center bg-surface px-4 text-[12.5px] font-medium text-navy-500" style={{ width: labelW, flex: 'none' }}>Task</div>
               <div className="relative" style={{ width: lay.width }}>
                 {marks.map((m) => (
                   <span
@@ -194,13 +202,13 @@ export default function TimelineTab({ projectId, tasks, phases, canEdit, today, 
               </div>
             </div>
             <div className="flex">
-              <div className="sticky left-0 z-30 bg-surface" style={{ width: LABEL_W, flex: 'none' }}>
+              <div className="sticky left-0 z-30 bg-surface" style={{ width: labelW, flex: 'none' }}>
                 {rows.map((r) => (
                   <div
-                    key={r.key} className="flex items-center gap-2 overflow-hidden whitespace-nowrap border-b border-navy-100 px-4"
+                    key={r.key} className={`flex items-center gap-2 overflow-hidden whitespace-nowrap border-b border-navy-100 ${narrow ? 'px-2' : 'px-4'}`}
                     style={{ height: ROW, fontWeight: r.phase ? 650 : 400, background: r.phase ? 'var(--color-hover)' : undefined }}
                   >
-                    {r.task && <span className="num w-[34px] flex-none text-[12.5px] text-navy-500">{shortCode(r.task.code)}</span>}
+                    {r.task && !narrow && <span className="num w-[34px] flex-none text-[12.5px] text-navy-500">{shortCode(r.task.code)}</span>}
                     <span className="min-w-0 flex-1 truncate text-sm text-navy-900">{r.phase ? r.phase.name : r.task.title}</span>
                   </div>
                 ))}

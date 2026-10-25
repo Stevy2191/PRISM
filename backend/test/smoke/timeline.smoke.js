@@ -14,7 +14,7 @@ const dates = async (t) => { const r = await models.Task.findByPk(t.id); return 
 let smoke;
 let w;
 let project;
-let t1; let t2; let t3; let t4;
+let t1; let t2; let t3; let t4; let t5;
 let viewer;
 beforeAll(async () => {
   smoke = await startSmoke();
@@ -32,6 +32,7 @@ beforeAll(async () => {
   t2 = await mk({ title: 'Configure VLANs', startDate: '2026-11-06', dueDate: '2026-11-09' });
   t3 = await mk({ title: 'Install access points', startDate: '2026-11-10', dueDate: '2026-11-12' });
   t4 = await mk({ title: 'Undated cleanup' });
+  t5 = await mk({ title: 'One day job', startDate: '2026-11-17', dueDate: '2026-11-17' });
   const link = (p, s) => a.post(`${API}/projects/${project.id}/dependencies`).send({ predecessorId: p.id, successorId: s.id });
   expectOk(await link(t1, t2), 201);
   expectOk(await link(t1, t3), 201);
@@ -82,6 +83,23 @@ it('dragging a bar 2 days saves new dates and shows the shift banner when it has
   expect(await dates(t3)).toEqual(['2026-11-12', '2026-11-13']);
 });
 
+it('a dependency arrow renders between two linked tasks', async () => {
+  const page = await smoke.pageAs('admin');
+  await openTimeline(page);
+  await bar(page, t1).waitFor();
+  await page.locator('svg g path').nth(1).waitFor({ state: 'attached' });
+  expect(await page.locator('svg g path').count()).toBe(2);
+});
+
+it('a 1-day task can be dragged to a new day at Month zoom', async () => {
+  const page = await smoke.pageAs('admin');
+  await openTimeline(page);
+  const patched = waitFor(page, 'PATCH', `/tasks/${t5.id}`);
+  await dragBy(page, bar(page, t5), 24);
+  await patched;
+  expect(await dates(t5)).toEqual(['2026-11-19', '2026-11-19']);
+});
+
 it('the undated task is listed under Not scheduled and has no bar', async () => {
   const page = await smoke.pageAs('admin');
   await openTimeline(page);
@@ -124,6 +142,12 @@ it('under 768px the timeline scrolls and bars cannot be dragged', async () => {
     return el.scrollWidth > el.clientWidth;
   });
   expect(scrolls).toBe(true);
+  const todayShown = await page.evaluate(() => {
+    const box = document.querySelector('[data-timeline-scroll]').getBoundingClientRect();
+    const x = document.querySelector('[data-today-line]').getBoundingClientRect().left;
+    return x >= box.left + 112 && x <= box.right;
+  });
+  expect(todayShown).toBe(true);
   expect(await page.locator('[data-handle]').count()).toBe(0);
   const before = await dates(t3);
   await bar(page, t3).scrollIntoViewIfNeeded();
