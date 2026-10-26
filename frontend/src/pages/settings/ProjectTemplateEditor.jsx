@@ -68,6 +68,7 @@ export default function ProjectTemplateEditor() {
       setS(fresh);
       setMeta({ usedCount: data.template.usedCount, sourceProjectId: data.template.sourceProjectId });
       setJustSaved(true);
+      clearTimeout(savedTimer.current);
       savedTimer.current = setTimeout(() => setJustSaved(false), 3000);
       if (isNew) navigate(`/settings/project-templates/${data.template.id}`, { replace: true });
       return true;

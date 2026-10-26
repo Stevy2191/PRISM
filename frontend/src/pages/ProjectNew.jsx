@@ -134,7 +134,7 @@ export default function ProjectNew() {
     setPreviewError('');
     setError('');
     setForm((f) => ({ ...f, finishDate: '', templateId: '', ...extra }));
-    if (next !== 'template') setTags([]);
+    setTags([]); // a template's effect fills its own tags back in on success
   };
 
   const shownBudget = budgetTouched ? budgetText : (origin === 'template' && template ? hoursInput(template.hourBudgetMinutes) : '');
