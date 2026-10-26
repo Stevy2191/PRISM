@@ -31,9 +31,8 @@ read that before designing any sub-project.
     `toISOString()` on local midnight, so it shows the wrong day east of UTC.
     Fix it together with the `waiting.smoke.js` evening-time-zone item above,
     before `v0.4.0` hand testing.
-  - Decision for the user: should helpers who hold `projects.edit_*` still be
-    able to upload and delete their own files on a project (the existing
-    contributor rule), or should helpers be strictly view and log time?
+  - Decided 2026-10-26: helpers only view and log time (no files). A project's
+    lead and members edit it whatever their role (see `UPGRADING.md`).
 
 ## How to resume
 
