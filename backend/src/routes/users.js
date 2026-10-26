@@ -23,6 +23,7 @@ router.get('/assignable', ctrl.listAssignable); // must precede /:id
 router.get('/directory', ctrl.listDirectory); // must precede /:id
 router.get('/:id', ctrl.get); // self-or-admin enforced in controller
 router.patch('/:id', ctrl.update); // self (profile fields) or people.edit_users (everything) — enforced in controller
+router.patch('/:id/work-hours', requirePermission('settings.manage_business_hours'), ctrl.updateWorkHours);
 router.patch('/:id/preferences', ctrl.updatePreferences); // self-or-admin enforced in controller
 router.delete('/:id', requireRole('admin'), ctrl.remove);
 

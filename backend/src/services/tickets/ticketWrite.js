@@ -26,6 +26,7 @@ const { queueContactEmail } = require('../email/ticketMail');
 const { logAssetActivity } = require('../assetActivity');
 const { syncCustomFieldValues, assertCanEditTicket } = require('../../controllers/tickets/shared');
 const { resolveCategoryForSave, loadTree: loadCategoryTree } = require('./categories');
+const { isIsoDate } = require('../workload/capacity');
 
 
 // A status must be one of the configured ticket statuses (Q25). Returns its
@@ -281,6 +282,7 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
     'tags',
     'resolution',
     'categoryId',
+    'plannedDate',
   ];
 
   const changes = {};
@@ -289,6 +291,12 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
   }
   if (changes.teamId !== undefined) changes.teamId = await assertTeamExists(changes.teamId);
   if (changes.categoryId !== undefined) changes.categoryId = await resolveCategoryForSave(changes.categoryId, { current: ticket.categoryId, tree: categoryTree });
+  // The planned date is the assignee's own plan (workload); it never touches
+  // the SLA due date, so it is allowed on a ticket whose due date is locked.
+  if (changes.plannedDate !== undefined) {
+    if (changes.plannedDate === null || changes.plannedDate === '') changes.plannedDate = null;
+    else if (!isIsoDate(changes.plannedDate)) throw new ApiError(400, 'Planned date must be a date like 2026-11-05', 'VALIDATION_ERROR');
+  }
   if (changes.title !== undefined) {
     if (typeof changes.title !== 'string' || !changes.title.trim()) {
       throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
@@ -357,7 +365,7 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
     changes.resolutionUpdatedBy = req.user.id;
     changes.resolutionUpdatedAt = new Date();
   }
-  const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId'];
+  const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId', 'plannedDate'];
   const before = {};
   TRACKED_ACTIVITY_FIELDS.forEach((f) => { before[f] = ticket[f]; });
   const previousStatus = ticket.status;
@@ -452,7 +460,7 @@ async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = fa
   }
 }
 
-const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId'];
+const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId', 'plannedDate'];
 const snapshotBefore = (ticket) => Object.fromEntries(TRACKED_ACTIVITY_FIELDS.map((f) => [f, ticket[f]]));
 
 // Edits a ticket: access + edit-tier checks, validation, save, side effects.
@@ -472,6 +480,9 @@ async function updateTicket(req, ticket, body, { quiet = false, categoryTree = n
     }
   });
   await writeAudit(req, 'ticket.update', 'Ticket', ticket.id, changes);
+  if (changes.plannedDate !== undefined && String(before.plannedDate ?? '') !== String(ticket.plannedDate ?? '')) {
+    await writeAudit(req, 'ticket.plannedDate', 'Ticket', ticket.id, { from: before.plannedDate ?? null, to: ticket.plannedDate ?? null });
+  }
   await runTicketUpdateEffects(req, ticket, before, changes, { quiet, categoryTree });
   return ticket;
 }

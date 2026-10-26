@@ -6,6 +6,11 @@ const { sequelize } = require('./helpers');
 // Tasks, Projects, ...) must be rolled back first and re-applied after, or
 // the old down() fails midway and leaves the test DB half rolled back.
 // Add newer migrations here, oldest first.
+// 071 (workload) is deliberately NOT listed: it only adds standalone columns
+// (Users.workHours, Tickets.plannedDate), settings and a permission, with no
+// reference into an older migration's tables. Rolling it back mid-test would
+// drop Users.workHours, which the User model selects, so every login in the
+// older round-trip suites would fail with a 500.
 const later = [
   require('../../migrations/20260101000069-project-structure'),
   require('../../migrations/20260101000070-project-templates'),

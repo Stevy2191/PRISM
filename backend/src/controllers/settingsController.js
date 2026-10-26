@@ -8,6 +8,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const { assertOwner } = require('../services/ownership');
+const { validWorkHours, DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES } = require('../services/workload/capacity');
 
 const BRANDING_DIR = path.join(UPLOAD_ROOT, 'branding');
 
@@ -96,10 +97,15 @@ const DEFAULTS = {
   'assets.replacementAlertDays': '90',
   'licenses.expiryAlertDays': '30',
   'contracts.renewalAlertDays': '60',
+
+  // Settings -> Workload: minutes per ISO weekday for anyone without their
+  // own hours, and how big a ticket with no task estimates counts (15-1440).
+  'workload.defaultWorkHours': JSON.stringify(DEFAULT_WORK_HOURS),
+  'workload.defaultTicketMinutes': String(DEFAULT_TICKET_MINUTES),
 };
 
 // Settings that store JSON-encoded values rather than plain strings.
-const JSON_KEYS = ['branding.loginBullets', 'notifications.enabledTypes', 'notifications.emailDefaults'];
+const JSON_KEYS = ['branding.loginBullets', 'notifications.enabledTypes', 'notifications.emailDefaults', 'workload.defaultWorkHours'];
 
 // Never sent back to the client once saved — GET/PUT/PATCH responses redact
 // these to '' (with a companion `<key>Set` boolean so the UI can still show
@@ -263,6 +269,7 @@ const RANGES = {
   // Capped at the scanner's 101M stream limit; the UI already stops at 100.
   'system.maxAttachmentSizeMB': { min: 1, max: 100, what: 'The maximum attachment size must be a whole number of MB from 1 to 100' },
   'timeTracking.maxEntryHours': { min: 1, max: 24, what: 'The longest time entry must be a whole number of hours from 1 to 24' },
+  'workload.defaultTicketMinutes': { min: 15, max: 1440, what: 'The default ticket size must be a whole number of minutes from 15 to 1440' },
 };
 
 async function upsertSettings(rawIncoming, userId) {
@@ -284,6 +291,13 @@ async function upsertSettings(rawIncoming, userId) {
     const { min, max, what } = RANGES[key];
     const n = Number(incoming[key]);
     if (!Number.isInteger(n) || n < min || n > max) throw new ApiError(400, what, 'VALIDATION_ERROR');
+  }
+  if (keys.includes('workload.defaultWorkHours')) {
+    let v = incoming['workload.defaultWorkHours'];
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = undefined; } }
+    const checked = validWorkHours(v);
+    if (!checked) throw new ApiError(400, 'Default work hours are whole minutes from 0 to 1440, keyed by weekday 1 (Monday) to 7 (Sunday)', 'VALIDATION_ERROR');
+    incoming['workload.defaultWorkHours'] = checked;
   }
   const written = [];
   for (const key of keys) {
@@ -312,6 +326,15 @@ async function upsertSettings(rawIncoming, userId) {
   return written;
 }
 
+// The workload keys also get their own audit action, so the log can show who
+// changed capacity or the default ticket size.
+async function auditWorkloadSettings(req, keys) {
+  const workload = keys.filter((k) => k.startsWith('workload.'));
+  if (!workload.length) return;
+  const values = await getAllSettings();
+  await writeAudit(req, 'settings.workload', 'SystemSettings', null, Object.fromEntries(workload.map((k) => [k, values[k]])));
+}
+
 // PUT /settings — Admin. Upserts a map of key/value settings (legacy path,
 // kept alongside PATCH for the existing Company/other settings pages).
 const update = asyncHandler(async (req, res) => {
@@ -319,6 +342,7 @@ const update = asyncHandler(async (req, res) => {
   await assertCanWriteKeys(req, incoming);
   const keys = await upsertSettings(incoming, req.user.id);
   await writeAudit(req, 'settings.update', 'SystemSettings', null, { keys });
+  await auditWorkloadSettings(req, keys);
 
   const values = await getAllSettings();
   res.json({ settings: redactSettings(values), public: publicShape(values) });
@@ -331,6 +355,7 @@ const patch = asyncHandler(async (req, res) => {
   await assertCanWriteKeys(req, incoming);
   const keys = await upsertSettings(incoming, req.user.id);
   await writeAudit(req, 'settings.update', 'SystemSettings', null, { keys });
+  await auditWorkloadSettings(req, keys);
 
   const values = await getAllSettings();
   res.json({ settings: redactSettings(values), public: publicShape(values) });

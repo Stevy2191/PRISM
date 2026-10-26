@@ -52,6 +52,7 @@ const ssoAdminRoutes = require('./ssoAdmin');
 const cannedResponsesRoutes = require('./cannedResponses');
 const ticketCategoriesRoutes = require('./ticketCategories');
 const recurringTicketsRoutes = require('./recurringTickets');
+const workloadRoutes = require('./workload');
 
 const { getVersionInfo } = require('../utils/version');
 
@@ -97,6 +98,7 @@ router.use('/tickets', guard, ticketsRoutes);
 router.use('/canned-responses', guard, cannedResponsesRoutes);
 router.use('/ticket-categories', guard, ticketCategoriesRoutes);
 router.use('/recurring-tickets', guard, recurringTicketsRoutes);
+router.use('/workload', guard, workloadRoutes);
 router.use('/apikeys', guard, apikeysRoutes);
 router.use('/reports', guard, reportsRoutes);
 router.use('/blueprints', guard, blueprintsRoutes);

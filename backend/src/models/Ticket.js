@@ -100,6 +100,9 @@ module.exports = (sequelize) => {
         type: DataTypes.DATEONLY,
         allowNull: true,
       },
+      // When the assignee plans to work on it (workload dispatch). Never
+      // touches the SLA due date. Null = not planned.
+      plannedDate: { type: DataTypes.DATEONLY, allowNull: true },
       // Optional time-of-day companion to dueDate — "HH:MM:SS" or null.
       // A ticket can have a due date with no specific time; it can never
       // have a dueTime without a dueDate (enforced in the controller, not

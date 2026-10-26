@@ -18,6 +18,7 @@ const {
 const { settleAccountRoles } = require('../services/accountRoles');
 const { computeDisplayName } = require('../utils/userDisplay');
 const { normalizePhone } = require('../utils/phone');
+const { validWorkHours } = require('../services/workload/capacity');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
 const {
@@ -544,4 +545,24 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { list, create, get, update, remove, listAssignable, listDirectory, updatePreferences };
+// PATCH /users/:id/work-hours — settings.manage_business_hours (the route
+// checks it). { workHours: { "1": 480, ... } } sets this person's minutes per
+// ISO weekday; { workHours: null } goes back to the system default.
+const updateWorkHours = asyncHandler(async (req, res) => {
+  const id = parseRecordId(req.params.id);
+  const user = id && await User.findByPk(id);
+  if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
+  const raw = (req.body || {}).workHours;
+  if (raw === undefined) throw new ApiError(400, 'workHours is required (an object, or null for the default)', 'VALIDATION_ERROR');
+  const workHours = raw === null ? null : validWorkHours(raw);
+  if (raw !== null && !workHours) {
+    throw new ApiError(400, 'Work hours are whole minutes from 0 to 1440, keyed by weekday 1 (Monday) to 7 (Sunday)', 'VALIDATION_ERROR');
+  }
+  await user.update({ workHours });
+  await writeAudit(req, 'user.workHours', 'User', user.id, { workHours });
+  res.json({ user: await User.findByPk(user.id, { include: userInclude }) });
+});
+
+module.exports = {
+  list, create, get, update, remove, listAssignable, listDirectory, updatePreferences, updateWorkHours,
+};

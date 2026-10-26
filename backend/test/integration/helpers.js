@@ -185,6 +185,11 @@ async function resetData() {
     + "OR `key` LIKE 'smtp.%' OR `key` LIKE 'inboundEmail.%' OR `key` = 'notifications.emailDefaults'"
   ).catch(() => {});
   await sequelize.query("UPDATE SystemSettings SET value = 'false' WHERE `key` = 'tickets.categoryRequired'").catch(() => {});
+  // Workload settings go back to their migrated defaults (rows are kept: the migration test reads them).
+  await sequelize.query("UPDATE SystemSettings SET value = '60' WHERE `key` = 'workload.defaultTicketMinutes'").catch(() => {});
+  await sequelize.query(
+    "UPDATE SystemSettings SET value = '{\"1\":480,\"2\":480,\"3\":480,\"4\":480,\"5\":480,\"6\":0,\"7\":0}' WHERE `key` = 'workload.defaultWorkHours'"
+  ).catch(() => {});
   // SLA policies: back to the migrated "Standard" default and its seeded
   // targets, so one test's policies and edits don't leak into the next.
   await resetSlaPolicies();

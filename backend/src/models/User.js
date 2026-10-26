@@ -134,6 +134,9 @@ module.exports = (sequelize) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      // Minutes of work per ISO weekday ({"1":480,...,"7":0}); null = the
+      // system default (workload.defaultWorkHours).
+      workHours: { type: DataTypes.JSON, allowNull: true },
       // Manual: tech controls start/stop. Automatic: timer starts when a
       // ticket is opened and stops (prompting to log, per the two prefs
       // below) when the tech navigates away or closes the tab.
