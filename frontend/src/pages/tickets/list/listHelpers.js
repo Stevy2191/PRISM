@@ -1,5 +1,6 @@
 // Constants and helpers for the ticket list: filters, columns, formatting.
 import { IconMail, IconPhone, IconWorld } from '@tabler/icons-react';
+import { orgToday } from '../../../utils/orgDate';
 
 // 'closed' is a special client-side aggregate keyword (the backend maps it
 // to every behaviorType:'closed' status), not a literal status name — the
@@ -78,7 +79,7 @@ export function formatCustomFieldValue(field, value) {
 }
 
 export function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return orgToday();
 }
 
 // `behaviorByName` is a Map<statusName, behaviorType> built from the

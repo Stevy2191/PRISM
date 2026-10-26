@@ -7,7 +7,7 @@ const {
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
-const { orgTimeZone, todayInZone, addDays } = require('../utils/orgTime');
+const { orgTimeZone, orgToday, todayInZone, addDays, zoneDayStart } = require('../utils/orgTime');
 const { computeProjectCompletion } = require('../services/projectCompletion');
 const { hasPermission, companyScopeWhere } = require('../services/permissionService');
 const { andWhere, isEmpty, ticketScopeWhere } = require('../services/recordScope');
@@ -19,34 +19,30 @@ const { getSubscriptionRenewals } = require('../services/assetSubscriptionServic
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-// Monday 00:00 of the week containing `date`.
-function startOfWeek(date) {
-  const d = new Date(date);
-  const day = d.getDay(); // 0 = Sunday
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+// The instants at which this week and last week began (Monday 00:00 on the
+// organization's calendar), plus today's date there.
+async function weekBounds() {
+  const tz = await orgTimeZone();
+  const today = todayInZone(tz);
+  const day = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  const monday = addDays(today, day === 0 ? -6 : 1 - day);
+  return { today, thisWeekStart: zoneDayStart(monday, tz), lastWeekStart: zoneDayStart(addDays(monday, -7), tz) };
 }
 
 // `behaviorByName` is the Map<statusName, behaviorType> for the current
 // ticket_statuses table — passed in rather than a hardcoded list so a
 // custom/renamed status is classified correctly the moment it exists.
-function displayStatus(ticket, behaviorByName) {
+function displayStatus(ticket, behaviorByName, today) {
   if (behaviorByName.get(ticket.status) === 'closed') return 'closed';
-  if (ticket.dueDate && ticket.dueDate < todayStr()) return 'overdue';
+  if (ticket.dueDate && ticket.dueDate < today) return 'overdue';
   if (behaviorByName.get(ticket.status) === 'on_hold') return 'on_hold';
   return 'open';
 }
 
 // green (>14 days out), amber (<=14 days), red (overdue), none (no due date).
-function dueDateBadge(dueDate) {
+function dueDateBadge(dueDate, today) {
   if (!dueDate) return 'none';
-  const days = Math.round((new Date(dueDate) - new Date(todayStr())) / 86400000);
+  const days = Math.round((new Date(dueDate) - new Date(today)) / 86400000);
   if (days < 0) return 'red';
   if (days <= 14) return 'amber';
   return 'green';
@@ -57,6 +53,7 @@ function dueDateBadge(dueDate) {
 // user's view is requesting it.
 async function projectHealthFor(projectWhere) {
   const projects = await Project.findAll({ where: projectWhere, order: [['dueDate', 'ASC']] });
+  const today = await orgToday();
 
   return Promise.all(
     projects.map(async (project) => {
@@ -65,7 +62,7 @@ async function projectHealthFor(projectWhere) {
         id: project.id,
         name: project.name,
         dueDate: project.dueDate,
-        dueBadge: dueDateBadge(project.dueDate),
+        dueBadge: dueDateBadge(project.dueDate, today),
         totalTasks,
         closedTasks,
         openTasks: totalTasks - closedTasks,
@@ -76,10 +73,7 @@ async function projectHealthFor(projectWhere) {
 }
 
 async function statsForUser(userId, scopeField, buckets, companyWhere = {}) {
-  const today = todayStr();
-  const thisWeekStart = startOfWeek(new Date());
-  const lastWeekStart = new Date(thisWeekStart);
-  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  const { today, thisWeekStart, lastWeekStart } = await weekBounds();
 
   const [openTickets, overdueTickets, highPriorityOpen, closedThisWeek, closedLastWeek] = await Promise.all([
     Ticket.count({ where: andWhere({ [scopeField]: userId, status: { [Op.in]: buckets.open } }, companyWhere) }),
@@ -114,10 +108,7 @@ async function statsForUser(userId, scopeField, buckets, companyWhere = {}) {
 // `extraWhere` narrows every count to a department (or any other Ticket
 // column filter) — an empty object (the default) means system-wide, as before.
 async function systemStats(buckets, extraWhere = {}) {
-  const today = todayStr();
-  const thisWeekStart = startOfWeek(new Date());
-  const lastWeekStart = new Date(thisWeekStart);
-  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  const { today, thisWeekStart, lastWeekStart } = await weekBounds();
 
   const [openTickets, overdueTickets, unassignedTickets, closedThisWeek, closedLastWeek] = await Promise.all([
     Ticket.count({ where: andWhere(extraWhere, { status: { [Op.in]: buckets.open }  }) }),
@@ -143,12 +134,13 @@ async function ticketsForUser(userId, scopeField, behaviorByName, companyWhere =
     order: [['updatedAt', 'DESC']],
     limit: 20,
   });
+  const today = await orgToday();
   return tickets.map((t) => ({
     id: t.id,
     ticketNumber: String(t.id).padStart(5, '0'),
     title: t.title,
     status: t.status,
-    displayStatus: displayStatus(t, behaviorByName),
+    displayStatus: displayStatus(t, behaviorByName, today),
     priority: t.priority,
     dueDate: t.dueDate,
     updatedAt: t.updatedAt,
@@ -195,10 +187,10 @@ async function hoursForUser(userId, viewer) {
 // shared service module for).
 async function assetsSummaryStats(companyWhere = {}) {
   const scoped = (where) => ({ where: andWhere(where, companyWhere) });
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const in90Str = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
-  const in30Str = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-  const in60Str = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+  const todayStr = await orgToday();
+  const in90Str = addDays(todayStr, 90);
+  const in30Str = addDays(todayStr, 30);
+  const in60Str = addDays(todayStr, 60);
   const [dueForReplacement, expiredWarranty, totalActive, renewingSoon, licensesExpiringSoon, contractsRenewingSoon] = await Promise.all([
     Asset.count(scoped({ replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90Str } })),
     Asset.count(scoped({ warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: todayStr } })),

@@ -2,6 +2,7 @@
 import { initials } from '../../../utils/userDisplay';
 import { BORDER, TEXT, MUTED } from '../theme';
 import { PRIORITY_META, SOURCE_META, todayStr, isClosedStatus, ageDays } from './listHelpers';
+import { addDays } from '../../../utils/orgDate';
 
 export function Avatar({ name }) {
   if (!name) {
@@ -64,9 +65,7 @@ export function StatusBadge({ ticket, ticketStatuses }) {
 export function DueDateCell({ dueDate }) {
   if (!dueDate) return <span className="text-sm" style={{ color: MUTED }}>—</span>;
   const today = todayStr();
-  const soon = new Date();
-  soon.setDate(soon.getDate() + 3);
-  const soonStr = soon.toISOString().slice(0, 10);
+  const soonStr = addDays(today, 3);
   let color = MUTED;
   if (dueDate < today) color = 'var(--color-danger)';
   else if (dueDate <= soonStr) color = 'var(--color-warning)';

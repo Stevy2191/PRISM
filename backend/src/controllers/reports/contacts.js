@@ -88,7 +88,7 @@ async function buildContactsReport(req) {
   const submissionsByDeptOverTime = new Map();
   tickets.forEach((t) => {
     const deptName = contactById.get(t.contactId)?.department?.name || 'No department';
-    const bk = bucketKey(t.createdAt, granularity);
+    const bk = bucketKey(t.createdAt, granularity, range.tz);
     const cur = submissionsByDeptOverTime.get(bk) || { date: bk };
     cur[deptName] = (cur[deptName] || 0) + 1;
     submissionsByDeptOverTime.set(bk, cur);

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import Modal from '../Modal';
-import { useOrgToday } from '../../utils/orgDate';
+import { useOrgToday } from '../../utils/useOrgToday';
 import { useTimer, formatHMS } from '../../context/TimerContext';
 import TimePicker, { roundToNearest5, localDateTime } from './TimePicker';
 import { workPaths } from './workPaths';

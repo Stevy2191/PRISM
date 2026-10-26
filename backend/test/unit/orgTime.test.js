@@ -1,5 +1,5 @@
 const {
-  dateInZone, todayInZone, zoneDayStart, zoneDayEnd, addDays, toDateString, isValidZone,
+  dateInZone, todayInZone, zoneDayStart, zoneDayEnd, addDays, toDateString, isValidZone, dayOf, periodKey,
 } = require('../../src/utils/orgTime');
 
 // The organization's calendar: work dates and report days are whole days in
@@ -70,5 +70,23 @@ describe('zoneWallTime', () => {
     expect(zoneWallTime('2026-11-01', '09:00', 'America/Chicago').toISOString()).toBe('2026-11-01T15:00:00.000Z');
     // 02:30 does not exist on spring-forward day: it lands an hour later (03:30 CDT).
     expect(zoneWallTime('2026-03-08', '02:30', 'America/Chicago').toISOString()).toBe('2026-03-08T08:30:00.000Z');
+  });
+});
+
+describe('dayOf / periodKey (report CSV dates and chart buckets)', () => {
+  const evening = new Date('2026-11-02T03:30:00Z'); // Sunday 21:30 in Chicago, Monday in UTC
+
+  it('puts a timestamp on the zone\'s day, and keeps a DATEONLY string as is', () => {
+    expect(dayOf(evening, 'America/Chicago')).toBe('2026-11-01');
+    expect(dayOf(evening, 'UTC')).toBe('2026-11-02');
+    expect(dayOf('2026-11-02', 'America/Chicago')).toBe('2026-11-02');
+  });
+
+  it('keys a week by its Monday and a month by YYYY-MM, on the zone\'s calendar', () => {
+    expect(periodKey(evening, 'week', 'America/Chicago')).toBe('2026-10-26');
+    expect(periodKey(evening, 'week', 'UTC')).toBe('2026-11-02');
+    expect(periodKey(evening, 'month', 'America/Chicago')).toBe('2026-11');
+    expect(periodKey(new Date('2026-11-01T03:00:00Z'), 'month', 'America/Chicago')).toBe('2026-10');
+    expect(periodKey('2026-11-04', 'day', 'UTC')).toBe('2026-11-04');
   });
 });

@@ -89,7 +89,7 @@ async function buildTimeBillingReport(req) {
     bumpMinutes(byTech, e.user ? e.user.id : 'unknown', e.user ? e.user.displayName : 'Unknown', e.minutes);
     bumpMinutes(byDept, e.department ? e.department.id : 'none', e.department ? e.department.name : 'Unassigned', e.minutes);
     bumpMinutes(byType, e.ticketType || 'project', e.ticketType || 'Project work', e.minutes);
-    const bk = bucketKey(e.date, granularity);
+    const bk = bucketKey(e.date, granularity, range.tz);
     const cur = byBucket.get(bk) || { date: bk, minutes: 0 };
     cur.minutes += e.minutes;
     byBucket.set(bk, cur);

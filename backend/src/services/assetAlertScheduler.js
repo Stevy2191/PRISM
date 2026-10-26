@@ -14,15 +14,9 @@ const { getAllSettings } = require('../controllers/settingsController');
 const { getSubscriptionRenewals } = require('./assetSubscriptionService');
 const { logAssetActivity } = require('./assetActivity');
 const { getTicketStatusBuckets } = require('./statusBehavior');
+const { orgToday, addDays } = require('../utils/orgTime');
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-function cutoffStr(days) {
-  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
-}
 
 // ==================== Asset subscription renewals ====================
 // A renewal date change (asset renewed, or admin corrected the date) should
@@ -67,10 +61,11 @@ async function checkSubscriptionRenewals() {
 
 // ==================== Asset warranty expiry ====================
 async function checkWarrantyExpiry() {
+  const today = await orgToday();
   const settings = await getAllSettings();
   const alertDays = Number(settings['assets.warrantyAlertDays']) || 90;
   const assets = await Asset.findAll({
-    where: { warrantyExpiryDate: { [Op.ne]: null, [Op.gte]: todayStr(), [Op.lte]: cutoffStr(alertDays) } },
+    where: { warrantyExpiryDate: { [Op.ne]: null, [Op.gte]: today, [Op.lte]: addDays(today, alertDays) } },
   });
 
   // eslint-disable-next-line no-restricted-syntax
@@ -97,10 +92,11 @@ async function checkWarrantyExpiry() {
 
 // ==================== Asset replacement plan ====================
 async function checkReplacementDates() {
+  const today = await orgToday();
   const settings = await getAllSettings();
   const alertDays = Number(settings['assets.replacementAlertDays']) || 90;
   const assets = await Asset.findAll({
-    where: { replacementPlanDate: { [Op.ne]: null, [Op.gte]: todayStr(), [Op.lte]: cutoffStr(alertDays) } },
+    where: { replacementPlanDate: { [Op.ne]: null, [Op.gte]: today, [Op.lte]: addDays(today, alertDays) } },
   });
 
   // eslint-disable-next-line no-restricted-syntax
@@ -137,11 +133,12 @@ async function hasOpenAlertTicket(TicketLinkModel, idField, id, openStatuses) {
 }
 
 async function checkLicenseExpiry() {
+  const today = await orgToday();
   const settings = await getAllSettings();
   const alertDays = Number(settings['licenses.expiryAlertDays']) || 30;
   const buckets = await getTicketStatusBuckets();
   const licenses = await License.findAll({
-    where: { expiryDate: { [Op.ne]: null, [Op.gte]: todayStr(), [Op.lte]: cutoffStr(alertDays) } },
+    where: { expiryDate: { [Op.ne]: null, [Op.gte]: today, [Op.lte]: addDays(today, alertDays) } },
   });
 
   // eslint-disable-next-line no-restricted-syntax
@@ -149,7 +146,7 @@ async function checkLicenseExpiry() {
     // eslint-disable-next-line no-await-in-loop
     if (await hasOpenAlertTicket(LicenseTicket, 'licenseId', license.id, buckets.open)) continue; // eslint-disable-line no-continue
 
-    const daysLeft = Math.round((new Date(`${license.expiryDate}T00:00:00`).getTime() - new Date(`${todayStr()}T00:00:00`).getTime()) / 86400000);
+    const daysLeft = Math.round((new Date(`${license.expiryDate}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000);
     const priority = daysLeft < 14 ? 'high' : 'medium';
     const seatsLine = license.totalSeats !== null ? `${license.totalSeats} seats affected.` : 'Unlimited seats.';
     const costLine = license.annualCost !== null ? `$${Number(license.annualCost).toLocaleString()}` : 'not set';
@@ -173,14 +170,15 @@ async function checkLicenseExpiry() {
 }
 
 async function checkContractRenewals() {
+  const today = await orgToday();
   const settings = await getAllSettings();
   const alertDays = Number(settings['contracts.renewalAlertDays']) || 60;
   const buckets = await getTicketStatusBuckets();
   const contracts = await Contract.findAll({
     where: {
       [Op.or]: [
-        { renewalDate: { [Op.ne]: null, [Op.gte]: todayStr(), [Op.lte]: cutoffStr(alertDays) } },
-        { renewalDate: null, endDate: { [Op.ne]: null, [Op.gte]: todayStr(), [Op.lte]: cutoffStr(alertDays) } },
+        { renewalDate: { [Op.ne]: null, [Op.gte]: today, [Op.lte]: addDays(today, alertDays) } },
+        { renewalDate: null, endDate: { [Op.ne]: null, [Op.gte]: today, [Op.lte]: addDays(today, alertDays) } },
       ],
     },
   });
@@ -191,7 +189,7 @@ async function checkContractRenewals() {
     if (await hasOpenAlertTicket(ContractTicket, 'contractId', contract.id, buckets.open)) continue; // eslint-disable-line no-continue
 
     const renewsOn = contract.renewalDate || contract.endDate;
-    const daysLeft = Math.round((new Date(`${renewsOn}T00:00:00`).getTime() - new Date(`${todayStr()}T00:00:00`).getTime()) / 86400000);
+    const daysLeft = Math.round((new Date(`${renewsOn}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000);
     const priority = daysLeft < 30 ? 'high' : 'medium';
     const costLine = contract.annualCost !== null ? `$${Number(contract.annualCost).toLocaleString()}` : 'not set';
     // eslint-disable-next-line no-await-in-loop

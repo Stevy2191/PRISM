@@ -10,11 +10,12 @@ import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
 import TimeDropdownPicker from '../../components/TimeDropdownPicker';
 import { ContactPicker } from '../tickets/new/ContactPicker';
+import { orgToday } from '../../utils/orgDate';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney'];
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => orgToday();
 
 const EMPTY = {
   title: '', description: '', priority: 'medium', type: 'request', contactId: null, departmentId: '', teamId: '', assigneeId: '', categoryId: null,

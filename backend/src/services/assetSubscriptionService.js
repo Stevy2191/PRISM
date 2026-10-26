@@ -6,6 +6,7 @@
 const { Op } = require('sequelize');
 const { Asset, AssetCategory, AssetCategoryField, AssetFieldValue, Department } = require('../models');
 const { isEmpty } = require('./recordScope');
+const { orgToday, addDays } = require('../utils/orgTime');
 
 // Returns one row per asset that has a nextRenewalDate value, with the
 // renewal date and (if present) subscription provider name attached.
@@ -49,7 +50,7 @@ async function getSubscriptionRenewals({ withinDays, where } = {}) {
     }));
 
   if (withinDays !== undefined) {
-    const cutoff = new Date(Date.now() + withinDays * 86400000).toISOString().slice(0, 10);
+    const cutoff = addDays(await orgToday(), withinDays);
     results = results.filter((r) => r.renewalDate <= cutoff);
   }
 

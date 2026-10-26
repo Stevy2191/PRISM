@@ -12,6 +12,7 @@ const { getTicketStatusBuckets } = require('./statusBehavior');
 const { computeProjectCompletion } = require('./projectCompletion');
 const rc = require('../controllers/reportsController'); // reuse scope/date-range helpers, not routes
 const { loadTree: loadCategoryTree, pathOf: categoryPathOf } = require('./tickets/categories');
+const { dayOf } = require('../utils/orgTime');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -176,8 +177,8 @@ async function loadTicketRecords(req, filters) {
       assignee: t.assignee?.displayName || 'Unassigned',
       team: t.team?.name || '',
       category: categoryPath(t.categoryId),
-      createdAt: t.createdAt ? t.createdAt.toISOString().slice(0, 10) : '',
-      closedAt: t.resolvedAt ? new Date(t.resolvedAt).toISOString().slice(0, 10) : '',
+      createdAt: t.createdAt ? dayOf(t.createdAt, range.tz) : '',
+      closedAt: t.resolvedAt ? dayOf(t.resolvedAt, range.tz) : '',
       dueDate: t.dueDate || '',
       resolutionHours,
       timeLoggedHours: Math.round(((minutesByTicket.get(t.id) || 0) / 60) * 10) / 10,
@@ -185,7 +186,7 @@ async function loadTicketRecords(req, filters) {
       tags: Array.isArray(t.tags) ? t.tags.join(', ') : '',
       _departmentName: t.department?.name || 'Unassigned',
       _assigneeName: t.assignee?.displayName || 'Unassigned',
-      _month: t.createdAt ? t.createdAt.toISOString().slice(0, 7) : '',
+      _month: t.createdAt ? dayOf(t.createdAt, range.tz).slice(0, 7) : '',
       _tagList: Array.isArray(t.tags) ? t.tags : [],
     };
     (t.fieldValues || []).forEach((fv) => { rec[`cf_${fv.field.fieldKey}`] = fv.value; });
@@ -251,7 +252,7 @@ async function loadProjectRecords(req, filters) {
       totalCost: Math.round((laborCost + expensesTotal + materialsTotal) * 100) / 100,
       tags: Array.isArray(p.tags) ? p.tags.join(', ') : '',
       _departmentName: p.ownerDepartment?.name || 'Unassigned',
-      _month: p.createdAt ? p.createdAt.toISOString().slice(0, 7) : '',
+      _month: p.createdAt ? dayOf(p.createdAt, range.tz).slice(0, 7) : '',
       _tagList: Array.isArray(p.tags) ? p.tags : [],
     };
   }));
@@ -351,7 +352,7 @@ async function loadExpenseMaterialRecords(req, filters) {
     })),
     ...materials.map((m) => ({
       id: `m${m.id}`,
-      date: m.createdAt ? m.createdAt.toISOString().slice(0, 10) : '',
+      date: m.createdAt ? dayOf(m.createdAt, range.tz) : '',
       projectCode: m.project?.projectCode || '',
       item: m.itemName,
       category: 'materials',
@@ -398,8 +399,8 @@ async function loadContactRecords(req, filters) {
       assignedTo: c.assignedToUser?.displayName || 'Unassigned',
       totalTickets,
       openTickets,
-      lastTicketDate: lastTicket ? lastTicket.createdAt.toISOString().slice(0, 10) : '',
-      createdAt: c.createdAt ? c.createdAt.toISOString().slice(0, 10) : '',
+      lastTicketDate: lastTicket ? dayOf(lastTicket.createdAt, range.tz) : '',
+      createdAt: c.createdAt ? dayOf(c.createdAt, range.tz) : '',
       status: c.status,
       _departmentName: c.department?.name || 'Unassigned',
     };

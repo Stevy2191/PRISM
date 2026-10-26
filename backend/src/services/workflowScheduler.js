@@ -7,6 +7,7 @@ const { Op } = require('sequelize');
 const { Ticket, WorkflowRuleLog, SystemSettings } = require('../models');
 const { getActiveRulesForTrigger, runRuleForTicket } = require('./workflowEngine');
 const { getTicketStatusBuckets } = require('./statusBehavior');
+const { orgToday, orgTimeZone, todayInZone, dateInZone } = require('../utils/orgTime');
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 const DEFAULT_HOURS_BEFORE = 24;
@@ -33,12 +34,13 @@ async function checkDueDateApproaching() {
   if (!rules.length) return;
 
   const buckets = await getTicketStatusBuckets();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const tz = await orgTimeZone();
+  const todayStr = todayInZone(tz);
 
   // eslint-disable-next-line no-restricted-syntax
   for (const rule of rules) {
     const hoursBefore = Number(rule.triggerConfig?.hoursBefore) || DEFAULT_HOURS_BEFORE;
-    const thresholdStr = new Date(Date.now() + hoursBefore * 3600000).toISOString().slice(0, 10);
+    const thresholdStr = dateInZone(Date.now() + hoursBefore * 3600000, tz);
 
     // eslint-disable-next-line no-await-in-loop
     const tickets = await Ticket.findAll({
@@ -64,7 +66,7 @@ async function checkOverdue() {
   if (!rules.length) return;
 
   const buckets = await getTicketStatusBuckets();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = await orgToday();
   const tickets = await Ticket.findAll({
     where: {
       status: { [Op.in]: buckets.open },

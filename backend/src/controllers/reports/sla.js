@@ -81,7 +81,7 @@ async function buildSlaComplianceReport(req) {
       bump(byTech, t.assigneeId || 'unassigned', t.assignee?.displayName || 'Unassigned', res);
       bump(byDept, t.departmentId || 'none', t.department?.name || 'No department', res);
       bump(byCompany, t.companyId, t.company?.name || '—', res);
-      const key = bucketKey(t.createdAt, granularity);
+      const key = bucketKey(t.createdAt, granularity, range.tz);
       const cur = trend.get(key) || { date: key, met: 0, breached: 0 };
       cur[res] += 1;
       trend.set(key, cur);

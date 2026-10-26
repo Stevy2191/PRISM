@@ -51,6 +51,7 @@ const {
   userAttrs, projectInclude, buildProjectStats, getProjectWithDetail, assertCanEditProject,
   assertCanWorkProject, assertCanManageMembers, syncLeadMembership, projectAccessFor,
 } = require('./shared');
+const { orgToday } = require('../../utils/orgTime');
 
 // ==================== Projects ====================
 
@@ -90,7 +91,7 @@ async function buildProjectListWhere(req) {
   if (status) where.status = status === 'closed' ? { [Op.in]: buckets.closed } : status;
   if (assignee) where.assignedToUserId = id(assignee);
   if (overdue === 'true') {
-    where.dueDate = { [Op.lt]: new Date().toISOString().slice(0, 10) };
+    where.dueDate = { [Op.lt]: await orgToday() };
     if (!status) where.status = { [Op.in]: buckets.open };
   }
   // `tags` is a JSON-typed column — Sequelize JSON-serializes the RHS of a

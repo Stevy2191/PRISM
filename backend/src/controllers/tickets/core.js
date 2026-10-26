@@ -19,6 +19,7 @@ const { splitTicket } = require('../../services/tickets/split');
 const {
   ticketInclude, shownTicketFor, ticketAccessFor, ticketDetailFor,
 } = require('./shared');
+const { orgToday } = require('../../utils/orgTime');
 
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
 
@@ -71,7 +72,7 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   }
 
   if (overdue === 'true') {
-    where.dueDate = { [Op.lt]: new Date().toISOString().slice(0, 10) };
+    where.dueDate = { [Op.lt]: await orgToday() };
     // Only imply "open" when the status dropdown isn't already set — this is
     // an independent quick-filter toggle, not a status override. Archived
     // tickets are excluded here too (an "open" check, not just "not closed").

@@ -22,6 +22,9 @@ const {
 } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
 const { resolvePlacement, resolveVendorFields, hideUnreachableVendors } = require('../services/companyService');
+const {
+  orgToday, orgTimeZone, dateInZone, addDays,
+} = require('../utils/orgTime');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -153,9 +156,9 @@ const list = asyncHandler(async (req, res) => {
   // Quick filters from the dashboard tiles. These used to be applied in the
   // browser over the whole asset list; with one page loaded at a time they
   // have to be part of the query or they would only filter the current page.
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await orgToday();
   if (quickFilter === 'dueForReplacement') {
-    const in90 = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+    const in90 = addDays(today, 90);
     andConditions.push({ replacementPlanDate: { [Op.ne]: null, [Op.lte]: in90 } });
   } else if (quickFilter === 'expiredWarranty') {
     andConditions.push({ warrantyExpiryDate: { [Op.ne]: null, [Op.lt]: today } });
@@ -201,8 +204,8 @@ const listCategories = asyncHandler(async (req, res) => {
 
 // GET /assets/stats — dashboard summary.
 const stats = asyncHandler(async (req, res) => {
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const in90Str = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  const todayStr = await orgToday();
+  const in90Str = addDays(todayStr, 90);
 
   const scope = await companyScopeWhere(req.user);
   const [dueForReplacement, expiredWarranty, totalActive, renewingSoon] = await Promise.all([
@@ -227,10 +230,10 @@ const expirySummary = asyncHandler(async (req, res) => {
   const licenseDays = Number(settings['licenses.expiryAlertDays']) || 30;
   const contractDays = Number(settings['contracts.renewalAlertDays']) || 60;
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = await orgToday();
   const scope = await companyScopeWhere(req.user);
   const scoped = (where) => ({ where: andWhere(where, scope) });
-  const cutoff = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+  const cutoff = (days) => addDays(todayStr, days);
 
   const [
     dueForReplacement, expiredWarranty, warrantyExpiringSoon, subscriptionsRenewingSoon,
@@ -576,7 +579,7 @@ const createCheckout = asyncHandler(async (req, res) => {
     const { filename, size } = await generateCheckoutFormPdf({
       asset,
       contact,
-      checkoutDate: checkedOutAt.toISOString().slice(0, 10),
+      checkoutDate: dateInZone(checkedOutAt, await orgTimeZone()),
     });
     attachment = await AssetAttachment.create({
       assetId: asset.id,

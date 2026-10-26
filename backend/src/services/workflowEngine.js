@@ -13,6 +13,7 @@ const { createNotification, notifyAssigned } = require('./notifications');
 const { assertCanWorkTicket } = require('./ticketPeople');
 const { getTicketStatusBehaviorMap } = require('./statusBehavior');
 const { logActivity, resolveDisplayValue } = require('./ticketActivity');
+const { orgTimeZone, dateInZone } = require('../utils/orgTime');
 
 const ticketEvalInclude = [
   { model: Contact, as: 'contact', include: [{ model: Department, as: 'department' }] },
@@ -236,7 +237,7 @@ async function executeAction(ticket, action, rule) {
         toDueAt: new Date(Date.now() + ms), userId: null, reason: `Workflow rule: ${rule.name}`, kind: 'adjustment',
       });
       if (moved) return `SLA due date set to ${moved.toDueAt.toISOString()}`;
-      const due = new Date(Date.now() + ms).toISOString().slice(0, 10);
+      const due = dateInZone(Date.now() + ms, await orgTimeZone());
       await ticket.update({ dueDate: due });
       return `due date set to ${due}`;
     }

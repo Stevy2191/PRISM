@@ -37,6 +37,7 @@ import { AttachmentsTab } from './detail/AttachmentsTab';
 import { ActivityTab } from './detail/ActivityTab';
 import { ReplyBox } from './detail/ReplyBox';
 import { Modal } from './detail/Modal';
+import { orgToday, addDays } from '../../utils/orgDate';
 
 // How many rows the growing detail lists (comments, activity) load at a time.
 // Matches the API's own default page size for these endpoints.
@@ -63,10 +64,8 @@ const TABS = [
 
 function dueDateColor(dueDate) {
   if (!dueDate) return MUTED;
-  const today = new Date().toISOString().slice(0, 10);
-  const soon = new Date();
-  soon.setDate(soon.getDate() + 3);
-  const soonStr = soon.toISOString().slice(0, 10);
+  const today = orgToday();
+  const soonStr = addDays(today, 3);
   if (dueDate < today) return 'var(--color-danger)';
   if (dueDate <= soonStr) return 'var(--color-warning)';
   return MUTED;

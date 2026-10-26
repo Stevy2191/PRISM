@@ -17,6 +17,7 @@ const {
   hoursBetween,
   userAttrs,
 } = require('./shared');
+const { orgToday } = require('../../utils/orgTime');
 
 // ==================== Report 3: Team Performance ====================
 
@@ -48,7 +49,7 @@ async function buildTeamPerformanceReport(req) {
   if (!techIds.length) return emptyResult;
 
   const buckets = await getTicketStatusBuckets();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = await orgToday();
   const companyWhere = await companyFilterWhere(req.user, req.query.companyId);
   const fenced = (where) => andWhere(where, companyWhere);
 

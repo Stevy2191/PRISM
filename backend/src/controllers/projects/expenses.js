@@ -9,6 +9,7 @@ const {
   SUBLIST_LIMIT, SUBLIST_MAX, userAttrs, resolveProjectTaskId,
   assertCanEditProject,
 } = require('./shared');
+const { orgToday } = require('../../utils/orgTime');
 
 // ==================== Expenses ====================
 
@@ -55,7 +56,7 @@ const createExpense = asyncHandler(async (req, res) => {
     description: description.trim(),
     amount: amt,
     category: category || 'other',
-    entryDate: entryDate || new Date().toISOString().slice(0, 10),
+    entryDate: entryDate || await orgToday(),
     loggedBy: req.user.id,
   });
   await writeAudit(req, 'expense.create', 'ProjectExpense', expense.id, { projectId: project.id, description: expense.description, amount: amt });

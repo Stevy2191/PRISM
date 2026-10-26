@@ -3,6 +3,7 @@ import CompanyFilter from '../components/companies/CompanyFilter';
 import { useCompanySummary } from '../context/CompanyContext';
 import api, { errMessage } from '../api/api';
 import { usePermission } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import AccessRestricted from '../components/AccessRestricted';
 import { PRESETS, presetRange } from './reports/shared';
 import TicketVolumeReport from './reports/TicketVolumeReport';
@@ -117,6 +118,8 @@ export default function Reports() {
 
   const [activeKey, setActiveKey] = useState('ticket-volume');
   const [preset, setPreset] = useState('this_month');
+  // Presets count from the organization's today; recount once its zone loads.
+  const orgZone = useSettings().settings?.company?.timezone;
   const [customRange, setCustomRange] = useState({ startDate: '', endDate: '' });
   const [departmentId, setDepartmentId] = useState('');
   const [companyId, setCompanyId] = useState('');
@@ -172,7 +175,7 @@ export default function Reports() {
     }
   };
 
-  const range = useMemo(() => (preset === 'custom' ? customRange : presetRange(preset) || { startDate: '', endDate: '' }), [preset, customRange]);
+  const range = useMemo(() => (preset === 'custom' ? customRange : presetRange(preset) || { startDate: '', endDate: '' }), [preset, customRange, orgZone]);
 
   const filters = useMemo(() => ({
     startDate: range.startDate || '',

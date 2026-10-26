@@ -18,6 +18,15 @@ emailed attachment is refused until the scanner exists. The scanner needs about
 few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
 `.env`.
 
+### Dates follow the company time zone
+
+- **"Today" is the company's today everywhere.** Overdue flags and filters,
+  "due soon", expiring warranties, licences and contracts, the dashboard's
+  "this week", report presets ("This month" and so on), report chart buckets
+  and CSV date columns now all use Settings → Company → time zone. Before, some
+  used the UTC date, which is already tomorrow during a US evening, and some used
+  the browser's zone. Set the company time zone if it is still UTC.
+
 ### Project management (6)
 
 - Three migrations (069 to 071) run automatically. If you run them by hand:

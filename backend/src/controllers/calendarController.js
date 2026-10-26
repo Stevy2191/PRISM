@@ -16,6 +16,7 @@ const { getTicketStatusBuckets, getProjectStatusBuckets } = require('../services
 const { taskStatusBehaviorMap } = require('../services/tasks/statuses');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 const { companyScopeWhere } = require('../services/permissionService');
+const { orgToday } = require('../utils/orgTime');
 
 const userAttrs = ['id', 'displayName'];
 
@@ -55,7 +56,7 @@ function taskPriorityColor(priority) {
 const listEvents = asyncHandler(async (req, res) => {
   const { startDate, endDate, assigneeId, departmentId, statusFilter } = req.query;
   const types = parseTypes(req.query.types);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = await orgToday();
 
   const dateWhere = {};
   if (startDate) dateWhere[Op.gte] = startDate;

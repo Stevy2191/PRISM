@@ -15,6 +15,7 @@ const {
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
 const { parsePagination, paginated } = require('../utils/pagination');
+const { orgToday } = require('../utils/orgTime');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const contactInclude = [
@@ -216,7 +217,7 @@ const get = asyncHandler(async (req, res) => {
     Ticket.count({
       where: andWhere(visible, {
         status: { [Op.in]: buckets.open },
-        dueDate: { [Op.lt]: new Date().toISOString().slice(0, 10) },
+        dueDate: { [Op.lt]: await orgToday() },
       }),
     }),
     Ticket.findAll({

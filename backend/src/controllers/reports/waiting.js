@@ -12,6 +12,7 @@ const { waitingForTickets, pctOf } = require('../../services/ticketWaiting');
 const {
   parseDateRange, dateWhere, parseDepartmentId, parseAssigneeId, granularityFor, bucketKey, ticketScopeWhere, sendCsv, userAttrs,
 } = require('./shared');
+const { dayOf } = require('../../utils/orgTime');
 
 const hours = (ms) => Math.round(ms / 360000) / 10;
 
@@ -77,7 +78,7 @@ async function buildCustomerWaitingReport(req) {
     if (w.waitingNow) waitingNow += 1;
     byTech.add(t.assigneeId || 'unassigned', t.assignee?.displayName || 'Unassigned', w);
     byCompany.add(t.companyId || 'none', t.company?.name || '—', w);
-    const period = bucketKey(t.createdAt, granularity);
+    const period = bucketKey(t.createdAt, granularity, range.tz);
     byPeriod.add(period, period, w);
     return {
       id: t.id,
@@ -86,8 +87,8 @@ async function buildCustomerWaitingReport(req) {
       status: t.status,
       assignee: t.assignee?.displayName || 'Unassigned',
       company: t.company?.name || '',
-      createdAt: t.createdAt.toISOString().slice(0, 10),
-      resolvedAt: t.resolvedAt ? t.resolvedAt.toISOString().slice(0, 10) : '',
+      createdAt: dayOf(t.createdAt, range.tz),
+      resolvedAt: t.resolvedAt ? dayOf(t.resolvedAt, range.tz) : '',
       lifeHours: hours(w.lifeMs),
       waitingHours: hours(w.waitingMs),
       waitingPct: pctOf(w.waitingMs, w.lifeMs) ?? '',

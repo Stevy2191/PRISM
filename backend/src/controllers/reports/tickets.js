@@ -18,6 +18,7 @@ const {
   hoursBetween,
   userAttrs,
 } = require('./shared');
+const { dayOf } = require('../../utils/orgTime');
 
 // ==================== Report 1: Ticket Volume ====================
 
@@ -52,7 +53,7 @@ async function buildTicketVolumeReport(req) {
   const granularity = granularityFor(range);
   const createdByBucket = new Map();
   tickets.forEach((t) => {
-    const key = bucketKey(t.createdAt, granularity);
+    const key = bucketKey(t.createdAt, granularity, range.tz);
     createdByBucket.set(key, (createdByBucket.get(key) || 0) + 1);
   });
   const volumeOverTime = [...createdByBucket.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, count]) => ({ date, count }));
@@ -101,8 +102,8 @@ async function buildTicketVolumeReport(req) {
         priority: t.priority,
         status: t.status,
         source: t.source,
-        createdAt: t.createdAt.toISOString().slice(0, 10),
-        resolvedAt: t.resolvedAt ? t.resolvedAt.toISOString().slice(0, 10) : '',
+        createdAt: dayOf(t.createdAt, range.tz),
+        resolvedAt: t.resolvedAt ? dayOf(t.resolvedAt, range.tz) : '',
         resolutionHours: t.resolvedAt ? Math.round(hoursBetween(t.createdAt, t.resolvedAt) * 10) / 10 : '',
         waitingHours: Math.round(waiting.get(t.id).waitingMs / 360000) / 10,
         waitingPct: pctOf(waiting.get(t.id).waitingMs, waiting.get(t.id).lifeMs) ?? '',
@@ -138,12 +139,12 @@ async function buildTicketTrendsReport(req) {
 
   const createdByBucket = new Map();
   createdTickets.forEach((t) => {
-    const k = bucketKey(t.createdAt, granularity);
+    const k = bucketKey(t.createdAt, granularity, range.tz);
     createdByBucket.set(k, (createdByBucket.get(k) || 0) + 1);
   });
   const closedByBucket = new Map();
   closedTickets.forEach((t) => {
-    const k = bucketKey(t.resolvedAt, granularity);
+    const k = bucketKey(t.resolvedAt, granularity, range.tz);
     closedByBucket.set(k, (closedByBucket.get(k) || 0) + 1);
   });
   const allKeys = [...new Set([...createdByBucket.keys(), ...closedByBucket.keys()])].sort((a, b) => a.localeCompare(b));
@@ -253,9 +254,9 @@ const ticketsExport = asyncHandler(async (req, res) => {
     source: t.source,
     assignee: t.assignee?.displayName || '',
     department: t.department?.name || '',
-    createdAt: t.createdAt ? t.createdAt.toISOString().slice(0, 10) : '',
+    createdAt: t.createdAt ? dayOf(t.createdAt, range.tz) : '',
     dueDate: t.dueDate || '',
-    resolvedAt: t.resolvedAt ? t.resolvedAt.toISOString().slice(0, 10) : '',
+    resolvedAt: t.resolvedAt ? dayOf(t.resolvedAt, range.tz) : '',
   }));
 
   sendCsv(res, 'tickets', TICKET_EXPORT_COLUMNS, rows);

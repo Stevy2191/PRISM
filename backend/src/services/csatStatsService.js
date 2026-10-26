@@ -12,6 +12,7 @@
 const { Op, fn, col } = require('sequelize');
 const { CsatSurvey, Ticket, Comment, User, Department, Contact } = require('../models');
 const { andWhere, isEmpty } = require('./recordScope');
+const { orgTimeZone, periodKey } = require('../utils/orgTime');
 
 // Every function below takes the viewer's company fence (a where on
 // companyId, empty for "all companies"). Ticket queries apply it directly;
@@ -39,19 +40,9 @@ function granularityFor(range) {
   return 'month';
 }
 
-function weekStart(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay() || 7;
-  d.setDate(d.getDate() - day + 1);
-  return d;
-}
-
-function bucketKey(date, granularity) {
-  const d = new Date(date);
-  if (granularity === 'month') return d.toISOString().slice(0, 7);
-  if (granularity === 'week') return weekStart(d).toISOString().slice(0, 10);
-  return d.toISOString().slice(0, 10);
+// Buckets fall on the organization's calendar, like the report's range.
+function bucketKey(date, granularity, tz = 'UTC') {
+  return periodKey(date, granularity, tz);
 }
 
 function round1(n) {
@@ -239,9 +230,10 @@ async function getOverview({ range, userId, departmentId, companyWhere = {} } = 
   const responseRate = sentCount ? Math.round((100 * overallCount) / sentCount) : null;
 
   const granularity = granularityFor(range);
+  const tz = range.tz || await orgTimeZone();
   const trendMap = new Map();
   filtered.forEach((r) => {
-    const key = bucketKey(r.respondedAt, granularity);
+    const key = bucketKey(r.respondedAt, granularity, tz);
     const cur = trendMap.get(key) || { date: key, sum: 0, count: 0 };
     cur.sum += r.rating;
     cur.count += 1;

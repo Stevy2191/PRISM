@@ -16,6 +16,7 @@ const {
 } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
 const { resolvePlacement, resolveVendorFields, hideUnreachableVendors } = require('../services/companyService');
+const { orgToday, addDays } = require('../utils/orgTime');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -73,8 +74,8 @@ const list = asyncHandler(async (req, res) => {
   if (status && status !== 'all') {
     const settings = await getAllSettings();
     const alertDays = Number(settings['licenses.expiryAlertDays']) || 30;
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const soonStr = new Date(Date.now() + alertDays * 86400000).toISOString().slice(0, 10);
+    const todayStr = await orgToday();
+    const soonStr = addDays(todayStr, alertDays);
     if (status === 'expired') where.expiryDate = { [Op.ne]: null, [Op.lt]: todayStr };
     else if (status === 'expiring_soon') where.expiryDate = { [Op.ne]: null, [Op.gte]: todayStr, [Op.lte]: soonStr };
     else if (status === 'active') {

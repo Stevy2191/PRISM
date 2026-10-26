@@ -10,6 +10,7 @@ const {
   Notification, Ticket, Project, TicketWatcher, TeamMember, SystemSettings, User,
 } = require('../models');
 const { getTicketStatusBuckets } = require('./statusBehavior');
+const { orgToday, addDays } = require('../utils/orgTime');
 
 const DUE_SOON_DAYS = 2;
 
@@ -135,10 +136,8 @@ async function notifyWatchers(ticket, message, excludeUserIds = []) {
 // Derives overdue / due-soon notifications for a user's assigned tickets.
 // Idempotent — only inserts a notification the first time a ticket qualifies.
 async function syncDerivedNotifications(userId) {
-  const today = new Date().toISOString().slice(0, 10);
-  const soon = new Date();
-  soon.setDate(soon.getDate() + DUE_SOON_DAYS);
-  const soonStr = soon.toISOString().slice(0, 10);
+  const today = await orgToday();
+  const soonStr = addDays(today, DUE_SOON_DAYS);
 
   // Only tickets whose status currently behaves as "open" are candidates —
   // closed AND archived tickets are both excluded, rather than a hardcoded

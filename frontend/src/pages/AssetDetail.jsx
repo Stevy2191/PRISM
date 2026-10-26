@@ -10,6 +10,7 @@ import Spinner from '../components/Spinner';
 import AssetFormModal from '../components/AssetFormModal';
 import { StatusBadge, CategoryBadge, dateUrgencyColor } from './Assets';
 import { formatTicketId } from '../utils/ticketId';
+import { orgToday } from '../utils/orgDate';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -375,17 +376,13 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
   );
 }
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 // Checkout creation, followed by an inline "send the generated form now?"
 // step when a PDF was generated — matches the spec's flow of "Send checkout
 // form" appearing right after generation, without a second trip back to
 // this asset's Checkout History tab.
 function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
   const [step, setStep] = useState('form'); // 'form' | 'sent-prompt'
-  const [checkedOutAt, setCheckedOutAt] = useState(todayStr());
+  const [checkedOutAt, setCheckedOutAt] = useState(orgToday());
   const [notes, setNotes] = useState('');
   const [generateForm, setGenerateForm] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -450,7 +447,7 @@ function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Checkout date</label>
-              <input type="date" className="input" style={fieldStyle} value={checkedOutAt} max={todayStr()} onChange={(e) => setCheckedOutAt(e.target.value)} />
+              <input type="date" className="input" style={fieldStyle} value={checkedOutAt} max={orgToday()} onChange={(e) => setCheckedOutAt(e.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Notes</label>
@@ -925,7 +922,7 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
 // CheckoutModal's own editable date field so entering historical returns
 // works the same way entering historical checkouts does.
 function CheckInModal({ assetId, checkout, onClose, onCheckedIn }) {
-  const [checkedInAt, setCheckedInAt] = useState(todayStr());
+  const [checkedInAt, setCheckedInAt] = useState(orgToday());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -960,7 +957,7 @@ function CheckInModal({ assetId, checkout, onClose, onCheckedIn }) {
               className="input"
               style={fieldStyle}
               value={checkedInAt}
-              max={todayStr()}
+              max={orgToday()}
               min={checkout.checkedOutAt?.slice(0, 10)}
               onChange={(e) => setCheckedInAt(e.target.value)}
             />
@@ -988,7 +985,7 @@ function EditCheckoutModal({ assetId, checkout, onClose, onSaved }) {
   const [results, setResults] = useState([]);
   const [checkedOutAt, setCheckedOutAt] = useState(checkout.checkedOutAt.slice(0, 10));
   const [stillOut, setStillOut] = useState(!checkout.checkedInAt);
-  const [checkedInAt, setCheckedInAt] = useState(checkout.checkedInAt ? checkout.checkedInAt.slice(0, 10) : todayStr());
+  const [checkedInAt, setCheckedInAt] = useState(checkout.checkedInAt ? checkout.checkedInAt.slice(0, 10) : orgToday());
   const [notes, setNotes] = useState(checkout.notes || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -1068,7 +1065,7 @@ function EditCheckoutModal({ assetId, checkout, onClose, onSaved }) {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Checkout date</label>
-            <input type="date" className="input" style={fieldStyle} value={checkedOutAt} max={todayStr()} onChange={(e) => setCheckedOutAt(e.target.value)} />
+            <input type="date" className="input" style={fieldStyle} value={checkedOutAt} max={orgToday()} onChange={(e) => setCheckedOutAt(e.target.value)} />
           </div>
           <label className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>
             <input type="checkbox" checked={stillOut} onChange={(e) => setStillOut(e.target.checked)} className="h-4 w-4" />
@@ -1077,7 +1074,7 @@ function EditCheckoutModal({ assetId, checkout, onClose, onSaved }) {
           {!stillOut && (
             <div>
               <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Check-in date</label>
-              <input type="date" className="input" style={fieldStyle} value={checkedInAt} max={todayStr()} min={checkedOutAt} onChange={(e) => setCheckedInAt(e.target.value)} />
+              <input type="date" className="input" style={fieldStyle} value={checkedInAt} max={orgToday()} min={checkedOutAt} onChange={(e) => setCheckedInAt(e.target.value)} />
             </div>
           )}
           <div>

@@ -92,6 +92,27 @@ function toDateString(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === s ? s : null;
 }
 
+// "Today" on the organization's calendar. Overdue, expiring-soon and
+// default-date checks use this, never the UTC date (which is already
+// tomorrow during a US evening).
+async function orgToday(opts) {
+  return todayInZone(await orgTimeZone(opts));
+}
+
+// The day a value falls on in `tz`. A DATEONLY string is already a day.
+function dayOf(value, tz) {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  return dateInZone(value, tz);
+}
+
+// Report chart bucket for a value: its day, its week's Monday, or its month.
+function periodKey(value, granularity, tz) {
+  const day = dayOf(value, tz);
+  if (granularity === 'month') return day.slice(0, 7);
+  if (granularity === 'week') return addDays(day, 1 - (new Date(`${day}T00:00:00Z`).getUTCDay() || 7));
+  return day;
+}
+
 module.exports = {
-  orgTimeZone, isValidZone, dateInZone, todayInZone, zoneDayStart, zoneDayEnd, zoneWallTime, timeInZone, addDays, toDateString,
+  orgToday, dayOf, periodKey, orgTimeZone, isValidZone, dateInZone, todayInZone, zoneDayStart, zoneDayEnd, zoneWallTime, timeInZone, addDays, toDateString,
 };

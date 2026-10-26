@@ -11,6 +11,7 @@ const {
   resolveReportDeptId,
   sendCsv,
 } = require('./shared');
+const { orgToday, addDays } = require('../../utils/orgTime');
 
 // ==================== Assets ====================
 
@@ -43,12 +44,12 @@ async function buildAssetsReplacementReport(req) {
   if (req.query.startDate || req.query.endDate) {
     Object.assign(where, dateOnlyWhere('replacementPlanDate', await parseDateRange(req.query)));
   } else {
-    const in90 = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+    const in90 = addDays(await orgToday(), 90);
     where.replacementPlanDate[Op.lte] = in90;
   }
 
   const assets = await Asset.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: assetInclude, order: [['replacementPlanDate', 'ASC']] });
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = await orgToday();
   const overdue = assets.filter((a) => a.replacementPlanDate < todayStr).length;
 
   return {
@@ -81,8 +82,8 @@ async function buildAssetsWarrantyReport(req) {
   }
 
   const assets = await Asset.findAll({ where: andWhere(where, await companyFilterWhere(req.user, req.query.companyId)), include: assetInclude, order: [['warrantyExpiryDate', 'ASC']] });
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const in90Str = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  const todayStr = await orgToday();
+  const in90Str = addDays(todayStr, 90);
   const expired = assets.filter((a) => a.warrantyExpiryDate < todayStr).length;
   const expiringSoon = assets.filter((a) => a.warrantyExpiryDate >= todayStr && a.warrantyExpiryDate <= in90Str).length;
 

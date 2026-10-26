@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import api from '../api/api';
+import { setOrgTimeZone } from '../utils/orgDate';
 
 const SettingsContext = createContext(null);
 
@@ -28,6 +29,7 @@ export function SettingsProvider({ children }) {
   const refresh = useCallback(async () => {
     try {
       const { data } = await api.get('/settings/public');
+      setOrgTimeZone(data?.company?.timezone);
       setSettings(data);
       applyFavicon(data.faviconUrl);
       if (data.appName) document.title = data.appName;

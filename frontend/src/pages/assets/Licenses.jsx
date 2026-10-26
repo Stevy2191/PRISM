@@ -8,6 +8,7 @@ import { usePermission } from '../../context/AuthContext';
 import Spinner from '../../components/Spinner';
 import AssetsSubNav from '../../components/AssetsSubNav';
 import LicenseFormModal from '../../components/LicenseFormModal';
+import { orgToday, addDays } from '../../utils/orgDate';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -22,15 +23,11 @@ export const LICENSE_TYPE_LABELS = {
   subscription: 'Subscription',
 };
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function licenseStatus(expiryDate) {
   if (!expiryDate) return { label: 'Active', color: 'var(--color-success)' };
-  const today = todayStr();
+  const today = orgToday();
   if (expiryDate < today) return { label: 'Expired', color: 'var(--color-danger)' };
-  const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const in30 = addDays(today, 30);
   if (expiryDate <= in30) return { label: 'Expiring soon', color: 'var(--color-warning)' };
   return { label: 'Active', color: 'var(--color-success)' };
 }

@@ -8,6 +8,7 @@ import { usePermission } from '../../context/AuthContext';
 import Spinner from '../../components/Spinner';
 import AssetsSubNav from '../../components/AssetsSubNav';
 import ContractFormModal from '../../components/ContractFormModal';
+import { orgToday, addDays } from '../../utils/orgDate';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -24,10 +25,6 @@ export const CONTRACT_TYPE_LABELS = {
   other: 'Other',
 };
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function contractRenewsOn(contract) {
   return contract.renewalDate || contract.endDate || null;
 }
@@ -35,9 +32,9 @@ export function contractRenewsOn(contract) {
 export function contractStatus(contract) {
   const renewsOn = contractRenewsOn(contract);
   if (!renewsOn) return { label: 'Active', color: 'var(--color-success)' };
-  const today = todayStr();
+  const today = orgToday();
   if (renewsOn < today) return { label: 'Expired', color: 'var(--color-danger)' };
-  const in60 = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+  const in60 = addDays(today, 60);
   if (renewsOn <= in60) return { label: 'Expiring soon', color: 'var(--color-warning)' };
   return { label: 'Active', color: 'var(--color-success)' };
 }

@@ -4,7 +4,7 @@ const { toCsv } = require('../../utils/csv');
 const { getUserReportScope } = require('../../services/permissionService');
 const { andWhere, companyFilterWhere, isEmpty } = require('../../services/recordScope');
 const {
-  orgTimeZone, zoneDayStart, zoneDayEnd, toDateString,
+  orgTimeZone, zoneDayStart, zoneDayEnd, toDateString, periodKey, dayOf,
 } = require('../../utils/orgTime');
 
 // ==================== Shared helpers ====================
@@ -21,6 +21,7 @@ async function parseDateRange(query) {
     end: endDate ? zoneDayEnd(endDate, tz) : null,
     startDate,
     endDate,
+    tz,
   };
 }
 
@@ -87,20 +88,10 @@ function granularityFor(range) {
   return 'month';
 }
 
-// Monday-anchored ISO week start, used as the bucket key for 'week' granularity.
-function weekStart(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay() || 7;
-  d.setDate(d.getDate() - day + 1);
-  return d;
-}
-
-function bucketKey(date, granularity) {
-  const d = new Date(date);
-  if (granularity === 'month') return d.toISOString().slice(0, 7);
-  if (granularity === 'week') return weekStart(d).toISOString().slice(0, 10);
-  return d.toISOString().slice(0, 10);
+// Chart buckets fall on the organization's calendar (`range.tz`), like the
+// range itself; a week is keyed by its Monday.
+function bucketKey(date, granularity, tz = 'UTC') {
+  return periodKey(date, granularity, tz);
 }
 
 // Ticket scope, keyed off reports.view_own/department/all (not tickets.*) —

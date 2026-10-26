@@ -8,6 +8,7 @@ import {
 import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import { orgToday } from '../utils/orgDate';
 
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
@@ -199,7 +200,7 @@ function EventPopover({ event, onClose }) {
   if (!event) return null;
   const isExternal = event.type === 'external';
   const Icon = TYPE_META[event.type].icon;
-  const overdue = !isExternal && overduePill(event, fmtLocal(new Date()), openStatusNames);
+  const overdue = !isExternal && overduePill(event, orgToday(), openStatusNames);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none border p-5 sm:max-h-[90vh] sm:max-w-sm sm:rounded-[10px]" style={{ backgroundColor: CARD_BG, borderColor: BORDER }} onClick={(e) => e.stopPropagation()}>
@@ -522,7 +523,7 @@ function MiniCalendar({ anchor, eventsByDay, onSelectDate }) {
   const [miniAnchor, setMiniAnchor] = useState(startOfMonth(anchor));
   useEffect(() => setMiniAnchor(startOfMonth(anchor)), [anchor]);
   const days = useMemo(() => monthGridDays(miniAnchor), [miniAnchor]);
-  const todayStr = fmtLocal(new Date());
+  const todayStr = orgToday();
 
   return (
     <div className="rounded-[10px] border p-3" style={{ borderColor: BORDER, backgroundColor: CARD_BG }}>
@@ -716,7 +717,7 @@ export default function Calendar() {
       .catch(() => {});
   }, []);
 
-  const todayStr = fmtLocal(new Date());
+  const todayStr = orgToday();
   const visible = useMemo(() => visibleRangeFor(view, anchor), [view, anchor]);
 
   // Fetch the visible range + 1 month buffer on each side, but only when the

@@ -19,18 +19,13 @@ read that before designing any sub-project.
   (client portal). Then Phase 1 is released as `v0.4.0` (see Releases below)
   and tested by hand before Phase 2 starts.
 - **Open items carried forward:**
-  - `test/smoke/waiting.smoke.js`, "the report shows the figures…", fails
-    when the local date and the UTC date differ, e.g. evenings in US time
-    zones. The report's default range and the stored timestamps disagree
-    about the day. This was there before 5c/5d; fix it in a quiet moment.
   - Split ticket (5b) now carries the source ticket's category (decided
     2026-10-24).
   - Follow-up from 6: touch and keyboard dispatch on Workload (an "Assign
     to…" action); dragging needs a mouse today.
-  - Reports' `fmt()` in `frontend/src/pages/reports/shared.jsx` calls
-    `toISOString()` on local midnight, so it shows the wrong day east of UTC.
-    Fix it together with the `waiting.smoke.js` evening-time-zone item above,
-    before `v0.4.0` hand testing.
+  - Fixed 2026-10-26: "today", overdue, expiring-soon, report presets, chart
+    buckets and CSV dates all follow the organization's time zone, server and
+    browser (`utils/orgTime.js`, `frontend/src/utils/orgDate.js`).
   - Decided 2026-10-26: helpers only view and log time (no files). A project's
     lead and members edit it whatever their role (see `UPGRADING.md`).
 

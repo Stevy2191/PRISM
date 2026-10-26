@@ -1,5 +1,6 @@
 // Colors (admin-customizable theme CSS variables), the input style and small
 // formatters shared by the project page.
+import { orgToday } from '../../utils/orgDate';
 
 export const BG = 'var(--color-bg)';
 
@@ -34,7 +35,7 @@ export function formatCost(n) {
 }
 
 export function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return orgToday();
 }
 
 export function completionColor(percent) {

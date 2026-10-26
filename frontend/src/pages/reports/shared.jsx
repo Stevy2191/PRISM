@@ -15,48 +15,7 @@ export const PALETTE = [
   '#65a30d',
 ];
 
-export const PRESETS = [
-  { key: 'today', label: 'Today' },
-  { key: 'this_week', label: 'This week' },
-  { key: 'this_month', label: 'This month' },
-  { key: 'last_month', label: 'Last month' },
-  { key: 'last_3_months', label: 'Last 3 months' },
-  { key: 'last_6_months', label: 'Last 6 months' },
-  { key: 'this_year', label: 'This year' },
-  { key: 'custom', label: 'Custom range' },
-];
-
-function fmt(d) { return d.toISOString().slice(0, 10); }
-function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
-
-export function presetRange(preset) {
-  const today = startOfDay(new Date());
-  switch (preset) {
-    case 'today':
-      return { startDate: fmt(today), endDate: fmt(today) };
-    case 'this_week': {
-      const d = new Date(today);
-      const day = d.getDay() || 7;
-      d.setDate(d.getDate() - day + 1);
-      return { startDate: fmt(d), endDate: fmt(today) };
-    }
-    case 'this_month':
-      return { startDate: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), endDate: fmt(today) };
-    case 'last_month': {
-      const s = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const e = new Date(today.getFullYear(), today.getMonth(), 0);
-      return { startDate: fmt(s), endDate: fmt(e) };
-    }
-    case 'last_3_months':
-      return { startDate: fmt(new Date(today.getFullYear(), today.getMonth() - 3, today.getDate())), endDate: fmt(today) };
-    case 'last_6_months':
-      return { startDate: fmt(new Date(today.getFullYear(), today.getMonth() - 6, today.getDate())), endDate: fmt(today) };
-    case 'this_year':
-      return { startDate: fmt(new Date(today.getFullYear(), 0, 1)), endDate: fmt(today) };
-    default:
-      return null;
-  }
-}
+export { PRESETS, presetRange } from './presets.js';
 
 export function formatHours(h) {
   if (h === null || h === undefined) return '—';

@@ -1,7 +1,8 @@
 // Pure helpers behind the project Tasks tab: filter pills, grouping by phase,
 // day maths and the row texts. Dates are 'YYYY-MM-DD' strings throughout;
-// `today` is the browser's local date as such a string (no Date maths across
+// `today` is the organization's date as such a string (no Date maths across
 // time zones).
+import { orgToday } from '../../../utils/orgDate.js';
 
 export const FILTERS = [
   { id: 'all', label: 'All' },
@@ -90,12 +91,9 @@ export function loggedText(task) {
   return `${hoursFromSeconds(task.loggedSeconds)} h`;
 }
 
-const pad = (n) => String(n).padStart(2, '0');
-
-// The browser's local date as 'YYYY-MM-DD' (what "today" means for overdue).
+// Today on the organization's calendar (what "today" means for overdue).
 export function localToday() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return orgToday();
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

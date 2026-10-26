@@ -8,6 +8,7 @@ import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import AssetFormModal from '../components/AssetFormModal';
 import AssetsSubNav from '../components/AssetsSubNav';
+import { orgToday, addDays } from '../utils/orgDate';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -23,17 +24,14 @@ export const STATUS_META = {
   lost: { label: 'Lost', color: 'var(--color-danger)' },
 };
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 // Shared by warranty expiry + replacement plan date: red if past, amber if
 // within 90 days, muted otherwise.
 export function dateUrgencyColor(dateStr) {
   if (!dateStr) return MUTED;
-  const today = todayStr();
+  const today = orgToday();
   if (dateStr < today) return 'var(--color-danger)';
-  const in90 = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  const in90 = addDays(today, 90);
   if (dateStr <= in90) return 'var(--color-warning)';
   return MUTED;
 }
