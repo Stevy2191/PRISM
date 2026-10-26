@@ -107,7 +107,7 @@ export default function TopNav() {
   return (
     <>
       <header
-        className="fixed inset-x-0 top-0 z-40 flex items-center gap-1 border-b px-4 lg:px-7"
+        className="safe-px safe-px-lg fixed inset-x-0 top-0 z-40 flex items-center gap-1 border-b"
         style={{ height: 56, backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
       >
         <Link to="/dashboard" className="mr-4 flex flex-shrink-0 items-center gap-2">
@@ -271,7 +271,7 @@ export default function TopNav() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
           <div
             className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col shadow-2xl"
-            style={{ backgroundColor: 'var(--color-card)' }}
+            style={{ backgroundColor: 'var(--color-card)', paddingLeft: 'env(safe-area-inset-left)' }}
           >
             <div className="flex flex-shrink-0 items-center justify-between border-b px-4" style={{ height: 56, borderColor: 'var(--color-border)' }}>
               <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Menu</span>

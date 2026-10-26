@@ -27,7 +27,7 @@
   --color-text-primary: #16202b;
   --color-text-secondary: #4a5663;
   --color-text-muted: #5b6875;
-  --color-text-faint: #6a7683;
+  --color-text-faint: #626e7b;
   --color-success: #1c9a5a;
   --color-warning: #c27a00;
   --color-danger: #b42318;
@@ -426,3 +426,19 @@
   pointer-events: none;
 }
 .ProseMirror table td, .ProseMirror table th { position: relative; }
+
+/* index.html sets viewport-fit=cover, so on a phone held sideways the page
+   runs under the notch and rounded corners. Fixed bars add the safe-area
+   insets to their side padding; env() is 0 on a desktop, so there these are
+   just px-4 (and lg:px-7 with .safe-px-lg). Kept outside @layer so the build
+   never drops them. */
+.safe-px {
+  padding-left: calc(1rem + env(safe-area-inset-left));
+  padding-right: calc(1rem + env(safe-area-inset-right));
+}
+@media (min-width: 1024px) {
+  .safe-px-lg {
+    padding-left: calc(1.75rem + env(safe-area-inset-left));
+    padding-right: calc(1.75rem + env(safe-area-inset-right));
+  }
+}

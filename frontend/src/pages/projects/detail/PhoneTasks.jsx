@@ -155,7 +155,7 @@ export default function PhoneTasks({
       ))}
       {(ctx.canLog || ctx.canEdit) && (
         <div
-          className="fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3"
+          className="safe-px fixed inset-x-0 bottom-0 z-30 border-t pt-3"
           style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))', backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
         >
           {adding && (
