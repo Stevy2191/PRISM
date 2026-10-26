@@ -1,6 +1,6 @@
 // Table and card cells for the ticket list.
-import { initials } from '../../../utils/userDisplay';
-import { BORDER, TEXT, MUTED } from '../theme';
+import PersonAvatar from '../../../components/ui/Avatar';
+import { TEXT, MUTED } from '../theme';
 import { PRIORITY_META, SOURCE_META, todayStr, isClosedStatus, ageDays } from './listHelpers';
 import { addDays } from '../../../utils/orgDate';
 
@@ -10,12 +10,7 @@ export function Avatar({ name }) {
   }
   return (
     <span className="flex items-center gap-2">
-      <span
-        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
-        style={{ backgroundColor: BORDER, color: 'var(--color-accent)' }}
-      >
-        {initials(name)}
-      </span>
+      <PersonAvatar name={name} size={22} />
       <span className="truncate text-sm" style={{ color: TEXT }}>{name}</span>
     </span>
   );
@@ -35,11 +30,8 @@ export function SourceCell({ source }) {
   const meta = SOURCE_META[source] || SOURCE_META.manual;
   const Icon = meta.icon;
   return (
-    <span
-      className="flex w-fit items-center gap-1 rounded-[3px] px-2 py-0.5 text-xs font-medium"
-      style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
-    >
-      {Icon && <Icon size={11} />}
+    <span className="flex w-fit items-center gap-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+      {Icon && <Icon size={13} aria-hidden="true" />}
       {meta.label}
     </span>
   );
@@ -53,10 +45,9 @@ export function StatusBadge({ ticket, ticketStatuses }) {
   const color = meta?.color || MUTED;
   return (
     <span
-      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[3px] px-2 py-0.5 text-xs font-medium"
-      style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}
+      className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold"
+      style={{ backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`, color }}
     >
-      <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
       {ticket.status}
     </span>
   );
@@ -69,7 +60,7 @@ export function DueDateCell({ dueDate }) {
   let color = MUTED;
   if (dueDate < today) color = 'var(--color-danger)';
   else if (dueDate <= soonStr) color = 'var(--color-warning)';
-  return <span className="text-sm" style={{ color }}>{dueDate}</span>;
+  return <span className="num whitespace-nowrap text-sm" style={{ color }}>{dueDate}</span>;
 }
 
 export function AgeLine({ ticket, behaviorByName }) {
@@ -84,11 +75,11 @@ export function AgeLine({ ticket, behaviorByName }) {
 // Small colored pill showing which department a ticket belongs to — only
 // rendered for tickets.view_all users (dept-scoped users already know
 // they're only seeing their own department's tickets).
-export function DeptPill({ name }) {
+export function DeptPill({ name, className = 'ml-2' }) {
   if (!name) return null;
   return (
     <span
-      className="ml-2 inline-flex items-center rounded-[3px] px-2 py-0.5 text-[11px] font-medium"
+      className={`inline-flex items-center rounded px-1.5 py-px text-[11px] font-semibold ${className}`}
       style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)' }}
     >
       {name}

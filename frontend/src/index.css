@@ -214,6 +214,11 @@
     @apply text-xs font-semibold tracking-normal text-navy-400;
   }
 
+  /* Compact look A select (filter bars). SelectChip adds a visible prefix. */
+  .sel {
+    @apply h-8 w-auto max-w-[13rem] flex-shrink-0 cursor-pointer rounded-md border border-navy-100 bg-surface pl-3 pr-2 text-[13px] font-semibold text-navy-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent max-sm:h-11;
+  }
+
   /* Page title, as on the look A boards. */
   .page-title {
     @apply text-3xl font-semibold tracking-tight text-navy-900;

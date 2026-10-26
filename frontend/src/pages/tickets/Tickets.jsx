@@ -2,7 +2,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CompanyFilter from '../../components/companies/CompanyFilter';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { IconMail } from '@tabler/icons-react';
+import {
+  IconAdjustmentsHorizontal, IconMail, IconPlus, IconSearch,
+} from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
 import Spinner from '../../components/Spinner';
@@ -30,6 +32,10 @@ import CategoryPicker from '../../components/CategoryPicker';
 import { TicketBoard } from './list/TicketBoard';
 import FiltersSheet from '../../components/ui/FiltersSheet';
 import PillRow from '../../components/ui/PillRow';
+import PageHeader from '../../components/ui/PageHeader';
+import Pill from '../../components/ui/Pill';
+import SelectChip from '../../components/ui/SelectChip';
+import { ViewToggle } from './list/ViewToggle';
 import {
   Avatar,
   PriorityCell,
@@ -385,8 +391,7 @@ export default function Tickets() {
     [boardData]
   );
 
-  const filterButtonCls = (active) =>
-    `rounded-md border px-3 py-2 text-sm font-medium transition ${active ? 'text-white' : ''}`;
+  const ticketCount = view === 'board' ? boardColumns.reduce((n, c) => n + c.total, 0) : pager.total;
 
   const allSelected = tickets.length > 0 && selectedIds.size === tickets.length;
   // The whole page is ticked and there are more matches behind it — offer to
@@ -397,164 +402,68 @@ export default function Tickets() {
 
   return (
     <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
-      <div className="flex-shrink-0 space-y-3 px-4 py-4 sm:px-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Tickets</h1>
-          {canCreateTickets && <Link to="/tickets/new" className="btn-primary hidden lg:inline-flex">+ New Ticket</Link>}
-        </div>
-
-        {/* Toolbar — single row on desktop (lg: 1024px+); search gets its own
-            full-width row and filters collapse into a bottom-sheet button on
-            mobile/tablet. */}
-        <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
-          <input
-            value={search}
-            onChange={(e) => setSearchTracked(e.target.value)}
-            placeholder="Search by ticket number, title, or keyword…"
-            className="input h-9 w-full text-sm lg:min-w-[220px] lg:max-w-none lg:flex-1"
-            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-          />
-
-          <div className="flex items-center gap-2 lg:hidden">
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(true)}
-              className="flex h-10 flex-shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium"
-              style={{ borderColor: BORDER, backgroundColor: CARD_BG, color: TEXT }}
-            >
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-[3px] px-1 text-xs font-semibold text-white" style={{ backgroundColor: BLUE }}>
-                  {activeFilterCount}
-                </span>
+      <div className="flex-shrink-0 space-y-3 px-4 pb-4 pt-5 sm:px-6 lg:px-12 lg:pt-8">
+        <PageHeader
+          title="Tickets"
+          sub={loading ? undefined : `${ticketCount.toLocaleString()} ticket${ticketCount === 1 ? '' : 's'}`}
+          actions={(
+            <>
+              <ViewToggle view={view} setView={setView} />
+              <span className="hidden lg:contents">
+                <ColumnsMenu order={columnPrefs.order} visible={columnPrefs.visible} customFields={customFieldDefs} onChange={setColumnPrefs} />
+              </span>
+              {canCreateTickets && (
+                <Link to="/tickets/new" className="btn-primary hidden h-10 lg:inline-flex">
+                  <IconPlus size={15} stroke={2.5} aria-hidden="true" />
+                  New Ticket
+                </Link>
               )}
-            </button>
-            <div className="flex flex-shrink-0 rounded-md border" style={{ borderColor: BORDER }}>
-              <button
-                type="button"
-                onClick={() => setView('table')}
-                className="rounded-l-md px-3 py-2 text-sm font-medium"
-                style={{ backgroundColor: view === 'table' ? BLUE : CARD_BG, color: view === 'table' ? 'white' : TEXT }}
-              >
-                Table
-              </button>
-              <button
-                type="button"
-                onClick={() => setView('board')}
-                className="rounded-r-md px-3 py-2 text-sm font-medium"
-                style={{ backgroundColor: view === 'board' ? BLUE : CARD_BG, color: view === 'board' ? 'white' : TEXT }}
-              >
-                Board
-              </button>
-            </div>
-          </div>
+            </>
+          )}
+        />
 
-          {/* Desktop-inline filter selects (1024px+) */}
-          <div className="hidden lg:contents">
-            <select
-              value={status}
-              onChange={(e) => setStatusTracked(e.target.value)}
-              className="input h-9 max-w-[10rem] flex-shrink-0 text-sm"
-              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-            >
-              {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select
-              value={priority}
-              onChange={(e) => setPriorityTracked(e.target.value)}
-              className="input h-9 max-w-[10rem] flex-shrink-0 text-sm"
-              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-            >
-              {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            {categories.length > 0 && (
-              <span className="contents" data-testid="filter-category-inline-box">
-                <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category-inline" emptyLabel="All categories" compact includeRetiredValue />
+        {/* One wrapping row, reordered by width. Desktop: quick filters and
+            saved filters, then search and the filter selects. Phone: search
+            and the Filters button, then the quick filters scrolling
+            sideways; the selects live in the Filters sheet. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
+          <label className="relative order-1 min-w-0 flex-1 lg:order-4 lg:w-80 lg:flex-none">
+            <IconSearch size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearchTracked(e.target.value)}
+              placeholder="Search by ticket number, title, or keyword…"
+              aria-label="Search tickets"
+              className="input h-11 pl-9 text-sm lg:h-8 lg:pl-8 lg:text-[13px]"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            className="order-2 inline-flex h-11 flex-shrink-0 items-center gap-2 rounded-md border border-navy-100 bg-surface px-3 text-sm font-semibold text-navy-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent lg:hidden"
+          >
+            <IconAdjustmentsHorizontal size={16} aria-hidden="true" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-xs font-semibold" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>
+                {activeFilterCount}
               </span>
             )}
-            <CompanyFilter value={companyId} onChange={setCompanyId} style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} />
-            <select
-              value={assignee}
-              onChange={(e) => setAssigneeTracked(e.target.value)}
-              className="input h-9 max-w-[11rem] flex-shrink-0 text-sm"
-              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-            >
-              <option value="">All assignees</option>
-              {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-            </select>
+          </button>
+          <div className="order-3 w-full min-w-0 lg:order-1 lg:w-auto lg:flex-1">
+            <PillRow label="Quick filters" className="lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0">
+              <Pill on={myTickets} onClick={toggleMyTickets}>My tickets</Pill>
+              <Pill on={overdue} onClick={toggleOverdue}>Overdue</Pill>
+              <Pill on={unassigned} onClick={toggleUnassigned}>Unassigned</Pill>
+              <Pill on={slaFilter === 'breached'} onClick={toggleSla('breached')}>SLA breached</Pill>
+              <Pill on={slaFilter === 'at_risk'} onClick={toggleSla('at_risk')}>SLA at risk</Pill>
+              <Pill on={newFromEmail} onClick={toggleNewFromEmail} title="Unassigned tickets created from inbound email" className="inline-flex items-center gap-1.5">
+                <IconMail size={14} aria-hidden="true" />
+                New from email
+              </Pill>
+            </PillRow>
           </div>
-
-          {/* Quick-filter chips — horizontally scrollable on mobile/tablet, inline on desktop. */}
-          <PillRow label="Quick filters" className="lg:mx-0 lg:contents lg:overflow-visible lg:px-0 lg:pb-0">
-            {(myTeams.length > 0 || canViewAllTickets) && (
-              <select
-                value={queue}
-                onChange={(e) => pickQueue(e.target.value)}
-                aria-label="Queue"
-                data-testid="queue-picker"
-                className="input h-9 max-w-[11rem] flex-shrink-0 text-sm"
-                style={{ backgroundColor: 'var(--color-input-bg)', borderColor: queue ? BLUE : 'var(--color-input-border)', color: TEXT }}
-              >
-                <option value="">All tickets</option>
-                {myTeams.length > 0 && <option value="mine">My queues</option>}
-                {queueTeams.map((t) => <option key={t.id} value={String(t.id)}>Queue: {t.name}</option>)}
-              </select>
-            )}
-            <button
-              type="button"
-              onClick={toggleMyTickets}
-              className={`${filterButtonCls(myTickets)} flex-shrink-0 whitespace-nowrap`}
-              style={{ borderColor: myTickets ? BLUE : BORDER, backgroundColor: myTickets ? BLUE : CARD_BG, color: myTickets ? 'white' : TEXT }}
-            >
-              My tickets
-            </button>
-            <button
-              type="button"
-              onClick={toggleOverdue}
-              className={`${filterButtonCls(overdue)} flex-shrink-0 whitespace-nowrap`}
-              style={{ borderColor: overdue ? 'var(--color-danger)' : BORDER, backgroundColor: overdue ? 'var(--color-danger)' : CARD_BG, color: overdue ? 'white' : TEXT }}
-            >
-              Overdue
-            </button>
-            <button
-              type="button"
-              onClick={toggleUnassigned}
-              className={`${filterButtonCls(unassigned)} flex-shrink-0 whitespace-nowrap`}
-              style={{ borderColor: unassigned ? BLUE : BORDER, backgroundColor: unassigned ? BLUE : CARD_BG, color: unassigned ? 'white' : TEXT }}
-            >
-              Unassigned
-            </button>
-            <button
-              type="button"
-              onClick={toggleSla('breached')}
-              aria-pressed={slaFilter === 'breached'}
-              className={`${filterButtonCls(slaFilter === 'breached')} flex-shrink-0 whitespace-nowrap`}
-              style={{ borderColor: slaFilter === 'breached' ? 'var(--color-danger)' : BORDER, backgroundColor: slaFilter === 'breached' ? 'var(--color-danger)' : CARD_BG, color: slaFilter === 'breached' ? 'white' : TEXT }}
-            >
-              SLA breached
-            </button>
-            <button
-              type="button"
-              onClick={toggleSla('at_risk')}
-              aria-pressed={slaFilter === 'at_risk'}
-              className={`${filterButtonCls(slaFilter === 'at_risk')} flex-shrink-0 whitespace-nowrap`}
-              style={{ borderColor: slaFilter === 'at_risk' ? 'var(--color-warning)' : BORDER, backgroundColor: slaFilter === 'at_risk' ? 'var(--color-warning)' : CARD_BG, color: slaFilter === 'at_risk' ? 'white' : TEXT }}
-            >
-              SLA at risk
-            </button>
-            <button
-              type="button"
-              onClick={toggleNewFromEmail}
-              title="Unassigned tickets created from inbound email"
-              className={`${filterButtonCls(newFromEmail)} flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap`}
-              style={{ borderColor: newFromEmail ? '#2563eb' : BORDER, backgroundColor: newFromEmail ? '#2563eb' : CARD_BG, color: newFromEmail ? 'white' : TEXT }}
-            >
-              <IconMail size={13} />
-              New from email
-            </button>
-          </PillRow>
-
-          <div className="hidden flex-shrink-0 items-center gap-2 lg:flex">
+          <div className="hidden lg:order-2 lg:block">
             <SavedFiltersMenu
               savedFilters={savedFilters}
               activeId={activeSavedFilterId}
@@ -562,27 +471,34 @@ export default function Tickets() {
               onSave={saveCurrentFilter}
               onDelete={deleteSavedFilter}
             />
-            <ColumnsMenu order={columnPrefs.order} visible={columnPrefs.visible} customFields={customFieldDefs} onChange={setColumnPrefs} />
-
-            <div className="flex rounded-md border" style={{ borderColor: BORDER }}>
-              <button
-                type="button"
-                onClick={() => setView('table')}
-                className="rounded-l-md px-3 py-2 text-sm font-medium"
-                style={{ backgroundColor: view === 'table' ? BLUE : CARD_BG, color: view === 'table' ? 'white' : TEXT }}
-              >
-                Table
-              </button>
-              <button
-                type="button"
-                onClick={() => setView('board')}
-                className="rounded-r-md px-3 py-2 text-sm font-medium"
-                style={{ backgroundColor: view === 'board' ? BLUE : CARD_BG, color: view === 'board' ? 'white' : TEXT }}
-              >
-                Board
-              </button>
-            </div>
           </div>
+          <span aria-hidden="true" className="hidden lg:order-3 lg:block lg:basis-full" />
+          <SelectChip label="Status" value={status} onChange={(e) => setStatusTracked(e.target.value)} className="max-lg:hidden lg:order-5">
+            {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </SelectChip>
+          <SelectChip label="Priority" value={priority} onChange={(e) => setPriorityTracked(e.target.value)} className="max-lg:hidden lg:order-5">
+            {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </SelectChip>
+          {categories.length > 0 && (
+            <span className="contents max-lg:hidden" data-testid="filter-category-inline-box">
+              <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category-inline" emptyLabel="All categories" compact includeRetiredValue />
+            </span>
+          )}
+          <span className="contents max-lg:hidden">
+            <CompanyFilter value={companyId} onChange={setCompanyId} className="sel lg:order-5" />
+          </span>
+          <SelectChip label="Assignee" value={assignee} onChange={(e) => setAssigneeTracked(e.target.value)} className="max-lg:hidden lg:order-5">
+            <option value="">All assignees</option>
+            {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+          </SelectChip>
+          {(myTeams.length > 0 || canViewAllTickets) && (
+            // A scope rather than a filter, so it stays out of the sheet.
+            <SelectChip label="Queue" value={queue} onChange={(e) => pickQueue(e.target.value)} data-testid="queue-picker" active={!!queue} showLabel={false} className="order-4 lg:order-5">
+              <option value="">All tickets</option>
+              {myTeams.length > 0 && <option value="mine">My queues</option>}
+              {queueTeams.map((t) => <option key={t.id} value={String(t.id)}>Queue: {t.name}</option>)}
+            </SelectChip>
+          )}
         </div>
 
         {error && (
@@ -596,7 +512,7 @@ export default function Tickets() {
           the table (no rounded corners, no floating card). Tinted with the
           accent color at low opacity so it reads as distinct from both. */}
       {isStaff && view === 'table' && !showBulkBar && bulkResult && (
-        <div role="status" data-testid="bulk-result" className="flex flex-shrink-0 items-center gap-2 px-4 py-2 text-xs" style={{ color: MUTED, borderBottom: `1px solid ${BORDER}` }}>
+        <div role="status" data-testid="bulk-result" className="mx-4 mb-3 flex flex-shrink-0 items-center gap-2 text-xs sm:mx-6 lg:mx-12" style={{ color: MUTED }}>
           {bulkResult.ok} updated.
           <button type="button" onClick={() => setBulkResult(null)} className="underline">dismiss</button>
         </div>
@@ -633,7 +549,7 @@ export default function Tickets() {
           `overflow-x-auto` div would silently become its own scrolling
           context and break the table header's `position: sticky`, which
           resolves against the *nearest* scrolling ancestor. */}
-      <div className="px-6 pb-6" style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto' }}>
+      <div className="px-4 pb-6 sm:px-6 lg:px-12" style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto' }}>
         {loading ? (
           <div className="flex h-full items-center justify-center"><Spinner /></div>
         ) : view === 'board' ? (
@@ -649,48 +565,56 @@ export default function Tickets() {
               {tickets.length === 0 && (
                 <p className="px-1 py-6 text-center text-sm" style={{ color: MUTED }}>No tickets found.</p>
               )}
-              {sortedTickets.map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => navigate(`/tickets/${t.id}`)}
-                  className="cursor-pointer rounded-[10px] border p-3"
-                  style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
-                >
-                  <div className="flex items-start gap-2">
-                    {isStaff && (
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(t.id)}
-                        onChange={() => toggleSelect(t.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-1 h-5 w-5 flex-shrink-0 accent-blue-500"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-xs" style={{ color: MUTED }}>{formatTicketId(t)}</span>
-                        <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: (PRIORITY_META[t.priority] || PRIORITY_META.medium).color }} title={(PRIORITY_META[t.priority] || PRIORITY_META.medium).label} />
-                      </div>
-                      <p className="mt-0.5 truncate text-sm font-medium" style={{ color: TEXT }}>{t.title}</p>
-                      {canViewAllTickets && t.department?.name && <DeptPill name={t.department.name} />}
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />
-                        <div className="flex items-center gap-2">
-                          {t.sla?.worst && <SlaBadge sla={t.sla} />}
-                          <DueDateCell dueDate={t.dueDate} />
+              {sortedTickets.map((t) => {
+                const prio = PRIORITY_META[t.priority] || PRIORITY_META.medium;
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => navigate(`/tickets/${t.id}`)}
+                    className="cursor-pointer rounded-xl border border-navy-100 bg-surface p-3"
+                    style={selectedIds.has(t.id) ? { borderColor: 'var(--color-accent)' } : undefined}
+                  >
+                    <div className="flex items-start gap-3">
+                      {isStaff && (
+                        <label className="-m-2 flex h-11 w-11 flex-shrink-0 items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(t.id)}
+                            onChange={() => toggleSelect(t.id)}
+                            aria-label={`Select ${formatTicketId(t)}`}
+                            className="h-5 w-5 accent-[var(--color-accent)]"
+                          />
+                        </label>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="num text-xs" style={{ color: MUTED }}>{formatTicketId(t)}</span>
+                          <span className="flex items-center gap-1.5 text-xs" style={{ color: TEXT }}>
+                            <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: prio.color }} />
+                            {prio.label}
+                          </span>
                         </div>
-                      </div>
-                      <div className="mt-2">
-                        <Avatar name={t.assignee?.displayName} />
+                        <p className="mt-0.5 truncate text-sm font-semibold" style={{ color: TEXT }}>{t.title}</p>
+                        {canViewAllTickets && t.department?.name && <DeptPill name={t.department.name} className="ml-0 mt-1" />}
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                          <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />
+                          <div className="flex items-center gap-2">
+                            {t.sla?.worst && <SlaBadge sla={t.sla} />}
+                            <DueDateCell dueDate={t.dueDate} />
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <Avatar name={t.assignee?.displayName} />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Table view — desktop/laptop (md: 768px+) */}
-            <div className="hidden rounded-[10px] border md:block" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+            <div className="hidden overflow-hidden rounded-xl border border-navy-100 bg-surface md:block">
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -703,7 +627,7 @@ export default function Tickets() {
                         type="checkbox"
                         checked={allSelected}
                         onChange={toggleSelectAll}
-                        className="accent-blue-500"
+                        className="accent-[var(--color-accent)]"
                       />
                     </th>
                   )}
@@ -711,7 +635,7 @@ export default function Tickets() {
                     <th
                       key={key}
                       onClick={() => toggleSort(key)}
-                      className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
+                      className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-xs font-semibold"
                       style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}
                     >
                       {COLUMN_LABELS[key]}
@@ -722,7 +646,7 @@ export default function Tickets() {
                     <th
                       key={key}
                       onClick={() => toggleSort(key)}
-                      className={`whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide ${SORTABLE_COLUMNS[key] ? 'cursor-pointer' : ''}`}
+                      className={`whitespace-nowrap px-4 py-3 text-left text-xs font-semibold ${SORTABLE_COLUMNS[key] ? 'cursor-pointer' : ''}`}
                       style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}
                     >
                       {COLUMN_LABELS[key]}
@@ -736,7 +660,7 @@ export default function Tickets() {
                       <th
                         key={key}
                         onClick={() => toggleSort(key)}
-                        className={`whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide ${sortable ? 'cursor-pointer' : ''}`}
+                        className={`whitespace-nowrap px-4 py-3 text-left text-xs font-semibold ${sortable ? 'cursor-pointer' : ''}`}
                         style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}
                       >
                         {f.label}
@@ -755,19 +679,19 @@ export default function Tickets() {
                   </tr>
                 )}
                 {sortedTickets.map((t) => (
-                  <tr key={t.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  <tr key={t.id} className={selectedIds.has(t.id) ? '' : 'hover:bg-[var(--color-hover)]'} style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: selectedIds.has(t.id) ? 'var(--color-accent-soft)' : undefined }}>
                     {isStaff && (
                       <td className="px-4 py-3">
-                        <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} className="accent-blue-500" />
+                        <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} className="accent-[var(--color-accent)]" />
                       </td>
                     )}
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-sm" style={{ color: MUTED }}>{formatTicketId(t)}</td>
-                    <td className="px-4 py-3">
+                    <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{formatTicketId(t)}</td>
+                    <td className="min-w-[18rem] max-w-[28rem] px-4 py-3">
                       {t.queueOnly ? (
                         // Seen only as queue work: it opens once taken.
-                        <span className="font-medium" style={{ color: TEXT }} title="Take it to open this ticket">{t.title}</span>
+                        <span className="break-words font-semibold" style={{ color: TEXT }} title="Take it to open this ticket">{t.title}</span>
                       ) : (
-                        <Link to={`/tickets/${t.id}`} className="font-medium hover:underline" style={{ color: TEXT }}>{t.title}</Link>
+                        <Link to={`/tickets/${t.id}`} className="break-words font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>{t.title}</Link>
                       )}
                       {canViewAllTickets && <DeptPill name={t.department?.name} />}
                       <AgeLine ticket={t} behaviorByName={behaviorByName} />
@@ -794,7 +718,7 @@ export default function Tickets() {
                         {key === 'timeLogged' && <span className="text-sm" style={{ color: TEXT }}>{formatMinutes(t.timeLoggedMinutes)}</span>}
                         {key === 'createdDate' && <span className="text-sm" style={{ color: MUTED }}>{new Date(t.createdAt).toLocaleDateString()}</span>}
                         {key === 'actions' && (
-                          <Link to={`/tickets/${t.id}`} className="text-sm" style={{ color: 'var(--color-accent)' }}>Open →</Link>
+                          <Link to={`/tickets/${t.id}`} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>Open →</Link>
                         )}
                       </td>
                     ))}
@@ -830,8 +754,8 @@ export default function Tickets() {
       {canCreateTickets && (
         <Link
           to="/tickets/new"
-          className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-semibold text-white shadow-lg lg:hidden"
-          style={{ backgroundColor: BLUE }}
+          className="fixed bottom-6 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-semibold shadow-lg lg:hidden"
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
           aria-label="New ticket"
         >
           +
@@ -839,56 +763,39 @@ export default function Tickets() {
       )}
 
       <FiltersSheet open={filtersOpen} onClose={() => setFiltersOpen(false)}>
-          <div>
-            <label className="label">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatusTracked(e.target.value)}
-              className="input h-11 text-sm"
-              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-            >
-              {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+        <div>
+          <label className="label" htmlFor="sheet-status">Status</label>
+          <select id="sheet-status" value={status} onChange={(e) => setStatusTracked(e.target.value)} className="input h-11 text-sm">
+            {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="sheet-priority">Priority</label>
+          <select id="sheet-priority" value={priority} onChange={(e) => setPriorityTracked(e.target.value)} className="input h-11 text-sm">
+            {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        {categories.length > 0 && (
+          <div data-testid="filter-category">
+            <label className="label" htmlFor="filter-category">Category</label>
+            <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category" emptyLabel="All categories" includeRetiredValue />
           </div>
-          <div>
-            <label className="label">Priority</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriorityTracked(e.target.value)}
-              className="input h-11 text-sm"
-              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-            >
-              {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          {categories.length > 0 && (
-            <div className="sm:col-span-2" data-testid="filter-category">
-              <label className="label" htmlFor="filter-category">Category</label>
-              <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category" emptyLabel="All categories" includeRetiredValue />
-            </div>
-          )}
-          <div>
-            <label className="label">Assignee</label>
-            <select
-              value={assignee}
-              onChange={(e) => setAssigneeTracked(e.target.value)}
-              className="input h-11 text-sm"
-              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-            >
-              <option value="">All assignees</option>
-              {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <SavedFiltersMenu
-              savedFilters={savedFilters}
-              activeId={activeSavedFilterId}
-              onApply={applySavedFilter}
-              onSave={saveCurrentFilter}
-              onDelete={deleteSavedFilter}
-            />
-            <span className="text-xs" style={{ color: MUTED }}>Saved filters</span>
-          </div>
+        )}
+        <div>
+          <label className="label" htmlFor="sheet-assignee">Assignee</label>
+          <select id="sheet-assignee" value={assignee} onChange={(e) => setAssigneeTracked(e.target.value)} className="input h-11 text-sm">
+            <option value="">All assignees</option>
+            {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+          </select>
+        </div>
+        <SavedFiltersMenu
+          savedFilters={savedFilters}
+          activeId={activeSavedFilterId}
+          onApply={applySavedFilter}
+          onSave={saveCurrentFilter}
+          onDelete={deleteSavedFilter}
+          align="left"
+        />
       </FiltersSheet>
     </div>
   );

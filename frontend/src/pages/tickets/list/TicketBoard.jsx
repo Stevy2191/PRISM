@@ -1,9 +1,10 @@
 // The ticket list's board view: one column per status, each capped (see
 // BOARD_COLUMN_LIMIT on the API).
 import { formatTicketId } from '../../../utils/ticketId';
-import { BG, CARD_BG, BORDER, TEXT, MUTED } from '../theme';
+import PersonAvatar from '../../../components/ui/Avatar';
+import { TEXT, MUTED } from '../theme';
 import { todayStr } from './listHelpers';
-import { Avatar, PriorityCell, DeptPill } from './Cells';
+import { PriorityCell, DeptPill } from './Cells';
 
 export function TicketBoard({
   boardColumns,
@@ -11,27 +12,24 @@ export function TicketBoard({
   navigate,
 }) {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-visible md:pb-0">
+    <div className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0 md:pb-0">
       {boardColumns.map((col) => (
-        <div
+        <section
           key={col.id}
-          className="w-[85vw] max-w-[320px] flex-shrink-0 rounded-[10px] border md:w-auto md:max-w-none"
-          style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
+          aria-label={col.name}
+          className="w-[85vw] max-w-[320px] flex-shrink-0 snap-start self-start rounded-xl border border-navy-100 bg-surface md:w-auto md:max-w-none"
         >
-          <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: BORDER }}>
-            <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: TEXT }}>
+          <div className="flex items-center justify-between px-3.5 pb-2 pt-3">
+            <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold" style={{ color: TEXT }}>
               <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: col.color }} />
-              {col.name}
+              <span className="truncate">{col.name}</span>
             </h2>
-            <span
-              className="rounded-[3px] px-2 py-0.5 font-mono text-xs font-semibold"
-              style={{ backgroundColor: `color-mix(in srgb, ${col.color} 13%, transparent)`, color: col.color }}
-            >
+            <span className="num rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: 'var(--color-hover)', color: 'var(--color-text-secondary)' }}>
               {col.total}
             </span>
           </div>
-          <div className="space-y-2 p-3">
-            {col.tickets.length === 0 && <p className="text-xs" style={{ color: MUTED }}>No tickets.</p>}
+          <div className="space-y-2 px-2.5 pb-2.5">
+            {col.tickets.length === 0 && <p className="px-1 pb-1 text-xs" style={{ color: MUTED }}>No tickets.</p>}
             {col.tickets.map((t) => {
               // Overdue is shown as a highlight on the card, not a
               // separate column — a ticket keeps its real status column
@@ -41,15 +39,19 @@ export function TicketBoard({
                 <div
                   key={t.id}
                   onClick={() => navigate(`/tickets/${t.id}`)}
-                  className="cursor-pointer rounded-md border p-3 transition hover:opacity-90"
-                  style={{ backgroundColor: BG, borderColor: isOverdue ? 'var(--color-danger)' : BORDER }}
+                  className="cursor-pointer rounded-lg border p-3 transition hover:bg-[var(--color-hover)]"
+                  style={{ backgroundColor: 'var(--color-bg)', borderColor: isOverdue ? 'var(--color-danger)' : 'var(--color-border)' }}
                 >
-                  <p className="font-mono text-xs" style={{ color: isOverdue ? 'var(--color-danger)' : MUTED }}>{formatTicketId(t)}</p>
-                  <p className="mt-1 truncate text-sm font-medium" style={{ color: isOverdue ? 'var(--color-danger)' : TEXT }}>{t.title}</p>
-                  {canViewAllTickets && t.department?.name && <DeptPill name={t.department.name} />}
+                  <div className="flex items-center gap-1.5">
+                    <span className="num text-xs font-semibold" style={{ color: isOverdue ? 'var(--color-danger)' : MUTED }}>{formatTicketId(t)}</span>
+                    {canViewAllTickets && t.department?.name && <DeptPill name={t.department.name} className="" />}
+                  </div>
+                  <p className="mt-1 truncate text-sm font-semibold" style={{ color: TEXT }}>{t.title}</p>
                   <div className="mt-2 flex items-center justify-between">
                     <PriorityCell priority={t.priority} />
-                    <Avatar name={t.assignee?.displayName} />
+                    {t.assignee?.displayName
+                      ? <PersonAvatar name={t.assignee.displayName} size={22} />
+                      : <span className="h-[22px] w-[22px] rounded-full border border-dashed border-navy-200" title="Unassigned" aria-label="Unassigned" />}
                   </div>
                 </div>
               );
@@ -62,7 +64,7 @@ export function TicketBoard({
               </p>
             )}
           </div>
-        </div>
+        </section>
       ))}
     </div>
   );
