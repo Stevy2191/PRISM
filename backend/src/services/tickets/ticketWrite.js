@@ -52,6 +52,23 @@ async function assertTeamExists(raw) {
   return team.id;
 }
 
+// The title is required text that fits the column; the description is
+// optional plain text, kept as typed (blank means none).
+function cleanTitle(title) {
+  if (typeof title !== 'string' || !title.trim()) {
+    throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
+  }
+  const trimmed = title.trim();
+  if (trimmed.length > 255) throw new ApiError(400, 'Ticket title must be 255 characters or fewer', 'VALIDATION_ERROR');
+  return trimmed;
+}
+
+function cleanDescription(description) {
+  if (description === undefined || description === null) return description;
+  if (typeof description !== 'string') throw new ApiError(400, 'Description must be text', 'VALIDATION_ERROR');
+  return description.trim() ? description : null;
+}
+
 // Creates a ticket. `actor` is whose access the references are checked
 // against; `createdById` is who the ticket, its activity and its notices are
 // credited to (the same person, except for the recurring scheduler, which
@@ -65,9 +82,8 @@ async function createTicket(actor, input, {
     blueprintId, customFields, teamId, tags, watcherIds, parentTicketId, childTicketIds, relatedTicketIds,
     assigneeId, contactId, source, assetIds, categoryId,
   } = input || {};
-  if (!title || !title.trim()) {
-    throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
-  }
+  const cleanedTitle = cleanTitle(title);
+  const cleanedDescription = cleanDescription(description);
   if (!contactId) {
     throw new ApiError(400, 'A contact is required', 'VALIDATION_ERROR');
   }
@@ -180,8 +196,8 @@ async function createTicket(actor, input, {
 
   const ticket = await sequelize.transaction(async (t) => {
     const created = await Ticket.create({
-      title: title.trim(),
-      description: description || null,
+      title: cleanedTitle,
+      description: cleanedDescription ?? null,
       status: resolvedStatus,
       priority: priority || 'medium',
       type: type || 'request',
@@ -297,12 +313,8 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
     if (changes.plannedDate === null || changes.plannedDate === '') changes.plannedDate = null;
     else if (!isIsoDate(changes.plannedDate)) throw new ApiError(400, 'Planned date must be a date like 2026-11-05', 'VALIDATION_ERROR');
   }
-  if (changes.title !== undefined) {
-    if (typeof changes.title !== 'string' || !changes.title.trim()) {
-      throw new ApiError(400, 'Ticket title is required', 'VALIDATION_ERROR');
-    }
-    changes.title = changes.title.trim();
-  }
+  if (changes.title !== undefined) changes.title = cleanTitle(changes.title);
+  if (changes.description !== undefined) changes.description = cleanDescription(changes.description);
   if (changes.status !== undefined && changes.status !== ticket.status) changes.status = await ticketStatusName(changes.status, ticket.status);
   // Same rules as create for the contact and project (S7, S6). Re-sending the
   // ticket's current value unchanged (a client PATCHing the whole ticket
@@ -365,9 +377,7 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
     changes.resolutionUpdatedBy = req.user.id;
     changes.resolutionUpdatedAt = new Date();
   }
-  const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId', 'plannedDate'];
-  const before = {};
-  TRACKED_ACTIVITY_FIELDS.forEach((f) => { before[f] = ticket[f]; });
+  const before = snapshotBefore(ticket);
   const previousStatus = ticket.status;
 
   // System-wide "require time logged before close" (Settings -> Time
@@ -405,6 +415,13 @@ async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = fa
     const beforeVal = before[field];
     const afterVal = ticket[field];
     if (String(beforeVal ?? '') === String(afterVal ?? '')) continue; // eslint-disable-line no-continue
+    // A description can be long and may hold what the customer wrote: the
+    // activity only says it was edited (the audit log keeps the text).
+    if (field === 'description') {
+      // eslint-disable-next-line no-await-in-loop
+      await logActivity(ticket.id, req.user.id, 'description', null, null);
+      continue; // eslint-disable-line no-continue
+    }
     // eslint-disable-next-line no-await-in-loop
     const fromDisplay = await resolveDisplayValue(field, beforeVal, { categoryTree: displayTree });
     // eslint-disable-next-line no-await-in-loop
@@ -460,7 +477,7 @@ async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = fa
   }
 }
 
-const TRACKED_ACTIVITY_FIELDS = ['status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId', 'plannedDate'];
+const TRACKED_ACTIVITY_FIELDS = ['title', 'description', 'status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId', 'plannedDate'];
 const snapshotBefore = (ticket) => Object.fromEntries(TRACKED_ACTIVITY_FIELDS.map((f) => [f, ticket[f]]));
 
 // Edits a ticket: access + edit-tier checks, validation, save, side effects.

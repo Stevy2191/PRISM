@@ -25,7 +25,7 @@ const ACTIVITY_DOT = {
 };
 
 const ACTIVITY_FIELD_LABEL = {
-  status: 'status', priority: 'priority', type: 'type', assigneeId: 'assignee',
+  title: 'title', status: 'status', priority: 'priority', type: 'type', assigneeId: 'assignee',
   teamId: 'team', departmentId: 'department', categoryId: 'category', dueDate: 'due date', dueTime: 'due time',
 };
 
@@ -42,6 +42,7 @@ function activityDescription(a) {
   if (a.action === 'time_logged') return `${actor} logged ${a.toValue} of time`;
   if (a.action === 'attachment_added') return `${actor} added attachment "${a.toValue}"`;
   if (a.action === 'relation_added') return `${actor} linked ${a.toValue}`;
+  if (a.action === 'description') return `${actor} edited the description`;
   if (a.action === 'custom_fields') return `${actor} updated a custom field`;
   if (a.action === 'task_created' || a.action === 'subtask_created') return `${actor} added task ${a.toValue}`;
   if (a.action === 'task_closed' || a.action === 'subtask_closed') return `${actor} completed task ${a.toValue}`;

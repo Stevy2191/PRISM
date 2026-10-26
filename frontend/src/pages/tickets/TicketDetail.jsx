@@ -36,6 +36,7 @@ import { ResolutionTab } from './detail/ResolutionTab';
 import { AttachmentsTab } from './detail/AttachmentsTab';
 import { ActivityTab } from './detail/ActivityTab';
 import { ReplyBox } from './detail/ReplyBox';
+import { EditableTitle } from './detail/TicketText';
 import { Modal } from './detail/Modal';
 import { orgToday, addDays } from '../../utils/orgDate';
 
@@ -238,6 +239,13 @@ export default function TicketDetail() {
     reloadActivity();
   };
 
+  // Title and description edits: a refusal is thrown back to the field.
+  const saveTicketText = async (changes) => {
+    const { data } = await api.patch(`/tickets/${id}`, changes);
+    setTicket(data.ticket);
+    reloadActivity();
+  };
+
   const patchTicket = async (changes) => {
     try {
       const { data } = await api.patch(`/tickets/${id}`, changes);
@@ -428,7 +436,7 @@ export default function TicketDetail() {
           <div className="flex flex-wrap items-center gap-3">
             <span className="font-mono text-lg" style={{ color: MUTED }}>{formatTicketId(ticket)}</span>
             <SourceBadge source={ticket.source} />
-            <h1 className="text-xl font-bold" style={{ color: TEXT }}>{ticket.title}</h1>
+            <EditableTitle title={ticket.title} canEdit={isStaff && !!ticket.access?.edit} onSave={saveTicketText} />
             {(() => {
               const statusMeta = findStatus(ticketStatuses, ticket.status);
               const statusColor = statusMeta?.color || MUTED;
@@ -625,6 +633,8 @@ export default function TicketDetail() {
             {activeTab === 'conversation' && (
               <ConversationTab
                 ticket={ticket}
+                canEditDescription={isStaff && !!ticket.access?.edit}
+                onSaveDescription={saveTicketText}
                 comments={comments}
                 total={commentTotal}
                 onLoadMore={() => setCommentLimit((n) => n + SUBLIST_STEP)}

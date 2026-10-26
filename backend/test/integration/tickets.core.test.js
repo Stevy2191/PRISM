@@ -179,6 +179,57 @@ describe('PATCH /tickets/:id', () => {
     expect(expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ title: '  New  ' })).ticket.title).toBe('New');
   });
 
+  it('refuses a title longer than 255 characters, on create and on update', async () => {
+    const msg = { error: true, message: 'Ticket title must be 255 characters or fewer', code: 'VALIDATION_ERROR' };
+    const create = await tech.agent.post(`${API}/tickets`).send({ ...base(), title: 'x'.repeat(256) });
+    expect(create.status).toBe(400);
+    expect(create.body).toEqual(msg);
+    const t = await makeTicket(tech.agent, base());
+    const res = await tech.agent.patch(`${API}/tickets/${t.id}`).send({ title: 'y'.repeat(256) });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(msg);
+    expect(expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ title: 'z'.repeat(255) })).ticket.title).toHaveLength(255);
+  });
+
+  it('a description must be text; blank clears it', async () => {
+    const t = await makeTicket(tech.agent, base());
+    // Objects and arrays are refused by the app-wide body guard; numbers here.
+    for (const description of [{ a: 1 }, ['x'], 42, true]) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await tech.agent.patch(`${API}/tickets/${t.id}`).send({ description });
+      expect(res.status).toBe(400);
+    }
+    const msg = { error: true, message: 'Description must be text', code: 'VALIDATION_ERROR' };
+    expect((await tech.agent.patch(`${API}/tickets/${t.id}`).send({ description: 42 })).body).toEqual(msg);
+    expect((await tech.agent.post(`${API}/tickets`).send({ ...base(), description: 42 })).body).toEqual(msg);
+    const kept = '  Line one\n\n  indented line  ';
+    expect(expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ description: kept })).ticket.description).toBe(kept);
+    expect(expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ description: '   ' })).ticket.description).toBeNull();
+  });
+
+  it('logs title and description edits in the activity, without copying the description', async () => {
+    const t = await makeTicket(tech.agent, { ...base(), title: 'Old_name', description: 'first' });
+    expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ title: 'New_name', description: 'second' }));
+    const acts = await activityOf(tech.agent, t.id);
+    expect(acts).toContainEqual(['title', 'Old_name', 'New_name']);
+    expect(acts).toContainEqual(['description', null, null]);
+    // Re-sending the same values logs nothing new.
+    expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({ title: 'New_name', description: 'second' }));
+    expect((await activityOf(tech.agent, t.id)).length).toBe(acts.length);
+  });
+
+  it('view-only access cannot edit the title or description', async () => {
+    const staff = await makeStaff('staff', w.deptA.id);
+    const t = await makeTicket(w.admin.agent, { ...base(), departmentId: w.deptA.id });
+    for (const body of [{ title: 'Hijacked' }, { description: 'Hijacked' }]) {
+      // eslint-disable-next-line no-await-in-loop
+      expect((await staff.agent.patch(`${API}/tickets/${t.id}`).send(body)).status).toBe(403);
+    }
+    const { ticket } = expectOk(await w.admin.agent.get(`${API}/tickets/${t.id}`));
+    expect(ticket.title).toBe('Printer offline');
+    expect(ticket.description).toBeNull();
+  });
+
   it('ignores fields that are not editable', async () => {
     const t = await makeTicket(tech.agent, base());
     const { ticket } = expectOk(await tech.agent.patch(`${API}/tickets/${t.id}`).send({
@@ -240,8 +291,9 @@ describe('PATCH /tickets/:id', () => {
       ['departmentId', 'Service Desk', 'Facilities'],
       ['dueDate', null, '2026-12-01'],
       ['dueTime', null, '09:00:00'],
+      ['title', 'Printer offline', 'Renamed'],
     ]));
-    expect(activity).toHaveLength(9); // title is not a tracked field
+    expect(activity).toHaveLength(10);
   });
 
   it('writes no activity when a field is set to its current value', async () => {

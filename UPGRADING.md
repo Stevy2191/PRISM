@@ -18,6 +18,15 @@ emailed attachment is refused until the scanner exists. The scanner needs about
 few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
 `.env`.
 
+### Editing a ticket's title and description
+
+- **The ticket page shows the description again**, at the top of the
+  Conversation tab, and anyone who can edit the ticket can change it there or
+  change the title (pencil next to it; Enter saves, Esc cancels). Both edits
+  show in the ticket's Activity tab. The page rebuild had lost both.
+- A title over 255 characters is now refused with a clear message instead of a
+  server error.
+
 ### Dates follow the company time zone
 
 - **"Today" is the company's today everywhere.** Overdue flags and filters,

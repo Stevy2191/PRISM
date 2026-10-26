@@ -28,6 +28,7 @@ async function shownActivity(viewer, rows) {
 // `field` matches the Ticket column name (assigneeId, teamId, departmentId, ...).
 async function resolveDisplayValue(field, value, { categoryTree = null } = {}) {
   if (value === null || value === undefined || value === '') return null;
+  if (field === 'title') return String(value);
   if (field === 'assigneeId') {
     const user = await User.findByPk(value);
     return user ? user.displayName : `User #${value}`;
