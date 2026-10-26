@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import { useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
@@ -29,7 +30,7 @@ export default function ProjectsReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   const money = (v) => `$${Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -46,13 +47,13 @@ export default function ProjectsReport({ filters, onForbidden }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <ChartCard title="Projects by status">
-          <SimpleBarChart data={data.chartData.byStatus} color={PALETTE[0]} />
+          <SimpleBarChart data={data.chartData.byStatus} />
         </ChartCard>
         <ChartCard title="Total cost per department">
-          <SimpleBarChart data={data.chartData.costByDepartment} dataKey="cost" color={PALETTE[1]} />
+          <SimpleBarChart data={data.chartData.costByDepartment} dataKey="cost" />
         </ChartCard>
         <ChartCard title="Completion % distribution">
-          <SimpleBarChart data={data.chartData.completionDistribution} color={PALETTE[2]} />
+          <SimpleBarChart data={data.chartData.completionDistribution} />
         </ChartCard>
       </div>
 

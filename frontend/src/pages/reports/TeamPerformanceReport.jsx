@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
@@ -27,7 +28,7 @@ export default function TeamPerformanceReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   return (
@@ -40,13 +41,13 @@ export default function TeamPerformanceReport({ filters, onForbidden }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <ChartCard title="Tickets closed per tech">
-          <SimpleBarChart data={data.chartData.closedPerTech} color={PALETTE[0]} />
+          <SimpleBarChart data={data.chartData.closedPerTech} />
         </ChartCard>
         <ChartCard title="Avg resolution time per tech (hrs)">
-          <SimpleBarChart data={data.chartData.avgResolutionPerTech} dataKey="hours" color={PALETTE[3]} />
+          <SimpleBarChart data={data.chartData.avgResolutionPerTech} dataKey="hours" />
         </ChartCard>
         <ChartCard title="Current open workload per tech">
-          <SimpleBarChart data={data.chartData.workloadPerTech} color={PALETTE[4]} />
+          <SimpleBarChart data={data.chartData.workloadPerTech} />
         </ChartCard>
       </div>
 

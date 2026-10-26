@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import CompanyFilter from '../../components/companies/CompanyFilter';
 import { useCompanySummary } from '../../context/CompanyContext';
 import api, { errMessage } from '../../api/api';
@@ -217,7 +218,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
                 key={s.key}
                 onClick={() => setDataSource(s.key)}
                 className={`rounded-md border px-3 py-1.5 text-sm font-medium ${
-                  dataSource === s.key ? 'border-prism bg-prism/10 text-prism' : 'border-navy-200 text-navy-600 hover:bg-navy-50'
+                  dataSource === s.key ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]' : 'border-navy-100 bg-surface text-navy-600 hover:bg-[var(--color-hover)]'
                 }`}
               >
                 {s.label}
@@ -234,7 +235,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
               <label
                 key={f.key}
                 className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
-                  selectedFields.includes(f.key) ? 'border-prism bg-prism/10 text-prism' : 'border-navy-200 text-navy-500'
+                  selectedFields.includes(f.key) ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]' : 'border-navy-100 bg-surface text-navy-500'
                 }`}
               >
                 <input type="checkbox" className="sr-only" checked={selectedFields.includes(f.key)} onChange={() => toggleField(f.key)} />
@@ -377,7 +378,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setGroupBy('')}
-                className={`rounded-md border px-3 py-1.5 text-sm font-medium ${!groupBy ? 'border-prism bg-prism/10 text-prism' : 'border-navy-200 text-navy-600 hover:bg-navy-50'}`}
+                className={`rounded-md border px-3 py-1.5 text-sm font-medium ${!groupBy ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]' : 'border-navy-100 bg-surface text-navy-600 hover:bg-[var(--color-hover)]'}`}
               >
                 None
               </button>
@@ -385,7 +386,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
                 <button
                   key={g}
                   onClick={() => setGroupBy(g)}
-                  className={`rounded-md border px-3 py-1.5 text-sm font-medium capitalize ${groupBy === g ? 'border-prism bg-prism/10 text-prism' : 'border-navy-200 text-navy-600 hover:bg-navy-50'}`}
+                  className={`rounded-md border px-3 py-1.5 text-sm font-medium capitalize ${groupBy === g ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]' : 'border-navy-100 bg-surface text-navy-600 hover:bg-[var(--color-hover)]'}`}
                 >
                   {g}
                 </button>
@@ -406,7 +407,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
                   disabled={disabled}
                   onClick={() => setVisualization(v.key)}
                   className={`rounded-md border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
-                    visualization === v.key ? 'border-prism bg-prism/10 text-prism' : 'border-navy-200 text-navy-600 hover:bg-navy-50'
+                    visualization === v.key ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]' : 'border-navy-100 bg-surface text-navy-600 hover:bg-[var(--color-hover)]'
                   }`}
                 >
                   {v.label}
@@ -424,7 +425,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
           <button onClick={() => { setSaveName(''); setSaveModalOpen(true); }} className="btn-secondary">
             {savedId ? 'Update saved report' : 'Save as…'}
           </button>
-          {savedId && <button onClick={deleteSaved} className="text-sm text-red-500 hover:underline">Delete saved report</button>}
+          {savedId && <button onClick={deleteSaved} className="text-sm hover:underline" style={{ color: 'var(--color-danger)' }}>Delete saved report</button>}
           {canExport && (
             <div className="ml-auto flex gap-2">
               <button onClick={exportCsv} className="btn-secondary">Export CSV</button>
@@ -453,7 +454,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
         </div>
       )}
 
-      {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
+      {error && <Notice tone="bad">{error}</Notice>}
 
       {result && (
         <div className="space-y-5">
@@ -466,7 +467,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
 
           {groupBy && result.chartData.length > 0 && visualization !== 'table' && (
             <ChartCard title={`Grouped by ${groupBy}`}>
-              {visualization === 'bar' && <SimpleBarChart data={result.chartData} dataKey={valueKey} color={PALETTE[0]} />}
+              {visualization === 'bar' && <SimpleBarChart data={result.chartData} dataKey={valueKey} layout={['assignee', 'tech'].includes(groupBy) ? 'horizontal' : 'vertical'} />}
               {visualization === 'line' && <MultiLineChart data={result.chartData} lines={[{ dataKey: valueKey, label: valueKey, color: PALETTE[0] }]} xKey="name" />}
               {visualization === 'pie' && <DonutChart data={result.chartData} dataKey={valueKey} />}
             </ChartCard>

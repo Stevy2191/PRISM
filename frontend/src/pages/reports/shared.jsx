@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
-  PieChart, Pie,
+  PieChart, Pie, LabelList,
 } from 'recharts';
 
 export const PALETTE = [
@@ -24,9 +24,9 @@ export function formatHours(h) {
 
 export function StatCard({ label, value, sub }) {
   return (
-    <div className="card p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-navy-400">{label}</p>
-      <p className="mt-1 text-2xl font-bold tracking-tight text-navy-900">{value}</p>
+    <div className="card p-4 sm:p-5">
+      <p className="text-[13px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{label}</p>
+      <p className="num mt-1 text-2xl font-semibold tracking-tight text-navy-900">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-navy-400">{sub}</p>}
     </div>
   );
@@ -34,27 +34,61 @@ export function StatCard({ label, value, sub }) {
 
 export function ChartCard({ title, children, height = 260 }) {
   return (
-    <div className="card p-5">
-      <h3 className="mb-4 font-semibold text-navy-900">{title}</h3>
+    <div className="card min-w-0 p-4 sm:p-5">
+      <h3 className="mb-4 text-[15px] font-semibold text-navy-900">{title}</h3>
       <div style={{ height }}>{children}</div>
     </div>
   );
 }
 
+// One look for every chart: muted axis text, faint solid grid, tooltip on the
+// card surface, values in text tokens (never the series colour).
 const axisTick = { fontSize: 12, fill: 'var(--color-text-muted)' };
+const axisLine = { stroke: 'var(--color-border)' };
+const grid = { stroke: 'var(--color-border)', strokeOpacity: 0.6 };
+const tooltip = {
+  contentStyle: {
+    backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12, color: 'var(--color-text-primary)',
+  },
+  labelStyle: { color: 'var(--color-text-muted)' },
+  itemStyle: { color: 'var(--color-text-primary)' },
+  cursor: { fill: 'var(--color-hover)', stroke: 'var(--color-border)' },
+};
+const valueLabel = { fontSize: 11, fontWeight: 600, fill: 'var(--color-text-primary)' };
 
-// `colorForName`, if given, colors each bar individually (e.g. ticket status colors).
-export function SimpleBarChart({ data, dataKey = 'count', color = PALETTE[0], colorForName }) {
+// Single-series bars in the accent colour with the value on each bar.
+// `colorForName`, if given, colors each bar individually (e.g. ticket status
+// colors). layout 'horizontal' lays bars sideways (long names, e.g. people).
+export function SimpleBarChart({
+  data, dataKey = 'count', color = PALETTE[0], colorForName, layout = 'vertical',
+}) {
   if (!data || data.length === 0) return <p className="text-sm text-navy-400">No data.</p>;
+  if (layout === 'horizontal') {
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ right: 36 }}>
+          <CartesianGrid horizontal={false} {...grid} />
+          <XAxis type="number" allowDecimals={false} tick={axisTick} axisLine={axisLine} tickLine={false} />
+          <YAxis type="category" dataKey="name" tick={axisTick} width={120} axisLine={axisLine} tickLine={false} interval={0} />
+          <Tooltip {...tooltip} />
+          <Bar dataKey={dataKey} fill={color} radius={[0, 4, 4, 0]} maxBarSize={22}>
+            {colorForName && data.map((d, i) => <Cell key={i} fill={colorForName(d.name) || color} />)}
+            <LabelList dataKey={dataKey} position="right" style={valueLabel} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-        <XAxis dataKey="name" tick={axisTick} interval={0} angle={data.length > 8 ? -30 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} height={data.length > 8 ? 50 : 30} />
-        <YAxis allowDecimals={false} tick={axisTick} />
-        <Tooltip />
-        <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]}>
+      <BarChart data={data} margin={{ top: 18 }}>
+        <CartesianGrid vertical={false} {...grid} />
+        <XAxis dataKey="name" tick={axisTick} interval={0} angle={data.length > 8 ? -30 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} height={data.length > 8 ? 50 : 30} axisLine={axisLine} tickLine={false} />
+        <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} width={36} />
+        <Tooltip {...tooltip} />
+        <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} maxBarSize={44}>
           {colorForName && data.map((d, i) => <Cell key={i} fill={colorForName(d.name) || color} />)}
+          <LabelList dataKey={dataKey} position="top" style={valueLabel} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -67,10 +101,10 @@ export function GroupedBarChart({ data, bars }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-        <XAxis dataKey="name" tick={axisTick} />
-        <YAxis allowDecimals={false} tick={axisTick} />
-        <Tooltip />
+        <CartesianGrid vertical={false} {...grid} />
+        <XAxis dataKey="name" tick={axisTick} axisLine={axisLine} tickLine={false} />
+        <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} width={36} />
+        <Tooltip {...tooltip} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         {bars.map((b, i) => (
           <Bar key={b.dataKey} dataKey={b.dataKey} name={b.label} fill={b.color || PALETTE[i % PALETTE.length]} radius={[4, 4, 0, 0]} />
@@ -85,13 +119,13 @@ export function MultiLineChart({ data, lines, xKey = 'date' }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-        <XAxis dataKey={xKey} tick={axisTick} />
-        <YAxis allowDecimals={false} tick={axisTick} />
-        <Tooltip />
+        <CartesianGrid vertical={false} {...grid} />
+        <XAxis dataKey={xKey} tick={axisTick} axisLine={axisLine} tickLine={false} minTickGap={16} />
+        <YAxis allowDecimals={false} tick={axisTick} axisLine={false} tickLine={false} width={36} />
+        <Tooltip {...tooltip} />
         {lines.length > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
         {lines.map((l, i) => (
-          <Line key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.label} stroke={l.color || PALETTE[i % PALETTE.length]} strokeWidth={2} dot={false} />
+          <Line key={l.dataKey} type="linear" dataKey={l.dataKey} name={l.label} stroke={l.color || PALETTE[i % PALETTE.length]} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
         ))}
       </LineChart>
     </ResponsiveContainer>
@@ -108,7 +142,7 @@ export function DonutChart({ data, dataKey = 'count' }) {
         <Pie data={data} dataKey={dataKey} nameKey="name" innerRadius="55%" outerRadius="85%" paddingAngle={2}>
           {data.map((d, i) => <Cell key={d.name ?? i} fill={PALETTE[i % PALETTE.length]} />)}
         </Pie>
-        <Tooltip />
+        <Tooltip {...tooltip} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
       </PieChart>
     </ResponsiveContainer>
@@ -138,7 +172,7 @@ export function SortableTable({ columns, rows, onRowClick, emptyMessage = 'No da
   return (
     <div className="card overflow-x-auto">
       <table className="min-w-full divide-y divide-navy-100">
-        <thead className="bg-navy-50">
+        <thead>
           <tr>
             {columns.map((c) => (
               <th key={c.key} className="table-th cursor-pointer select-none" onClick={() => toggleSort(c.key)}>
@@ -149,7 +183,7 @@ export function SortableTable({ columns, rows, onRowClick, emptyMessage = 'No da
         </thead>
         <tbody className="divide-y divide-navy-100">
           {sorted.map((row, i) => (
-            <tr key={row.key ?? row.id ?? i} className={onRowClick ? 'cursor-pointer hover:bg-navy-50' : 'hover:bg-navy-50'} onClick={() => onRowClick && onRowClick(row)}>
+            <tr key={row.key ?? row.id ?? i} className={onRowClick ? 'cursor-pointer hover:bg-[var(--color-hover)]' : 'hover:bg-[var(--color-hover)]'} onClick={() => onRowClick && onRowClick(row)}>
               {columns.map((c) => (
                 <td key={c.key} className="table-td">{c.render ? c.render(row) : (row[c.key] ?? '—')}</td>
               ))}

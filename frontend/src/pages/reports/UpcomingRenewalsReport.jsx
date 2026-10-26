@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
@@ -23,7 +24,7 @@ export default function UpcomingRenewalsReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   return (

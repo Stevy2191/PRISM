@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
@@ -34,7 +35,7 @@ export default function TicketVolumeReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   const statusColor = new Map(statuses.map((s) => [s.name, s.color]));
@@ -55,16 +56,16 @@ export default function TicketVolumeReport({ filters, onForbidden }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
         <ChartCard title="Tickets by status">
-          <SimpleBarChart data={data.chartData.byStatus} color={PALETTE[0]} colorForName={colorForStatus} />
+          <SimpleBarChart data={data.chartData.byStatus} colorForName={colorForStatus} />
         </ChartCard>
         <ChartCard title="Tickets by type">
-          <SimpleBarChart data={data.chartData.byType} color={PALETTE[1]} />
+          <SimpleBarChart data={data.chartData.byType} />
         </ChartCard>
         <ChartCard title="Tickets by priority">
-          <SimpleBarChart data={data.chartData.byPriority} color={PALETTE[4]} />
+          <SimpleBarChart data={data.chartData.byPriority} />
         </ChartCard>
         <ChartCard title="Tickets by source">
-          <SimpleBarChart data={data.chartData.bySource} color={PALETTE[2]} />
+          <SimpleBarChart data={data.chartData.bySource} />
         </ChartCard>
       </div>
 

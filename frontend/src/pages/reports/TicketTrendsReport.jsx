@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
@@ -27,7 +28,7 @@ export default function TicketTrendsReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   return (
@@ -54,15 +55,15 @@ export default function TicketTrendsReport({ filters, onForbidden }) {
       </div>
 
       <ChartCard title="Tickets by department (contact's department)">
-        <SimpleBarChart data={data.chartData.byDepartment} color={PALETTE[1]} />
+        <SimpleBarChart data={data.chartData.byDepartment} />
       </ChartCard>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard title="Tickets by day of week">
-          <SimpleBarChart data={data.chartData.byDayOfWeek} color={PALETTE[3]} />
+          <SimpleBarChart data={data.chartData.byDayOfWeek} />
         </ChartCard>
         <ChartCard title="Tickets by hour of day">
-          <SimpleBarChart data={data.chartData.byHourOfDay} color={PALETTE[5]} />
+          <SimpleBarChart data={data.chartData.byHourOfDay} />
         </ChartCard>
       </div>
     </div>

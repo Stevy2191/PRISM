@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
@@ -43,7 +44,7 @@ export default function CustomerWaitingReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   const { summary } = data;
@@ -61,10 +62,10 @@ export default function CustomerWaitingReport({ filters, onForbidden }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard title="Average hours waiting per ticket, by tech">
-          <SimpleBarChart data={data.byTech} dataKey="avgWaitingHours" color={PALETTE[0]} />
+          <SimpleBarChart data={data.byTech} dataKey="avgWaitingHours" />
         </ChartCard>
         <ChartCard title="Average hours waiting per ticket, by company">
-          <SimpleBarChart data={data.byCompany} dataKey="avgWaitingHours" color={PALETTE[1]} />
+          <SimpleBarChart data={data.byCompany} dataKey="avgWaitingHours" />
         </ChartCard>
       </div>
 

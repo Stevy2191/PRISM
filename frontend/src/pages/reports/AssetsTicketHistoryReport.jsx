@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
@@ -27,7 +28,7 @@ export default function AssetsTicketHistoryReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   return (
@@ -38,7 +39,7 @@ export default function AssetsTicketHistoryReport({ filters, onForbidden }) {
         <StatCard label="Assets with tickets" value={data.summary.assetsWithTickets} />
       </div>
       <ChartCard title="Top 10 assets by ticket count">
-        <SimpleBarChart data={data.chartData.topAssets} color={PALETTE[4]} />
+        <SimpleBarChart data={data.chartData.topAssets} />
       </ChartCard>
       <SortableTable columns={data.tableData.columns} rows={data.tableData.rows} />
     </div>

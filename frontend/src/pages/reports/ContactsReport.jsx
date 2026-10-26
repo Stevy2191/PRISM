@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
@@ -27,7 +28,7 @@ export default function ContactsReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   const deptNames = [...new Set(data.chartData.submissionsByDeptOverTime.flatMap((row) => Object.keys(row).filter((k) => k !== 'date')))];
@@ -44,10 +45,10 @@ export default function ContactsReport({ filters, onForbidden }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard title="Tickets per department">
-          <SimpleBarChart data={data.chartData.byDepartment} color={PALETTE[0]} />
+          <SimpleBarChart data={data.chartData.byDepartment} />
         </ChartCard>
         <ChartCard title="Top 10 contacts by ticket count">
-          <SimpleBarChart data={data.chartData.topContacts} color={PALETTE[1]} />
+          <SimpleBarChart data={data.chartData.topContacts} />
         </ChartCard>
       </div>
 

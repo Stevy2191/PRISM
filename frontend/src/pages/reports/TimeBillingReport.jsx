@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
@@ -28,7 +29,7 @@ export default function TimeBillingReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   return (
@@ -41,10 +42,10 @@ export default function TimeBillingReport({ filters, onForbidden }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard title="Hours logged per tech">
-          <SimpleBarChart data={data.chartData.byTech} dataKey="hours" color={PALETTE[0]} />
+          <SimpleBarChart data={data.chartData.byTech} dataKey="hours" />
         </ChartCard>
         <ChartCard title="Hours logged per department">
-          <SimpleBarChart data={data.chartData.byDepartment} dataKey="hours" color={PALETTE[1]} />
+          <SimpleBarChart data={data.chartData.byDepartment} dataKey="hours" />
         </ChartCard>
       </div>
 
@@ -53,7 +54,7 @@ export default function TimeBillingReport({ filters, onForbidden }) {
           <MultiLineChart data={data.chartData.overTime} lines={[{ dataKey: 'hours', label: 'Hours', color: PALETTE[2] }]} />
         </ChartCard>
         <ChartCard title="Hours logged per ticket type">
-          <SimpleBarChart data={data.chartData.byType} dataKey="hours" color={PALETTE[3]} />
+          <SimpleBarChart data={data.chartData.byType} dataKey="hours" />
         </ChartCard>
       </div>
 

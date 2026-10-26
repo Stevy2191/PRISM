@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../../components/ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
@@ -25,7 +26,7 @@ export default function AssetsInventoryReport({ filters, onForbidden }) {
   }, [filters, onForbidden]);
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!data) return null;
 
   return (
@@ -35,10 +36,10 @@ export default function AssetsInventoryReport({ filters, onForbidden }) {
       </div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard title="By category">
-          <SimpleBarChart data={data.chartData.byCategory} color={PALETTE[0]} />
+          <SimpleBarChart data={data.chartData.byCategory} />
         </ChartCard>
         <ChartCard title="By status">
-          <SimpleBarChart data={data.chartData.byStatus} color={PALETTE[2]} />
+          <SimpleBarChart data={data.chartData.byStatus} />
         </ChartCard>
       </div>
       <SortableTable columns={data.tableData.columns} rows={data.tableData.rows} />
