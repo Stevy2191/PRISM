@@ -52,6 +52,8 @@ import SettingsTicketCategories from './pages/settings/TicketCategories';
 import SettingsRecurringTickets from './pages/settings/RecurringTickets';
 import RecurringTicketEditor from './pages/settings/RecurringTicketEditor';
 import SettingsSingleSignOn from './pages/settings/SingleSignOn';
+import SettingsProjectTemplates from './pages/settings/ProjectTemplates';
+import ProjectTemplateEditor from './pages/settings/ProjectTemplateEditor';
 import SLAs from './pages/settings/SLAs';
 import Schedules from './pages/settings/Schedules';
 import SettingsImport from './pages/settings/Import';
@@ -115,6 +117,7 @@ const SETTINGS_COMPONENTS = {
   'workflow-rules': WorkflowRules, 'canned-responses': SettingsCannedResponses, 'ticket-categories': SettingsTicketCategories,
   'recurring-tickets': SettingsRecurringTickets, 'recurring-ticket-new': RecurringTicketEditor, 'recurring-ticket-edit': RecurringTicketEditor,
   'workflow-rule-new': WorkflowRuleEditor, 'workflow-rule-edit': WorkflowRuleEditor,
+  'project-templates': SettingsProjectTemplates, 'project-template-new': ProjectTemplateEditor, 'project-template-edit': ProjectTemplateEditor,
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
   slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays,
   'time-tracking': SettingsTimeTracking, 'work-types': SettingsWorkTypes,

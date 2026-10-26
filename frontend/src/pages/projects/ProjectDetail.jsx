@@ -205,6 +205,7 @@ export default function ProjectDetail() {
         isStaff={isStaff}
         canLogTime={canLogTime}
         canDelete={canDeleteProjects && !!project.access?.delete}
+        canSaveTemplate={hasAnyPermission(['projects.manage_templates'])}
         patchProject={patchProject}
         onStopRequest={setStoppedTimer}
         onAddTask={() => { setTab('tasks'); setAddFocus((n) => n + 1); }}

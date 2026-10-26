@@ -9,7 +9,7 @@ const auth = (perms = [], { role = 'technician', isOwner = false } = {}) => ({
 });
 const owner = auth(['settings.manage_system', 'settings.manage_branding', 'settings.manage_statuses',
   'settings.manage_business_hours', 'settings.view_audit_log', 'people.view_all', 'people.create_users',
-  'people.manage_departments', 'people.manage_roles', 'companies.view'], { role: 'admin', isOwner: true });
+  'people.manage_departments', 'people.manage_roles', 'companies.view', 'projects.manage_templates'], { role: 'admin', isOwner: true });
 
 test('every page has a known group, a name, a description, a path and a width', () => {
   for (const p of PAGES) {
@@ -82,4 +82,15 @@ test('visibleGroups keeps the menu order and drops groups with nothing to open',
   // Non-owner administrators see only the email templates under Sign-in & email.
   const sysadmin = visibleGroups({ ...owner, isOwner: false });
   assert.deepEqual(sysadmin.find((g) => g.name === 'Sign-in & email').pages.map((p) => p.id), ['email-templates']);
+});
+
+test('project-templates is in group Projects and needs projects.manage_templates', () => {
+  const page = PAGES.find((p) => p.id === 'project-templates');
+  assert.equal(page.group, 'Projects');
+  assert.deepEqual(page.access, { permission: ['projects.manage_templates'] });
+  assert.equal(page.width, 'wide');
+  assert.deepEqual(page.sub.map((s) => s.path), ['/settings/project-templates/new', '/settings/project-templates/:id']);
+  assert.equal(canOpen(page.access, auth()), false);
+  assert.equal(canOpen(page.access, auth(['projects.manage_templates'])), true);
+  assert.ok(GROUPS.includes('Projects'));
 });

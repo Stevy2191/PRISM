@@ -2,7 +2,9 @@
 // and lead, and the actions (timer, Add task, a "more" menu).
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { IconDots, IconPlus, IconFileText, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconDots, IconPlus, IconFileText, IconPencil, IconTrash, IconTemplate } from '@tabler/icons-react';
+import api, { errMessage } from '../../../api/api';
+import Modal from '../../../components/Modal';
 import CompanyTag from '../../../components/companies/CompanyTag';
 import TimerButton from '../../../components/work/TimerButton';
 import Button from '../../../components/ui/Button';
@@ -49,7 +51,7 @@ function MoreMenu({ items }) {
 }
 
 export default function ProjectHeader({
-  project, statusMeta, canEdit, isStaff, canLogTime, canDelete, patchProject, onStopRequest, onAddTask, onReport, onDelete,
+  project, statusMeta, canEdit, isStaff, canLogTime, canDelete, canSaveTemplate, patchProject, onStopRequest, onAddTask, onReport, onDelete,
 }) {
   const navigate = useNavigate();
   const [editingName, setEditingName] = useState(false);
@@ -61,10 +63,11 @@ export default function ProjectHeader({
     setEditingName(false);
   };
 
-  // Save as template joins this menu when templates exist (sub-project 6, later).
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const menu = [];
   if (canEdit) menu.push({ label: 'Rename', icon: <IconPencil size={15} />, onClick: startRename });
   if (isStaff) menu.push({ label: 'Generate report', icon: <IconFileText size={15} />, onClick: onReport });
+  if (canSaveTemplate) menu.push({ label: 'Save as template', icon: <IconTemplate size={15} />, onClick: () => setSavingTemplate(true) });
   if (canDelete) menu.push({ label: 'Delete', icon: <IconTrash size={15} />, onClick: onDelete, danger: true });
 
   return (
@@ -127,6 +130,43 @@ export default function ProjectHeader({
           </div>
         )}
       </section>
+      {savingTemplate && <SaveTemplateModal project={project} onClose={() => setSavingTemplate(false)} onSaved={(id) => navigate(`/settings/project-templates/${id}`)} />}
     </>
+  );
+}
+
+// Asks for a name, then makes a template from the project's phases, tasks and
+// links (never people, time or files) and opens it in Settings.
+function SaveTemplateModal({ project, onClose, onSaved }) {
+  const [name, setName] = useState(project.name);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const { data } = await api.post(`/projects/${project.id}/save-as-template`, { name: name.trim() });
+      onSaved(data.template.id);
+    } catch (err) {
+      setError(errMessage(err));
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal title="Save as template" onClose={onClose}>
+      <form onSubmit={save} className="space-y-4">
+        <p className="text-sm text-navy-500">Keeps the phases, tasks, dates (as days from the start), estimates, links, hour budget and tags. People, time and files are left out.</p>
+        {error && <p role="alert" className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</p>}
+        <div>
+          <label className="label" htmlFor="template-name">Template name</label>
+          <input id="template-name" autoFocus required maxLength={150} className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose}>Cancel</Button>
+          <Button variant="primary" type="submit" disabled={busy || !name.trim()}>Save template</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
