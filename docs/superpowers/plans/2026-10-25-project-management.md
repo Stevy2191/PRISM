@@ -423,7 +423,7 @@
   - **People:** the assignable staff list, filtered by team.
 - `GET /workload?from&days&today&teamId&kinds`
 
-- [ ] Tests:
+- [x] Tests:
   - Unit:
     - `default hours Mon–Fri 8h, weekend 0`
     - `holiday capacity 0`
@@ -446,8 +446,8 @@
     - `work-hours PATCH validates 0–1440 and needs settings.manage_business_hours`
     - `defaultTicketMinutes outside 15–1440 → 400`
   - Migration: `round trip`
-- [ ] Implement, migrate the test DB, and run.
-- [ ] Commit `feat(workload): capacity, ticket planned date, workload API`.
+- [x] Implement, migrate the test DB, and run.
+- [x] Commit `feat(workload): capacity, ticket planned date, workload API`.
 
 ### Task 13: Workload screen, dispatch, Settings pages, nav
 
@@ -460,7 +460,7 @@
 - Consumes: `GET /workload` (Task 12); `PATCH /tickets/:id {assigneeId, plannedDate}`; `PATCH /projects/:id/tasks/:taskId {assigneeId, startDate, dueDate}`.
 - Produces: `dropPatch(item, personId, date) → { url, body }`. A ticket gets assignee + plannedDate. A dated task keeps its length with start = date. An undated task gets start = due = date. Dropping on the "No date" column changes only the assignee.
 
-- [ ] Tests:
+- [x] Tests:
   - Dragging a task between people changes only the main assignee; helpers stay.
   - Unit: `ticket drop sets plannedDate not dueDate`, `dated task keeps its length`, `undated task gets one day`, `No date column only reassigns`
   - Smoke:
@@ -471,8 +471,8 @@
     - `nav shows Workload only with workload.view`
     - `Hours people work saves a 6h override`
     - `Holidays appears under Workload in Settings`
-- [ ] Implement against the Workload board and run.
-- [ ] Commit `feat(workload): workload screen with drag-to-dispatch, hours people work`.
+- [x] Implement against the Workload board and run.
+- [x] Commit `feat(workload): workload screen with drag-to-dispatch, hours people work`.
 
 ## Stage 7 — Phone and finish
 
