@@ -344,7 +344,7 @@ const create = asyncHandler(async (req, res) => {
     let created;
     if (origin) {
       created = await templates.instantiate(req, origin.shape, {
-        values, startDate: start, finishDate: finish, templateId: origin.templateId,
+        values, startDate: start, finishDate: finish, templateId: origin.templateId, tagsGiven: Array.isArray(tags),
       }, t);
     } else {
       created = await Project.create({ ...values, startDate: start || null }, { transaction: t });

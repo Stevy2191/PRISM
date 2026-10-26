@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { previewSummary, createBody } from './newProject.js';
+import { previewSummary, createBody, finishNote } from './newProject.js';
 
 const plan = {
   phases: [{ id: 1, name: 'Plan' }, { id: 2, name: 'Install' }],
@@ -40,5 +40,13 @@ test('create body: template sends its id and dates; blank sends the finish as th
   assert.equal(b.dueDate, '2026-12-10');
   assert.equal('finishDate' in b, false);
   assert.equal(b.hourBudgetMinutes, null);
+  assert.deepEqual(t.tags, []); // an empty list is sent, so template tags stay off
   assert.equal(createBody({ form, tags: [], origin: 'copy', copyId: '9', memberIds: [] }).copyFromProjectId, '9');
+});
+
+test('finish note names the task that runs past the finish you asked for', () => {
+  assert.equal(finishNote(plan, '2026-12-10'), '');
+  assert.equal(finishNote(plan, ''), '');
+  assert.match(finishNote(plan, '2026-12-05'), /Finishes Dec 10 because Signed off waits on A/);
+  assert.match(finishNote({ ...plan, dependencies: [] }, '2026-12-05'), /Finishes Dec 10 because some tasks wait on others/);
 });

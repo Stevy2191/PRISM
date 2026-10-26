@@ -1,10 +1,11 @@
 // "What you'll get": the phases of the chosen template with the dates they
 // will get (from /project-templates/:id/preview).
 import { hoursInput } from '../detail/budgetFormat';
+import { weekdayDate } from '../detail/taskFilters';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-function Body({ origin, template, summary, error, finishBeforeStart, copyName }) {
+function Body({ origin, template, summary, error, finishBeforeStart, copyName, note }) {
   if (origin === 'blank') return <p className="hint text-sm text-navy-400">An empty project. Add phases and tasks on the project page once it exists.</p>;
   if (origin === 'copy') {
     return <p className="text-sm text-navy-400">{copyName ? `Phases, tasks and links from ${copyName}, with their dates spread from your start date.` : 'Pick a project to copy.'} Tasks arrive unassigned.</p>;
@@ -34,6 +35,12 @@ function Body({ origin, template, summary, error, finishBeforeStart, copyName })
         ))}
         {summary.phases.length === 0 && <p className="text-sm text-navy-400">This template has no phases.</p>}
       </div>
+      {summary.finishDate && (
+        <p className="m-0 text-[13px] text-navy-600" data-testid="plan-finish">
+          Finishes <span className="num font-semibold">{weekdayDate(summary.finishDate)}</span>
+          {note && <span className="mt-0.5 block" style={{ color: 'var(--color-warning)' }}>{note}</span>}
+        </p>
+      )}
       <div className="flex justify-between border-t border-navy-200 pt-2.5 font-semibold">
         <span>{plural(summary.taskCount, 'task')}{summary.linkCount ? `, ${plural(summary.linkCount, 'link')} between them` : ''}</span>
         <span className="num">{summary.minutes ? `${hoursInput(summary.minutes)} h` : ''}</span>

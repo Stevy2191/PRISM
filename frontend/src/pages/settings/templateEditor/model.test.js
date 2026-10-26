@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   fromServer, toPayload, rowsFor, addTask, addPhase, addWait, removeWait, removeTask, removePhase,
-  moveTask, moveTaskToPhase, movePhase, setMilestone, phaseSummary,
+  moveTask, moveTaskToPhase, movePhase, setMilestone, phaseSummary, addSubtask,
 } from './model.js';
 
 const base = () => fromServer({
@@ -70,4 +70,15 @@ test('milestone toggle zeroes the length; not with subtasks', () => {
 test('phase summary: first day, days taken and estimate', () => {
   assert.deepEqual(phaseSummary(base(), 1), { start: 1, days: 3, minutes: 90 });
   assert.equal(phaseSummary(addPhase(base(), 'Empty'), 'n-none'), null);
+});
+
+test('a subtask goes under its task after the others; not under a milestone or a subtask', () => {
+  const s = addSubtask(base(), 10, 'A sub 2');
+  assert.deepEqual(titles(s), ['[Plan]', 'A', 'A sub', 'A sub 2', 'B', '[Build]', 'C']);
+  const added = s.tasks.find((t) => t.title === 'A sub 2');
+  assert.equal(added.parentId, 10);
+  assert.equal(added.phaseId, null);
+  assert.equal(addSubtask(base(), 11, 'x').tasks.length, 4);
+  assert.equal(addSubtask(setMilestone(base(), 12, true), 12, 'x').tasks.length, 4);
+  assert.equal(toPayload(s).body.tasks.at(2).parentId, 10);
 });

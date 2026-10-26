@@ -1,6 +1,6 @@
 // Pure helpers for the New project screen (sub-project 6). Dates are
 // 'YYYY-MM-DD' strings and are only compared and formatted, never added to.
-import { dateRange, weekdayDate } from './detail/taskFilters.js';
+import { dateRange, shortDate, weekdayDate } from './detail/taskFilters.js';
 
 const sameId = (a, b) => String(a) === String(b);
 
@@ -47,7 +47,7 @@ export function createBody({
     forDepartmentId: form.forDepartmentId || undefined,
     companyId: form.companyId || undefined,
     assignedToUserId: form.assignedToUserId || null,
-    tags: tags.length ? tags : undefined,
+    tags, // always sent: [] means no tags, absent means "take the template's"
     memberIds,
   };
   if (form.startDate) body.startDate = form.startDate;
@@ -57,4 +57,16 @@ export function createBody({
   if (origin === 'blank' && form.finishDate) body.dueDate = form.finishDate;
   if (budget !== undefined) body.hourBudgetMinutes = budget;
   return body;
+}
+
+// Why the plan ends later than the finish date asked for (a task that waits on
+// another is pushed past it), or '' when it ends on time.
+export function finishNote(plan, requested) {
+  const finish = plan?.finishDate;
+  if (!finish || !requested || finish <= requested) return '';
+  const last = (plan.tasks || []).filter((t) => t.parentId == null && t.dueDate === finish && t.startDate)[0];
+  const waits = (plan.dependencies || []).filter((d) => last && sameId(d.successorId, last.id));
+  const before = waits.map((d) => (plan.tasks || []).find((t) => sameId(t.id, d.predecessorId))).filter(Boolean).sort((a, b) => (a.dueDate < b.dueDate ? 1 : -1))[0];
+  const because = last && before ? `${last.title} waits on ${before.title}` : 'some tasks wait on others';
+  return `Finishes ${shortDate(finish)} because ${because}`;
 }

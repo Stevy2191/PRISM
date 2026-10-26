@@ -114,6 +114,21 @@ function lastIndexOfPhase(s, phaseId) {
   return last < 0 ? s.tasks.length : last + 1;
 }
 
+// A subtask goes under a task (one level only, never under a milestone), after
+// its other subtasks, starting with its parent.
+export function addSubtask(s, parentId, title) {
+  const parent = s.tasks.find((t) => sameId(t.id, parentId));
+  if (!parent || parent.parentId != null || parent.isMilestone) return s;
+  const task = {
+    id: newId(), parentId: parent.id, phaseId: null, title, description: null, startDay: parent.startDay, lengthDays: 1, estimateMinutes: null, priority: 'medium', isMilestone: false,
+  };
+  let at = s.tasks.findIndex((t) => sameId(t.id, parentId)) + 1;
+  while (at < s.tasks.length && s.tasks[at].parentId != null && sameId(s.tasks[at].parentId, parentId)) at += 1;
+  const tasks = [...s.tasks];
+  tasks.splice(at, 0, task);
+  return { ...s, tasks };
+}
+
 export function updateTask(s, id, patch) {
   return { ...s, tasks: s.tasks.map((t) => (sameId(t.id, id) ? { ...t, ...patch } : t)) };
 }

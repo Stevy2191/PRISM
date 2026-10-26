@@ -11,9 +11,10 @@ import TagInput from '../../components/TagInput';
 import Button from '../../components/ui/Button';
 import Field from '../../components/ui/Field';
 import Notice from '../../components/ui/Notice';
+import useUnsavedGuard from './templateEditor/useUnsavedGuard';
 import { AddRow, GRID, PhaseRow, TaskRow } from './templateEditor/Row';
 import {
-  addPhase, addTask, addWait, emptyTemplate, fromServer, movePhase, moveTask, moveTaskToPhase, phaseSummary,
+  addPhase, addSubtask, addTask, addWait, emptyTemplate, fromServer, movePhase, moveTask, moveTaskToPhase, phaseSummary,
   removePhase, removeTask, removeWait, renamePhase, rowsFor, setMilestone, toPayload, updateTask,
 } from './templateEditor/model';
 
@@ -28,15 +29,22 @@ export default function ProjectTemplateEditor() {
   const [loading, setLoading] = useState(!isNew);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(JSON.stringify(emptyTemplate())); // what the server has
+  const [justSaved, setJustSaved] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [subFor, setSubFor] = useState(null); // task whose "add a subtask" box is open
+  const dirty = !loading && !loadFailed && JSON.stringify(s) !== saved;
+  useUnsavedGuard(dirty);
   const [drag, setDrag] = useState(null); // { kind: 'task'|'phase', id }
   const [over, setOver] = useState(null);
 
   useEffect(() => {
-    if (isNew) { setS(emptyTemplate()); setLoading(false); return; }
+    setLoadFailed(false);
+    if (isNew) { setS(emptyTemplate()); setSaved(JSON.stringify(emptyTemplate())); setLoading(false); return; }
     setLoading(true);
     api.get(`/project-templates/${id}`)
-      .then(({ data }) => { setS(fromServer(data.template)); setMeta({ usedCount: data.template.usedCount, sourceProjectId: data.template.sourceProjectId }); })
-      .catch((err) => { setError(errMessage(err)); })
+      .then(({ data }) => { const loaded = fromServer(data.template); setS(loaded); setSaved(JSON.stringify(loaded)); setMeta({ usedCount: data.template.usedCount, sourceProjectId: data.template.sourceProjectId }); })
+      .catch((err) => { setError(errMessage(err)); setLoadFailed(true); })
       .finally(() => setLoading(false));
   }, [id, isNew]);
 
@@ -44,21 +52,34 @@ export default function ProjectTemplateEditor() {
   const rows = rowsFor(s);
   const topTasks = s.tasks.filter((t) => t.parentId == null);
 
+  // Resolves true once saved, so "Start a project from this" can wait for it.
   const save = async () => {
     setError('');
-    if (!s.name.trim()) { setError('Template name is required'); return; }
+    if (!s.name.trim()) { setError('Template name is required'); return false; }
     const { body, error: bad } = toPayload(s);
-    if (bad) { setError(bad); return; }
+    if (bad) { setError(bad); return false; }
     setSaving(true);
     try {
       const { data } = isNew ? await api.post('/project-templates', body) : await api.put(`/project-templates/${id}`, body);
+      const fresh = fromServer(data.template);
+      setSaved(JSON.stringify(fresh));
+      setS(fresh);
+      setMeta({ usedCount: data.template.usedCount, sourceProjectId: data.template.sourceProjectId });
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 3000);
       if (isNew) navigate(`/settings/project-templates/${data.template.id}`, { replace: true });
-      else { setS(fromServer(data.template)); setMeta({ usedCount: data.template.usedCount, sourceProjectId: data.template.sourceProjectId }); }
+      return true;
     } catch (err) {
       setError(errMessage(err));
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const startProject = async () => {
+    if (dirty && !(window.confirm('Save your changes first? The new project is made from the saved template.') && await save())) return;
+    navigate(`/projects/new?template=${id}`);
   };
 
   const remove = async () => {
@@ -95,6 +116,15 @@ export default function ProjectTemplateEditor() {
   };
 
   if (loading) return <Spinner />;
+  // A template that did not load must not be editable: saving would replace it.
+  if (loadFailed) {
+    return (
+      <SettingsPage title="Project template" description="">
+        <Notice tone="bad">{error}</Notice>
+        <Link to="/settings/project-templates" className="text-sm hover:underline" style={{ color: 'var(--color-accent)' }}>Back to all templates</Link>
+      </SettingsPage>
+    );
+  }
   const titleOf = (tid) => s.tasks.find((t) => same(t.id, tid))?.title || '';
 
   return (
@@ -104,8 +134,9 @@ export default function ProjectTemplateEditor() {
       actions={(
         <>
           <Link to="/settings/project-templates" className="text-sm hover:underline" style={{ color: 'var(--color-accent)' }}>All templates</Link>
-          {!isNew && <Button onClick={() => navigate(`/projects/new?template=${id}`)}>Start a project from this</Button>}
+          {!isNew && <Button onClick={startProject}>Start a project from this</Button>}
           {!isNew && <Button variant="quiet" onClick={remove} style={{ color: 'var(--color-danger)' }}>Delete</Button>}
+          {justSaved && <span role="status" className="text-sm" style={{ color: 'var(--color-accent)' }}>Saved</span>}
           <Button variant="primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save template'}</Button>
         </>
       )}
@@ -147,7 +178,7 @@ export default function ProjectTemplateEditor() {
                   phase={p}
                   rows={rows}
                   render={(row) => (
-                    <TaskLine key={`t${row.task.id}`} row={row} s={s} over={over} dragFor={dragFor} dropOnTask={dropOnTask} nudgeTask={nudgeTask} edit={edit} topTasks={topTasks} titleOf={titleOf} />
+                    <TaskLine key={`t${row.task.id}`} row={row} s={s} over={over} dragFor={dragFor} dropOnTask={dropOnTask} nudgeTask={nudgeTask} edit={edit} topTasks={topTasks} titleOf={titleOf} subFor={subFor} setSubFor={setSubFor} />
                   )}
                 />
                 <AddRow label={`Add a task to ${p.name}`} placeholder={`Add a task to ${p.name}, press Enter`} onAdd={(title) => edit((c) => addTask(c, p.id, title))} />
@@ -156,7 +187,7 @@ export default function ProjectTemplateEditor() {
           }
           return null;
         })}
-        <LooseTasks rows={rows} s={s} over={over} dragFor={dragFor} dropOnTask={dropOnTask} nudgeTask={nudgeTask} edit={edit} topTasks={topTasks} titleOf={titleOf} />
+        <LooseTasks rows={rows} s={s} over={over} dragFor={dragFor} dropOnTask={dropOnTask} nudgeTask={nudgeTask} edit={edit} topTasks={topTasks} titleOf={titleOf} subFor={subFor} setSubFor={setSubFor} />
         <AddRow indent={false} label="Add a phase" placeholder="Add a phase, press Enter" onAdd={(name) => edit((c) => addPhase(c, name))} />
         <p className="px-4 py-3 text-xs text-navy-400">Day 1 is the project&apos;s start date. Assignees aren&apos;t kept in templates.</p>
       </div>
@@ -186,12 +217,13 @@ function LooseTasks({ rows, ...rest }) {
 }
 
 function TaskLine({
-  row, s, over, dragFor, dropOnTask, nudgeTask, edit, topTasks, titleOf,
+  row, s, over, dragFor, dropOnTask, nudgeTask, edit, topTasks, titleOf, subFor, setSubFor,
 }) {
   const t = row.task;
   const preds = s.dependencies.filter((d) => same(d.successorId, t.id)).map((d) => ({ id: d.predecessorId, title: titleOf(d.predecessorId) }));
   const others = topTasks.filter((o) => !same(o.id, t.id) && !preds.some((p) => same(p.id, o.id)));
   return (
+    <>
     <TaskRow
       task={t}
       sub={row.sub}
@@ -207,6 +239,17 @@ function TaskLine({
       onRemove={() => edit((c) => removeTask(c, t.id))}
       onAddWait={(pid) => edit((c) => addWait(c, t.id, topTasks.find((o) => same(o.id, pid)).id))}
       onRemoveWait={(pid) => edit((c) => removeWait(c, t.id, pid))}
+      onAddSub={() => setSubFor(t.id)}
     />
+    {subFor != null && same(subFor, t.id) && (
+      <AddRow
+        autoFocus
+        label={`Name the subtask of ${t.title}`}
+        placeholder={`Add a subtask to ${t.title}, press Enter`}
+        onBlur={() => setSubFor(null)}
+        onAdd={(title) => edit((c) => addSubtask(c, t.id, title))}
+      />
+    )}
+    </>
   );
 }

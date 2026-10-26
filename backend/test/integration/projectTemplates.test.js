@@ -89,6 +89,14 @@ describe('create from a template', () => {
     expect(byTitle.Plan.startDate > byTitle.Survey.dueDate).toBe(true);
   });
 
+  it('create from template with tags: [] makes a project with no tags', async () => {
+    const t = await addTemplate();
+    const created = expectOk(await w.admin.agent.post(`${API}/projects`).send(projectBody({ templateId: t.id, tags: [] })), 201).project;
+    expect(created.tags || []).toEqual([]);
+    const kept = expectOk(await w.admin.agent.post(`${API}/projects`).send(projectBody({ templateId: t.id, name: 'Floor 4' })), 201).project;
+    expect(kept.tags).toEqual(['refresh', 'office']);
+  });
+
   it('the form can override budget and tags; bad ids and dates are refused', async () => {
     const t = await addTemplate();
     const created = expectOk(await w.admin.agent.post(`${API}/projects`).send(projectBody({ templateId: t.id, hourBudgetMinutes: 60, tags: ['x'] })), 201).project;

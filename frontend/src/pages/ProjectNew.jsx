@@ -12,7 +12,7 @@ import Field from '../components/ui/Field';
 import Notice from '../components/ui/Notice';
 import { hoursInput, parseHours } from './projects/detail/budgetFormat';
 import { localToday } from './projects/detail/taskFilters';
-import { createBody, previewSummary } from './projects/newProject';
+import { createBody, finishNote, previewSummary } from './projects/newProject';
 import StartFromCards from './projects/new/StartFromCards';
 import PlanPreview from './projects/new/PlanPreview';
 
@@ -47,6 +47,8 @@ export default function ProjectNew() {
   const [templates, setTemplates] = useState([]);
   const [template, setTemplate] = useState(null);
   const [projects, setProjects] = useState(null);
+  const [copySearch, setCopySearch] = useState('');
+  const [copyProject, setCopyProject] = useState(null); // the chosen one, kept even when a search drops it
   const [owners, setOwners] = useState([]);
   const [leads, setLeads] = useState([]);
   // "For department" belongs to the project's company; "Owned by" is always one of ours.
@@ -60,7 +62,7 @@ export default function ProjectNew() {
   const patch = (p) => setForm((f) => ({ ...f, ...p }));
 
   useEffect(() => {
-    api.get('/project-templates').then(({ data }) => setTemplates(data.templates)).catch(() => {});
+    api.get('/project-templates').then(({ data }) => setTemplates(data.templates)).catch((err) => setError(`Couldn't load the templates: ${errMessage(err)}`));
     api.get('/users/assignable').then(({ data }) => setLeads(data.users)).catch(() => {});
     api.get('/departments/owners').then(({ data }) => {
       setOwners(data.departments);
@@ -88,19 +90,25 @@ export default function ProjectNew() {
     return () => { live = false; };
   }, [origin, form.templateId]);
 
-  // Copy lists the projects the normal list lets you see.
+  // Copy lists the projects the normal list lets you see, searched by name.
   useEffect(() => {
-    if (origin !== 'copy' || projects) return;
-    api.get('/projects', { params: { limit: 200 } }).then(({ data }) => setProjects(data.projects)).catch((err) => { setProjects([]); setError(errMessage(err)); });
-  }, [origin, projects]);
+    if (origin !== 'copy') return undefined;
+    const timer = setTimeout(() => {
+      api.get('/projects', { params: { limit: 50, search: copySearch.trim() || undefined } })
+        .then(({ data }) => setProjects(data.projects))
+        .catch((err) => { setProjects([]); setError(errMessage(err)); });
+    }, copySearch ? 250 : 0);
+    return () => clearTimeout(timer);
+  }, [origin, copySearch]);
 
   // The preview, a moment after the dates settle. Until you pick a finish date
   // it is the template's own length, and that fills the Finish date box.
   const finishBeforeStart = form.finishDate && form.startDate && form.finishDate < form.startDate;
+  const askedFinish = finishTouched ? form.finishDate : ''; // the auto-filled finish is an answer, not a question
   useEffect(() => {
-    if (origin !== 'template' || !form.templateId || !form.startDate || (finishTouched && finishBeforeStart)) return undefined;
     const mine = seq.current + 1;
-    seq.current = mine;
+    seq.current = mine; // any older answer still on its way is now stale
+    if (origin !== 'template' || !form.templateId || !form.startDate || (finishTouched && finishBeforeStart)) return undefined;
     const timer = setTimeout(() => {
       const query = { startDate: form.startDate };
       if (finishTouched && form.finishDate) query.finishDate = form.finishDate;
@@ -112,10 +120,14 @@ export default function ProjectNew() {
       }).catch((err) => { if (seq.current === mine) setPreviewError(errMessage(err)); });
     }, 300);
     return () => clearTimeout(timer);
-  }, [origin, form.templateId, form.startDate, form.finishDate, finishTouched]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [origin, form.templateId, form.startDate, askedFinish, finishTouched]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const chooseOrigin = (next, extra = {}) => {
+    seq.current += 1;
     setOrigin(next);
+    setCopyId('');
+    setCopyProject(null);
+    setCopySearch('');
     setFinishTouched(false);
     setBudgetTouched(false);
     setPlan(null);
@@ -155,7 +167,7 @@ export default function ProjectNew() {
 
   const summary = plan ? previewSummary(plan) : null;
   const ownerDepartment = owners.find((d) => String(d.id) === String(form.ownerDepartmentId));
-  const copySource = (projects || []).find((p) => String(p.id) === String(copyId));
+  const copySource = copyProject;
 
   return (
     <div className="mx-auto max-w-[1280px]">
@@ -178,10 +190,14 @@ export default function ProjectNew() {
           />
           {origin === 'copy' && (
             <Field label="Project to copy" hint="Phases, tasks and links come across; people, time and files do not.">
-              <select className="input" value={copyId} onChange={(e) => setCopyId(e.target.value)}>
-                <option value="">{projects ? 'Choose a project' : 'Loading…'}</option>
-                {(projects || []).map((p) => <option key={p.id} value={p.id}>{p.projectCode} {p.name}</option>)}
-              </select>
+              <div className="flex flex-col gap-2">
+                <input className="input" type="search" aria-label="Search projects" placeholder="Search projects by name" value={copySearch} onChange={(e) => setCopySearch(e.target.value)} />
+                <select className="input" aria-label="Project to copy" value={copyId} onChange={(e) => { setCopyId(e.target.value); setCopyProject((projects || []).find((p) => String(p.id) === e.target.value) || null); }}>
+                  <option value="">{projects ? 'Choose a project' : 'Loading…'}</option>
+                  {copyProject && !(projects || []).some((p) => p.id === copyProject.id) && <option value={copyProject.id}>{copyProject.projectCode} {copyProject.name}</option>}
+                  {(projects || []).map((p) => <option key={p.id} value={p.id}>{p.projectCode} {p.name}</option>)}
+                </select>
+              </div>
             </Field>
           )}
           <Field label="Project name"><input className="input" required maxLength={255} value={form.name} onChange={(e) => patch({ name: e.target.value })} /></Field>
@@ -244,7 +260,7 @@ export default function ProjectNew() {
             <Button variant="primary" type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create project'}</Button>
           </div>
         </form>
-        <PlanPreview origin={origin} template={template} summary={summary} error={previewError} finishBeforeStart={finishBeforeStart} copyName={copySource?.name} />
+        <PlanPreview origin={origin} template={template} summary={summary} error={previewError} finishBeforeStart={finishBeforeStart} note={finishNote(plan, finishTouched ? form.finishDate : '')} copyName={copySource?.name} />
       </div>
     </div>
   );

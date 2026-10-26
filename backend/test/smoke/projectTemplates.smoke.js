@@ -13,6 +13,9 @@ const waitFor = (page, method, part) => page.waitForResponse((r) => r.request().
 let smoke;
 let w;
 let template;
+let admin;
+// One sign-in for the file: the login endpoint is rate limited.
+const adminPage = async () => { admin = admin || await smoke.pageAs('admin'); return admin; };
 beforeAll(async () => {
   smoke = await startSmoke();
   await resetData();
@@ -34,7 +37,7 @@ beforeAll(async () => {
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 
 it('edit a template: add a task under a phase, set Waits on, save', async () => {
-  const page = await smoke.pageAs('admin');
+  const page = await adminPage();
   await page.goto(`/settings/project-templates/${template.id}`);
   await page.getByLabel('Template name').filter({ visible: true }).first().waitFor();
   const input = page.getByLabel('Add a task to Install').filter({ visible: true }).first();
@@ -57,7 +60,7 @@ const startFrom = (page, name) => page.getByRole('button', { name: new RegExp(`^
 const previewDates = async (page) => page.getByRole('complementary', { name: /What the template will create/ }).innerText();
 
 it('New project from a template: changing finish date updates the preview dates', async () => {
-  const page = await smoke.pageAs('admin');
+  const page = await adminPage();
   await page.goto('/projects/new');
   await startFrom(page, 'Network refresh');
   await page.getByLabel('Start date').fill('2026-11-16');
@@ -76,7 +79,7 @@ it('New project from a template: changing finish date updates the preview dates'
 });
 
 it('Create project lands on the new project with its phases', async () => {
-  const page = await smoke.pageAs('admin');
+  const page = await adminPage();
   await page.goto('/projects/new');
   await startFrom(page, 'Network refresh');
   await page.getByLabel('Start date').fill('2026-11-16');
@@ -99,7 +102,7 @@ it('Copy an existing project lists only projects I can see', async () => {
   await page.goto('/projects/new');
   await startFrom(page, 'Copy an existing project');
   const pick = page.getByLabel('Project to copy');
-  await pick.waitFor();
+  await pick.locator('option', { hasText: 'Visible job' }).waitFor({ state: 'attached' });
   const options = await pick.locator('option').allInnerTexts();
   expect(options.some((o) => o.includes('Visible job'))).toBe(true);
   expect(options.some((o) => o.includes('Hidden job'))).toBe(false);
@@ -109,7 +112,7 @@ it('Save as template from the project menu opens the new template', async () => 
   const a = w.admin.agent;
   const project = await makeProject(a, { name: 'Clinic move', ownerDepartmentId: w.deptA.id });
   await makeTask(a, project.id, { title: 'Pack boxes' });
-  const page = await smoke.pageAs('admin');
+  const page = await adminPage();
   await page.goto(`/projects/${project.id}`);
   await page.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
   await page.getByRole('menuitem', { name: 'Save as template' }).click();
@@ -118,4 +121,63 @@ it('Save as template from the project menu opens the new template', async () => 
   await page.waitForURL(/\/settings\/project-templates\/\d+$/);
   await page.locator('input[value="Pack boxes"]').first().waitFor();
   expect(await page.getByLabel('Template name').inputValue()).toBe('Clinic move template');
+});
+
+it('removing the template tags on New project makes a project with no tags', async () => {
+  const page = await adminPage();
+  await page.goto('/projects/new');
+  await startFrom(page, 'Network refresh');
+  await page.getByText('network', { exact: true }).filter({ visible: true }).first().waitFor();
+  await page.getByLabel('Project name').fill('Untagged job');
+  await page.getByLabel('Owned by department').selectOption({ label: 'Service Desk' });
+  await page.locator('form span:has-text("network") button').first().click();
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.waitForURL(/\/projects\/\d+$/);
+  const made = expectOk(await w.admin.agent.get(`${API}/projects`).query({ search: 'Untagged job' })).projects[0];
+  expect(made.tags || []).toEqual([]);
+});
+
+it('a template that fails to load shows only the error, with no Save', async () => {
+  const page = await adminPage();
+  await page.goto('/settings/project-templates/999999');
+  await page.getByRole('alert').filter({ visible: true }).first().waitFor();
+  expect(await page.getByRole('button', { name: 'Save template' }).count()).toBe(0);
+  expect(await page.getByLabel('Template name').count()).toBe(0);
+});
+
+it('the preview says when the plan finishes and why it overshoots', async () => {
+  const page = await adminPage();
+  await page.goto('/projects/new');
+  await startFrom(page, 'Network refresh');
+  await page.getByLabel('Start date').fill('2026-11-16');
+  await page.getByTestId('plan-finish').waitFor();
+  const first = await page.getByTestId('plan-finish').innerText();
+  expect(first).toMatch(/Finishes \w{3}, \w{3} \d+/);
+  await page.getByLabel('Finish date').fill('2026-11-20');
+  await page.waitForFunction(() => /because/.test(document.querySelector('[data-testid="plan-finish"]')?.innerText || ''));
+  expect(await page.getByTestId('plan-finish').innerText()).toContain('waits on');
+});
+
+it('the editor adds a subtask under a task and warns before leaving with unsaved changes', async () => {
+  const page = await adminPage();
+  await page.goto(`/settings/project-templates/${template.id}`);
+  await page.getByLabel('Template name').filter({ visible: true }).first().waitFor();
+  await page.getByRole('button', { name: 'Add a subtask to Walk the site' }).click();
+  const input = page.getByLabel('Name the subtask of Walk the site');
+  await input.fill('Photograph closets');
+  await input.press('Enter');
+  const dialogs = [];
+  const onDialog = (d) => { dialogs.push(d.message()); d.dismiss(); };
+  page.on('dialog', onDialog);
+  await page.getByRole('link', { name: 'All templates' }).click();
+  expect(dialogs[0]).toMatch(/unsaved changes/);
+  expect(page.url()).toContain(`/settings/project-templates/${template.id}`);
+  page.off('dialog', onDialog);
+  const saved = waitFor(page, 'PUT', `/project-templates/${template.id}`);
+  await page.getByRole('button', { name: 'Save template' }).click();
+  await saved;
+  await page.getByRole('status').filter({ hasText: 'Saved' }).waitFor();
+  const got = expectOk(await w.admin.agent.get(`${API}/project-templates/${template.id}`)).template;
+  const sub = got.tasks.find((t) => t.title === 'Photograph closets');
+  expect(sub.parentId).toBe(got.tasks.find((t) => t.title === 'Walk the site').id);
 });

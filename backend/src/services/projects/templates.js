@@ -84,7 +84,8 @@ async function instantiate(req, shape, form, transaction) {
   values.startDate = form.startDate;
   values.templateId = form.templateId || null;
   if (values.hourBudgetMinutes === undefined) values.hourBudgetMinutes = shape.hourBudgetMinutes || null;
-  if (!values.tags) values.tags = shape.tags && shape.tags.length ? shape.tags : null;
+  // An explicit empty list means "no tags"; only an absent one takes the shape's.
+  if (!values.tags && !form.tagsGiven) values.tags = shape.tags && shape.tags.length ? shape.tags : null;
   if (!values.dueDate) values.dueDate = form.finishDate || (plan.tasks.length ? plan.finishDate : null);
   const project = await Project.create(values, { transaction });
 

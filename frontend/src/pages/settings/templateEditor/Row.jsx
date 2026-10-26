@@ -1,6 +1,6 @@
 // One row of the template editor grid: a phase heading or a task, with the
 // grip you drag by, "Starts on Day N", "Takes N days", estimate and "Waits on".
-import { IconGripVertical, IconDiamond, IconX, IconPlus } from '@tabler/icons-react';
+import { IconGripVertical, IconDiamond, IconX, IconPlus, IconCornerDownRight } from '@tabler/icons-react';
 import { hoursInput, parseHours } from '../../projects/detail/budgetFormat.js';
 
 export const GRID = 'grid grid-cols-[24px_minmax(0,1fr)_110px_90px_100px_190px_64px] items-center gap-3 px-4 min-w-[820px]';
@@ -82,7 +82,7 @@ export function PhaseRow({
 }
 
 export function TaskRow({
-  task, sub, hasSubtasks, others, predecessors, onChange, onMilestone, onRemove, onAddWait, onRemoveWait, drag, onDropTask, onKeyMove, over,
+  task, sub, hasSubtasks, others, predecessors, onChange, onMilestone, onAddSub, onRemove, onAddWait, onRemoveWait, drag, onDropTask, onKeyMove, over,
 }) {
   const ms = task.isMilestone;
   return (
@@ -135,6 +135,11 @@ export function TaskRow({
         </div>
       )}
       <span className="flex justify-end gap-0.5">
+        {!sub && !ms && (
+          <button type="button" aria-label={`Add a subtask to ${task.title}`} title="Add a subtask" className="h-7 w-7 rounded-md text-navy-300 hover:bg-surface hover:text-navy-700" onClick={onAddSub}>
+            <IconCornerDownRight size={14} className="mx-auto" aria-hidden="true" />
+          </button>
+        )}
         {!sub && (
           <button
             type="button"
@@ -157,13 +162,15 @@ export function TaskRow({
 }
 
 // "Add a task to Plan, press Enter" under a phase; also used for phases.
-export function AddRow({ label, placeholder, onAdd, indent = true }) {
+export function AddRow({ label, placeholder, onAdd, indent = true, autoFocus = false, onBlur }) {
   return (
     <label className={`flex min-h-[44px] items-center gap-2.5 border-b border-navy-100 pr-4 text-navy-400 ${indent ? 'pl-[52px]' : 'pl-4'}`}>
       <IconPlus size={14} aria-hidden="true" />
       <input
         aria-label={label}
         placeholder={placeholder}
+        autoFocus={autoFocus}
+        onBlur={onBlur}
         className="w-full bg-transparent text-sm text-navy-900 placeholder-navy-300 outline-none"
         onKeyDown={(e) => {
           if (e.key !== 'Enter') return;
