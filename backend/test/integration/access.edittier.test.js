@@ -80,6 +80,23 @@ describe('projects', () => {
     expectOk(await staff.agent.post(url(ours, '/time-entries')).send({ durationMinutes: 15 }), 201);
   });
 
+  it('the lead and members edit whatever their role; a helper only views and logs time (2026-10-26)', async () => {
+    const task = await makeTask(w.admin.agent, ours.id);
+    expect((await staff.agent.post(url(ours, '/files')).attach('file', Buffer.from('hi'), 'a.txt')).status).toBe(403);
+
+    expectOk(await w.admin.agent.post(url(ours, `/tasks/${task.id}/helpers`)).send({ userId: staff.user.id }), 201);
+    expect((await staff.agent.patch(url(ours)).send({ name: 'x' })).status).toBe(403);
+    expect((await staff.agent.post(url(ours, '/files')).attach('file', Buffer.from('hi'), 'a.txt')).status).toBe(403);
+
+    expectOk(await w.admin.agent.post(url(ours, '/members')).send({ userId: staff.user.id }), 201);
+    expectOk(await staff.agent.patch(url(ours)).send({ name: 'Ours 2' }));
+    expectOk(await staff.agent.patch(url(ours, `/tasks/${task.id}`)).send({ title: 'y' }));
+    expectOk(await staff.agent.post(url(ours, '/files')).attach('file', Buffer.from('hi'), 'a.txt'), 201);
+
+    const led = await makeProject(w.admin.agent, { name: 'Led', ownerDepartmentId: w.deptA.id, assignedToUserId: staff.user.id });
+    expectOk(await staff.agent.patch(url(led)).send({ name: 'Led 2' }));
+  });
+
   it('edit_department covers the department\'s projects; edit_all (System Technician) covers all', async () => {
     const elsewhere = await makeProject(w.admin.agent, { name: 'B', ownerDepartmentId: w.deptB.id });
     expectOk(await mgr.agent.patch(url(ours)).send({ name: 'Ours 2' }));

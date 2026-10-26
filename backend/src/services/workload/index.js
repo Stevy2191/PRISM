@@ -92,10 +92,9 @@ function editRules(viewer, perms, nonHelperProjectIds) {
       || (perms['tickets.edit_department'] && sameDept(t.departmentId, viewer.departmentId))
       || ((perms['tickets.edit_department'] || perms['tickets.edit_own']) && t.assigneeId === viewer.id)),
     project: (p) => {
-      const member = nonHelperProjectIds.has(p.id);
       return !!(perms['projects.edit_all']
-        || (perms['projects.edit_department'] && (sameDept(p.ownerDepartmentId, viewer.departmentId) || sameDept(p.forDepartmentId, viewer.departmentId) || member))
-        || ((perms['projects.edit_department'] || perms['projects.edit_own']) && (member || p.assignedToUserId === viewer.id)));
+        || (perms['projects.edit_department'] && (sameDept(p.ownerDepartmentId, viewer.departmentId) || sameDept(p.forDepartmentId, viewer.departmentId)))
+        || p.assignedToUserId === viewer.id || nonHelperProjectIds.has(p.id));
     },
   };
 }

@@ -37,7 +37,7 @@ beforeAll(async () => {
   expectOk(await link(t1, t2), 201);
   expectOk(await link(t1, t3), 201);
   viewer = await makeStaff('viewer', w.deptA.id);
-  await models.ProjectMember.create({ projectId: project.id, userId: viewer.user.id, role: 'member' });
+  await models.ProjectMember.create({ projectId: project.id, userId: viewer.user.id, role: 'helper' }); // helpers view and log time only
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 beforeEach(resetRateLimits);
@@ -122,7 +122,7 @@ it('zoom switch keeps today in view', async () => {
   }
 });
 
-it('a view-only member sees the bars but cannot drag them', async () => {
+it('a view-only helper sees the bars but cannot drag them', async () => {
   const page = await smoke.pageAs('viewer');
   await openTimeline(page);
   await bar(page, t2).waitFor();

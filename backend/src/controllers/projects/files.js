@@ -4,7 +4,7 @@ const { Project, ProjectFile, User } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { logProjectActivity } = require('../../services/projectActivity');
-const { canAccessProject, canModerateProjectContent } = require('../../services/permissionService');
+const { canAccessProject, canEditProject, canModerateProjectContent } = require('../../services/permissionService');
 const { userAttrs, resolveProjectTaskId } = require('./shared');
 
 // The stored path is the server's business, never the client's.
@@ -38,6 +38,11 @@ const uploadFile = asyncHandler(async (req, res) => {
   if (!(await canAccessProject(req.user, project))) {
     fs.rm(req.file.path, { force: true }, () => {});
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
+  }
+  // Adding files is editing: helpers and view-only staff can't.
+  if (!(await canEditProject(req.user, project))) {
+    fs.rm(req.file.path, { force: true }, () => {});
+    throw new ApiError(403, 'You do not have permission to edit this project', 'FORBIDDEN');
   }
 
   const { taskId } = req.body || {};

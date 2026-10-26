@@ -392,13 +392,15 @@ async function canEditProject(user, project) {
   if (!(await canAccessProject(user, project))) return false;
   const p = await resolveUserPermissions(user.id);
   if (p['projects.edit_all']) return true;
-  // A task helper's membership lets them view and log time, never edit.
-  const isMember = !!(await ProjectMember.findOne({ where: { projectId: project.id, userId: user.id, role: { [Op.ne]: 'helper' } } }));
   if (p['projects.edit_department']
-    && (sameDept(project.ownerDepartmentId, user.departmentId) || sameDept(project.forDepartmentId, user.departmentId) || isMember)) {
+    && (sameDept(project.ownerDepartmentId, user.departmentId) || sameDept(project.forDepartmentId, user.departmentId))) {
     return true;
   }
-  return !!(p['projects.edit_department'] || p['projects.edit_own']) && (isMember || project.assignedToUserId === user.id);
+  // The lead and the members edit whatever their role (user decision
+  // 2026-10-26): making someone a member is how edit access is granted.
+  // A task helper's membership lets them view and log time, never edit.
+  if (project.assignedToUserId === user.id) return true;
+  return !!(await ProjectMember.findOne({ where: { projectId: project.id, userId: user.id, role: { [Op.ne]: 'helper' } } }));
 }
 
 // Authority over content someone else created on a ticket (editing or

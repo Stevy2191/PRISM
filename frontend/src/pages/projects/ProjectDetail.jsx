@@ -35,7 +35,6 @@ export default function ProjectDetail() {
   const canManageExpenses = usePermission('projects.manage_expenses');
   // Your own time needs time.log and view access, which being here means (as the server does).
   const canLogTime = usePermission('time.log');
-  const canEditProjectContent = hasAnyPermission(['projects.edit_own', 'projects.edit_department', 'projects.edit_all']);
   const navigate = useNavigate();
 
   const [project, setProject] = useState(null);
@@ -326,7 +325,7 @@ export default function ProjectDetail() {
       {tab === 'files' && (
         <FilesTab
           files={files}
-          canUpload={canEditProjectContent}
+          canUpload={canEdit}
           canDelete={(f) => f.uploadedBy === user.id || !!project.access?.moderate}
           onUpload={async (file) => {
             const fd = new FormData();

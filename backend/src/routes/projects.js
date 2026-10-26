@@ -19,7 +19,9 @@ router.param('id', (req, res, next, rawId) => (
 // time.manage_others or leading their team (services/time).
 const logTime = requirePermission('time.log');
 const viewMin = requirePermission('projects.view_own', 'projects.view_department', 'projects.view_all');
-const editMin = requirePermission('projects.edit_own', 'projects.edit_department', 'projects.edit_all');
+// Edit routes only need view access here: the lead and members edit whatever
+// their role (2026-10-26), so the controllers' canEditProject is the check.
+const editMin = viewMin;
 
 // Projects
 router.get('/', viewMin, ctrl.list);

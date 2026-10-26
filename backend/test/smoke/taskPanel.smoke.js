@@ -47,7 +47,7 @@ beforeAll(async () => {
   helper = await makeStaff('helper', w.deptA.id);
   helperName = (await models.User.findByPk(helper.user.id)).displayName;
   viewer = await makeStaff('viewer', w.deptA.id);
-  await models.ProjectMember.create({ projectId: project.id, userId: viewer.user.id, role: 'member' });
+  await models.ProjectMember.create({ projectId: project.id, userId: viewer.user.id, role: 'helper' }); // helpers view and log time only
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 beforeEach(resetRateLimits);

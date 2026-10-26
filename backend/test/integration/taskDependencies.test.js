@@ -90,7 +90,7 @@ describe('creating and removing links', () => {
     const a = await mk({ title: 'A' });
     const b = await mk({ title: 'B' });
     const viewer = await makeStaff('viewer', w.deptA.id);
-    await models.ProjectMember.create({ projectId: proj.id, userId: viewer.user.id, role: 'member' });
+    // Sees the department's projects; not a member, so can't edit (members can).
     const res = await link(a.id, b.id, viewer.agent);
     expect(res.status).toBe(403);
     expect((await viewer.agent.get(`${API}/projects/${proj.id}/dependencies`)).status).toBe(200);
@@ -204,7 +204,6 @@ describe('shift offer and shift dependents', () => {
     const other = await makeProject(w.admin.agent, { name: 'Other', ownerDepartmentId: w.deptA.id });
     expect((await w.admin.agent.post(url(a, other)).send({ days: 1 })).status).toBe(404);
     const viewer = await makeStaff('viewer', w.deptA.id);
-    await models.ProjectMember.create({ projectId: proj.id, userId: viewer.user.id, role: 'member' });
     expect((await viewer.agent.post(url(a)).send({ days: 1 })).status).toBe(403);
     expect((await getTask(b)).dueDate).toBe('2026-03-13');
   });

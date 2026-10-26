@@ -32,6 +32,13 @@ few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
   they can view the project and log time, but not edit it. Removing their last
   helper task removes that access (their time stays). A manager can make a
   helper a full member on the People tab.
+- **Who can edit a project (behaviour change).** A project's lead and its
+  members can edit it, and add files, whatever their role. Before, they also
+  needed "Edit own projects", which the seeded Department Staff role doesn't
+  have. Department-wide editing (Department Manager) and system-wide editing
+  are unchanged. Adding files now needs edit access too: helpers, and staff who
+  can only view a project, can no longer upload to it. "Edit own projects" no
+  longer adds anything on its own.
 - **Hour budgets.** A project can have an hour budget. The lead gets an alert at
   80% and at 100%, in PRISM and by email. The budget emails and the "task added"
   email are on by default; the "task unblocked" email is off by default. If you
