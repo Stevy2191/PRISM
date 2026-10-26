@@ -310,7 +310,7 @@
 - `checkBudgetAlerts(projectId) → Promise<void>` (atomic level update, then notify the lead with `budget_warning` or `budget_reached`)
 - `GET /projects/:id/budget` (view)
 
-- [ ] Tests:
+- [x] Tests:
   - `summary splits by phase, by person and billable`
   - `entry on a subtask counts toward the parent's phase`
   - `crossing 80% notifies the lead once with budget_warning`
@@ -322,8 +322,8 @@
   - `logging past 100% still succeeds`
   - `no budget → no alerts`
   - `phase budget never alerts`
-- [ ] Implement and run.
-- [ ] Commit `feat(projects): hour budgets with 80%/100% lead alerts`.
+- [x] Implement and run.
+- [x] Commit `feat(projects): hour budgets with 80%/100% lead alerts`.
 
 ### Task 9: Budget UI and projects list
 
@@ -331,11 +331,11 @@
 - Create: `frontend/src/pages/projects/detail/BudgetPanel.jsx` (in the Time tab: where the time went, the editor and the notice). Modify: `detail/SummaryRow.jsx` (over-budget notice), `backend/src/controllers/projects/core.js` (`buildProjectListWhere`: filters `mine=lead|member` and `attention=over_budget|milestones_7d|unassigned`; rows gain `loggedMinutes, hourBudgetMinutes, currentPhase: {name, doneCount, taskCount}, nextMilestone`), `GET /projects/attention` → `{ overBudget, milestonesSoon, unassignedTasks }` (scope-limited), `frontend/src/pages/Projects.jsx` (rebuilt on the Projects board; split `pages/projects/list/ProjectRow.jsx` and `AttentionTiles.jsx` out if it nears 800 lines).
 - Test: `backend/test/integration/projectList.test.js` (extend), `frontend/test/smoke/projectsList.smoke.js`
 
-- [ ] Tests:
+- [x] Tests:
   - Backend: `attention counts respect project scope`, `attention=over_budget lists only over-budget projects`, `currentPhase is the first phase with open tasks`, `mine=lead`
   - Smoke: `clicking the over-budget tile filters the list`, `budget editor saves and the meter turns red over 100%`
-- [ ] Implement and run.
-- [ ] Commit `feat(projects): budget panel and look A projects list with attention tiles`.
+- [x] Implement and run.
+- [x] Commit `feat(projects): budget panel and look A projects list with attention tiles`.
 
 ## Stage 5 — Templates
 
