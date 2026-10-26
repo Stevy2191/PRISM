@@ -136,9 +136,11 @@ export default function ProjectHeader({
 }
 
 // Asks for a name, then makes a template from the project's phases, tasks and
-// links (never people, time or files) and opens it in Settings.
+// links (never people, time or files) and opens it in Settings. Templates are
+// shared by everyone, so the name starts empty rather than carrying the
+// project's (often a client's) name.
 function SaveTemplateModal({ project, onClose, onSaved }) {
-  const [name, setName] = useState(project.name);
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const save = async (e) => {
@@ -156,11 +158,12 @@ function SaveTemplateModal({ project, onClose, onSaved }) {
   return (
     <Modal title="Save as template" onClose={onClose}>
       <form onSubmit={save} className="space-y-4">
-        <p className="text-sm text-navy-500">Keeps the phases, tasks, dates (as days from the start), estimates, links, hour budget and tags. People, time and files are left out.</p>
+        <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>Task titles and descriptions are kept. Assignees, time, files and costs are not.</p>
+        <p className="text-sm text-navy-500">Phases, dates (as days from the start), estimates, links, hour budget and tags come too. Templates are shared, so check the task descriptions for client details first.</p>
         {error && <p role="alert" className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</p>}
         <div>
           <label className="label" htmlFor="template-name">Template name</label>
-          <input id="template-name" autoFocus required maxLength={150} className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          <input id="template-name" autoFocus required maxLength={150} className="input" value={name} placeholder="For example: Office network refresh" onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancel</Button>

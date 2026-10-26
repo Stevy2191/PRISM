@@ -116,6 +116,9 @@ it('Save as template from the project menu opens the new template', async () => 
   await page.goto(`/projects/${project.id}`);
   await page.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
   await page.getByRole('menuitem', { name: 'Save as template' }).click();
+  // The name starts empty (a project name can be a client's), and the modal says what goes along.
+  expect(await page.getByLabel('Template name').inputValue()).toBe('');
+  await page.getByText('Task titles and descriptions are kept. Assignees, time, files and costs are not.').waitFor();
   await page.getByLabel('Template name').fill('Clinic move template');
   await page.getByRole('button', { name: 'Save template' }).click();
   await page.waitForURL(/\/settings\/project-templates\/\d+$/);

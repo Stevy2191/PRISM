@@ -15,7 +15,10 @@ export const FILTERS = [
 // A task with subtasks is done when they all are; the server says so.
 export const isDone = (task) => (task.isComplete != null ? !!task.isComplete : task.status?.behaviorType === 'closed');
 
-const isMine = (task, userId) => task.assigneeId === userId || (task.helpers || []).some((h) => h.id === userId);
+// Mine: I'm the main assignee or a helper on the task or on any of its
+// subtasks (as the server's mine filter and the phone list count it).
+const onIt = (task, userId) => task.assigneeId === userId || (task.helpers || []).some((h) => h.id === userId);
+const isMine = (task, userId) => onIt(task, userId) || (task.subtasks || []).some((s) => onIt(s, userId));
 
 export function filterTasks(tasks, filter, { userId, today } = {}) {
   switch (filter) {

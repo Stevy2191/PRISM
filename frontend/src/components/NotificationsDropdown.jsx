@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   IconBell, IconMessageReply, IconUserCheck, IconAlertTriangle, IconMessageCircle,
-  IconHourglass, IconRefresh, IconBolt, IconEye, IconShieldExclamation, IconShieldOff,
+  IconHourglass, IconRefresh, IconBolt, IconEye, IconShieldExclamation, IconShieldOff, IconUserPlus, IconPlayerPlay, IconClock,
 } from '@tabler/icons-react';
 import api from '../api/api';
 
@@ -17,6 +17,10 @@ const NOTIF_TYPE = {
   workflow: { Icon: IconBolt, color: 'var(--color-relation-accent)' },
   virus_blocked: { Icon: IconShieldExclamation, color: 'var(--color-danger)' },
   scanner_unavailable: { Icon: IconShieldOff, color: 'var(--color-warning)' },
+  task_added: { Icon: IconUserPlus, color: 'var(--color-relation-accent)' },
+  task_unblocked: { Icon: IconPlayerPlay, color: 'var(--color-success)' },
+  budget_warning: { Icon: IconClock, color: 'var(--color-warning)' },
+  budget_reached: { Icon: IconClock, color: 'var(--color-danger)' },
 };
 
 // Security alerts have no ticket; they open the page that explains them.
@@ -80,6 +84,8 @@ export default function NotificationsDropdown({ align = 'right' }) {
     setOpen(false);
     if (NOTIF_LINK[n.type]) navigate(NOTIF_LINK[n.type]);
     else if (n.ticket) navigate(`/tickets/${n.ticket.id}`);
+    // Project notices (task added, unblocked, budget) carry the project only.
+    else if (n.projectId) navigate(`/projects/${n.projectId}`);
   };
 
   return (

@@ -44,6 +44,16 @@ test('mine includes tasks I help on', () => {
   assert.deepEqual(ids(filterTasks(tasks, 'mine', { userId: 7, today: '2026-01-01' })), [1]);
 });
 
+test('mine includes tasks where I am on a subtask (assignee or helper)', () => {
+  const tasks = [
+    t(1, { assigneeId: 3, subtasks: [{ id: 11, assigneeId: 7, helpers: [] }] }),
+    t(2, { assigneeId: 3, subtasks: [{ id: 12, assigneeId: 3, helpers: [{ id: 7, name: 'Me' }] }] }),
+    t(3, { assigneeId: 3, subtasks: [{ id: 13, assigneeId: 4, helpers: [{ id: 5 }] }] }),
+    t(4, { assigneeId: 3 }),
+  ];
+  assert.deepEqual(ids(filterTasks(tasks, 'mine', { userId: 7, today: '2026-01-01' })), [1, 2]);
+});
+
 test('daysUntil uses string dates', () => {
   assert.equal(daysUntil('2026-11-03', '2026-11-14'), 11);
   assert.equal(daysUntil('2026-11-14', '2026-11-14'), 0);

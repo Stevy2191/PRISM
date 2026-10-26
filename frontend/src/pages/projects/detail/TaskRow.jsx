@@ -109,7 +109,7 @@ export default function TaskRow({ task, sub = false, parentId = null, ctx }) {
             draggable
             aria-label={`Drag ${task.title}`}
             title="Drag to reorder"
-            onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; ctx.onDragStart(task); }}
+            onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(task.id)); ctx.onDragStart(task); }}
             onDragEnd={ctx.onDragEnd}
             className="cursor-grab text-navy-300 opacity-100 active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100"
           >
