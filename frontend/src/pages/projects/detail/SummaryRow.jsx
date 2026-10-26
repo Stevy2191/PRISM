@@ -1,6 +1,8 @@
 // The four figures under the project header: tasks done, hours used against
 // the budget, the next milestone and the tasks that are waiting.
+import Button from '../../../components/ui/Button';
 import Meter from '../../../components/ui/Meter';
+import Notice from '../../../components/ui/Notice';
 import { inDays, daysUntil, weekdayDate, hoursFromMinutes } from './taskFilters';
 
 function Stat({ label, tone, children }) {
@@ -17,14 +19,25 @@ function Stat({ label, tone, children }) {
 const Small = ({ children }) => <small className="text-sm font-medium text-navy-400">{children}</small>;
 const Note = ({ children }) => <div className="mt-1.5 text-[13px] text-navy-400">{children}</div>;
 
-export default function SummaryRow({ stats, estimateMinutes, today }) {
+export default function SummaryRow({ stats, estimateMinutes, today, onChangeBudget }) {
   const done = stats.tasksDone || 0;
   const total = stats.tasksTotal || 0;
   const logged = stats.loggedMinutes || 0;
   const budget = stats.hourBudgetMinutes;
   const next = stats.nextMilestone;
   const waiting = stats.waitingCount || 0;
+  const over = budget > 0 && logged > budget;
   return (
+    <>
+      {over && (
+        <Notice tone="bad" className="mt-6">
+          <span className="min-w-[16rem] flex-1">
+            <b>{hoursFromMinutes(logged)} of {hoursFromMinutes(budget)} h used ({Math.round((logged / budget) * 100)}%).</b>{' '}
+            People can still log time.
+          </span>
+          {onChangeBudget && <Button size="sm" variant="primary" onClick={onChangeBudget}>Change the budget</Button>}
+        </Notice>
+      )}
     <section aria-label="Project summary" className="mt-6 grid grid-cols-2 gap-4 max-md:gap-3 lg:grid-cols-4">
       <Stat label="Tasks done">
         {done} <Small>of {total}</Small>
@@ -44,5 +57,6 @@ export default function SummaryRow({ stats, estimateMinutes, today }) {
         <Note>{waiting > 0 ? 'Held up by work not finished yet' : 'Nothing is held up'}</Note>
       </Stat>
     </section>
+    </>
   );
 }

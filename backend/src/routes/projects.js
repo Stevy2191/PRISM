@@ -17,6 +17,7 @@ router.get('/', viewMin, ctrl.list);
 router.post('/', requirePermission('projects.create'), ctrl.create);
 // Must precede '/:id' — otherwise 'tags' is read as a project id.
 router.get('/tags', viewMin, ctrl.listTags);
+router.get('/attention', viewMin, ctrl.attentionTiles);
 router.get('/:id', viewMin, ctrl.get);
 router.patch('/:id', editMin, ctrl.update);
 router.delete('/:id', requirePermission('projects.delete'), ctrl.remove);

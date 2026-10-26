@@ -19,6 +19,7 @@ import ProjectHeader from './detail/ProjectHeader';
 import SummaryRow from './detail/SummaryRow';
 import TasksTab from './detail/TasksTab';
 import CostsTab from './detail/CostsTab';
+import BudgetPanel from './detail/BudgetPanel';
 import TimelineTab from './detail/TimelineTab';
 import GenerateProjectReportModal from './detail/ReportModal';
 import { hoursFromMinutes, localToday } from './detail/taskFilters';
@@ -230,7 +231,7 @@ export default function ProjectDetail() {
         </Notice>
       )}
 
-      <SummaryRow stats={stats} estimateMinutes={estimateMinutes} today={today} />
+      <SummaryRow stats={stats} estimateMinutes={estimateMinutes} today={today} onChangeBudget={() => setTab('time')} />
 
       <Tabs items={tabs} value={tab} onChange={setTab} label="Project sections" className="mt-7" />
 
@@ -263,6 +264,9 @@ export default function ProjectDetail() {
           today={today}
           onChanged={reloadAll}
         />
+      )}
+      {tab === 'time' && (
+        <BudgetPanel project={project} canEdit={canEdit} version={`${logVersion}-${stats.loggedMinutes}`} onSaved={reloadAll} />
       )}
       {tab === 'time' && (
         <TimeLog

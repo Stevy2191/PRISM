@@ -42,6 +42,7 @@ const {
   parseRecordId,
 } = require('../../services/permissionService');
 const { generateProjectCode } = require('../../services/projectCodeService');
+const { attentionClause, attentionCounts, rowFigures, todayFrom } = require('../../services/projects/listing');
 const { cleanBudgetMinutes, budgetSummary, rearmBudgetAlerts } = require('../../services/projects/budget');
 const {
   userAttrs, projectInclude, buildProjectStats, getProjectWithDetail, assertCanEditProject,
@@ -50,8 +51,9 @@ const {
 
 // ==================== Projects ====================
 
-// GET /projects — filters: status, ownerDept, forDept, assignee, myProjects,
-// myDepartment, overdue, search, tag.
+// GET /projects — filters: status, state (open|closed), ownerDept, forDept,
+// assignee, myProjects, mine (lead|member), attention (over_budget|
+// milestones_7d|unassigned, with today), myDepartment, overdue, search, tag.
 // Builds the WHERE clause for a project listing from the query string plus
 // the caller's permission scope. Returns `{ where, empty }` — `empty` means
 // the scope resolved to no projects at all, so the caller should short-circuit
@@ -59,7 +61,7 @@ const {
 async function buildProjectListWhere(req) {
   const where = {};
   const {
-    status, ownerDept, forDept, assignee, myProjects, myDepartment, overdue, search, tag, companyId,
+    status, state, ownerDept, forDept, assignee, myProjects, mine, attention, myDepartment, overdue, search, tag, companyId,
   } = req.query;
   if (companyId) where.companyId = parseRecordId(companyId) || -1;
 
@@ -118,8 +120,36 @@ async function buildProjectListWhere(req) {
     where.id = { [Op.in]: ids };
   }
 
+  // "I'm on" is any membership (lead, member or helper); "I lead" is the
+  // lead field or a lead membership (Q30 keeps the two together).
+  if (mine !== undefined) {
+    const rows = await ProjectMember.findAll({
+      where: mine === 'lead' ? { userId: req.user.id, role: 'lead' } : { userId: req.user.id },
+      attributes: ['projectId'],
+      raw: true,
+    });
+    const ids = rows.map((m) => m.projectId);
+    const clause = mine === 'lead'
+      ? { [Op.or]: [{ assignedToUserId: req.user.id }, { id: { [Op.in]: ids } }] }
+      : mine === 'member' ? { id: { [Op.in]: ids } } : { id: -1 };
+    if (mine === 'member' && !ids.length) return { where, empty: true };
+    where[Op.and] = [...(where[Op.and] || []), clause];
+  }
+  if (state === 'open' || state === 'closed') {
+    const stateBuckets = await getProjectStatusBuckets();
+    where[Op.and] = [...(where[Op.and] || []), { status: { [Op.in]: stateBuckets[state] } }];
+  }
+  if (attention !== undefined) {
+    where[Op.and] = [...(where[Op.and] || []), await attentionClause(attention, todayFrom(req.query))];
+  }
+
   return { where: andWhere(where, await projectScopeWhere(req.user)), empty: false };
 }
+
+// GET /projects/attention — the tile numbers, for the projects this viewer can see.
+const attentionTiles = asyncHandler(async (req, res) => {
+  res.json(await attentionCounts(req.user, req.query));
+});
 
 // GET /projects — paginated
 const list = asyncHandler(async (req, res) => {
@@ -157,6 +187,8 @@ const list = asyncHandler(async (req, res) => {
   const statusRows = await ProjectStatus.findAll({ attributes: ['name', 'color'] });
   const colorByName = new Map(statusRows.map((st) => [st.name, st.color]));
 
+  const figures = await rowFigures(ids);
+
   // Three extra queries per project. That was 3×N over the whole table before
   // paging; it is now bounded by the page size.
   const withStats = await Promise.all(
@@ -170,6 +202,7 @@ const list = asyncHandler(async (req, res) => {
       json.statusColor = colorByName.get(project.status) || null;
       json.completion = { percent: completion.percent, totalTasks: completion.totalTasks, closedTasks: completion.closedTasks };
       json.totalCost = Number(expenseSum || 0) + Number(materialSum || 0);
+      Object.assign(json, figures.get(project.id));
       return json;
     })
   );
@@ -466,6 +499,7 @@ const getBudget = asyncHandler(async (req, res) => {
 
 module.exports = {
   getBudget,
+  attentionTiles,
   list,
   listTags,
   create,
