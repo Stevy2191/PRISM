@@ -142,6 +142,7 @@ async function resetData() {
     'ProjectExpenses', 'ProjectMaterials', 'ProjectFiles',
     'ProjectActivities', 'ProjectMembers',
     'ProjectIdSequences', 'ProjectPhases', 'Projects',
+    'ProjectTemplateDependencies', 'ProjectTemplateTasks', 'ProjectTemplatePhases', 'ProjectTemplates',
     'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
     'CustomFields', 'TicketCategories', 'TeamMembers', 'Teams',
     'AuditLogs', 'SystemAuditLogs',

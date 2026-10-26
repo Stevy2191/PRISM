@@ -9,6 +9,10 @@ const ProjectMember = require('./ProjectMember')(sequelize);
 const Task = require('./Task')(sequelize);
 const ProjectPhase = require('./ProjectPhase')(sequelize);
 const TaskDependency = require('./TaskDependency')(sequelize);
+const ProjectTemplate = require('./ProjectTemplate')(sequelize);
+const ProjectTemplatePhase = require('./ProjectTemplatePhase')(sequelize);
+const ProjectTemplateTask = require('./ProjectTemplateTask')(sequelize);
+const ProjectTemplateDependency = require('./ProjectTemplateDependency')(sequelize);
 const TaskAssignee = require('./TaskAssignee')(sequelize);
 const TaskStatus = require('./TaskStatus')(sequelize);
 const WorkType = require('./WorkType')(sequelize);
@@ -137,6 +141,10 @@ const db = {
   Task,
   ProjectPhase,
   TaskDependency,
+  ProjectTemplate,
+  ProjectTemplatePhase,
+  ProjectTemplateTask,
+  ProjectTemplateDependency,
   TaskAssignee,
   TaskStatus,
   WorkType,

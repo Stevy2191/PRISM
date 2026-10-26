@@ -1,5 +1,6 @@
 const express = require('express');
 const ctrl = require('../controllers/projectsController');
+const templatesCtrl = require('../controllers/projectTemplates');
 const { requirePermission } = require('../middleware/requirePermission');
 const { projectUpload, enforceMaxAttachmentSize, verifyFileSignature, scanUpload } = require('../middleware/upload');
 
@@ -23,6 +24,7 @@ router.patch('/:id', editMin, ctrl.update);
 router.delete('/:id', requirePermission('projects.delete'), ctrl.remove);
 router.get('/:id/stats', viewMin, ctrl.getStats);
 router.get('/:id/budget', viewMin, ctrl.getBudget);
+router.post('/:id/save-as-template', requirePermission('projects.manage_templates'), templatesCtrl.saveFromProject);
 
 // Tasks + subtasks
 router.get('/:id/tasks', ctrl.listTasks);

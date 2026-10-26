@@ -55,6 +55,8 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      // The template this project was made from (null for blank or copied projects).
+      templateId: { type: DataTypes.INTEGER, allowNull: true },
       teamId: {
         type: DataTypes.INTEGER,
         allowNull: true,

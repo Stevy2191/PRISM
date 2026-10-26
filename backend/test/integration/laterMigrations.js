@@ -6,7 +6,10 @@ const { sequelize } = require('./helpers');
 // Tasks, Projects, ...) must be rolled back first and re-applied after, or
 // the old down() fails midway and leaves the test DB half rolled back.
 // Add newer migrations here, oldest first.
-const later = [require('../../migrations/20260101000069-project-structure')];
+const later = [
+  require('../../migrations/20260101000069-project-structure'),
+  require('../../migrations/20260101000070-project-templates'),
+];
 
 const qi = () => sequelize.getQueryInterface();
 

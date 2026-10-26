@@ -10,6 +10,7 @@ const {
   ProjectStatus,
   ProjectFile,
   ProjectActivity,
+  ProjectTemplate,
   ActiveTimer,
   Task,
   TimeEntry,
@@ -44,6 +45,8 @@ const {
 const { generateProjectCode } = require('../../services/projectCodeService');
 const { attentionClause, attentionCounts, rowFigures, todayFrom } = require('../../services/projects/listing');
 const { cleanBudgetMinutes, budgetSummary, rearmBudgetAlerts } = require('../../services/projects/budget');
+const templates = require('../../services/projects/templates');
+const { loadStructure } = require('../../services/projects/templateStructure');
 const {
   userAttrs, projectInclude, buildProjectStats, getProjectWithDetail, assertCanEditProject,
   assertCanWorkProject, assertCanManageMembers, syncLeadMembership, projectAccessFor,
@@ -241,14 +244,52 @@ async function projectStatusName(name) {
   return row.name;
 }
 
+const validDay = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
+
+// What a new project starts from: nothing (null), a template, or a copy of a
+// project the caller can see. Returns { shape, templateId, kind, sourceId }.
+// A template or project that is missing, or that the caller can't see, is the
+// same 404 (don't reveal that a project exists).
+async function startingPoint(req) {
+  const { templateId, copyFromProjectId } = req.body;
+  const given = (v) => v !== undefined && v !== null && v !== '';
+  if (given(templateId) && given(copyFromProjectId)) throw bad('Start from a template or copy a project, not both');
+  if (given(templateId)) {
+    const id = parseRecordId(templateId);
+    const template = id && await ProjectTemplate.findByPk(id);
+    if (!template) throw new ApiError(404, 'Template not found', 'NOT_FOUND');
+    const shape = await loadStructure(template.id);
+    return {
+      shape: { ...shape, hourBudgetMinutes: template.hourBudgetMinutes, tags: template.tags }, templateId: template.id, kind: 'template', sourceId: template.id,
+    };
+  }
+  if (given(copyFromProjectId)) {
+    const id = parseRecordId(copyFromProjectId);
+    const source = id && await Project.findByPk(id);
+    if (!source || !(await canAccessProject(req.user, source))) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+    return { shape: await templates.snapshotProject(source.id), templateId: null, kind: 'copy', sourceId: source.id };
+  }
+  return null;
+}
+
 const create = asyncHandler(async (req, res) => {
   const {
     name, description, status, ownerDepartmentId, forDepartmentId,
-    assignedToUserId, teamId, dueDate, memberIds, tags, companyId,
+    assignedToUserId, teamId, dueDate, memberIds, tags, companyId, startDate, finishDate,
   } = req.body || {};
 
   if (!name || !name.trim()) throw new ApiError(400, 'Project name is required', 'VALIDATION_ERROR');
   if (!ownerDepartmentId) throw new ApiError(400, 'Owned by department is required', 'VALIDATION_ERROR');
+  const start = startDate === '' ? null : startDate;
+  if (start !== undefined && start !== null && !validDay(start)) throw bad('Start date must be a date like 2026-03-02');
+  const finish = finishDate === '' ? null : finishDate;
+  if (finish !== undefined && finish !== null && !validDay(finish)) throw bad('Finish date must be a date like 2026-03-02');
+  const budget = req.body.hourBudgetMinutes === undefined ? undefined : cleanBudgetMinutes(req.body.hourBudgetMinutes);
+  const origin = await startingPoint(req);
+  if (origin && !start) throw bad('A start date is required');
+  if (finish && !origin) throw bad('A finish date only applies when starting from a template or a copy');
+  if (finish && finish < start) throw bad('Finish date can\'t be before the start date');
+  if (start && validDay(dueDate) && start > dueDate) throw bad('Start date can\'t be after the due date');
 
   // "Owned by" is one of the organization's own (internal) departments: that
   // is who does the work, and its short code numbers the project. "For"
@@ -285,7 +326,7 @@ const create = asyncHandler(async (req, res) => {
     // Generated inside the transaction — nextProjectSequence row-locks the
     // department's counter so two concurrent creates never collide.
     const projectCode = await generateProjectCode(ownerDept.id, t);
-    return Project.create({
+    const values = {
       name: name.trim(),
       projectCode,
       description: description || null,
@@ -300,20 +341,28 @@ const create = asyncHandler(async (req, res) => {
       teamId: teamId || null,
       dueDate: dueDate || null,
       createdBy: req.user.id,
-    }, { transaction: t });
+    };
+    if (budget !== undefined) values.hourBudgetMinutes = budget;
+    let created;
+    if (origin) {
+      created = await templates.instantiate(req, origin.shape, {
+        values, startDate: start, finishDate: finish, templateId: origin.templateId,
+      }, t);
+    } else {
+      created = await Project.create({ ...values, startDate: start || null }, { transaction: t });
+    }
+    for (const userId of memberSet) {
+      await ProjectMember.create({ projectId: created.id, userId, role: userId === leadId ? 'lead' : 'member' }, { transaction: t }); // eslint-disable-line no-await-in-loop
+    }
+    return created;
   });
 
-  await Promise.all(
-    [...memberSet].map((userId) =>
-      ProjectMember.create({
-        projectId: project.id,
-        userId,
-        role: userId === leadId ? 'lead' : 'member',
-      })
-    )
-  );
-
   await writeAudit(req, 'project.create', 'Project', project.id, { name: project.name, projectCode: project.projectCode });
+  if (origin) {
+    await writeAudit(req, origin.kind === 'template' ? 'project.createFromTemplate' : 'project.copy', 'Project', project.id, {
+      [origin.kind === 'template' ? 'templateId' : 'sourceProjectId']: origin.sourceId,
+    });
+  }
   await logProjectActivity(project.id, req.user.id, 'project_created', { name: project.name, projectCode: project.projectCode });
   // Fire-and-forget — never throws (see calendarPush.js's module comment).
   syncProjectToExternalCalendars(project.id);
