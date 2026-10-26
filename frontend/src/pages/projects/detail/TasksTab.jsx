@@ -6,7 +6,7 @@ import Pill from '../../../components/ui/Pill';
 import { workPaths } from '../../../components/work/workPaths';
 import PhaseSection from './PhaseSection';
 import PhoneTasks from './PhoneTasks';
-import { useNarrow } from './useNarrow';
+import { useNarrow } from '../../../hooks/useNarrow';
 import ShiftBanner from './ShiftBanner';
 import TaskPanel from './TaskPanel';
 import { useListKeys } from './useListKeys';

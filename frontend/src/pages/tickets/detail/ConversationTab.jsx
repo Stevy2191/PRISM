@@ -1,7 +1,7 @@
 // Conversation tab: the comment thread.
 import { IconLock, IconWorld, IconMail } from '@tabler/icons-react';
 import LoadMore from '../../../components/LoadMore';
-import { initials } from '../../../utils/userDisplay';
+import Avatar from '../../../components/ui/Avatar';
 import { TEXT, MUTED, timeAgo } from '../theme';
 import { DescriptionCard } from './TicketText';
 
@@ -11,7 +11,7 @@ export function ConversationTab({
   ticket, comments, total, onLoadMore, onSplit, canEditDescription, onSaveDescription,
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* The original request comes first, above any older messages. */}
       <DescriptionCard description={ticket.description} canEdit={canEditDescription} onSave={onSaveDescription} />
       {/* Older messages sit above the thread, where they'd be if they were
@@ -24,69 +24,49 @@ export function ConversationTab({
         const isPublicComment = c.type === 'comment_public';
         return (
           <div key={c.id} className="flex items-start gap-3">
-            <span
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-              style={{ backgroundColor: isCustomer ? 'var(--color-accent)' : 'var(--color-success)' }}
+            <span className="mt-1 max-sm:hidden"><Avatar name={c.author?.displayName || '?'} size={32} /></span>
+            <div
+              className={`conv-bubble min-w-0 flex-1 ${
+                isPrivate
+                  ? 'conv-bubble--private'
+                  : isPublicComment
+                  ? 'conv-bubble--public'
+                  : isCustomer
+                  ? 'conv-bubble--customer'
+                  : 'conv-bubble--tech'
+              }`}
             >
-              {initials(c.author?.displayName)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: MUTED }}>
                 <span className="text-sm font-semibold" style={{ color: TEXT }}>{c.author?.displayName}</span>
-                <span
-                  className="rounded-[3px] px-2 py-0.5 text-[10px] font-medium"
-                  style={
-                    isCustomer
-                      ? { backgroundColor: 'color-mix(in srgb, var(--color-accent) 20%, var(--color-bg))', color: 'var(--color-accent)' }
-                      : { backgroundColor: 'color-mix(in srgb, var(--color-success) 20%, var(--color-bg))', color: 'var(--color-success)' }
-                  }
-                >
-                  {isCustomer ? 'Customer' : 'Tech'}
-                </span>
+                <span>{isCustomer ? 'Customer' : 'Tech'}</span>
                 {isPrivate && (
-                  <span className="conv-badge--private flex items-center gap-1 rounded-[3px] px-2 py-0.5 text-[10px] font-medium">
-                    <IconLock size={10} /> Private comment
+                  <span className="conv-badge--private flex items-center gap-1 font-semibold">
+                    <IconLock size={12} aria-hidden="true" /> Private comment
                   </span>
                 )}
                 {isPublicComment && (
-                  <span className="conv-badge--public flex items-center gap-1 rounded-[3px] px-2 py-0.5 text-[10px] font-medium">
-                    <IconWorld size={10} /> Comment
+                  <span className="conv-badge--public flex items-center gap-1 font-semibold">
+                    <IconWorld size={12} aria-hidden="true" /> Comment
                   </span>
                 )}
+                <span>· {timeAgo(c.createdAt)}</span>
                 {c.viaEmail && (
-                  <span className="flex items-center gap-1 rounded-[3px] border px-2 py-0.5 text-[10px] font-medium" style={{ color: MUTED }} title="Captured from an email sent to the helpdesk mailbox">
-                    <IconMail size={10} /> via email
+                  <span className="flex items-center gap-1" title="Captured from an email sent to the helpdesk mailbox">
+                    · <IconMail size={12} aria-hidden="true" /> via email
                   </span>
                 )}
-                <span className="text-xs" style={{ color: MUTED }}>{timeAgo(c.createdAt)}</span>
                 {onSplit && (
                   <button
                     type="button"
                     onClick={() => onSplit(c)}
-                    className="ml-auto text-xs hover:underline"
-                    style={{ color: MUTED }}
+                    className="ml-auto hover:underline"
                     title="Make this message a new ticket"
                   >
                     Split to new ticket
                   </button>
                 )}
               </div>
-              {/* Bubble colors are hardcoded per theme via CSS classes (not
-                  --color-* variables) so they stay readable no matter what
-                  custom background color an admin or user has set. */}
-              <div
-                className={`conv-bubble mt-1 ${
-                  isPrivate
-                    ? 'conv-bubble--private'
-                    : isPublicComment
-                    ? 'conv-bubble--public'
-                    : isCustomer
-                    ? 'conv-bubble--customer'
-                    : 'conv-bubble--tech'
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{c.body}</p>
-              </div>
+              <p className="mt-1 whitespace-pre-wrap break-words">{c.body}</p>
             </div>
           </div>
         );

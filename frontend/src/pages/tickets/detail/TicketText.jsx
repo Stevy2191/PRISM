@@ -55,8 +55,8 @@ export function EditableTitle({ title, canEdit, onSave }) {
     );
   }
   return (
-    <span className="inline-flex min-w-0 items-center gap-1">
-      <h1 className="text-xl font-bold" style={{ color: TEXT }}>{title}</h1>
+    <span className="inline-flex min-w-0 max-w-full items-start gap-1">
+      <h1 className="min-w-0 break-words text-2xl font-semibold tracking-tight md:text-[28px] md:leading-tight" style={{ color: TEXT }}>{title}</h1>
       {canEdit && (
         <button
           type="button"
@@ -99,7 +99,7 @@ export function DescriptionCard({ description, canEdit, onSave }) {
     <section
       data-testid="ticket-description"
       className="rounded-xl border p-4"
-      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}
+      style={{ borderColor: 'var(--color-border)', backgroundColor: 'color-mix(in srgb, var(--color-text-primary) 3%, var(--color-card))' }}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold" style={{ color: TEXT }}>Description</h3>

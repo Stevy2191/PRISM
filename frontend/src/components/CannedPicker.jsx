@@ -63,10 +63,9 @@ export default function CannedPicker({ ticketId, onInsert, currentText }) {
         onClick={() => setOpen((o) => !o)}
         title="Insert a canned response"
         aria-expanded={open}
-        className="flex items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-medium"
-        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+        className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-navy-500 hover:bg-[var(--color-hover)] hover:text-navy-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent max-sm:h-11"
       >
-        <IconMessageDots size={14} /> Insert
+        <IconMessageDots size={15} aria-hidden="true" /> Insert
       </button>
       {open && (
         <div

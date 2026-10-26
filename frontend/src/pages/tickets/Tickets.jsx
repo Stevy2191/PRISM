@@ -32,6 +32,7 @@ import CategoryPicker from '../../components/CategoryPicker';
 import { TicketBoard } from './list/TicketBoard';
 import FiltersSheet from '../../components/ui/FiltersSheet';
 import PillRow from '../../components/ui/PillRow';
+import { useFullPageHeight } from '../../hooks/useFullPageHeight';
 import PageHeader from '../../components/ui/PageHeader';
 import Pill from '../../components/ui/Pill';
 import SelectChip from '../../components/ui/SelectChip';
@@ -94,6 +95,7 @@ export default function Tickets() {
 
   const [view, setView] = useState('table');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const pageHeight = useFullPageHeight();
   const [columnPrefs, setColumnPrefs] = useState(loadColumnPrefs);
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
@@ -401,7 +403,7 @@ export default function Tickets() {
   const activeFilterCount = [status, priority, category, assignee].filter(Boolean).length;
 
   return (
-    <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
+    <div style={{ padding: 0, height: pageHeight }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
       <div className="flex-shrink-0 space-y-3 px-4 pb-4 pt-5 sm:px-6 lg:px-12 lg:pt-8">
         <PageHeader
           title="Tickets"

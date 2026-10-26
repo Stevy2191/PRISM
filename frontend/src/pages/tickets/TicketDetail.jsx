@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import CompanyTag from '../../components/companies/CompanyTag';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { IconLink, IconFileText } from '@tabler/icons-react';
+import { IconArrowMerge, IconLink, IconFileText } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
 import { assignableContactDepartments } from '../../utils/contactDepartments';
@@ -38,6 +38,11 @@ import { ActivityTab } from './detail/ActivityTab';
 import { ReplyBox } from './detail/ReplyBox';
 import { EditableTitle } from './detail/TicketText';
 import { Modal } from './detail/Modal';
+import { ActionsMenu } from './detail/ActionsMenu';
+import { useNarrow } from '../../hooks/useNarrow';
+import { useFullPageHeight } from '../../hooks/useFullPageHeight';
+import Breadcrumbs from '../../components/ui/Breadcrumbs';
+import Button from '../../components/ui/Button';
 import { orgToday, addDays } from '../../utils/orgDate';
 
 // How many rows the growing detail lists (comments, activity) load at a time.
@@ -123,6 +128,8 @@ export default function TicketDetail() {
   const [noTimeWarning, setNoTimeWarning] = useState(null);
   const [noResolutionWarning, setNoResolutionWarning] = useState(null);
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
+  const isPhone = useNarrow();
+  const pageHeight = useFullPageHeight();
 
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? 'collapsed' : 'expanded'); } catch { /* ignore */ }
@@ -410,102 +417,92 @@ export default function TicketDetail() {
 
   const parentRelation = relations.find((r) => r.relationType === 'parent' && r.direction === 'outgoing') || null;
 
+  const statusColor = findStatus(ticketStatuses, ticket.status)?.color || MUTED;
+  const canEditTicket = isStaff && !!ticket.access?.edit;
+  // Header actions: buttons from md up, the "More actions" menu below.
+  const headerActions = [
+    canEditTicket && { label: 'Link ticket', icon: IconLink, onSelect: () => setHeaderLinkModalOpen(true) },
+    canEditTicket && !ticket.mergedInto && { label: 'Merge…', icon: IconArrowMerge, onSelect: () => setMergeOpen(true) },
+    isStaff && { label: 'Generate report', icon: IconFileText, onSelect: () => setReportModalOpen(true) },
+  ].filter(Boolean);
+
   return (
     <div
-      style={{ padding: 0, height: '100vh' }}
+      style={{ padding: 0, height: pageHeight }}
       className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8"
     >
       {/* Header — auto height, does not grow */}
-      <div
-        className="flex-shrink-0 px-6 py-4"
-        style={{ backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}` }}
-      >
-        <div className="flex items-center justify-between gap-4">
-          <Link to="/tickets" className="text-sm hover:underline" style={{ color: MUTED }}>← Back to tickets</Link>
-          {parentRelation && (
-            <Link
-              to={`/tickets/${parentRelation.ticket.id}`}
-              className="text-sm font-medium hover:underline"
-              style={{ color: PURPLE }}
-            >
-              ↑ Parent: {formatTicketId(parentRelation.ticket)} {parentRelation.ticket.title}
-            </Link>
-          )}
-        </div>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="font-mono text-lg" style={{ color: MUTED }}>{formatTicketId(ticket)}</span>
-            <SourceBadge source={ticket.source} />
-            <EditableTitle title={ticket.title} canEdit={isStaff && !!ticket.access?.edit} onSave={saveTicketText} />
-            {(() => {
-              const statusMeta = findStatus(ticketStatuses, ticket.status);
-              const statusColor = statusMeta?.color || MUTED;
-              return (
-                <span
-                  className="rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: `color-mix(in srgb, ${statusColor} 13%, transparent)`, color: statusColor }}
-                >
-                  {ticket.status}
-                </span>
-              );
-            })()}
-            <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: PRIORITY_META[ticket.priority].color }}>
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PRIORITY_META[ticket.priority].color }} />
-              {PRIORITY_META[ticket.priority].label}
-            </span>
-            <CsatBadge survey={ticket.csatSurvey} />
-            {ticket.access?.canTake && (
-              <button
-                type="button"
-                onClick={takeTicket}
-                disabled={taking}
-                className="btn-primary h-7 px-2.5 text-xs"
+      <header className="flex-shrink-0 px-4 pb-4 pt-3 sm:px-6 md:pt-5 lg:px-12">
+        <div className="flex items-center justify-between gap-3">
+          <Breadcrumbs items={[{ label: 'Tickets', to: '/tickets' }, { label: formatTicketId(ticket) }]} />
+          <div className="flex min-w-0 items-center gap-1">
+            {parentRelation && (
+              <Link
+                to={`/tickets/${parentRelation.ticket.id}`}
+                className="truncate text-sm font-medium hover:underline"
+                style={{ color: PURPLE }}
               >
-                {taking ? 'Taking…' : 'Take it'}
-              </button>
+                ↑ Parent: {formatTicketId(parentRelation.ticket)} {parentRelation.ticket.title}
+              </Link>
             )}
-            {isStaff && ticket.access?.edit && (
-              <button
-                type="button"
-                onClick={() => setHeaderLinkModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
-                style={{ borderColor: BORDER, color: MUTED }}
-              >
-                <IconLink size={13} />
-                Link ticket
-              </button>
-            )}
-            {isStaff && ticket.access?.edit && !ticket.mergedInto && (
-              <button
-                type="button"
-                onClick={() => setMergeOpen(true)}
-                className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
-                style={{ borderColor: BORDER, color: MUTED }}
-              >
-                Merge…
-              </button>
-            )}
-            {isStaff && (
-              <button
-                type="button"
-                onClick={() => setReportModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
-                style={{ borderColor: BORDER, color: MUTED }}
-              >
-                <IconFileText size={13} />
-                Generate report
-              </button>
-            )}
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileDetailsOpen(true)}
-              className="rounded-md border px-3 py-2 text-sm font-medium md:hidden"
-              style={{ borderColor: BORDER, color: TEXT }}
+              className="h-11 flex-shrink-0 rounded-md border border-navy-100 bg-surface px-3 text-sm font-semibold text-navy-900 md:hidden"
             >
               Details
             </button>
+            <ActionsMenu items={headerActions} className="flex-shrink-0 md:hidden" />
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm">
+          <span className="num font-semibold" style={{ color: MUTED }}>{formatTicketId(ticket)}</span>
+          <span
+            className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+            style={{ backgroundColor: `color-mix(in srgb, ${statusColor} 16%, transparent)`, color: statusColor }}
+          >
+            {ticket.status}
+          </span>
+          <span className="flex items-center gap-1.5 font-medium" style={{ color: TEXT }}>
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PRIORITY_META[ticket.priority].color }} />
+            {PRIORITY_META[ticket.priority].label}
+          </span>
+          <SourceBadge source={ticket.source} />
+          <CsatBadge survey={ticket.csatSurvey} />
+        </div>
+        <div className="mt-1 min-w-0">
+          <EditableTitle title={ticket.title} canEdit={canEditTicket} onSave={saveTicketText} />
+        </div>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="flex min-w-0 flex-wrap gap-x-5 gap-y-1 text-sm" style={{ color: MUTED }}>
+            <span className="min-w-0 break-words">
+              Customer:{' '}
+              {ticket.contact ? (
+                <><Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link><CompanyTag company={ticket.company} /></>
+              ) : (
+                <span style={{ color: TEXT }}>—</span>
+              )}
+            </span>
+            <span>Assignee: <span className="font-medium" style={{ color: TEXT }}>{ticket.assignee?.displayName || 'Unassigned'}</span></span>
+            <span>Due: <span className="num font-medium" style={{ color: dueDateColor(ticket.dueDate) }}>{ticket.dueDate ? formatDueDateTime(ticket.dueDate, ticket.dueTime) : '—'}</span></span>
+            <span>Created: <span className="num font-medium" style={{ color: TEXT }}>{formatDate(ticket.createdAt)}</span></span>
+            {ticket.waiting && (
+              <span data-testid="ticket-waiting" title="Time in statuses that count as waiting on the customer (Settings → Statuses). Lifecycle times and the SLA still include it.">
+                Waiting on customer:{' '}
+                <span className="font-medium" style={{ color: TEXT }}>
+                  {formatMinutes(ticket.waiting.minutes)}
+                  {ticket.waiting.pct !== null && ` (${ticket.waiting.pct}%)`}
+                  {ticket.waiting.now && ' · waiting now'}
+                </span>
+              </span>
+            )}
+          </div>
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+            {ticket.access?.canTake && (
+              <Button variant="primary" onClick={takeTicket} disabled={taking}>
+                {taking ? 'Taking…' : 'Take it'}
+              </Button>
+            )}
             {hasPermission('time.log') && (
               <TimerButton
                 kind="ticket"
@@ -515,32 +512,15 @@ export default function TicketDetail() {
                 anyTask
               />
             )}
+            {headerActions.map(({ label, icon: Icon, onSelect }) => (
+              <Button key={label} onClick={onSelect} className="max-md:hidden">
+                <Icon size={15} aria-hidden="true" />
+                {label}
+              </Button>
+            ))}
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm" style={{ color: MUTED }}>
-          <span>
-            Customer:{' '}
-            {ticket.contact ? (
-              <><Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link><CompanyTag company={ticket.company} /></>
-            ) : (
-              <span style={{ color: TEXT }}>—</span>
-            )}
-          </span>
-          <span>Assignee: <span style={{ color: TEXT }}>{ticket.assignee?.displayName || 'Unassigned'}</span></span>
-          <span>Due: <span style={{ color: dueDateColor(ticket.dueDate) }}>{ticket.dueDate ? formatDueDateTime(ticket.dueDate, ticket.dueTime) : '—'}</span></span>
-          <span>Created: <span style={{ color: TEXT }}>{formatDate(ticket.createdAt)}</span></span>
-          {ticket.waiting && (
-            <span data-testid="ticket-waiting" title="Time in statuses that count as waiting on the customer (Settings → Statuses). Lifecycle times and the SLA still include it.">
-              Waiting on customer:{' '}
-              <span style={{ color: TEXT }}>
-                {formatMinutes(ticket.waiting.minutes)}
-                {ticket.waiting.pct !== null && ` (${ticket.waiting.pct}%)`}
-                {ticket.waiting.now && ' · waiting now'}
-              </span>
-            </span>
-          )}
-        </div>
-      </div>
+      </header>
 
       {stoppedTimer && (
         <TimeEntryForm
@@ -577,59 +557,26 @@ export default function TicketDetail() {
       {/* Body: sidebar + main. flex:1 + min-height:0 + overflow:hidden so this
           row takes exactly the remaining viewport height and its children
           (which scroll internally) never push the page taller than 100vh. */}
-      <div className="flex items-stretch" style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
-        <div className="hidden md:contents">
-          <Sidebar
-            ticket={ticket}
-            collapsed={collapsed}
-            onToggle={() => setCollapsed((c) => !c)}
-            isStaff={isStaff}
-            canEdit={isStaff && !!ticket.access?.edit}
-            onStatusChange={handleStatusChange}
-            patchTicket={patchTicket}
-            onTicketReplaced={setTicket}
-            assignableUsers={assignableUsers}
-            teams={teams}
-            directory={directory}
-            ticketStatuses={ticketStatuses}
-            tags={ticket.tags || []}
-            onAddTag={addTag}
-            onRemoveTag={removeTag}
-            watchers={watchers}
-            onAddWatcher={addWatcher}
-            onRemoveWatcher={removeWatcher}
-            contactDepartments={assignableContactDepartments(departments.filter((d) => d.companyId === ticket.companyId), user, hasPermission)}
-            contactDeptAssign={contactDeptAssign}
-            onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
-            onAssignContactDepartment={assignContactDepartment}
-            customFieldDefs={customFieldDefs}
-            onSaveCustomField={saveCustomFieldValue}
-            onLinkAsset={linkAsset}
-            onUnlinkAsset={unlinkAsset}
-          />
-        </div>
-
+      <div className="flex items-stretch gap-5 sm:px-6 md:pb-6 lg:px-12" style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
         <div
-          className="min-w-0"
+          className="min-w-0 border-t border-navy-100 bg-surface sm:rounded-xl sm:border"
           style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
-          {/* Hardcoded per theme via CSS classes (not --color-* variables) so
-              the tab bar stays readable no matter what custom background
-              color an admin or user has set. */}
-          <div className="ticket-tab-bar flex flex-shrink-0 overflow-x-auto">
+          <div className="ticket-tab-bar flex flex-shrink-0 gap-1 overflow-x-auto px-2 sm:px-3">
             {TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setActiveTab(t.key)}
-                className={`ticket-tab -mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${activeTab === t.key ? 'ticket-tab--active' : ''}`}
+                aria-pressed={activeTab === t.key}
+                className={`ticket-tab -mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3.5 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-prism-accent ${activeTab === t.key ? 'ticket-tab--active font-semibold' : 'font-medium'}`}
               >
                 {t.key === 'relationships' && relations.length > 0 ? `${t.label} (${relations.length})` : t.label}
               </button>
             ))}
           </div>
 
-          <div className="p-6" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
+          <div className="p-4 sm:p-5" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
             {activeTab === 'conversation' && (
               <ConversationTab
                 ticket={ticket}
@@ -696,8 +643,39 @@ export default function TicketDetail() {
           {/* Sibling below the scrollable tab content, not inside it — stays
               pinned to the bottom of the main content column. */}
           {activeTab === 'conversation' && (
-            <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} isStaff={isStaff} canViewPrivateComments={canViewPrivateComments} />
+            <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} isStaff={isStaff} canViewPrivateComments={canViewPrivateComments} collapsible={isPhone} />
           )}
+        </div>
+
+        <div className="hidden md:contents">
+          <Sidebar
+            ticket={ticket}
+            collapsed={collapsed}
+            onToggle={() => setCollapsed((c) => !c)}
+            isStaff={isStaff}
+            canEdit={isStaff && !!ticket.access?.edit}
+            onStatusChange={handleStatusChange}
+            patchTicket={patchTicket}
+            onTicketReplaced={setTicket}
+            assignableUsers={assignableUsers}
+            teams={teams}
+            directory={directory}
+            ticketStatuses={ticketStatuses}
+            tags={ticket.tags || []}
+            onAddTag={addTag}
+            onRemoveTag={removeTag}
+            watchers={watchers}
+            onAddWatcher={addWatcher}
+            onRemoveWatcher={removeWatcher}
+            contactDepartments={assignableContactDepartments(departments.filter((d) => d.companyId === ticket.companyId), user, hasPermission)}
+            contactDeptAssign={contactDeptAssign}
+            onContactDeptChange={(deptId) => setContactDeptAssign((p) => ({ ...p, deptId }))}
+            onAssignContactDepartment={assignContactDepartment}
+            customFieldDefs={customFieldDefs}
+            onSaveCustomField={saveCustomFieldValue}
+            onLinkAsset={linkAsset}
+            onUnlinkAsset={unlinkAsset}
+          />
         </div>
       </div>
 

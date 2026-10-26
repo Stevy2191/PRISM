@@ -44,10 +44,10 @@ const TYPE_OPTIONS = [
 function SidebarSection({ title, collapsed, children }) {
   if (collapsed) return children;
   return (
-    <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: MUTED }}>{title}</h3>
-      {children}
-    </div>
+    <section className="rounded-xl border border-navy-100 bg-surface">
+      <h3 className="border-b border-navy-100 px-4 py-3 text-sm font-semibold text-navy-900">{title}</h3>
+      <div className="px-4 py-3">{children}</div>
+    </section>
   );
 }
 
@@ -207,7 +207,7 @@ export function Sidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetQuery]);
 
-  const width = collapsed ? 44 : 240;
+  const width = collapsed ? 44 : 340;
 
   return (
     <aside
@@ -218,32 +218,23 @@ export function Sidebar({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        borderRight: mobileSheet ? 'none' : `1px solid ${BORDER}`,
-        backgroundColor: CARD_BG,
+        gap: 12,
       }}
     >
       {!mobileSheet && (
         <button
           type="button"
           onClick={onToggle}
-          className="flex-shrink-0 flex items-center text-sm"
-          style={{
-            width: '100%',
-            height: 36,
-            padding: '0 12px',
-            justifyContent: collapsed ? 'center' : 'flex-end',
-            backgroundColor: 'var(--color-hover)',
-            borderBottom: `1px solid ${BORDER}`,
-            color: TEXT,
-          }}
+          className="flex h-8 w-8 flex-shrink-0 items-center justify-center self-end rounded-md border border-navy-100 bg-surface text-sm text-navy-700 hover:bg-[var(--color-hover)] max-md:hidden"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {collapsed ? '›' : '‹'}
+          {collapsed ? '‹' : '›'}
         </button>
       )}
 
       <div
-        className={collapsed ? 'flex flex-col items-center gap-4 pt-4' : 'space-y-5 p-4'}
+        className={collapsed ? 'flex flex-col items-center gap-4 rounded-xl border border-navy-100 bg-surface py-4' : `space-y-3 ${mobileSheet ? 'p-4' : 'pb-1'}`}
         style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}
       >
         {!canEdit && !collapsed && (
