@@ -135,6 +135,17 @@ describe('helpers', () => {
     expect(row(res, tina).cells[NOV(3)].minutes).toBe(120);
     expect(row(res, carl).cells[NOV(3)].minutes).toBe(120);
     expect(res.items[carl.user.id][0]).toEqual(expect.objectContaining({ kind: 'task', id: t.id, projectId: p.id, minutes: 120 }));
+    // Who is on it, main assignee first, so a drop in the helper's row moves dates only.
+    expect(res.items[carl.user.id][0].peopleIds).toEqual([tina.user.id, carl.user.id]);
+    expect(res.items[tina.user.id][0].peopleIds).toEqual([tina.user.id, carl.user.id]);
+  });
+
+  it('tickets and lane items carry peopleIds too', async () => {
+    await newTicket({ assigneeId: tina.user.id, dueDate: NOV(3) });
+    await newTicket({ title: 'Loose', dueDate: NOV(3) });
+    const res = await load(w.admin.agent);
+    expect(res.items[tina.user.id][0].peopleIds).toEqual([tina.user.id]);
+    expect(res.unassigned.find((i) => i.title === 'Loose').peopleIds).toEqual([]);
   });
 
   it('a person who cannot reach the project does not get the task in their row', async () => {
@@ -355,6 +366,16 @@ describe('weekends', () => {
     await makeTask(w.admin.agent, p.id, { assigneeId: tina.user.id, estimateMinutes: 300, startDate: NOV(2), dueDate: NOV(7) });
     const cells = row(await load(w.admin.agent), tina).cells;
     expect([NOV(2), NOV(3), NOV(4), NOV(5), NOV(6)].map((d) => cells[d].minutes)).toEqual([60, 60, 60, 60, 60]);
+  });
+
+  it('a two-year task spreads over two years of working days, not one', async () => {
+    const p = await makeProject(w.admin.agent, { name: 'Long haul', ownerDepartmentId: w.deptA.id });
+    // Nov 2 2026 .. Oct 29 2028 (a Sunday) holds 520 weekdays; 520 h of work is 60 min a day.
+    await makeTask(w.admin.agent, p.id, {
+      assigneeId: tina.user.id, estimateMinutes: 520 * 60, startDate: NOV(2), dueDate: '2028-10-29',
+    });
+    const cells = row(await load(w.admin.agent, '&days=10'), tina).cells;
+    expect([NOV(2), NOV(3), NOV(13)].map((d) => cells[d].minutes)).toEqual([60, 60, 60]);
   });
 
   it('on a Sunday with no from, overdue work lands on the coming Monday', async () => {

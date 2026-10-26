@@ -11,18 +11,22 @@ export const canDrop = (item) => !!item?.canEdit;
 // The request a drop turns into. A ticket gets the person and a planned date
 // (the SLA due date never moves); a task gets the person and dates. A dated
 // task keeps its length and starts on the drop day; an undated one gets that
-// one day. The "No date" column only reassigns.
+// one day. The "No date" column only reassigns. Dropping a task in the row of
+// someone already on it (main assignee or helper, item.peopleIds) moves the
+// dates only: sending assigneeId would make a helper the main assignee and
+// drop the real one. Returns null when the drop changes nothing.
 export function dropPatch(item, personId, date) {
   const dated = date && date !== NO_DATE;
   if (item.kind === 'ticket') {
     return { url: `/tickets/${item.id}`, body: dated ? { assigneeId: personId, plannedDate: date } : { assigneeId: personId } };
   }
   const url = `/projects/${item.projectId}/tasks/${item.id}`;
-  if (!dated) return { url, body: { assigneeId: personId } };
+  const who = (item.peopleIds || []).includes(personId) ? {} : { assigneeId: personId };
+  if (!dated) return Object.keys(who).length ? { url, body: who } : null;
   const start = item.startDate || item.dueDate;
   const due = item.dueDate || item.startDate;
   const length = start && due ? Math.max(0, daysBetween(start, due)) : 0;
-  return { url, body: { assigneeId: personId, startDate: date, dueDate: addDays(date, length) } };
+  return { url, body: { ...who, startDate: date, dueDate: addDays(date, length) } };
 }
 
 export const mondayOf = (date) => addDays(date, 1 - isoWeekday(date));

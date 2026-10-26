@@ -65,3 +65,21 @@ test('cell state: holiday/off, free, over, normal', () => {
   assert.equal(cellState({ minutes: 481, capacity: 480, count: 2 }), 'over');
   assert.equal(cellState({ minutes: 60, capacity: 0, count: 1 }), 'over');
 });
+
+// A task the drop target is already on (main assignee or helper) only moves
+// dates: sending assigneeId would make a helper the main assignee.
+const shared = { ...dated, peopleIds: [4, 5] }; // 4 is main, 5 a helper
+
+test('drop in a helper row moves the dates only', () => {
+  assert.deepEqual(dropPatch(shared, 5, '2026-11-16').body, { startDate: '2026-11-16', dueDate: '2026-11-18' });
+  assert.deepEqual(dropPatch(shared, 4, '2026-11-16').body, { startDate: '2026-11-16', dueDate: '2026-11-18' });
+});
+
+test('drop on someone not on the task makes them the main assignee', () => {
+  assert.deepEqual(dropPatch(shared, 9, '2026-11-16').body, { assigneeId: 9, startDate: '2026-11-16', dueDate: '2026-11-18' });
+  assert.deepEqual(dropPatch(shared, 9, 'none').body, { assigneeId: 9 });
+});
+
+test('No date column on someone already on the task is no change at all', () => {
+  assert.equal(dropPatch(shared, 5, 'none'), null);
+});

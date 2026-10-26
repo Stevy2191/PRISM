@@ -8,9 +8,6 @@ const DEFAULT_WORK_HOURS = {
   1: 480, 2: 480, 3: 480, 4: 480, 5: 480, 6: 0, 7: 0,
 };
 const DEFAULT_TICKET_MINUTES = 60;
-// Longest stretch spread() looks at, so one far-future due date cannot make
-// the screen walk thousands of days per item.
-const MAX_WINDOW_DAYS = 366;
 const NONE = 'none';
 
 // A strict calendar date: 'YYYY-MM-DD' that really exists (no 2026-02-30).
@@ -46,34 +43,65 @@ function evenSplit(minutes, parts) {
   return Array.from({ length: parts }, (_, i) => (i === parts - 1 ? minutes - each * (parts - 1) : each));
 }
 
-// Where an item's minutes fall. `workingDays` are the person's working dates
-// (sorted, covering the item's window). Returns Map<date | 'none', minutes>.
+// The ISO weekdays (Mon-Fri only: weekend hours never take a share) a person
+// works, from their own hours or the defaults.
+function workingWeekdays(workHours, defaults) {
+  const hours = workHours || defaults || DEFAULT_WORK_HOURS;
+  return new Set([1, 2, 3, 4, 5].filter((wd) => Number(hours[wd]) > 0));
+}
+
+// The working days in an item's window [max(start, today), due], worked out
+// arithmetically however long the window is (a two-year task spreads over two
+// years of working days, not one): `count` of them, the `last` one (it takes
+// the rounding remainder) and, listed, only the `days` inside `range`
+// ([first, last] visible dates). A working day is one of `workdays` (ISO
+// weekdays) that isn't in `holidays`; every future holiday is loaded, so the
+// count is exact. No start, no due, or a due date before today: count 0.
+function workingSpan(startDate, dueDate, today, workdays, holidays, range) {
+  const empty = { count: 0, last: null, days: [] };
+  if (!startDate || !dueDate || dueDate < today) return empty;
+  const lo = startDate > today ? startDate : today;
+  if (lo > dueDate || !workdays.size) return empty;
+  const isWorking = (d) => workdays.has(isoWeekday(d)) && !(holidays && holidays.has(d));
+  const n = daysBetween(lo, dueDate) + 1;
+  let count = Math.floor(n / 7) * workdays.size;
+  const firstWd = isoWeekday(lo);
+  for (let i = 0; i < n % 7; i += 1) if (workdays.has(((firstWd - 1 + i) % 7) + 1)) count += 1;
+  for (const h of holidays || []) if (h >= lo && h <= dueDate && workdays.has(isoWeekday(h))) count -= 1;
+  if (count <= 0) return empty;
+  let last = dueDate;
+  while (!isWorking(last)) last = addDays(last, -1);
+  const days = [];
+  const hi = range && range[1] < dueDate ? range[1] : dueDate;
+  for (let d = range && range[0] > lo ? range[0] : lo; d <= hi; d = addDays(d, 1)) if (isWorking(d)) days.push(d);
+  return { count, last, days };
+}
+
+// Where an item's minutes fall. `working` is the person's workingSpan() for
+// the item (or, simply, a sorted list of their working dates covering the
+// window). Returns Map<date | 'none', minutes>; only listed days appear.
 //  - no dates: 'none'
 //  - past due: all on today
 //  - due only: all on the due date
 //  - otherwise even over the working days in [max(start, today), due], or all
 //    on the due date when that window has none.
 // A start date with no due date sits on max(start, today).
-function spread(minutes, startDate, dueDate, workingDays, today) {
+function spread(minutes, startDate, dueDate, working, today) {
   const out = new Map();
   if (!startDate && !dueDate) return out.set(NONE, minutes);
   if (!dueDate) return out.set(startDate > today ? startDate : today, minutes);
   if (dueDate < today) return out.set(today, minutes);
   if (!startDate) return out.set(dueDate, minutes);
   const lo = startDate > today ? startDate : today;
-  const days = lo > dueDate ? [] : workingDays.filter((d) => d >= lo && d <= dueDate);
-  if (!days.length) return out.set(dueDate, minutes);
-  evenSplit(minutes, days.length).forEach((m, i) => out.set(days[i], m));
+  let span = working;
+  if (Array.isArray(working)) {
+    const days = lo > dueDate ? [] : working.filter((d) => d >= lo && d <= dueDate);
+    span = { count: days.length, last: days[days.length - 1], days };
+  }
+  if (!span.count) return out.set(dueDate, minutes);
+  const each = Math.floor(minutes / span.count);
+  span.days.forEach((d) => out.set(d, d === span.last ? minutes - each * (span.count - 1) : each));
   return out;
-}
-
-// The part of the window spread() needs working days for: [lo, due] capped.
-function windowDays(startDate, dueDate, today) {
-  if (!dueDate || !startDate || dueDate < today) return [];
-  const lo = startDate > today ? startDate : today;
-  if (lo > dueDate) return [];
-  const n = Math.min(daysBetween(lo, dueDate), MAX_WINDOW_DAYS);
-  return Array.from({ length: n + 1 }, (_, i) => addDays(lo, i));
 }
 
 // The screen shows Monday-Friday only. A day that is a Saturday or Sunday
@@ -108,5 +136,5 @@ function shareMinutes(minutes, peopleIds) {
 }
 
 module.exports = {
-  DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES, NONE, isIsoDate, validWorkHours, snapBack, snapForward, capacityFor, spread, windowDays, itemMinutes, shareMinutes,
+  DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES, NONE, isIsoDate, validWorkHours, snapBack, snapForward, capacityFor, workingWeekdays, workingSpan, spread, itemMinutes, shareMinutes,
 };

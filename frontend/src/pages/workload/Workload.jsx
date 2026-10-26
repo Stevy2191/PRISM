@@ -63,7 +63,9 @@ export default function Workload() {
     setHoverKey(null);
     setOpen(null);
     if (!item) return;
-    const { url, body } = dropPatch(item, person.id, key);
+    const patch = dropPatch(item, person.id, key);
+    if (!patch) return;
+    const { url, body } = patch;
     setNote('');
     try {
       const { data: res } = await api.patch(url, body);

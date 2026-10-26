@@ -13,7 +13,7 @@ const { getTicketStatusBuckets, getProjectStatusBuckets } = require('../statusBe
 const { peopleOn } = require('../projects/helpers');
 const { addDays, isoWeekday } = require('../projects/schedule');
 const {
-  DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES, NONE, capacityFor, snapBack, snapForward, spread, windowDays, itemMinutes, shareMinutes, validWorkHours,
+  DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES, NONE, capacityFor, workingWeekdays, workingSpan, snapBack, snapForward, spread, itemMinutes, shareMinutes, validWorkHours,
 } = require('./capacity');
 
 const sameDept = (a, b) => a != null && b != null && a === b;
@@ -233,6 +233,7 @@ async function buildWorkload(viewer, {
       carriers,
       assigned: !!t.assigneeId,
       mainAssigneeId: t.assigneeId || null,
+      peopleIds: t.assigneeId ? [t.assigneeId] : [],
       slaOverdue: !!t.dueDate && t.dueDate < today,
       teamId: t.teamId,
     });
@@ -257,6 +258,9 @@ async function buildWorkload(viewer, {
       carriers: everyone.filter((id) => staffIds.has(id) && reach.project(id, t.projectId)),
       assigned: everyone.length > 0,
       mainAssigneeId: t.assigneeId || null,
+      // Who is on it, main assignee first: a drop in one of their rows moves
+      // only the dates (the client must not make a helper the main assignee).
+      peopleIds: everyone,
       teamId: null,
     });
   }
@@ -277,13 +281,14 @@ async function buildWorkload(viewer, {
   // Weekends are not shown: "today" on one is the coming Monday, and the
   // working days to spread over are Monday-Friday ones, kept per person and window.
   const todayCol = snapForward(today);
+  // Counted over the whole window, listed only for the visible columns.
+  const range = [columns[0], columns[columns.length - 1]];
   const workingCache = new Map();
   const workingDaysFor = (person, start, due) => {
     const key = `${person.id}|${start}|${due}`;
     if (!workingCache.has(key)) {
-      const holidaysFor = holidaysOf.get(person.id);
-      workingCache.set(key, windowDays(start, due, todayCol)
-        .filter((d) => isoWeekday(d) <= 5 && capacityFor(person.workHours, settings.defaultWorkHours, holidaysFor, d) > 0));
+      const workdays = workingWeekdays(person.workHours, settings.defaultWorkHours);
+      workingCache.set(key, workingSpan(start, due, todayCol, workdays, holidaysOf.get(person.id), range));
     }
     return workingCache.get(key);
   };

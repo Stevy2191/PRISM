@@ -100,3 +100,59 @@ it('weekend days snap back to Friday, or forward to Monday for today', () => {
   expect(snapForward('2026-11-08')).toBe('2026-11-09');
   expect(snapForward('2026-11-06')).toBe('2026-11-06');
 });
+
+describe('long windows (no year cap)', () => {
+  const { workingSpan, workingWeekdays } = require('../../src/services/workload/capacity');
+  const monFri = workingWeekdays(null, DEFAULT_WORK_HOURS);
+  const range = ['2026-11-02', '2026-11-13']; // the two visible weeks
+
+  // Brute-force count for checking the arithmetic.
+  const { addDays, isoWeekday } = require('../../src/services/projects/schedule');
+  const walk = (lo, due, workdays, holidays) => {
+    let n = 0;
+    for (let d = lo; d <= due; d = addDays(d, 1)) if (workdays.has(isoWeekday(d)) && !holidays.has(d)) n += 1;
+    return n;
+  };
+
+  it('counts working days arithmetically, minus holidays on working days', () => {
+    const holidays = new Set(['2026-12-25', '2027-01-01', '2027-07-04', '2028-07-04', '2027-11-06']); // 2027-11-06 is a Saturday
+    for (const [lo, due] of [['2026-11-02', '2028-11-01'], ['2026-11-04', '2026-11-04'], ['2026-11-07', '2026-11-08'], ['2026-11-05', '2027-02-10']]) {
+      const span = workingSpan(lo, due, '2026-11-02', monFri, holidays, range);
+      expect([lo, due, span.count]).toEqual([lo, due, walk(lo, due, monFri, holidays)]);
+    }
+  });
+
+  it("a 2-year task's per-day minutes are the remaining minutes over 2 years of working days", () => {
+    const span = workingSpan('2026-11-02', '2028-11-01', '2026-11-02', monFri, new Set(), range);
+    expect(span.count).toBe(walk('2026-11-02', '2028-11-01', monFri, new Set())); // ~522, not ~261
+    const minutes = 60 * 522;
+    const out = spread(minutes, '2026-11-02', '2028-11-01', span, '2026-11-02');
+    expect(out.get('2026-11-02')).toBe(Math.floor(minutes / span.count));
+    expect(out.get('2026-11-02')).toBeLessThan(65); // about an hour a day, not two
+    // Only the visible weekdays are materialised.
+    expect([...out.keys()].sort()).toEqual(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06',
+      '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13']);
+  });
+
+  it("uses the person's own working weekdays; weekend hours do not take a share", () => {
+    const monWedSat = workingWeekdays({ 1: 480, 3: 240, 6: 300 }, DEFAULT_WORK_HOURS);
+    expect([...monWedSat].sort()).toEqual([1, 3]);
+    const span = workingSpan('2026-11-02', '2026-11-13', '2026-11-02', monWedSat, new Set(['2026-11-04']), range);
+    expect(span).toEqual({ count: 3, last: '2026-11-11', days: ['2026-11-02', '2026-11-09', '2026-11-11'] });
+  });
+
+  it('the window starts at today, and the remainder lands on the last working day even when it is off screen', () => {
+    const span = workingSpan('2026-10-01', '2026-11-20', '2026-11-04', monFri, new Set(), range);
+    expect(span.count).toBe(13); // Nov 4..20 weekdays
+    expect(span.last).toBe('2026-11-20');
+    expect(span.days[0]).toBe('2026-11-04');
+    const out = spread(100, '2026-10-01', '2026-11-20', span, '2026-11-04');
+    expect([...out.values()].every((m) => m === 7)).toBe(true); // floor(100/13); the 9 left are on Nov 20, off screen
+  });
+
+  it('no working days in the window, a past due date or no start gives an empty span', () => {
+    expect(workingSpan('2026-11-07', '2026-11-08', '2026-11-02', monFri, new Set(), range).count).toBe(0);
+    expect(workingSpan('2026-10-01', '2026-10-30', '2026-11-02', monFri, new Set(), range).count).toBe(0);
+    expect(workingSpan(null, '2026-11-30', '2026-11-02', monFri, new Set(), range).count).toBe(0);
+  });
+});

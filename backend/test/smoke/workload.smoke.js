@@ -170,3 +170,24 @@ it('Holidays appears under Workload in Settings', async () => {
   await page.goto('/settings');
   await page.getByText('Hours people work').first().waitFor();
 });
+
+it("drag a task within a helper's row moves its dates and keeps the main assignee", async () => {
+  const day = plus(MON, 7); // next week's Monday and Tuesday, clear of the cells above
+  const project = await makeProject(w.admin.agent, { name: 'Clinic cabling', ownerDepartmentId: w.deptA.id });
+  const shared = await makeTask(w.admin.agent, project.id, {
+    title: 'Pull cable', assigneeId: priya.user.id, estimateMinutes: 120, startDate: day, dueDate: day,
+  });
+  expectOk(await w.admin.agent.post(`${API}/projects/${project.id}/tasks/${shared.id}/helpers`).send({ userId: sam.user.id }), 201);
+  const page = await smoke.pageAs('admin');
+  await page.goto('/workload');
+  await cell(page, sam, day).click();
+  const row = page.getByRole('dialog').locator(`[data-item-kind="task"][data-item-id="${shared.id}"]`);
+  await row.waitFor();
+  const patched = waitFor(page, 'PATCH', `/tasks/${shared.id}`);
+  await row.dragTo(cell(page, sam, plus(day, 1)), { force: true });
+  const res = await patched;
+  expect(res.request().postDataJSON()).not.toHaveProperty('assigneeId');
+  const t = await models.Task.findByPk(shared.id);
+  expect([t.assigneeId, t.startDate, t.dueDate]).toEqual([priya.user.id, plus(day, 1), plus(day, 1)]);
+  expect(await models.TaskAssignee.count({ where: { taskId: shared.id, userId: sam.user.id } })).toBe(1);
+});
