@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { IconArrowLeft, IconFile, IconFolder } from '@tabler/icons-react';
 import { useSettings } from '../../context/SettingsContext';
+import PortalShell from './PortalShell';
 
 const pub = axios.create({ baseURL: '/api/v1/kb' });
 
@@ -37,28 +38,9 @@ export default function KbPortalArticle() {
   }, [slug]);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg)' }}>
-      <header className="border-b" style={{ borderColor: BORDER, backgroundColor: 'var(--color-card)' }}>
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <Link to="/kb" className="flex items-center gap-2.5">
-            {settings.logoUrl ? <img src={settings.logoUrl} alt={wordmark} className="h-7 w-7 object-contain" /> : (
-              <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-                <rect x="1" y="1" width="11" height="11" rx="2" fill="#1d3461" stroke="var(--color-accent)" strokeWidth="1.4" />
-                <rect x="14" y="1" width="11" height="11" rx="2" fill="var(--color-card)" stroke="#1e3a5f" strokeWidth="1.4" />
-                <rect x="1" y="14" width="11" height="11" rx="2" fill="var(--color-card)" stroke="#1e3a5f" strokeWidth="1.4" />
-                <rect x="14" y="14" width="11" height="11" rx="2" fill="var(--color-card)" stroke="var(--color-border)" strokeWidth="1.4" />
-              </svg>
-            )}
-            <span className="font-bold tracking-wide" style={{ color: TEXT }}>{wordmark}</span>
-            <span className="hidden text-sm sm:inline" style={{ color: MUTED }}>· Help Center</span>
-          </Link>
-          <Link to="/login" className="text-sm hover:underline" style={{ color: MUTED }}>Staff sign in →</Link>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <Link to="/kb" className="mb-5 flex items-center gap-1.5 text-sm" style={{ color: MUTED }}>
-          <IconArrowLeft size={16} /> Back to Help Center
+    <PortalShell wordmark={wordmark} logoUrl={settings.logoUrl} width="max-w-3xl">
+        <Link to="/kb" className="mb-5 inline-flex items-center gap-1.5 py-1 text-sm font-medium" style={{ color: 'var(--color-accent)' }}>
+          <IconArrowLeft size={16} aria-hidden="true" /> Back to Help Center
         </Link>
 
         {loading ? (
@@ -76,11 +58,13 @@ export default function KbPortalArticle() {
                 <IconFolder size={12} /> {article.category.icon ? `${article.category.icon} ` : ''}{article.category.name}
               </span>
             )}
-            <h1 className="page-title text-3xl">{article.title}</h1>
+            <h1 className="page-title break-words">{article.title}</h1>
             <p className="mt-2 text-xs" style={{ color: MUTED }}>Updated {fmtDate(article.updatedAt)}</p>
 
             {article.body ? (
-              <div className="kb-content mt-6" dangerouslySetInnerHTML={{ __html: article.body }} />
+              <div className="card mt-6 p-5 sm:p-7">
+                <div className="kb-content" dangerouslySetInnerHTML={{ __html: article.body }} />
+              </div>
             ) : (
               <p className="mt-6 text-sm" style={{ color: MUTED }}>This article has attachments below.</p>
             )}
@@ -95,7 +79,7 @@ export default function KbPortalArticle() {
                       <a href={`/api/v1/kb/articles/${article.slug}/attachments/${att.id}/download`} className="min-w-0 flex-1 truncate text-sm hover:underline" style={{ color: TEXT }}>
                         {att.originalName}
                       </a>
-                      <span className="font-mono text-xs" style={{ color: MUTED }}>{fmtSize(att.size)}</span>
+                      <span className="num text-xs" style={{ color: MUTED }}>{fmtSize(att.size)}</span>
                     </li>
                   ))}
                 </ul>
@@ -103,7 +87,6 @@ export default function KbPortalArticle() {
             )}
           </article>
         )}
-      </main>
-    </div>
+    </PortalShell>
   );
 }

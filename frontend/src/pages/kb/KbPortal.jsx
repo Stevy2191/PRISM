@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { IconSearch, IconFolder, IconFileText, IconChevronRight, IconArrowLeft } from '@tabler/icons-react';
+import { IconSearch, IconFileText, IconChevronRight, IconArrowLeft } from '@tabler/icons-react';
 import { useSettings } from '../../context/SettingsContext';
+import PortalShell from './PortalShell';
 
 // Public portal uses a bare axios client (no credentials/interceptors) so an
 // un-authenticated visitor is never bounced to /login by the app's 401 guard.
@@ -10,40 +11,14 @@ const pub = axios.create({ baseURL: '/api/v1/kb' });
 
 const TEXT = 'var(--color-text-primary)';
 const MUTED = 'var(--color-text-muted)';
-const BORDER = 'var(--color-border)';
-
-function PortalShell({ children, wordmark, logoUrl }) {
-  return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg)' }}>
-      <header className="border-b" style={{ borderColor: BORDER, backgroundColor: 'var(--color-card)' }}>
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-          <Link to="/kb" className="flex items-center gap-2.5">
-            {logoUrl ? <img src={logoUrl} alt={wordmark} className="h-7 w-7 object-contain" /> : (
-              <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-                <rect x="1" y="1" width="11" height="11" rx="2" fill="#1d3461" stroke="var(--color-accent)" strokeWidth="1.4" />
-                <rect x="14" y="1" width="11" height="11" rx="2" fill="var(--color-card)" stroke="#1e3a5f" strokeWidth="1.4" />
-                <rect x="1" y="14" width="11" height="11" rx="2" fill="var(--color-card)" stroke="#1e3a5f" strokeWidth="1.4" />
-                <rect x="14" y="14" width="11" height="11" rx="2" fill="var(--color-card)" stroke="var(--color-border)" strokeWidth="1.4" />
-              </svg>
-            )}
-            <span className="font-bold tracking-wide" style={{ color: TEXT }}>{wordmark}</span>
-            <span className="hidden text-sm sm:inline" style={{ color: MUTED }}>· Help Center</span>
-          </Link>
-          <Link to="/login" className="text-sm hover:underline" style={{ color: MUTED }}>Staff sign in →</Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-4xl px-4 py-8">{children}</main>
-    </div>
-  );
-}
 
 function ArticleCard({ article }) {
   return (
-    <Link to={`/kb/a/${article.slug}`} className="card flex items-start gap-3 p-4 transition hover:border-navy-200">
-      <IconFileText size={20} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-accent)' }} />
+    <Link to={`/kb/a/${article.slug}`} className="flex items-start gap-3 px-4 py-3.5 transition hover:bg-[var(--color-hover)] sm:px-5">
+      <IconFileText size={20} aria-hidden="true" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-accent)' }} />
       <div className="min-w-0 flex-1">
-        <h3 className="font-medium" style={{ color: TEXT }}>{article.title}</h3>
-        {article.excerpt && <p className="mt-0.5 line-clamp-2 text-sm" style={{ color: MUTED }}>{article.excerpt}</p>}
+        <h3 className="font-semibold" style={{ color: TEXT }}>{article.title}</h3>
+        {article.excerpt && <p className="mt-0.5 line-clamp-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{article.excerpt}</p>}
       </div>
       <IconChevronRight size={18} className="mt-0.5 flex-shrink-0" style={{ color: MUTED }} />
     </Link>
@@ -87,14 +62,15 @@ export default function KbPortal() {
       {/* Hero search */}
       <div className="mb-8 text-center">
         <p className="eyebrow">Knowledge Base</p>
-        <h1 className="page-title mt-1 text-3xl">How can we help?</h1>
+        <h1 className="page-title mt-1">How can we help?</h1>
         <div className="relative mx-auto mt-5 max-w-xl">
           <IconSearch size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search for answers…"
-            className="input py-3 pl-11 text-base"
+            aria-label="Search for answers"
+            className="input h-12 pl-11 text-base"
             autoFocus
           />
         </div>
@@ -113,7 +89,7 @@ export default function KbPortal() {
           ) : articles.length === 0 ? (
             <p className="py-10 text-center text-sm" style={{ color: MUTED }}>No articles found.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="card divide-y divide-navy-100 overflow-hidden">
               {articles.map((a) => <ArticleCard key={a.id} article={a} />)}
             </div>
           )}
@@ -127,26 +103,26 @@ export default function KbPortal() {
                   key={c.id}
                   type="button"
                   onClick={() => setActiveCat({ slug: c.slug, name: c.name, icon: c.icon })}
-                  className="card flex items-center gap-3 p-4 text-left transition hover:border-navy-200"
+                  className="card flex items-center gap-3 p-4 text-left transition hover:bg-[var(--color-hover)]"
                 >
-                  <span className="text-2xl">{c.icon || '📁'}</span>
+                  <span aria-hidden="true" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-navy-100 text-xl" style={{ backgroundColor: 'var(--color-bg)' }}>{c.icon || '📁'}</span>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-semibold" style={{ color: TEXT }}>{c.name}</h3>
-                    {c.description && <p className="truncate text-sm" style={{ color: MUTED }}>{c.description}</p>}
+                    {c.description && <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{c.description}</p>}
                   </div>
-                  <span className="font-mono text-xs" style={{ color: MUTED }}>{c.articleCount}</span>
+                  <span className="num text-xs" style={{ color: MUTED }}>{c.articleCount}</span>
                 </button>
               ))}
             </div>
           )}
 
-          <h2 className="eyebrow mb-3 flex items-center gap-1.5"><IconFolder size={13} /> All articles</h2>
+          <h2 className="eyebrow mb-3">All articles</h2>
           {loading ? (
             <p className="py-10 text-center text-sm" style={{ color: MUTED }}>Loading…</p>
           ) : articles.length === 0 ? (
             <div className="card p-10 text-center text-sm" style={{ color: MUTED }}>No published articles yet.</div>
           ) : (
-            <div className="space-y-2">
+            <div className="card divide-y divide-navy-100 overflow-hidden">
               {articles.map((a) => <ArticleCard key={a.id} article={a} />)}
             </div>
           )}
