@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Company profile</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c5853215c172bfe2d0c9d7a4bd04f8a4">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.sgrid{display:grid;grid-template-columns:232px minmax(0,1fr);gap:32px;align-items:start}
+.smenu{padding:10px;background:var(--surf2);max-height:calc(100% - 0px)}
+.smenu .input{height:36px;margin-bottom:6px}
+.smenu .eyebrow{margin:12px 0 2px 10px}
+.smenu a{display:block;padding:6px 10px;border-radius:8px;color:var(--tx2);font-weight:500;font-size:13.5px}
+.app .smenu a.on{background:var(--surf);color:var(--tx);font-weight:600;box-shadow:inset 2px 0 0 var(--acc)}
+.app .smenu a.home{color:var(--tx);font-weight:600}
+.shead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.shead .crumbs a{color:var(--tx2)}
+.shead h1{margin-top:4px}
+.panel .ph{padding:14px 20px;border-bottom:1px solid var(--line)}
+.panel .ph h2{font-size:15px;margin:0}
+.panel .ph p{margin:2px 0 0;font-size:12.5px;color:var(--tx3)}
+.srow{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow .l{font-weight:600;font-size:13.5px}
+.srow .h{font-size:12.5px;color:var(--tx3);margin-top:2px}
+.savebar{display:flex;justify-content:flex-end;align-items:center;gap:12px}
+.narrow{max-width:768px;display:flex;flex-direction:column;gap:18px}
+.logo-prev{width:56px;height:56px;border-radius:12px;border:1px solid var(--bd);background:var(--surf2);display:flex;align-items:center;justify-content:center;flex:none}
+.logo-prev i{width:30px;height:30px;border-radius:8px;background:var(--acc);display:block}
+.blist{display:flex;flex-direction:column;gap:6px}
+.bl{display:flex;align-items:center;gap:6px;height:40px;padding:0 6px 0 12px;border:1px solid var(--bd);border-radius:8px;background:var(--surf2)}
+.bl span{flex:1}
+.bl button{width:28px;height:28px;border:0;background:transparent;color:var(--tx3);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.bl button:disabled{opacity:.3}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#">Knowledge</a><a href="#">Calendar</a></nav>
+    <div class="bar-right">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search  ⌘K" aria-label="Search"></label>
+      <button class="ib" type="button" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg></button>
+      <button class="ib" type="button" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
+      <button class="ib" type="button" aria-label="Switch theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
+      <span class="me" aria-label="Dana Ortiz">DO</span>
+    </div>
+  </header>
+  <main class="page">
+    <div class="sgrid">
+      <aside aria-label="Settings menu"><nav class="card smenu" style="max-height:1200px;overflow:hidden"><label class="input"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" placeholder="Find a setting" aria-label="Find a setting"></label><a href="#" class="home">Settings home</a><p class="eyebrow">You</p><a href="#">Preferences</a><a href="#">About PRISM</a><p class="eyebrow">Organization</p><a href="#" class="on" aria-current="page">Company profile</a><a href="#">Companies &amp; vendors</a><p class="eyebrow">People &amp; access</p><a href="#">Users</a><a href="#">Teams</a><a href="#">Departments</a><a href="#">Roles &amp; permissions</a><a href="#">API keys</a><p class="eyebrow">Service desk</p><a href="#">Statuses</a><a href="#">Custom fields</a><a href="#">Ticket templates</a><a href="#">Ticket categories</a><a href="#">Canned responses</a><a href="#">Recurring tickets</a><a href="#">Workflow rules</a><a href="#">Notifications</a><a href="#">Customer happiness</a><p class="eyebrow">Projects</p><a href="#">Project templates</a><p class="eyebrow">Workload</p><a href="#">Hours people work</a><a href="#">Holidays</a><p class="eyebrow">Hours &amp; SLAs</p><a href="#">SLAs</a><a href="#">Business hours</a><p class="eyebrow">Time &amp; work</p><a href="#">Time tracking</a><a href="#">Work types</a><p class="eyebrow">Assets</p><a href="#">Asset categories</a><a href="#">Expiry alerts</a><p class="eyebrow">Sign-in &amp; email</p><a href="#">Single sign-on</a><a href="#">Directory (AD/LDAP)</a><a href="#">Directory sync</a><a href="#">Incoming email</a><a href="#">Outgoing email</a><a href="#">Email templates</a><a href="#">Email log</a><a href="#">Calendar</a><p class="eyebrow">System</p><a href="#">Background jobs</a><a href="#">Import</a><a href="#">Export</a><a href="#">Audit log</a><a href="#">System info</a></nav></aside>
+      <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <div class="narrow">
+        <header class="shead"><div><nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><span>Organization</span></nav><h1>Company profile</h1><p class="sub">Name, logo, time zone and login page</p></div></header>
+        <section class="card panel" aria-label="Look">
+          <div class="ph"><h2>Look</h2><p>Saved as soon as you upload.</p></div>
+          <div class="srow"><div><div class="l">Logo</div><div class="h">Shown in the top bar and on the login page. PNG or SVG, up to 5 MB.</div></div><div style="display:flex;align-items:center;gap:10px"><span class="logo-prev"><i></i></span><button class="btn sm" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"></path></svg>Upload</button><button class="btn sm" type="button">Remove</button></div></div>
+          <div class="srow"><div><div class="l">Favicon</div><div class="h">The icon in the browser tab.</div></div><div style="display:flex;align-items:center;gap:10px"><span class="logo-prev" style="width:40px;height:40px"><i style="width:20px;height:20px;border-radius:5px"></i></span><button class="btn sm" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"></path></svg>Upload</button><button class="btn sm" type="button">Remove</button></div></div>
+        </section>
+        <section class="card panel" aria-label="Details">
+          <div class="ph"><h2>Details</h2></div>
+          <div class="srow"><div><label class="l" for="cn">Organization name</label><div class="h">Shown in email footers and reports, and as your own company under Companies &amp; vendors.</div></div><div><input id="cn" class="input" value="Riverside IT"></div></div>
+          <div class="srow"><div><label class="l" for="an">App name</label><div class="h">Shown in the top bar, the login page and the browser tab.</div></div><div><input id="an" class="input" value="PRISM"></div></div>
+          <div class="srow"><div><label class="l">Time zone</label><div class="h">Used for dates, reports and the time ledger.</div></div><div><span class="input" style="height:40px">America/Chicago<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="margin-left:auto"><path d="M6 9l6 6 6-6"></path></svg></span></div></div>
+        </section>
+        <section class="card panel" aria-label="Login page">
+          <div class="ph"><h2>Login page</h2></div>
+          <div class="srow"><div><label class="l" for="tg">Login page tagline</label></div><div><input id="tg" class="input" value="Project &amp; Request Integrated Service Manager"></div></div>
+          <div class="srow"><div><div class="l">Bullet points</div><div class="h">Shown beside the sign-in form.</div></div><div class="blist"><div class="bl"><span>Ticket &amp; project tracking</span><button type="button" aria-label="Move &quot;Ticket &amp; project tracking&quot; up" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button><button type="button" aria-label="Move &quot;Ticket &amp; project tracking&quot; down"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"></path></svg></button><button type="button" aria-label="Remove &quot;Ticket &amp; project tracking&quot;" style="color:var(--dang)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="bl"><span>Time logging &amp; reports</span><button type="button" aria-label="Move &quot;Time logging &amp; reports&quot; up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button><button type="button" aria-label="Move &quot;Time logging &amp; reports&quot; down"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"></path></svg></button><button type="button" aria-label="Remove &quot;Time logging &amp; reports&quot;" style="color:var(--dang)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="bl"><span>AD &amp; local auth</span><button type="button" aria-label="Move &quot;AD &amp; local auth&quot; up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button><button type="button" aria-label="Move &quot;AD &amp; local auth&quot; down"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"></path></svg></button><button type="button" aria-label="Remove &quot;AD &amp; local auth&quot;" style="color:var(--dang)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div class="bl"><span>API access</span><button type="button" aria-label="Move &quot;API access&quot; up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button><button type="button" aria-label="Move &quot;API access&quot; down" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"></path></svg></button><button type="button" aria-label="Remove &quot;API access&quot;" style="color:var(--dang)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div><div style="display:flex;gap:8px;margin-top:4px"><input class="input" placeholder="Add a bullet point…" aria-label="New bullet point"><button class="btn" type="button">Add</button></div></div></div>
+        </section>
+        <div class="savebar"><span class="muted">Unsaved changes</span><button class="btn primary" type="button">Save</button></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1320}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

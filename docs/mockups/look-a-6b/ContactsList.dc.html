@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Contacts list</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c5853215c172bfe2d0c9d7a4bd04f8a4">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.cl-page{max-width:1400px}
+.th,.tr{display:grid;grid-template-columns:minmax(260px,1.8fr) minmax(200px,1.3fr) 100px 130px 130px 150px 70px 100px;gap:12px;align-items:center;padding:0 16px;min-width:1180px}
+.th{height:40px;color:var(--tx3);font-size:12.5px;font-weight:500;border-bottom:1px solid var(--line)}
+.th .s{color:var(--tx);font-weight:600;display:inline-flex;gap:4px;align-items:center}
+.tr{min-height:58px;border-bottom:1px solid var(--line)}
+.tr:last-child{border-bottom:0}
+.tr:hover{background:var(--surf2)}
+.nm{display:flex;align-items:center;gap:10px;min-width:0}
+.nm .av{background:#6B7785}
+.nm a{font-weight:600;color:var(--tx)}
+.foot{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--line);color:var(--tx3);font-size:13px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main">
+      <a href="#">Dashboard</a><a href="#">Tickets</a><a href="#" class="on" aria-current="page">Contacts</a><a href="#">Companies</a><a href="#">Assets<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#">Knowledge</a><a href="#">Calendar</a>
+    </nav>
+    <div class="bar-right">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search  ⌘K" aria-label="Search"></label>
+      <button class="ib" type="button" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg></button>
+      <button class="ib" type="button" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
+      <button class="ib" type="button" aria-label="Switch theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
+      <span class="me" aria-label="Dana Ortiz">DO</span>
+    </div>
+  </header>
+
+  <main class="page cl-page">
+    <section class="head">
+      <div><h1>Contacts</h1><p class="sub">286 contacts</p></div>
+      <div style="display:flex;gap:8px"><button class="btn" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5"></path><path d="M4 20h16"></path></svg>Import</button><button class="btn primary" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New contact</button></div>
+    </section>
+    <div class="toolbar" style="margin:20px 0 16px">
+      <label class="input" style="height:32px;width:300px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="color:var(--tx3)"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search by name, email, or phone…" aria-label="Search contacts"></label>
+      <button class="sel" type="button">Company: <b>Any</b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="sel" type="button">Department: <b>All departments</b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="sel" type="button">Status: <b>Active</b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="sel" type="button">Assigned to: <b>Anyone</b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    </div>
+    <div class="card tblbox">
+      <div class="th"><span class="s">Name<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></span><span>Email</span><span>Created</span><span>Department</span><span>Phone</span><span>Assigned to</span><span>Tickets</span><span>Last ticket</span></div>
+      <div class="tr"><div class="nm"><span class="av lg">MC</span><a href="#">Maria Chen</a><span class="tag">Riverside Family Clinic</span></div><span class="muted">maria.chen@riversideclinic.org</span><span class="num muted">2024-03-11</span><span><span class="dept">Front office</span></span><span class="num muted">(555) 214-8890</span><span class="who"><span class="av d">DO</span>Dana Ortiz</span><span class="num">12</span><span class="num muted">2026-10-26</span></div>
+      <div class="tr"><div class="nm"><span class="av lg">JP</span><a href="#">James Porter</a><span class="tag">Lakeside Law Group</span></div><span class="muted">james.porter@lakesidelaw.com</span><span class="num muted">2024-07-02</span><span><span class="dept">Front office</span></span><span class="num muted">(555) 402-1187</span><span class="who"><span class="av s">SL</span>Sam Lee</span><span class="num">7</span><span class="num muted">2026-10-24</span></div>
+      <div class="tr"><div class="nm"><span class="av lg">TB</span><a href="#">Tom Baker</a><span class="tag">Northgate Dental</span></div><span class="muted">tom.baker@northgatedental.com</span><span class="num muted">2025-01-20</span><span class="muted">No department</span><span class="num muted">(555) 771-0045</span><span class="muted">Unassigned</span><span class="num">3</span><span class="num muted">2026-10-19</span></div>
+      <div class="tr"><div class="nm"><span class="av lg">AW</span><a href="#">Alice Wong</a><span class="tag">Riverside Family Clinic</span></div><span class="muted">alice.wong@riversideclinic.org</span><span class="num muted">2023-11-05</span><span><span class="dept">Clinical</span></span><span class="num muted">(555) 214-8812</span><span class="who"><span class="av d">DO</span>Dana Ortiz</span><span class="num">5</span><span class="num muted">2026-09-30</span></div>
+      <div class="tr"><div class="nm"><span class="av lg">RG</span><a href="#" style="color:var(--tx2)">Ruth Green</a><span class="tag">Lakeside Law Group</span><span class="status plan" style="font-size:12px">Inactive</span></div><span class="muted">ruth.green@lakesidelaw.com</span><span class="num muted">2022-05-17</span><span><span class="dept">Billing</span></span><span class="num muted">—</span><span class="muted">Unassigned</span><span class="num">9</span><span class="num muted">2025-12-02</span></div>
+      <div class="foot"><span class="num">Showing 1–25 of 286</span><span style="display:flex;gap:6px"><button class="btn sm" type="button">Previous</button><button class="btn sm" type="button">Next</button></span></div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

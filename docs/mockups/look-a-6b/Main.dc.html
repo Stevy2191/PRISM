@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tickets list</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c5853215c172bfe2d0c9d7a4bd04f8a4">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.tl-page{max-width:1400px}
+.th,.tr{display:grid;grid-template-columns:28px 64px minmax(260px,2.2fr) 88px 168px 92px 128px 140px 80px 76px 112px 72px 76px 56px;gap:12px;align-items:center;padding:0 16px;min-width:1640px}
+.th{height:40px;color:var(--tx3);font-size:12.5px;font-weight:500;border-bottom:1px solid var(--line)}
+.th .s{color:var(--tx);font-weight:600;display:inline-flex;gap:4px;align-items:center}
+.tr{min-height:62px;border-bottom:1px solid var(--line);padding-top:8px;padding-bottom:8px}
+.tr:last-child{border-bottom:0}
+.tr:hover{background:var(--surf2)}
+.tr.sel{background:var(--acc-soft)}
+.id{color:var(--tx3);font-variant-numeric:tabular-nums;font-size:13px}
+.age{font-size:12.5px;color:var(--tx3);margin-top:2px;display:flex;gap:8px;align-items:center}
+.age.w{color:var(--warn-ink)}.age.x{color:var(--dang)}
+.bulk{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-radius:12px;background:var(--ink-fill);color:var(--ink-on)}
+.bulk .sel{background:transparent;color:var(--ink-on);border-color:rgba(127,127,127,.45)}
+.bulk .lnk{background:transparent;border:0;color:var(--ink-on);opacity:.8;font:inherit;text-decoration:underline;padding:0 4px}
+.foot{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--line);color:var(--tx3);font-size:13px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main">
+      <a href="#">Dashboard</a><a href="#" class="on" aria-current="page">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#">Knowledge</a><a href="#">Calendar</a>
+    </nav>
+    <div class="bar-right">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search  ⌘K" aria-label="Search"></label>
+      <button class="timer-chip" type="button"><span class="pulse"></span>#01482 · 0:42:10</button>
+      <button class="ib" type="button" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg></button>
+      <button class="ib" type="button" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button>
+      <button class="ib" type="button" aria-label="Switch theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
+      <span class="me" aria-label="Dana Ortiz">DO</span>
+    </div>
+  </header>
+
+  <main class="page tl-page">
+    <section class="head">
+      <div>
+        <h1>Tickets</h1>
+        <p class="sub">142 tickets</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="seg-ctl" role="group" aria-label="View"><button class="on" type="button">Table</button><button type="button">Board</button></div>
+        <button class="btn" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16M15 4v16"></path></svg>Columns</button>
+        <button class="btn primary" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New ticket</button>
+      </div>
+    </section>
+
+    <div class="toolbar" style="margin-top:20px">
+      <button class="pill on" type="button">My tickets</button>
+      <button class="pill" type="button">Overdue</button>
+      <button class="pill" type="button">Unassigned</button>
+      <button class="pill" type="button">SLA breached</button>
+      <button class="pill" type="button">SLA at risk</button>
+      <button class="pill" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg>New from email</button>
+      <span class="sp"></span>
+      <button class="sel" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"></path></svg>Saved filters<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    </div>
+
+    <div class="toolbar" style="margin-top:10px">
+      <label class="input" style="height:32px;width:320px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="color:var(--tx3)"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search by ticket number, title, or keyword…" aria-label="Search tickets"></label>
+      <button class="sel" type="button">Status: <b>All statuses</b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="sel" type="button">Priority: <b>All</b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="sel" type="button">Category: <b>Any</b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="sel" type="button">Assignee: <b>All assignees</b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="sel" type="button">Queue: <b>All tickets</b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    </div>
+
+    <div class="bulk" style="margin-top:16px">
+      <b class="num">2 selected</b>
+      <button class="lnk" type="button">Select all 142</button>
+      <button class="lnk" type="button">Clear</button>
+      <span style="opacity:.75;margin-left:8px">Action:</span>
+      <button class="sel" type="button">Change status<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="sel" type="button">Waiting on customer<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="btn sm primary" type="button">Apply</button>
+    </div>
+
+    <div class="card tblbox" style="margin-top:12px">
+      <div class="th"><input class="cb" type="checkbox" aria-label="Select all"><span>#</span><span>Title</span><span>Priority</span><span>Status</span><span class="s">Due date<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"></path></svg></span><span>SLA</span><span>Assignee</span><span>Type</span><span>Source</span><span>Team</span><span>Time logged</span><span>Created</span><span>Actions</span></div>
+
+      <div class="tr sel"><input class="cb" type="checkbox" checked aria-label="Select #01477"><span class="id">#01477</span><div><a href="#" class="ttl">VPN drops every 20 minutes when working from home</a> <span class="dept">IT</span><div class="age">Open 4 days</div></div><span class="prio h"><i></i>High</span><span><span class="status">Open</span></span><span class="num over-t">Oct 25</span><span><span class="sla br">Breached 2h ago</span></span><span class="who"><span class="av p">PN</span>Priya Nair</span><span>Problem</span><span class="src"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg>Email</span><span>Network</span><span class="num">2h 30m</span><span class="num muted">Oct 22</span><a href="#">Open</a></div>
+
+      <div class="tr"><input class="cb" type="checkbox" aria-label="Select #01482"><span class="id">#01482</span><div><a href="#" class="ttl">Outlook keeps asking for my password</a> <span class="dept">IT</span><div class="age">Open 0 days</div></div><span class="prio u"><i></i>Urgent</span><span><span class="status">In progress</span></span><span class="num warn-t">Today 3:00 PM</span><span><span class="sla risk">38m left</span></span><span class="who"><span class="av d">DO</span>Dana Ortiz</span><span>Incident</span><span class="src"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg>Email</span><span>Service desk</span><span class="num">1h 15m</span><span class="num muted">Oct 26</span><a href="#">Open</a></div>
+
+      <div class="tr sel"><input class="cb" type="checkbox" checked aria-label="Select #01468"><span class="id">#01468</span><div><a href="#" class="ttl">Teams calls choppy in conference room B</a> <span class="dept">IT</span><div class="age w">Open 7 days</div></div><span class="prio md"><i></i>Medium</span><span><span class="status hold">Waiting on customer</span></span><span class="num">Oct 27</span><span><span class="muted" style="font-size:12.5px">On hold</span></span><span class="who"><span class="av s">SL</span>Sam Lee</span><span>Incident</span><span class="src"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>Phone</span><span>Network</span><span class="num">1h 45m</span><span class="num muted">Oct 19</span><a href="#">Open</a></div>
+
+      <div class="tr"><input class="cb" type="checkbox" aria-label="Select #01481"><span class="id">#01481</span><div><a href="#" class="ttl">New starter: laptop and accounts for J. Alvarez</a> <span class="dept">IT</span><div class="age">Open 0 days</div></div><span class="prio md"><i></i>Medium</span><span><span class="status">Open</span></span><span class="num">Oct 29</span><span><span class="sla ok">1d 4h left</span></span><span class="who"><span class="av none"></span>Unassigned</span><span>Request</span><span class="src"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>Portal</span><span>Onboarding</span><span class="num muted">—</span><span class="num muted">Oct 26</span><a href="#">Open</a></div>
+
+      <div class="tr"><input class="cb" type="checkbox" aria-label="Select #01476"><span class="id">#01476</span><div><a href="#" class="ttl">Shared mailbox for billing@lakesidelaw.com</a> <span class="dept">IT</span><div class="age">Open 1 day</div></div><span class="prio md"><i></i>Medium</span><span><span class="status">In progress</span></span><span class="num">Oct 28</span><span><span class="sla ok">6h 10m left</span></span><span class="who"><span class="av m">MB</span>Marcus Bell</span><span>Request</span><span class="src"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg>Email</span><span>Service desk</span><span class="num">0h 30m</span><span class="num muted">Oct 25</span><a href="#">Open</a></div>
+
+      <div class="tr"><input class="cb" type="checkbox" aria-label="Select #01474"><span class="id">#01474</span><div><a href="#" class="ttl">Replace failing disk in file server FS01</a> <span class="dept">IT</span><div class="age w">Open 6 days</div></div><span class="prio h"><i></i>High</span><span><span class="status hold">On hold</span></span><span class="num">Oct 31</span><span><span class="muted" style="font-size:12.5px">On hold</span></span><span class="who"><span class="av d">DO</span>Dana Ortiz</span><span>Change</span><span class="src">Manual</span><span>Infrastructure</span><span class="num">1h 00m</span><span class="num muted">Oct 20</span><a href="#">Open</a></div>
+
+      <div class="tr"><input class="cb" type="checkbox" aria-label="Select #01471"><span class="id">#01471</span><div><a href="#" class="ttl">Can't open scanned PDFs from the copier</a> <span class="dept">IT</span><div class="age">Open 2 days</div></div><span class="prio l"><i></i>Low</span><span><span class="status">Open</span></span><span class="num">Nov 2</span><span><span class="sla ok">3d 2h left</span></span><span class="who"><span class="av r">RK</span>Rosa Kim</span><span>Incident</span><span class="src"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>Portal</span><span>Service desk</span><span class="num muted">—</span><span class="num muted">Oct 24</span><a href="#">Open</a></div>
+
+      <div class="tr"><input class="cb" type="checkbox" aria-label="Select #01459"><span class="id">#01459</span><div><a href="#" class="ttl">Door badge reader at the side entrance offline</a> <span class="dept">Facilities</span><div class="age x">Open 12 days</div></div><span class="prio u"><i></i>Urgent</span><span><span class="status">In progress</span></span><span class="num over-t">Oct 21</span><span><span class="sla br">Breached 3d ago</span></span><span class="who"><span class="av s">SL</span>Sam Lee</span><span>Incident</span><span class="src"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>Phone</span><span>Facilities</span><span class="num">3h 20m</span><span class="num muted">Oct 14</span><a href="#">Open</a></div>
+
+      <div class="tr"><input class="cb" type="checkbox" aria-label="Select #01455"><span class="id">#01455</span><div><a href="#" class="ttl">Printer on the 2nd floor jams on double-sided</a> <span class="dept">IT</span></div><span class="prio l"><i></i>Low</span><span><span class="status closed">Resolved</span></span><span class="num muted">Oct 24</span><span><span class="muted" style="font-size:12.5px">On hold</span></span><span class="who"><span class="av r">RK</span>Rosa Kim</span><span>Incident</span><span class="src">Manual</span><span>Service desk</span><span class="num">0h 40m</span><span class="num muted">Oct 13</span><a href="#">Open</a></div>
+
+      <div class="foot"><span class="num">Showing 1–25 of 142</span><span style="display:flex;gap:6px"><button class="btn sm" type="button">Previous</button><button class="btn sm" type="button">Next</button></span></div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tickets on a phone</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c5853215c172bfe2d0c9d7a4bd04f8a4">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pair{display:flex;gap:40px;width:820px;height:844px}
+.tc{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start}
+.tc input{width:20px;height:20px;accent-color:var(--acc);margin:2px 0 0}
+.tc .r1{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.tc .t{font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc .r3{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px}
+.tc .r3 span.rr{display:flex;gap:8px;align-items:center;font-size:12.5px}
+.ph-h{display:flex;align-items:center;justify-content:space-between}
+.ph-h h1{font-size:24px}
+.bk{display:flex;align-items:center;gap:4px;height:44px;color:var(--tx3);font-weight:500}
+.bub{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;background:var(--bubble-c)}
+.bub.tech{background:var(--bubble-t);border-color:var(--bubble-t-bd)}
+.bub .mh{font-size:12.5px;color:var(--tx3);margin-bottom:2px}
+.bub .mh b{color:var(--tx);font-weight:600}
+.rbox{position:absolute;left:0;right:0;bottom:0;background:var(--surf);border-top:1px solid var(--bd);padding:10px 12px 18px;display:flex;gap:8px;align-items:center}
+.rbox .input{height:44px}
+.rbox .btn{height:44px}
+</style>
+</helmet>
+<div class="{{cls}}" style="background:transparent">
+  <div class="pair">
+    <div class="phone" style="background:var(--bg)">
+      <div class="pbar"><span class="brand"><span class="logo"></span>PRISM</span><span style="flex:1"></span><button class="timer-chip" type="button" style="height:32px;padding:0 10px"><span class="pulse"></span>0:42</button><button class="ib" type="button" aria-label="Switch theme" style="width:44px;height:44px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button><button class="ib" type="button" aria-label="Open menu" style="width:44px;height:44px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></div>
+      <div class="pbody">
+        <div class="ph-h"><h1>Tickets</h1><div class="seg-ctl" role="group" aria-label="View"><button class="on" type="button">List</button><button type="button">Board</button></div></div>
+        <div style="display:flex;gap:8px"><label class="input" style="height:44px;flex:1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="color:var(--tx3)"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search tickets" aria-label="Search tickets"></label><button class="btn" type="button" style="height:44px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"></path></svg>Filters</button></div>
+        <div class="hscroll"><button class="pill on" type="button">My tickets</button><button class="pill" type="button">Overdue</button><button class="pill" type="button">Unassigned</button><button class="pill" type="button">SLA breached</button></div>
+        <div class="pcard tc"><input type="checkbox" aria-label="Select #01482"><div><div class="r1"><span>#01482</span><span class="prio u" style="font-size:12.5px"><i></i>Urgent</span></div><div class="t">Outlook keeps asking for my password</div><div class="r3"><span class="status">In progress</span><span class="rr"><span class="sla risk">38m left</span><span class="warn-t">Today</span></span></div></div></div>
+        <div class="pcard tc"><input type="checkbox" aria-label="Select #01477"><div><div class="r1"><span>#01477</span><span class="prio h" style="font-size:12.5px"><i></i>High</span></div><div class="t">VPN drops every 20 minutes when working from home</div><div class="r3"><span class="status">Open</span><span class="rr"><span class="sla br">Breached 2h ago</span><span class="over-t">Oct 25</span></span></div></div></div>
+        <div class="pcard tc"><input type="checkbox" aria-label="Select #01474"><div><div class="r1"><span>#01474</span><span class="prio h" style="font-size:12.5px"><i></i>High</span></div><div class="t">Replace failing disk in file server FS01</div><div class="r3"><span class="status hold">On hold</span><span class="rr"><span class="muted">On hold</span><span class="num">Oct 31</span></span></div></div></div>
+        <div class="pcard tc"><input type="checkbox" aria-label="Select #01468"><div><div class="r1"><span>#01468</span><span class="prio md" style="font-size:12.5px"><i></i>Medium</span></div><div class="t">Teams calls choppy in conference room B</div><div class="r3"><span class="status hold">Waiting on customer</span><span class="rr"><span class="num">Oct 27</span></span></div></div></div>
+      </div>
+      <button class="fab" type="button" aria-label="New ticket"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+    </div>
+
+    <div class="phone" style="background:var(--bg)">
+      <div class="pbar"><a href="#" class="bk" style="color:var(--tx2)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Tickets</a><span style="flex:1"></span><button class="btn sm" type="button" style="height:36px">Details</button><button class="ib" type="button" aria-label="More actions" style="width:44px;height:44px"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button></div>
+      <div class="pbody" style="gap:12px">
+        <div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="muted num" style="font-weight:600">#01482</span><span class="status">In progress</span><span class="prio u"><i></i>Urgent</span></div>
+        <h1 style="font-size:22px;margin-top:6px">Outlook keeps asking for my password</h1>
+        <div style="display:flex;flex-direction:column;gap:2px;margin-top:8px;font-size:13px;color:var(--tx3)"><span>Customer: <a href="#">Maria Chen</a> · Riverside Family Clinic</span><span>Due: <b class="warn-t">Today 3:00 PM</b> · <span class="sla risk">38m left</span></span></div></div>
+        <button class="btn" type="button" style="height:44px;justify-content:center;border-color:var(--timer-bd);background:var(--timer-bg);color:var(--timer)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg><span class="num">Stop timer · 0:42:10</span></button>
+        <nav class="tabs" aria-label="Ticket sections"><a href="#" class="on" aria-current="page">Conversation</a><a href="#">Resolution</a><a href="#">Time entries</a><a href="#">Tasks</a></nav>
+        <div class="bub"><div class="mh"><b>Maria Chen</b> · 9:12 AM</div>Since this morning Outlook pops up a password box every few minutes.</div>
+        <div class="bub tech"><div class="mh"><b>Dana Ortiz</b> · 9:31 AM</div>Does this happen on your laptop only, or on the front desk PC too?</div>
+        <div class="bub"><div class="mh"><b>Maria Chen</b> · 9:52 AM</div>Only my laptop. The front desk PC is fine.</div>
+      </div>
+      <div class="rbox"><label class="input" style="flex:1"><input placeholder="Reply to Maria Chen..." aria-label="Reply"></label><button class="btn primary" type="button">Send</button></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":820,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

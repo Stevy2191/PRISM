@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Contacts and companies on a phone</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c5853215c172bfe2d0c9d7a4bd04f8a4">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pair{display:flex;gap:40px;width:820px;height:844px}
+.bk{display:flex;align-items:center;gap:4px;height:44px;color:var(--tx2);font-weight:500}
+.big-av{width:56px;height:56px;border-radius:50%;background:#0F7A6C;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:650;flex:none}
+.dd-sel{display:flex;align-items:center;justify-content:space-between;height:44px;border:1px solid var(--bd2);border-radius:8px;padding:0 12px;background:var(--surf)}
+.pk{font-size:12.5px;color:var(--tx3);margin-bottom:4px;font-weight:500}
+.st{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.st .card{padding:10px 12px}
+.st .k{font-size:12px;color:var(--tx2)}
+.st .v{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
+.fl{display:flex;flex-direction:column;gap:12px}
+</style>
+</helmet>
+<div class="{{cls}}" style="background:transparent">
+  <div class="pair">
+    <div class="phone" style="background:var(--bg)">
+      <div class="pbar"><a href="#" class="bk"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Contacts</a><span style="flex:1"></span><button class="btn sm danger" type="button" style="height:36px">Delete</button></div>
+      <div class="pbody" style="gap:12px">
+        <div style="display:flex;gap:12px;align-items:center"><span class="big-av">MC</span><div><h1 style="font-size:22px">Maria Chen</h1><span class="tag">Riverside Family Clinic</span></div></div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"><div><div class="pk">Department</div><span class="dd-sel">Front office<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></div><div><div class="pk">Assigned to</div><span class="dd-sel">Dana Ortiz<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></div></div>
+        <section class="card" style="padding:12px 14px"><dl class="kv" style="margin:0;grid-template-columns:80px minmax(0,1fr)"><dt>Email</dt><dd style="overflow:hidden;text-overflow:ellipsis"><a href="#">maria.chen@riversideclinic.org</a></dd><dt>Phone</dt><dd class="num">(555) 214-8890</dd><dt>Mobile</dt><dd class="num">(555) 917-3301</dd><dt>Job title</dt><dd>Practice manager</dd></dl></section>
+        <button class="btn primary" type="button" style="height:48px;justify-content:center">Create ticket for this contact</button>
+        <nav class="tabs" aria-label="Contact sections"><a href="#" class="on" aria-current="page">Overview</a><a href="#">Tickets</a><a href="#">Activity</a></nav>
+        <div class="st"><div class="card"><div class="k">Open tickets</div><div class="v">2</div></div><div class="card"><div class="k">Overdue tickets</div><div class="v over-t">1</div></div></div>
+      </div>
+    </div>
+
+    <div class="phone" style="background:var(--bg)">
+      <div class="pbar"><a href="#" class="bk"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Companies</a></div>
+      <div class="pbody" style="gap:12px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h1 style="font-size:22px">Riverside Family Clinic</h1><span class="tag">Client</span></div>
+        <nav class="tabs" aria-label="Company sections"><a href="#" class="on" aria-current="page">Overview</a><a href="#">Sites</a><a href="#">Departments</a><a href="#">Contacts</a><a href="#">Tickets</a></nav>
+        <section class="card" style="padding:14px"><div class="fl">
+          <div class="field"><label for="pn">Name</label><input id="pn" class="input" style="height:44px" value="Riverside Family Clinic"></div>
+          <div class="field"><label for="pp">Phone</label><input id="pp" class="input" style="height:44px" value="(555) 214-8800"></div>
+          <div class="field"><label>Account manager</label><span class="input" style="height:44px">Dana Ortiz<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></div>
+          <div class="field"><label>SLA policy</label><span class="input" style="height:44px">Standard<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></div>
+          <button class="btn primary" type="button" style="height:48px;justify-content:center">Save</button>
+        </div></section>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":820,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assets on a phone</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c5853215c172bfe2d0c9d7a4bd04f8a4">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pair{display:flex;gap:40px;width:820px;height:844px}
+.ac .r1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ac .tg{font-size:12.5px;font-weight:600;color:var(--tx3);font-variant-numeric:tabular-nums}
+.ac .t{font-weight:600;margin-top:2px}
+.ac .r3{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:12.5px;color:var(--tx3)}
+.cat{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--tx2)}
+.cat i{width:8px;height:8px;border-radius:3px}
+.bk{display:flex;align-items:center;gap:4px;height:44px;color:var(--tx2);font-weight:500}
+.kv2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;padding:12px 14px}
+.kv2 .k{font-size:12px;color:var(--tx3)}
+.kv2 .v{font-weight:500}
+.ch{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+</style>
+</helmet>
+<div class="{{cls}}" style="background:transparent">
+  <div class="pair">
+    <div class="phone" style="background:var(--bg)">
+      <div class="pbar"><span class="brand"><span class="logo"></span>PRISM</span><span style="flex:1"></span><button class="ib" type="button" aria-label="Switch theme" style="width:44px;height:44px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button><button class="ib" type="button" aria-label="Open menu" style="width:44px;height:44px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></div>
+      <div class="pbody">
+        <h1 style="font-size:24px">Assets</h1>
+        <nav class="tabs" aria-label="Assets sections"><a href="#" class="on" aria-current="page">Assets</a><a href="#">Licenses</a><a href="#">Contracts</a></nav>
+        <div style="display:flex;gap:8px"><label class="input" style="height:44px;flex:1"><input placeholder="Search assets" aria-label="Search assets"></label><button class="btn" type="button" style="height:44px">Filters</button></div>
+        <a href="#" class="pcard ac" style="color:var(--tx)"><div class="r1"><span class="tg">LT-0014</span><span class="status">Active</span></div><div class="t">Maria's laptop</div><div class="r3"><span class="cat"><i style="background:#2448C9"></i>Laptop</span><span>Maria Chen</span><span>Warranty 2027-03-14</span></div></a>
+        <a href="#" class="pcard ac" style="color:var(--tx)"><div class="r1"><span class="tg">SV-0003</span><span class="status hold">In repair</span></div><div class="t">File server FS01</div><div class="r3"><span class="cat"><i style="background:#5B4BB7"></i>Server</span><span>Unassigned</span><span class="over-t">Warranty 2026-08-30</span><span class="warn-t">Replace 2026-12-15</span></div></a>
+        <a href="#" class="pcard ac" style="color:var(--tx)"><div class="r1"><span class="tg">PR-0007</span><span class="status">Active</span></div><div class="t">Front desk printer</div><div class="r3"><span class="cat"><i style="background:#B4531F"></i>Printer</span><span>Unassigned</span><span class="warn-t">Warranty 2026-11-20</span></div></a>
+        <a href="#" class="pcard ac" style="color:var(--tx)"><div class="r1"><span class="tg">LT-0011</span><span class="status plan">In storage</span></div><div class="t">Spare laptop 2</div><div class="r3"><span class="cat"><i style="background:#2448C9"></i>Laptop</span><span>Unassigned</span></div></a>
+      </div>
+      <button class="fab" type="button" aria-label="New asset"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+    </div>
+
+    <div class="phone" style="background:var(--bg)">
+      <div class="pbar"><a href="#" class="bk"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Assets</a><span style="flex:1"></span><button class="btn sm" type="button" style="height:36px">Edit</button></div>
+      <div class="pbody" style="gap:12px">
+        <div><div style="display:flex;gap:8px;align-items:center"><span class="muted num" style="font-weight:600">LT-0014</span><span class="cat"><i style="background:#2448C9"></i>Laptop</span><span class="status">Active</span></div><h1 style="font-size:22px;margin-top:6px">Maria's laptop</h1></div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"><div class="card stat" style="padding:10px 12px"><div class="k">Open tickets linked</div><div class="v" style="font-size:20px">1</div></div><div class="card stat" style="padding:10px 12px"><div class="k">Warranty expiry</div><div class="v" style="font-size:16px">Mar 14, 2027</div></div></div>
+        <nav class="tabs" aria-label="Asset sections"><a href="#" class="on" aria-current="page">Overview</a><a href="#">Tickets</a><a href="#">Activity</a><a href="#">Attachments</a></nav>
+        <section class="card"><div class="ch"><h3>Assignment &amp; lifecycle</h3></div><div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)"><span class="av lg" style="background:#6B7785">MC</span><div style="flex:1"><div style="font-weight:600">Maria Chen</div><div class="hint">Checked out Mar 20, 2024</div></div><button class="btn" type="button" style="height:44px">Check in</button></div><div class="kv2"><div><div class="k">Department</div><div class="v">Front office</div></div><div><div class="k">Purchase date</div><div class="v num">Mar 14, 2024</div></div></div></section>
+        <section class="card"><div class="ch"><h3>Device info</h3></div><div class="kv2"><div><div class="k">Make</div><div class="v">Dell</div></div><div><div class="k">Model</div><div class="v">Latitude 5440</div></div><div><div class="k">Serial number</div><div class="v num">7HX2QK3</div></div><div><div class="k">IP address</div><div class="v num">10.20.1.54</div></div></div></section>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":820,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c5853215c172bfe2d0c9d7a4bd04f8a4">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:20px}
+.panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+.ls{list-style:none;margin:0;padding:0}
+.ls li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line)}
+.ls li:last-child{border-bottom:0}
+.ls .ti{min-width:0}
+.ls .ti a{color:var(--tx);font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ls .ti a .id{color:var(--tx3);font-variant-numeric:tabular-nums;margin-right:6px}
+.ls .ti .s2{font-size:12.5px;color:var(--tx3)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--acc);flex:none;margin-top:6px}
+.nt{display:flex;gap:10px;align-items:flex-start;justify-content:flex-start !important}
+.ph{padding:12px 18px;border-bottom:1px solid var(--line)}
+.ph:last-child{border-bottom:0}
+.ph .r{display:flex;justify-content:space-between;gap:12px}
+.ph .r a{color:var(--tx);font-weight:600}
+.ph .m{display:flex;gap:10px;align-items:center;margin-top:8px}
+.ph .m .meter{flex:1}
+.ph .m b{font-size:12.5px;width:38px;text-align:right;font-variant-numeric:tabular-nums}
+.hrs{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.hrs div{display:grid;grid-template-columns:36px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:12.5px}
+.hrs .tr{height:10px;background:var(--track);border-radius:4px;overflow:hidden}
+.hrs .tr i{display:block;height:100%;background:var(--acc);border-radius:0 4px 4px 0}
+.hrs .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--tx)}
+.hrs .dd{color:var(--tx3)}
+.big{font-size:34px;font-weight:650;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.stars{display:flex;gap:2px;color:var(--warn)}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+.two div{background:var(--bg);border-radius:10px;padding:10px 12px}
+.two .k{font-size:12.5px;color:var(--tx3)}
+.two .v{font-weight:650;font-variant-numeric:tabular-nums;font-size:18px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main">
+      <a href="#" class="on" aria-current="page">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#">Knowledge</a><a href="#">Calendar</a>
+    </nav>
+    <div class="bar-right">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search  ⌘K" aria-label="Search"></label>
+      <button class="ib" type="button" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg></button>
+      <button class="ib" type="button" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
+      <button class="ib" type="button" aria-label="Switch theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
+      <span class="me" aria-label="Dana Ortiz">DO</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="head">
+      <div><h1>Good morning, Dana</h1><p class="sub">Thursday, October 29, 2026</p></div>
+      <button class="btn" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Customize</button>
+    </section>
+
+    <div class="stats">
+      <div class="card stat"><div class="k">My open tickets</div><div class="v">12</div></div>
+      <div class="card stat"><div class="k">Overdue tickets</div><div class="v over-t" style="font-weight:650">2</div></div>
+      <div class="card stat"><div class="k">High priority</div><div class="v warn-t" style="font-weight:650">4</div></div>
+      <div class="card stat"><div class="k">Closed this week</div><div class="v">9</div><div class="d good-t">+3 vs last week</div></div>
+    </div>
+
+    <div class="panels">
+      <section class="card">
+        <div class="card-h"><h3>My tickets</h3><a href="#" style="font-size:13px">All tickets</a></div>
+        <ul class="ls">
+          <li><div class="ti"><a href="#"><span class="id">#01482</span>Outlook keeps asking for my password</a><div class="s2">Updated 12 min ago</div></div><span class="status">In progress</span></li>
+          <li><div class="ti"><a href="#"><span class="id">#01474</span>Replace failing disk in file server FS01</a><div class="s2">Updated 2 h ago</div></div><span class="status hold">On hold</span></li>
+          <li><div class="ti"><a href="#"><span class="id">#01486</span>Set up scanner-to-email for reception</a><div class="s2">Updated yesterday</div></div><span class="status">Open</span></li>
+          <li><div class="ti"><a href="#"><span class="id">#01463</span>Wi-Fi drops in the east wing</a><div class="s2">Updated Oct 27</div></div><span class="status bad">Overdue</span></li>
+          <li><div class="ti"><a href="#"><span class="id">#01490</span>Add Priya to the finance shared drive</a><div class="s2">Updated Oct 27</div></div><span class="status">Open</span></li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <div class="card-h"><h3>Notifications</h3><button class="btn sm quiet" type="button">Mark all read</button></div>
+        <ul class="ls">
+          <li class="nt"><span class="dot"></span><div class="ti"><div>Priya Nair added you to T17 on Riverside Clinic network refresh</div><div class="s2">10 min ago</div></div></li>
+          <li class="nt"><span class="dot"></span><div class="ti"><div>Maria Chen replied to #01482</div><div class="s2">25 min ago</div></div></li>
+          <li class="nt"><span class="dot" style="background:transparent"></span><div class="ti"><div>SLA at risk: #01482 Outlook keeps asking for my password</div><div class="s2">1 h ago</div></div></li>
+          <li class="nt"><span class="dot" style="background:transparent"></span><div class="ti"><div>T21 Swap core switch can start: T16 is done</div><div class="s2">Yesterday</div></div></li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <div class="card-h"><h3>Project health</h3><a href="#" style="font-size:13px">All projects</a></div>
+        <div class="ph"><div class="r"><a href="#">Riverside Clinic network refresh</a></div><div class="s2 muted" style="font-size:12.5px">31 tasks · 14 closed · 17 open</div><div class="m"><div class="meter"><i style="width:45%"></i></div><b>45%</b></div></div>
+        <div class="ph"><div class="r"><a href="#">Backup server replacement</a></div><div class="muted" style="font-size:12.5px">20 tasks · 16 closed · 4 open</div><div class="m"><div class="meter good"><i style="width:80%"></i></div><b>80%</b></div></div>
+        <div class="ph"><div class="r"><a href="#">Windows 11 rollout — front office</a></div><div class="muted" style="font-size:12.5px">24 tasks · 18 closed · 6 open</div><div class="m"><div class="meter near"><i style="width:75%"></i></div><b>75%</b></div></div>
+      </section>
+
+      <section class="card">
+        <div class="card-b">
+          <div class="eyebrow">MY HOURS THIS WEEK</div>
+          <div class="big" style="margin-top:6px">24.5h</div>
+          <div class="hrs" role="img" aria-label="Hours by day: Mon 7.5, Tue 8, Wed 6.5, Thu 2.5, Fri 0">
+            <div><span class="dd">Mon</span><span class="tr"><i style="width:75%"></i></span><span class="v">7.5h</span></div>
+            <div><span class="dd">Tue</span><span class="tr"><i style="width:80%"></i></span><span class="v">8h</span></div>
+            <div><span class="dd">Wed</span><span class="tr"><i style="width:65%"></i></span><span class="v">6.5h</span></div>
+            <div><span class="dd">Thu</span><span class="tr"><i style="width:25%"></i></span><span class="v">2.5h</span></div>
+            <div><span class="dd">Fri</span><span class="tr"><i style="width:0%"></i></span><span class="v muted">0h</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-b">
+          <div class="eyebrow">MY RATINGS</div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px"><span class="big">4.7</span><span class="muted">/ 5 · 23 responses</span></div>
+          <div class="stars" role="img" aria-label="4.7 out of 5 stars" style="margin-top:4px"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"></path></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"></path></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"></path></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"></path></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" opacity=".35"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"></path></svg></div>
+          <div class="two"><div><div class="k">Avg first response</div><div class="v">42m</div></div><div><div class="k">Avg resolution</div><div class="v">5h 10m</div></div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h"><h3>SLA at risk</h3></div>
+        <ul class="ls">
+          <li><div class="ti"><a href="#"><span class="id">#01463</span>Wi-Fi drops in the east wing</a></div><span class="sla br">Breached 5h ago</span></li>
+          <li><div class="ti"><a href="#"><span class="id">#01482</span>Outlook keeps asking for my password</a></div><span class="sla risk">38m left</span></li>
+          <li><div class="ti"><a href="#"><span class="id">#01486</span>Set up scanner-to-email for reception</a></div><span class="sla risk">1h 50m left</span></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

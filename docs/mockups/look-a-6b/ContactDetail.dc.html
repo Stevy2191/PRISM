@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A contact</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c5853215c172bfe2d0c9d7a4bd04f8a4">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.shell{display:flex;flex-wrap:wrap;min-height:1044px}
+.rail{flex:0 0 260px;background:var(--surf);border-right:1px solid var(--bd);padding:14px 10px;display:flex;flex-direction:column;gap:4px}
+.rail .rh{display:flex;justify-content:space-between;align-items:center;padding:0 6px 8px}
+.rail a{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;color:var(--tx)}
+.rail a.on{background:var(--acc-soft);color:var(--acc-ink);font-weight:600}
+.rail .av{background:#6B7785}
+.props{flex:0 0 320px;background:var(--surf);border-right:1px solid var(--bd);padding:22px 20px;display:flex;flex-direction:column;gap:16px}
+.props .who2{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.big-av{width:72px;height:72px;border-radius:50%;background:#0F7A6C;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:650}
+.main{flex:999 1 560px;min-width:0;padding:22px 28px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:20px}
+.ls{list-style:none;margin:0;padding:0}
+.ls li{display:grid;grid-template-columns:72px minmax(0,1fr) 150px 90px 110px;gap:12px;align-items:center;padding:11px 18px;border-bottom:1px solid var(--line)}
+.ls li:last-child{border-bottom:0}
+.dd-sel{display:flex;align-items:center;justify-content:space-between;height:36px;border:1px solid var(--bd2);border-radius:8px;padding:0 12px;background:var(--surf)}
+.pk{font-size:12.5px;color:var(--tx3);margin-bottom:4px;font-weight:500}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main">
+      <a href="#">Dashboard</a><a href="#">Tickets</a><a href="#" class="on" aria-current="page">Contacts</a><a href="#">Companies</a><a href="#">Assets<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#">Knowledge</a><a href="#">Calendar</a>
+    </nav>
+    <div class="bar-right">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search  ⌘K" aria-label="Search"></label>
+      <button class="ib" type="button" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg></button>
+      <button class="ib" type="button" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
+      <button class="ib" type="button" aria-label="Switch theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
+      <span class="me" aria-label="Dana Ortiz">DO</span>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside class="rail" aria-label="Contacts">
+      <div class="rh"><b>Contacts <span class="muted num" style="font-weight:500">286</span></b><button class="ib" type="button" aria-label="Collapse list" style="width:28px;height:28px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button></div>
+      <label class="input" style="height:34px;margin-bottom:6px"><input placeholder="Search contacts…" aria-label="Search contacts"></label>
+      <a href="#">  <span class="av">AW</span>Alice Wong</a>
+      <a href="#"><span class="av">JP</span>James Porter</a>
+      <a href="#" class="on" aria-current="page"><span class="av" style="background:#0F7A6C">MC</span>Maria Chen</a>
+      <a href="#"><span class="av">RG</span>Ruth Green</a>
+      <a href="#"><span class="av">TB</span>Tom Baker</a>
+    </aside>
+
+    <section class="props" aria-label="Contact properties">
+      <div class="who2"><span class="big-av">MC</span><h2>Maria Chen</h2><span class="tag">Riverside Family Clinic</span></div>
+      <div><div class="pk">Department</div><span class="dd-sel">Front office<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></div>
+      <div><div class="pk">Assigned to</div><span class="dd-sel"><span class="who" style="color:var(--tx)"><span class="av d">DO</span>Dana Ortiz</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></div>
+      <div class="eyebrow" style="margin-top:4px">CONTACT DETAILS</div>
+      <dl class="kv" style="margin:0;grid-template-columns:80px minmax(0,1fr)"><dt>Email</dt><dd style="overflow:hidden;text-overflow:ellipsis"><a href="#">maria.chen@riversideclinic.org</a></dd><dt>Phone</dt><dd class="num">(555) 214-8890</dd><dt>Mobile</dt><dd class="num">(555) 917-3301</dd><dt>Job title</dt><dd>Practice manager</dd></dl>
+      <div><div class="pk">Notes</div><div style="font-size:13.5px">Prefers phone for anything urgent. Out on Fridays.</div></div>
+      <button class="btn primary" type="button" style="justify-content:center">Create ticket for this contact</button>
+    </section>
+
+    <div class="main">
+      <div class="head"><div></div><div style="display:flex;gap:8px"><button class="btn danger" type="button">Delete</button></div></div>
+      <nav class="tabs" aria-label="Contact sections" style="margin-top:4px"><a href="#" class="on" aria-current="page">Overview</a><a href="#">Tickets</a><a href="#">Activity</a></nav>
+      <div class="stats">
+        <div class="card stat"><div class="k">Total tickets</div><div class="v">12</div></div>
+        <div class="card stat"><div class="k">Open tickets</div><div class="v">2</div></div>
+        <div class="card stat"><div class="k">Overdue tickets</div><div class="v over-t" style="font-weight:650">1</div></div>
+        <div class="card stat"><div class="k">Avg resolution time</div><div class="v">6.4h</div></div>
+      </div>
+      <section class="card" style="margin-top:20px">
+        <div class="card-h"><h3>Recent tickets</h3></div>
+        <ul class="ls">
+          <li><span class="muted num">#01482</span><a href="#" class="ttl">Outlook keeps asking for my password</a><span><span class="status">In progress</span></span><span class="prio u"><i></i>Urgent</span><span class="num muted">Oct 26</span></li>
+          <li><span class="muted num">#01463</span><a href="#" class="ttl">Wi-Fi drops in the east wing</a><span><span class="status">Open</span></span><span class="prio h"><i></i>High</span><span class="num muted">Oct 22</span></li>
+          <li><span class="muted num">#01410</span><a href="#" class="ttl">New phone for reception</a><span><span class="status closed">Closed</span></span><span class="prio md"><i></i>Medium</span><span class="num muted">Sep 30</span></li>
+          <li><span class="muted num">#01377</span><a href="#" class="ttl">Can't reach the shared calendar</a><span><span class="status closed">Closed</span></span><span class="prio l"><i></i>Low</span><span class="num muted">Sep 12</span></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

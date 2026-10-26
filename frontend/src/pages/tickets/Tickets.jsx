@@ -28,6 +28,8 @@ import { ColumnsMenu } from './list/ColumnsMenu';
 import { BulkActionBar } from './list/BulkActionBar';
 import CategoryPicker from '../../components/CategoryPicker';
 import { TicketBoard } from './list/TicketBoard';
+import FiltersSheet from '../../components/ui/FiltersSheet';
+import PillRow from '../../components/ui/PillRow';
 import {
   Avatar,
   PriorityCell,
@@ -395,7 +397,7 @@ export default function Tickets() {
 
   return (
     <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
-      <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
+      <div className="flex-shrink-0 space-y-3 px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Tickets</h1>
           {canCreateTickets && <Link to="/tickets/new" className="btn-primary hidden lg:inline-flex">+ New Ticket</Link>}
@@ -483,7 +485,7 @@ export default function Tickets() {
           </div>
 
           {/* Quick-filter chips — horizontally scrollable on mobile/tablet, inline on desktop. */}
-          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:contents lg:overflow-visible lg:px-0 lg:pb-0">
+          <PillRow label="Quick filters" className="lg:mx-0 lg:contents lg:overflow-visible lg:px-0 lg:pb-0">
             {(myTeams.length > 0 || canViewAllTickets) && (
               <select
                 value={queue}
@@ -550,7 +552,7 @@ export default function Tickets() {
               <IconMail size={13} />
               New from email
             </button>
-          </div>
+          </PillRow>
 
           <div className="hidden flex-shrink-0 items-center gap-2 lg:flex">
             <SavedFiltersMenu
@@ -836,74 +838,58 @@ export default function Tickets() {
         </Link>
       )}
 
-      {filtersOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setFiltersOpen(false)} />
-          <div
-            className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl border-t p-4"
-            style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-semibold" style={{ color: TEXT }}>Filters</h3>
-              <button type="button" onClick={() => setFiltersOpen(false)} className="text-sm font-medium" style={{ color: BLUE }}>
-                Done
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="label">Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatusTracked(e.target.value)}
-                  className="input h-11 text-sm"
-                  style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-                >
-                  {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="label">Priority</label>
-                <select
-                  value={priority}
-                  onChange={(e) => setPriorityTracked(e.target.value)}
-                  className="input h-11 text-sm"
-                  style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-                >
-                  {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              {categories.length > 0 && (
-                <div className="sm:col-span-2" data-testid="filter-category">
-                  <label className="label" htmlFor="filter-category">Category</label>
-                  <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category" emptyLabel="All categories" includeRetiredValue />
-                </div>
-              )}
-              <div>
-                <label className="label">Assignee</label>
-                <select
-                  value={assignee}
-                  onChange={(e) => setAssigneeTracked(e.target.value)}
-                  className="input h-11 text-sm"
-                  style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-                >
-                  <option value="">All assignees</option>
-                  {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center gap-2 pt-1">
-                <SavedFiltersMenu
-                  savedFilters={savedFilters}
-                  activeId={activeSavedFilterId}
-                  onApply={applySavedFilter}
-                  onSave={saveCurrentFilter}
-                  onDelete={deleteSavedFilter}
-                />
-                <span className="text-xs" style={{ color: MUTED }}>Saved filters</span>
-              </div>
-            </div>
+      <FiltersSheet open={filtersOpen} onClose={() => setFiltersOpen(false)}>
+          <div>
+            <label className="label">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatusTracked(e.target.value)}
+              className="input h-11 text-sm"
+              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+            >
+              {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
-        </div>
-      )}
+          <div>
+            <label className="label">Priority</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriorityTracked(e.target.value)}
+              className="input h-11 text-sm"
+              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+            >
+              {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          {categories.length > 0 && (
+            <div className="sm:col-span-2" data-testid="filter-category">
+              <label className="label" htmlFor="filter-category">Category</label>
+              <CategoryPicker categories={categories} value={category} onChange={setCategoryTracked} id="filter-category" emptyLabel="All categories" includeRetiredValue />
+            </div>
+          )}
+          <div>
+            <label className="label">Assignee</label>
+            <select
+              value={assignee}
+              onChange={(e) => setAssigneeTracked(e.target.value)}
+              className="input h-11 text-sm"
+              style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
+            >
+              <option value="">All assignees</option>
+              {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <SavedFiltersMenu
+              savedFilters={savedFilters}
+              activeId={activeSavedFilterId}
+              onApply={applySavedFilter}
+              onSave={saveCurrentFilter}
+              onDelete={deleteSavedFilter}
+            />
+            <span className="text-xs" style={{ color: MUTED }}>Saved filters</span>
+          </div>
+      </FiltersSheet>
     </div>
   );
 }

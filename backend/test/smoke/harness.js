@@ -64,7 +64,7 @@ async function startSmoke() {
     await new Promise((resolve) => { server.close(resolve); });
   }
 
-  return { base, pageAs, stop };
+  return { base, browser, pageAs, stop };
 }
 
 module.exports = { startSmoke };

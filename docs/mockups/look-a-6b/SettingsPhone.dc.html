@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings on a phone</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/c5853215c172bfe2d0c9d7a4bd04f8a4">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.sgrid{display:grid;grid-template-columns:232px minmax(0,1fr);gap:32px;align-items:start}
+.smenu{padding:10px;background:var(--surf2);max-height:calc(100% - 0px)}
+.smenu .input{height:36px;margin-bottom:6px}
+.smenu .eyebrow{margin:12px 0 2px 10px}
+.smenu a{display:block;padding:6px 10px;border-radius:8px;color:var(--tx2);font-weight:500;font-size:13.5px}
+.app .smenu a.on{background:var(--surf);color:var(--tx);font-weight:600;box-shadow:inset 2px 0 0 var(--acc)}
+.app .smenu a.home{color:var(--tx);font-weight:600}
+.shead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.shead .crumbs a{color:var(--tx2)}
+.shead h1{margin-top:4px}
+.panel .ph{padding:14px 20px;border-bottom:1px solid var(--line)}
+.panel .ph h2{font-size:15px;margin:0}
+.panel .ph p{margin:2px 0 0;font-size:12.5px;color:var(--tx3)}
+.srow{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow .l{font-weight:600;font-size:13.5px}
+.srow .h{font-size:12.5px;color:var(--tx3);margin-top:2px}
+.savebar{display:flex;justify-content:flex-end;align-items:center;gap:12px}
+.pair{display:flex;gap:40px;width:820px;height:844px}
+.mb{display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surf);font-weight:600;color:var(--tx);flex:none}
+.prow{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.prow:last-child{border-bottom:0}
+.prow .l{font-weight:600;font-size:13.5px}
+.prow .h{font-size:12px;color:var(--tx3)}
+.prow .input{height:44px}
+.sheet a{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:8px;color:var(--tx2);font-weight:500}
+.app .sheet a.on{background:var(--surf);color:var(--tx);font-weight:600;box-shadow:inset 2px 0 0 var(--acc)}
+.sheet .eyebrow{margin:14px 0 2px 12px}
+</style>
+</helmet>
+<div class="{{cls}}" style="background:transparent">
+  <div class="pair">
+    <div class="phone" style="background:var(--bg)">
+      <div class="pbar"><span class="brand"><span class="logo"></span>PRISM</span><span style="flex:1"></span><button class="ib" type="button" aria-label="Switch theme" style="width:44px;height:44px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button><button class="ib" type="button" aria-label="Open menu" style="width:44px;height:44px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></div>
+      <div class="pbody" style="gap:12px">
+        <button class="mb" type="button" aria-label="Settings menu: Company profile">Settings · Company profile<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div><nav class="crumbs" aria-label="Breadcrumb"><a href="#" style="color:var(--tx2)">Settings</a><span>/</span><span>Organization</span></nav><h1 style="font-size:22px;margin-top:2px">Company profile</h1><p class="sub" style="margin-top:2px">Name, logo, time zone and login page</p></div>
+        <section class="card panel"><div class="ph" style="padding:12px 14px"><h2>Details</h2></div>
+          <div class="prow"><label class="l" for="m-cn">Organization name</label><input id="m-cn" class="input" value="Riverside IT"><span class="h">Shown in email footers and reports, and as your own company under Companies &amp; vendors.</span></div>
+          <div class="prow"><label class="l" for="m-an">App name</label><input id="m-an" class="input" value="PRISM"></div>
+          <div class="prow"><span class="l">Time zone</span><span class="input" style="height:44px">America/Chicago<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="margin-left:auto"><path d="M6 9l6 6 6-6"></path></svg></span></div>
+        </section>
+        <div class="savebar"><span class="muted" style="font-size:13px">Unsaved changes</span><button class="btn primary" type="button" style="flex:none;height:44px">Save</button></div>
+      </div>
+    </div>
+
+    <div class="phone" style="background:var(--bg)" role="dialog" aria-modal="true" aria-label="Settings menu">
+      <div class="pbar"><span style="font-weight:650;font-size:17px">Settings</span><span style="flex:1"></span><button class="ib" type="button" aria-label="Close the settings menu" style="width:44px;height:44px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+      <div class="pbody sheet" style="gap:2px">
+        <label class="input" style="min-height:44px;margin-bottom:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" placeholder="Find a setting" aria-label="Find a setting"></label>
+        <a href="#" style="color:var(--tx);font-weight:600">Settings home</a>
+        <p class="eyebrow">You</p><a href="#">Preferences</a><a href="#">About PRISM</a><p class="eyebrow">Organization</p><a href="#" class="on" aria-current="page">Company profile</a><a href="#">Companies &amp; vendors</a><p class="eyebrow">People &amp; access</p><a href="#">Users</a><a href="#">Teams</a><a href="#">Departments</a><a href="#">Roles &amp; permissions</a><a href="#">API keys</a><p class="eyebrow">Service desk</p><a href="#">Statuses</a><a href="#">Custom fields</a><a href="#">Ticket templates</a><a href="#">Ticket categories</a><a href="#">Canned responses</a><a href="#">Recurring tickets</a><a href="#">Workflow rules</a><a href="#">Notifications</a><a href="#">Customer happiness</a>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":820,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

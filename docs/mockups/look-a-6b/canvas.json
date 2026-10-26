@@ -1,0 +1,961 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-26T12:00:00Z"
+  },
+  "title": "PRISM look A \u2014 the rest of the app (6b)",
+  "launch": {
+    "view": "canvas",
+    "page": "tickets"
+  },
+  "pages": [
+    {
+      "id": "tickets",
+      "name": "Tickets"
+    },
+    {
+      "id": "dashboard",
+      "name": "Dashboard"
+    },
+    {
+      "id": "assets",
+      "name": "Assets, licenses, contracts"
+    },
+    {
+      "id": "contacts",
+      "name": "Contacts and companies"
+    },
+    {
+      "id": "knowledge",
+      "name": "Knowledge (staff and public /kb)"
+    },
+    {
+      "id": "reports",
+      "name": "Reports"
+    },
+    {
+      "id": "settings",
+      "name": "Settings"
+    },
+    {
+      "id": "login",
+      "name": "Sign in"
+    }
+  ],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1240,
+      "title": "Tickets list \u00b7 light",
+      "expand": "fill",
+      "page": "tickets"
+    },
+    "Ticket.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1500,
+      "title": "A ticket \u00b7 Conversation \u00b7 light",
+      "expand": "fill",
+      "page": "tickets"
+    },
+    "TicketNew.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1180,
+      "title": "New ticket \u00b7 light",
+      "expand": "fill",
+      "page": "tickets"
+    },
+    "Main-dark.dc.html": {
+      "x": 0,
+      "y": 1920,
+      "w": 1440,
+      "h": 1240,
+      "title": "Tickets list \u00b7 dark",
+      "expand": "fill",
+      "page": "tickets"
+    },
+    "Ticket-dark.dc.html": {
+      "x": 1520,
+      "y": 1920,
+      "w": 1440,
+      "h": 1500,
+      "title": "A ticket \u00b7 dark",
+      "expand": "fill",
+      "page": "tickets"
+    },
+    "TicketNew-dark.dc.html": {
+      "x": 3040,
+      "y": 1920,
+      "w": 1440,
+      "h": 1180,
+      "title": "New ticket \u00b7 dark",
+      "expand": "fill",
+      "page": "tickets"
+    },
+    "Board.dc.html": {
+      "x": 0,
+      "y": 3840,
+      "w": 1440,
+      "h": 1000,
+      "title": "Tickets \u00b7 Board view \u00b7 light",
+      "expand": "fill",
+      "page": "tickets"
+    },
+    "Board-dark.dc.html": {
+      "x": 1520,
+      "y": 3840,
+      "w": 1440,
+      "h": 1000,
+      "title": "Tickets \u00b7 Board view \u00b7 dark",
+      "expand": "fill",
+      "page": "tickets"
+    },
+    "TicketsPhone.dc.html": {
+      "x": 3040,
+      "y": 3840,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 list and a ticket \u00b7 light",
+      "page": "tickets"
+    },
+    "TicketsPhone-dark.dc.html": {
+      "x": 3940,
+      "y": 3840,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 list and a ticket \u00b7 dark",
+      "page": "tickets"
+    },
+    "Dashboard.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1250,
+      "title": "Dashboard \u00b7 technician \u00b7 light",
+      "expand": "fill",
+      "page": "dashboard"
+    },
+    "Dashboard-dark.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1250,
+      "title": "Dashboard \u00b7 technician \u00b7 dark",
+      "expand": "fill",
+      "page": "dashboard"
+    },
+    "DashPhone.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Phone \u00b7 light",
+      "page": "dashboard"
+    },
+    "DashPhone-dark.dc.html": {
+      "x": 3510,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Phone \u00b7 dark",
+      "page": "dashboard"
+    },
+    "DashAdmin.dc.html": {
+      "x": 0,
+      "y": 1670,
+      "w": 1440,
+      "h": 1400,
+      "title": "Dashboard \u00b7 manager, customizing \u00b7 light",
+      "expand": "fill",
+      "page": "dashboard"
+    },
+    "DashAdmin-dark.dc.html": {
+      "x": 1520,
+      "y": 1670,
+      "w": 1440,
+      "h": 1400,
+      "title": "Dashboard \u00b7 manager, customizing \u00b7 dark",
+      "expand": "fill",
+      "page": "dashboard"
+    },
+    "AssetsList.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Assets list \u00b7 light",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "AssetDetail.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1300,
+      "title": "An asset \u00b7 Overview \u00b7 light",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "LicenseDetail.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1250,
+      "title": "A license \u00b7 seats and key \u00b7 light",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "AssetsList-dark.dc.html": {
+      "x": 0,
+      "y": 1720,
+      "w": 1440,
+      "h": 900,
+      "title": "Assets list \u00b7 dark",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "AssetDetail-dark.dc.html": {
+      "x": 1520,
+      "y": 1720,
+      "w": 1440,
+      "h": 1300,
+      "title": "An asset \u00b7 dark",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "LicenseDetail-dark.dc.html": {
+      "x": 3040,
+      "y": 1720,
+      "w": 1440,
+      "h": 1250,
+      "title": "A license \u00b7 dark",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "Licenses.dc.html": {
+      "x": 0,
+      "y": 3440,
+      "w": 1440,
+      "h": 820,
+      "title": "Licenses list \u00b7 light",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "Contracts.dc.html": {
+      "x": 1520,
+      "y": 3440,
+      "w": 1440,
+      "h": 820,
+      "title": "Contracts list \u00b7 light",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "ContractDetail.dc.html": {
+      "x": 3040,
+      "y": 3440,
+      "w": 1440,
+      "h": 1150,
+      "title": "A contract \u00b7 light",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "Licenses-dark.dc.html": {
+      "x": 0,
+      "y": 5010,
+      "w": 1440,
+      "h": 820,
+      "title": "Licenses list \u00b7 dark",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "Contracts-dark.dc.html": {
+      "x": 1520,
+      "y": 5010,
+      "w": 1440,
+      "h": 820,
+      "title": "Contracts list \u00b7 dark",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "ContractDetail-dark.dc.html": {
+      "x": 3040,
+      "y": 5010,
+      "w": 1440,
+      "h": 1150,
+      "title": "A contract \u00b7 dark",
+      "page": "assets",
+      "expand": "fill"
+    },
+    "AssetsPhone.dc.html": {
+      "x": 0,
+      "y": 6580,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 assets list and an asset \u00b7 light",
+      "page": "assets"
+    },
+    "AssetsPhone-dark.dc.html": {
+      "x": 900,
+      "y": 6580,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 dark",
+      "page": "assets"
+    },
+    "ContactsList.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Contacts list \u00b7 light",
+      "page": "contacts",
+      "expand": "fill"
+    },
+    "ContactDetail.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1100,
+      "title": "A contact \u00b7 light",
+      "page": "contacts",
+      "expand": "fill"
+    },
+    "ContactsList-dark.dc.html": {
+      "x": 0,
+      "y": 1320,
+      "w": 1440,
+      "h": 900,
+      "title": "Contacts list \u00b7 dark",
+      "page": "contacts",
+      "expand": "fill"
+    },
+    "ContactDetail-dark.dc.html": {
+      "x": 1520,
+      "y": 1320,
+      "w": 1440,
+      "h": 1100,
+      "title": "A contact \u00b7 dark",
+      "page": "contacts",
+      "expand": "fill"
+    },
+    "CompaniesList.dc.html": {
+      "x": 0,
+      "y": 2840,
+      "w": 1440,
+      "h": 800,
+      "title": "Companies list \u00b7 light",
+      "page": "contacts",
+      "expand": "fill"
+    },
+    "CompanyPage.dc.html": {
+      "x": 1520,
+      "y": 2840,
+      "w": 1440,
+      "h": 1150,
+      "title": "A company \u00b7 Overview \u00b7 light",
+      "page": "contacts",
+      "expand": "fill"
+    },
+    "CompaniesList-dark.dc.html": {
+      "x": 0,
+      "y": 4410,
+      "w": 1440,
+      "h": 800,
+      "title": "Companies list \u00b7 dark",
+      "page": "contacts",
+      "expand": "fill"
+    },
+    "CompanyPage-dark.dc.html": {
+      "x": 1520,
+      "y": 4410,
+      "w": 1440,
+      "h": 1150,
+      "title": "A company \u00b7 dark",
+      "page": "contacts",
+      "expand": "fill"
+    },
+    "ContactsPhone.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 a contact and a company \u00b7 light",
+      "page": "contacts"
+    },
+    "ContactsPhone-dark.dc.html": {
+      "x": 3940,
+      "y": 0,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 dark",
+      "page": "contacts"
+    },
+    "KbList.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 880,
+      "title": "Knowledge list \u00b7 light",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbArticle.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 980,
+      "title": "An article \u00b7 light",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbEditor.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1160,
+      "title": "Editing an article \u00b7 light",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbList-dark.dc.html": {
+      "x": 0,
+      "y": 1580,
+      "w": 1440,
+      "h": 880,
+      "title": "Knowledge list \u00b7 dark",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbArticle-dark.dc.html": {
+      "x": 1520,
+      "y": 1580,
+      "w": 1440,
+      "h": 980,
+      "title": "An article \u00b7 dark",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbEditor-dark.dc.html": {
+      "x": 3040,
+      "y": 1580,
+      "w": 1440,
+      "h": 1160,
+      "title": "Editing an article \u00b7 dark",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbPortal.dc.html": {
+      "x": 0,
+      "y": 3160,
+      "w": 1440,
+      "h": 880,
+      "title": "Public Help Center (/kb) \u00b7 light",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbPortalArticle.dc.html": {
+      "x": 1520,
+      "y": 3160,
+      "w": 1440,
+      "h": 1000,
+      "title": "Public article \u00b7 light",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbPhone.dc.html": {
+      "x": 3040,
+      "y": 3160,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 staff list and public Help Center \u00b7 light",
+      "page": "knowledge"
+    },
+    "KbPortal-dark.dc.html": {
+      "x": 0,
+      "y": 4580,
+      "w": 1440,
+      "h": 880,
+      "title": "Public Help Center \u00b7 dark",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbPortalArticle-dark.dc.html": {
+      "x": 1520,
+      "y": 4580,
+      "w": 1440,
+      "h": 1000,
+      "title": "Public article \u00b7 dark",
+      "page": "knowledge",
+      "expand": "fill"
+    },
+    "KbPhone-dark.dc.html": {
+      "x": 3040,
+      "y": 4580,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 dark",
+      "page": "knowledge"
+    },
+    "ReportsVolume.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1320,
+      "title": "Ticket Volume report \u00b7 light",
+      "page": "reports",
+      "expand": "fill"
+    },
+    "ReportsVolume-dark.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1320,
+      "title": "Ticket Volume report \u00b7 dark",
+      "page": "reports",
+      "expand": "fill"
+    },
+    "ReportsPhone.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 a report and the report list \u00b7 light",
+      "page": "reports"
+    },
+    "ReportsPhone-dark.dc.html": {
+      "x": 3940,
+      "y": 0,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 dark",
+      "page": "reports"
+    },
+    "ReportsCustom.dc.html": {
+      "x": 0,
+      "y": 1740,
+      "w": 1440,
+      "h": 1400,
+      "title": "Custom report builder \u00b7 light",
+      "page": "reports",
+      "expand": "fill"
+    },
+    "ReportsCustom-dark.dc.html": {
+      "x": 1520,
+      "y": 1740,
+      "w": 1440,
+      "h": 1400,
+      "title": "Custom report builder \u00b7 dark",
+      "page": "reports",
+      "expand": "fill"
+    },
+    "SettingsHome.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1560,
+      "title": "Settings home \u00b7 light",
+      "page": "settings",
+      "expand": "fill"
+    },
+    "CompanyProfile.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1320,
+      "title": "A form page: Company profile \u00b7 light",
+      "page": "settings",
+      "expand": "fill"
+    },
+    "RoleEditor.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1440,
+      "title": "An editor: a role and its permissions \u00b7 light",
+      "page": "settings",
+      "expand": "fill"
+    },
+    "SettingsHome-dark.dc.html": {
+      "x": 0,
+      "y": 1980,
+      "w": 1440,
+      "h": 1560,
+      "title": "Settings home \u00b7 dark",
+      "page": "settings",
+      "expand": "fill"
+    },
+    "CompanyProfile-dark.dc.html": {
+      "x": 1520,
+      "y": 1980,
+      "w": 1440,
+      "h": 1320,
+      "title": "A form page: Company profile \u00b7 dark",
+      "page": "settings",
+      "expand": "fill"
+    },
+    "RoleEditor-dark.dc.html": {
+      "x": 3040,
+      "y": 1980,
+      "w": 1440,
+      "h": 1440,
+      "title": "An editor: a role and its permissions \u00b7 dark",
+      "page": "settings",
+      "expand": "fill"
+    },
+    "UsersList.dc.html": {
+      "x": 0,
+      "y": 3960,
+      "w": 1440,
+      "h": 880,
+      "title": "A list page: Users \u00b7 light",
+      "page": "settings",
+      "expand": "fill"
+    },
+    "UsersList-dark.dc.html": {
+      "x": 1520,
+      "y": 3960,
+      "w": 1440,
+      "h": 880,
+      "title": "Users \u00b7 dark",
+      "page": "settings",
+      "expand": "fill"
+    },
+    "SettingsPhone.dc.html": {
+      "x": 3040,
+      "y": 3960,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 a settings page and the menu \u00b7 light",
+      "page": "settings"
+    },
+    "SettingsPhone-dark.dc.html": {
+      "x": 3940,
+      "y": 3960,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 dark",
+      "page": "settings"
+    },
+    "Login.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Sign in \u00b7 light",
+      "page": "login",
+      "expand": "fill"
+    },
+    "Login-dark.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Sign in \u00b7 dark",
+      "page": "login",
+      "expand": "fill"
+    },
+    "LoginPhone.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 sign in and change password \u00b7 light",
+      "page": "login"
+    },
+    "LoginPhone-dark.dc.html": {
+      "x": 3940,
+      "y": 0,
+      "w": 820,
+      "h": 844,
+      "title": "Phone \u00b7 dark",
+      "page": "login"
+    },
+    "ChangePassword.dc.html": {
+      "x": 0,
+      "y": 1320,
+      "w": 1440,
+      "h": 820,
+      "title": "Forced new password after first sign-in \u00b7 light",
+      "page": "login",
+      "expand": "fill"
+    },
+    "ChangePassword-dark.dc.html": {
+      "x": 1520,
+      "y": 1320,
+      "w": 1440,
+      "h": 820,
+      "title": "Forced new password \u00b7 dark",
+      "page": "login",
+      "expand": "fill"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Ticket.dc.html",
+    "TicketNew.dc.html",
+    "Main-dark.dc.html",
+    "Ticket-dark.dc.html",
+    "TicketNew-dark.dc.html",
+    "Board.dc.html",
+    "Board-dark.dc.html",
+    "TicketsPhone.dc.html",
+    "TicketsPhone-dark.dc.html",
+    "Dashboard.dc.html",
+    "Dashboard-dark.dc.html",
+    "DashPhone.dc.html",
+    "DashPhone-dark.dc.html",
+    "DashAdmin.dc.html",
+    "DashAdmin-dark.dc.html",
+    "AssetsList.dc.html",
+    "AssetDetail.dc.html",
+    "LicenseDetail.dc.html",
+    "AssetsList-dark.dc.html",
+    "AssetDetail-dark.dc.html",
+    "LicenseDetail-dark.dc.html",
+    "Licenses.dc.html",
+    "Contracts.dc.html",
+    "ContractDetail.dc.html",
+    "Licenses-dark.dc.html",
+    "Contracts-dark.dc.html",
+    "ContractDetail-dark.dc.html",
+    "AssetsPhone.dc.html",
+    "AssetsPhone-dark.dc.html",
+    "ContactsList.dc.html",
+    "ContactDetail.dc.html",
+    "ContactsList-dark.dc.html",
+    "ContactDetail-dark.dc.html",
+    "CompaniesList.dc.html",
+    "CompanyPage.dc.html",
+    "CompaniesList-dark.dc.html",
+    "CompanyPage-dark.dc.html",
+    "ContactsPhone.dc.html",
+    "ContactsPhone-dark.dc.html",
+    "KbList.dc.html",
+    "KbArticle.dc.html",
+    "KbEditor.dc.html",
+    "KbList-dark.dc.html",
+    "KbArticle-dark.dc.html",
+    "KbEditor-dark.dc.html",
+    "KbPortal.dc.html",
+    "KbPortalArticle.dc.html",
+    "KbPhone.dc.html",
+    "KbPortal-dark.dc.html",
+    "KbPortalArticle-dark.dc.html",
+    "KbPhone-dark.dc.html",
+    "ReportsVolume.dc.html",
+    "ReportsVolume-dark.dc.html",
+    "ReportsPhone.dc.html",
+    "ReportsPhone-dark.dc.html",
+    "ReportsCustom.dc.html",
+    "ReportsCustom-dark.dc.html",
+    "SettingsHome.dc.html",
+    "CompanyProfile.dc.html",
+    "RoleEditor.dc.html",
+    "SettingsHome-dark.dc.html",
+    "CompanyProfile-dark.dc.html",
+    "RoleEditor-dark.dc.html",
+    "UsersList.dc.html",
+    "UsersList-dark.dc.html",
+    "SettingsPhone.dc.html",
+    "SettingsPhone-dark.dc.html",
+    "Login.dc.html",
+    "Login-dark.dc.html",
+    "LoginPhone.dc.html",
+    "LoginPhone-dark.dc.html",
+    "ChangePassword.dc.html",
+    "ChangePassword-dark.dc.html"
+  ],
+  "notes": {
+    "t1": {
+      "x": 0,
+      "y": -300,
+      "text": "Tickets in light: list, a ticket, new ticket",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "tickets"
+    },
+    "t2": {
+      "x": 0,
+      "y": 1620,
+      "text": "The same three in dark (the default theme)",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "tickets"
+    },
+    "t3": {
+      "x": 0,
+      "y": 3540,
+      "text": "Board view, and tickets on a phone",
+      "kind": "title1",
+      "maxW": 4760,
+      "page": "tickets"
+    },
+    "d1": {
+      "x": 0,
+      "y": -300,
+      "text": "Dashboard: a technician's day, desktop and phone",
+      "kind": "title1",
+      "maxW": 3900,
+      "page": "dashboard"
+    },
+    "d2": {
+      "x": 0,
+      "y": 1370,
+      "text": "A manager's dashboard while customizing panels",
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "dashboard"
+    },
+    "a1": {
+      "x": 0,
+      "y": -300,
+      "text": "Assets in light: list, an asset, a license",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "assets"
+    },
+    "a2": {
+      "x": 0,
+      "y": 1420,
+      "text": "The same three in dark",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "assets"
+    },
+    "a3": {
+      "x": 0,
+      "y": 3140,
+      "text": "Licenses and contracts lists, a contract (light)",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "assets"
+    },
+    "a4": {
+      "x": 0,
+      "y": 4710,
+      "text": "\u2026and in dark",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "assets"
+    },
+    "a5": {
+      "x": 0,
+      "y": 6280,
+      "text": "Assets on a phone",
+      "kind": "title1",
+      "maxW": 1720,
+      "page": "assets"
+    },
+    "c1": {
+      "x": 0,
+      "y": -300,
+      "text": "Contacts: list and a contact, light then dark; phones on the right",
+      "kind": "title1",
+      "maxW": 4760,
+      "page": "contacts"
+    },
+    "c2": {
+      "x": 0,
+      "y": 2540,
+      "text": "Companies: list and a company, light then dark",
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "contacts"
+    },
+    "k1": {
+      "x": 0,
+      "y": -300,
+      "text": "Knowledge for staff: list, an article, editing (light)",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "knowledge"
+    },
+    "k2": {
+      "x": 0,
+      "y": 1280,
+      "text": "\u2026and in dark",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "knowledge"
+    },
+    "k3": {
+      "x": 0,
+      "y": 2860,
+      "text": "The public Help Center at /kb, and phones (light)",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "knowledge"
+    },
+    "k4": {
+      "x": 0,
+      "y": 4280,
+      "text": "\u2026and in dark",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "knowledge"
+    },
+    "r1": {
+      "x": 0,
+      "y": -300,
+      "text": "Reports: a built-in report, light and dark; phones on the right",
+      "kind": "title1",
+      "maxW": 4760,
+      "page": "reports"
+    },
+    "r2": {
+      "x": 0,
+      "y": 1440,
+      "text": "Editing a saved custom report",
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "reports"
+    },
+    "s1": {
+      "x": 0,
+      "y": -300,
+      "text": "Settings in light: home, a form page, an editor",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "settings"
+    },
+    "s2": {
+      "x": 0,
+      "y": 1680,
+      "text": "\u2026and in dark",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "settings"
+    },
+    "s3": {
+      "x": 0,
+      "y": 3660,
+      "text": "A list page (Users), and Settings on a phone",
+      "kind": "title1",
+      "maxW": 4760,
+      "page": "settings"
+    },
+    "l1": {
+      "x": 0,
+      "y": -300,
+      "text": "Sign in, light and dark; phones on the right",
+      "kind": "title1",
+      "maxW": 4760,
+      "page": "login"
+    },
+    "l2": {
+      "x": 0,
+      "y": 1020,
+      "text": "Setting a new password",
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "login"
+    }
+  },
+  "designSystems": []
+}
