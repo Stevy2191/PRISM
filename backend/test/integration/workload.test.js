@@ -25,7 +25,10 @@ const newTicket = (fields = {}) => makeTicket(w.admin.agent, {
   title: 'Printer', contactId: w.contact.id, departmentId: w.deptA.id, ...fields,
 });
 
+// The whole suite runs on Monday 2 Nov 2026: `today` is clamped to the server's
+// date, and everything (sign-ins included) is made under the same frozen clock.
 beforeEach(async () => {
+  freezeClock('2026-11-02T12:00:00Z');
   await resetData();
   await sequelize.query('DELETE FROM Holidays');
   await sequelize.query('DELETE FROM HolidayLists');
@@ -33,6 +36,7 @@ beforeEach(async () => {
   tina = await makeTech('tina', w.deptA.id);
   carl = await makeTech('carl', w.deptA.id);
 });
+afterEach(unfreezeClock);
 afterAll(closeDb);
 
 describe('access', () => {
@@ -284,8 +288,9 @@ describe('work hours and settings', () => {
   it('work-hours PATCH validates 0–1440 and needs settings.manage_business_hours', async () => {
     expect((await patchHours(tina.agent, carl.user.id, { 1: 60 })).status).toBe(403);
     const ok = expectOk(await patchHours(w.admin.agent, carl.user.id, { 1: 0, 2: 1440, 7: 90 }));
-    expect(ok.user.workHours).toEqual({ 1: 0, 2: 1440, 7: 90 });
-    expect(await AuditLog.count({ where: { action: 'user.workHours', entityId: carl.user.id } })).toBe(1);
+    expect(ok.user).toEqual({ id: carl.user.id, workHours: { 1: 0, 2: 1440, 7: 90 } });
+    const audit = await AuditLog.findOne({ where: { action: 'user.workHours', entityId: carl.user.id } });
+    expect(audit.meta).toEqual({ from: null, to: { 1: 0, 2: 1440, 7: 90 } });
     for (const bad of [{ 8: 60 }, { 0: 60 }, { 1: 1441 }, { 1: -1 }, { 1: 1.5 }, { 1: '60' }, { monday: 60 }, [60], 'x', 5, { 1: null }]) {
       // eslint-disable-next-line no-await-in-loop
       expect((await patchHours(w.admin.agent, carl.user.id, bad)).status).toBe(400);
@@ -316,5 +321,122 @@ describe('work hours and settings', () => {
     const ok = expectOk(await patch({ 1: 420, 2: 420, 3: 420, 4: 420, 5: 420, 6: 0, 7: 0 }));
     expect(JSON.parse(ok.settings['workload.defaultWorkHours'])[1]).toBe(420);
     expect(await AuditLog.count({ where: { action: 'settings.workload' } })).toBe(1);
+  });
+});
+
+describe('weekends', () => {
+  it('a Saturday-planned ticket lands on the Friday before', async () => {
+    const t = await newTicket({ assigneeId: tina.user.id });
+    await Ticket.update({ plannedDate: NOV(7) }, { where: { id: t.id } });
+    const res = await load(w.admin.agent);
+    expect(row(res, tina).cells[NOV(6)].minutes).toBe(60);
+    expect(res.items[tina.user.id]).toHaveLength(1);
+  });
+
+  it('a task due on a Sunday with no start lands on the Friday before', async () => {
+    const p = await makeProject(w.admin.agent, { name: 'Refresh', ownerDepartmentId: w.deptA.id });
+    await makeTask(w.admin.agent, p.id, { assigneeId: tina.user.id, estimateMinutes: 90, dueDate: NOV(8) });
+    expect(row(await load(w.admin.agent), tina).cells[NOV(6)].minutes).toBe(90);
+  });
+
+  it('weekend hours do not take a share: spread uses Mon–Fri only', async () => {
+    expectOk(await w.admin.agent.patch(`${API}/users/${tina.user.id}/work-hours`).send({ workHours: { 1: 480, 2: 480, 3: 480, 4: 480, 5: 480, 6: 480, 7: 0 } }));
+    const p = await makeProject(w.admin.agent, { name: 'Refresh', ownerDepartmentId: w.deptA.id });
+    await makeTask(w.admin.agent, p.id, { assigneeId: tina.user.id, estimateMinutes: 300, startDate: NOV(2), dueDate: NOV(7) });
+    const cells = row(await load(w.admin.agent), tina).cells;
+    expect([NOV(2), NOV(3), NOV(4), NOV(5), NOV(6)].map((d) => cells[d].minutes)).toEqual([60, 60, 60, 60, 60]);
+  });
+
+  it('on a Sunday with no from, overdue work lands on the coming Monday', async () => {
+    await newTicket({ assigneeId: tina.user.id, dueDate: '2026-10-30' });
+    freezeClock('2026-11-08T12:00:00Z');
+    const { agent } = await createUserAndLogin({ username: 'sunday', roleName: ROLE.ADMIN, legacyRole: 'admin' });
+    const res = expectOk(await agent.get(`${API}/workload`));
+    expect(res.today).toBe(NOV(8));
+    expect(res.days[0].date).toBe(NOV(9));
+    expect(row(res, tina).cells[NOV(9)]).toEqual(expect.objectContaining({ minutes: 60, overdue: true }));
+  });
+});
+
+describe('work nobody can carry', () => {
+  it('an inactive assignee: the item goes to the lane, marked, with the name', async () => {
+    await newTicket({ title: 'Orphan', assigneeId: carl.user.id, dueDate: NOV(4) });
+    await models.User.update({ isActive: false }, { where: { id: carl.user.id } });
+    const res = await load(w.admin.agent);
+    expect(res.unassigned).toEqual([expect.objectContaining({ title: 'Orphan', assigneeUnavailable: true, assigneeName: carl.user.displayName })]);
+    expect(res.unassigned[0].assigneeName).toBeTruthy();
+  });
+
+  it('main assignee unreachable but a helper is: the helper carries it all, nothing in the lane', async () => {
+    const acme = await makeCompany(w.admin, { name: 'Acme' });
+    const p = await makeProject(w.admin.agent, { name: 'Acme job', companyId: acme.id, ownerDepartmentId: w.deptA.id });
+    const t = await makeTask(w.admin.agent, p.id, { assigneeId: carl.user.id, estimateMinutes: 240, startDate: NOV(3), dueDate: NOV(3) });
+    expectOk(await w.admin.agent.post(`${API}/projects/${p.id}/tasks/${t.id}/helpers`).send({ userId: tina.user.id }), 201);
+    await setCompanyAccess(w.admin, carl.user.id, { allCompanies: false, companyIds: [] });
+    const res = await load(w.admin.agent);
+    expect(row(res, tina).cells[NOV(3)].minutes).toBe(240);
+    expect(res.items[carl.user.id] || []).toEqual([]);
+    expect(res.unassigned).toEqual([]);
+  });
+});
+
+describe('what the viewer may open', () => {
+  const asViewer = async (name, overrides) => {
+    const { agent, user } = await createUserAndLogin({ username: name, roleName: ROLE.DEPARTMENT_STAFF, departmentId: w.deptA.id });
+    for (const [permissionKey, granted] of [['workload.view', true], ...overrides]) {
+      // eslint-disable-next-line no-await-in-loop
+      expectOk(await w.admin.agent.post(`${API}/users/${user.id}/overrides`).send({ permissionKey, granted }), 201);
+    }
+    return agent;
+  };
+
+  it('no tickets.view_* → no tickets; no projects.view_* → no tasks', async () => {
+    await newTicket({ assigneeId: tina.user.id, dueDate: NOV(4) });
+    const p = await makeProject(w.admin.agent, { name: 'Refresh', ownerDepartmentId: w.deptA.id });
+    await makeTask(w.admin.agent, p.id, { assigneeId: tina.user.id, estimateMinutes: 90, startDate: NOV(4), dueDate: NOV(4) });
+    const noTickets = await asViewer('noticket', [['tickets.view_department', false], ['tickets.view_own', false], ['tickets.view_all', false]]);
+    const a = await load(noTickets);
+    expect(row(a, tina).cells[NOV(4)].minutes).toBe(90);
+    const noProjects = await asViewer('noproject', [['projects.view_department', false], ['projects.view_own', false], ['projects.view_all', false]]);
+    const b = await load(noProjects);
+    expect(row(b, tina).cells[NOV(4)].minutes).toBe(60);
+  });
+
+  it('department scope: a ticket in a department the viewer cannot see is absent', async () => {
+    await newTicket({ title: 'Mine', assigneeId: tina.user.id, dueDate: NOV(4) });
+    const contactB = await makeContact(w.admin, { departmentId: w.deptB.id });
+    await makeTicket(w.admin.agent, { title: 'Facilities', contactId: contactB.id, departmentId: w.deptB.id, assigneeId: tina.user.id, dueDate: NOV(4) });
+    const agent = await asViewer('deptviewer', []);
+    const res = await load(agent);
+    expect(res.items[tina.user.id].map((i) => i.title)).toEqual(['Mine']);
+    expect(row(res, tina).cells[NOV(4)].minutes).toBe(60);
+    expect(JSON.stringify(res)).not.toContain('Facilities');
+  });
+});
+
+describe('details', () => {
+  it('slaOverdue marks a ticket past its SLA date even when planned later', async () => {
+    const t = await newTicket({ assigneeId: tina.user.id });
+    await Ticket.update({ dueDate: '2026-10-30', plannedDate: NOV(4) }, { where: { id: t.id } });
+    const res = await load(w.admin.agent);
+    expect(row(res, tina).cells[NOV(4)].minutes).toBe(60);
+    expect(res.items[tina.user.id][0]).toEqual(expect.objectContaining({ slaOverdue: true, overdue: false }));
+  });
+
+  it('a far-off or junk today falls back to the server date', async () => {
+    const far = expectOk(await w.admin.agent.get(`${API}/workload?from=${MON}&today=2026-12-25`));
+    expect(far.today).toBe(MON);
+    expect(expectOk(await w.admin.agent.get(`${API}/workload?from=${MON}&today=2026-11-04`)).today).toBe(NOV(4));
+  });
+
+  it('settings.manage_business_hours alone may write the workload settings, nothing else', async () => {
+    const { agent, user } = await createUserAndLogin({ username: 'hours', roleName: ROLE.DEPARTMENT_STAFF, departmentId: w.deptA.id });
+    expectOk(await w.admin.agent.post(`${API}/users/${user.id}/overrides`).send({ permissionKey: 'settings.manage_business_hours', granted: true }), 201);
+    expectOk(await agent.patch(`${API}/settings`).send({ 'workload.defaultTicketMinutes': '45' }));
+    expect((await agent.patch(`${API}/settings`).send({ 'company.name': 'Evil' })).status).toBe(403);
+    expect((await agent.patch(`${API}/settings`).send({ 'workload.defaultTicketMinutes': '45', 'integrations.googleClientId': 'x' })).status).toBe(403);
+    expect((await agent.put(`${API}/settings`).send({ settings: { 'branding.appName': 'x' } })).status).toBe(403);
+    expect((await agent.patch(`${API}/settings`).send({})).status).toBe(403);
+    expect((await agent.get(`${API}/settings`)).status).toBe(200);
   });
 });

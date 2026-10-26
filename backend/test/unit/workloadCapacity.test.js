@@ -90,3 +90,13 @@ describe('shareMinutes', () => {
     expect(shareMinutes(50, []).size).toBe(0);
   });
 });
+
+it('weekend days snap back to Friday, or forward to Monday for today', () => {
+  const { snapBack, snapForward } = require('../../src/services/workload/capacity');
+  expect(snapBack('2026-11-07')).toBe('2026-11-06'); // Saturday
+  expect(snapBack('2026-11-08')).toBe('2026-11-06'); // Sunday
+  expect(snapBack('2026-11-04')).toBe('2026-11-04');
+  expect(snapForward('2026-11-07')).toBe('2026-11-09');
+  expect(snapForward('2026-11-08')).toBe('2026-11-09');
+  expect(snapForward('2026-11-06')).toBe('2026-11-06');
+});

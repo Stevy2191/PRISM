@@ -2,7 +2,8 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { parseRecordId } = require('../services/permissionService');
 const { buildWorkload } = require('../services/workload');
 const { isIsoDate } = require('../services/workload/capacity');
-const { addDays, isoWeekday } = require('../services/projects/schedule');
+const { addDays, daysBetween, isoWeekday } = require('../services/projects/schedule');
+const { snapForward } = require('../services/workload/capacity');
 
 const KINDS = ['all', 'tickets', 'tasks'];
 
@@ -20,8 +21,13 @@ const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 // viewer's calendar however far the server's clock is from them.
 const get = asyncHandler(async (req, res) => {
   const q = req.query || {};
-  const today = isIsoDate(one(q.today)) ? one(q.today) : serverToday();
-  const from = one(q.from) === undefined ? addDays(today, 1 - isoWeekday(today)) : one(q.from);
+  // The client's date, but never more than 2 days from the server's: it only
+  // has to absorb a time-zone gap, not move the whole screen.
+  const server = serverToday();
+  const sent = one(q.today);
+  const today = isIsoDate(sent) && Math.abs(daysBetween(server, sent)) <= 2 ? sent : server;
+  // This week's Monday; on a weekend, the coming one (that's where today's work shows).
+  const from = one(q.from) === undefined ? (isoWeekday(today) > 5 ? snapForward(today) : addDays(today, 1 - isoWeekday(today))) : one(q.from);
   if (!isIsoDate(from)) throw bad('from must be a date like 2026-11-02');
   const rawDays = one(q.days);
   const days = rawDays === undefined ? 5 : Number(rawDays);

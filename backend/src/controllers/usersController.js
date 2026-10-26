@@ -558,9 +558,11 @@ const updateWorkHours = asyncHandler(async (req, res) => {
   if (raw !== null && !workHours) {
     throw new ApiError(400, 'Work hours are whole minutes from 0 to 1440, keyed by weekday 1 (Monday) to 7 (Sunday)', 'VALIDATION_ERROR');
   }
+  const previous = user.workHours ?? null;
   await user.update({ workHours });
-  await writeAudit(req, 'user.workHours', 'User', user.id, { workHours });
-  res.json({ user: await User.findByPk(user.id, { include: userInclude }) });
+  await writeAudit(req, 'user.workHours', 'User', user.id, { from: previous, to: workHours });
+  // Only the hours: this permission is not a licence to read the account.
+  res.json({ user: { id: user.id, workHours: user.workHours ?? null } });
 });
 
 module.exports = {

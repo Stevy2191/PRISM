@@ -10,7 +10,7 @@ const DEFAULT_WORK_HOURS = {
 const DEFAULT_TICKET_MINUTES = 60;
 // Longest stretch spread() looks at, so one far-future due date cannot make
 // the screen walk thousands of days per item.
-const MAX_WINDOW_DAYS = 1830;
+const MAX_WINDOW_DAYS = 366;
 const NONE = 'none';
 
 // A strict calendar date: 'YYYY-MM-DD' that really exists (no 2026-02-30).
@@ -76,6 +76,18 @@ function windowDays(startDate, dueDate, today) {
   return Array.from({ length: n + 1 }, (_, i) => addDays(lo, i));
 }
 
+// The screen shows Monday-Friday only. A day that is a Saturday or Sunday
+// shows as the Friday before (a single-day landing), or as the coming Monday
+// when it is "today" (work that is due now starts on the next working day).
+function snapBack(date) {
+  const wd = isoWeekday(date);
+  return wd <= 5 ? date : addDays(date, 5 - wd);
+}
+function snapForward(date) {
+  const wd = isoWeekday(date);
+  return wd <= 5 ? date : addDays(date, 8 - wd);
+}
+
 // Work still to do on an item, in minutes.
 //  - task: its estimate less everyone's logged time, never below 0
 //  - ticket: the sum of its open tasks' remaining estimates, or the default
@@ -96,5 +108,5 @@ function shareMinutes(minutes, peopleIds) {
 }
 
 module.exports = {
-  DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES, NONE, isIsoDate, validWorkHours, capacityFor, spread, windowDays, itemMinutes, shareMinutes,
+  DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES, NONE, isIsoDate, validWorkHours, snapBack, snapForward, capacityFor, spread, windowDays, itemMinutes, shareMinutes,
 };

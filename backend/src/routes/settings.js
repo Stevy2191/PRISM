@@ -10,6 +10,8 @@ const templatesCtrl = require('../controllers/emailTemplatesController');
 const { authenticate } = require('../middleware/auth');
 const { blockUntilPasswordChanged } = require('../middleware/role');
 const { requirePermission } = require('../middleware/requirePermission');
+const { hasPermission } = require('../services/permissionService');
+const { ApiError } = require('../middleware/error');
 const { requireOwner } = require('../services/ownership');
 const { verifyFileSignature, scanUpload } = require('../middleware/upload');
 
@@ -68,10 +70,24 @@ const manageBranding = [authenticate, blockUntilPasswordChanged, requirePermissi
 // same settings blob also holds integrations.* OAuth client secrets, and a
 // branding-only role writing to this endpoint could overwrite those, which
 // is a real permission escalation, not just a UX gap.
-const readSettings = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_system', 'settings.manage_branding')];
+const readSettings = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_system', 'settings.manage_branding', 'settings.manage_business_hours')];
+// The Workload settings (hours, default ticket size) are writable with
+// settings.manage_business_hours alone, but only those keys: the same blob
+// holds integration secrets, so any other key still needs manage_system.
+const writeSettings = [authenticate, blockUntilPasswordChanged, async (req, res, next) => {
+  try {
+    if (await hasPermission(req.user.id, 'settings.manage_system')) return next();
+    const body = req.body || {};
+    const keys = Object.keys(body.settings && typeof body.settings === 'object' ? body.settings : body);
+    if (keys.length && keys.every((k) => k.startsWith('workload.')) && await hasPermission(req.user.id, 'settings.manage_business_hours')) return next();
+    return next(new ApiError(403, 'Insufficient permissions', 'FORBIDDEN', { required: 'settings.manage_system' }));
+  } catch (err) {
+    return next(err);
+  }
+}];
 router.get('/', readSettings, ctrl.get);
-router.put('/', manageSystem, ctrl.update);
-router.patch('/', manageSystem, ctrl.patch);
+router.put('/', writeSettings, ctrl.update);
+router.patch('/', writeSettings, ctrl.patch);
 router.get('/ldap', ownerSettings, ldapCtrl.get);
 router.patch('/ldap', ownerSettings, ldapCtrl.update);
 router.post('/ldap/test', ownerSettings, ldapCtrl.test);

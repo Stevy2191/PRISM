@@ -13,7 +13,7 @@ const { getTicketStatusBuckets, getProjectStatusBuckets } = require('../statusBe
 const { peopleOn } = require('../projects/helpers');
 const { addDays, isoWeekday } = require('../projects/schedule');
 const {
-  DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES, NONE, capacityFor, spread, windowDays, itemMinutes, shareMinutes, validWorkHours,
+  DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES, NONE, capacityFor, snapBack, snapForward, spread, windowDays, itemMinutes, shareMinutes, validWorkHours,
 } = require('./capacity');
 
 const sameDept = (a, b) => a != null && b != null && a === b;
@@ -71,7 +71,7 @@ async function loggedMinutesByTask(topIds) {
   const rows = await sequelize.query(
     `SELECT COALESCE(t.parentTaskId, t.id) AS topId, SUM(te.durationSeconds) AS seconds
        FROM TimeEntries te JOIN Tasks t ON t.id = te.taskId
-      WHERE COALESCE(t.parentTaskId, t.id) IN (:ids)
+      WHERE t.id IN (:ids) OR t.parentTaskId IN (:ids)
       GROUP BY COALESCE(t.parentTaskId, t.id)`,
     { replacements: { ids: topIds }, type: QueryTypes.SELECT }
   );
@@ -155,11 +155,14 @@ async function buildWorkload(viewer, {
   const holidaysOf = new Map(staff.map((p) => [p.id, new Set([...holidays.global.keys(), ...(holidays.byDept.get(p.departmentId) || [])])]));
 
   // Everything inside the viewer's own scope, nothing else.
-  const wantTickets = kinds === 'all' || kinds === 'tickets';
-  const wantTasks = kinds === 'all' || kinds === 'tasks';
   const [ticketBuckets, projectBuckets, viewerPerms] = await Promise.all([
     getTicketStatusBuckets(), getProjectStatusBuckets(), resolveUserPermissions(viewer.id),
   ]);
+  // workload.view alone opens the screen; what is listed still needs the
+  // matching view permission, or the scope helpers would fall back to 'own'.
+  const canSee = (family) => ['view_own', 'view_department', 'view_all'].some((k) => viewerPerms[`${family}.${k}`]);
+  const wantTickets = (kinds === 'all' || kinds === 'tickets') && canSee('tickets');
+  const wantTasks = (kinds === 'all' || kinds === 'tasks') && canSee('projects');
   const tickets = wantTickets
     ? await Ticket.findAll({
       where: andWhere(await ticketScopeWhere(viewer), { status: inList(ticketBuckets.open), mergedIntoId: null }),
@@ -229,6 +232,8 @@ async function buildWorkload(viewer, {
       canEdit: canEdit.ticket(t),
       carriers,
       assigned: !!t.assigneeId,
+      mainAssigneeId: t.assigneeId || null,
+      slaOverdue: !!t.dueDate && t.dueDate < today,
       teamId: t.teamId,
     });
   }
@@ -251,6 +256,7 @@ async function buildWorkload(viewer, {
       canEdit: canEdit.project(pr),
       carriers: everyone.filter((id) => staffIds.has(id) && reach.project(id, t.projectId)),
       assigned: everyone.length > 0,
+      mainAssigneeId: t.assigneeId || null,
       teamId: null,
     });
   }
@@ -268,25 +274,48 @@ async function buildWorkload(viewer, {
   const staffById = new Map(staff.map((p) => [p.id, p]));
   const out = {};
   const unassigned = [];
+  // Weekends are not shown: "today" on one is the coming Monday, and the
+  // working days to spread over are Monday-Friday ones, kept per person and window.
+  const todayCol = snapForward(today);
+  const workingCache = new Map();
+  const workingDaysFor = (person, start, due) => {
+    const key = `${person.id}|${start}|${due}`;
+    if (!workingCache.has(key)) {
+      const holidaysFor = holidaysOf.get(person.id);
+      workingCache.set(key, windowDays(start, due, todayCol)
+        .filter((d) => isoWeekday(d) <= 5 && capacityFor(person.workHours, settings.defaultWorkHours, holidaysFor, d) > 0));
+    }
+    return workingCache.get(key);
+  };
+  const unavailable = [];
   for (const it of items) {
     const overdue = !!it.effectiveDue && it.effectiveDue < today;
-    const { carriers, assigned, teamId: itemTeam, effectiveDue, ...shownFields } = it;
+    const {
+      carriers, assigned, teamId: itemTeam, effectiveDue, mainAssigneeId, ...shownFields
+    } = it;
     if (!carriers.length) {
-      // Nobody is on it at all: the "Not assigned yet" lane. Work that has people
-      // who can't carry it stays out of every row.
-      if (!assigned && (!teamId || itemTeam == null || itemTeam === teamId)) unassigned.push({ ...shownFields, overdue });
+      // The "Not assigned yet" lane: nobody on it, or people who can't carry it
+      // (inactive, or can't open it) - those are marked, never silently dropped.
+      if (!teamId || itemTeam == null || itemTeam === teamId) {
+        const entry = { ...shownFields, overdue };
+        if (assigned) { entry.assigneeUnavailable = true; unavailable.push([entry, mainAssigneeId]); }
+        unassigned.push(entry);
+      }
       continue; // eslint-disable-line no-continue
     }
     const shares = shareMinutes(it.minutes, carriers);
     for (const [personId, minutes] of shares) {
       const row = rowOf.get(personId);
       if (!row) continue; // eslint-disable-line no-continue
-      const person = staffById.get(personId);
-      const holidaysFor = holidaysOf.get(personId);
-      const working = windowDays(it.startDate, effectiveDue, today)
-        .filter((d) => capacityFor(person.workHours, settings.defaultWorkHours, holidaysFor, d) > 0);
+      const working = workingDaysFor(staffById.get(personId), it.startDate, effectiveDue);
+      // A single-day landing on a weekend shows on the Friday before.
+      const landed = new Map();
+      for (const [key, m] of spread(minutes, it.startDate, effectiveDue, working, todayCol)) {
+        const day = key === NONE ? key : snapBack(key);
+        landed.set(day, (landed.get(day) || 0) + m);
+      }
       const byDay = {};
-      for (const [key, m] of spread(minutes, it.startDate, effectiveDue, working, today)) {
+      for (const [key, m] of landed) {
         const cell = row.cells[key];
         if (!cell) continue; // eslint-disable-line no-continue
         cell.minutes += m;
@@ -298,6 +327,12 @@ async function buildWorkload(viewer, {
         (out[personId] = out[personId] || []).push({ ...shownFields, minutes, overdue, byDay });
       }
     }
+  }
+  // Name the person on the lane items, as the record itself already shows it.
+  const nameIds = [...new Set(unavailable.map(([, id]) => id).filter(Boolean))];
+  if (nameIds.length) {
+    const named = new Map((await User.findAll({ where: { id: nameIds }, attributes: ['id', 'displayName'], raw: true })).map((u) => [u.id, u.displayName]));
+    unavailable.forEach(([entry, id]) => { if (named.has(id)) entry.assigneeName = named.get(id); });
   }
   const byDue = (a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999') || a.title.localeCompare(b.title);
   unassigned.sort(byDue);
