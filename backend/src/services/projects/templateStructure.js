@@ -9,9 +9,10 @@ const {
 } = require('../../models');
 const { cleanBudgetMinutes } = require('./budget');
 const { wouldCycle } = require('./schedule');
+const { MAX_DAYS } = require('./templatePlan');
 
 const LIMITS = {
-  tasks: 500, phases: 50, dependencies: 1000, tags: 20, tagLength: 50, name: 150, phaseName: 100, title: 500, text: 10000, days: 3650,
+  tasks: 500, phases: 50, dependencies: 1000, tags: 20, tagLength: 50, name: 150, phaseName: 100, title: 500, text: 10000, days: MAX_DAYS,
 };
 const PRIORITIES = ['urgent', 'high', 'medium', 'low'];
 const bad = (message, code = 'VALIDATION_ERROR') => new ApiError(400, message, code);

@@ -77,12 +77,14 @@ describe('create from a template', () => {
     const t = await addTemplate();
     const q = `startDate=2026-03-02&finishDate=2026-03-17`;
     const preview = expectOk(await w.admin.agent.get(`${T}/${t.id}/preview?${q}`));
-    // the milestone sits at offset 7 of 8 days; scaled by 2 that is day 15
-    expect(preview.finishDate).toBe('2026-03-16');
+    // the milestone sits on the template's last day, so it lands on the requested finish
+    expect(preview.finishDate).toBe('2026-03-17');
+    expect((await w.admin.agent.get(`${T}/${t.id}/preview?startDate=2026-03-02&finishDate=2046-03-17`)).status).toBe(400);
+    expect((await w.admin.agent.post(`${API}/projects`).send(projectBody({ templateId: t.id, finishDate: '2046-03-17' }))).status).toBe(400);
     const created = expectOk(await w.admin.agent.post(`${API}/projects`).send(projectBody({ templateId: t.id, finishDate: '2026-03-17' })), 201).project;
     const { byTitle, project } = await readProject(created.id);
     expect(project.dueDate).toBe('2026-03-17');
-    expect(byTitle['Go live'].dueDate).toBe('2026-03-16');
+    expect(byTitle['Go live'].dueDate).toBe('2026-03-17');
     expect(preview.tasks.find((x) => x.title === 'Plan').startDate).toBe(byTitle.Plan.startDate);
     expect(byTitle.Plan.startDate > byTitle.Survey.dueDate).toBe(true);
   });
@@ -193,13 +195,14 @@ describe('save as template', () => {
   });
 
   it('saves the structure with day offsets, and 404s for a project the caller cannot see', async () => {
-    const p = await makeProject(w.admin.agent, { name: 'Original', ownerDepartmentId: w.deptA.id, startDate: '2026-04-06', tags: ['t1'], hourBudgetMinutes: 300 });
+    const p = await makeProject(w.admin.agent, { name: 'Original', description: 'Client secret plan', ownerDepartmentId: w.deptA.id, startDate: '2026-04-06', tags: ['t1'], hourBudgetMinutes: 300 });
     const a = await makeTask(w.admin.agent, p.id, { title: 'First', startDate: '2026-04-07', dueDate: '2026-04-09', estimateMinutes: 90 });
     await makeTask(w.admin.agent, p.id, { title: 'Undated' });
     await makeTask(w.admin.agent, p.id, { title: 'Done', isMilestone: true, dueDate: '2026-04-20' });
     await makeSubtask(w.admin.agent, p.id, a.id, { title: 'Sub' });
     const saved = expectOk(await w.admin.agent.post(`${API}/projects/${p.id}/save-as-template`).send({ name: 'From original' }), 201).template;
     expect(saved.sourceProjectId).toBe(p.id);
+    expect(saved.description).toBeNull(); // not the project's own description
     expect(saved.hourBudgetMinutes).toBe(300);
     expect(saved.tags).toEqual(['t1']);
     const byTitle = Object.fromEntries(saved.tasks.map((t) => [t.title, t]));
@@ -290,7 +293,8 @@ describe('template structure checks', () => {
     const t = await addTemplate();
     const tech = await makeTech('tech2', w.deptA.id); // projects.create, no manage_templates
     expectOk(await tech.agent.get(T));
-    expectOk(await tech.agent.get(`${T}/${t.id}`));
+    expect(expectOk(await tech.agent.get(`${T}/${t.id}`)).template).not.toHaveProperty('sourceProjectId');
+    expect(expectOk(await w.admin.agent.get(`${T}/${t.id}`)).template).toHaveProperty('sourceProjectId');
     expectOk(await tech.agent.get(`${T}/${t.id}/preview?startDate=2026-03-02`));
     expect((await tech.agent.post(T).send(template({ name: 'N' }))).status).toBe(403);
     expect((await tech.agent.put(`${T}/${t.id}`).send(template())).status).toBe(403);
@@ -317,4 +321,15 @@ it('audit rows for create/update/delete/saveFromProject/createFromTemplate/copy'
   }
   const copyRow = rows.find((r) => r.action === 'project.copy');
   expect(copyRow.meta.sourceProjectId).toBe(p.id);
+});
+
+it('save-as trims a live project that exceeds template limits', async () => {
+  const p = await makeProject(w.admin.agent, {
+    name: 'Big', ownerDepartmentId: w.deptA.id, tags: Array.from({ length: 25 }, (_, i) => `tag${i}`),
+  });
+  await makeTask(w.admin.agent, p.id, { title: 'Long', description: 'x'.repeat(12000), startDate: '2026-01-01', dueDate: '2036-12-31' });
+  const saved = expectOk(await w.admin.agent.post(`${API}/projects/${p.id}/save-as-template`).send({ name: 'Trimmed' }), 201).template;
+  expect(saved.tags).toHaveLength(20);
+  expect(saved.tasks[0].description).toHaveLength(10000);
+  expect(saved.tasks[0].lengthDays).toBe(3650);
 });

@@ -76,3 +76,31 @@ it('subtasks are stretched with the rest and an empty template plans cleanly', (
   expect(t.s.dueDate).toBe('2026-03-05');
   expect(planFromTemplate({ phases: [], tasks: [], dependencies: [] }, { startDate: '2026-03-02' }).finishDate).toBe('2026-03-02');
 });
+
+it('a milestone on the last day lands on the finish date (no drift)', () => {
+  // A 10-day task and a milestone on day 10, stretched to 100 days.
+  const shape = { phases: [], dependencies: [], tasks: [task('a', 1, 10), task('m', 10, 0)] };
+  const plan = planFromTemplate(shape, { startDate: '2026-01-01', finishDate: '2026-04-10' });
+  const t = byId(plan);
+  expect(t.m.startDate).toBe('2026-04-10');
+  expect(t.a.dueDate).toBe('2026-04-10');
+  expect(plan.finishDate).toBe('2026-04-10');
+});
+
+it('a milestone that waits on the last task may share its last day', () => {
+  const shape = {
+    phases: [], tasks: [task('a', 1, 10), task('m', 10, 0)], dependencies: [{ predecessorId: 'a', successorId: 'm' }],
+  };
+  const plan = planFromTemplate(shape, { startDate: '2026-01-01', finishDate: '2026-04-10' });
+  expect(byId(plan).m.startDate).toBe('2026-04-10');
+  expect(plan.finishDate).toBe('2026-04-10');
+  // a task in the same place would be pushed to the next day
+  const task2 = { phases: [], tasks: [task('a', 1, 10), task('b', 10, 1)], dependencies: [{ predecessorId: 'a', successorId: 'b' }] };
+  expect(byId(planFromTemplate(task2, { startDate: '2026-01-01' })).b.startDate).toBe('2026-01-11');
+});
+
+it('refuses a plan over 3650 days or past the year 9999', () => {
+  const shape = { phases: [], dependencies: [], tasks: [task('a', 1, 5)] };
+  expect(() => planFromTemplate(shape, { startDate: '2026-01-01', finishDate: '2040-01-01' })).toThrow(/at most 3650/);
+  expect(() => planFromTemplate(shape, { startDate: '9999-12-30' })).toThrow(/9999/);
+});

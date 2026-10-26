@@ -13,7 +13,11 @@ const { defaultTaskStatus } = require('../tasks/statuses');
 const { formatTaskCode, formatSubtaskCode } = require('../tasks/codes');
 const { LIMITS } = require('./templateStructure');
 
-const clampDays = (n) => Math.min(Math.max(n, 0), LIMITS.days);
+// Cut to a limit rather than refuse: a live project may hold more than a
+// template can (long text, many tags). Counts that can't be cut sensibly
+// (tasks, phases) are refused above, naming the limit.
+const clip = (text, max) => (typeof text === 'string' && text.length > max ? text.slice(0, max) : text);
+const MAX_ESTIMATE = 6000000;
 
 // The project as a template structure. Offsets count from the project's
 // startDate, or else from its earliest task date; a task with no dates gets
@@ -37,26 +41,28 @@ async function snapshotProject(projectId) {
     if (!start) return { startDay: 1, lengthDays: t.isMilestone ? 0 : 1 };
     const end = t.dueDate && t.dueDate > start ? t.dueDate : start;
     return {
-      startDay: clampDays(daysBetween(origin, start)) + 1,
-      lengthDays: t.isMilestone ? 0 : Math.max(1, clampDays(daysBetween(start, end) + 1)),
+      startDay: Math.min(Math.max(daysBetween(origin, start), 0) + 1, LIMITS.days),
+      lengthDays: t.isMilestone ? 0 : Math.min(Math.max(1, daysBetween(start, end) + 1), LIMITS.days),
     };
   };
   const top = rows.filter((t) => !t.parentTaskId);
   const topIds = new Set(top.map((t) => t.id));
   const sub = rows.filter((t) => t.parentTaskId && topIds.has(t.parentTaskId));
   const links = top.length ? await TaskDependency.findAll({ where: { predecessorId: top.map((t) => t.id) }, order: [['id', 'ASC']] }) : [];
+  if (links.length > LIMITS.dependencies) throw new ApiError(400, `A template can have at most ${LIMITS.dependencies} dependencies`, 'TEMPLATE_TOO_LARGE');
   return {
     hourBudgetMinutes: project.hourBudgetMinutes || null,
-    tags: Array.isArray(project.tags) && project.tags.length ? project.tags : null,
-    phases: phases.map((p) => ({ id: p.id, name: p.name, hourBudgetMinutes: p.hourBudgetMinutes })),
+    tags: Array.isArray(project.tags) && project.tags.length
+      ? [...new Set(project.tags.map((x) => clip(String(x).trim(), LIMITS.tagLength)).filter(Boolean))].slice(0, LIMITS.tags) : null,
+    phases: phases.map((p) => ({ id: p.id, name: clip(p.name, LIMITS.phaseName), hourBudgetMinutes: p.hourBudgetMinutes })),
     tasks: [...top, ...sub].map((t) => ({
       id: t.id,
       parentId: t.parentTaskId,
       phaseId: t.parentTaskId ? null : t.phaseId,
       title: t.title,
-      description: t.description,
+      description: clip(t.description, LIMITS.text),
       ...bar(t),
-      estimateMinutes: t.isMilestone ? null : t.estimateMinutes,
+      estimateMinutes: t.isMilestone ? null : (t.estimateMinutes == null ? null : Math.min(t.estimateMinutes, MAX_ESTIMATE)),
       priority: t.priority,
       isMilestone: t.isMilestone,
     })),

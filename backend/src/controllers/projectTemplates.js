@@ -7,13 +7,13 @@ const {
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
-const { parseRecordId, canAccessProject } = require('../services/permissionService');
+const { parseRecordId, canAccessProject, hasPermission } = require('../services/permissionService');
 const {
   cleanTemplateFields, cleanStructure, saveTemplate, loadStructure,
 } = require('../services/projects/templateStructure');
 const { snapshotProject, planFromTemplate } = require('../services/projects/templates');
 
-const validDay = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
+const { validDay } = require('../services/projects/listing');
 const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 
 async function findTemplate(rawId) {
@@ -60,7 +60,10 @@ const list = asyncHandler(async (req, res) => {
 const get = asyncHandler(async (req, res) => {
   const template = await findTemplate(req.params.id);
   const counts = await countsFor([template.id]);
-  res.json({ template: { ...plain(template), ...(await loadStructure(template.id)), usedCount: counts.used.get(template.id) || 0 } });
+  const json = { ...plain(template), ...(await loadStructure(template.id)), usedCount: counts.used.get(template.id) || 0 };
+  // Which project it came from is for the people who manage templates only.
+  if (!(await hasPermission(req.user.id, 'projects.manage_templates'))) delete json.sourceProjectId;
+  res.json({ template: json });
 });
 
 // GET /project-templates/:id/preview?startDate&finishDate
@@ -112,7 +115,8 @@ const saveFromProject = asyncHandler(async (req, res) => {
   const shape = await snapshotProject(project.id);
   const fields = cleanTemplateFields({
     name: body(req).name,
-    description: body(req).description !== undefined ? body(req).description : project.description,
+    // Not the project's own description: it may name a client.
+    description: body(req).description,
     hourBudgetMinutes: shape.hourBudgetMinutes,
     tags: shape.tags,
   });

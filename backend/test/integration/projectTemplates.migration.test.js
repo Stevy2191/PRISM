@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-const { resetData, closeDb, sequelize } = require('./helpers');
+const { resetData, closeDb, sequelize, createUser, ROLE } = require('./helpers');
 const migration = require('../../migrations/20260101000070-project-templates');
 
 const qi = () => sequelize.getQueryInterface();
@@ -24,13 +24,19 @@ it('up creates the tables, the Projects column and the permission', async () => 
 });
 
 it('round trip', async () => {
-  await sequelize.query("INSERT INTO UserPermissionOverrides (userId, permissionKey, granted, createdAt, updatedAt) SELECT id, 'projects.manage_templates', 1, NOW(), NOW() FROM Users LIMIT 1").catch(() => {});
+  const { user } = await createUser({ username: 'tpl-user', roleName: ROLE.ADMIN });
+  await sequelize.query(
+    "INSERT INTO UserPermissionOverrides (userId, permissionKey, granted, createdAt) VALUES (?, 'projects.manage_templates', 1, NOW())",
+    { replacements: [user.id] }
+  );
+  expect(await select("SELECT 1 FROM UserPermissionOverrides WHERE permissionKey = 'projects.manage_templates'")).toHaveLength(1);
   await migration.down(qi(), Sequelize);
   try {
     const t = await tables();
     for (const name of NEW_TABLES) expect(t).not.toContain(name);
     expect((await qi().describeTable('Projects')).templateId).toBeUndefined();
     expect(await select("SELECT id FROM Permissions WHERE `key` = 'projects.manage_templates'")).toHaveLength(0);
+    expect(await select("SELECT 1 FROM RolePermissions rp JOIN Permissions p ON p.id = rp.permissionId WHERE p.`key` = 'projects.manage_templates'")).toHaveLength(0);
     expect(await select("SELECT 1 FROM UserPermissionOverrides WHERE permissionKey = 'projects.manage_templates'")).toHaveLength(0);
   } finally {
     await migration.up(qi(), Sequelize);

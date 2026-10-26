@@ -43,7 +43,7 @@ const {
   parseRecordId,
 } = require('../../services/permissionService');
 const { generateProjectCode } = require('../../services/projectCodeService');
-const { attentionClause, attentionCounts, rowFigures, todayFrom } = require('../../services/projects/listing');
+const { attentionClause, attentionCounts, rowFigures, todayFrom, validDay } = require('../../services/projects/listing');
 const { cleanBudgetMinutes, budgetSummary, rearmBudgetAlerts } = require('../../services/projects/budget');
 const templates = require('../../services/projects/templates');
 const { loadStructure } = require('../../services/projects/templateStructure');
@@ -244,8 +244,6 @@ async function projectStatusName(name) {
   return row.name;
 }
 
-const validDay = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
-
 // What a new project starts from: nothing (null), a template, or a copy of a
 // project the caller can see. Returns { shape, templateId, kind, sourceId }.
 // A template or project that is missing, or that the caller can't see, is the
@@ -392,14 +390,13 @@ function cleanBudgetFields(project, changes) {
   for (const key of ['budgetAlert80', 'budgetAlert100']) {
     if (changes[key] !== undefined && typeof changes[key] !== 'boolean') throw bad(`${key} must be true or false`);
   }
-  const validDate = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
   if (changes.startDate === '') changes.startDate = null;
-  if (changes.startDate !== undefined && changes.startDate !== null && !validDate(changes.startDate)) {
+  if (changes.startDate !== undefined && changes.startDate !== null && !validDay(changes.startDate)) {
     throw bad('Start date must be a date like 2026-03-02');
   }
   const start = changes.startDate !== undefined ? changes.startDate : project.startDate;
   const due = changes.dueDate !== undefined ? changes.dueDate : project.dueDate;
-  if (start && due && validDate(due) && start > due) throw bad('Start date can\'t be after the due date');
+  if (start && due && validDay(due) && start > due) throw bad('Start date can\'t be after the due date');
 }
 
 // PATCH /projects/:id — Admin/Technician. Updates any field.
