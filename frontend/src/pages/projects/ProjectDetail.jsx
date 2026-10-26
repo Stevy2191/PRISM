@@ -62,6 +62,7 @@ export default function ProjectDetail() {
 
   // A stopped header timer, waiting in the Log time form.
   const [stoppedTimer, setStoppedTimer] = useState(null);
+  const [logging, setLogging] = useState(false); // the phone dock's Log time form
   const { logVersion } = useTimer();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMaterial, setShowAddMaterial] = useState(false);
@@ -253,6 +254,7 @@ export default function ProjectDetail() {
           addFocus={addFocus}
           activity={activity}
           onStopRequest={setStoppedTimer}
+          onLogTime={() => setLogging(true)}
           onChanged={reloadAll}
         />
       )}
@@ -355,6 +357,18 @@ export default function ProjectDetail() {
           currentUser={user}
           onSaved={reloadAll}
           onClose={() => setStoppedTimer(null)}
+        />
+      )}
+
+      {logging && (
+        <TimeEntryForm
+          kind="project"
+          parentId={project.id}
+          tasks={tasks}
+          canManageOthers={canLogTimeForOthers}
+          currentUser={user}
+          onSaved={reloadAll}
+          onClose={() => setLogging(false)}
         />
       )}
 

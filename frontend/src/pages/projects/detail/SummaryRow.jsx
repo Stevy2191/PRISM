@@ -5,9 +5,10 @@ import Meter from '../../../components/ui/Meter';
 import Notice from '../../../components/ui/Notice';
 import { inDays, daysUntil, weekdayDate, hoursFromMinutes } from './taskFilters';
 
-function Stat({ label, tone, children }) {
+// phone: false hides the tile under 768 px (the phone keeps two).
+function Stat({ label, tone, phone = true, children }) {
   return (
-    <div className="rounded-xl border border-navy-100 bg-surface px-[18px] py-4">
+    <div className={`${phone ? '' : 'max-md:hidden '}rounded-xl border border-navy-100 bg-surface px-[18px] py-4 max-md:px-3 max-md:py-2.5`}>
       <div className="text-[13px] text-navy-400">{label}</div>
       <div className="num mt-1 text-[22px] font-semibold tracking-tight" style={tone === 'warn' ? { color: 'var(--color-waiting)' } : undefined}>
         {children}
@@ -48,11 +49,11 @@ export default function SummaryRow({ stats, estimateMinutes, today, onChangeBudg
         {budget != null && <Meter className="mt-2.5" used={logged} budget={budget} label="Hours used" />}
         {estimateMinutes > 0 && <Note>Task estimates add up to {hoursFromMinutes(estimateMinutes)} h</Note>}
       </Stat>
-      <Stat label="Next milestone">
+      <Stat label="Next milestone" phone={false}>
         {next ? <span className="block truncate text-lg">{next.title}</span> : <span className="text-lg text-navy-400">None open</span>}
         {next?.dueDate && <Note>{weekdayDate(next.dueDate)} — {inDays(daysUntil(today, next.dueDate))}</Note>}
       </Stat>
-      <Stat label="Waiting" tone={waiting > 0 ? 'warn' : undefined}>
+      <Stat label="Waiting" phone={false} tone={waiting > 0 ? 'warn' : undefined}>
         {waiting} <Small>{waiting === 1 ? 'task' : 'tasks'}</Small>
         <Note>{waiting > 0 ? 'Held up by work not finished yet' : 'Nothing is held up'}</Note>
       </Stat>
