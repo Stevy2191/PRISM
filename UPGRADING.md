@@ -18,6 +18,24 @@ emailed attachment is refused until the scanner exists. The scanner needs about
 few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
 `.env`.
 
+### The rest of PRISM in look A (6b)
+
+- **Every remaining screen now uses look A**: tickets, the dashboard, assets,
+  licenses and contracts, contacts, companies, Knowledge and the public Help
+  Center, reports, Settings, sign in and change password. No fields, buttons
+  or permissions were removed.
+- **Phone changes (behaviour):** on a ticket, Link ticket, Merge and Generate
+  report are in a "⋯" menu and the reply box starts as one line until tapped.
+  Assets, Knowledge and Reports put their filters behind a **Filters** button;
+  Knowledge categories and report date ranges become a sideways row of pills.
+- **New ticket** groups its fields under "The problem", "Who it's for" and
+  "Who's on it" (same fields, same required ones; tab order follows the
+  groups).
+- Detail pages use a breadcrumb ("Assets / LT-0014") instead of "← Back to …";
+  the Users list shows the username under the name; the sign-in page drops the
+  animated console for the Company profile tagline and bullet points.
+- Error and status boxes on older pages now follow dark mode.
+
 ### Editing a ticket's title and description
 
 - **The ticket page shows the description again**, at the top of the

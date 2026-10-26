@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { errMessage } from '../api/api';
+import Notice from '../components/ui/Notice';
 
 // Used both for the forced first-login change (mustChangePassword) and for a
 // voluntary password change. When forced, the current password is not required.
@@ -44,9 +45,12 @@ export default function ChangePassword() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy-900 px-4">
+    <div className="flex min-h-screen items-center justify-center px-4 py-10" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="w-full max-w-md">
-        <h1 className="mb-2 text-center text-2xl font-bold tracking-tight tracking-wide text-white">PRISM</h1>
+        <h1 className="mb-4 flex items-center justify-center gap-2.5 text-xl font-bold tracking-tight text-navy-900">
+          <span aria-hidden="true" className="h-7 w-7 rounded-lg" style={{ backgroundColor: 'var(--color-accent)' }} />
+          PRISM
+        </h1>
 
         <form onSubmit={handleSubmit} className="card space-y-4 p-6">
           <div>
@@ -61,16 +65,15 @@ export default function ChangePassword() {
             )}
           </div>
 
-          {error && (
-            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-          )}
+          {error && <Notice tone="bad">{error}</Notice>}
 
           {!forced && (
             <div>
-              <label className="label">Current password</label>
+              <label className="label" htmlFor="cp-current">Current password</label>
               <input
+                id="cp-current"
                 type="password"
-                className="input"
+                className="input h-11"
                 autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -80,10 +83,11 @@ export default function ChangePassword() {
           )}
 
           <div>
-            <label className="label">New password</label>
+            <label className="label" htmlFor="cp-new">New password</label>
             <input
+              id="cp-new"
               type="password"
-              className="input"
+              className="input h-11"
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -93,10 +97,11 @@ export default function ChangePassword() {
           </div>
 
           <div>
-            <label className="label">Confirm new password</label>
+            <label className="label" htmlFor="cp-confirm">Confirm new password</label>
             <input
+              id="cp-confirm"
               type="password"
-              className="input"
+              className="input h-11"
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
@@ -104,11 +109,11 @@ export default function ChangePassword() {
             />
           </div>
 
-          <button type="submit" className="btn-primary w-full" disabled={submitting}>
+          <button type="submit" className="btn-primary h-11 w-full justify-center" disabled={submitting}>
             {submitting ? 'Saving…' : 'Update password'}
           </button>
 
-          <button type="button" onClick={handleSignOut} className="w-full text-center text-xs text-navy-400 hover:text-navy-600">
+          <button type="button" onClick={handleSignOut} className="min-h-[44px] w-full text-center text-sm text-navy-400 hover:text-navy-700">
             Sign out
           </button>
         </form>

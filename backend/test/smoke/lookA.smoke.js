@@ -1,6 +1,6 @@
 const { resetData, closeDb } = require('../integration/helpers');
 const {
-  makeWorld, makeTicket, makeCompany,
+  makeWorld, makeTicket, makeCompany, setSettings,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
@@ -26,6 +26,8 @@ const PHONE_ROUTES = [
   { name: 'settings', path: '/settings' },
   { name: 'company profile', path: '/settings/company' },
   { name: 'users', path: '/admin/users' },
+  { name: 'sign in', path: '/login', as: null },
+  { name: 'change password', path: '/change-password' },
   { name: 'a long-named company', path: () => `/companies/${longCompany.id}` },
   { name: 'tickets board', path: '/tickets', before: (p) => p.getByRole('button', { name: 'Board' }).first().click() },
 ];
@@ -74,4 +76,61 @@ it.each(PHONE_ROUTES.map((r) => [r.name, r]))('no horizontal page scroll at 375p
     doc: document.documentElement.scrollWidth, win: document.documentElement.clientWidth,
   }));
   expect(widths.doc).toBeLessThanOrEqual(widths.win);
+});
+
+it('sign in shows the Company profile tagline and bullets', async () => {
+  await setSettings(w.admin, { 'branding.tagline': 'Help, fast', 'branding.loginBullets': JSON.stringify(['Quick replies', 'Clear updates']) });
+  const page = await phonePage(null);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/login');
+  await page.getByText('Help, fast').first().waitFor();
+  await page.getByText('Quick replies').first().waitFor();
+  await page.getByText('Clear updates').first().waitFor();
+  await page.getByLabel('Username or email').waitFor();
+  expect(await page.getByText(/^Authenticate$/i).count()).toBe(0);
+});
+
+it('restyled pages paint with the theme accent, not a fixed blue', async () => {
+  const page = await smoke.pageAs('admin', undefined, { viewport: { width: 1440, height: 900 } });
+  for (const [path, name] of [['/reports', 'Export CSV'], ['/knowledge', /New article/], ['/tickets', /New Ticket/]]) {
+    await page.goto(path); // eslint-disable-line no-await-in-loop
+    await page.addStyleTag({ content: ':root, :root[data-theme] { --color-accent: #0f766e !important; }' }); // eslint-disable-line no-await-in-loop
+    const el = page.getByRole(path === '/reports' ? 'button' : 'link', { name }).filter({ visible: true }).first();
+    await el.waitFor(); // eslint-disable-line no-await-in-loop
+    const css = await el.evaluate((e) => [getComputedStyle(e).backgroundColor, getComputedStyle(e).color, getComputedStyle(e).borderColor]); // eslint-disable-line no-await-in-loop
+    if (path === '/reports') {
+      // Export CSV is a default button; the accent shows on the selected preset pill's peers instead.
+      const pill = page.getByRole('group', { name: 'Date range' }).getByRole('button', { name: 'This month' });
+      expect(await pill.getAttribute('aria-pressed')).toBe('true');
+      const nav = page.getByRole('navigation', { name: 'Reports' }).getByRole('button', { name: 'Ticket Volume' });
+      expect(await nav.evaluate((e) => getComputedStyle(e).color)).toBe('rgb(15, 118, 110)');
+    } else {
+      expect(css[0]).toBe('rgb(15, 118, 110)');
+    }
+  }
+});
+
+// Opt-in: LOOK_SHOTS=1 OUT=dir screenshots every phone route at 1440 and 390,
+// dark and light, for comparing against the mockups (docs/mockups/look-a-6b).
+(process.env.LOOK_SHOTS ? describe : describe.skip)('screenshots', () => {
+  it('captures every route', async () => {
+    const out = process.env.OUT || '/tmp/look-a-shots';
+    require('fs').mkdirSync(out, { recursive: true }); // eslint-disable-line global-require
+    for (const theme of ['dark', 'light']) {
+      for (const [width, height] of [[1440, 900], [390, 844]]) {
+        for (const route of PHONE_ROUTES) {
+          resetRateLimits(); // dozens of sign-ins in one run
+          const page = route.as === null
+            ? await (await smoke.browser.newContext({ baseURL: smoke.base, viewport: { width, height } })).newPage() // eslint-disable-line no-await-in-loop
+            : await smoke.pageAs(route.as || 'admin', undefined, { viewport: { width, height } }); // eslint-disable-line no-await-in-loop
+          await page.context().addInitScript((t) => localStorage.setItem('prism.theme', t), theme); // eslint-disable-line no-await-in-loop
+          await page.goto(typeof route.path === 'function' ? route.path() : route.path); // eslint-disable-line no-await-in-loop
+          await page.waitForLoadState('networkidle'); // eslint-disable-line no-await-in-loop
+          if (route.before) await route.before(page); // eslint-disable-line no-await-in-loop
+          await page.screenshot({ path: `${out}/${route.name.replace(/\W+/g, '-')}-${width}-${theme}.png`, fullPage: true }); // eslint-disable-line no-await-in-loop
+          await page.context().close(); // eslint-disable-line no-await-in-loop
+        }
+      }
+    }
+  }, 600000);
 });
