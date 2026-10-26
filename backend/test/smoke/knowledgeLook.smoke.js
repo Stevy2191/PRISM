@@ -48,7 +48,7 @@ it('phone: categories are a row of pills that filter the list', async () => {
   const pills = page.getByRole('group', { name: 'Categories' });
   await pills.getByRole('button', { name: /All articles/ }).waitFor();
   await listed(page, 'Printer jams').first().waitFor();
-  await pills.getByRole('button', { name: /Network & VPN/ }).click();
+  await pills.getByRole('button', { name: /^Network & VPN/ }).click();
   await listed(page, 'Printer jams').first().waitFor({ state: 'hidden' });
   await listed(page, 'Connect to the office VPN').first().waitFor();
 });
@@ -70,7 +70,7 @@ it('phone: Audience and Status are behind Filters', async () => {
 it('desktop keeps the category rail', async () => {
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto('/knowledge');
-  await page.getByRole('navigation', { name: 'Categories' }).getByRole('button', { name: /Printers/ }).waitFor();
+  await page.getByRole('navigation', { name: 'Categories' }).getByRole('button', { name: /^\S* ?Printers/ }).waitFor();
   expect(await page.getByRole('group', { name: 'Categories' }).filter({ visible: true }).count()).toBe(0);
 });
 
