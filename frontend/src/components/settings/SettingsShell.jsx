@@ -19,18 +19,17 @@ export default function SettingsShell() {
   const here = findPage(pathname)?.name || 'Settings home';
 
   return (
-    <div className="flex gap-6 lg:gap-8">
+    <div className="mx-auto flex max-w-[1280px] gap-6 lg:gap-8 lg:px-6">
       <aside aria-label="Settings menu" className="hidden w-[232px] flex-shrink-0 md:block">
-        <div className="sticky overflow-y-auto rounded-md border p-2.5"
-          style={{ top, maxHeight: `calc(100vh - ${top + 16}px)`, backgroundColor: 'var(--color-sidebar)', borderColor: 'var(--color-border)' }}>
+        <div className="sticky overflow-y-auto rounded-xl border border-navy-100 bg-surface p-2.5"
+          style={{ top, maxHeight: `calc(100vh - ${top + 16}px)` }}>
           <SettingsMenu />
         </div>
       </aside>
       <div className="min-w-0 flex-1">
         <button type="button" aria-label={`Settings menu: ${here}`} onClick={() => setOpen(true)}
-          className="mb-4 flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium md:hidden"
-          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
-          <span>Settings · {here}</span><IconChevronDown size={16} />
+          className="mb-4 flex min-h-[44px] w-full items-center justify-between rounded-lg border border-navy-100 bg-surface px-3 py-2 text-sm font-semibold text-navy-900 md:hidden">
+          <span className="truncate">Settings · {here}</span><IconChevronDown size={16} aria-hidden="true" />
         </button>
         <Outlet />
       </div>
@@ -38,8 +37,8 @@ export default function SettingsShell() {
         <div role="dialog" aria-modal="true" aria-label="Settings menu" className="fixed inset-0 z-50 overflow-y-auto p-4 md:hidden"
           style={{ backgroundColor: 'var(--color-bg)' }}>
           <div className="mb-3 flex items-center justify-between">
-            <p className="font-semibold">Settings</p>
-            <button type="button" aria-label="Close the settings menu" onClick={() => setOpen(false)}><IconX size={20} /></button>
+            <p className="text-lg font-semibold text-navy-900">Settings</p>
+            <button type="button" aria-label="Close the settings menu" onClick={() => setOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"><IconX size={20} aria-hidden="true" /></button>
           </div>
           <SettingsMenu onNavigate={() => setOpen(false)} />
         </div>

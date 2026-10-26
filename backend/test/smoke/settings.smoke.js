@@ -335,3 +335,13 @@ describe('dark theme', () => {
     await page.evaluate(() => localStorage.setItem('prism.theme', 'light'));
   });
 });
+
+it('Users shows the username under the name', async () => {
+  const dana = await makeUser('dortiz', ROLE.TECHNICIAN, w.deptA.id);
+  await models.User.update({ firstName: 'Dana', lastName: 'Ortiz' }, { where: { id: dana.user.id } });
+  const page = await smoke.pageAs('admin');
+  await page.goto('/admin/users');
+  const name = page.getByRole('cell').filter({ has: page.getByRole('link', { name: 'Dana Ortiz', exact: true }) });
+  await name.getByText('dortiz').waitFor();
+  expect(await page.getByRole('columnheader', { name: 'Username' }).count()).toBe(0);
+});

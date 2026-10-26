@@ -7,6 +7,7 @@ import Pagination from '../components/Pagination';
 import NewAccountForm from '../components/users/NewAccountForm';
 import OwnerBadge from '../components/users/OwnerBadge';
 import { useAuth } from '../context/AuthContext';
+import StatusChip from '../components/ui/StatusChip';
 import SettingsPage from '../components/settings/SettingsPage';
 
 export default function AdminUsers() {
@@ -98,10 +99,9 @@ export default function AdminUsers() {
 
       <div className="card overflow-x-auto">
         <table className="min-w-full divide-y divide-navy-100">
-          <thead className="bg-navy-50">
+          <thead>
             <tr>
               <th className="table-th">Name</th>
-              <th className="table-th">Username</th>
               <th className="table-th">Type</th>
               <th className="table-th">Email</th>
               <th className="table-th">Role</th>
@@ -116,33 +116,35 @@ export default function AdminUsers() {
               // An administrator's account is changed only by an Owner.
               const locked = u.administrator && !isOwner;
               return (
-              <tr key={u.id} className="hover:bg-navy-50">
-                <td className="table-td font-medium">
-                  <Link to={`/admin/users/${u.id}`} className="text-prism hover:underline">{fullName}</Link>
+              <tr key={u.id} className="hover:bg-[var(--color-hover)]">
+                <td className="table-td min-w-[11rem] font-semibold">
+                  <Link to={`/admin/users/${u.id}`} className="hover:underline" style={{ color: 'var(--color-accent)' }}>{fullName}</Link>
                   {u.ownerLevel && <span className="ml-1.5"><OwnerBadge level={u.ownerLevel} size={14} /></span>}
-                  {u.jobTitle && <p className="mt-0.5 text-xs font-normal text-navy-400">{u.jobTitle}</p>}
+                  <p className="mt-0.5 text-xs font-normal text-navy-400">
+                    {u.username}{u.jobTitle && <> · {u.jobTitle}</>}
+                  </p>
                 </td>
-                <td className="table-td text-navy-500">{u.username}</td>
                 <td className="table-td">
                   {u.isLocalAccount ? (
-                    <span className="badge bg-violet-100 text-violet-800">
+                    <StatusChip tone="info" className="!text-xs">
                       Local{u.mustChangePassword ? ' · pending pw' : ''}
-                    </span>
+                    </StatusChip>
                   ) : (
-                    <span className="badge bg-sky-100 text-sky-800">AD</span>
+                    <StatusChip tone="neutral" className="!text-xs">AD</StatusChip>
                   )}
                 </td>
-                <td className="table-td text-navy-500">{u.email || '—'}</td>
+                <td className="table-td max-w-[14rem] truncate text-navy-500">{u.email || '—'}</td>
                 <td className="table-td">
                   {u.primaryRole ? (
-                    <span className="badge bg-navy-100 text-navy-700">{u.primaryRole.name}</span>
+                    <StatusChip tone="neutral" className="!text-xs">{u.primaryRole.name}</StatusChip>
                   ) : (
                     <span className="text-xs text-navy-400">No role assigned</span>
                   )}
                 </td>
                 <td className="table-td">
                   <select
-                    className="rounded border border-navy-200 bg-surface px-2 py-1 text-xs text-navy-800"
+                    aria-label={`Department for ${fullName}`}
+                    className="sel max-w-[10rem]"
                     value={u.departmentId || ''}
                     disabled={locked}
                     title={locked ? 'Only an Owner can change an administrator\'s account' : undefined}
@@ -152,21 +154,21 @@ export default function AdminUsers() {
                     {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </td>
-                <td className="table-td text-navy-400">
+                <td className="table-td num whitespace-nowrap text-navy-400">
                   {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : '—'}
                 </td>
                 <td className="table-td">
-                  <div className="flex gap-3">
-                    <Link to={`/admin/users/${u.id}`} className="text-xs text-prism hover:underline">
+                  <div className="flex gap-3 whitespace-nowrap">
+                    <Link to={`/admin/users/${u.id}`} className="text-xs hover:underline" style={{ color: 'var(--color-accent)' }}>
                       roles &amp; permissions
                     </Link>
                     {u.isLocalAccount && !locked && (
-                      <button onClick={() => resetPassword(u)} className="text-xs text-prism hover:underline">
+                      <button onClick={() => resetPassword(u)} className="text-xs hover:underline" style={{ color: 'var(--color-accent)' }}>
                         reset pw
                       </button>
                     )}
                     {!locked && (
-                      <button onClick={() => deleteUser(u.id)} className="text-xs text-red-500 hover:underline">
+                      <button onClick={() => deleteUser(u.id)} className="text-xs hover:underline" style={{ color: 'var(--color-danger)' }}>
                         delete
                       </button>
                     )}

@@ -3,6 +3,7 @@
 // visibility exactly as the routes' guards do; the server enforces access.
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { IconSearch } from '@tabler/icons-react';
 import { useAuth } from '../../context/AuthContext';
 import { findPage, searchPages, visibleGroups } from '../../pages/settings/registry';
 
@@ -33,8 +34,11 @@ export default function SettingsMenu({ onNavigate }) {
 
   return (
     <div className="space-y-1">
-      <input type="search" className="input mb-2" placeholder="Find a setting" aria-label="Find a setting"
-        value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onKeyDown} />
+      <label className="relative mb-2 block">
+        <IconSearch size={14} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
+        <input type="search" className="input h-9 pl-8 text-[13px]" placeholder="Find a setting" aria-label="Find a setting"
+          value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onKeyDown} />
+      </label>
       {searching ? (
         matches.length
           ? matches.map((p) => <MenuLink key={p.id} page={p} current={current?.id === p.id} onNavigate={() => { setQuery(''); onNavigate?.(); }} />)

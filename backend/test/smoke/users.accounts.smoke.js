@@ -53,7 +53,7 @@ it('a System Administrator\'s form doesn\'t offer the top roles, and administrat
   const options = await role.locator('option').allTextContents();
   expect(options).not.toContain('Owner');
   expect(options).not.toContain('System Administrator');
-  const adminRow = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'admin', exact: true }) });
+  const adminRow = page.getByRole('row').filter({ has: page.getByRole('link', { name: 'admin', exact: true }) });
   await adminRow.getByRole('link', { name: 'roles & permissions' }).waitFor();
   expect(await adminRow.getByRole('button', { name: 'delete' }).count()).toBe(0);
 });

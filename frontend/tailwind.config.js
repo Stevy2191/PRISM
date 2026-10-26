@@ -1,3 +1,20 @@
+// Look A (6b): the raw Tailwind hues older pages use (bg-red-50, text-amber-800,
+// …) resolve to theme tokens, so they follow dark mode and Settings →
+// Appearance. Light steps tint the card; dark steps are the token's ink.
+// (No opacity modifiers: none are used on these hues.)
+function tokenScale(fill, ink = fill) {
+  const mix = (pct) => `color-mix(in srgb, var(${fill}) ${pct}%, var(--color-card))`;
+  return {
+    50: mix(10), 100: mix(16), 200: mix(30), 300: mix(50), 400: `var(${fill})`,
+    500: `var(${fill})`, 600: `var(${ink})`, 700: `var(${ink})`, 800: `var(${ink})`, 900: `var(${ink})`, 950: `var(${ink})`,
+  };
+}
+const danger = tokenScale('--color-danger');
+const warn = tokenScale('--color-warning', '--color-waiting');
+const good = tokenScale('--color-success', '--color-timer');
+const info = tokenScale('--color-accent');
+const relation = tokenScale('--color-relation-accent');
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
@@ -8,6 +25,17 @@ export default {
   theme: {
     extend: {
       colors: {
+        red: danger,
+        rose: danger,
+        amber: warn,
+        yellow: warn,
+        orange: warn,
+        green: good,
+        emerald: good,
+        sky: info,
+        blue: info,
+        violet: relation,
+        purple: relation,
         // The navy scale is CSS-variable driven so the whole app can flip between
         // light and dark themes at runtime (see index.css [data-theme] blocks).
         navy: {
