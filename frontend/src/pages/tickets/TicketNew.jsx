@@ -8,8 +8,11 @@ import { assignableContactDepartments } from '../../utils/contactDepartments';
 import { useCompanySummary } from '../../context/CompanyContext';
 import TagInput from '../../components/TagInput';
 import TimeDropdownPicker from '../../components/TimeDropdownPicker';
-import { BG, CARD_BG, BORDER, TEXT, MUTED, BLUE, fieldStyle } from './theme';
-import { TYPE_OPTIONS, PRIORITY_OPTIONS, SOURCE_OPTIONS, Card, Label } from './new/FormBits';
+import { BG, TEXT, MUTED, fieldStyle } from './theme';
+import { TYPE_OPTIONS, PRIORITY_OPTIONS, SOURCE_OPTIONS, Group, Label } from './new/FormBits';
+import PageHeader from '../../components/ui/PageHeader';
+import Notice from '../../components/ui/Notice';
+import Button from '../../components/ui/Button';
 import { CustomFieldInput } from './new/CustomFieldInput';
 import { ContactPicker } from './new/ContactPicker';
 import { WatchersField } from './new/WatchersField';
@@ -249,245 +252,207 @@ export default function TicketNew() {
   };
 
   return (
-    <div style={{ backgroundColor: BG, margin: '-2rem -1.5rem', padding: '2rem 1.5rem' }} className="min-h-full">
-      <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6 pb-24 sm:pb-0">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>New Ticket</h1>
-        </div>
+    <div className="mx-auto max-w-[1144px] px-1 pb-24 sm:pb-0 lg:px-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <PageHeader title="New Ticket" crumbs={[{ label: 'Tickets', to: '/tickets' }, { label: 'New' }]} />
 
-        {error && (
-          <div
-            className="rounded-md p-4 text-sm"
-            style={{
-              backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))',
-              color: 'var(--color-danger)',
-              border: '1px solid var(--color-danger)',
-            }}
-          >
-            {error}
-          </div>
-        )}
+        {error && <Notice tone="bad">{error}</Notice>}
 
-        <Card title="Core Info">
-          <div>
-            <Label required>Title</Label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              className="input"
-              style={fieldStyle}
-            />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="input resize-y"
-              style={{ ...fieldStyle, minHeight: '90px' }}
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <Label required>Type</Label>
-              <select value={type} onChange={(e) => setType(e.target.value)} required className="input" style={fieldStyle}>
-                {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <Label required>Priority</Label>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)} required className="input" style={fieldStyle}>
-                {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <Label required>Source</Label>
-              <select value={source} onChange={(e) => setSource(e.target.value)} required className="input" style={fieldStyle}>
-                {SOURCE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-          </div>
-          {categories.length > 0 && (
-            <div>
-              <Label required={categoryNeeded}>Category</Label>
-              <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} required={categoryNeeded} id="ticket-category" />
-            </div>
-          )}
-          <div>
-            <Label>Tags</Label>
-            <TagInput tags={tags} onChange={setTags} />
-          </div>
-        </Card>
-
-        {customFields.length > 0 && (
-          <Card title="Additional Details">
-            {customFields.map((f) => (
-              <div key={f.id}>
-                <Label required={f.isRequired}>{f.label}</Label>
-                <CustomFieldInput
-                  field={f}
-                  value={customFieldValues[f.fieldKey]}
-                  onChange={(v) => setCustomFieldValue(f.fieldKey, v)}
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="divide-y divide-navy-100 rounded-xl border border-navy-100 bg-surface">
+            <Group title="The problem">
+              <div>
+                <Label required htmlFor="new-ticket-title">Title</Label>
+                <input
+                  id="new-ticket-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                  className="input"
                 />
               </div>
-            ))}
-          </Card>
-        )}
-
-        <Card title="People">
-          {isStaff && (
-            <>
               <div>
-                <Label required>Customer</Label>
-                <ContactPicker selectedContact={selectedContact} onSelect={selectContact} />
-                {multiCompany && selectedContact?.company && (
-                  <p className="mt-1 text-xs" style={{ color: MUTED }}>Company: {selectedContact.company.name}</p>
-                )}
+                <Label htmlFor="new-ticket-description">Description</Label>
+                <textarea
+                  id="new-ticket-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="input resize-y"
+                  style={{ minHeight: '140px' }}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <Label required htmlFor="new-ticket-type">Type</Label>
+                  <select id="new-ticket-type" value={type} onChange={(e) => setType(e.target.value)} required className="input">
+                    {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label required htmlFor="new-ticket-priority">Priority</Label>
+                  <select id="new-ticket-priority" value={priority} onChange={(e) => setPriority(e.target.value)} required className="input">
+                    {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label required htmlFor="new-ticket-source">Source</Label>
+                  <select id="new-ticket-source" value={source} onChange={(e) => setSource(e.target.value)} required className="input">
+                    {SOURCE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              {categories.length > 0 && (
+                <div>
+                  <Label required={categoryNeeded} htmlFor="ticket-category">Category</Label>
+                  <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} required={categoryNeeded} id="ticket-category" />
+                </div>
+              )}
+              <div>
+                <Label>Tags</Label>
+                <TagInput tags={tags} onChange={setTags} />
+              </div>
+            </Group>
 
-                {assignPrompt.done && (
-                  <p className="mt-2 text-sm font-medium" style={{ color: 'var(--color-success)' }}>{assignPrompt.doneText}</p>
-                )}
-                {assignPrompt.show && !assignPrompt.done && selectedContact && (
-                  <div className="mt-2 rounded-md border p-3" style={{ borderColor: BORDER, backgroundColor: BG }}>
-                    <p className="text-sm" style={{ color: TEXT }}>
-                      {selectedContact.displayName} has no department assigned
-                    </p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <select
-                        value={assignPrompt.deptId}
-                        onChange={(e) => setAssignPrompt((p) => ({ ...p, deptId: e.target.value }))}
-                        className="input h-9 max-w-[10rem] text-sm"
-                        style={fieldStyle}
-                      >
-                        <option value="">Select department…</option>
-                        {assignableContactDepartments(companyDepartments, user, hasPermission)
-                          .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleAssignDepartment}
-                        disabled={!assignPrompt.deptId || assignPrompt.saving}
-                        className="rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-                        style={{ backgroundColor: BLUE }}
-                      >
-                        {assignPrompt.saving ? 'Assigning…' : 'Assign'}
-                      </button>
-                      <button type="button" onClick={handleSkipAssign} className="text-sm hover:underline" style={{ color: MUTED }}>
-                        Skip
-                      </button>
-                    </div>
+            {customFields.length > 0 && (
+              <Group title="Additional details">
+                {customFields.map((f) => (
+                  <div key={f.id}>
+                    <Label required={f.isRequired}>{f.label}</Label>
+                    <CustomFieldInput
+                      field={f}
+                      value={customFieldValues[f.fieldKey]}
+                      onChange={(v) => setCustomFieldValue(f.fieldKey, v)}
+                    />
                   </div>
-                )}
-              </div>
+                ))}
+              </Group>
+            )}
 
-              <div>
-                <Label>Customer Department</Label>
-                <select
-                  value={customerDeptId}
-                  onChange={(e) => setCustomerDeptId(e.target.value)}
-                  className="input"
-                  style={fieldStyle}
-                >
-                  <option value="">None</option>
-                  {companyDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-            </>
-          )}
+            <Group title="Attachments" optional>
+              <Dropzone files={files} onFiles={addFiles} onRemove={removeFile} />
+            </Group>
+          </div>
 
-          {!isStaff && (
-            <div>
-              <Label>Department</Label>
-              <select
-                value={customerDeptId}
-                onChange={(e) => setCustomerDeptId(e.target.value)}
-                className="input"
-                style={fieldStyle}
-              >
-                <option value="">None</option>
-                {companyDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </div>
-          )}
+          <div className="divide-y divide-navy-100 rounded-xl border border-navy-100 bg-surface">
+            <Group title="Who it's for">
+              {isStaff && (
+                <>
+                  <div>
+                    <Label required>Customer</Label>
+                    <ContactPicker selectedContact={selectedContact} onSelect={selectContact} />
+                    {multiCompany && selectedContact?.company && (
+                      <p className="mt-1 text-xs" style={{ color: MUTED }}>Company: {selectedContact.company.name}</p>
+                    )}
 
-          <WatchersField directory={directory} watchers={watchers} onChange={setWatchers} />
+                    {assignPrompt.done && (
+                      <p className="mt-2 text-sm font-medium" style={{ color: 'var(--color-success)' }}>{assignPrompt.doneText}</p>
+                    )}
+                    {assignPrompt.show && !assignPrompt.done && selectedContact && (
+                      <div className="mt-2 rounded-lg border border-navy-100 p-3" style={{ backgroundColor: BG }}>
+                        <p className="text-sm" style={{ color: TEXT }}>
+                          {selectedContact.displayName} has no department assigned
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <select
+                            value={assignPrompt.deptId}
+                            onChange={(e) => setAssignPrompt((p) => ({ ...p, deptId: e.target.value }))}
+                            className="input h-9 max-w-[10rem] text-sm"
+                          >
+                            <option value="">Select department…</option>
+                            {assignableContactDepartments(companyDepartments, user, hasPermission)
+                              .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
+                          <Button size="sm" variant="primary" onClick={handleAssignDepartment} disabled={!assignPrompt.deptId || assignPrompt.saving}>
+                            {assignPrompt.saving ? 'Assigning…' : 'Assign'}
+                          </Button>
+                          <button type="button" onClick={handleSkipAssign} className="text-sm hover:underline" style={{ color: MUTED }}>
+                            Skip
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-          <AssetsField assets={linkedAssets} onChange={setLinkedAssets} />
+                  <div>
+                    <Label htmlFor="new-ticket-customer-dept">Customer Department</Label>
+                    <select id="new-ticket-customer-dept" value={customerDeptId} onChange={(e) => setCustomerDeptId(e.target.value)} className="input">
+                      <option value="">None</option>
+                      {companyDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
 
-          {isStaff && (
-            <div className="border-t pt-4" style={{ borderColor: BORDER }}>
+              {!isStaff && (
+                <div>
+                  <Label htmlFor="new-ticket-dept">Department</Label>
+                  <select id="new-ticket-dept" value={customerDeptId} onChange={(e) => setCustomerDeptId(e.target.value)} className="input">
+                    <option value="">None</option>
+                    {companyDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </Group>
+
+            <Group title="Who's on it">
+              {isStaff && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="new-ticket-assignee">Assignee</Label>
+                    <select id="new-ticket-assignee" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className="input">
+                      <option value="">Unassigned</option>
+                      {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="new-ticket-team">Team</Label>
+                    <select id="new-ticket-team" value={teamId} onChange={(e) => setTeamId(e.target.value)} className="input">
+                      <option value="">No team</option>
+                      {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>Assignee</Label>
-                  <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className="input" style={fieldStyle}>
-                    <option value="">Unassigned</option>
-                    {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-                  </select>
+                  <Label htmlFor="new-ticket-due">Due date</Label>
+                  <input
+                    id="new-ticket-due"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setDueDate(next);
+                      if (!next) setDueTime('');
+                    }}
+                    className="input w-full"
+                  />
                 </div>
                 <div>
-                  <Label>Team</Label>
-                  <select value={teamId} onChange={(e) => setTeamId(e.target.value)} className="input" style={fieldStyle}>
-                    <option value="">No team</option>
-                    {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+                  <Label>Due time</Label>
+                  <div title={!dueDate ? 'Set a due date first' : ''}>
+                    <TimeDropdownPicker
+                      value={dueTime}
+                      onChange={setDueTime}
+                      disabled={!dueDate}
+                      fieldStyle={fieldStyle}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </Card>
 
-        <Card title="Scheduling">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="w-full sm:w-auto">
-              <Label>Due date</Label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setDueDate(next);
-                  if (!next) setDueTime('');
-                }}
-                className="input w-full sm:max-w-[12rem]"
-                style={fieldStyle}
-              />
-            </div>
-            <div className="w-full sm:w-auto">
-              <Label>Due time</Label>
-              <div title={!dueDate ? 'Set a due date first' : ''}>
-                <TimeDropdownPicker
-                  value={dueTime}
-                  onChange={setDueTime}
-                  disabled={!dueDate}
-                  fieldStyle={fieldStyle}
-                />
-              </div>
-            </div>
+              <WatchersField directory={directory} watchers={watchers} onChange={setWatchers} />
+
+              <AssetsField assets={linkedAssets} onChange={setLinkedAssets} />
+            </Group>
           </div>
-        </Card>
+        </div>
 
-        <Card title="Attachments" optional>
-          <Dropzone files={files} onFiles={addFiles} onRemove={removeFile} />
-        </Card>
-
-        <div
-          className="fixed inset-x-0 bottom-0 z-30 flex justify-between gap-3 border-t px-4 py-3 sm:static sm:z-auto sm:border-0 sm:px-0 sm:py-0 sm:pt-2"
-          style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
-        >
-          <Link
-            to="/tickets"
-            className="flex-1 rounded-md border px-4 py-2 text-center text-sm font-medium sm:flex-none"
-            style={{ borderColor: BORDER, color: TEXT }}
-          >
+        <div className="fixed inset-x-0 bottom-0 z-30 flex justify-end gap-3 border-t border-navy-100 bg-surface px-4 py-3 sm:static sm:z-auto sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+          <Link to="/tickets" className="btn-secondary h-10 flex-1 justify-center sm:flex-none">
             Cancel
           </Link>
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex-1 rounded-md px-5 py-2 text-sm font-semibold text-white disabled:opacity-50 sm:flex-none"
-            style={{ backgroundColor: BLUE }}
-          >
+          <button type="submit" disabled={saving} className="btn-primary h-10 flex-1 justify-center disabled:opacity-50 sm:flex-none">
             {saving ? 'Creating…' : 'Create Ticket'}
           </button>
         </div>

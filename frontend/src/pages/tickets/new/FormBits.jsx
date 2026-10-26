@@ -1,5 +1,4 @@
 // Form pieces and option lists for the new-ticket form.
-import { CARD_BG, BORDER, TEXT, MUTED } from '../theme';
 
 export const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
@@ -27,35 +26,26 @@ export const SOURCE_OPTIONS = [
 ];
 
 function Required() {
-  return <span style={{ color: 'var(--color-danger)' }}> *</span>;
+  return <span aria-hidden="true" style={{ color: 'var(--color-danger)' }}> *</span>;
 }
 
-function OptionalPill() {
+// One group of the form ("The problem", "Who it's for", …): a fieldset whose
+// legend names it for screen readers.
+export function Group({ title, optional, className = '', children }) {
   return (
-    <span
-      className="rounded-[3px] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-      style={{ backgroundColor: BORDER, color: MUTED }}
-    >
-      Optional
-    </span>
+    <fieldset className={`min-w-0 p-5 sm:p-6 ${className}`}>
+      <legend className="float-left mb-4 flex w-full items-center gap-2 text-xs font-semibold uppercase tracking-wide text-navy-400">
+        {title}
+        {optional && <span className="font-medium normal-case tracking-normal">(optional)</span>}
+      </legend>
+      <div className="clear-left space-y-4">{children}</div>
+    </fieldset>
   );
 }
 
-export function Card({ title, optional, children }) {
+export function Label({ children, required, htmlFor }) {
   return (
-    <div className="rounded-[10px] border p-6" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
-      <div className="mb-4 flex items-center gap-2">
-        <h2 className="text-base font-semibold" style={{ color: TEXT }}>{title}</h2>
-        {optional && <OptionalPill />}
-      </div>
-      <div className="space-y-4">{children}</div>
-    </div>
-  );
-}
-
-export function Label({ children, required }) {
-  return (
-    <label className="mb-1.5 block text-sm font-medium" style={{ color: TEXT }}>
+    <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-medium text-navy-700">
       {children}
       {required && <Required />}
     </label>
