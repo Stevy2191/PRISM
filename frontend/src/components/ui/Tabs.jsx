@@ -1,7 +1,7 @@
 // Underlined tab strip. items: [{ id, label, count? }]; controlled by value/onChange.
 export default function Tabs({ items, value, onChange, className = '', label = 'Sections' }) {
   return (
-    <div role="tablist" aria-label={label} className={`flex gap-1 overflow-x-auto border-b md:flex-wrap md:overflow-visible border-navy-100 ${className}`}>
+    <div role="tablist" aria-label={label} className={`flex gap-1 overflow-x-auto pb-px border-b md:flex-wrap md:overflow-visible border-navy-100 ${className}`}>
       {items.map((t) => {
         const on = t.id === value;
         return (

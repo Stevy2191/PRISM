@@ -64,20 +64,23 @@ function TaskCard({ task, ctx }) {
   const dates = dateRange(task.startDate, task.dueDate);
   return (
     <div
-      className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border p-3"
+      className="grid grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border p-3"
       style={mine
         ? { borderColor: 'var(--color-timer)', backgroundColor: 'color-mix(in srgb, var(--color-timer) 8%, var(--color-card))' }
         : { borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}
     >
-      <input
-        type="checkbox"
-        aria-label={task.isMilestone ? `Mark ${task.title} reached` : `Complete ${task.title}`}
-        checked={done}
-        disabled={!ctx.canEdit}
-        onChange={() => ctx.onToggle(task)}
-        className="h-[22px] w-[22px]"
-        style={{ accentColor: 'var(--color-accent)' }}
-      />
+      {/* The label is the 44 px touch target around the 22 px box. */}
+      <label className="-m-[11px] flex h-11 w-11 items-center justify-center">
+        <input
+          type="checkbox"
+          aria-label={task.isMilestone ? `Mark ${task.title} reached` : `Complete ${task.title}`}
+          checked={done}
+          disabled={!ctx.canEdit}
+          onChange={() => ctx.onToggle(task)}
+          className="h-[22px] w-[22px]"
+          style={{ accentColor: 'var(--color-accent)' }}
+        />
+      </label>
       <div className="min-w-0">
         <button
           type="button"
@@ -123,16 +126,23 @@ export default function PhoneTasks({
   };
 
   return (
-    <div className="min-w-0 flex-1 pb-28">
+    <div className={`min-w-0 flex-1 ${adding ? 'pb-48' : 'pb-28'}`}>
       <div role="group" aria-label="Filter tasks" className="my-3 flex gap-1.5">
         {PHONE_FILTERS.map((f) => (
           <Pill key={f.id} on={filter === f.id} onClick={() => onFilter(f.id)}>{f.label}</Pill>
         ))}
       </div>
       {shown.length === 0 && (
-        <p className="rounded-xl border border-navy-100 bg-surface p-6 text-center text-sm text-navy-400">
-          {filter === 'all' ? 'No tasks yet.' : 'No tasks match this filter.'}
-        </p>
+        <div className="rounded-xl border border-navy-100 bg-surface p-6 text-center text-sm text-navy-400">
+          {filter === 'mine' && (
+            <>
+              <p>No tasks assigned to you.</p>
+              <Button type="button" size="sm" className="mt-3" onClick={() => onFilter('all')}>Show all tasks</Button>
+            </>
+          )}
+          {filter === 'waiting' && <p>Nothing is waiting.</p>}
+          {filter === 'all' && <p>No tasks yet.</p>}
+        </div>
       )}
       {shown.map((g) => (
         <section key={g.phase ? g.phase.id : 'none'} aria-label={g.phase ? g.phase.name : 'No phase'} className="mt-3 flex flex-col gap-2.5">
@@ -145,8 +155,8 @@ export default function PhoneTasks({
       ))}
       {(ctx.canLog || ctx.canEdit) && (
         <div
-          className="fixed inset-x-0 bottom-0 z-30 border-t px-4 pb-5 pt-3"
-          style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+          className="fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3"
+          style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))', backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
         >
           {adding && (
             <form onSubmit={submit} className="mb-3 flex gap-2">

@@ -79,3 +79,13 @@ it('the header Add task opens the same input', async () => {
   await page.getByRole('button', { name: 'Add task', exact: true }).first().click();
   await page.getByLabel('New task title').waitFor();
 });
+
+it('a user with no tasks sees a way to all tasks on the phone', async () => {
+  const empty = await makeProject(w.admin.agent, { name: 'Empty mine', ownerDepartmentId: w.deptA.id });
+  await makeTask(w.admin.agent, empty.id, { title: 'Nobody task' });
+  const page = await smoke.pageAs('admin', undefined, VIEW);
+  await page.goto(`/projects/${empty.id}`);
+  await shown(page, 'No tasks assigned to you.').waitFor();
+  await page.getByRole('button', { name: 'Show all tasks' }).click();
+  await shown(page, 'Nobody task').waitFor();
+});
