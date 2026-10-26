@@ -2,7 +2,7 @@
 // and tasks: "Starts on Day N" (Day 1 is the project's start date), "Takes N
 // days", estimate and "Waits on", with drag to reorder. Assignees are not
 // kept in templates. Saving replaces the whole template.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
@@ -35,6 +35,8 @@ export default function ProjectTemplateEditor() {
   const [subFor, setSubFor] = useState(null); // task whose "add a subtask" box is open
   const dirty = !loading && !loadFailed && JSON.stringify(s) !== saved;
   useUnsavedGuard(dirty);
+  const savedTimer = useRef(null);
+  useEffect(() => () => clearTimeout(savedTimer.current), []);
   const [drag, setDrag] = useState(null); // { kind: 'task'|'phase', id }
   const [over, setOver] = useState(null);
 
@@ -66,7 +68,7 @@ export default function ProjectTemplateEditor() {
       setS(fresh);
       setMeta({ usedCount: data.template.usedCount, sourceProjectId: data.template.sourceProjectId });
       setJustSaved(true);
-      setTimeout(() => setJustSaved(false), 3000);
+      savedTimer.current = setTimeout(() => setJustSaved(false), 3000);
       if (isNew) navigate(`/settings/project-templates/${data.template.id}`, { replace: true });
       return true;
     } catch (err) {

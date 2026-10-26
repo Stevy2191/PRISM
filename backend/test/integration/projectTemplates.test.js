@@ -137,6 +137,17 @@ describe('copy a project', () => {
     return { p, a, b, phase };
   };
 
+  it('copy with explicit tags uses exactly those, and with none given keeps the source tags', async () => {
+    const { p } = await source();
+    const base = { ownerDepartmentId: w.deptA.id, copyFromProjectId: p.id, startDate: '2026-06-01' };
+    const own = expectOk(await w.admin.agent.post(`${API}/projects`).send({ ...base, name: 'Copy own', tags: ['x'] }), 201).project;
+    expect(own.tags).toEqual(['x']);
+    const none = expectOk(await w.admin.agent.post(`${API}/projects`).send({ ...base, name: 'Copy none', tags: [] }), 201).project;
+    expect(none.tags || []).toEqual([]);
+    const kept = expectOk(await w.admin.agent.post(`${API}/projects`).send({ ...base, name: 'Copy kept' }), 201).project;
+    expect(kept.tags).toEqual(['t1']);
+  });
+
   it('copies structure to a new start date', async () => {
     const { p } = await source();
     const created = expectOk(await w.admin.agent.post(`${API}/projects`).send({

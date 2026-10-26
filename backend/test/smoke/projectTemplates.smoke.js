@@ -181,3 +181,27 @@ it('the editor adds a subtask under a task and warns before leaving with unsaved
   const sub = got.tasks.find((t) => t.title === 'Photograph closets');
   expect(sub.parentId).toBe(got.tasks.find((t) => t.title === 'Walk the site').id);
 });
+
+it('Copy an existing project keeps the source\'s tags unless removed', async () => {
+  const a = w.admin.agent;
+  await makeProject(a, { name: 'Tagged source', ownerDepartmentId: w.deptA.id, tags: ['keepme'] });
+  const page = await adminPage();
+  const create = async (name, removeTag) => {
+    await page.goto('/projects/new');
+    await startFrom(page, 'Copy an existing project');
+    await page.getByLabel('Search projects').fill('Tagged source');
+    const pick = page.getByLabel('Project to copy');
+    await pick.locator('option', { hasText: 'Tagged source' }).waitFor({ state: 'attached' });
+    await pick.selectOption({ label: (await pick.locator('option', { hasText: 'Tagged source' }).innerText()).trim() });
+    await page.getByText('keepme', { exact: true }).filter({ visible: true }).first().waitFor();
+    await page.getByLabel('Start date').fill('2026-11-16');
+    await page.getByLabel('Project name').fill(name);
+    await page.getByLabel('Owned by department').selectOption({ label: 'Service Desk' });
+    if (removeTag) await page.locator('form span:has-text("keepme") button').first().click();
+    await page.getByRole('button', { name: 'Create project' }).click();
+    await page.waitForURL(/\/projects\/\d+$/);
+    return expectOk(await a.get(`${API}/projects`).query({ search: name })).projects[0];
+  };
+  expect((await create('Copy with tag')).tags).toEqual(['keepme']);
+  expect((await create('Copy without tag', true)).tags || []).toEqual([]);
+});

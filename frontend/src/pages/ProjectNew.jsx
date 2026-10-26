@@ -192,7 +192,12 @@ export default function ProjectNew() {
             <Field label="Project to copy" hint="Phases, tasks and links come across; people, time and files do not.">
               <div className="flex flex-col gap-2">
                 <input className="input" type="search" aria-label="Search projects" placeholder="Search projects by name" value={copySearch} onChange={(e) => setCopySearch(e.target.value)} />
-                <select className="input" aria-label="Project to copy" value={copyId} onChange={(e) => { setCopyId(e.target.value); setCopyProject((projects || []).find((p) => String(p.id) === e.target.value) || null); }}>
+                <select className="input" aria-label="Project to copy" value={copyId} onChange={(e) => {
+                  const chosen = (projects || []).find((p) => String(p.id) === e.target.value) || null;
+                  setCopyId(e.target.value);
+                  setCopyProject(chosen);
+                  setTags(chosen?.tags || []); // the copy's tags, shown and editable like a template's
+                }}>
                   <option value="">{projects ? 'Choose a project' : 'Loading…'}</option>
                   {copyProject && !(projects || []).some((p) => p.id === copyProject.id) && <option value={copyProject.id}>{copyProject.projectCode} {copyProject.name}</option>}
                   {(projects || []).map((p) => <option key={p.id} value={p.id}>{p.projectCode} {p.name}</option>)}
