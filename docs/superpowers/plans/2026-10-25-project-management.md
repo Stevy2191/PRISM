@@ -361,7 +361,7 @@
 - `POST`, `PUT /:id` (full replace of the structure in one transaction) and `DELETE /:id` (`manage_templates`)
 - `POST /projects/:id/save-as-template {name}` (`manage_templates` + view on the project)
 
-- [ ] Tests:
+- [x] Tests:
   - Unit: `plan with no finishDate keeps offsets`, `finishDate double span doubles offsets`, `waiting task pushed after its predecessor`, `milestone keeps one date`
   - Integration:
     - `create from template makes phases, tasks, subtasks, links, budget, tags with no assignees`
@@ -372,8 +372,8 @@
     - `duplicate template name → 409`
     - `audit rows for create/update/delete/saveFromProject/createFromTemplate/copy`
   - Migration: `round trip`
-- [ ] Implement, migrate the test DB, and run.
-- [ ] Commit `feat(projects): templates, copy a project, save as template`.
+- [x] Implement, migrate the test DB, and run.
+- [x] Commit `feat(projects): templates, copy a project, save as template`.
 
 ### Task 11: Template editor and New project screen
 
@@ -381,7 +381,7 @@
 - Create: `frontend/src/pages/settings/ProjectTemplates.jsx` (list), `frontend/src/pages/settings/ProjectTemplateEditor.jsx` (grid with drag reorder; split rows into `settings/templateEditor/Row.jsx` if needed). Modify: `frontend/src/pages/settings/registry.js` (new group `Projects` with `project-templates`, access `projects.manage_templates`, width `wide`, sub-routes `new` and `:id`), `frontend/src/pages/ProjectNew.jsx` (rebuilt: Start from cards, form, preview from `/preview`).
 - Test: `frontend/src/pages/settings/registry.test.js` (extend), `frontend/test/smoke/projectTemplates.smoke.js`
 
-- [ ] Tests:
+- [x] Tests:
   - Registry: `project-templates is in group Projects and needs projects.manage_templates`
   - Smoke:
     - `edit a template: add a task under a phase, set Waits on, save`
@@ -389,8 +389,8 @@
     - `Create project lands on the new project with its phases`
     - `Copy an existing project lists only projects I can see`
     - `Save as template from the project menu opens the new template`
-- [ ] Implement against the Templates and NewProject boards and run.
-- [ ] Commit `feat(projects): template editor in Settings and look A New project`.
+- [x] Implement against the Templates and NewProject boards and run.
+- [x] Commit `feat(projects): template editor in Settings and look A New project`.
 
 ## Stage 6 — Workload
 
