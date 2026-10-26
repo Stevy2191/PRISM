@@ -16,6 +16,7 @@ export const PALETTE = [
 ];
 
 export { PRESETS, presetRange } from './presets.js';
+import { formatBarValue } from './chartFormat.js';
 
 export function formatHours(h) {
   if (h === null || h === undefined) return '—';
@@ -73,7 +74,7 @@ export function SimpleBarChart({
           <Tooltip {...tooltip} />
           <Bar dataKey={dataKey} fill={color} radius={[0, 4, 4, 0]} maxBarSize={22}>
             {colorForName && data.map((d, i) => <Cell key={i} fill={colorForName(d.name) || color} />)}
-            <LabelList dataKey={dataKey} position="right" style={valueLabel} />
+            <LabelList dataKey={dataKey} position="right" style={valueLabel} formatter={(v) => formatBarValue(v, dataKey)} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -88,7 +89,7 @@ export function SimpleBarChart({
         <Tooltip {...tooltip} />
         <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} maxBarSize={44}>
           {colorForName && data.map((d, i) => <Cell key={i} fill={colorForName(d.name) || color} />)}
-          <LabelList dataKey={dataKey} position="top" style={valueLabel} />
+          <LabelList dataKey={dataKey} position="top" style={valueLabel} formatter={(v) => formatBarValue(v, dataKey)} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>

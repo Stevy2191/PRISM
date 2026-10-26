@@ -26,7 +26,12 @@ export const SOURCE_OPTIONS = [
 ];
 
 function Required() {
-  return <span aria-hidden="true" style={{ color: 'var(--color-danger)' }}> *</span>;
+  return (
+    <>
+      <span aria-hidden="true" style={{ color: 'var(--color-danger)' }}> *</span>
+      <span className="sr-only"> (required)</span>
+    </>
+  );
 }
 
 // One group of the form ("The problem", "Who it's for", …): a fieldset whose

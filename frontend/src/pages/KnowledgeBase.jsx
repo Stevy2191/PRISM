@@ -266,6 +266,11 @@ export default function KnowledgeBase() {
                 </Pill>
               ))}
             </PillRow>
+            {canManage && (
+              <button type="button" onClick={() => setShowCatManager(true)} className="mt-1 flex min-h-[44px] items-center gap-2 rounded-md px-1 text-sm hover:underline" style={{ color: MUTED }}>
+                <IconDots size={15} aria-hidden="true" /> Manage categories
+              </button>
+            )}
           </div>
 
           {error && <Notice tone="bad">{error}</Notice>}

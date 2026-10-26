@@ -113,3 +113,10 @@ it('public Help Center lists categories and opens an article, signed out', async
   expect(widths[0]).toBeLessThanOrEqual(widths[1]);
   await context.close();
 });
+
+it('phone: a kb.manage user can still reach Manage categories', async () => {
+  const page = await smoke.pageAs('admin', undefined, PHONE);
+  await page.goto('/knowledge');
+  await page.getByRole('button', { name: 'Manage categories' }).filter({ visible: true }).first().click();
+  await page.getByRole('heading', { name: 'Manage categories' }).waitFor();
+});

@@ -1,10 +1,9 @@
 // The ticket list's board view: one column per status, each capped (see
 // BOARD_COLUMN_LIMIT on the API).
 import { formatTicketId } from '../../../utils/ticketId';
-import PersonAvatar from '../../../components/ui/Avatar';
 import { TEXT, MUTED } from '../theme';
 import { todayStr } from './listHelpers';
-import { PriorityCell, DeptPill } from './Cells';
+import { Avatar, PriorityCell, DeptPill } from './Cells';
 
 export function TicketBoard({
   boardColumns,
@@ -49,9 +48,7 @@ export function TicketBoard({
                   <p className="mt-1 truncate text-sm font-semibold" style={{ color: TEXT }}>{t.title}</p>
                   <div className="mt-2 flex items-center justify-between">
                     <PriorityCell priority={t.priority} />
-                    {t.assignee?.displayName
-                      ? <PersonAvatar name={t.assignee.displayName} size={22} />
-                      : <span className="h-[22px] w-[22px] rounded-full border border-dashed border-navy-200" title="Unassigned" aria-label="Unassigned" />}
+                    <span className="min-w-0 max-w-[55%] text-xs"><Avatar name={t.assignee?.displayName} /></span>
                   </div>
                 </div>
               );

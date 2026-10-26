@@ -41,6 +41,7 @@ beforeAll(async () => {
   w = await makeWorld();
   longCompany = await makeCompany(w.admin, { name: LONG_COMPANY });
   await makeTicket(w.admin.agent, { title: 'X'.repeat(200), contactId: w.contact.id, departmentId: w.deptA.id });
+  await makeTicket(w.admin.agent, { title: 'Assigned board card', contactId: w.contact.id, departmentId: w.deptA.id, assigneeId: w.admin.user.id });
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 beforeEach(resetRateLimits);
@@ -64,6 +65,30 @@ it('Filters sheet: opens, traps Tab, Esc closes and focus returns', async () => 
   await page.keyboard.press('Escape');
   await sheet.waitFor({ state: 'hidden' });
   expect(await page.evaluate(() => document.activeElement.textContent.trim())).toMatch(/^Filters/);
+});
+
+it('board cards name the assignee, or say Unassigned', async () => {
+  const page = await smoke.pageAs('admin', undefined, { viewport: { width: 1440, height: 900 } });
+  await page.goto('/tickets');
+  await page.getByRole('button', { name: 'Board' }).first().click();
+  const assigned = page.locator('div.cursor-pointer').filter({ hasText: 'Assigned board card' });
+  await assigned.getByText(w.admin.user.displayName, { exact: true }).waitFor();
+  const unassigned = page.locator('div.cursor-pointer').filter({ hasText: 'X'.repeat(30) });
+  await unassigned.getByText('Unassigned', { exact: true }).waitFor();
+});
+
+it('Filters sheet closes when the window widens past the phone layout', async () => {
+  const page = await phonePage();
+  await page.goto('/tickets');
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByRole('dialog', { name: 'Filters' }).waitFor();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  // A CSS locator, not getByRole: a display:none dialog would still be in
+  // the DOM, holding Tab, and getByRole skips hidden elements.
+  const dialog = page.locator('[role="dialog"][aria-label="Filters"]');
+  await dialog.waitFor({ state: 'detached', timeout: 5000 });
+  await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => document.activeElement.closest('[role="dialog"]'))).toBeNull();
 });
 
 it.each(PHONE_ROUTES.map((r) => [r.name, r]))('no horizontal page scroll at 375px: %s', async (_name, route) => {

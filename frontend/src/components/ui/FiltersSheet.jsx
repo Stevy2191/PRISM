@@ -12,6 +12,17 @@ export default function FiltersSheet({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
+  // The sheet only exists below lg: widen the window past it and it closes,
+  // rather than holding Tab inside a dialog nobody can see.
+  useEffect(() => {
+    if (!open || !window.matchMedia) return undefined;
+    const wide = window.matchMedia('(min-width: 1024px)');
+    if (wide.matches) { onCloseRef.current(); return undefined; }
+    const onChange = () => { if (wide.matches) onCloseRef.current(); };
+    wide.addEventListener('change', onChange);
+    return () => wide.removeEventListener('change', onChange);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return undefined;
     const opener = document.activeElement;
