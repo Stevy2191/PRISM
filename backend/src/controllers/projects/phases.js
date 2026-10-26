@@ -18,7 +18,8 @@ const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 const notFound = () => new ApiError(404, 'Phase not found', 'NOT_FOUND');
 
 async function projectFor(req, { edit = true } = {}) {
-  const project = await Project.findByPk(req.params.id);
+  const projectId = parseRecordId(req.params.id);
+  const project = projectId && await Project.findByPk(projectId);
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   if (edit) await assertCanEditProject(req.user, project);

@@ -186,3 +186,18 @@ describe('task fields', () => {
     expect(upd.phaseId).toBeNull();
   });
 });
+
+describe('project id in the URL', () => {
+  it("a project id like '12abc' is a 404 on phases, dependencies, tasks and the rest", async () => {
+    const a = w.admin.agent;
+    const junk = `${proj.id}abc`; // MariaDB would cast this to proj.id
+    for (const path of ['phases', 'dependencies', 'tasks', 'members', 'time-entries', 'files', 'activity']) {
+      expect((await a.get(`${API}/projects/${junk}/${path}`)).status).toBe(404);
+    }
+    expect((await a.post(`${API}/projects/${junk}/phases`).send({ name: 'X' })).status).toBe(404);
+    expect((await a.post(`${API}/projects/${junk}/tasks`).send({ title: 'X' })).status).toBe(404);
+    expect((await a.get(`${API}/projects/${junk}`)).status).toBe(404);
+    expect((await a.patch(`${API}/projects/${junk}`).send({ name: 'Y' })).status).toBe(404);
+    expect((await a.get(`${API}/projects/${proj.id}/phases`)).status).toBe(200);
+  });
+});

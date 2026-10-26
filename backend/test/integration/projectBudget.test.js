@@ -64,14 +64,22 @@ describe('budget summary', () => {
 });
 
 describe('budget fields', () => {
-  it('PATCH sets and clears the budget, flags and start date, audited as project.budget', async () => {
+  it('PATCH sets and clears the budget, flags and start date; budget audited as project.budget, start date as project.update', async () => {
     const res = expectOk(await setBudget({
       hourBudgetMinutes: 600, budgetAlert80: false, budgetAlert100: true, startDate: '2026-03-02',
     }));
     expect(res.project).toEqual(expect.objectContaining({
       hourBudgetMinutes: 600, budgetAlert80: false, budgetAlert100: true, startDate: '2026-03-02',
     }));
-    expect(await models.AuditLog.count({ where: { action: 'project.budget', entityId: proj.id } })).toBe(1);
+    const audits = await models.AuditLog.findAll({ where: { entityType: 'Project', entityId: proj.id }, order: [['id', 'ASC']] });
+    const budgetRow = audits.filter((r) => r.action === 'project.budget');
+    expect(budgetRow).toHaveLength(1);
+    expect(budgetRow[0].meta).not.toHaveProperty('startDate');
+    expect(audits.find((r) => r.action === 'project.update' && r.meta && r.meta.startDate)).toBeTruthy();
+    // A start date on its own is a project.update, not a budget change.
+    const before = await models.AuditLog.count({ where: { action: 'project.budget', entityId: proj.id } });
+    expectOk(await setBudget({ startDate: '2026-03-03' }));
+    expect(await models.AuditLog.count({ where: { action: 'project.budget', entityId: proj.id } })).toBe(before);
     expect(expectOk(await setBudget({ hourBudgetMinutes: null, startDate: null })).project.hourBudgetMinutes).toBeNull();
   });
 

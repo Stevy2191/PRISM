@@ -66,12 +66,16 @@ async function buildProjectListWhere(req) {
   const {
     status, state, ownerDept, forDept, assignee, myProjects, mine, attention, myDepartment, overdue, search, tag, companyId,
   } = req.query;
-  if (companyId) where.companyId = parseRecordId(companyId) || -1;
+  // Query values can arrive as qs objects/arrays: ids go through
+  // parseRecordId (a junk id narrows to nothing), status must be a string.
+  const id = (v) => parseRecordId(v) || -1;
+  if (status !== undefined && typeof status !== 'string') throw new ApiError(400, 'status must be a single value', 'VALIDATION_ERROR');
+  if (companyId) where.companyId = id(companyId);
 
   // Scope (company fence and tier) comes from recordScope and is ANDed in at
   // the end, so these filters can only narrow it.
-  if (ownerDept) where.ownerDepartmentId = ownerDept;
-  if (forDept) where.forDepartmentId = forDept;
+  if (ownerDept) where.ownerDepartmentId = id(ownerDept);
+  if (forDept) where.forDepartmentId = id(forDept);
 
   // "My department" quick filter — narrows to the caller's own department
   // regardless of scope tier (meaningful for 'all'/'department' scopes; a
@@ -84,7 +88,7 @@ async function buildProjectListWhere(req) {
 
   const buckets = (status === 'closed' || overdue === 'true') ? await getProjectStatusBuckets() : null;
   if (status) where.status = status === 'closed' ? { [Op.in]: buckets.closed } : status;
-  if (assignee) where.assignedToUserId = assignee;
+  if (assignee) where.assignedToUserId = id(assignee);
   if (overdue === 'true') {
     where.dueDate = { [Op.lt]: new Date().toISOString().slice(0, 10) };
     if (!status) where.status = { [Op.in]: buckets.open };
@@ -380,7 +384,9 @@ const get = asyncHandler(async (req, res) => {
   res.json({ project: { ...project, access: await projectAccessFor(req.user, project) } });
 });
 
-const BUDGET_FIELDS = ['hourBudgetMinutes', 'budgetAlert80', 'budgetAlert100', 'startDate'];
+// Audited as project.budget; startDate is checked alongside them but is a
+// plain project.update change.
+const BUDGET_FIELDS = ['hourBudgetMinutes', 'budgetAlert80', 'budgetAlert100'];
 const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 
 // Checks the budget fields of a PATCH in place: minutes (or null), two
@@ -412,7 +418,7 @@ const update = asyncHandler(async (req, res) => {
 
   const allowed = [
     'name', 'description', 'status', 'ownerDepartmentId', 'forDepartmentId',
-    'assignedToUserId', 'teamId', 'dueDate', 'tags', ...BUDGET_FIELDS,
+    'assignedToUserId', 'teamId', 'dueDate', 'startDate', 'tags', ...BUDGET_FIELDS,
   ];
   const changes = {};
   for (const key of allowed) {

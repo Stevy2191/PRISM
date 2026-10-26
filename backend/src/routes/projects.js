@@ -3,8 +3,16 @@ const ctrl = require('../controllers/projectsController');
 const templatesCtrl = require('../controllers/projectTemplates');
 const { requirePermission } = require('../middleware/requirePermission');
 const { projectUpload, enforceMaxAttachmentSize, verifyFileSignature, scanUpload } = require('../middleware/upload');
+const { ApiError } = require('../middleware/error');
+const { parseRecordId } = require('../services/permissionService');
 
 const router = express.Router();
+
+// A project id that isn't a plain positive integer is a 404 here: MariaDB
+// casts '12abc' to 12, so a handler's findByPk would otherwise load project 12.
+router.param('id', (req, res, next, rawId) => (
+  parseRecordId(rawId) ? next() : next(new ApiError(404, 'Project not found', 'NOT_FOUND'))
+));
 
 // Your own time needs time.log and view access, which the controller
 // checks (user decision 2026-10-06); someone else's needs

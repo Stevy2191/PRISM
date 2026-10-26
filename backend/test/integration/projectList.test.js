@@ -218,3 +218,17 @@ describe('tiles follow the list filters', () => {
     expect((await list(w.admin.agent))[0].loggedMinutes).toBe(101);
   });
 });
+
+describe('list filters refuse junk query shapes', () => {
+  it('object/array id filters narrow to nothing instead of a 500; status must be a string', async () => {
+    await mkProject({ name: 'Any' });
+    const a = w.admin.agent;
+    for (const q of ['ownerDept[x]=1', 'forDept[]=1&forDept[]=2', 'assignee[x]=1', 'ownerDept=12abc']) {
+      expect(await list(a, q)).toEqual([]);
+    }
+    const res = await a.get(`${API}/projects?status[]=a`);
+    expect(res.status).toBe(400);
+    const res2 = await a.get(`${API}/projects?status[x]=a`);
+    expect(res2.status).toBe(400);
+  });
+});
