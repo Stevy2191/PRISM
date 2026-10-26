@@ -7,6 +7,9 @@ import api, { errMessage } from '../api/api';
 import LoadMore from '../components/LoadMore';
 import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import Breadcrumbs from '../components/ui/Breadcrumbs';
+import Button from '../components/ui/Button';
+import Notice from '../components/ui/Notice';
 import AssetFormModal from '../components/AssetFormModal';
 import { StatusBadge, CategoryBadge, dateUrgencyColor } from './Assets';
 import { formatTicketId } from '../utils/ticketId';
@@ -32,9 +35,9 @@ const PRIORITY_META = {
 
 function StatCard({ label, value, color }) {
   return (
-    <div className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>{label}</p>
-      <p className="mt-1 text-2xl font-bold tracking-tight" style={{ color: color || TEXT }}>{value}</p>
+    <div className="rounded-xl border border-navy-100 bg-surface p-4">
+      <p className="text-[13px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{label}</p>
+      <p className="num mt-1 text-2xl font-semibold tracking-tight" style={{ color: color || TEXT }}>{value}</p>
     </div>
   );
 }
@@ -49,7 +52,7 @@ function daysLabel(days) {
 function Field({ label, children }) {
   return (
     <div>
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>{label}</p>
+      <p className="text-xs font-medium" style={{ color: MUTED }}>{label}</p>
       <div className="mt-0.5 text-sm" style={{ color: TEXT }}>{children ?? <span style={{ color: MUTED }}>—</span>}</div>
     </div>
   );
@@ -133,29 +136,30 @@ export default function AssetDetail() {
   };
 
   if (loading) return <div className="flex h-64 items-center justify-center"><Spinner /></div>;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!asset) return null;
 
   return (
-    <div className="space-y-5">
-      <Link to="/assets" className="text-sm hover:underline" style={{ color: MUTED }}>← Back to assets</Link>
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="font-mono text-lg font-bold" style={{ color: TEXT }}>{asset.assetTag}</span>
-            <CategoryBadge category={asset.category} />
-            <StatusBadge status={asset.status} />
+    <div className="mx-auto max-w-[1280px] space-y-5 lg:px-6">
+      <div>
+        <Breadcrumbs items={[{ label: 'Assets', to: '/assets' }, { label: asset.assetTag }]} />
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="num text-sm font-semibold" style={{ color: MUTED }}>{asset.assetTag}</span>
+              <CategoryBadge category={asset.category} />
+              <StatusBadge status={asset.status} />
+            </div>
+            <h1 className="page-title mt-1 break-words">{asset.name}</h1>
           </div>
-          <h1 className="mt-1 text-xl font-bold" style={{ color: TEXT }}>{asset.name}</h1>
-        </div>
-        <div className="flex flex-shrink-0 gap-2">
-          {canEdit && <button type="button" onClick={() => setShowEditForm(true)} className="btn-secondary">Edit</button>}
-          {canDelete && <button type="button" onClick={() => { setShowDeleteConfirm(true); setDeleteWarning(null); }} className="btn-danger">Delete</button>}
+          <div className="flex flex-shrink-0 gap-2">
+            {canEdit && <Button onClick={() => setShowEditForm(true)}>Edit</Button>}
+            {canDelete && <button type="button" onClick={() => { setShowDeleteConfirm(true); setDeleteWarning(null); }} className="btn-danger">Delete</button>}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Total tickets linked" value={stats.totalTicketsLinked} />
         <StatCard label="Open tickets linked" value={stats.openTicketsLinked} />
         <StatCard
@@ -170,7 +174,7 @@ export default function AssetDetail() {
         />
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-b" style={{ borderColor: BORDER }}>
+      <div className="flex gap-1 overflow-x-auto border-b border-navy-100">
         {[
           ['overview', 'Overview'], ['tickets', 'Tickets'], ['activity', 'Activity'],
           ['attachments', 'Attachments'], ['checkouts', 'Checkout History'],
@@ -179,8 +183,9 @@ export default function AssetDetail() {
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className="flex-shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium"
-            style={{ borderColor: tab === key ? BLUE : 'transparent', color: tab === key ? BLUE : MUTED }}
+            aria-pressed={tab === key}
+            className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent ${tab === key ? 'font-semibold text-navy-900' : 'border-transparent font-medium text-navy-500 hover:text-navy-900'}`}
+            style={tab === key ? { borderBottomColor: BLUE } : undefined}
           >
             {label}
           </button>
@@ -245,7 +250,7 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <div className="space-y-4 rounded-[10px] border p-5" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+      <div className="space-y-4 rounded-xl border p-5 border-navy-100 bg-surface">
         <h2 className="font-semibold" style={{ color: TEXT }}>Device info</h2>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Make">{asset.make}</Field>
@@ -275,7 +280,7 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
           </div>
         )}
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Notes</p>
+          <p className="text-xs font-medium" style={{ color: MUTED }}>Notes</p>
           <textarea
             className="input mt-1 resize-y text-sm"
             style={{ ...fieldStyle, minHeight: '90px' }}
@@ -285,10 +290,10 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
         </div>
       </div>
 
-      <div className="space-y-4 rounded-[10px] border p-5" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+      <div className="space-y-4 rounded-xl border p-5 border-navy-100 bg-surface">
         <h2 className="font-semibold" style={{ color: TEXT }}>Assignment &amp; lifecycle</h2>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Assigned to</p>
+          <p className="text-xs font-medium" style={{ color: MUTED }}>Assigned to</p>
           <div className="mt-0.5 flex items-center justify-between gap-2">
             <p className="text-sm" style={{ color: TEXT }}>
               {asset.assignedToContact ? `${asset.assignedToContact.displayName} (Contact)`
@@ -311,15 +316,15 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
         </div>
         <Field label="Vendor">{asset.vendorName}</Field>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Warranty expiry date</p>
+          <p className="text-xs font-medium" style={{ color: MUTED }}>Warranty expiry date</p>
           <p className="mt-0.5 text-sm" style={{ color: dateUrgencyColor(asset.warrantyExpiryDate) }}>{asset.warrantyExpiryDate || '—'}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Replacement plan date</p>
+          <p className="text-xs font-medium" style={{ color: MUTED }}>Replacement plan date</p>
           <p className="mt-0.5 text-sm" style={{ color: dateUrgencyColor(asset.replacementPlanDate) }}>{asset.replacementPlanDate || '—'}</p>
         </div>
         <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Status</p>
+          <p className="mb-1 text-xs font-medium" style={{ color: MUTED }}>Status</p>
           <select
             className="input h-9 w-full text-sm"
             style={fieldStyle}
@@ -336,12 +341,12 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
       </div>
 
       {subscriptionValues.length > 0 && (
-        <div className="space-y-4 rounded-[10px] border p-5 lg:col-span-2" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+        <div className="space-y-4 rounded-xl border p-5 lg:col-span-2 border-navy-100 bg-surface">
           <h2 className="font-semibold" style={{ color: TEXT }}>Subscription</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {subscriptionValues.map((fv) => (
               <div key={fv.id}>
-                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>{fv.field?.label}</p>
+                <p className="text-xs font-medium" style={{ color: MUTED }}>{fv.field?.label}</p>
                 <p
                   className="mt-0.5 text-sm"
                   style={{ color: fv.field?.fieldKey === 'nextRenewalDate' ? subscriptionUrgencyColor(fv.value) : TEXT }}
@@ -442,7 +447,7 @@ function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
           <form onSubmit={submitCheckout} className="space-y-3">
             <h2 className="text-base font-semibold" style={{ color: TEXT }}>Check out equipment</h2>
             <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Contact</p>
+              <p className="mb-1 text-xs font-medium" style={{ color: MUTED }}>Contact</p>
               <p className="text-sm" style={{ color: TEXT }}>{contact?.displayName}</p>
             </div>
             <div>
@@ -529,23 +534,23 @@ function TicketsTab({ assetId, asset, canLinkTickets, navigate }) {
       {loading ? (
         <Spinner />
       ) : tickets.length === 0 ? (
-        <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+        <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
           No tickets linked yet.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+        <div className="overflow-x-auto rounded-xl border border-navy-100 bg-surface">
           <table className="min-w-full">
             <thead>
               <tr>
                 {['#', 'Title', 'Status', 'Priority', 'Assignee', 'Created', ''].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ borderBottom: `1px solid ${BORDER}`, color: MUTED }}>{h}</th>
+                  <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold" style={{ borderBottom: `1px solid ${BORDER}`, color: MUTED }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {tickets.map((t) => (
                 <tr key={t.id} style={{ borderBottom: `1px solid ${BORDER}` }} className="hover:bg-[var(--color-hover)]">
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs" style={{ color: MUTED }}>
+                  <td className="whitespace-nowrap px-4 py-3 num text-xs" style={{ color: MUTED }}>
                     <Link to={`/tickets/${t.id}`} className="hover:underline">#{t.ticketNumber}</Link>
                   </td>
                   <td className="px-4 py-3 text-sm">
@@ -627,7 +632,7 @@ function LinkTicketModal({ assetId, onClose, onLinked }) {
               className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-[var(--color-hover)]"
             >
               <span className="min-w-0">
-                <span className="mr-2 font-mono text-xs" style={{ color: MUTED }}>{formatTicketId(t)}</span>
+                <span className="mr-2 num text-xs" style={{ color: MUTED }}>{formatTicketId(t)}</span>
                 <span className="text-sm" style={{ color: TEXT }}>{t.title}</span>
               </span>
             </button>
@@ -724,13 +729,13 @@ function AttachmentsTab({ assetId }) {
     <div className="space-y-3">
       {uploadError && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{uploadError}</div>}
       {attachments.length === 0 ? (
-        <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+        <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
           No attachments yet — invoices, receipts, warranty documents, signed checkout forms, or photos of the equipment.
         </div>
       ) : (
         <div className="space-y-2">
           {attachments.map((a) => (
-            <div key={a.id} className="flex items-center gap-3 rounded-[10px] border p-3" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+            <div key={a.id} className="flex items-center gap-3 rounded-xl border p-3 border-navy-100 bg-surface">
               <IconFile size={24} style={{ color: MUTED, flexShrink: 0 }} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium" style={{ color: TEXT }}>{a.originalName}</p>
@@ -821,7 +826,7 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
   return (
     <div className="space-y-3">
       {checkouts.length === 0 ? (
-        <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+        <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
           No checkout history yet.
         </div>
       ) : (
@@ -832,12 +837,12 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
               ? Math.round((new Date(c.checkedInAt) - new Date(c.checkedOutAt)) / 86400000)
               : Math.round((Date.now() - new Date(c.checkedOutAt)) / 86400000);
             return (
-              <div key={c.id} className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: active ? BLUE : BORDER }}>
+              <div key={c.id} className="rounded-xl border p-4" style={{ backgroundColor: CARD_BG, borderColor: active ? BLUE : BORDER }}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium" style={{ color: TEXT }}>
                       {c.contact?.displayName}
-                      {active && <span className="ml-2 rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>Current</span>}
+                      {active && <span className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>Current</span>}
                     </p>
                     <p className="mt-0.5 text-xs" style={{ color: MUTED }}>
                       Checked out {new Date(c.checkedOutAt).toLocaleDateString()}
@@ -947,7 +952,7 @@ function CheckInModal({ assetId, checkout, onClose, onCheckedIn }) {
           <h2 className="text-base font-semibold" style={{ color: TEXT }}>Check in equipment</h2>
           {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div>
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Contact</p>
+            <p className="mb-1 text-xs font-medium" style={{ color: MUTED }}>Contact</p>
             <p className="text-sm" style={{ color: TEXT }}>{checkout.contact?.displayName}</p>
           </div>
           <div>
@@ -1046,7 +1051,7 @@ function EditCheckoutModal({ assetId, checkout, onClose, onSaved }) {
                   onChange={(e) => setQuery(e.target.value)}
                 />
                 {results.length > 0 && (
-                  <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+                  <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border shadow-lg border-navy-100 bg-surface">
                     {results.map((c) => (
                       <button
                         key={c.id}
@@ -1154,15 +1159,15 @@ function ActivityTab({ assetId }) {
   if (loading) return <Spinner />;
   if (activity.length === 0) {
     return (
-      <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+      <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
         No activity yet.
       </div>
     );
   }
 
   return (
-    <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
-      <ul className="divide-y" style={{ borderColor: BORDER }}>
+    <div className="rounded-xl border border-navy-100 bg-surface">
+      <ul className="divide-y divide-navy-100">
         {activity.map((a) => (
           <li key={a.id} className="flex items-start gap-3 px-5 py-3 text-sm">
             <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: BLUE }} />

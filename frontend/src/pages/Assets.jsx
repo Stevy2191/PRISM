@@ -8,6 +8,14 @@ import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import AssetFormModal from '../components/AssetFormModal';
 import AssetsSubNav from '../components/AssetsSubNav';
+import { IconAdjustmentsHorizontal, IconSearch } from '@tabler/icons-react';
+import { useFullPageHeight } from '../hooks/useFullPageHeight';
+import PageHeader from '../components/ui/PageHeader';
+import FiltersSheet from '../components/ui/FiltersSheet';
+import SelectChip from '../components/ui/SelectChip';
+import Notice from '../components/ui/Notice';
+import Button from '../components/ui/Button';
+import StatusChip from '../components/ui/StatusChip';
 import { orgToday, addDays } from '../utils/orgDate';
 
 const BORDER = 'var(--color-border)';
@@ -17,11 +25,11 @@ const MUTED = 'var(--color-text-muted)';
 const BLUE = 'var(--color-accent)';
 
 export const STATUS_META = {
-  active: { label: 'Active', color: 'var(--color-success)' },
-  in_repair: { label: 'In repair', color: 'var(--color-warning)' },
-  retired: { label: 'Retired', color: 'var(--color-text-muted)' },
-  in_storage: { label: 'In storage', color: 'var(--color-accent)' },
-  lost: { label: 'Lost', color: 'var(--color-danger)' },
+  active: { label: 'Active', color: 'var(--color-success)', tone: 'info' },
+  in_repair: { label: 'In repair', color: 'var(--color-warning)', tone: 'waiting' },
+  retired: { label: 'Retired', color: 'var(--color-text-muted)', tone: 'neutral' },
+  in_storage: { label: 'In storage', color: 'var(--color-accent)', tone: 'neutral' },
+  lost: { label: 'Lost', color: 'var(--color-danger)', tone: 'bad' },
 };
 
 
@@ -38,24 +46,15 @@ export function dateUrgencyColor(dateStr) {
 
 export function StatusBadge({ status }) {
   const meta = STATUS_META[status] || STATUS_META.active;
-  return (
-    <span
-      className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
-      style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
-    >
-      {meta.label}
-    </span>
-  );
+  return <StatusChip tone={meta.tone} className="!text-xs">{meta.label}</StatusChip>;
 }
 
 export function CategoryBadge({ category }) {
   if (!category) return <span className="text-xs" style={{ color: MUTED }}>—</span>;
   return (
-    <span
-      className="inline-flex w-fit items-center gap-1 rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
-      style={{ backgroundColor: `color-mix(in srgb, ${category.color || MUTED} 13%, transparent)`, color: category.color || MUTED }}
-    >
-      <span>{category.icon}</span>
+    <span className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+      <span className="h-2 w-2 flex-shrink-0 rounded-sm" style={{ backgroundColor: category.color || MUTED }} />
+      {category.icon && <span aria-hidden="true">{category.icon}</span>}
       {category.name}
     </span>
   );
@@ -87,6 +86,8 @@ export default function Assets() {
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [assignedTo, setAssignedTo] = useState('');
   const [view, setView] = useState('table');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const pageHeight = useFullPageHeight();
   // Dashboard drill-down only, not a toolbar control: 'dueForReplacement' /
   // 'expiredWarranty'. Passed through to the API as ?quickFilter — it used to
   // be applied here after the fetch, which stopped being correct once the
@@ -159,85 +160,130 @@ export default function Assets() {
   // the filtered set.
   const filteredAssets = assets;
 
+  const activeFilterCount = [categoryId, departmentId, status, assignedTo, companyId].filter(Boolean).length;
+  // The four filter selects, as inline chips (desktop) or labelled fields in
+  // the phone Filters sheet. Each is named the same either way.
+  const filterSelects = (as) => {
+    const filters = [
+      ['Category', categoryId, setCategoryId, [['', 'All categories'], ...categories.map((c) => [String(c.id), c.name])]],
+      ['Department', departmentId, setDepartmentId, [['', 'All departments'], ...departments.map((d) => [String(d.id), d.name])]],
+      ['Status', status, setStatus, [['', 'All statuses'], ...Object.entries(STATUS_META).map(([k, m]) => [k, m.label])]],
+      ['Assigned to', assignedTo, setAssignedTo, [['', 'All'], ['assigned', 'Assigned'], ['unassigned', 'Unassigned']]],
+    ];
+    return filters.map(([label, value, set, options]) => {
+      const opts = options.map(([v, l]) => <option key={v} value={v}>{l}</option>);
+      if (as === 'chip') {
+        return <SelectChip key={label} label={label} value={value} onChange={(e) => set(e.target.value)} className="max-lg:hidden">{opts}</SelectChip>;
+      }
+      const id = `asset-filter-${label.replace(/\s+/g, '-').toLowerCase()}`;
+      return (
+        <div key={label}>
+          <label className="label" htmlFor={id}>{label}</label>
+          <select id={id} value={value} onChange={(e) => set(e.target.value)} className="input h-11 text-sm">{opts}</select>
+        </div>
+      );
+    });
+  };
+
   return (
-    <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
-      <AssetsSubNav />
-      <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Assets</h1>
-          {canCreate && (
-            <button type="button" onClick={() => setShowForm(true)} className="btn-primary hidden lg:inline-flex">
-              + New asset
-            </button>
+    <div style={{ padding: 0, height: pageHeight }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
+      <div className="flex-shrink-0 space-y-4 px-4 pb-4 pt-5 sm:px-6 lg:px-12 lg:pt-8">
+        <PageHeader
+          title="Assets"
+          sub={loading ? undefined : `${pager.total.toLocaleString()} asset${pager.total === 1 ? '' : 's'}`}
+          actions={(
+            <>
+              <div role="group" aria-label="View" className="hidden overflow-hidden rounded-md border border-navy-100 bg-surface md:inline-flex">
+                {[['table', 'Table'], ['card', 'Card']].map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={view === key}
+                    onClick={() => setView(key)}
+                    className={`h-10 px-3 text-sm lg:h-8 ${view === key ? 'font-semibold' : 'font-medium text-navy-500 hover:bg-[var(--color-hover)]'}`}
+                    style={view === key ? { backgroundColor: 'var(--color-accent-soft)', color: 'var(--color-accent)' } : undefined}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {canCreate && (
+                <Button variant="primary" onClick={() => setShowForm(true)} className="max-lg:hidden">
+                  + New asset
+                </Button>
+              )}
+            </>
           )}
+        />
+        <AssetsSubNav />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="relative min-w-0 flex-1 lg:w-80 lg:flex-none">
+            <IconSearch size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by asset tag, name, serial number, make, model…"
+              aria-label="Search assets"
+              className="input h-11 pl-9 text-sm lg:h-8 lg:pl-8 lg:text-[13px]"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            className="inline-flex h-11 flex-shrink-0 items-center gap-2 rounded-md border border-navy-100 bg-surface px-3 text-sm font-semibold text-navy-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent lg:hidden"
+          >
+            <IconAdjustmentsHorizontal size={16} aria-hidden="true" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-xs font-semibold" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <span className="contents max-lg:hidden">
+            <CompanyFilter value={companyId} onChange={setCompanyId} className="sel" />
+          </span>
+          {filterSelects('chip')}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by asset tag, name, serial number, make, model…"
-            className="input h-9 min-w-[220px] flex-1 text-sm"
-            style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }}
-          />
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="input h-9 flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT, maxWidth: '12rem' }}>
-            <option value="">All categories</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="input h-9 flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT, maxWidth: '11rem' }}>
-            <option value="">All departments</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-          <CompanyFilter value={companyId} onChange={setCompanyId} style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} />
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="input h-9 flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT, maxWidth: '10rem' }}>
-            <option value="">All statuses</option>
-            <option value="active">Active</option>
-            <option value="in_repair">In repair</option>
-            <option value="retired">Retired</option>
-            <option value="in_storage">In storage</option>
-            <option value="lost">Lost</option>
-          </select>
-          <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="input h-9 flex-shrink-0 text-sm" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT, maxWidth: '9rem' }}>
-            <option value="">All</option>
-            <option value="assigned">Assigned</option>
-            <option value="unassigned">Unassigned</option>
-          </select>
-          <div className="flex flex-shrink-0 rounded-md border" style={{ borderColor: BORDER }}>
-            <button type="button" onClick={() => setView('table')} className="rounded-l-md px-3 py-2 text-sm font-medium" style={{ backgroundColor: view === 'table' ? BLUE : CARD_BG, color: view === 'table' ? 'white' : TEXT }}>Table</button>
-            <button type="button" onClick={() => setView('card')} className="rounded-r-md px-3 py-2 text-sm font-medium" style={{ backgroundColor: view === 'card' ? BLUE : CARD_BG, color: view === 'card' ? 'white' : TEXT }}>Card</button>
-          </div>
-        </div>
-
-        {error && <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+        {error && <Notice tone="bad">{error}</Notice>}
       </div>
 
-      <div className="px-3 pb-4 sm:px-6 sm:pb-6" style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto' }}>
+      <FiltersSheet open={filtersOpen} onClose={() => setFiltersOpen(false)}>
+        <CompanyFilter value={companyId} onChange={setCompanyId} className="input h-11 text-sm" />
+        {filterSelects('sheet')}
+      </FiltersSheet>
+
+      <div className="px-4 pb-4 sm:px-6 sm:pb-6 lg:px-12" style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto' }}>
         {loading ? (
           <div className="flex h-full items-center justify-center"><Spinner /></div>
         ) : filteredAssets.length === 0 ? (
-          <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+          <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
             No assets found.
           </div>
-        ) : view === 'card' ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        ) : (
+          <>
+          <div className={`grid grid-cols-1 gap-3 md:gap-4 ${view === 'card' ? 'md:grid-cols-2 xl:grid-cols-3' : 'md:hidden'}`}>
             {filteredAssets.map((a) => (
               <Link
                 key={a.id}
                 to={`/assets/${a.id}`}
-                className="block rounded-[10px] border p-4 transition hover:shadow-md"
-                style={{ backgroundColor: CARD_BG, borderColor: BORDER }}
+                className="block min-w-0 rounded-xl border border-navy-100 bg-surface p-4 transition hover:bg-[var(--color-hover)]"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-mono text-xs font-semibold" style={{ color: MUTED }}>{a.assetTag}</p>
+                    <p className="num text-xs font-semibold" style={{ color: MUTED }}>{a.assetTag}</p>
                     <h2 className="truncate font-semibold" style={{ color: TEXT }}>{a.name}</h2>
                   </div>
                   <StatusBadge status={a.status} />
                 </div>
-                <div className="mt-2"><CategoryBadge category={a.category} /></div>
-                <p className="mt-2 text-sm" style={{ color: MUTED }}>{[a.make, a.model].filter(Boolean).join(' · ') || '—'}</p>
-                <p className="mt-1 text-sm" style={{ color: TEXT }}>{assignedToLabel(a) || <span style={{ color: MUTED }}>Unassigned</span>}</p>
-                <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  <CategoryBadge category={a.category} />
+                  <span style={{ color: assignedToLabel(a) ? TEXT : MUTED }}>{assignedToLabel(a) || 'Unassigned'}</span>
+                </div>
+                <p className="mt-1 text-sm max-md:hidden" style={{ color: MUTED }}>{[a.make, a.model].filter(Boolean).join(' · ') || '—'}</p>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-medium">
                   {a.warrantyExpiryDate && (
                     <span style={{ color: dateUrgencyColor(a.warrantyExpiryDate) }}>Warranty {a.warrantyExpiryDate}</span>
                   )}
@@ -248,32 +294,32 @@ export default function Assets() {
               </Link>
             ))}
           </div>
-        ) : (
-          <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+          {view === 'table' && (
+          <div className="hidden overflow-x-auto rounded-xl border border-navy-100 bg-surface md:block">
             <table className="min-w-full">
               <thead>
                 <tr>
                   {['Asset tag', 'Name', 'Category', 'Make/Model', 'Assigned to', 'Department', 'Status', 'Warranty expiry', 'Replacement plan', 'Actions'].map((h) => (
-                    <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}>{h}</th>
+                    <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredAssets.map((a) => (
                   <tr key={a.id} style={{ borderBottom: `1px solid ${BORDER}` }} className="hover:bg-[var(--color-hover)]">
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-sm" style={{ color: TEXT }}>
-                      <Link to={`/assets/${a.id}`} className="hover:underline">{a.assetTag}</Link>
+                    <td className="num whitespace-nowrap px-4 py-3 text-sm font-semibold">
+                      <Link to={`/assets/${a.id}`} className="hover:underline" style={{ color: BLUE }}>{a.assetTag}</Link>
                     </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: TEXT }}>
-                      <Link to={`/assets/${a.id}`} className="hover:underline">{a.name}</Link>
+                    <td className="px-4 py-3 text-sm font-semibold">
+                      <Link to={`/assets/${a.id}`} className="hover:underline" style={{ color: BLUE }}>{a.name}</Link>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3"><CategoryBadge category={a.category} /></td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{[a.make, a.model].filter(Boolean).join(' / ') || '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: TEXT }}>{assignedToLabel(a) || <span style={{ color: MUTED }}>Unassigned</span>}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{a.department?.name || '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3"><StatusBadge status={a.status} /></td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: dateUrgencyColor(a.warrantyExpiryDate) }}>{a.warrantyExpiryDate || '—'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: dateUrgencyColor(a.replacementPlanDate) }}>{a.replacementPlanDate || '—'}</td>
+                    <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: dateUrgencyColor(a.warrantyExpiryDate) }}>{a.warrantyExpiryDate || '—'}</td>
+                    <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: dateUrgencyColor(a.replacementPlanDate) }}>{a.replacementPlanDate || '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       <div className="flex items-center gap-3">
                         {canEdit && <Link to={`/assets/${a.id}`} style={{ color: BLUE }}>Edit</Link>}
@@ -287,6 +333,8 @@ export default function Assets() {
               </tbody>
             </table>
           </div>
+          )}
+          </>
         )}
       </div>
 
@@ -307,8 +355,8 @@ export default function Assets() {
         <button
           type="button"
           onClick={() => setShowForm(true)}
-          className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-semibold text-white shadow-lg lg:hidden"
-          style={{ backgroundColor: BLUE }}
+          className="fixed bottom-6 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-semibold shadow-lg lg:hidden"
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
           aria-label="New asset"
         >
           +

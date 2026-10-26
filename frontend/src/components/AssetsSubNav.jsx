@@ -12,21 +12,18 @@ const TABS = [
 
 export default function AssetsSubNav() {
   return (
-    <div className="flex gap-1 border-b" style={{ borderColor: 'var(--color-border)' }}>
+    <nav aria-label="Assets sections" className="flex gap-1 overflow-x-auto border-b border-navy-100">
       {TABS.map((t) => (
         <NavLink
           key={t.to}
           to={t.to}
           end
-          className="border-b-2 px-3 py-2 text-sm font-medium transition hover:opacity-80"
-          style={({ isActive }) => ({
-            color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-            borderColor: isActive ? 'var(--color-accent)' : 'transparent',
-          })}
+          className={({ isActive }) => `-mb-px flex-shrink-0 border-b-2 px-3.5 py-2.5 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent ${isActive ? 'font-semibold text-navy-900' : 'border-transparent font-medium text-navy-500 hover:text-navy-900'}`}
+          style={({ isActive }) => (isActive ? { borderBottomColor: 'var(--color-accent)' } : undefined)}
         >
           {t.label}
         </NavLink>
       ))}
-    </div>
+    </nav>
   );
 }
