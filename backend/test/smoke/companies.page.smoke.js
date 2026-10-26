@@ -42,3 +42,17 @@ it('a vendor company has a Vendor tab listing what was bought from it', async ()
   await page.getByText('DELL-9').waitFor();
   await models.AssetCategory.destroy({ where: { name: 'Laptops' } });
 });
+
+it('company status shows as a chip in the list, and a company page has a breadcrumb', async () => {
+  const admin = await makeAdmin();
+  const acme = await makeCompany(admin, { name: 'Acme' });
+  const page = await smoke.pageAs('admin');
+  await page.goto('/companies');
+  const status = page.getByRole('row').filter({ hasText: 'Acme' }).getByText('Active', { exact: true });
+  await status.waitFor();
+  expect(await status.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+
+  await page.goto(`/companies/${acme.id}`);
+  await page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Companies' }).click();
+  await page.waitForURL(/\/companies$/);
+});

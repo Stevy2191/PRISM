@@ -60,7 +60,7 @@ export default function VendorPicker({ value, onChange, style }) {
           {!results.length && !canCreate && <p className="px-2 py-1 text-sm">No vendor found.</p>}
         </div>
       )}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs" style={{ color: 'var(--color-danger)' }}>{error}</p>}
     </div>
   );
 }

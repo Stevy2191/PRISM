@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Modal from '../Modal';
 
@@ -55,7 +56,7 @@ export default function MergeCompanyModal({ company, onClose, onMerged }) {
   return (
     <Modal title={`Merge ${company.name}`} onClose={onClose}>
       <div className="space-y-4">
-        {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {error && <Notice tone="bad">{error}</Notice>}
         <div>
           <label className="label" htmlFor="merge-into">Merge into</label>
           <select id="merge-into" className="input" value={intoId} onChange={(e) => preview(e.target.value)}>
@@ -69,7 +70,7 @@ export default function MergeCompanyModal({ company, onClose, onMerged }) {
               <table className="w-full">
                 <tbody>
                   {moving.map(([key, n]) => (
-                    <tr key={key}><td className="py-0.5">{COUNT_LABELS[key] || key}</td><td className="py-0.5 text-right font-mono">{n}</td></tr>
+                    <tr key={key}><td className="py-0.5">{COUNT_LABELS[key] || key}</td><td className="py-0.5 text-right num">{n}</td></tr>
                   ))}
                 </tbody>
               </table>

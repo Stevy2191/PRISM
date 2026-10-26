@@ -9,6 +9,8 @@ import { assignableContactDepartments } from '../utils/contactDepartments';
 import ContactCompanyFields from '../components/companies/ContactCompanyFields';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
+import Notice from '../components/ui/Notice';
+import { useFullPageHeight } from '../hooks/useFullPageHeight';
 import { formatTicketId } from '../utils/ticketId';
 
 const BG = 'var(--color-bg)';
@@ -59,7 +61,7 @@ function StatusBadge({ status, statuses }) {
   const meta = statuses.find((s) => s.name === status);
   const color = meta?.color || MUTED;
   return (
-    <span className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}>
+    <span className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}>
       {status}
     </span>
   );
@@ -211,7 +213,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
         <ContactCompanyFields contact={contact} canEdit={canEdit} onSave={onSave} />
         {contact.status === 'inactive' && (
           <span
-            className="mt-2 rounded-[3px] px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide"
+            className="mt-2 rounded-full px-2.5 py-0.5 text-xs font-semibold"
             style={{ backgroundColor: BORDER, color: MUTED }}
           >
             Inactive
@@ -220,7 +222,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: MUTED }}>Assigned to</label>
+        <label className="mb-1 block text-xs font-semibold" style={{ color: MUTED }}>Assigned to</label>
         <select
           value={contact.assignedTo || ''}
           onChange={(e) => onSave({ assignedTo: e.target.value || null })}
@@ -234,7 +236,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
       </div>
 
       <div className="space-y-3 border-t pt-4" style={{ borderColor: BORDER }}>
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: MUTED }}>Contact details</p>
+        <p className="text-xs font-semibold" style={{ color: MUTED }}>Contact details</p>
         <div>
           <label className="mb-1 block text-xs" style={{ color: MUTED }}>Email</label>
           <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.email} onChange={(e) => setFields((f) => ({ ...f, email: e.target.value }))} onBlur={() => saveField('email')} />
@@ -255,7 +257,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
 
       <div className="border-t pt-4" style={{ borderColor: BORDER }}>
         <div className="mb-1 flex items-center justify-between">
-          <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: MUTED }}>Notes</label>
+          <label className="text-xs font-semibold" style={{ color: MUTED }}>Notes</label>
           <span className="text-xs" style={{ color: MUTED }}>{notesSaved ? 'Saved' : 'Saving…'}</span>
         </div>
         <textarea
@@ -296,7 +298,7 @@ function OverviewTab({ stats, recentTickets, statuses }) {
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+          <div key={c.label} className="rounded-xl border border-navy-100 bg-surface p-4">
             <p className="text-xs" style={{ color: MUTED }}>{c.label}</p>
             <p className="mt-1 text-2xl font-bold tracking-tight" style={{ color: TEXT }}>{c.value}</p>
           </div>
@@ -304,12 +306,12 @@ function OverviewTab({ stats, recentTickets, statuses }) {
       </div>
       <div>
         <h3 className="mb-2 text-sm font-semibold" style={{ color: TEXT }}>Recent tickets</h3>
-        <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
-          <ul className="divide-y" style={{ borderColor: BORDER }}>
+        <div className="rounded-xl border border-navy-100 bg-surface">
+          <ul className="divide-y divide-navy-100">
             {recentTickets.map((t) => (
               <li key={t.id} className="flex items-center justify-between px-4 py-3 text-sm">
                 <Link to={`/tickets/${t.id}`} className="flex min-w-0 items-center gap-3 hover:underline">
-                  <span className="font-mono text-xs" style={{ color: MUTED }}>{formatTicketId(t)}</span>
+                  <span className="num text-xs" style={{ color: MUTED }}>{formatTicketId(t)}</span>
                   <span className="truncate" style={{ color: TEXT }}>{t.title}</span>
                 </Link>
                 <div className="flex flex-shrink-0 items-center gap-3">
@@ -355,12 +357,12 @@ function TicketsTab({ tickets, statuses, total, onLoadMore }) {
           </button>
         ))}
       </div>
-      <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+      <div className="overflow-x-auto rounded-xl border border-navy-100 bg-surface">
         <table className="min-w-full">
           <thead>
             <tr>
               {['#', 'Title', 'Status', 'Priority', 'Assignee', 'Created', 'Updated'].map((h) => (
-                <th key={h} className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: MUTED, borderBottom: `1px solid ${BORDER}` }}>{h}</th>
+                <th key={h} className="px-4 py-2 text-left text-xs font-semibold" style={{ color: MUTED, borderBottom: `1px solid ${BORDER}` }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -369,7 +371,7 @@ function TicketsTab({ tickets, statuses, total, onLoadMore }) {
               const priorityMeta = PRIORITY_META[t.priority] || PRIORITY_META.medium;
               return (
                 <tr key={t.id} className="cursor-pointer border-t hover:bg-[var(--color-hover)]" style={{ borderColor: BORDER }}>
-                  <td className="px-4 py-2.5 text-xs font-mono" style={{ color: MUTED }}>
+                  <td className="px-4 py-2.5 text-xs num" style={{ color: MUTED }}>
                     <Link to={`/tickets/${t.id}`} className="hover:underline">{formatTicketId(t)}</Link>
                   </td>
                   <td className="px-4 py-2.5 text-sm">
@@ -406,8 +408,8 @@ const ACTIVITY_LABELS = {
 
 function ActivityTab({ activity, total, onLoadMore }) {
   return (
-    <div className="rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
-      <ul className="divide-y" style={{ borderColor: BORDER }}>
+    <div className="rounded-xl border border-navy-100 bg-surface">
+      <ul className="divide-y divide-navy-100">
         {activity.map((a) => (
           <li key={a.id} className="flex items-center justify-between px-4 py-3 text-sm">
             <span style={{ color: TEXT }}>
@@ -448,6 +450,7 @@ export default function ContactDetail() {
   const [collapsed, setCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const pageHeight = useFullPageHeight();
 
   // Growing page size rather than accumulated pages — same reason as the
   // ticket detail page: both lists are refetched after edits.
@@ -531,13 +534,13 @@ export default function ContactDetail() {
   };
 
   if (loading) return <div className="flex h-full items-center justify-center"><Spinner /></div>;
-  if (error) return <div className="m-6 rounded-md bg-red-50 p-4 text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!contact) return null;
 
   return (
     <div
-      style={{ backgroundColor: BG }}
-      className="-mx-4 -my-4 flex flex-col overflow-visible sm:-mx-6 sm:-my-8 md:h-screen md:flex-row md:overflow-hidden"
+      style={{ backgroundColor: BG, '--page-h': pageHeight }}
+      className="-mx-4 -my-4 flex flex-col overflow-visible sm:-mx-6 sm:-my-8 md:h-[var(--page-h)] md:flex-row md:overflow-hidden"
     >
       <div className="hidden md:contents">
         <ContactRail
@@ -562,27 +565,28 @@ export default function ContactDetail() {
       />
 
       <div className="flex flex-1 flex-col overflow-visible md:overflow-hidden">
-        <div className="flex-shrink-0 border-b px-3 py-4 sm:px-6" style={{ borderColor: BORDER }}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex-shrink-0 px-4 pt-4 sm:px-6 sm:pt-5">
+          <div className="flex flex-wrap items-end justify-between gap-2 border-b border-navy-100">
             <div className="flex gap-1 overflow-x-auto">
               {['Overview', 'Tickets', 'Activity'].map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTab(t)}
-                  className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium"
-                  style={{ backgroundColor: tab === t ? BLUE : 'transparent', color: tab === t ? 'white' : MUTED }}
+                  aria-pressed={tab === t}
+                  className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent ${tab === t ? 'font-semibold text-navy-900' : 'border-transparent font-medium text-navy-500 hover:text-navy-900'}`}
+                  style={tab === t ? { borderBottomColor: BLUE } : undefined}
                 >
                   {t}
                 </button>
               ))}
             </div>
             {canDelete && (
-              <button type="button" onClick={() => deleteContact(false)} className="btn-danger">Delete</button>
+              <button type="button" onClick={() => deleteContact(false)} className="btn-danger mb-2">Delete</button>
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-visible p-3 sm:p-6 md:overflow-y-auto">
+        <div className="flex-1 overflow-visible p-4 sm:p-6 md:overflow-y-auto">
           {tab === 'Overview' && stats && <OverviewTab stats={stats} recentTickets={recentTickets} statuses={statuses} />}
           {tab === 'Tickets' && (
             <TicketsTab

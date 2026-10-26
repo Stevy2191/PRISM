@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import Notice from '../ui/Notice';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -38,7 +39,7 @@ export default function CompanySites({ company }) {
 
   return (
     <div className="space-y-4">
-      {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {error && <Notice tone="bad">{error}</Notice>}
       <table className="min-w-full text-sm">
         <thead><tr>{['Site', 'Address', 'Status', ''].map((h) => <th key={h} className="table-th">{h}</th>)}</tr></thead>
         <tbody>

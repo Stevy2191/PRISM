@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Notice from '../ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Modal from '../Modal';
 
@@ -29,7 +30,7 @@ export default function CompanyFormModal({ onClose, onSaved }) {
   return (
     <Modal title="New company" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {error && <Notice tone="bad">{error}</Notice>}
         <div>
           <label className="label" htmlFor="company-name">Name</label>
           <input id="company-name" className="input" value={form.name} onChange={set('name')} autoFocus />

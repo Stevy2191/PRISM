@@ -3,6 +3,7 @@ import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { useCompanySummary } from '../../context/CompanyContext';
 import { useToast } from '../../context/ToastContext';
+import Notice from '../ui/Notice';
 
 // Overview tab: the company's fields, email domains and account manager.
 export default function CompanyOverview({ company, onSaved }) {
@@ -59,8 +60,11 @@ export default function CompanyOverview({ company, onSaved }) {
 
   return (
     <div className="space-y-5">
-      {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-      <form onSubmit={save} className="card grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
+      {error && <Notice tone="bad">{error}</Notice>}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="card min-w-0">
+      <h2 className="panel-header text-[15px] font-semibold text-navy-900">Details</h2>
+      <form onSubmit={save} className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
         <div><label className="label" htmlFor="co-name">Name</label><input id="co-name" className="input" value={form.name} disabled={!canManage} onChange={set('name')} /></div>
         <div>
           <label className="label" htmlFor="co-manager">Account manager</label>
@@ -90,25 +94,27 @@ export default function CompanyOverview({ company, onSaved }) {
         <div className="sm:col-span-2"><label className="label" htmlFor="co-notes">Notes</label><textarea id="co-notes" className="input" rows={3} value={form.notes} disabled={!canManage} onChange={set('notes')} /></div>
         {canManage && <div className="sm:col-span-2"><button type="submit" className="btn-primary">Save</button></div>}
       </form>
+      </section>
 
-      <div className="card space-y-3 p-5">
-        <p className="eyebrow">Email domains</p>
-        <p className="text-sm" style={{ color: 'var(--color-muted)' }}>New contacts emailing from these domains are filed under {company.name}.</p>
-        <ul className="space-y-1 text-sm">
+      <section className="card min-w-0">
+        <h2 className="panel-header text-[15px] font-semibold text-navy-900">Email domains</h2>
+        <p className="px-5 pt-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>New contacts emailing from these domains are filed under {company.name}.</p>
+        <ul className="divide-y divide-navy-100 text-sm">
           {(company.domains || []).map((d) => (
-            <li key={d.id} className="flex items-center gap-3">
-              <span className="font-mono">{d.domain}</span>
-              {canManage && <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => removeDomain(d)}>Remove</button>}
+            <li key={d.id} className="flex items-center justify-between gap-3 px-5 py-3">
+              <span className="num min-w-0 break-all text-navy-900">{d.domain}</span>
+              {canManage && <button type="button" className="text-xs font-semibold hover:underline" style={{ color: 'var(--color-danger)' }} onClick={() => removeDomain(d)}>Remove</button>}
             </li>
           ))}
-          {!(company.domains || []).length && <li style={{ color: 'var(--color-muted)' }}>No domains.</li>}
+          {!(company.domains || []).length && <li className="px-5 py-3" style={{ color: 'var(--color-text-muted)' }}>No domains.</li>}
         </ul>
         {canManage && (
-          <div className="flex gap-2">
-            <input aria-label="New domain" className="input h-9 text-sm" placeholder="example.com" value={domain} onChange={(e) => setDomain(e.target.value)} />
-            <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={addDomain} disabled={!domain.trim()}>Add domain</button>
+          <div className="flex gap-2 border-t border-navy-100 p-4">
+            <input aria-label="New domain" className="input h-9 min-w-0 text-sm" placeholder="example.com" value={domain} onChange={(e) => setDomain(e.target.value)} />
+            <button type="button" className="btn-secondary h-9 flex-shrink-0 px-3 text-sm" onClick={addDomain} disabled={!domain.trim()}>Add domain</button>
           </div>
         )}
+      </section>
       </div>
     </div>
   );

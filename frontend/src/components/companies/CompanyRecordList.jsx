@@ -25,7 +25,7 @@ export default function CompanyRecordList({ kind, companyId, vendorCompanyId }) 
       .catch((err) => setError(err.response?.status === 403 ? "You don't have access to these records." : errMessage(err)));
   }, [spec, companyId, vendorCompanyId]);
 
-  if (error) return <p className="text-sm" style={{ color: 'var(--color-muted)' }}>{error}</p>;
+  if (error) return <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{error}</p>;
   if (!rows) return null;
   return (
     <div className="space-y-2">

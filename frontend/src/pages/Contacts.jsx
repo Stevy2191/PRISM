@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { usePagination } from '../hooks/usePagination';
 import Pagination from '../components/Pagination';
-import { initials } from '../utils/userDisplay';
+import PersonAvatar from '../components/ui/Avatar';
 import { formatPhone } from '../utils/formatPhone';
 import { useAuth, useAnyPermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
@@ -12,6 +12,13 @@ import ImportContactsModal from '../components/ImportContactsModal';
 import CompanyPicker from '../components/companies/CompanyPicker';
 import CompanyFilter from '../components/companies/CompanyFilter';
 import CompanyTag from '../components/companies/CompanyTag';
+import { IconSearch } from '@tabler/icons-react';
+import { useFullPageHeight } from '../hooks/useFullPageHeight';
+import PageHeader from '../components/ui/PageHeader';
+import SelectChip from '../components/ui/SelectChip';
+import Pill from '../components/ui/Pill';
+import Notice from '../components/ui/Notice';
+import Button from '../components/ui/Button';
 
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
@@ -33,15 +40,7 @@ function Avatar({ name, size = 32 }) {
       </span>
     );
   }
-  return (
-    <span
-      title={name}
-      className="flex flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-      style={{ width: size, height: size, backgroundColor: BLUE }}
-    >
-      {initials(name)}
-    </span>
-  );
+  return <PersonAvatar name={name} size={size} />;
 }
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -149,7 +148,7 @@ function NewContactModal({ departments, assignableUsers, currentUserId, onClose,
   return (
     <Modal title="New contact" onClose={onClose} wide>
       <form onSubmit={submit} className="space-y-4">
-        {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {error && <Notice tone="bad">{error}</Notice>}
         <CompanyPicker value={form.companyId} onChange={(v) => setForm((f) => ({ ...f, companyId: v, departmentId: '' }))} style={fieldStyle} />
         {/* A contact's department belongs to its company (spec). */}
         <ContactFormFields
@@ -191,6 +190,7 @@ export default function Contacts() {
 
   const [showNew, setShowNew] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const pageHeight = useFullPageHeight();
 
   const rowRefs = useRef(new Map());
 
@@ -294,81 +294,53 @@ export default function Contacts() {
   };
 
   return (
-    <div style={{ padding: 0, height: '100vh' }} className="-mx-4 -my-4 flex flex-col overflow-hidden sm:-mx-6 sm:-my-8">
+    <div style={{ padding: 0, height: pageHeight }} className="-mx-4 -my-4 flex flex-col overflow-hidden sm:-mx-6 sm:-my-8">
       <div style={{ backgroundColor: BG }} className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>Contacts</h1>
-              <p className="text-sm" style={{ color: MUTED }}>{pager.total.toLocaleString()} contact{pager.total === 1 ? '' : 's'}</p>
-            </div>
-            {canEdit && (
-              <div className="flex gap-2">
-                <button onClick={() => setShowImport(true)} className="btn-secondary">Import</button>
-                <button onClick={() => setShowNew(true)} className="btn-primary">+ New contact</button>
-              </div>
+        <div className="flex-shrink-0 space-y-4 px-4 pb-4 pt-5 sm:px-6 lg:px-12 lg:pt-8">
+          <PageHeader
+            title="Contacts"
+            sub={`${pager.total.toLocaleString()} contact${pager.total === 1 ? '' : 's'}`}
+            actions={canEdit && (
+              <>
+                <Button onClick={() => setShowImport(true)}>Import</Button>
+                <Button variant="primary" onClick={() => setShowNew(true)}>+ New contact</Button>
+              </>
             )}
-          </div>
+          />
 
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, email, or phone…"
-              className="input h-9 flex-1 text-sm"
-              style={{ ...fieldStyle, minWidth: '14rem' }}
-            />
-            <select
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
-              className="input h-9 flex-shrink-0 text-sm"
-              style={{ ...fieldStyle, maxWidth: '11rem' }}
-            >
+            <label className="relative w-full min-w-0 sm:w-80">
+              <IconSearch size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, email, or phone…"
+                aria-label="Search contacts"
+                className="input h-11 pl-9 text-sm lg:h-8 lg:pl-8 lg:text-[13px]"
+              />
+            </label>
+            <SelectChip label="Department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
               <option value="">All departments</option>
               {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-            <CompanyFilter value={companyId} onChange={setCompanyId} style={fieldStyle} />
-            <select
-              value={assignedTo}
-              onChange={(e) => setAssignedTo(e.target.value)}
-              className="input h-9 flex-shrink-0 text-sm"
-              style={{ ...fieldStyle, maxWidth: '11rem' }}
-            >
+            </SelectChip>
+            <CompanyFilter value={companyId} onChange={setCompanyId} className="sel" />
+            <SelectChip label="Assigned to" showLabel={false} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
               <option value="">Assigned to (anyone)</option>
               {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-            </select>
-            <button
-              type="button"
-              onClick={() => setMyContacts((v) => !v)}
-              className="h-9 flex-shrink-0 rounded-md border px-3 text-sm font-medium"
-              style={{ borderColor: myContacts ? BLUE : BORDER, backgroundColor: myContacts ? BLUE : CARD_BG, color: myContacts ? 'white' : TEXT }}
-            >
-              My contacts
-            </button>
-            <button
-              type="button"
-              onClick={() => setNoDept((v) => !v)}
-              className="h-9 flex-shrink-0 rounded-md border px-3 text-sm font-medium"
-              style={{ borderColor: noDept ? BLUE : BORDER, backgroundColor: noDept ? BLUE : CARD_BG, color: noDept ? 'white' : TEXT }}
-            >
-              No department
-            </button>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="input h-9 flex-shrink-0 text-sm"
-              style={{ ...fieldStyle, maxWidth: '9rem' }}
-            >
+            </SelectChip>
+            <SelectChip label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">All statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
-            </select>
+            </SelectChip>
+            <Pill on={myContacts} onClick={() => setMyContacts((v) => !v)}>My contacts</Pill>
+            <Pill on={noDept} onClick={() => setNoDept((v) => !v)}>No department</Pill>
           </div>
         </div>
 
-        {error && <div className="mx-6 rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
+        {error && <Notice tone="bad" className="mx-4 mb-3 sm:mx-6 lg:mx-12">{error}</Notice>}
 
-        <div className="flex flex-1 flex-col overflow-hidden px-3 pb-4 sm:px-6 sm:pb-6 md:flex-row">
+        <div className="flex flex-1 flex-col overflow-hidden px-4 pb-4 sm:px-6 sm:pb-6 md:flex-row lg:px-12">
           {sortBy === 'lastName' && contacts.length > 0 && (
             <div
               className="order-1 mb-2 flex flex-shrink-0 gap-0.5 overflow-x-auto py-1 md:order-2 md:mb-0 md:ml-2 md:flex-col md:items-center md:justify-center md:overflow-visible md:py-2"
@@ -391,7 +363,7 @@ export default function Contacts() {
             </div>
           )}
 
-          <div className="order-2 flex-1 overflow-auto rounded-[10px] border md:order-1" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+          <div className="order-2 flex-1 overflow-auto rounded-xl border md:order-1 border-navy-100 bg-surface">
             {loading ? (
               <div className="flex h-full items-center justify-center p-8"><Spinner /></div>
             ) : contacts.length === 0 ? (
@@ -405,7 +377,7 @@ export default function Contacts() {
                       key={c.id}
                       to={`/contacts/${c.id}`}
                       ref={(el) => { if (el) rowRefs.current.set(c.id, el); }}
-                      className="block rounded-[10px] border p-3"
+                      className="block rounded-xl border p-3"
                       style={{ borderColor: BORDER, opacity: c.status === 'inactive' ? 0.6 : 1 }}
                     >
                       <div className="flex items-center gap-3">
@@ -415,7 +387,7 @@ export default function Contacts() {
                             <span className="truncate font-semibold" style={{ color: TEXT }}>{c.displayName}</span>
                             {c.status === 'inactive' && (
                               <span
-                                className="flex-shrink-0 rounded-[3px] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                 style={{ backgroundColor: BORDER, color: MUTED }}
                               >
                                 Inactive
@@ -423,7 +395,7 @@ export default function Contacts() {
                             )}
                           </div>
                           {c.department ? (
-                            <span className="mt-0.5 inline-flex rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
+                            <span className="mt-0.5 inline-flex rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
                               {c.department.name}
                             </span>
                           ) : (
@@ -447,14 +419,14 @@ export default function Contacts() {
                       <th
                         key={col.key}
                         onClick={() => toggleSort(col.key)}
-                        className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
+                        className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold"
                         style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}
                       >
                         {col.label} {sortBy === col.key ? (sortDir === 'asc' ? '▲' : '▼') : ''}
                       </th>
                     ))}
                     {['Department', 'Phone', 'Assigned to', 'Tickets', 'Last ticket'].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}>
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}>
                         {h}
                       </th>
                     ))}
@@ -471,13 +443,13 @@ export default function Contacts() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Avatar name={c.displayName} />
-                          <Link to={`/contacts/${c.id}`} className="font-semibold hover:underline" style={{ color: TEXT }}>
+                          <Link to={`/contacts/${c.id}`} className="whitespace-nowrap font-semibold hover:underline" style={{ color: TEXT }}>
                             {c.displayName}
                           </Link>
                           <CompanyTag company={c.company} />
                           {c.status === 'inactive' && (
                             <span
-                              className="flex-shrink-0 rounded-[3px] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                              className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
                               style={{ backgroundColor: BORDER, color: MUTED }}
                             >
                               Inactive
@@ -486,20 +458,20 @@ export default function Contacts() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.email || '—'}</td>
-                      <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.createdAt ? c.createdAt.slice(0, 10) : '—'}</td>
+                      <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{c.createdAt ? c.createdAt.slice(0, 10) : '—'}</td>
                       <td className="px-4 py-3">
                         {c.department ? (
-                          <span className="rounded-[3px] px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>
+                          <span className="whitespace-nowrap rounded px-1.5 py-px text-xs font-semibold" style={{ backgroundColor: 'var(--color-accent-soft)', color: BLUE }}>
                             {c.department.name}
                           </span>
                         ) : (
-                          <span className="text-xs" style={{ color: MUTED }}>No department</span>
+                          <span className="whitespace-nowrap text-sm" style={{ color: MUTED }}>No department</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.phone ? formatPhone(c.phone) : '—'}</td>
+                      <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{c.phone ? formatPhone(c.phone) : '—'}</td>
                       <td className="px-4 py-3">
                         {c.assignedToUser ? (
-                          <span className="flex items-center gap-2 text-sm" style={{ color: TEXT }}>
+                          <span className="flex items-center gap-2 whitespace-nowrap text-sm" style={{ color: TEXT }}>
                             <Avatar name={c.assignedToUser.displayName} size={22} /> {c.assignedToUser.displayName}
                           </span>
                         ) : (
@@ -507,7 +479,7 @@ export default function Contacts() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: TEXT }}>{c.ticketCount || 0}</td>
-                      <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.lastTicketAt ? c.lastTicketAt.slice(0, 10) : '—'}</td>
+                      <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{c.lastTicketAt ? c.lastTicketAt.slice(0, 10) : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -11,21 +11,27 @@ const { resetRateLimits } = require('../../src/middleware/rateLimit');
 const PHONE = { viewport: { width: 375, height: 812 } };
 const LONG_COMPANY = 'Riverside Family Clinic and Associated Practices of the Greater Valley';
 
-// { name, path, as = 'admin', before?: async (page) => void }; as: null is signed out.
+// { name, path, as = 'admin', before?: async (page) => void }; as: null is
+// signed out; path may be a function of the seeded world.
 const PHONE_ROUTES = [
   { name: 'tickets', path: '/tickets' },
   { name: 'dashboard', path: '/dashboard' },
   { name: 'assets', path: '/assets' },
+  { name: 'contacts', path: '/contacts' },
+  { name: 'a contact', path: () => `/contacts/${w.contact.id}` },
+  { name: 'companies', path: '/companies' },
+  { name: 'a long-named company', path: () => `/companies/${longCompany.id}` },
   { name: 'tickets board', path: '/tickets', before: (p) => p.getByRole('button', { name: 'Board' }).first().click() },
 ];
 
 let smoke;
 let w;
+let longCompany;
 beforeAll(async () => {
   smoke = await startSmoke();
   await resetData();
   w = await makeWorld();
-  await makeCompany(w.admin, { name: LONG_COMPANY });
+  longCompany = await makeCompany(w.admin, { name: LONG_COMPANY });
   await makeTicket(w.admin.agent, { title: 'X'.repeat(200), contactId: w.contact.id, departmentId: w.deptA.id });
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
@@ -54,7 +60,7 @@ it('Filters sheet: opens, traps Tab, Esc closes and focus returns', async () => 
 
 it.each(PHONE_ROUTES.map((r) => [r.name, r]))('no horizontal page scroll at 375px: %s', async (_name, route) => {
   const page = await phonePage(route.as === undefined ? 'admin' : route.as);
-  await page.goto(route.path);
+  await page.goto(typeof route.path === 'function' ? route.path() : route.path);
   await page.waitForLoadState('networkidle');
   if (route.before) await route.before(page);
   await page.waitForTimeout(300);

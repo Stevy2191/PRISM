@@ -9,10 +9,20 @@ import Spinner from '../../components/Spinner';
 import CompanyFormModal from '../../components/companies/CompanyFormModal';
 import MergeCompanyModal from '../../components/companies/MergeCompanyModal';
 import SettingsPage from '../../components/settings/SettingsPage';
+import { IconSearch } from '@tabler/icons-react';
+import PageHeader from '../../components/ui/PageHeader';
+import SelectChip from '../../components/ui/SelectChip';
+import StatusChip from '../../components/ui/StatusChip';
+import Notice from '../../components/ui/Notice';
+import Button from '../../components/ui/Button';
 
 export function CompanyFlags({ company }) {
   const flags = [company.isInternal && 'Internal', company.isClient && 'Client', company.isVendor && 'Vendor'].filter(Boolean);
-  return <span className="flex flex-wrap gap-1">{flags.map((f) => <span key={f} className="badge">{f}</span>)}</span>;
+  return (
+    <span className="flex flex-wrap gap-1">
+      {flags.map((f) => <span key={f} className="rounded-full border border-navy-100 px-2 py-px text-xs font-medium text-navy-600">{f}</span>)}
+    </span>
+  );
 }
 
 // Settings → Companies (always present) and the Companies nav tab (once a
@@ -46,22 +56,25 @@ export default function CompaniesList({ inSettings = false }) {
 
   const changed = () => { load(); refreshSummary(); };
 
-  const newButton = canManage && <button type="button" className="btn-primary" onClick={() => setCreating(true)}>+ New company</button>;
+  const newButton = canManage && <Button variant="primary" onClick={() => setCreating(true)}>+ New company</Button>;
   const body = (
     <>
-        {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
-        <div className="flex flex-wrap gap-2">
-          <input aria-label="Search companies" className="input h-9 flex-1 text-sm" style={{ minWidth: '14rem' }} placeholder="Search companies…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select aria-label="Kind" className="input h-9 text-sm" style={{ maxWidth: '10rem' }} value={kind} onChange={(e) => setKind(e.target.value)}>
+        {error && <Notice tone="bad">{error}</Notice>}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="relative w-full min-w-0 sm:w-72">
+            <IconSearch size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
+            <input aria-label="Search companies" className="input h-11 pl-9 text-sm lg:h-8 lg:pl-8 lg:text-[13px]" placeholder="Search companies…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </label>
+          <SelectChip label="Kind" value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="">All kinds</option>
             <option value="client">Clients</option>
             <option value="vendor">Vendors</option>
-          </select>
-          <select aria-label="Status" className="input h-9 text-sm" style={{ maxWidth: '9rem' }} value={status} onChange={(e) => setStatus(e.target.value)}>
+          </SelectChip>
+          <SelectChip label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
             <option value="">Any status</option>
-          </select>
+          </SelectChip>
         </div>
         {loading ? <Spinner /> : (
           <div className="card overflow-x-auto">
@@ -74,11 +87,11 @@ export default function CompaniesList({ inSettings = false }) {
               <tbody>
                 {companies.map((c) => (
                   <tr key={c.id} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
-                    <td className="table-td"><Link to={`/companies/${c.id}`} className="font-semibold hover:underline">{c.name}</Link></td>
+                    <td className="table-td"><Link to={`/companies/${c.id}`} className="font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>{c.name}</Link></td>
                     <td className="table-td"><CompanyFlags company={c} /></td>
-                    <td className="table-td">{c.status === 'active' ? 'Active' : 'Inactive'}</td>
-                    <td className="table-td font-mono">{c.contactCount}</td>
-                    <td className="table-td font-mono">{c.openTicketCount}</td>
+                    <td className="table-td"><StatusChip tone={c.status === 'active' ? 'good' : 'neutral'} className="!text-xs">{c.status === 'active' ? 'Active' : 'Inactive'}</StatusChip></td>
+                    <td className="table-td num">{c.contactCount}</td>
+                    <td className="table-td num">{c.openTicketCount}</td>
                     <td className="table-td text-right">
                       {canManage && !c.isInternal && (
                         <button type="button" className="btn-secondary h-8 px-3 text-xs" onClick={() => setMerging(c)}>Merge into…</button>
@@ -99,11 +112,8 @@ export default function CompaniesList({ inSettings = false }) {
   // In Settings it sits in the Settings frame; on /companies it has its own header.
   if (inSettings) return <SettingsPage title="Companies & vendors" actions={newButton}>{body}</SettingsPage>;
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-navy-900">Companies</h1>
-        {newButton}
-      </div>
+    <div className="mx-auto max-w-[1144px] space-y-5 lg:px-6">
+      <PageHeader title="Companies" sub={loading ? undefined : `${pager.total.toLocaleString()} compan${pager.total === 1 ? 'y' : 'ies'}`} actions={newButton} />
       {body}
     </div>
   );

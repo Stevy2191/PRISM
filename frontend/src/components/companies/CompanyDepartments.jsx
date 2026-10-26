@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import Notice from '../ui/Notice';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,10 +33,10 @@ export default function CompanyDepartments({ company }) {
 
   return (
     <div className="space-y-4">
-      {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {error && <Notice tone="bad">{error}</Notice>}
       <ul className="space-y-1 text-sm">
-        {departments.map((d) => <li key={d.id}>{d.name}{d.shortCode ? <span className="ml-2 font-mono text-xs">{d.shortCode}</span> : null}</li>)}
-        {!departments.length && <li style={{ color: 'var(--color-muted)' }}>No departments yet.</li>}
+        {departments.map((d) => <li key={d.id}>{d.name}{d.shortCode ? <span className="ml-2 num text-xs">{d.shortCode}</span> : null}</li>)}
+        {!departments.length && <li style={{ color: 'var(--color-text-muted)' }}>No departments yet.</li>}
       </ul>
       {canAdd && (
         <form onSubmit={add} className="flex flex-wrap gap-2">

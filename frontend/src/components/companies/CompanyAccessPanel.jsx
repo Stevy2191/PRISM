@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Notice from '../ui/Notice';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { useCompanySummary } from '../../context/CompanyContext';
@@ -31,7 +32,7 @@ export default function CompanyAccessPanel({ userId, roleId, readOnly = false })
   }, [allowed, url, userId]);
 
   if (!allowed) return null;
-  if (!access) return error ? <p className="text-sm text-red-600">{error}</p> : null;
+  if (!access) return error ? <p className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</p> : null;
   if (access.unfenceable) {
     return <div className="card p-4 text-sm">System Administrators always reach every company.</div>;
   }
@@ -53,8 +54,8 @@ export default function CompanyAccessPanel({ userId, roleId, readOnly = false })
   return (
     <fieldset disabled={readOnly} className="card mt-5 space-y-3 p-5">
       <p className="eyebrow">Company access</p>
-      {roleId && <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Everyone with this role also reaches these companies.</p>}
-      {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {roleId && <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Everyone with this role also reaches these companies.</p>}
+      {error && <Notice tone="bad">{error}</Notice>}
       {userId && (
         <div className="flex gap-6 text-sm">
           <label className="flex items-center gap-2"><input type="radio" name="company-access" checked={all} onChange={() => setAll(true)} /> All companies</label>

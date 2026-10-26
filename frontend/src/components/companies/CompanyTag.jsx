@@ -4,5 +4,5 @@ import { useCompanySummary } from '../../context/CompanyContext';
 export default function CompanyTag({ company }) {
   const { multiCompany } = useCompanySummary();
   if (!multiCompany || !company) return null;
-  return <span className="text-xs" style={{ color: 'var(--color-muted)' }}> · {company.name}</span>;
+  return <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}> · {company.name}</span>;
 }
