@@ -236,6 +236,19 @@ describe('unblocked notifications', () => {
     expect(await unblockedFor(w.admin.user.id)).toBe(0); // not the actor
   });
 
+  it('a failing notice does not turn the saved status change into a 500', async () => {
+    await finish(a);
+    const spy = jest.spyOn(models.Notification, 'create').mockRejectedValue(new Error('notice store down'));
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect((await patch(b, { statusId: DONE })).status).toBe(200);
+    } finally {
+      spy.mockRestore();
+      err.mockRestore();
+    }
+    expect((await getTask(b)).statusId).toBe(DONE);
+  });
+
   it('finishing one of two predecessors notifies nobody', async () => {
     await finish(a);
     expect(await models.Notification.count({ where: { type: 'task_unblocked' } })).toBe(0);

@@ -315,6 +315,12 @@ export default function ProjectDetail() {
             const { data } = await api.get(`/projects/${id}/members`);
             setMembers(data.members);
           }}
+          onPromote={async (userId) => {
+            // Adding an existing helper makes them a member (the server upgrades the row).
+            try { await api.post(`/projects/${id}/members`, { userId }); } catch (err) { alert(errMessage(err)); }
+            const { data } = await api.get(`/projects/${id}/members`);
+            setMembers(data.members);
+          }}
         />
       )}
       {tab === 'files' && (
@@ -401,7 +407,7 @@ export default function ProjectDetail() {
       {showAddPerson && (
         <AddPersonModal
           directory={directory}
-          existingIds={members.map((m) => m.userId)}
+          existingIds={members.filter((m) => m.role !== 'helper').map((m) => m.userId)}
           onClose={() => setShowAddPerson(false)}
           onSave={async (payload) => {
             await api.post(`/projects/${id}/members`, payload);

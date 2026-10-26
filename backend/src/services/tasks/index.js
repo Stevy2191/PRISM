@@ -414,7 +414,10 @@ async function updateTask(req, parent, task, body = {}) {
     await recordTaskEvent(req, parent, task, 'updated', { from: null, to: fields.join(', '), detail: { fields } });
   }
   await audit(req, parent, 'update', task, { fields: Object.keys(changes) });
-  if (parent.kind === 'project' && statusEvent === 'closed') await dependencies.notifyUnblocked(task, req.user.id);
+  if (parent.kind === 'project' && statusEvent === 'closed') {
+    // The task is saved; a failed notice must not turn that into a 500.
+    try { await dependencies.notifyUnblocked(task, req.user.id); } catch (err) { console.error('[tasks] unblocked notice failed:', err.message); }
+  }
   const json = await loadTask(parent, task.id, req.user);
   // A due date moved later: offer to move what waits on this task by as much.
   const offer = parent.kind === 'project' && changes.dueDate !== undefined
@@ -426,17 +429,26 @@ async function updateTask(req, parent, task, body = {}) {
 // The task and its subtasks go; their time, expenses, materials, files and
 // running timers stay, on no task (the work happened).
 async function deleteTask(req, parent, task) {
-  await sequelize.transaction(async (transaction) => {
+  // Lazy: projects/helpers loads this module.
+  const projectHelpers = parent.kind === 'project' ? require('../projects/helpers') : null; // eslint-disable-line global-require
+  const dropped = await sequelize.transaction(async (transaction) => {
     const subtasks = await Task.findAll({ where: { parentTaskId: task.id }, attributes: ['id'], transaction });
     const ids = [task.id, ...subtasks.map((s) => s.id)];
     const unlink = [TimeEntry, ActiveTimer, ...(parent.kind === 'project' ? [ProjectExpense, ProjectMaterial, ProjectFile] : [])];
     for (const Model of unlink) {
       await Model.update({ taskId: null }, { where: { taskId: ids }, transaction }); // eslint-disable-line no-await-in-loop
     }
+    const helperIds = projectHelpers
+      ? (await TaskAssignee.findAll({ where: { taskId: ids }, attributes: ['userId'], raw: true, transaction })).map((r) => r.userId)
+      : [];
+    await TaskAssignee.destroy({ where: { taskId: ids }, transaction });
     await Task.destroy({ where: { id: ids }, transaction });
+    // Helpers whose last task in the project this was lose the membership (R17).
+    return projectHelpers ? projectHelpers.dropIdleHelperMemberships(parent.record.id, helperIds, transaction) : [];
   });
   await recordTaskEvent(req, parent, task, 'deleted');
   await audit(req, parent, 'delete', task, { title: task.title, code: task.code });
+  if (dropped.length) await projectHelpers.auditAutoRemoved(req, parent.record.id, dropped, { taskId: task.id });
 }
 
 // ---- Reorder and renumber ----

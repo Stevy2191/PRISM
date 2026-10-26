@@ -1,8 +1,9 @@
-const { resetData, closeDb } = require('../integration/helpers');
+const { resetData, closeDb, models } = require('../integration/helpers');
 const {
-  API, expectOk, makeWorld, makeProject, makeTask,
+  API, expectOk, makeWorld, makeProject, makeTask, makeTech,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
 // Sub-project 6, task 5: the look A project page. Phases on the Tasks tab,
 // quick-add in a phase, the filter pills and the Costs tab.
@@ -31,6 +32,7 @@ beforeAll(async () => {
   expectOk(await a.post(`${API}/projects/${project.id}/materials`).send({ itemName: 'Seeded material', quantity: 1, unitCost: 3 }), 201);
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
+beforeEach(resetRateLimits);
 
 it('the summary row, phases and the filter pills show', async () => {
   const page = await smoke.pageAs('admin');
@@ -118,4 +120,24 @@ it('Costs tab shows expenses and materials', async () => {
   await tab(page, /^Costs/);
   await shown(page, 'Seeded expense').waitFor();
   await shown(page, 'Seeded material').waitFor();
+});
+
+it('People tab shows a helper as Helper and Make member promotes them', async () => {
+  const a = w.admin.agent;
+  const p = await makeProject(a, { name: 'Helper project', ownerDepartmentId: w.deptA.id });
+  const t = await makeTask(a, p.id, { title: 'Help here' });
+  const hal = await makeTech('hal', w.deptB.id);
+  expectOk(await a.post(`${API}/projects/${p.id}/tasks/${t.id}/helpers`).send({ userId: hal.user.id }), 201);
+  const page = await smoke.pageAs('admin');
+  await page.goto(`/projects/${p.id}`);
+  await shown(page, 'Helper project').waitFor();
+  await tab(page, /^People/);
+  await page.getByText('Helper', { exact: true }).filter({ visible: true }).first().waitFor();
+  await shown(page, 'Can view and log time').waitFor();
+  const saved = waitFor(page, 'POST', `/projects/${p.id}/members`);
+  await page.getByRole('button', { name: 'Make member', exact: true }).filter({ visible: true }).first().click();
+  await saved;
+  await shown(page, 'Can view and log time').waitFor({ state: 'hidden' });
+  const row = await models.ProjectMember.findOne({ where: { projectId: p.id, userId: hal.user.id } });
+  expect(row.role).toBe('member');
 });

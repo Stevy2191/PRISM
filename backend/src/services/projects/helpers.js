@@ -54,15 +54,50 @@ async function addHelper(req, parent, task, rawUserId) {
   await writeAudit(req, 'task.helperAdd', 'Task', task.id, { projectId: parent.record.id, userId });
   if (autoAdded) await writeAudit(req, 'projectMember.autoAdd', 'Project', parent.record.id, { userId, taskId: task.id, role: 'helper' });
   if (userId !== req.user.id) {
-    const actor = await User.findByPk(req.user.id, { attributes: ['displayName', 'username'] });
-    await createNotification({
-      userId,
-      type: 'task_added',
-      message: `${actor?.displayName || actor?.username || 'Someone'} added you to ${task.code} on ${parent.record.name}`,
-      projectId: parent.record.id,
-    });
+    // The helper is saved; a failed notice must not turn that into a 500.
+    try {
+      const actor = await User.findByPk(req.user.id, { attributes: ['displayName', 'username'] });
+      await createNotification({
+        userId,
+        type: 'task_added',
+        message: `${actor?.displayName || actor?.username || 'Someone'} added you to ${task.code} on ${parent.record.name}`,
+        projectId: parent.record.id,
+      });
+    } catch (err) {
+      console.error('[helpers] task_added notice failed:', err.message);
+    }
   }
   return loadTask(parent, task.id, req.user);
+}
+
+// Ruling R17 (least privilege): a 'helper' membership exists only because of
+// helping (R7), so it goes with the person's last helper row in the project.
+// 'member' and 'lead' rows stay; logged time is untouched. Someone who is
+// still the main assignee of a task here (a helper made main assignee) keeps
+// it too, or they'd lose sight of their own task. Call inside the transaction
+// that removed the rows; returns the user ids whose membership went.
+async function dropIdleHelperMemberships(projectId, userIds, transaction) {
+  const ids = [...new Set(userIds)].filter(Boolean);
+  if (!ids.length) return [];
+  const tasks = await Task.findAll({ where: { projectId }, attributes: ['id', 'assigneeId'], raw: true, transaction });
+  const taskIds = tasks.map((t) => t.id);
+  const stillHelping = new Set(tasks.map((t) => t.assigneeId));
+  if (taskIds.length) {
+    const rows = await TaskAssignee.findAll({ where: { userId: ids, taskId: taskIds }, attributes: ['userId'], raw: true, transaction });
+    rows.forEach((r) => stillHelping.add(r.userId));
+  }
+  const idle = ids.filter((id) => !stillHelping.has(id));
+  if (!idle.length) return [];
+  const rows = await ProjectMember.findAll({ where: { projectId, userId: idle, role: 'helper' }, attributes: ['id', 'userId'], transaction });
+  if (!rows.length) return [];
+  await ProjectMember.destroy({ where: { id: rows.map((r) => r.id) }, transaction });
+  return rows.map((r) => r.userId);
+}
+
+async function auditAutoRemoved(req, projectId, userIds, meta = {}) {
+  for (const userId of userIds) {
+    await writeAudit(req, 'projectMember.autoRemove', 'Project', projectId, { userId, role: 'helper', ...meta }); // eslint-disable-line no-await-in-loop
+  }
 }
 
 async function removeHelper(req, parent, task, rawUserId) {
@@ -73,9 +108,21 @@ async function removeHelper(req, parent, task, rawUserId) {
   if (userId !== req.user.id && !(await canManageHelpers(req, parent, task))) {
     throw new ApiError(403, 'You do not have permission to remove helpers from this task', 'FORBIDDEN');
   }
-  await link.destroy();
-  await writeAudit(req, 'task.helperRemove', 'Task', task.id, { projectId: parent.record.id, userId });
+  const projectId = parent.record.id;
+  const dropped = await sequelize.transaction(async (transaction) => {
+    await link.destroy({ transaction });
+    return dropIdleHelperMemberships(projectId, [userId], transaction);
+  });
+  await writeAudit(req, 'task.helperRemove', 'Task', task.id, { projectId, userId });
+  await auditAutoRemoved(req, projectId, dropped, { taskId: task.id });
+  // Removing yourself can take away your view of the project.
+  if (dropped.includes(req.user.id)) {
+    const { canAccessProject } = require('../permissionService'); // eslint-disable-line global-require
+    if (!(await canAccessProject(req.user, parent.record))) return null;
+  }
   return loadTask(parent, task.id, req.user);
 }
 
-module.exports = { peopleOn, addHelper, removeHelper };
+module.exports = {
+  peopleOn, addHelper, removeHelper, dropIdleHelperMemberships, auditAutoRemoved,
+};

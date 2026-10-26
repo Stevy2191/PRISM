@@ -6,7 +6,9 @@ import { Avatar } from './Bits';
 import { Modal } from './Modal';
 
 // ==================== People tab ====================
-export function PeopleTab({ members, project, canManageMembers, onAdd, onRemove }) {
+// A helper (ProjectMember role 'helper') came in by helping on a task: they
+// can view the project and log time, nothing else, until made a member.
+export function PeopleTab({ members, project, canManageMembers, onAdd, onRemove, onPromote }) {
   const sorted = [...members].sort((a, b) => (a.userId === project.assignedToUserId ? -1 : b.userId === project.assignedToUserId ? 1 : 0));
   return (
     <div className="space-y-3">
@@ -14,12 +16,19 @@ export function PeopleTab({ members, project, canManageMembers, onAdd, onRemove 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sorted.map((m) => {
           const isLead = m.userId === project.assignedToUserId;
+          const isHelper = !isLead && m.role === 'helper';
           return (
             <div key={m.id} className="relative flex items-center gap-3 rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
               <Avatar name={m.user?.displayName} size={36} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium" style={{ color: TEXT }}>{m.user?.displayName}</p>
-                <span className="text-xs font-medium" style={{ color: isLead ? BLUE : MUTED }}>{isLead ? 'Lead' : 'Member'}</span>
+                <span className="text-xs font-medium" style={{ color: isLead ? BLUE : MUTED }}>{isLead ? 'Lead' : isHelper ? 'Helper' : 'Member'}</span>
+                {isHelper && <span className="block text-xs" style={{ color: MUTED }}>Can view and log time</span>}
+                {isHelper && canManageMembers && onPromote && (
+                  <button type="button" onClick={() => onPromote(m.userId)} className="mt-1 block text-xs font-semibold hover:underline" style={{ color: BLUE }}>
+                    Make member
+                  </button>
+                )}
               </div>
               {canManageMembers && !isLead && (
                 <button onClick={() => onRemove(m.userId)} className="absolute right-2 top-2" style={{ color: MUTED }}><IconX size={16} /></button>

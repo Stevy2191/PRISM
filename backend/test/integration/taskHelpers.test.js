@@ -37,6 +37,19 @@ describe('adding and removing helpers', () => {
     expect(n.projectId).toBe(proj.id);
   });
 
+  it('a failing task_added notice does not turn the saved helper into a 500', async () => {
+    const helper = await makeStaff('helper', w.deptA.id);
+    const spy = jest.spyOn(models.Notification, 'create').mockRejectedValue(new Error('notice store down'));
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expectOk(await addHelper(w.admin.agent, helper.user.id), 201);
+    } finally {
+      spy.mockRestore();
+      err.mockRestore();
+    }
+    expect((await getTask()).helpers.map((h) => h.id)).toEqual([helper.user.id]);
+  });
+
   it('adding yourself does not notify you', async () => {
     expectOk(await addHelper(w.admin.agent, w.admin.user.id), 201);
     expect(await models.Notification.count({ where: { type: 'task_added' } })).toBe(0);
@@ -166,6 +179,74 @@ describe('adding and removing helpers', () => {
     const req = { user: w.admin.user };
     await expect(add(req, parent, await findTask(parent, tt.id), helper.user.id))
       .rejects.toMatchObject({ status: 400, code: 'PROJECT_TASK_ONLY' });
+  });
+});
+
+describe('ruling R17: a helper-only membership goes with the last helper row', () => {
+  const membership = (userId) => models.ProjectMember.findOne({ where: { projectId: proj.id, userId } });
+
+  it('last helper row removed → membership gone (audited), no project access, their time still counted', async () => {
+    const outsider = await makeStaff('outsider', w.deptB.id);
+    expectOk(await addHelper(w.admin.agent, outsider.user.id), 201);
+    expectOk(await outsider.agent.post(`${API}/projects/${proj.id}/time-entries`).send({ entryDate: '2026-03-03', durationMinutes: 30, taskId: task.id }), 201);
+    expectOk(await removeHelper(w.admin.agent, outsider.user.id));
+    expect(await membership(outsider.user.id)).toBeNull();
+    const [auto] = await audits('projectMember.autoRemove');
+    expect(auto.meta).toEqual(expect.objectContaining({ userId: outsider.user.id, role: 'helper' }));
+    expect(auto.entityId).toBe(proj.id);
+    expect([403, 404]).toContain((await outsider.agent.get(`${API}/projects/${proj.id}`)).status);
+    const { project } = expectOk(await w.admin.agent.get(`${API}/projects/${proj.id}`));
+    expect(project.stats.totalTimeSeconds).toBe(1800);
+  });
+
+  it('a helper removing themselves from their last task loses the membership too', async () => {
+    const outsider = await makeStaff('outsider', w.deptB.id);
+    expectOk(await addHelper(w.admin.agent, outsider.user.id), 201);
+    expectOk(await removeHelper(outsider.agent, outsider.user.id));
+    expect(await membership(outsider.user.id)).toBeNull();
+  });
+
+  it('helper on two tasks (one a subtask) loses one → membership stays', async () => {
+    const outsider = await makeStaff('outsider', w.deptB.id);
+    const sub = await makeSubtask(w.admin.agent, proj.id, task.id, { title: 'Patch panel' });
+    expectOk(await addHelper(w.admin.agent, outsider.user.id), 201);
+    expectOk(await w.admin.agent.post(`${API}/projects/${proj.id}/tasks/${task.id}/subtasks/${sub.id}/helpers`).send({ userId: outsider.user.id }), 201);
+    expectOk(await removeHelper(w.admin.agent, outsider.user.id));
+    expect((await membership(outsider.user.id)).role).toBe('helper');
+    expect((await outsider.agent.get(`${API}/projects/${proj.id}`)).status).toBe(200);
+    expect(await models.AuditLog.count({ where: { action: 'projectMember.autoRemove' } })).toBe(0);
+  });
+
+  it('a promoted member removed as helper → membership stays', async () => {
+    const outsider = await makeStaff('outsider', w.deptB.id);
+    expectOk(await addHelper(w.admin.agent, outsider.user.id), 201);
+    expectOk(await w.admin.agent.post(`${API}/projects/${proj.id}/members`).send({ userId: outsider.user.id }), 201);
+    expectOk(await removeHelper(w.admin.agent, outsider.user.id));
+    expect((await membership(outsider.user.id)).role).toBe('member');
+  });
+
+  it("deleting a helper's last task drops the helper membership; the time stays on the project", async () => {
+    const outsider = await makeStaff('outsider', w.deptB.id);
+    expectOk(await addHelper(w.admin.agent, outsider.user.id), 201);
+    expectOk(await outsider.agent.post(`${API}/projects/${proj.id}/time-entries`).send({ entryDate: '2026-03-03', durationMinutes: 30, taskId: task.id }), 201);
+    expectOk(await w.admin.agent.delete(`${API}/projects/${proj.id}/tasks/${task.id}`));
+    expect(await membership(outsider.user.id)).toBeNull();
+    expect((await audits('projectMember.autoRemove')).length).toBe(1);
+    const { project } = expectOk(await w.admin.agent.get(`${API}/projects/${proj.id}`));
+    expect(project.stats.totalTimeSeconds).toBe(1800);
+  });
+
+  it('making a helper the main assignee keeps them on the project', async () => {
+    const outsider = await makeStaff('outsider', w.deptB.id);
+    expectOk(await addHelper(w.admin.agent, outsider.user.id), 201);
+    const other = await makeTask(w.admin.agent, proj.id, { title: 'Racks' });
+    expectOk(await addHelper(w.admin.agent, outsider.user.id, other), 201);
+    expectOk(await w.admin.agent.patch(`${API}/projects/${proj.id}/tasks/${task.id}`).send({ assigneeId: outsider.user.id }));
+    expect(await membership(outsider.user.id)).not.toBeNull();
+    // Their last helper row goes, but they are still main assignee of a task here.
+    expectOk(await removeHelper(w.admin.agent, outsider.user.id, other));
+    expect((await membership(outsider.user.id)).role).toBe('helper');
+    expect((await outsider.agent.get(`${API}/projects/${proj.id}`)).status).toBe(200);
   });
 });
 
