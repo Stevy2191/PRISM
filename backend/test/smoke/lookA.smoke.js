@@ -20,6 +20,7 @@ const PHONE_ROUTES = [
   { name: 'contacts', path: '/contacts' },
   { name: 'a contact', path: () => `/contacts/${w.contact.id}` },
   { name: 'companies', path: '/companies' },
+  { name: 'knowledge', path: '/knowledge' },
   { name: 'a long-named company', path: () => `/companies/${longCompany.id}` },
   { name: 'tickets board', path: '/tickets', before: (p) => p.getByRole('button', { name: 'Board' }).first().click() },
 ];

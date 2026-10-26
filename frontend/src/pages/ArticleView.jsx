@@ -6,6 +6,8 @@ import {
 import api, { errMessage } from '../api/api';
 import { usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import Breadcrumbs from '../components/ui/Breadcrumbs';
+import Notice from '../components/ui/Notice';
 
 const MUTED = 'var(--color-text-muted)';
 const BORDER = 'var(--color-border)';
@@ -47,7 +49,7 @@ export default function ArticleView() {
   if (error) return (
     <div className="mx-auto max-w-3xl">
       <Link to="/knowledge" className="flex items-center gap-1.5 text-sm" style={{ color: MUTED }}><IconArrowLeft size={16} /> Back</Link>
-      <div className="mt-4 rounded-md p-3 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>{error}</div>
+      <Notice tone="bad" className="mt-4">{error}</Notice>
     </div>
   );
   if (!article) return null;
@@ -58,12 +60,12 @@ export default function ArticleView() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <Link to="/knowledge" className="flex items-center gap-1.5 text-sm" style={{ color: MUTED }}><IconArrowLeft size={16} /> Knowledge Base</Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Breadcrumbs items={[{ label: 'Knowledge Base', to: '/knowledge' }, { label: article.title }]} className="min-w-0 flex-1" />
         {canManage && (
           <div className="flex items-center gap-2">
-            <Link to={`/knowledge/${id}/edit`} className="btn-secondary text-sm"><IconPencil size={15} /> Edit</Link>
-            <button type="button" onClick={remove} className="btn-danger text-sm"><IconTrash size={15} /> Delete</button>
+            <Link to={`/knowledge/${id}/edit`} className="btn-secondary h-10 text-sm max-sm:min-h-[44px]"><IconPencil size={15} aria-hidden="true" /> Edit</Link>
+            <button type="button" onClick={remove} className="btn-danger h-10 text-sm max-sm:min-h-[44px]"><IconTrash size={15} aria-hidden="true" /> Delete</button>
           </div>
         )}
       </div>
@@ -83,7 +85,7 @@ export default function ArticleView() {
             </span>
           )}
         </div>
-        <h1 className="page-title text-3xl">{article.title}</h1>
+        <h1 className="page-title break-words">{article.title}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: MUTED }}>
           {article.author && <span>By {article.author.displayName}</span>}
           <span>· Updated {fmtDate(article.updatedAt)}</span>
@@ -98,7 +100,9 @@ export default function ArticleView() {
 
       {/* Body */}
       {article.body ? (
-        <div className="kb-content" dangerouslySetInnerHTML={{ __html: article.body }} />
+        <div className="card p-5 sm:p-7">
+          <div className="kb-content" dangerouslySetInnerHTML={{ __html: article.body }} />
+        </div>
       ) : (
         <p className="text-sm italic" style={{ color: MUTED }}>This article has no written content yet.</p>
       )}
@@ -114,7 +118,7 @@ export default function ArticleView() {
                 <a href={`/api/v1/knowledge/articles/${id}/attachments/${att.id}/download`} className="min-w-0 flex-1 truncate text-sm hover:underline" style={{ color: 'var(--color-text-primary)' }}>
                   {att.originalName}
                 </a>
-                <span className="font-mono text-xs" style={{ color: MUTED }}>{fmtSize(att.size)}</span>
+                <span className="num text-xs" style={{ color: MUTED }}>{fmtSize(att.size)}</span>
               </li>
             ))}
           </ul>

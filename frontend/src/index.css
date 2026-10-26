@@ -358,9 +358,11 @@
 .kb-content :where(blockquote),
 .ProseMirror :where(blockquote) {
   border-left: 3px solid var(--color-accent);
-  padding: 0.25em 0 0.25em 1em;
+  background: var(--color-accent-soft);
+  border-radius: 0 8px 8px 0;
+  padding: 0.6em 1em;
   margin: 1em 0;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 .kb-content :where(code),
 .ProseMirror :where(code) {

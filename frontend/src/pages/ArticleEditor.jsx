@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  IconArrowLeft, IconPaperclip, IconTrash, IconUpload, IconFile, IconDeviceFloppy,
+  IconPaperclip, IconTrash, IconUpload, IconFile, IconDeviceFloppy,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
+import Breadcrumbs from '../components/ui/Breadcrumbs';
+import Notice from '../components/ui/Notice';
 import RichTextEditor from '../components/RichTextEditor';
 
 const MUTED = 'var(--color-text-muted)';
@@ -25,6 +27,7 @@ export default function ArticleEditor() {
 
   const [loading, setLoading] = useState(isEdit);
   const [title, setTitle] = useState('');
+  const [savedTitle, setSavedTitle] = useState(''); // for the breadcrumb
   const [categoryId, setCategoryId] = useState('');
   const [status, setStatus] = useState('draft');
   const [visibility, setVisibility] = useState('internal');
@@ -46,7 +49,7 @@ export default function ArticleEditor() {
     api.get(`/knowledge/articles/${id}`)
       .then(({ data }) => {
         const a = data.article;
-        setTitle(a.title); setCategoryId(a.categoryId ? String(a.categoryId) : '');
+        setTitle(a.title); setSavedTitle(a.title); setCategoryId(a.categoryId ? String(a.categoryId) : '');
         setStatus(a.status); setVisibility(a.visibility); setBody(a.body || '');
         setAttachments(a.attachments || []);
       })
@@ -103,10 +106,13 @@ export default function ArticleEditor() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Link to={isEdit ? `/knowledge/${id}` : '/knowledge'} className="flex items-center gap-1.5 text-sm" style={{ color: MUTED }}>
-          <IconArrowLeft size={16} /> {isEdit ? 'Back to article' : 'Back to Knowledge Base'}
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Breadcrumbs
+          className="min-w-0 flex-1"
+          items={isEdit
+            ? [{ label: 'Knowledge Base', to: '/knowledge' }, { label: savedTitle || 'Article', to: `/knowledge/${id}` }, { label: 'Edit' }]
+            : [{ label: 'Knowledge Base', to: '/knowledge' }, { label: 'New article' }]}
+        />
         <div className="flex items-center gap-2">
           {saved && <span className="text-xs font-medium" style={{ color: 'var(--color-success)' }}>Saved</span>}
           {isEdit && <button type="button" onClick={remove} className="btn-danger text-sm"><IconTrash size={15} /> Delete</button>}
@@ -122,13 +128,14 @@ export default function ArticleEditor() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Article title"
-          className="mt-1 w-full border-none bg-transparent p-0 text-2xl font-bold tracking-tight outline-none placeholder:font-normal"
+          aria-label="Article title"
+          className="mt-1 w-full border-0 border-b border-navy-100 bg-transparent px-0 pb-3 text-3xl font-semibold tracking-tight outline-none placeholder:font-normal focus:border-[var(--color-accent)]"
           style={{ color: 'var(--color-text-primary)' }}
         />
       </div>
 
       {error && (
-        <div className="rounded-md p-3 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, var(--color-bg))', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>{error}</div>
+        <Notice tone="bad">{error}</Notice>
       )}
 
       {/* Meta row */}
@@ -196,7 +203,7 @@ export default function ArticleEditor() {
                 <a href={`/api/v1/knowledge/articles/${id}/attachments/${att.id}/download`} className="min-w-0 flex-1 truncate text-sm hover:underline" style={{ color: 'var(--color-text-primary)' }}>
                   {att.originalName}
                 </a>
-                <span className="font-mono text-xs" style={{ color: MUTED }}>{fmtSize(att.size)}</span>
+                <span className="num text-xs" style={{ color: MUTED }}>{fmtSize(att.size)}</span>
                 <button type="button" onClick={() => removeAttachment(att)} title="Remove" style={{ color: 'var(--color-danger)' }}><IconTrash size={15} /></button>
               </li>
             ))}
