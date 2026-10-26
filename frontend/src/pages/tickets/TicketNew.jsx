@@ -252,7 +252,7 @@ export default function TicketNew() {
   };
 
   return (
-    <div className="mx-auto max-w-[1144px] px-1 pb-24 sm:pb-0 lg:px-6">
+    <div className="mx-auto max-w-[1144px] pb-24 sm:pb-0 lg:px-6">
       <form onSubmit={handleSubmit} className="space-y-5">
         <PageHeader title="New Ticket" crumbs={[{ label: 'Tickets', to: '/tickets' }, { label: 'New' }]} />
 

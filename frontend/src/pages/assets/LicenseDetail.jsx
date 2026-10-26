@@ -6,6 +6,9 @@ import { IconFile, IconUpload, IconTrash, IconDownload, IconEye, IconEyeOff } fr
 import api, { errMessage } from '../../api/api';
 import { usePermission } from '../../context/AuthContext';
 import Spinner from '../../components/Spinner';
+import Breadcrumbs from '../../components/ui/Breadcrumbs';
+import Button from '../../components/ui/Button';
+import Notice from '../../components/ui/Notice';
 import LicenseFormModal from '../../components/LicenseFormModal';
 import { LICENSE_TYPE_LABELS, LicenseTypeBadge, StatusPill, licenseStatus } from './Licenses';
 
@@ -19,9 +22,9 @@ const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var
 
 function StatCard({ label, value }) {
   return (
-    <div className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>{label}</p>
-      <p className="mt-1 text-2xl font-bold tracking-tight" style={{ color: TEXT }}>{value}</p>
+    <div className="rounded-xl border border-navy-100 bg-surface p-4">
+      <p className="text-[13px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{label}</p>
+      <p className="num mt-1 text-2xl font-semibold tracking-tight" style={{ color: TEXT }}>{value}</p>
     </div>
   );
 }
@@ -29,7 +32,7 @@ function StatCard({ label, value }) {
 function Field({ label, children }) {
   return (
     <div>
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>{label}</p>
+      <p className="text-[13px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{label}</p>
       <p className="mt-0.5 text-sm" style={{ color: TEXT }}>{children ?? <span style={{ color: MUTED }}>—</span>}</p>
     </div>
   );
@@ -86,19 +89,19 @@ export default function LicenseDetail() {
   };
 
   if (loading) return <Spinner />;
-  if (error) return <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">{error}</div>;
+  if (error) return <Notice tone="bad">{error}</Notice>;
   if (!license) return null;
 
   const status = licenseStatus(license.expiryDate);
 
   return (
-    <div className="space-y-5">
-      <Link to="/assets/licenses" className="text-sm hover:underline" style={{ color: BLUE }}>← Back to Licenses</Link>
+    <div className="mx-auto max-w-[1280px] space-y-5 lg:px-6">
+      <Breadcrumbs items={[{ label: 'Assets', to: '/assets' }, { label: 'Licenses', to: '/assets/licenses' }, { label: license.name }]} />
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>{license.name}</h1>
+            <h1 className="page-title break-words">{license.name}</h1>
             <LicenseTypeBadge type={license.licenseType} />
             <StatusPill status={status} />
           </div>
@@ -106,7 +109,7 @@ export default function LicenseDetail() {
         </div>
         {canManage && (
           <div className="flex gap-2">
-            <button type="button" onClick={() => setShowEdit(true)} className="btn-secondary">Edit</button>
+            <Button onClick={() => setShowEdit(true)}>Edit</Button>
             <button type="button" onClick={remove} className="btn-danger">Delete</button>
           </div>
         )}
@@ -119,14 +122,15 @@ export default function LicenseDetail() {
         <StatCard label="Annual cost" value={license.annualCost ? `$${Number(license.annualCost).toLocaleString()}` : '—'} />
       </div>
 
-      <div className="flex gap-1 border-b" style={{ borderColor: BORDER }}>
+      <div className="flex gap-1 overflow-x-auto border-b border-navy-100">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className="border-b-2 px-3 py-2 text-sm font-medium transition"
-            style={{ color: tab === t.key ? TEXT : MUTED, borderColor: tab === t.key ? BLUE : 'transparent' }}
+            aria-pressed={tab === t.key}
+            className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent ${tab === t.key ? 'font-semibold text-navy-900' : 'border-transparent font-medium text-navy-500 hover:text-navy-900'}`}
+            style={tab === t.key ? { borderBottomColor: BLUE } : undefined}
           >
             {t.label}
           </button>
@@ -179,7 +183,7 @@ function OverviewTab({ license, canManage, onChanged }) {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-4 rounded-[10px] border p-5 sm:grid-cols-2 lg:grid-cols-3" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+    <div className="grid grid-cols-1 gap-4 rounded-xl border p-5 sm:grid-cols-2 lg:grid-cols-3 border-navy-100 bg-surface">
       <Field label="License type">{LICENSE_TYPE_LABELS[license.licenseType] || license.licenseType}</Field>
       <Field label="Vendor">{license.vendor}</Field>
       <Field label="Department">{license.department?.name}</Field>
@@ -188,7 +192,7 @@ function OverviewTab({ license, canManage, onChanged }) {
       <Field label="Renewal date">{license.renewalDate}</Field>
       <Field label="Annual cost">{license.annualCost ? `$${Number(license.annualCost).toLocaleString()}` : undefined}</Field>
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Auto-renews</p>
+        <p className="text-xs font-medium" style={{ color: MUTED }}>Auto-renews</p>
         <button
           type="button"
           onClick={toggleAutoRenews}
@@ -209,9 +213,9 @@ function OverviewTab({ license, canManage, onChanged }) {
         </button>
       </div>
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>License key</p>
+        <p className="text-xs font-medium" style={{ color: MUTED }}>License key</p>
         <div className="mt-0.5 flex items-center gap-2">
-          <p className="font-mono text-sm" style={{ color: TEXT }}>
+          <p className="num text-sm" style={{ color: TEXT }}>
             {revealed !== null ? revealed : license.licenseKeySet ? '••••••••••••' : <span style={{ color: MUTED }}>Not set</span>}
           </p>
           {license.licenseKeySet && canViewKeys && (
@@ -222,7 +226,7 @@ function OverviewTab({ license, canManage, onChanged }) {
         </div>
       </div>
       <div className="sm:col-span-2 lg:col-span-3">
-        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: MUTED }}>Notes</p>
+        <p className="text-xs font-medium" style={{ color: MUTED }}>Notes</p>
         <p className="mt-0.5 whitespace-pre-wrap text-sm" style={{ color: TEXT }}>{license.notes || <span style={{ color: MUTED }}>—</span>}</p>
       </div>
     </div>
@@ -248,10 +252,10 @@ function AssetSearchPicker({ onPick, excludeIds }) {
     <div className="relative">
       <input className="input" style={fieldStyle} placeholder="Search assets by tag or name…" value={query} onChange={(e) => setQuery(e.target.value)} />
       {results.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+        <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-lg border-navy-100 bg-surface">
           {results.map((a) => (
             <button key={a.id} type="button" onClick={() => { onPick(a); setQuery(''); setResults([]); }} className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-hover)]" style={{ color: TEXT }}>
-              <span className="font-mono text-xs" style={{ color: MUTED }}>{a.assetTag}</span> — {a.name}
+              <span className="num text-xs" style={{ color: MUTED }}>{a.assetTag}</span> — {a.name}
             </button>
           ))}
         </div>
@@ -288,7 +292,7 @@ function AssetsTab({ licenseId, canManage }) {
     <div className="space-y-3">
       {canManage && (
         showLink ? (
-          <div className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+          <div className="rounded-xl border border-navy-100 bg-surface p-4">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-medium" style={{ color: TEXT }}>Link an asset</p>
               <button type="button" onClick={() => setShowLink(false)} style={{ color: MUTED }}>✕</button>
@@ -301,16 +305,16 @@ function AssetsTab({ licenseId, canManage }) {
       )}
 
       {links.length === 0 ? (
-        <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+        <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
           No assets linked to this license yet.
         </div>
       ) : (
         <div className="space-y-2">
           {links.map((l) => (
-            <div key={l.id} className="flex items-center justify-between gap-3 rounded-[10px] border p-3" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+            <div key={l.id} className="flex items-center justify-between gap-3 rounded-xl border p-3 border-navy-100 bg-surface">
               <div className="min-w-0">
                 <Link to={`/assets/${l.asset.id}`} className="text-sm font-medium hover:underline" style={{ color: TEXT }}>
-                  <span className="font-mono text-xs" style={{ color: MUTED }}>{l.asset.assetTag}</span> — {l.asset.name}
+                  <span className="num text-xs" style={{ color: MUTED }}>{l.asset.assetTag}</span> — {l.asset.name}
                 </Link>
                 <p className="text-xs" style={{ color: MUTED }}>Linked {new Date(l.assignedAt).toLocaleDateString()}{l.assignedByUser ? ` by ${l.assignedByUser.displayName}` : ''}</p>
               </div>
@@ -343,7 +347,7 @@ function ContactSearchPicker({ onPick, excludeIds }) {
     <div className="relative">
       <input className="input" style={fieldStyle} placeholder="Search contacts…" value={query} onChange={(e) => setQuery(e.target.value)} />
       {results.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+        <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-lg border-navy-100 bg-surface">
           {results.map((c) => (
             <button key={c.id} type="button" onClick={() => { onPick(c); setQuery(''); setResults([]); }} className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-hover)]" style={{ color: TEXT }}>
               {contactLabel(c, { multiCompany })}{c.email ? ` · ${c.email}` : ''}
@@ -396,7 +400,7 @@ function ContactsTab({ licenseId, license, canManage, onChanged }) {
 
       {canManage && (
         showAssign ? (
-          <div className="rounded-[10px] border p-4" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+          <div className="rounded-xl border border-navy-100 bg-surface p-4">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-medium" style={{ color: TEXT }}>Assign to contact</p>
               <button type="button" onClick={() => setShowAssign(false)} style={{ color: MUTED }}>✕</button>
@@ -409,13 +413,13 @@ function ContactsTab({ licenseId, license, canManage, onChanged }) {
       )}
 
       {links.length === 0 ? (
-        <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+        <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
           No contacts assigned yet.
         </div>
       ) : (
         <div className="space-y-2">
           {links.map((l) => (
-            <div key={l.id} className="flex items-center justify-between gap-3 rounded-[10px] border p-3" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+            <div key={l.id} className="flex items-center justify-between gap-3 rounded-xl border p-3 border-navy-100 bg-surface">
               <div className="min-w-0">
                 <p className="text-sm font-medium" style={{ color: TEXT }}>{l.contact.displayName}</p>
                 <p className="text-xs" style={{ color: MUTED }}>
@@ -466,15 +470,15 @@ function AttachmentsTab({ licenseId }) {
 
   return (
     <div className="space-y-3">
-      {uploadError && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{uploadError}</div>}
+      {uploadError && <Notice tone="bad">{uploadError}</Notice>}
       {attachments.length === 0 ? (
-        <div className="rounded-[10px] border p-8 text-center text-sm" style={{ backgroundColor: CARD_BG, borderColor: BORDER, color: MUTED }}>
+        <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
           No attachments yet — license certificates, purchase orders, or agreement PDFs.
         </div>
       ) : (
         <div className="space-y-2">
           {attachments.map((a) => (
-            <div key={a.id} className="flex items-center gap-3 rounded-[10px] border p-3" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+            <div key={a.id} className="flex items-center gap-3 rounded-xl border p-3 border-navy-100 bg-surface">
               <IconFile size={24} style={{ color: MUTED, flexShrink: 0 }} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium" style={{ color: TEXT }}>{a.originalName}</p>

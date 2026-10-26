@@ -294,7 +294,7 @@ export default function Contacts() {
   };
 
   return (
-    <div style={{ padding: 0, height: '100vh' }} className="-mx-3 -my-4 flex flex-col overflow-hidden sm:-mx-6 sm:-my-8">
+    <div style={{ padding: 0, height: '100vh' }} className="-mx-4 -my-4 flex flex-col overflow-hidden sm:-mx-6 sm:-my-8">
       <div style={{ backgroundColor: BG }} className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-shrink-0 space-y-3 px-3 py-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-2">

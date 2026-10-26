@@ -441,7 +441,7 @@ function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
-        {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {error && <Notice tone="bad" className="mb-3">{error}</Notice>}
 
         {step === 'form' ? (
           <form onSubmit={submitCheckout} className="space-y-3">
@@ -613,7 +613,7 @@ function LinkTicketModal({ assetId, onClose, onLinked }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
         <h2 className="mb-3 text-base font-semibold" style={{ color: TEXT }}>Link a ticket</h2>
-        {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {error && <Notice tone="bad" className="mb-3">{error}</Notice>}
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -727,7 +727,7 @@ function AttachmentsTab({ assetId }) {
 
   return (
     <div className="space-y-3">
-      {uploadError && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{uploadError}</div>}
+      {uploadError && <Notice tone="bad">{uploadError}</Notice>}
       {attachments.length === 0 ? (
         <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
           No attachments yet — invoices, receipts, warranty documents, signed checkout forms, or photos of the equipment.
@@ -950,7 +950,7 @@ function CheckInModal({ assetId, checkout, onClose, onCheckedIn }) {
       <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-sm sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
         <form onSubmit={submit} className="space-y-3">
           <h2 className="text-base font-semibold" style={{ color: TEXT }}>Check in equipment</h2>
-          {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          {error && <Notice tone="bad">{error}</Notice>}
           <div>
             <p className="mb-1 text-xs font-medium" style={{ color: MUTED }}>Contact</p>
             <p className="text-sm" style={{ color: TEXT }}>{checkout.contact?.displayName}</p>
@@ -1030,7 +1030,7 @@ function EditCheckoutModal({ assetId, checkout, onClose, onSaved }) {
       <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
         <form onSubmit={submit} className="space-y-3">
           <h2 className="text-base font-semibold" style={{ color: TEXT }}>Edit checkout record</h2>
-          {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          {error && <Notice tone="bad">{error}</Notice>}
           <div>
             <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Contact</label>
             {contact ? (
@@ -1120,7 +1120,7 @@ function SendCheckoutFormModal({ assetId, asset, checkout, attachment, onClose, 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
         <h2 className="mb-3 text-base font-semibold" style={{ color: TEXT }}>Send checkout form</h2>
-        {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {error && <Notice tone="bad" className="mb-3">{error}</Notice>}
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>To</label>

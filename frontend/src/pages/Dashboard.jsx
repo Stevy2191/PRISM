@@ -902,7 +902,7 @@ export default function Dashboard() {
 
   return (
     <div
-      className="mx-auto min-h-full max-w-[1280px] px-1 sm:px-0 lg:px-6"
+      className="mx-auto min-h-full max-w-[1280px] lg:px-6"
     >
       {loading && !data ? (
         <Spinner />

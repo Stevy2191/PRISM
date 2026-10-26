@@ -429,7 +429,7 @@ export default function TicketDetail() {
   return (
     <div
       style={{ padding: 0, height: pageHeight }}
-      className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8"
+      className="-mx-4 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8"
     >
       {/* Header — auto height, does not grow */}
       <header className="flex-shrink-0 px-4 pb-4 pt-3 sm:px-6 md:pt-5 lg:px-12">

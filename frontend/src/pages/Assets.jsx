@@ -186,7 +186,7 @@ export default function Assets() {
   };
 
   return (
-    <div style={{ padding: 0, height: pageHeight }} className="-mx-3 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
+    <div style={{ padding: 0, height: pageHeight }} className="-mx-4 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
       <div className="flex-shrink-0 space-y-4 px-4 pb-4 pt-5 sm:px-6 lg:px-12 lg:pt-8">
         <PageHeader
           title="Assets"

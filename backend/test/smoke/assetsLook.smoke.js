@@ -83,3 +83,30 @@ it('no matching assets shows the empty state and New asset', async () => {
   await page.getByText('No assets found.').waitFor();
   await page.getByRole('button', { name: /New asset/ }).filter({ visible: true }).first().waitFor();
 });
+
+it('licenses list shows a seat meter', async () => {
+  const lic = expectOk(await w.admin.agent.post(`${API}/licenses`).send({ name: 'Microsoft 365 Business', totalSeats: 25, expiryDate: '2099-01-01' }), 201).license;
+  await models.License.update({ usedSeats: 23 }, { where: { id: lic.id } });
+  const page = await smoke.pageAs('admin', undefined, DESKTOP);
+  await page.goto('/assets/licenses');
+  const row = page.getByRole('row').filter({ hasText: 'Microsoft 365 Business' });
+  await row.getByText('23/25').waitFor();
+  const meter = row.getByRole('meter');
+  expect(await meter.getAttribute('aria-valuenow')).toBe('23');
+  expect(await meter.getAttribute('aria-valuemax')).toBe('25');
+});
+
+it('no matching licenses shows the empty state and New license', async () => {
+  const page = await smoke.pageAs('admin', undefined, DESKTOP);
+  await page.goto('/assets/licenses');
+  await page.getByRole('textbox', { name: 'Search licenses' }).fill('nothing-matches-this');
+  await page.getByText('No licenses found.').waitFor();
+  await page.getByRole('button', { name: '+ New license' }).waitFor();
+});
+
+it('a license page has a breadcrumb back to Licenses', async () => {
+  const lic = expectOk(await w.admin.agent.post(`${API}/licenses`).send({ name: 'Adobe Acrobat', totalSeats: 5 }), 201).license;
+  const page = await smoke.pageAs('admin', undefined, DESKTOP);
+  await page.goto(`/assets/licenses/${lic.id}`);
+  await page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Licenses' }).waitFor();
+});

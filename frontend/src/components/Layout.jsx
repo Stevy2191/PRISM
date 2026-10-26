@@ -20,7 +20,7 @@ export default function Layout() {
           ? { paddingLeft: 60, paddingRight: 'env(safe-area-inset-right)' }
           : { paddingTop: 56, paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
       >
-        <div className="w-full px-3 py-4 sm:px-6 sm:py-8">
+        <div className="w-full px-4 py-4 sm:px-6 sm:py-8">
           <Outlet />
         </div>
       </main>

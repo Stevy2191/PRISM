@@ -537,7 +537,7 @@ export default function ContactDetail() {
   return (
     <div
       style={{ backgroundColor: BG }}
-      className="-mx-3 -my-4 flex flex-col overflow-visible sm:-mx-6 sm:-my-8 md:h-screen md:flex-row md:overflow-hidden"
+      className="-mx-4 -my-4 flex flex-col overflow-visible sm:-mx-6 sm:-my-8 md:h-screen md:flex-row md:overflow-hidden"
     >
       <div className="hidden md:contents">
         <ContactRail
