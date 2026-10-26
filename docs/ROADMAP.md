@@ -10,16 +10,12 @@ its design and plan live. The reasoning behind the shape of the roadmap is in
 [the roadmap design](superpowers/specs/2026-10-03-prism-psa-roadmap-design.md);
 read that before designing any sub-project.
 
-## Where things stand (updated 2026-10-25)
+## Where things stand (updated 2026-10-26)
 
-- **Phase 1:** sub-projects 1–5 (including 5d, attachment virus scanning) are
-  **Shipped** to `dev`, untagged. Their release notes are under
-  `## Unreleased` in `UPGRADING.md`.
-- **Next up: sub-project 6, project management (full feature).** It is
-  **Planned**: spec, plan and look A mockups are written (2026-10-25) and
-  are approved (build subagent-driven in a fresh session). 6 also starts PRISM's new
-  look ("look A"); restyling the remaining screens is the new 6b.
-- **After 6:** 6b (restyle the rest of PRISM in look A), then sub-project 7
+- **Phase 1:** sub-projects 1–6 (including 5d, attachment virus scanning, and 6,
+  project management) are **Shipped** to `dev`, untagged. Their release notes
+  are under `## Unreleased` in `UPGRADING.md`.
+- **Next up: 6b** (restyle the rest of PRISM in look A), then sub-project 7
   (client portal). Then Phase 1 is released as `v0.4.0` (see Releases below)
   and tested by hand before Phase 2 starts.
 - **Open items carried forward:**
@@ -29,6 +25,15 @@ read that before designing any sub-project.
     about the day. This was there before 5c/5d; fix it in a quiet moment.
   - Split ticket (5b) now carries the source ticket's category (decided
     2026-10-24).
+  - Follow-up from 6: touch and keyboard dispatch on Workload (an "Assign
+    to…" action); dragging needs a mouse today.
+  - Reports' `fmt()` in `frontend/src/pages/reports/shared.jsx` calls
+    `toISOString()` on local midnight, so it shows the wrong day east of UTC.
+    Fix it together with the `waiting.smoke.js` evening-time-zone item above,
+    before `v0.4.0` hand testing.
+  - Decision for the user: should helpers who hold `projects.edit_*` still be
+    able to upload and delete their own files on a project (the existing
+    contributor rule), or should helpers be strictly view and log time?
 
 ## How to resume
 
@@ -124,7 +129,7 @@ consistent between tickets and projects, and covered by tests.
 | 4 | SLA engine — assignment, response and resolution clocks, business hours, pause, breach warnings, escalation | Shipped | [spec](superpowers/specs/2026-10-13-sla-engine-design.md); [due-date change](superpowers/specs/2026-10-13-sla-due-dates-design.md) | [plan](superpowers/plans/2026-10-13-sla-engine.md); [due-date plan](superpowers/plans/2026-10-13-sla-due-dates.md) |
 | 5 | Service desk, full feature — queues, canned responses, merge/split, bulk actions, recurring tickets, CC/BCC, signatures, email templates, technician email notifications, capturing tech replies sent from their own mailbox, dependent ticket categories. (Dispatch board moved to 6; approvals dropped — see spec) | Shipped | [spec](superpowers/specs/2026-10-14-service-desk-design.md) | [plan 5a](superpowers/plans/2026-10-14-service-desk-email.md) (email + status rework, 2026-10-15); waiting-on-customer time report (2026-10-15, no plan); [plan 5b](superpowers/plans/2026-10-15-service-desk-tools.md) (desk tools: queues + Take it, canned responses, bulk, merge/split, recurring tickets, 2026-10-16); [plan 5c](superpowers/plans/2026-10-24-ticket-categories.md) (ticket categories, 2026-10-24) |
 | 5d | Attachment virus scanning (security) — every uploaded file is scanned with ClamAV before it is stored: staff uploads on tickets, projects, assets, contracts, licenses and the KB, plus inbound email attachments. Decided 2026-10-15: runs as a `clamd` container in docker-compose with freshclam signature updates; PRISM streams files to it over TCP (INSTREAM), no new npm dependency; **fails closed** — if the scanner is unreachable, uploads are refused with a clear error and inbound attachments are not saved (the note lists them as not scanned). Built after 5b | Shipped (2026-10-20) | [spec](superpowers/specs/2026-10-16-attachment-virus-scanning-design.md) | [plan](superpowers/plans/2026-10-16-attachment-virus-scanning.md) |
-| 6 | Project management, full feature — phases and milestones, dependencies, timeline view, templates, hour budgets, workload view (one screen over tickets and project tasks; absorbs the dispatch board moved from 5). Also lays the look A foundation and builds every project and workload screen in it ([mockups](https://claude.ai/artifact/NXd5ZYb4P98kk8VjxHwx3H)) | Planned (approved 2026-10-25) | [spec](superpowers/specs/2026-10-25-project-management-design.md) | [plan](superpowers/plans/2026-10-25-project-management.md) |
+| 6 | Project management, full feature — phases and milestones, dependencies, timeline view, templates, hour budgets, workload view (one screen over tickets and project tasks; absorbs the dispatch board moved from 5). Also lays the look A foundation and builds every project and workload screen in it ([mockups](https://claude.ai/artifact/NXd5ZYb4P98kk8VjxHwx3H)) | Shipped (to dev, 2026-10-26) | [spec](superpowers/specs/2026-10-25-project-management-design.md) | [plan](superpowers/plans/2026-10-25-project-management.md) |
 | 6b | Restyle the rest of PRISM in look A — tickets, dashboard, assets, contacts, companies, knowledge, reports, settings and login, on the foundation 6 builds. Added 2026-10-25 | Not started | — | — |
 | 7 | Client portal (desk) — contact logins, submit and track tickets, company tickets by permission, KB | Not started | — | — |
 

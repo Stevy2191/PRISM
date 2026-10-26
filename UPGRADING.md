@@ -18,6 +18,46 @@ emailed attachment is refused until the scanner exists. The scanner needs about
 few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
 `.env`.
 
+### Project management (6)
+
+- Three migrations (069 to 071) run automatically. If you run them by hand:
+  `npm run migrate`.
+- **Phases, milestones and dependencies.** Projects get phases, milestones and
+  task start dates. A task can wait on another task (finish-to-start); it shows
+  "waiting on", and moving a task offers to move the tasks that depend on it.
+  A new Timeline tab shows it all on a calendar.
+- **Helpers and person-hours.** Tasks can have helpers. Time is counted in
+  person-hours: 1 hour each by two people is 2 hours on the task, the phase and
+  the budget. Someone added as a helper on a task becomes a project helper:
+  they can view the project and log time, but not edit it. Removing their last
+  helper task removes that access (their time stays). A manager can make a
+  helper a full member on the People tab.
+- **Hour budgets.** A project can have an hour budget. The lead gets an alert at
+  80% and at 100%, in PRISM and by email. The budget emails and the "task added"
+  email are on by default; the "task unblocked" email is off by default. If you
+  saved a notification allow-list, the four new types are added to it for you.
+- **Project templates.** Build them under Settings → Projects → Project
+  templates. You can copy a project, or save one as a template (task titles and
+  descriptions are kept).
+- **Workload screen** (top bar). It shows tickets and project tasks by person
+  and day. Drag work to dispatch it. A ticket gets a "planned date" for this;
+  the SLA due date never moves. Set each person's hours under Settings →
+  Workload → Hours people work (default 8 hours Monday to Friday). Weekend hours
+  can be stored, but Workload shows Monday to Friday only.
+- **Holidays moved** from "Hours & SLAs" to the Workload group in Settings. It is
+  the same page, and the SLA clock still uses it.
+- **New permissions.** Manage project templates (`projects.manage_templates`) is
+  granted to System Administrator only. View workload (`workload.view`) is
+  granted to every role that had View all tickets or View all projects. Add
+  either to other roles under Roles.
+- **Look A.** The project and workload screens have PRISM's new look. This adds
+  the Instrument Sans font as a new frontend dependency
+  (`@fontsource/instrument-sans`), so **rebuild the frontend image**. Dark is now
+  the default theme for anyone who never picked one; a stored choice is kept.
+- **Known limits.** Dispatching on Workload needs a mouse (no touch or keyboard
+  yet). The rest of PRISM gets the new colours and font but is restyled
+  properly in 6b.
+
 ### Ticket categories (5c)
 
 - **Settings → Ticket categories** builds a category tree up to 5 levels deep.
