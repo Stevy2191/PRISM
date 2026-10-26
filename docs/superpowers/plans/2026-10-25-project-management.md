@@ -482,15 +482,15 @@
 - Create: `frontend/src/pages/projects/detail/PhoneTasks.jsx` (cards, Mine/All/Waiting, bottom dock). Modify: `TasksTab.jsx` (switch at `< 768px`), `SummaryRow.jsx` (two tiles on a phone), `Tabs.jsx` (scrollable).
 - Test: `frontend/test/smoke/projectPhone.smoke.js` (375×812)
 
-- [ ] Smoke tests: `no horizontal page scroll at 375px`, `timer button is at least 44px and starts a timer`, `Log time in the dock opens the time form`, `Add task in the dock adds to the first open phase`.
-- [ ] Implement against the Phone board and run.
-- [ ] Commit `feat(projects): phone layout for the project page`.
+- [x] Smoke tests: `no horizontal page scroll at 375px`, `timer button is at least 44px and starts a timer`, `Log time in the dock opens the time form`, `Add task in the dock adds to the first open phase`.
+- [x] Implement against the Phone board and run.
+- [x] Commit `feat(projects): phone layout for the project page`.
 
 ### Task 15: Docs, full suites, push
 
 **Files:** `UPGRADING.md` (under `## Unreleased`), `docs/ROADMAP.md` (row 6 → Shipped, "Where things stand"), this plan's status line, the spec's status line.
 
-- [ ] Write the UPGRADING notes:
+- [x] Write the UPGRADING notes:
   - three migrations and `npm run migrate`;
   - the new permissions and who got them;
   - the Holidays page moved in Settings;
@@ -498,6 +498,6 @@
   - budget alert emails on by default;
   - dark is now the default theme for anyone who never picked one;
   - tasks can have helpers, and their time counts as person-hours.
-- [ ] Run the full backend suite and `npm run test:smoke` once. Both must be green. Paste the failure output if not.
-- [ ] Because this touches scope checks on new endpoints, run a fresh reviewer subagent over the branch with a security focus: id scoping, workload visibility and template copy access. Fix its findings.
-- [ ] Commit `docs: sub-project 6 release notes and roadmap`, then push to `dev`.
+- [x] Run the full backend suite and `npm run test:smoke` once. Both must be green. Paste the failure output if not.
+- [x] Because this touches scope checks on new endpoints, run a fresh reviewer subagent over the branch with a security focus: id scoping, workload visibility and template copy access. Fix its findings.
+- [x] Commit `docs: sub-project 6 release notes and roadmap`, then push to `dev`.
