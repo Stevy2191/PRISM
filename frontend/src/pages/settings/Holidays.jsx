@@ -58,7 +58,7 @@ export default function Holidays() {
   if (loading) return <Spinner />;
 
   return (
-    <SettingsPage description="Holidays pause SLA timers for the assigned department (or globally).">
+    <SettingsPage>
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={createList} className="card flex flex-wrap items-end gap-3 p-5">

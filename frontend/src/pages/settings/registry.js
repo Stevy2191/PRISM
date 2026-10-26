@@ -5,7 +5,7 @@
 // the page needed before the redesign; the server enforces it regardless.
 
 export const GROUPS = [
-  'You', 'Organization', 'People & access', 'Service desk', 'Projects', 'Hours & SLAs',
+  'You', 'Organization', 'People & access', 'Service desk', 'Projects', 'Workload', 'Hours & SLAs',
   'Time & work', 'Assets', 'Sign-in & email', 'System',
 ];
 
@@ -37,10 +37,12 @@ export const PAGES = [
   { id: 'customer-happiness', group: 'Service desk', name: 'Customer happiness', desc: 'Satisfaction surveys and scores', keywords: ['csat', 'survey', 'rating', 'feedback'], path: '/settings/customer-happiness', access: SYSTEM, width: 'narrow' },
   // Projects
   { id: 'project-templates', group: 'Projects', name: 'Project templates', desc: 'Phases and tasks to start new projects from', keywords: ['template', 'project', 'phase', 'task', 'plan', 'copy'], path: '/settings/project-templates', access: { permission: ['projects.manage_templates'] }, width: 'wide', sub: [{ id: 'project-template-new', path: '/settings/project-templates/new' }, { id: 'project-template-edit', path: '/settings/project-templates/:id' }] },
+  // Workload
+  { id: 'work-hours', group: 'Workload', name: 'Hours people work', desc: 'The default week, ticket size and each person\'s own hours', keywords: ['hours', 'capacity', 'part time', 'schedule', 'workload', 'ticket size', 'estimate'], path: '/settings/work-hours', access: { permission: ['settings.manage_business_hours'] }, width: 'wide' },
+  { id: 'holidays', group: 'Workload', name: 'Holidays', desc: 'Days off for the SLA clock and workload', keywords: ['holiday', 'closed', 'day off', 'sla', 'workload'], path: '/settings/holidays', access: { permission: ['settings.manage_business_hours'] }, width: 'narrow' },
   // Hours & SLAs
   { id: 'slas', group: 'Hours & SLAs', name: 'SLAs', desc: 'Assignment, response and resolution targets', keywords: ['sla', 'response time', 'resolution', 'escalation', 'assignment', 'breach'], path: '/settings/slas', access: SYSTEM, width: 'wide' },
   { id: 'business-hours', group: 'Hours & SLAs', name: 'Business hours', desc: 'Work schedules', keywords: ['hours', 'schedule', 'open'], path: '/settings/business-hours', access: { permission: ['settings.manage_business_hours'] }, width: 'narrow' },
-  { id: 'holidays', group: 'Hours & SLAs', name: 'Holidays', desc: 'Days the SLA clock stops', keywords: ['holiday', 'closed', 'day off'], path: '/settings/holidays', access: { permission: ['settings.manage_business_hours'] }, width: 'narrow' },
   // Time & work
   { id: 'time-tracking', group: 'Time & work', name: 'Time tracking', desc: 'Timer defaults and the longest entry', keywords: ['timer', 'time entry', 'automatic', 'minimum', 'longest'], path: '/settings/time-tracking', access: SYSTEM, width: 'narrow' },
   { id: 'work-types', group: 'Time & work', name: 'Work types', desc: 'Kinds of work and billable defaults', keywords: ['billable', 'work type', 'labor'], path: '/settings/work-types', access: SYSTEM, width: 'narrow' },

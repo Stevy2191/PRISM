@@ -39,6 +39,8 @@ import CompanyProfile from './pages/settings/CompanyProfile';
 import SettingsStatuses from './pages/settings/Statuses';
 import SettingsBusinessHours from './pages/settings/BusinessHours';
 import SettingsHolidays from './pages/settings/Holidays';
+import SettingsWorkHours from './pages/settings/WorkHours';
+import Workload from './pages/workload/Workload';
 import SettingsTeams from './pages/settings/Teams';
 import SettingsPreferences from './pages/settings/Preferences';
 import SettingsAbout from './pages/settings/About';
@@ -119,7 +121,7 @@ const SETTINGS_COMPONENTS = {
   'workflow-rule-new': WorkflowRuleEditor, 'workflow-rule-edit': WorkflowRuleEditor,
   'project-templates': SettingsProjectTemplates, 'project-template-new': ProjectTemplateEditor, 'project-template-edit': ProjectTemplateEditor,
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
-  slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays,
+  slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays, 'work-hours': SettingsWorkHours,
   'time-tracking': SettingsTimeTracking, 'work-types': SettingsWorkTypes,
   'asset-categories': SettingsAssetCategories, 'asset-alerts': SettingsAssetAlerts,
   'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory, 'directory-sync': DirectorySync,
@@ -172,6 +174,7 @@ export default function App() {
         <Route path="/projects/new" element={staff(<ProjectNew />)} />
         <Route path="/projects/:id" element={perm(<ProjectDetail />, PROJECTS_KEYS)} />
 
+        <Route path="/workload" element={perm(<Workload />, ['workload.view'])} />
         <Route path="/reports" element={perm(<Reports />, REPORTS_KEYS)} />
         <Route path="/calendar" element={perm(<Calendar />, CALENDAR_KEYS)} />
 

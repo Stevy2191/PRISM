@@ -94,3 +94,14 @@ test('project-templates is in group Projects and needs projects.manage_templates
   assert.equal(canOpen(page.access, auth(['projects.manage_templates'])), true);
   assert.ok(GROUPS.includes('Projects'));
 });
+
+test('Workload group holds Hours people work and Holidays (moved out of Hours & SLAs)', () => {
+  assert.ok(GROUPS.includes('Workload'));
+  const wh = PAGES.find((p) => p.id === 'work-hours');
+  assert.equal(wh.group, 'Workload');
+  assert.deepEqual(wh.access, { permission: ['settings.manage_business_hours'] });
+  const hol = PAGES.find((p) => p.id === 'holidays');
+  assert.equal(hol.group, 'Workload');
+  assert.equal(hol.path, '/settings/holidays');
+  assert.equal(hol.desc, 'Days off for the SLA clock and workload');
+});

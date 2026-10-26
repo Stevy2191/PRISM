@@ -302,6 +302,16 @@ describe('work hours and settings', () => {
     expect((await w.admin.agent.patch(`${API}/users/${carl.user.id}/work-hours`).send({})).status).toBe(400);
   });
 
+  it('GET /users/assignable?withHours=1 lists each person\'s own hours, only for settings.manage_business_hours', async () => {
+    expectOk(await patchHours(w.admin.agent, carl.user.id, { 1: 360 }));
+    expect((await tina.agent.get(`${API}/users/assignable?withHours=1`)).status).toBe(403);
+    const plain = expectOk(await tina.agent.get(`${API}/users/assignable`));
+    expect(plain.users.every((u) => !('workHours' in u))).toBe(true);
+    const res = expectOk(await w.admin.agent.get(`${API}/users/assignable?withHours=1`));
+    expect(res.users.find((u) => u.id === carl.user.id).workHours).toEqual({ 1: 360 });
+    expect(res.users.find((u) => u.id === tina.user.id).workHours).toBeNull();
+  });
+
   it('defaultTicketMinutes outside 15–1440 → 400', async () => {
     const patch = (value) => w.admin.agent.patch(`${API}/settings`).send({ 'workload.defaultTicketMinutes': value });
     for (const bad of ['14', '1441', '0', 'abc', '30.5']) {

@@ -129,10 +129,16 @@ async function narrowToCompany(req, users) {
   return users.filter((u) => reach.has(u.id));
 }
 
+// ?withHours=1 adds each person's own work hours (null = the default week),
+// for the "Hours people work" settings page; only for those who may change them.
 const listAssignable = asyncHandler(async (req, res) => {
+  const withHours = req.query.withHours === '1';
+  if (withHours && !(await hasPermission(req.user.id, 'settings.manage_business_hours'))) {
+    throw new ApiError(403, 'Insufficient permissions', 'FORBIDDEN', { required: 'settings.manage_business_hours' });
+  }
   const users = await User.findAll({
     where: { role: { [Op.in]: ['admin', 'technician'] }, isActive: true },
-    attributes: ['id', 'displayName'],
+    attributes: withHours ? ['id', 'displayName', 'workHours'] : ['id', 'displayName'],
     order: [['displayName', 'ASC']],
   });
   res.json({ users: await narrowToCompany(req, users) });
