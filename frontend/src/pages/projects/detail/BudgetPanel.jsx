@@ -88,18 +88,20 @@ function BudgetEditor({ project, budget, canEdit, onSaved }) {
     if (bad) { setError('Enter hours as a number, like 80 or 7.5.'); return; }
     setSaving(true);
     setError('');
+    // A budget is only sent when its text changed, so 100 minutes (shown as
+    // 1.7 h) is not rewritten as 102 by an unrelated save.
+    const was = fresh();
     try {
-      await api.patch(`/projects/${project.id}`, {
-        hourBudgetMinutes: totalMinutes, budgetAlert80: form.alert80, budgetAlert100: form.alert100,
-      });
+      const body = { budgetAlert80: form.alert80, budgetAlert100: form.alert100 };
+      if (form.total !== was.total) body.hourBudgetMinutes = totalMinutes;
+      await api.patch(`/projects/${project.id}`, body);
       for (const p of budget.phases) {
-        const next = phaseMinutes(p.id) || null;
-        if (next !== (p.budgetMinutes || null)) await api.patch(`/projects/${project.id}/phases/${p.id}`, { hourBudgetMinutes: next }); // eslint-disable-line no-await-in-loop
+        if (form.phases[p.id] !== was.phases[p.id]) await api.patch(`/projects/${project.id}/phases/${p.id}`, { hourBudgetMinutes: phaseMinutes(p.id) }); // eslint-disable-line no-await-in-loop
       }
-      await onSaved();
     } catch (err) {
       setError(errMessage(err));
     } finally {
+      await onSaved(); // also after a failure, so the panel shows what was stored
       setSaving(false);
     }
   };

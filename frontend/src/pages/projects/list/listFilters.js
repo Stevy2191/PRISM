@@ -9,10 +9,29 @@ export const PILLS = [
 ];
 
 // The query for the list. `today` is the browser's local 'YYYY-MM-DD'.
-export function listParams({ pill, attention, companyId, tag, search, today }) {
-  const params = {};
-  if (pill === 'closed') params.state = 'closed';
-  else if (pill !== 'all') params.state = 'open';
+// `dept` is '' | 'mine' | 'owner:ID' | 'for:ID'; `status` is a status name or ''.
+export function deptParams(dept) {
+  if (dept === 'mine') return { myDepartment: 'true' };
+  const [kind, id] = String(dept || '').split(':');
+  if (kind === 'owner' && id) return { ownerDept: id };
+  if (kind === 'for' && id) return { forDept: id };
+  return {};
+}
+
+// What the tiles count with: the same company and department narrowing as the list.
+export function tileParams({ companyId, dept, today }) {
+  return { today, ...(companyId ? { companyId } : {}), ...deptParams(dept) };
+}
+
+export function listParams({
+  pill, attention, companyId, tag, search, today, dept = '', status = '',
+}) {
+  const params = { ...deptParams(dept) };
+  if (status) params.status = status;
+  if (!status) {
+    if (pill === 'closed') params.state = 'closed';
+    else if (pill !== 'all') params.state = 'open';
+  }
   if (pill === 'mine') params.mine = 'member';
   if (pill === 'lead') params.mine = 'lead';
   if (attention) { params.attention = attention; params.today = today; }
@@ -37,3 +56,7 @@ export function budgetPercent(used, budget) {
   if (budget == null || !(Number(budget) > 0)) return null;
   return Math.round(((Number(used) || 0) / Number(budget)) * 100);
 }
+
+// A due date is late when it is before today and the project is still open.
+// Both are 'YYYY-MM-DD', so a string compare is a date compare.
+export const isLate = (dueDate, today, closed) => !!dueDate && !closed && dueDate < today;

@@ -1,4 +1,4 @@
-const { resetData, closeDb } = require('./helpers');
+const { resetData, closeDb, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeManager, makeOwnTier, makeProject, makeTask, taskStatusId,
 } = require('./fixtures');
@@ -178,9 +178,43 @@ describe('list rows', () => {
   });
 
   it('pagination still counts projects, not rows', async () => {
-    await mkProject({ name: 'A', memberIds: [w.admin.user.id] });
-    await mkProject({ name: 'B' });
+    const tech = await makeTech('tech', w.deptA.id);
+    const p = await mkProject({ name: 'A', memberIds: [w.admin.user.id, tech.user.id] });
+    await makeTask(w.admin.agent, p.id, { title: 'one' });
+    await makeTask(w.admin.agent, p.id, { title: 'two' });
+    await mkProject({ name: 'B', assignedToUserId: tech.user.id });
     const body = expectOk(await w.admin.agent.get(`${API}/projects?limit=1&attention=unassigned`));
-    expect(body.total).toBe(0);
+    expect(body.total).toBe(1);
+    expect(body.projects).toHaveLength(1);
+  });
+});
+
+describe('tiles follow the list filters', () => {
+  it('company and department params narrow the tile counts', async () => {
+    const a = w.admin.agent;
+    const inA = await mkProject({ name: 'In A' });
+    const inB = await mkProject({ name: 'In B', ownerDepartmentId: w.deptB.id });
+    for (const p of [inA, inB]) {
+      await budgetOf(p, 10);
+      await log(a, p, 30);
+      await makeTask(a, p.id, { title: 'loose' });
+    }
+    expect(await attention(a, 'today=2026-03-10')).toEqual(expect.objectContaining({ overBudget: 2, unassignedTasks: 2 }));
+    expect(await attention(a, `today=2026-03-10&ownerDept=${w.deptB.id}`)).toEqual(expect.objectContaining({ overBudget: 1, unassignedTasks: 1 }));
+    expect((await attention(a, `today=2026-03-10&companyId=${inA.companyId}`)).overBudget).toBe(2);
+    expect((await attention(a, 'today=2026-03-10&companyId=999999')).overBudget).toBe(0);
+    expect((await attention(a, 'today=2026-03-10&forDept=abc')).overBudget).toBe(0);
+  });
+
+  it('over budget uses whole minutes, like the row', async () => {
+    const p = await mkProject({ name: 'Edge' });
+    await budgetOf(p, 100);
+    const entry = (await log(w.admin.agent, p, 100)).entry;
+    await models.TimeEntry.update({ durationSeconds: 6029 }, { where: { id: entry.id } }); // 100.48 min -> 100
+    expect((await attention(w.admin.agent)).overBudget).toBe(0);
+    expect(await list(w.admin.agent, 'attention=over_budget')).toEqual([]);
+    await models.TimeEntry.update({ durationSeconds: 6031 }, { where: { id: entry.id } }); // 100.52 min -> 101
+    expect((await attention(w.admin.agent)).overBudget).toBe(1);
+    expect((await list(w.admin.agent))[0].loggedMinutes).toBe(101);
   });
 });

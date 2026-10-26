@@ -6,7 +6,7 @@ import Avatar from '../../../components/ui/Avatar';
 import Meter from '../../../components/ui/Meter';
 import { meterLevel } from '../../../components/ui/meter';
 import { shortDate, weekdayDate } from '../detail/taskFilters';
-import { hoursText, budgetPercent } from './listFilters';
+import { hoursText, budgetPercent, isLate } from './listFilters';
 
 export const COLUMNS = 'minmax(0,2.2fr) minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,1.4fr) minmax(0,1.6fr) 4.5rem 6.5rem';
 const OVER = { color: 'var(--color-danger)' };
@@ -43,10 +43,10 @@ function Hours({ project }) {
   );
 }
 
-export default function ProjectRow({ project, statusColor, closed, selectable, selected, onToggle }) {
+export default function ProjectRow({ project, statusColor, closed, today, selectable, selected, onToggle }) {
   const lead = project.lead?.displayName;
   const next = project.nextMilestone;
-  const where = [project.projectCode, project.company?.name].filter(Boolean).join(' · ');
+  const where = [project.projectCode, project.company?.name || project.ownerDepartment?.name || 'Internal'].filter(Boolean).join(' · ');
   return (
     <div
       role="row"
@@ -75,7 +75,7 @@ export default function ProjectRow({ project, statusColor, closed, selectable, s
           </>
         ) : <span className="text-navy-400">{closed ? '—' : 'None open'}</span>}
       </div>
-      <span className="num text-sm">{project.dueDate ? shortDate(project.dueDate) : '—'}</span>
+      <span className="num text-sm" style={isLate(project.dueDate, today, closed) ? OVER : undefined}>{project.dueDate ? shortDate(project.dueDate) : '—'}</span>
       <span>
         <span
           className="inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-[13px] font-semibold"

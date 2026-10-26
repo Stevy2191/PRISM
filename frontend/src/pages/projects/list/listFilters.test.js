@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listParams, pickTile, hoursText, budgetPercent } from './listFilters.js';
+import {
+  listParams, pickTile, hoursText, budgetPercent, deptParams, tileParams, isLate,
+} from './listFilters.js';
 
 const base = { pill: 'open', attention: '', companyId: '', tag: '', search: '', today: '2026-03-10' };
 
@@ -37,4 +39,20 @@ test('budget percent', () => {
   assert.equal(budgetPercent(88 * 60, 80 * 60), 110);
   assert.equal(budgetPercent(5, null), null);
   assert.equal(budgetPercent(5, 0), null);
+});
+
+test('department and status filters', () => {
+  assert.deepEqual(deptParams('mine'), { myDepartment: 'true' });
+  assert.deepEqual(deptParams('owner:4'), { ownerDept: '4' });
+  assert.deepEqual(deptParams('for:7'), { forDept: '7' });
+  assert.deepEqual(deptParams(''), {});
+  assert.deepEqual(listParams({ ...base, dept: 'for:7', status: 'On hold' }), { forDept: '7', status: 'On hold' });
+  assert.deepEqual(tileParams({ companyId: '2', dept: 'owner:4', today: '2026-03-10' }), { today: '2026-03-10', companyId: '2', ownerDept: '4' });
+});
+
+test('late means past and open', () => {
+  assert.equal(isLate('2026-03-09', '2026-03-10', false), true);
+  assert.equal(isLate('2026-03-10', '2026-03-10', false), false);
+  assert.equal(isLate('2026-03-09', '2026-03-10', true), false);
+  assert.equal(isLate(null, '2026-03-10', false), false);
 });

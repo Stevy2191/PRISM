@@ -8,6 +8,7 @@ const {
 const { taskStatusBehaviorMap } = require('../tasks/statuses');
 const { getProjectStatusBuckets } = require('../statusBehavior');
 const { andWhere, projectScopeWhere } = require('../recordScope');
+const { parseRecordId } = require('../permissionService');
 
 const ATTENTION = ['over_budget', 'milestones_7d', 'unassigned'];
 
@@ -52,7 +53,7 @@ async function attentionClause(kind, today) {
   const open = { status: { [Op.in]: buckets.open } };
   if (kind === 'over_budget') {
     return andWhere(open, sequelize.literal(
-      '(Project.hourBudgetMinutes IS NOT NULL AND (SELECT COALESCE(SUM(te.durationSeconds), 0) FROM TimeEntries te WHERE te.projectId = Project.id) > Project.hourBudgetMinutes * 60)',
+      '(Project.hourBudgetMinutes IS NOT NULL AND (SELECT ROUND(COALESCE(SUM(te.durationSeconds), 0) / 60) FROM TimeEntries te WHERE te.projectId = Project.id) > Project.hourBudgetMinutes)',
     ));
   }
   const closedIds = await closedTaskStatusIds();
@@ -61,12 +62,26 @@ async function attentionClause(kind, today) {
   ));
 }
 
+// The list's company and department filters, so the tiles count what the list
+// would show. They only narrow; the viewer's scope is ANDed in separately.
+function narrowingWhere(user, query) {
+  const parts = [];
+  const id = (v) => parseRecordId(v) || -1;
+  if (query.companyId) parts.push({ companyId: id(query.companyId) });
+  if (query.ownerDept) parts.push({ ownerDepartmentId: id(query.ownerDept) });
+  if (query.forDept) parts.push({ forDepartmentId: id(query.forDept) });
+  if (query.myDepartment === 'true' && user.departmentId) {
+    parts.push({ [Op.or]: [{ ownerDepartmentId: user.departmentId }, { forDepartmentId: user.departmentId }] });
+  }
+  return andWhere(...parts);
+}
+
 // The three tile numbers for what this viewer can see: projects over budget,
 // milestones due in the next 7 days, and tasks with no assignee. Open projects only.
 async function attentionCounts(user, query) {
   const today = todayFrom(query);
   const buckets = await getProjectStatusBuckets();
-  const base = andWhere({ status: { [Op.in]: buckets.open } }, await projectScopeWhere(user));
+  const base = andWhere({ status: { [Op.in]: buckets.open } }, narrowingWhere(user, query || {}), await projectScopeWhere(user));
   const overBudget = await Project.count({ where: andWhere(base, await attentionClause('over_budget', today)) });
   const visible = await Project.findAll({ where: base, attributes: ['id'], raw: true });
   const projectIds = visible.map((p) => p.id);

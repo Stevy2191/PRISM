@@ -231,7 +231,7 @@ export default function ProjectDetail() {
         </Notice>
       )}
 
-      <SummaryRow stats={stats} estimateMinutes={estimateMinutes} today={today} onChangeBudget={() => setTab('time')} />
+      <SummaryRow stats={stats} estimateMinutes={estimateMinutes} today={today} onChangeBudget={canEdit ? () => setTab('time') : undefined} />
 
       <Tabs items={tabs} value={tab} onChange={setTab} label="Project sections" className="mt-7" />
 
