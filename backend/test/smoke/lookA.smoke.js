@@ -14,6 +14,7 @@ const LONG_COMPANY = 'Riverside Family Clinic and Associated Practices of the Gr
 // { name, path, as = 'admin', before?: async (page) => void }; as: null is signed out.
 const PHONE_ROUTES = [
   { name: 'tickets', path: '/tickets' },
+  { name: 'dashboard', path: '/dashboard' },
   { name: 'tickets board', path: '/tickets', before: (p) => p.getByRole('button', { name: 'Board' }).first().click() },
 ];
 

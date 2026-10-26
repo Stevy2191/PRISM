@@ -13,10 +13,12 @@ import {
   IconFolder,
   IconChartBar,
   IconUsers,
+  IconLayoutGrid,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
+import Button from '../components/ui/Button';
 import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 import { formatTicketId } from '../utils/ticketId';
 
@@ -106,7 +108,7 @@ function dueBadgeLabel(dueBadge, dueDate) {
 function Card({ children, className = '' }) {
   return (
     <div
-      className={`h-full rounded-[10px] border p-5 ${className}`}
+      className={`h-full rounded-xl border p-5 ${className}`}
       style={{ backgroundColor: CARD_BG, borderColor: CARD_BORDER }}
     >
       {children}
@@ -114,32 +116,26 @@ function Card({ children, className = '' }) {
   );
 }
 
-// Console readout: eyebrow label, oversized mono metric, and a thin
-// status-colored rule capping the card — the repeated unit of the dashboard.
-function StatCard({ label, value, color, delta }) {
+// Stat tile: label, big number (coloured only when it signals trouble).
+function StatCard({ label, value, color = TEXT, delta }) {
   return (
-    <div className="relative h-full overflow-hidden rounded-lg border p-5" style={{ backgroundColor: CARD_BG, borderColor: CARD_BORDER }}>
-      <span className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: color }} />
-      <p className="eyebrow">{label}</p>
-      <p className="mt-3 font-mono text-4xl font-bold leading-none tracking-tight" style={{ color }}>{value}</p>
+    <div className="h-full rounded-xl border p-5 max-sm:p-4" style={{ backgroundColor: CARD_BG, borderColor: CARD_BORDER }}>
+      <p className="text-[13px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{label}</p>
+      <p className="num mt-2 text-3xl font-semibold leading-none tracking-tight" style={{ color }}>{value}</p>
       {delta !== undefined && (
-        <p className="mt-2 font-mono text-xs" style={{ color: delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-          {delta >= 0 ? '▲ +' : '▼ '}{delta} <span style={{ color: MUTED }}>vs last week</span>
+        <p className="num mt-2 text-xs font-semibold" style={{ color: delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+          {delta >= 0 ? '+' : ''}{delta} vs last week
         </p>
       )}
     </div>
   );
 }
 
-// Shared console-style panel header — accent tick + tracked uppercase eyebrow.
-// Optional right-hand slot for controls (e.g. Mark all read).
+// Shared panel header: title, optional right-hand controls (e.g. Mark all read).
 function PanelHead({ title, children }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5" style={{ borderColor: CARD_BORDER }}>
-      <h2 className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-eyebrow" style={{ color: MUTED }}>
-        <span className="h-3.5 w-1 flex-shrink-0 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />
-        {title}
-      </h2>
+    <div className="flex items-center justify-between gap-3 border-b px-5 py-4" style={{ borderColor: CARD_BORDER }}>
+      <h2 className="text-[15px] font-semibold" style={{ color: TEXT }}>{title}</h2>
       {children}
     </div>
   );
@@ -147,9 +143,9 @@ function PanelHead({ title, children }) {
 
 function ProgressBar({ percent, color }) {
   return (
-    <div className="h-[5px] w-full rounded-[3px]" style={{ backgroundColor: 'var(--color-border)' }}>
+    <div className="h-1.5 w-full rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
       <div
-        className="h-full rounded-[3px]"
+        className="h-full rounded-full"
         style={{ width: `${Math.min(100, Math.max(0, percent))}%`, backgroundColor: color }}
       />
     </div>
@@ -163,7 +159,7 @@ function ProjectHealthPanel({ projects, title = 'Project Health', emptyText = 'N
       {projects.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>{emptyText}</p>
       ) : (
-        <ul className="divide-y" style={{ borderColor: CARD_BORDER }}>
+        <ul className="divide-y divide-navy-100">
           {projects.map((p) => {
             const badge = DUE_BADGE[p.dueBadge] || DUE_BADGE.none;
             return (
@@ -173,7 +169,7 @@ function ProjectHealthPanel({ projects, title = 'Project Health', emptyText = 'N
                     {p.name}
                   </Link>
                   <span
-                    className="whitespace-nowrap rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
+                    className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold"
                     style={{ backgroundColor: tint(badge.color), color: badge.color }}
                   >
                     {dueBadgeLabel(p.dueBadge, p.dueDate)}
@@ -202,7 +198,7 @@ function TicketsPanel({ tickets }) {
       {tickets.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>No assigned tickets.</p>
       ) : (
-        <ul className="divide-y" style={{ borderColor: CARD_BORDER }}>
+        <ul className="divide-y divide-navy-100">
           {tickets.map((t) => {
             const status = TICKET_STATUS[t.displayStatus] || TICKET_STATUS.open;
             return (
@@ -216,7 +212,7 @@ function TicketsPanel({ tickets }) {
                   </p>
                 </div>
                 <span
-                  className="flex-shrink-0 rounded-[3px] px-2.5 py-0.5 text-xs font-medium"
+                  className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold"
                   style={{ backgroundColor: tint(status.color), color: status.color }}
                 >
                   {status.label}
@@ -248,7 +244,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, marking }) {
       {notifications.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>You&apos;re all caught up.</p>
       ) : (
-        <ul className="divide-y" style={{ borderColor: CARD_BORDER }}>
+        <ul className="divide-y divide-navy-100">
           {notifications.map((n) => {
             const type = NOTIF_TYPE[n.type] || NOTIF_TYPE.comment;
             const Icon = type.Icon;
@@ -270,7 +266,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, marking }) {
                   <Icon size={18} stroke={2} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm" style={{ color: TEXT }}>{n.message}</p>
+                  <p className="text-sm [overflow-wrap:anywhere]" style={{ color: TEXT }}>{n.message}</p>
                   <p className="mt-0.5 text-xs" style={{ color: MUTED }}>{timeAgo(n.createdAt)}</p>
                 </div>
                 {unread && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />}
@@ -287,15 +283,15 @@ function HoursPanel({ hours }) {
   const maxHours = Math.max(1, ...hours.byDay.map((d) => d.hours));
   return (
     <Card>
-      <h2 className="eyebrow">My Hours This Week</h2>
-      <p className="mt-2 font-mono text-3xl font-bold tracking-tight" style={{ color: TEXT }}>{hours.total}h</p>
+      <h2 className="eyebrow uppercase tracking-wide">My Hours This Week</h2>
+      <p className="mt-2 num text-3xl font-semibold tracking-tight" style={{ color: TEXT }}>{hours.total}h</p>
       <div className="mt-5 space-y-3">
         {hours.byDay.map((d) => (
           <div key={d.day} className="flex items-center gap-3">
             <span className="w-8 text-xs font-medium" style={{ color: MUTED }}>{d.day}</span>
-            <div className="h-3 flex-1 rounded-[3px]" style={{ backgroundColor: 'var(--color-border)' }}>
+            <div className="h-2 flex-1 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
               <div
-                className="h-full rounded-[3px]"
+                className="h-full rounded-full"
                 style={{ width: `${(d.hours / maxHours) * 100}%`, backgroundColor: 'var(--color-accent)' }}
               />
             </div>
@@ -320,9 +316,9 @@ function TeamWorkloadPanel({ workload }) {
           {workload.map((w) => (
             <div key={w.userId} className="flex items-center gap-3">
               <span className="w-32 flex-shrink-0 truncate text-sm" style={{ color: TEXT }}>{w.displayName}</span>
-              <div className="h-3 flex-1 rounded-[3px]" style={{ backgroundColor: 'var(--color-border)' }}>
+              <div className="h-2 flex-1 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
                 <div
-                  className="h-full rounded-[3px]"
+                  className="h-full rounded-full"
                   style={{ width: `${(w.openCount / maxCount) * 100}%`, backgroundColor: colorFor(w.openCount) }}
                 />
               </div>
@@ -356,11 +352,11 @@ function MyRatingsPanel({ ratings }) {
   if (!ratings) return null;
   return (
     <Card>
-      <h2 className="eyebrow">My Ratings</h2>
+      <h2 className="eyebrow uppercase tracking-wide">My Ratings</h2>
       {ratings.showRating ? (
         <div className="mt-3 flex items-baseline gap-2">
           <StarRating value={ratings.avgRating || 0} />
-          <span className="font-mono text-2xl font-bold tracking-tight" style={{ color: TEXT }}>{ratings.avgRating?.toFixed(1)}</span>
+          <span className="num text-2xl font-semibold tracking-tight" style={{ color: TEXT }}>{ratings.avgRating?.toFixed(1)}</span>
           <span className="text-sm" style={{ color: MUTED }}>/ 5 · {ratings.responseCount} response{ratings.responseCount === 1 ? '' : 's'}</span>
         </div>
       ) : (
@@ -396,7 +392,7 @@ function TeamHappinessPanel({ data }) {
       {sorted.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>No technicians yet.</p>
       ) : (
-        <ul className="divide-y" style={{ borderColor: CARD_BORDER }}>
+        <ul className="divide-y divide-navy-100">
           {sorted.map((t) => (
             <li key={t.userId} className="flex items-center justify-between gap-3 px-5 py-3">
               <span className="min-w-0 flex-1 truncate text-sm" style={{ color: TEXT }}>{t.name}</span>
@@ -435,11 +431,11 @@ function AssetsSummaryPanel({ data }) {
   ];
   return (
     <Card>
-      <h2 className="eyebrow">Assets</h2>
+      <h2 className="text-[15px] font-semibold" style={{ color: TEXT }}>Assets</h2>
       <div className="mt-3 grid grid-cols-2 gap-3">
         {stats.map((s) => (
-          <Link key={s.label} to={s.to} className="rounded-md border p-3 text-center transition hover:opacity-80" style={{ borderColor: CARD_BORDER }}>
-            <p className="font-mono text-2xl font-bold tracking-tight" style={{ color: s.color }}>{s.value}</p>
+          <Link key={s.label} to={s.to} className="rounded-lg border p-3 text-center transition hover:bg-[var(--color-hover)]" style={{ borderColor: CARD_BORDER }}>
+            <p className="num text-2xl font-semibold tracking-tight" style={{ color: s.color }}>{s.value}</p>
             <p className="mt-1 text-xs" style={{ color: MUTED }}>{s.label}</p>
           </Link>
         ))}
@@ -452,15 +448,15 @@ function SlaAtRiskPanel({ tickets }) {
   if (!tickets) return null;
   return (
     <Card>
-      <h2 className="eyebrow">SLA at risk</h2>
+      <h2 className="text-[15px] font-semibold" style={{ color: TEXT }}>SLA at risk</h2>
       {tickets.length === 0 ? (
         <p className="mt-3 text-sm" style={{ color: MUTED }}>Nothing breached or at risk.</p>
       ) : (
-        <ul className="mt-3 divide-y" style={{ borderColor: CARD_BORDER }} data-testid="sla-at-risk">
+        <ul className="mt-3 divide-y divide-navy-100" data-testid="sla-at-risk">
           {tickets.map((t) => (
             <li key={t.id} className="flex items-center justify-between gap-3 py-2">
               <Link to={`/tickets/${t.id}`} className="min-w-0 truncate text-sm hover:underline" style={{ color: TEXT }}>
-                <span className="font-mono text-xs" style={{ color: MUTED }}>#{String(t.id).padStart(5, '0')}</span> {t.title}
+                <span className="num text-xs" style={{ color: MUTED }}>#{String(t.id).padStart(5, '0')}</span> {t.title}
               </Link>
               <span className="flex flex-shrink-0 items-center gap-2">
                 {t.sla?.worst && <span className="hidden text-xs sm:inline" style={{ color: MUTED }}>{CLOCK_LABELS[t.sla.worst.clock]}</span>}
@@ -519,12 +515,12 @@ function ActivityFeedPanel({ activity, hasMore, onLoadMore, loadingMore }) {
       {activity.length === 0 ? (
         <p className="p-5 text-sm" style={{ color: MUTED }}>No recent activity.</p>
       ) : (
-        <ul className="divide-y" style={{ borderColor: CARD_BORDER }}>
+        <ul className="divide-y divide-navy-100">
           {activity.map((a) => {
             const color = ACTIVITY_COLOR[a.colorKey] || 'var(--color-accent)';
             const to = a.targetType === 'project' ? `/projects/${a.targetId}` : `/tickets/${a.targetId}`;
             return (
-              <li key={a.id} className="flex items-start gap-3 px-5 py-3 text-sm">
+              <li key={a.id} className="flex items-start gap-3 px-5 py-3 text-sm [overflow-wrap:anywhere]">
                 <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
                 <div className="min-w-0 flex-1">
                   <span style={{ color: TEXT }}>
@@ -620,7 +616,7 @@ function reconcilePanels(savedPanels, catalog, defaults) {
 }
 
 function PanelSlot({ label, size, editMode, dragging, onDragStart, onDragOver, onDrop, onDragEnd, onHide, onToggleSize, children }) {
-  const spanClass = size === 'full' ? 'md:col-span-2' : 'md:col-span-1';
+  const spanClass = size === 'full' ? 'min-w-0 md:col-span-2' : 'min-w-0 md:col-span-1';
 
   if (!editMode) {
     return <div className={spanClass}>{children}</div>;
@@ -628,7 +624,7 @@ function PanelSlot({ label, size, editMode, dragging, onDragStart, onDragOver, o
 
   return (
     <div
-      className={`${spanClass} rounded-[12px] border-2 border-dashed p-2`}
+      className={`${spanClass} flex flex-col rounded-2xl border border-dashed p-2`}
       style={{ borderColor: 'var(--color-border-strong)', opacity: dragging ? 0.4 : 1 }}
       draggable
       onDragStart={onDragStart}
@@ -641,15 +637,15 @@ function PanelSlot({ label, size, editMode, dragging, onDragStart, onDragOver, o
           <span aria-hidden="true">⠿</span> {label}
         </span>
         <div className="flex items-center gap-3">
-          <button type="button" onClick={onToggleSize} className="text-xs font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>
+          <button type="button" onClick={onToggleSize} className="text-xs font-semibold hover:underline" style={{ color: TEXT }}>
             {size === 'full' ? 'Make half-width' : 'Make full-width'}
           </button>
-          <button type="button" onClick={onHide} className="flex h-5 w-5 items-center justify-center rounded-full text-xs" style={{ color: 'var(--color-danger)', backgroundColor: tint('var(--color-danger)') }} title="Hide panel">
+          <button type="button" onClick={onHide} className="flex h-6 w-6 items-center justify-center rounded-full text-xs" style={{ color: 'var(--color-danger)', backgroundColor: tint('var(--color-danger)') }} title="Hide panel" aria-label={`Hide ${label}`}>
             ✕
           </button>
         </div>
       </div>
-      {children}
+      <div className="min-h-0 flex-1">{children}</div>
     </div>
   );
 }
@@ -669,10 +665,10 @@ function AddPanelMenu({ hiddenPanels, onAdd }) {
 
   return (
     <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="btn-secondary text-sm">+ Add panel</button>
+      <Button onClick={() => setOpen((o) => !o)} aria-expanded={open}><IconPlus size={15} aria-hidden="true" />Add panel</Button>
       {open && (
         <div
-          className="absolute left-0 z-20 mt-1 w-52 overflow-hidden rounded-md border shadow-lg"
+          className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-lg border p-1 shadow-lg"
           style={{ backgroundColor: CARD_BG, borderColor: CARD_BORDER }}
         >
           {hiddenPanels.map((p) => (
@@ -680,7 +676,7 @@ function AddPanelMenu({ hiddenPanels, onAdd }) {
               key={p.key}
               type="button"
               onClick={() => { onAdd(p.key); setOpen(false); }}
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-hover)]"
+              className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--color-hover)]"
               style={{ color: TEXT }}
             >
               {p.label}
@@ -694,13 +690,11 @@ function AddPanelMenu({ hiddenPanels, onAdd }) {
 
 function GreetingBar({ title, subtitleName }) {
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="page-title">{title}</h1>
-        {subtitleName && <p className="text-sm" style={{ color: MUTED }}>Here is what&apos;s happening with {subtitleName}&apos;s work.</p>}
-      </div>
-      <p className="font-mono text-xs uppercase tracking-wide" style={{ color: MUTED }}>
+    <div>
+      <h1 className="page-title">{title}</h1>
+      <p className="mt-1 text-sm" style={{ color: MUTED }}>
         {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        {subtitleName && <> · Here is what&apos;s happening with {subtitleName}&apos;s work.</>}
       </p>
     </div>
   );
@@ -908,8 +902,7 @@ export default function Dashboard() {
 
   return (
     <div
-      style={{ margin: '-2rem -1.5rem', padding: '2rem 1.5rem' }}
-      className="min-h-full bg-navy-50"
+      className="mx-auto min-h-full max-w-[1280px] px-1 sm:px-0 lg:px-6"
     >
       {loading && !data ? (
         <Spinner />
@@ -920,7 +913,7 @@ export default function Dashboard() {
           {error}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               {isTechMode && data.mode === 'tech' && (
@@ -937,8 +930,8 @@ export default function Dashboard() {
                 <select
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full rounded-md border px-3 py-1.5 text-sm focus:outline-none sm:w-auto"
-                  style={{ backgroundColor: CARD_BG, borderColor: 'var(--color-border-strong)', color: TEXT }}
+                  aria-label="Whose dashboard"
+                  className="sel w-full sm:w-auto"
                 >
                   <option value="">{isSystemViewer ? 'All users (system wide)' : 'All users in my department'}</option>
                   {users.map((u) => (
@@ -950,10 +943,10 @@ export default function Dashboard() {
                 {editMode ? (
                   <>
                     <AddPanelMenu hiddenPanels={hiddenPanelDefs} onAdd={addPanel} />
-                    <button type="button" onClick={handleDone} className="btn-primary text-sm">Done</button>
+                    <Button variant="primary" onClick={handleDone}>Done</Button>
                   </>
                 ) : (
-                  <button type="button" onClick={() => setEditMode(true)} className="btn-secondary text-sm">Customize</button>
+                  <Button onClick={() => setEditMode(true)}><IconLayoutGrid size={15} aria-hidden="true" />Customize</Button>
                 )}
               </div>
               {editMode && (
@@ -964,11 +957,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatCard
               label={isTechMode ? 'My Open Tickets' : (data.mode === 'admin_department' ? 'My Department Open Tickets' : 'Total Open Tickets')}
               value={data.stats.openTickets}
-              color="var(--color-accent)"
             />
             <StatCard label="Overdue Tickets" value={data.stats.overdueTickets} color="var(--color-danger)" />
             {isTechMode ? (
@@ -976,11 +968,11 @@ export default function Dashboard() {
             ) : (
               <StatCard label="Unassigned Tickets" value={data.stats.unassignedTickets} color="var(--color-warning)" />
             )}
-            <StatCard label="Closed This Week" value={data.stats.closedThisWeek} color="var(--color-success)" delta={data.stats.closedDelta} />
+            <StatCard label="Closed This Week" value={data.stats.closedThisWeek} delta={data.stats.closedDelta} />
           </div>
 
           {panels && (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {visiblePanels.map((p, idx) => (
                 <PanelSlot
                   key={p.key}
