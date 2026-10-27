@@ -1,6 +1,6 @@
 # Sub-project 7 — Client portal (desk)
 
-> Status: design, agreed in conversation 2026-10-27, builder-checked;
+> Status: design approved 2026-10-27 (agreed in conversation, builder-checked).
 > awaiting approval of this document. Mockups follow approval of this document and are approved per
 > screen before the plan is written (as in 6b).
 > Roadmap row: 7 in `docs/ROADMAP.md`.
