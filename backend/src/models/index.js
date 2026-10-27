@@ -677,6 +677,7 @@ DepartmentPortalAdmin.belongsTo(Department, { foreignKey: 'departmentId', as: 'd
 TicketWatcher.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 Contact.hasMany(TicketWatcher, { foreignKey: 'contactId', as: 'watching', onDelete: 'CASCADE' });
 Comment.belongsTo(Contact, { foreignKey: 'authorContactId', as: 'authorContact' });
+Attachment.belongsTo(Contact, { foreignKey: 'uploadedByContactId', as: 'uploadedByContact' });
 Ticket.belongsTo(Contact, { foreignKey: 'portalCreatedByContactId', as: 'portalCreatedBy' });
 KbArticle.hasMany(KbArticleAudience, { foreignKey: 'articleId', as: 'audiences', onDelete: 'CASCADE' });
 KbArticleAudience.belongsTo(KbArticle, { foreignKey: 'articleId', as: 'article' });

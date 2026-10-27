@@ -193,7 +193,9 @@ async function findOrCreateContact(fromEmail, fromName) {
 // scanner can't be reached nothing is saved (fail closed). Returns what was
 // skipped so the caller can tell staff in a private note — the ticket itself
 // is always still created.
-async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId = null, from = null) {
+// customerContactId: the contact who sent it, when the files are the customer's
+// (the portal shows those).
+async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId = null, from = null, customerContactId = null) {
   const skipped = [];
   if (!Array.isArray(mailAttachments) || !mailAttachments.length || !uploaderId) return { skipped };
 
@@ -242,6 +244,7 @@ async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId 
       ticketId,
       commentId,
       uploadedById: uploaderId,
+      uploadedByContactId: customerContactId,
     });
   }
   // One alert per email, however many attachments were infected.
@@ -464,10 +467,13 @@ async function handleParsedMessage(parsed, config) {
   };
 
   if (action === 'reply_added') {
+    // The customer's reply: by the ticket's contact or someone on its CC list
+    // (who may be a contact too).
+    const sender = await Contact.findOne({ where: { email: fromAddress }, attributes: ['id'] });
     const comment = await Comment.create({
-      body: textBody, authorId: systemActorId, ticketId: ticket.id, type: 'reply',
+      body: textBody, authorId: systemActorId, ticketId: ticket.id, type: 'reply', fromCustomer: true, authorContactId: sender ? sender.id : null,
     });
-    const saved = await saveAttachments(parsed.attachments, ticket.id, systemActorId, comment.id, fromAddress);
+    const saved = await saveAttachments(parsed.attachments, ticket.id, systemActorId, comment.id, fromAddress, sender ? sender.id : null);
     await addSkippedAttachmentsNote(ticket.id, saved.skipped, systemActorId);
     await applyCustomerReply(ticket, comment, systemActorId);
     return done({ action, ticketId: ticket.id });
@@ -520,7 +526,7 @@ async function handleParsedMessage(parsed, config) {
   if (!contact) return done({ action: 'ignored', ticketId: null }, 'No usable From address');
   const created = await createTicketFromEmail({ contact, subject, textBody });
   await addCcs(created.id, addressesOf(parsed.cc).map((c) => c.address).filter((e) => !own.has(e) && e !== fromAddress));
-  const saved = await saveAttachments(parsed.attachments, created.id, systemActorId, null, fromAddress);
+  const saved = await saveAttachments(parsed.attachments, created.id, systemActorId, null, fromAddress, contact.id);
   await addSkippedAttachmentsNote(created.id, saved.skipped, systemActorId);
   setImmediate(() => {
     sendAutoReply(created, contact).catch((err) => {

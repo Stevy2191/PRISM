@@ -34,6 +34,9 @@ module.exports = (sequelize) => {
       // The comment the file arrived with (inbound email), so a split can
       // move just that comment's files. Null for plain uploads.
       commentId: { type: DataTypes.INTEGER, allowNull: true },
+      // A file the customer sent (portal upload, or the email that opened the
+      // ticket). The portal shows these, plus files on public replies.
+      uploadedByContactId: { type: DataTypes.INTEGER, allowNull: true },
       uploadedById: {
         type: DataTypes.INTEGER,
         allowNull: false,

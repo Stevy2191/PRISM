@@ -109,14 +109,16 @@ const ssoLimiter = rateLimit({
   message: { error: true, message: 'Too many sign-on attempts, please try again later', code: 'RATE_LIMITED' },
 });
 
-// Client portal (7a). Sign-in and the set-password links: as for staff, 10
-// per 15 minutes per IP. Forgot password sends email, so 5 per hour per IP.
+// Client portal (7a). Sign-in and the set-password links: 10 failures per
+// 15 minutes per IP. Successes don't count: a client office signs in from
+// one shared address. Forgot password sends email, so 5 per hour per IP.
 // Signed-in portal traffic: the same generous backstop as staff, per contact.
 const portalLoginStore = new MemoryStore();
 const portalLoginLimiter = rateLimit({
   store: portalLoginStore,
   windowMs: 15 * 60 * 1000,
   max: 10,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: true, message: 'Too many sign-in attempts, please try again later', code: 'RATE_LIMITED' },

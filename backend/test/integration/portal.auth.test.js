@@ -193,9 +193,10 @@ it('a contact session is 401 on staff routes and a staff session is 401 on /api/
   expect((await agent.get(`${API}/tickets`)).status).toBe(401);
   expect((await agent.get(`${API}/contacts/${w.contact.id}`)).status).toBe(401);
   expect((await w.admin.agent.get(`${API}/portal/me`)).status).toBe(401);
-  // Routing is case-insensitive; the session choice must be too.
-  expect((await w.admin.agent.get(`${API}/PORTAL/me`)).status).toBe(401);
-  expect((await agent.get(`${API}/Portal/me`)).status).toBe(401); // the cookie path is case-sensitive
+  // Routing is case-insensitive but the portal cookie's path isn't: any
+  // other letter case is refused before either session is looked at.
+  expect((await w.admin.agent.get(`${API}/PORTAL/me`)).status).toBe(404);
+  expect((await agent.get(`${API}/Portal/me`)).status).toBe(404);
 });
 
 it('signing out of the portal keeps the staff session', async () => {
@@ -249,6 +250,35 @@ it('login is rate limited', async () => {
     last = await agent.post(`${API}/portal/auth/login`).send({ email: 'nobody@example.com', password: 'Wrong-Password-11' });
   }
   expect(last.status).toBe(429);
+});
+
+it('successful sign-ins don\'t use up the limit (a client office shares one IP)', async () => {
+  await signedIn();
+  for (let i = 0; i < 12; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    expectOk(await portal().post(`${API}/portal/auth/login`).send({ email: w.contact.email, password: PASSWORD }));
+  }
+});
+
+it('changing a contact\'s email voids their open invite and reset links', async () => {
+  const token = await invite();
+  expectOk(await w.admin.agent.patch(`${API}/contacts/${w.contact.id}`).send({ email: 'fixed@example.com' }));
+  const res = await portal().post(`${API}/portal/auth/invite/accept`).send({ token, password: PASSWORD });
+  expect([res.status, res.body.code]).toEqual([400, 'TOKEN_INVALID']);
+});
+
+it('a portal path in other letter case is refused, not half-handled', async () => {
+  await signedIn();
+  const res = await portal().post(`${API.toUpperCase()}/PORTAL/auth/login`).send({ email: w.contact.email, password: PASSWORD });
+  expect(res.status).toBe(404);
+  expect(res.headers['set-cookie']).toBeUndefined();
+});
+
+it('accepting a new invite ends the contact\'s other sessions, as a reset does', async () => {
+  const open = await signedIn();
+  const token = await invite();
+  expectOk(await portal().post(`${API}/portal/auth/invite/accept`).send({ token, password: 'Lantern-Quay-Bridge-9' }));
+  expect((await open.get(`${API}/portal/me`)).status).toBe(401);
 });
 
 it('config is public and says whether Microsoft sign-in is offered', async () => {

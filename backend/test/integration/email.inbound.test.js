@@ -50,6 +50,8 @@ describe('today\'s behaviour', () => {
     expect(out).toEqual({ action: 'reply_added', ticketId: ticket.id });
     const comments = await Comment.findAll({ where: { ticketId: ticket.id } });
     expect(comments.map((c) => [c.type, c.body.trim(), c.viaEmail])).toEqual([['reply', 'It is still offline.', false]]);
+    // Marked as the customer's (client portal 7a): staff replies are type 'reply' too.
+    expect([comments[0].fromCustomer, comments[0].authorContactId]).toEqual([true, ann.id]);
     expect(await Ticket.count()).toBe(1);
     const log = await EmailProcessingLog.findOne();
     expect([log.action, log.ticketId, log.fromEmail]).toEqual(['reply_added', ticket.id, 'ann@acme.com']);
@@ -291,6 +293,17 @@ describe('merged tickets (5b)', () => {
     const [att] = await models.Attachment.findAll({ where: { ticketId: ticket.id } });
     const [reply] = await Comment.findAll({ where: { ticketId: ticket.id, type: 'reply' } });
     expect(att.commentId).toBe(reply.id);
+    expect(att.uploadedByContactId).toBe(ann.id);
+  });
+
+  it('a new ticket by email: its files are the customer\'s', async () => {
+    const out = await handle('generic-attach', {
+      DMARC: 'pass', FROM: 'ann@acme.com', TO: 'help@prism.example', SUBJECT: 'Scanner offline',
+    });
+    expect(out.action).toBe('ticket_created');
+    const files = await models.Attachment.findAll({ where: { ticketId: out.ticketId } });
+    expect(files.length).toBeGreaterThan(0);
+    expect(files.every((f) => f.uploadedByContactId === ann.id)).toBe(true);
   });
 });
 

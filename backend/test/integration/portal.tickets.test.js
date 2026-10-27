@@ -190,6 +190,21 @@ describe('replying', () => {
     expect(last.author).toEqual({ displayName: 'Pat Plain', side: 'you' });
   });
 
+  it('a tech\'s Reply (type reply, as the staff composer sends it) shows as support, not as the customer', async () => {
+    const t = await makeTicket(w.admin.agent, { title: 'Pat laptop', contactId: plain.id });
+    expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/comments`).send({ body: 'Try a restart', type: 'reply' }), 201);
+    const me = await portalAs(plain);
+    expectOk(await me.post(`${P}/tickets/${t.id}/replies`).send({ body: 'Did that' }), 201);
+    // An email reply from the contact (no portal author): the customer's.
+    await models.Comment.create({ ticketId: t.id, type: 'reply', body: 'By email', authorId: w.admin.user.id, fromCustomer: true });
+    const sides = expectOk(await me.get(`${P}/tickets/${t.id}`)).comments.map((c) => [c.body, c.author.side]);
+    expect(sides).toEqual([['Try a restart', 'support'], ['Did that', 'you'], ['By email', 'you']]);
+    // Staff see who wrote the portal reply.
+    const { comments } = expectOk(await w.admin.agent.get(`${API}/tickets/${t.id}/comments`));
+    const portalReply = comments.find((c) => c.body === 'Did that');
+    expect(portalReply).toMatchObject({ fromCustomer: true, authorContact: { id: plain.id } });
+  });
+
   it('a reply on a closed ticket leaves it closed and tells the assignee', async () => {
     const tech = await makeTech('tina', w.deptA.id);
     const t = await makeTicket(w.admin.agent, { title: 'Done', contactId: plain.id });
@@ -262,6 +277,19 @@ describe('attachments', () => {
     const otherUp = expectOk(await w.admin.agent.post(`${API}/tickets/${other.id}/attachments`).attach('file', TXT, { filename: 'o.txt' }), 201);
     expect((await me.get(`${P}/tickets/${t.id}/attachments/${otherUp.attachment.id}/download`)).status).toBe(404);
     expect((await me.get(`${P}/tickets/${other.id}/attachments/${otherUp.attachment.id}/download`)).status).toBe(404);
+  });
+
+  it('staff files stay out of the portal unless they hang off a public reply', async () => {
+    const t = await makeTicket(w.admin.agent, { title: 'Pat laptop', contactId: plain.id });
+    // A tech's upload from the ticket page (also what the composer's paperclip does, even on a private note).
+    const staffFile = expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/attachments`).attach('file', TXT, { filename: 'admin-console.txt' }), 201).attachment;
+    const me = await portalAs(plain);
+    const mine = expectOk(await me.post(`${P}/tickets/${t.id}/attachments`).attach('file', TXT, { filename: 'mine.txt' }), 201).attachment;
+    const detail = expectOk(await me.get(`${P}/tickets/${t.id}`));
+    expect(detail.attachments.map((a) => a.originalName)).toEqual(['mine.txt']);
+    expect(JSON.stringify(detail)).not.toContain('admin-console.txt');
+    expect((await me.get(`${P}/tickets/${t.id}/attachments/${staffFile.id}/download`)).status).toBe(404);
+    expect((await me.get(`${P}/tickets/${t.id}/attachments/${mine.id}/download`)).status).toBe(200);
   });
 
   it('nothing reaches disk for a ticket out of scope', async () => {

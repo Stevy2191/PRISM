@@ -146,6 +146,9 @@ const checkInvite = asyncHandler(async (req, res) => {
 // and signs the contact in.
 const acceptInvite = asyncHandler(async (req, res) => {
   const contact = await setPasswordFromLink(req, 'invite');
+  // A new invite to someone who had a password replaces it: like a reset,
+  // every other session ends.
+  await destroyPortalSessions(contact.id, req.sessionID);
   await portalAudit(req, 'portal.password_set', contact.id, { via: 'invite' });
   res.json({ contact: await signIn(req, contact, 'invite') });
 });

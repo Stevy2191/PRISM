@@ -8,7 +8,9 @@
 //                    contacts who see every ticket of their company or
 //                    department in the portal.
 //   TicketWatchers   a watcher is now a user OR a contact (exactly one).
-//   Comments         authorContactId: a reply written in the portal.
+//   Comments         authorContactId: a reply written in the portal;
+//                    fromCustomer: a customer reply (portal or email).
+//   Attachments      uploadedByContactId: a file the customer sent.
 //   Tickets          portalCreatedByContactId: who raised it in the portal,
 //                    when that isn't the ticket's contact.
 //   KbArticles       visibility 'public' ("End users") becomes 'portal', read
@@ -83,7 +85,33 @@ module.exports = {
       await qi.addIndex('TicketWatchers', ['ticketId', 'contactId'], { unique: true, name: 'ticket_watchers_ticket_contact' });
     }
 
-    if (!(await qi.describeTable('Comments')).authorContactId) await qi.addColumn('Comments', 'authorContactId', contactFk(dt, 'SET NULL'));
+    const comments = await qi.describeTable('Comments');
+    if (!comments.authorContactId) await qi.addColumn('Comments', 'authorContactId', contactFk(dt, 'SET NULL'));
+    // A staff answer is type 'reply' too, so a customer reply needs its own
+    // mark. Existing inbound email replies are found by their processing log
+    // (same ticket, logged within a minute).
+    if (!comments.fromCustomer) {
+      await qi.addColumn('Comments', 'fromCustomer', { type: dt.BOOLEAN, allowNull: false, defaultValue: false });
+      await qi.sequelize.query(
+        `UPDATE Comments c JOIN EmailProcessingLogs l
+            ON l.ticketId = c.ticketId AND l.action = 'reply_added'
+           AND ABS(TIMESTAMPDIFF(SECOND, l.processedAt, c.createdAt)) <= 60
+            SET c.fromCustomer = 1
+          WHERE c.type = 'reply' AND c.viaEmail = 0`
+      );
+    }
+    // Files the customer sent (portal upload, or an email that opened the
+    // ticket). Staff uploads stay out of the portal unless they hang off a
+    // public reply.
+    if (!(await qi.describeTable('Attachments')).uploadedByContactId) {
+      await qi.addColumn('Attachments', 'uploadedByContactId', contactFk(dt, 'SET NULL'));
+      await qi.sequelize.query(
+        `UPDATE Attachments a JOIN Tickets t ON t.id = a.ticketId
+            SET a.uploadedByContactId = t.contactId
+          WHERE t.source = 'email' AND t.contactId IS NOT NULL AND a.commentId IS NULL
+            AND ABS(TIMESTAMPDIFF(SECOND, a.createdAt, t.createdAt)) <= 60`
+      );
+    }
     if (!(await qi.describeTable('Tickets')).portalCreatedByContactId) await qi.addColumn('Tickets', 'portalCreatedByContactId', contactFk(dt, 'SET NULL'));
 
     const articles = await qi.describeTable('KbArticles');
@@ -148,6 +176,8 @@ module.exports = {
     }
 
     if ((await qi.describeTable('Tickets')).portalCreatedByContactId) await qi.removeColumn('Tickets', 'portalCreatedByContactId');
+    if ((await qi.describeTable('Attachments')).uploadedByContactId) await qi.removeColumn('Attachments', 'uploadedByContactId');
+    if ((await qi.describeTable('Comments')).fromCustomer) await qi.removeColumn('Comments', 'fromCustomer');
     if ((await qi.describeTable('Comments')).authorContactId) await qi.removeColumn('Comments', 'authorContactId');
 
     if ((await qi.describeTable('TicketWatchers')).contactId) {

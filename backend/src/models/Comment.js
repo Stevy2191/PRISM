@@ -24,6 +24,13 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      // A customer's reply (portal or email). Staff answers are type 'reply'
+      // too, so this, not the type, says whose side wrote it.
+      fromCustomer: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
       ticketId: {
         type: DataTypes.INTEGER,
         allowNull: false,

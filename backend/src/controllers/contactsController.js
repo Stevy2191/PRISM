@@ -311,6 +311,11 @@ const update = asyncHandler(async (req, res) => {
     if (rawPortalAccess !== contact.portalAccess) changes.portalAccess = rawPortalAccess;
   }
 
+  // Invite and reset links went to the old address: they stop working.
+  if (changes.email !== undefined && String(changes.email || '').toLowerCase() !== String(contact.email || '').toLowerCase()) {
+    await PortalToken.update({ usedAt: new Date() }, { where: { contactId: contact.id, usedAt: null } });
+  }
+
   const ticketsMoved = changes.companyId !== undefined ? await Ticket.count({ where: { contactId: contact.id } }) : 0;
   const previousDepartmentId = contact.departmentId;
   await contact.update(changes);

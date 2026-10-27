@@ -19,12 +19,15 @@ export function ConversationTab({
       <LoadMore loaded={comments.length} total={total} onLoadMore={onLoadMore} noun="messages" />
       {comments.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No messages yet.</p>}
       {comments.map((c) => {
-        const isCustomer = c.authorId === ticket.requesterId;
+        // A customer reply (portal or email) is marked; a portal reply also
+        // names the contact who wrote it.
+        const isCustomer = !!c.fromCustomer || !!c.authorContact || c.authorId === ticket.requesterId;
+        const name = c.authorContact?.displayName || (c.fromCustomer ? ticket.contact?.displayName : null) || c.author?.displayName;
         const isPrivate = c.type === 'comment_private';
         const isPublicComment = c.type === 'comment_public';
         return (
           <div key={c.id} className="flex items-start gap-3">
-            <span className="mt-1 max-sm:hidden"><Avatar name={c.author?.displayName || '?'} size={32} /></span>
+            <span className="mt-1 max-sm:hidden"><Avatar name={name || '?'} size={32} /></span>
             <div
               className={`conv-bubble min-w-0 flex-1 ${
                 isPrivate
@@ -37,7 +40,7 @@ export function ConversationTab({
               }`}
             >
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: MUTED }}>
-                <span className="text-sm font-semibold" style={{ color: TEXT }}>{c.author?.displayName}</span>
+                <span className="text-sm font-semibold" style={{ color: TEXT }}>{name}</span>
                 <span>{isCustomer ? 'Customer' : 'Tech'}</span>
                 {isPrivate && (
                   <span className="conv-badge--private flex items-center gap-1 font-semibold">

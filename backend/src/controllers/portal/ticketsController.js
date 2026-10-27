@@ -137,20 +137,25 @@ const get = asyncHandler(async (req, res) => {
   const visibleCommentIds = new Set(comments.map((c) => c.id));
   const byComment = new Map();
   const ticketFiles = [];
+  // A file reaches the portal when the customer sent it, or when it hangs
+  // off a customer-visible reply. Staff uploads from the ticket page (the
+  // composer's paperclip included, on a private note too) never do.
   files.forEach((a) => {
-    if (a.commentId == null) ticketFiles.push(fileShape(a));
-    else if (visibleCommentIds.has(a.commentId)) {
+    if (a.commentId == null) {
+      if (a.uploadedByContactId != null) ticketFiles.push(fileShape(a));
+    } else if (visibleCommentIds.has(a.commentId)) {
       if (!byComment.has(a.commentId)) byComment.set(a.commentId, []);
       byComment.get(a.commentId).push(fileShape(a));
     }
   });
   const meId = req.contact.id;
+  // Whose side wrote it: a staff answer is type 'reply' as well, so only the
+  // fromCustomer mark (portal or inbound email) makes it the customer's.
   const author = (c) => {
-    if (c.type === 'comment_public') {
+    if (!c.fromCustomer && c.authorContactId == null) {
       return { displayName: c.author ? (c.author.displayName || c.author.username) : 'Support', side: 'support' };
     }
-    // A customer reply: by the contact who wrote it in the portal, or (by
-    // email) the ticket's contact.
+    // The contact who wrote it, else (an older email reply) the ticket's contact.
     const who = c.authorContact || ticket.contact;
     return { displayName: who ? displayName(who) : '', side: who && who.id === meId ? 'you' : 'contact' };
   };
@@ -218,7 +223,7 @@ const reply = asyncHandler(async (req, res) => {
   const ticket = req.portalTicket;
   const actorId = await systemActorId();
   const comment = await Comment.create({
-    body: text, authorId: actorId, authorContactId: req.contact.id, ticketId: ticket.id, type: 'reply',
+    body: text, authorId: actorId, authorContactId: req.contact.id, ticketId: ticket.id, type: 'reply', fromCustomer: true,
   });
   await applyCustomerReply(ticket, comment, actorId);
   res.status(201).json({ comment: { id: comment.id } });
@@ -259,6 +264,7 @@ const createAttachment = asyncHandler(async (req, res) => {
     ticketId: ticket.id,
     commentId,
     uploadedById: actorId,
+    uploadedByContactId: req.contact.id,
   });
   await logActivity(ticket.id, actorId, 'attachment_added', null, attachment.originalName);
   res.status(201).json({ attachment: fileShape(attachment) });
@@ -274,6 +280,8 @@ const downloadAttachment = asyncHandler(async (req, res) => {
   if (attachment.commentId != null) {
     const comment = await Comment.findOne({ where: { id: attachment.commentId, ticketId: ticket.id, type: { [Op.in]: PUBLIC_COMMENT_TYPES } } });
     if (!comment) throw new ApiError(404, 'Attachment not found', 'NOT_FOUND');
+  } else if (attachment.uploadedByContactId == null) {
+    throw new ApiError(404, 'Attachment not found', 'NOT_FOUND');
   }
   const filePath = path.join(UPLOAD_ROOT, String(ticket.id), path.basename(attachment.filename));
   if (!fs.existsSync(filePath)) throw new ApiError(404, 'File missing from storage', 'FILE_MISSING');

@@ -24,6 +24,12 @@ const { userAttrs, SUBLIST_LIMIT, SUBLIST_MAX } = require('./shared');
 
 // ---- Comments ----
 
+// A portal reply's author is a contact (the user is the system actor).
+const commentInclude = [
+  { model: User, as: 'author', attributes: userAttrs },
+  { model: Contact, as: 'authorContact', attributes: ['id', 'displayName', 'firstName', 'lastName', 'email'] },
+];
+
 // GET /tickets/:id/comments
 const COMMENT_TYPES = ['reply', 'comment_private', 'comment_public'];
 
@@ -44,7 +50,7 @@ const listComments = asyncHandler(async (req, res) => {
   const { page, limit, offset } = parsePagination(req, { defaultLimit: SUBLIST_LIMIT, maxLimit: SUBLIST_MAX });
   const { rows, count } = await Comment.findAndCountAll({
     where,
-    include: [{ model: User, as: 'author', attributes: userAttrs }],
+    include: commentInclude,
     order: [['createdAt', 'DESC'], ['id', 'DESC']],
     limit,
     offset,
@@ -140,7 +146,7 @@ const createComment = asyncHandler(async (req, res) => {
   await evaluateRules(ticket.id, 'ticket_comment_added');
 
   const fresh = await Comment.findByPk(comment.id, {
-    include: [{ model: User, as: 'author', attributes: userAttrs }],
+    include: commentInclude,
   });
   res.status(201).json({ comment: fresh });
 });
@@ -166,7 +172,7 @@ const updateComment = asyncHandler(async (req, res) => {
   await writeAudit(req, 'comment.update', 'Comment', comment.id, { ticketId: comment.ticketId });
 
   const fresh = await Comment.findByPk(comment.id, {
-    include: [{ model: User, as: 'author', attributes: userAttrs }],
+    include: commentInclude,
   });
   res.json({ comment: fresh });
 });

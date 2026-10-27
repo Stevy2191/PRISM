@@ -96,7 +96,13 @@ function createApp({ sessionStore } = {}) {
   // session and every other path only the staff one. Two instances can't
   // share req.session, and this is what keeps a contact session off staff
   // routes and a staff session off the portal. Case-insensitive, as routing is.
-  app.use((req, res, next) => (PORTAL_PATH_RE.test(req.path) ? portalSession : staffSession)(req, res, next));
+  // A portal path in other letter case would route to the portal but miss the
+  // portal cookie's (case-sensitive) path, so it is refused outright.
+  app.use((req, res, next) => {
+    if (!PORTAL_PATH_RE.test(req.path)) return staffSession(req, res, next);
+    if (!req.path.startsWith(PORTAL_API_PATH)) return res.status(404).json({ error: true, message: 'Not found', code: 'NOT_FOUND' });
+    return portalSession(req, res, next);
+  });
 
   app.use('/api/v1', sameOriginWrites, apiRoutes);
 
