@@ -207,13 +207,14 @@ export function Sidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetQuery]);
 
-  const width = collapsed ? 44 : 340;
+  // Narrower on tablets so the conversation keeps room; full width as a sheet.
+  let widthClass = 'w-full';
+  if (!mobileSheet) widthClass = collapsed ? 'w-[44px]' : 'w-[280px] lg:w-[340px]';
 
   return (
     <aside
-      className="relative flex-shrink-0 transition-all"
+      className={`relative flex-shrink-0 transition-all ${widthClass}`}
       style={{
-        width: mobileSheet ? '100%' : width,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',

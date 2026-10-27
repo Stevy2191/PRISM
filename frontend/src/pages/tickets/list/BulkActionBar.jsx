@@ -1,5 +1,6 @@
 // The ticket list's bulk action strip, shown between the toolbar and the table
 // while tickets are selected. The page owns all the state; this only renders it.
+import { IconAlertTriangle } from '@tabler/icons-react';
 import { PRIORITY_OPTIONS } from './listHelpers';
 import CategoryPicker from '../../../components/CategoryPicker';
 
@@ -135,8 +136,18 @@ export function BulkActionBar({
       </button>
 
       {bulkResult && (
-        <span role="status" className="flex-shrink-0 text-xs font-semibold" data-testid="bulk-result">
-          {bulkResult.ok} updated{bulkResult.failed.length ? `, ${bulkResult.failed.length} failed: ` : ''}
+        <span role={bulkResult.failed.length ? 'alert' : 'status'} className="flex-shrink-0 text-xs font-semibold" data-testid="bulk-result">
+          {bulkResult.ok} updated
+          {bulkResult.failed.length > 0 && (
+            <>
+              {', '}
+              <strong className="inline-flex items-center gap-1 underline decoration-2 underline-offset-2">
+                <IconAlertTriangle size={13} aria-hidden="true" />
+                {bulkResult.failed.length} failed
+              </strong>
+              {': '}
+            </>
+          )}
           {bulkResult.failed.slice(0, 5).map((f) => `#${String(f.id).padStart(5, '0')} ${f.error}`).join('; ')}
           {bulkResult.failed.length > 5 ? '; …' : ''}
           <button type="button" onClick={() => setBulkResult(null)} className="ml-2 underline">dismiss</button>

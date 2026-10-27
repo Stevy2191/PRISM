@@ -54,11 +54,14 @@ it('Link ticket, Merge and Generate report are in the More actions menu on a pho
 
 it('the reply box starts as one line and expands on tap', async () => {
   const page = await open('admin', PHONE);
-  const reply = page.getByRole('textbox', { name: 'Reply' });
+  // A button that opens the composer (not a read-only text field).
+  const reply = page.getByRole('button', { name: /^Reply/ });
   await reply.waitFor();
+  expect(await reply.getAttribute('aria-expanded')).toBe('false');
   expect(await page.getByRole('button', { name: /^Send/ }).filter({ visible: true }).count()).toBe(0);
   await reply.click();
   await page.getByRole('button', { name: /^Send/ }).filter({ visible: true }).first().waitFor();
+  expect(await page.evaluate(() => document.activeElement.tagName)).toBe('TEXTAREA');
 });
 
 it('desktop keeps Link ticket, Merge and Generate report as buttons', async () => {

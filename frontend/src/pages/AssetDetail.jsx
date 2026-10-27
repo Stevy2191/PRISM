@@ -142,7 +142,7 @@ export default function AssetDetail() {
   return (
     <div className="mx-auto max-w-[1280px] space-y-5 lg:px-6">
       <div>
-        <Breadcrumbs items={[{ label: 'Assets', to: '/assets' }, { label: asset.assetTag }]} />
+        <Breadcrumbs items={[{ label: 'Assets', to: '/assets' }, { label: asset.assetTag, id: true }]} />
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

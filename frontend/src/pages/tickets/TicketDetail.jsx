@@ -434,7 +434,7 @@ export default function TicketDetail() {
       {/* Header — auto height, does not grow */}
       <header className="flex-shrink-0 px-4 pb-4 pt-3 sm:px-6 md:pt-5 lg:px-12">
         <div className="flex items-center justify-between gap-3">
-          <Breadcrumbs items={[{ label: 'Tickets', to: '/tickets' }, { label: formatTicketId(ticket) }]} />
+          <Breadcrumbs items={[{ label: 'Tickets', to: '/tickets' }, { label: formatTicketId(ticket), id: true }]} />
           <div className="flex min-w-0 items-center gap-1">
             {parentRelation && (
               <Link

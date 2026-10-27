@@ -45,7 +45,7 @@ export function TicketBoard({
                     <span className="num text-xs font-semibold" style={{ color: isOverdue ? 'var(--color-danger)' : MUTED }}>{formatTicketId(t)}</span>
                     {canViewAllTickets && t.department?.name && <DeptPill name={t.department.name} className="" />}
                   </div>
-                  <p className="mt-1 truncate text-sm font-semibold" style={{ color: TEXT }}>{t.title}</p>
+                  <p className="mt-1 truncate text-sm font-semibold" style={{ color: isOverdue ? 'var(--color-danger)' : TEXT }}>{t.title}</p>
                   <div className="mt-2 flex items-center justify-between">
                     <PriorityCell priority={t.priority} />
                     <span className="min-w-0 max-w-[55%] text-xs"><Avatar name={t.assignee?.displayName} /></span>

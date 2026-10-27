@@ -10,6 +10,7 @@ import AssetFormModal from '../components/AssetFormModal';
 import AssetsSubNav from '../components/AssetsSubNav';
 import { IconAdjustmentsHorizontal, IconSearch } from '@tabler/icons-react';
 import { useFullPageHeight } from '../hooks/useFullPageHeight';
+import { useNarrow } from '../hooks/useNarrow';
 import PageHeader from '../components/ui/PageHeader';
 import FiltersSheet from '../components/ui/FiltersSheet';
 import SelectChip from '../components/ui/SelectChip';
@@ -88,6 +89,7 @@ export default function Assets() {
   const [view, setView] = useState('table');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const pageHeight = useFullPageHeight();
+  const narrow = useNarrow();
   // Dashboard drill-down only, not a toolbar control: 'dueForReplacement' /
   // 'expiredWarranty'. Passed through to the API as ?quickFilter — it used to
   // be applied here after the fetch, which stopped being correct once the
@@ -264,7 +266,9 @@ export default function Assets() {
           </div>
         ) : (
           <>
-          <div className={`grid grid-cols-1 gap-3 md:gap-4 ${view === 'card' ? 'md:grid-cols-2 xl:grid-cols-3' : 'md:hidden'}`}>
+          {/* One layout in the page at a time: cards on a phone or in Card view, else the table. */}
+          {(narrow || view === 'card') && (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
             {filteredAssets.map((a) => (
               <Link
                 key={a.id}
@@ -294,8 +298,9 @@ export default function Assets() {
               </Link>
             ))}
           </div>
-          {view === 'table' && (
-          <div className="hidden overflow-x-auto rounded-xl border border-navy-100 bg-surface md:block">
+          )}
+          {!narrow && view === 'table' && (
+          <div className="overflow-x-auto rounded-xl border border-navy-100 bg-surface">
             <table className="min-w-full">
               <thead>
                 <tr>

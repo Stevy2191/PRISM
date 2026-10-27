@@ -76,15 +76,16 @@ export function ReplyBox({
   if (!open) {
     return (
       <div className="flex-shrink-0 border-t border-navy-100 bg-surface p-3">
-        <input
-          readOnly
-          value={text}
-          aria-label="Reply"
-          placeholder={placeholder}
-          onFocus={() => setExpanded(true)}
+        {/* Looks like a one-line field; it is the button that opens the composer. */}
+        <button
+          type="button"
+          aria-expanded="false"
+          aria-label={text ? `Reply (draft: ${text.slice(0, 60)})` : 'Reply'}
           onClick={() => setExpanded(true)}
-          className="input h-11 w-full cursor-text truncate text-sm"
-        />
+          className="input flex h-11 w-full cursor-text items-center truncate text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent"
+        >
+          <span className="truncate" style={text ? undefined : { color: 'var(--color-text-faint)' }}>{text || placeholder}</span>
+        </button>
       </div>
     );
   }
@@ -115,7 +116,7 @@ export function ReplyBox({
               </div>
             )}
             {collapsible && (
-              <button type="button" onClick={() => setExpanded(false)} aria-label="Collapse reply" title="Collapse reply" className="flex h-11 w-11 items-center justify-center rounded-md text-navy-500 hover:bg-[var(--color-hover)]">
+              <button type="button" onClick={() => setExpanded(false)} aria-label="Collapse reply" title="Collapse reply" className="flex h-11 w-11 items-center justify-center rounded-md text-navy-500 hover:bg-[var(--color-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent">
                 <IconChevronDown size={18} aria-hidden="true" />
               </button>
             )}

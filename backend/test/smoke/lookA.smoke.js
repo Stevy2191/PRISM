@@ -67,6 +67,7 @@ beforeAll(async () => {
   seeded.contract = expectOk(await a.post(`${API}/contracts`).send({ name: LONG, vendor: LONG_COMPANY }), 201).contract;
   seeded.article = expectOk(await a.post(`${API}/knowledge/articles`).send({ title: KB_TITLE, body: `<p>${'word '.repeat(80)}</p>`, status: 'published' }), 201).article;
   await makeTicket(w.admin.agent, { title: 'Assigned board card', contactId: w.contact.id, departmentId: w.deptA.id, assigneeId: w.admin.user.id });
+  seeded.overdue = await makeTicket(w.admin.agent, { title: 'Overdue board card', contactId: w.contact.id, departmentId: w.deptA.id, dueDate: '2020-01-02' });
 });
 afterAll(async () => { await clearOwn(); await smoke.stop(); await closeDb(); });
 beforeEach(resetRateLimits);
@@ -100,6 +101,55 @@ it('board cards name the assignee, or say Unassigned', async () => {
   await assigned.getByText(w.admin.user.displayName, { exact: true }).waitFor();
   const unassigned = page.locator('div.cursor-pointer').filter({ hasText: 'X'.repeat(30) });
   await unassigned.getByText('Unassigned', { exact: true }).waitFor();
+});
+
+it('a failed bulk update is announced and marked, not shown like a success', async () => {
+  const page = await smoke.pageAs('admin', undefined, { viewport: { width: 1440, height: 900 } });
+  await page.route('**/api/v1/tickets/bulk', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ results: [{ id: seeded.ticket.id, ok: false, error: 'Not allowed' }] }),
+  }));
+  await page.goto('/tickets');
+  await page.getByRole('checkbox').nth(1).check();
+  await page.locator('select').filter({ hasText: 'Choose action…' }).selectOption('priority');
+  await page.locator('select').filter({ hasText: 'Select priority…' }).selectOption('high');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  const result = page.getByTestId('bulk-result');
+  await result.waitFor();
+  expect(await result.getAttribute('role')).toBe('alert');
+  await result.getByText('1 failed', { exact: false }).waitFor();
+  expect(await result.locator('strong', { hasText: 'failed' }).count()).toBe(1);
+});
+
+it('overdue board cards show the title in red too', async () => {
+  const page = await smoke.pageAs('admin', undefined, { viewport: { width: 1440, height: 900 } });
+  await page.goto('/tickets');
+  await page.getByRole('button', { name: 'Board' }).first().click();
+  const title = page.locator('div.cursor-pointer').filter({ hasText: 'Overdue board card' }).locator('p', { hasText: 'Overdue board card' });
+  await title.waitFor();
+  const [titleColour, danger] = await title.evaluate((el) => [getComputedStyle(el).color, getComputedStyle(document.documentElement).getPropertyValue('--color-danger')]);
+  const probe = await page.evaluate((c) => { const d = document.createElement('i'); d.style.color = c; document.body.append(d); const v = getComputedStyle(d).color; d.remove(); return v; }, danger.trim());
+  expect(titleColour).toBe(probe);
+});
+
+it('on a tablet the ticket sidebar is narrower than on a desktop', async () => {
+  const page = await smoke.pageAs('admin', undefined, { viewport: { width: 900, height: 900 } });
+  await page.goto(`/tickets/${seeded.ticket.id}`);
+  const aside = page.locator('aside').filter({ hasText: 'Ticket Info' }).first();
+  await aside.waitFor();
+  expect((await aside.boundingBox()).width).toBeLessThanOrEqual(290);
+});
+
+it('breadcrumb titles use the text font; only IDs use tabular figures', async () => {
+  const page = await smoke.pageAs('admin', undefined, { viewport: { width: 1440, height: 900 } });
+  await page.goto(`/knowledge/${seeded.article.id}`);
+  const current = page.getByRole('navigation', { name: 'Breadcrumb' }).locator('[aria-current="page"]');
+  await current.waitFor();
+  expect(await current.evaluate((el) => el.classList.contains('num'))).toBe(false);
+  await page.goto(`/assets/${seeded.asset.id}`);
+  const id = page.getByRole('navigation', { name: 'Breadcrumb' }).locator('[aria-current="page"]');
+  await id.waitFor();
+  expect(await id.evaluate((el) => el.classList.contains('num'))).toBe(true);
 });
 
 it('Filters sheet closes when the window widens past the phone layout', async () => {

@@ -110,3 +110,14 @@ it('a license page has a breadcrumb back to Licenses', async () => {
   await page.goto(`/assets/licenses/${lic.id}`);
   await page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Licenses' }).waitFor();
 });
+
+it('each asset is in the page once (table on desktop, cards on a phone)', async () => {
+  const desk = await smoke.pageAs('admin', undefined, DESKTOP);
+  await desk.goto('/assets');
+  await desk.getByRole('cell', { name: 'LT-0014' }).waitFor();
+  expect(await desk.locator('text=LT-0014').count()).toBe(1);
+  const phone = await smoke.pageAs('admin', undefined, PHONE);
+  await phone.goto('/assets');
+  await phone.getByText('LT-0014').first().waitFor();
+  expect(await phone.locator('text=LT-0014').count()).toBe(1);
+});
