@@ -3,6 +3,7 @@ const {
   API, expectOk, makeWorld, makeProject, makeTask, makeStaff,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { orgTimeZone, todayInZone } = require('../../src/utils/orgTime');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
 // Sub-project 6, task 6: the docked task panel, quick time, the J/K/Esc keys
@@ -12,8 +13,6 @@ const shown = (page, text) => page.getByText(text, { exact: true }).filter({ vis
 const panelOf = (page) => page.getByRole('complementary', { name: 'Task details' }).filter({ visible: true }).first();
 const rowTitle = (page, title) => page.getByRole('button', { name: title, exact: true }).filter({ visible: true }).first();
 const waitFor = (page, method, part) => page.waitForResponse((r) => r.request().method() === method && r.url().includes(part));
-const pad = (n) => String(n).padStart(2, '0');
-const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
 let smoke;
 let w;
@@ -123,7 +122,10 @@ it('30 min logs an entry for today on that task', async () => {
   await panel.getByRole('button', { name: '30 min', exact: true }).click();
   await logged;
   const [entry] = await models.TimeEntry.findAll({ where: { taskId: t2.id } });
-  expect([entry.durationSeconds, entry.entryDate, entry.userId]).toEqual([1800, localToday(), w.admin.user.id]);
+  // "Today" is the organization's day (company time zone), not the test
+  // machine's: in the evening they differ.
+  const orgToday = todayInZone(await orgTimeZone());
+  expect([entry.durationSeconds, entry.entryDate, entry.userId]).toEqual([1800, orgToday, w.admin.user.id]);
   expect(entry.workTypeId).toBeTruthy();
 });
 
