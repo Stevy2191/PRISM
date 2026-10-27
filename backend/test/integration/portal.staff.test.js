@@ -145,6 +145,10 @@ describe('contact payload', () => {
       adminOf: { company: true, departments: [{ id: billing.id, name: 'Billing' }] },
     });
     expect(JSON.stringify(contact)).not.toContain('passwordHash');
+    // Edits answer with the same fields, so the page keeps them.
+    const patched = expectOk(await a.patch(`${API}/contacts/${dana.id}`).send({ jobTitle: 'Office manager' })).contact;
+    expect(patched).toMatchObject({ signInMethod: 'password', adminOf: { company: true } });
+    expect(JSON.stringify(patched)).not.toContain('passwordHash');
     const plain = expectOk(await a.get(`${API}/contacts/${pat.id}`)).contact;
     expect(plain).toMatchObject({ portalAccess: false, signInMethod: null, adminOf: { company: false, departments: [] } });
   });

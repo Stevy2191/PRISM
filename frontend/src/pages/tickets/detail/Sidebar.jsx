@@ -188,10 +188,24 @@ export function Sidebar({
         .filter(
           (u) =>
             u.displayName.toLowerCase().includes(watcherQuery.trim().toLowerCase()) &&
-            !watchers.some((w) => w.userId === u.id)
+            !watchers.some((w) => w.kind !== 'contact' && w.userId === u.id)
         )
         .slice(0, 6)
     : [];
+  // Contact watchers (client portal): the ticket's company's active
+  // contacts, for those who can manage portal access.
+  const canWatchContacts = hasPermission('portal.manage');
+  const [contactResults, setContactResults] = useState([]);
+  useEffect(() => {
+    const q = watcherQuery.trim();
+    if (!canWatchContacts || !q || !ticket.companyId) { setContactResults([]); return undefined; }
+    const t = setTimeout(() => {
+      api.get('/contacts', { params: { companyId: ticket.companyId, search: q, status: 'active', limit: 6 } })
+        .then(({ data }) => setContactResults((data.contacts || []).filter((c) => !watchers.some((w) => w.kind === 'contact' && w.contact?.id === c.id))))
+        .catch(() => setContactResults([]));
+    }, 200);
+    return () => clearTimeout(t);
+  }, [watcherQuery, canWatchContacts, ticket.companyId, watchers]);
 
   const linkedAssets = ticket.linkedAssets || [];
   const [assetQuery, setAssetQuery] = useState('');
@@ -498,19 +512,26 @@ export function Sidebar({
 
         <SidebarSection title="Watchers" collapsed={collapsed}>
           {collapsed ? (
-            <span title={watchers.map((w) => w.user?.displayName).join(', ') || 'No watchers'}>👁</span>
+            <span title={watchers.map((w) => (w.kind === 'contact' ? w.contact?.displayName : w.user?.displayName)).join(', ') || 'No watchers'}>👁</span>
           ) : (
             <div>
               <div className="space-y-1.5">
-                {watchers.map((w) => (
-                  <span key={w.id} className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 text-xs font-medium" style={{ backgroundColor: BORDER, color: TEXT }}>
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold" style={{ backgroundColor: CARD_BG, color: 'var(--color-accent)' }}>
-                      {initials(w.user?.displayName)}
+                {watchers.map((w) => {
+                  const isContact = w.kind === 'contact';
+                  const name = isContact ? w.contact?.displayName : w.user?.displayName;
+                  return (
+                    <span key={w.id} className="flex min-w-0 items-center gap-1.5 rounded-full py-1 pl-1 pr-2 text-xs font-medium" style={{ backgroundColor: BORDER, color: TEXT }}>
+                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-semibold" style={{ backgroundColor: CARD_BG, color: 'var(--color-accent)' }}>
+                        {initials(name)}
+                      </span>
+                      <span className="min-w-0 truncate">{name}</span>
+                      {isContact && <span className="flex-shrink-0 rounded px-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}>Contact</span>}
+                      {(!isContact || canWatchContacts) && (
+                        <button type="button" aria-label={`Remove ${name}`} onClick={() => onRemoveWatcher(w)} className="ml-auto flex-shrink-0" style={{ color: MUTED }}><IconX size={11} /></button>
+                      )}
                     </span>
-                    {w.user?.displayName}
-                    <button type="button" onClick={() => onRemoveWatcher(w.userId)} style={{ color: MUTED }}><IconX size={11} /></button>
-                  </span>
-                ))}
+                  );
+                })}
                 {watchers.length === 0 && <p className="text-xs" style={{ color: MUTED }}>No watchers.</p>}
               </div>
               <div className="relative mt-2">
@@ -518,23 +539,45 @@ export function Sidebar({
                   value={watcherQuery}
                   onChange={(e) => setWatcherQuery(e.target.value)}
                   placeholder="+ Add watcher…"
+                  aria-label="Add a watcher"
                   className="input h-8 text-xs"
                   style={fieldStyle}
                 />
-                {watcherResults.length > 0 && (
-                  <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-md border p-1 shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+                {(watcherResults.length > 0 || contactResults.length > 0) && (
+                  <div role="listbox" aria-label="Matches" className="absolute left-0 top-full z-10 mt-1 w-full rounded-md border p-1 shadow-lg" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
+                    {canWatchContacts && watcherResults.length > 0 && <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase" style={{ color: MUTED }}>Staff</p>}
                     {watcherResults.map((u) => (
                       <button
-                        key={u.id}
+                        key={`u${u.id}`}
                         type="button"
-                        onClick={() => { onAddWatcher(u.id); setWatcherQuery(''); }}
+                        role="option"
+                        aria-selected="false"
+                        onClick={() => { onAddWatcher({ userId: u.id }); setWatcherQuery(''); }}
                         className="block w-full rounded px-2 py-1 text-left text-xs hover:bg-white/5"
                         style={{ color: TEXT }}
                       >
                         {u.displayName}
                       </button>
                     ))}
+                    {contactResults.length > 0 && <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase" style={{ color: MUTED }}>Contacts</p>}
+                    {contactResults.map((c) => (
+                      <button
+                        key={`c${c.id}`}
+                        type="button"
+                        role="option"
+                        aria-selected="false"
+                        onClick={() => { onAddWatcher({ contactId: c.id }); setWatcherQuery(''); }}
+                        className="flex w-full items-baseline justify-between gap-2 rounded px-2 py-1 text-left text-xs hover:bg-white/5"
+                        style={{ color: TEXT }}
+                      >
+                        <span className="min-w-0 truncate">{c.displayName}</span>
+                        <span className="flex-shrink-0 text-[10px]" style={{ color: MUTED }}>{c.portalAccess ? 'portal on' : 'no portal access'}</span>
+                      </button>
+                    ))}
                   </div>
+                )}
+                {canWatchContacts && (
+                  <p className="mt-1.5 text-[11px]" style={{ color: MUTED }}>Contact watchers with portal access see this ticket in their portal and can reply. CC&apos;d people only get emails.</p>
                 )}
               </div>
             </div>

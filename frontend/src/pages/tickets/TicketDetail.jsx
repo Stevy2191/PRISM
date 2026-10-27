@@ -371,18 +371,20 @@ export default function TicketDetail() {
     await patchTicket({ tags: nextTags });
   };
 
-  const addWatcher = async (userId) => {
+  // target: { userId } for staff, { contactId } for a contact (client portal).
+  const addWatcher = async (target) => {
     try {
-      const { data } = await api.post(`/tickets/${id}/watchers`, { userId });
-      setWatchers((prev) => [...prev, data.watcher]);
+      const { data } = await api.post(`/tickets/${id}/watchers`, target);
+      setWatchers((prev) => [...prev.filter((w) => w.id !== data.watcher.id), data.watcher]);
     } catch (err) {
       alert(errMessage(err));
     }
   };
-  const removeWatcher = async (userId) => {
+  const removeWatcher = async (watcher) => {
     try {
-      await api.delete(`/tickets/${id}/watchers/${userId}`);
-      setWatchers((prev) => prev.filter((w) => w.userId !== userId));
+      if (watcher.kind === 'contact') await api.delete(`/tickets/${id}/watchers/contacts/${watcher.contact.id}`);
+      else await api.delete(`/tickets/${id}/watchers/${watcher.userId}`);
+      setWatchers((prev) => prev.filter((w) => w.id !== watcher.id));
     } catch (err) {
       alert(errMessage(err));
     }

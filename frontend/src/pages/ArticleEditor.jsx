@@ -8,6 +8,7 @@ import Spinner from '../components/Spinner';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
 import Notice from '../components/ui/Notice';
 import RichTextEditor from '../components/RichTextEditor';
+import AudienceFieldset from '../components/portal/AudienceFieldset';
 
 const MUTED = 'var(--color-text-muted)';
 const BORDER = 'var(--color-border)';
@@ -31,6 +32,7 @@ export default function ArticleEditor() {
   const [categoryId, setCategoryId] = useState('');
   const [status, setStatus] = useState('draft');
   const [visibility, setVisibility] = useState('internal');
+  const [audience, setAudience] = useState({ scope: 'all', companyIds: [], departmentIds: [] });
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -51,6 +53,7 @@ export default function ArticleEditor() {
         const a = data.article;
         setTitle(a.title); setSavedTitle(a.title); setCategoryId(a.categoryId ? String(a.categoryId) : '');
         setStatus(a.status); setVisibility(a.visibility); setBody(a.body || '');
+        setAudience({ scope: a.portalScope || 'all', companyIds: a.audience?.companyIds || [], departmentIds: a.audience?.departmentIds || [] });
         setAttachments(a.attachments || []);
       })
       .catch((err) => setError(errMessage(err)))
@@ -62,7 +65,13 @@ export default function ArticleEditor() {
   const save = async () => {
     if (!title.trim()) { setError('A title is required.'); return; }
     setSaving(true); setError('');
-    const payload = { title, body, categoryId: categoryId || null, status, visibility };
+    const payload = {
+      title, body, categoryId: categoryId || null, status, visibility,
+      ...(visibility === 'portal' ? {
+        portalScope: audience.scope,
+        audience: { companyIds: audience.companyIds, departmentIds: audience.departmentIds },
+      } : {}),
+    };
     try {
       if (isEdit) {
         await api.patch(`/knowledge/articles/${id}`, payload);
@@ -155,8 +164,8 @@ export default function ArticleEditor() {
           </select>
         </div>
         <div>
-          <label className="label">Audience</label>
-          <select value={visibility} onChange={(e) => setVisibility(e.target.value)} className="input">
+          <label htmlFor="article-audience" className="label">Audience</label>
+          <select id="article-audience" value={visibility} onChange={(e) => setVisibility(e.target.value)} className="input">
             <option value="internal">Agents only</option>
             <option value="portal">Portal</option>
           </select>
@@ -171,6 +180,7 @@ export default function ArticleEditor() {
       ) : (
         <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Visible to agents only — not shown in the client portal.</p>
       )}
+      {visibility === 'portal' && <AudienceFieldset value={audience} onChange={setAudience} />}
 
       {/* Body editor */}
       <div>

@@ -32,6 +32,7 @@ import KnowledgeBase from './pages/KnowledgeBase';
 import ArticleEditor from './pages/ArticleEditor';
 import ArticleView from './pages/ArticleView';
 import PortalApp from './portal/PortalApp';
+import ClientPortalSettings from './pages/settings/ClientPortal';
 import NotFound from './pages/NotFound';
 
 // Settings hub + sections
@@ -112,7 +113,7 @@ const COMPANIES_KEYS = ['companies.view'];
 // holds its access; settingsElement turns that into the same guards as
 // before the redesign (spec: Settings redesign, "One source of truth").
 const SETTINGS_COMPONENTS = {
-  preferences: SettingsPreferences, about: SettingsAbout, company: CompanyProfile,
+  preferences: SettingsPreferences, about: SettingsAbout, company: CompanyProfile, 'client-portal': ClientPortalSettings,
   companies: () => <CompaniesList inSettings />,
   users: AdminUsers, 'user-detail': UserDetail, teams: SettingsTeams, departments: AdminDepartments,
   roles: AdminRoles, 'role-new': RoleEditor, 'role-edit': RoleEditor, 'api-keys': AdminApiKeys,

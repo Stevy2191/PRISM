@@ -5,6 +5,7 @@ import LoadMore from '../components/LoadMore';
 import { initials } from '../utils/userDisplay';
 import { formatPhone } from '../utils/formatPhone';
 import { useAnyPermission, useAuth, usePermission } from '../context/AuthContext';
+import ContactPortalBlock from '../components/portal/ContactPortalBlock';
 import { assignableContactDepartments } from '../utils/contactDepartments';
 import ContactCompanyFields from '../components/companies/ContactCompanyFields';
 import { useToast } from '../context/ToastContext';
@@ -136,7 +137,7 @@ function ContactRail({ contacts, currentId, collapsed, onToggle, search, onSearc
 }
 
 // ==================== Center: properties panel ====================
-function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSave, onAssignDepartment, onCreateTicket }) {
+function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSave, onAssignDepartment, onCreateTicket, onPortalChanged }) {
   const [name, setName] = useState(contact.displayName);
   const [editingName, setEditingName] = useState(false);
   const [fields, setFields] = useState({
@@ -254,6 +255,8 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
           <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.jobTitle} onChange={(e) => setFields((f) => ({ ...f, jobTitle: e.target.value }))} onBlur={() => saveField('jobTitle')} />
         </div>
       </div>
+
+      <ContactPortalBlock contact={contact} onChanged={onPortalChanged} />
 
       <div className="border-t pt-4" style={{ borderColor: BORDER }}>
         <div className="mb-1 flex items-center justify-between">
@@ -562,6 +565,7 @@ export default function ContactDetail() {
         onSave={saveContact}
         onAssignDepartment={assignDepartment}
         onCreateTicket={() => navigate(`/tickets/new?contactId=${contact.id}`)}
+        onPortalChanged={loadDetail}
       />
 
       <div className="flex flex-1 flex-col overflow-visible md:overflow-hidden">

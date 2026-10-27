@@ -330,7 +330,7 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const fresh = await Contact.findByPk(contact.id, { include: contactInclude });
-  res.json({ contact: fresh });
+  res.json({ contact: { ...fresh.toJSON(), ...(await portalFields(fresh)) } });
 });
 
 // PATCH /contacts/:id/department { departmentId } — assigns a department and
@@ -371,7 +371,7 @@ const assignDepartment = asyncHandler(async (req, res) => {
   await logContactActivity(contact.id, req.user.id, 'department_assigned', { departmentName: dept.name, ticketsUpdated: ticketCount });
 
   const fresh = await Contact.findByPk(contact.id, { include: contactInclude });
-  res.json({ contact: fresh, ticketsUpdated: ticketCount });
+  res.json({ contact: { ...fresh.toJSON(), ...(await portalFields(fresh)) }, ticketsUpdated: ticketCount });
 });
 
 // DELETE /contacts/:id — warns (409) if the contact has open tickets unless
