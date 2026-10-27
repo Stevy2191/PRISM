@@ -2,9 +2,7 @@
 // password), forgot / reset password, sign-out and "who am I".
 const bcrypt = require('bcryptjs');
 const { QueryTypes } = require('sequelize');
-const {
-  sequelize, Contact, CompanyPortalAdmin, DepartmentPortalAdmin,
-} = require('../../models');
+const { sequelize, Contact } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { validatePassword, describeProblems } = require('../../utils/passwordPolicy');
@@ -14,6 +12,7 @@ const {
 } = require('../../middleware/portalAuth');
 const { issuePortalToken, consumePortalToken, findUsableToken } = require('../../services/portal/tokens');
 const { sendPortalLink } = require('../../services/portal/portalMail');
+const { isCompanyAdmin, adminDepartmentIds } = require('../../services/portal/scope');
 
 // Compared against when there's no contact or no hash, so a wrong email
 // costs the same bcrypt time as a wrong password.
@@ -34,9 +33,9 @@ function regenerateSession(req) {
 
 // The /me payload (also returned by login).
 async function contactPayload(contact) {
-  const [companyAdmin, deptRows, withHash] = await Promise.all([
-    CompanyPortalAdmin.findOne({ where: { contactId: contact.id, companyId: contact.companyId } }),
-    DepartmentPortalAdmin.findAll({ where: { contactId: contact.id }, attributes: ['departmentId'] }),
+  const [companyAdmin, deptIds, withHash] = await Promise.all([
+    isCompanyAdmin(contact),
+    adminDepartmentIds(contact),
     Contact.scope('withPassword').findByPk(contact.id, { attributes: ['id', 'passwordHash'] }),
   ]);
   return {
@@ -45,8 +44,8 @@ async function contactPayload(contact) {
     email: contact.email,
     company: contact.company ? { id: contact.company.id, name: contact.company.name } : null,
     department: contact.department ? { id: contact.department.id, name: contact.department.name } : null,
-    isCompanyAdmin: !!companyAdmin,
-    adminDepartmentIds: deptRows.map((r) => r.departmentId),
+    isCompanyAdmin: companyAdmin,
+    adminDepartmentIds: deptIds,
     signInMethod: withHash && withHash.passwordHash ? 'password' : null,
   };
 }
