@@ -682,6 +682,14 @@ KbArticle.hasMany(KbArticleAudience, { foreignKey: 'articleId', as: 'audiences',
 KbArticleAudience.belongsTo(KbArticle, { foreignKey: 'articleId', as: 'article' });
 KbArticleAudience.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 KbArticleAudience.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+// Portal admin roles follow the person: a department or company change drops
+// the roles that no longer match (services/portal/adminRoles). Lazy require:
+// the service needs this module.
+Contact.addHook('afterUpdate', 'prunePortalAdminRoles', async (contact, options) => {
+  if (!contact.changed('departmentId') && !contact.changed('companyId')) return;
+  // eslint-disable-next-line global-require
+  await require('../services/portal/adminRoles').pruneAdminRoles(contact, { transaction: options.transaction });
+});
 
 require('./companyHooks')({
   Contact, Ticket, Department, Project, Asset, License, Contract, Site,

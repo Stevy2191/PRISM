@@ -61,7 +61,11 @@ const savedEnv = Object.fromEntries(SCAN_ENV.map((k) => [k, process.env[k]]));
 afterEach(async () => {
   SCAN_ENV.forEach((k) => { if (savedEnv[k] === undefined) delete process.env[k]; else process.env[k] = savedEnv[k]; });
 });
-afterAll(closeDb);
+// Settings outlive resetData: leave the portal switched off for later suites.
+afterAll(async () => {
+  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
+  await closeDb();
+});
 
 describe('raising a ticket', () => {
   it('needs a title and a description; the title is at most 255 characters', async () => {

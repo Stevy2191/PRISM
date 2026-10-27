@@ -539,7 +539,19 @@ async function addTicketWatcher(req, ticket, rawUserId) {
   return { watcher, created };
 }
 
+// A contact as a watcher (client portal): they then see the ticket in the
+// portal. The contact must be one the caller can see, in the ticket's own
+// company (portal scoping never reaches across companies).
+async function addContactWatcher(req, ticket, rawContactId) {
+  const contact = await findAccessibleContact(req.user, rawContactId);
+  if (!contact || contact.companyId !== ticket.companyId) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
+  const [watcher, created] = await TicketWatcher.findOrCreate({ where: { ticketId: ticket.id, contactId: contact.id } });
+  if (created) await writeAudit(req, 'watcher.add', 'Ticket', ticket.id, { contactId: contact.id });
+  return { watcher, created };
+}
+
 module.exports = {
+  addContactWatcher,
   ticketStatusName,
   assertTeamExists,
   createTicket,

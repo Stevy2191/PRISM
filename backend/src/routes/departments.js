@@ -1,4 +1,5 @@
 const express = require('express');
+const portalAdmins = require('../controllers/portal/adminsController');
 const ctrl = require('../controllers/departmentsController');
 const { requirePermission } = require('../middleware/requirePermission');
 
@@ -14,6 +15,10 @@ router.get('/', ctrl.list);
 // Before '/:id': the internal "owned by" departments for project creators.
 router.get('/owners', requirePermission('projects.create'), ctrl.owners);
 router.get('/:id', ctrl.get);
+// Client portal (7a): the department's portal admins (contacts' names and
+// emails, so it needs sight of people or portal.manage).
+router.get('/:id/portal-admins', requirePermission('people.view_own_department', 'people.view_all', 'portal.manage'), portalAdmins.listDepartmentAdmins);
+router.put('/:id/portal-admins', requirePermission('portal.manage'), portalAdmins.setDepartmentAdmins);
 router.post('/', canManage, ctrl.create);
 router.patch('/:id', canManage, ctrl.update);
 router.delete('/:id', canManage, ctrl.remove);

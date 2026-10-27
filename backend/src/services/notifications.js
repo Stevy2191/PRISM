@@ -118,7 +118,9 @@ async function notifyComment(ticket, comment, authorId) {
 // more specific notification for this same event) so people aren't double-notified.
 async function notifyWatchers(ticket, message, excludeUserIds = []) {
   const exclude = new Set(excludeUserIds.filter(Boolean));
-  const watchers = await TicketWatcher.findAll({ where: { ticketId: ticket.id } });
+  // Staff watchers only: a contact watcher (client portal) has no userId and
+  // follows the ticket in the portal instead.
+  const watchers = await TicketWatcher.findAll({ where: { ticketId: ticket.id, userId: { [Op.ne]: null } } });
 
   // eslint-disable-next-line no-restricted-syntax
   for (const watcher of watchers) {

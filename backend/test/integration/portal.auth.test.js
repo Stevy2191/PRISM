@@ -33,7 +33,11 @@ beforeEach(async () => {
   await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
 });
 afterEach(unfreezeClock);
-afterAll(closeDb);
+// Settings outlive resetData: leave the portal switched off for later suites.
+afterAll(async () => {
+  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
+  await closeDb();
+});
 
 async function invite(contact = w.contact, by = w.admin) {
   sendMail.mockClear();

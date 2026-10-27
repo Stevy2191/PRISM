@@ -61,6 +61,7 @@ router.post('/:id/csat', editMin, ctrl.submitCsat);
 // Watchers
 router.get('/:id/watchers', ctrl.listWatchers);
 router.post('/:id/watchers', manageWatchers, ctrl.addWatcher);
+router.delete('/:id/watchers/contacts/:contactId', manageWatchers, ctrl.removeContactWatcher);
 router.delete('/:id/watchers/:userId', manageWatchers, ctrl.removeWatcher);
 
 // CC list: gets every public reply (spec 5a). The controller checks the

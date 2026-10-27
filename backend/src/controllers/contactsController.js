@@ -1,6 +1,6 @@
 const { Op, fn, col } = require('sequelize');
 const {
-  Contact, Ticket, Department, User, ContactActivity, Company, Site, PortalToken, sequelize,
+  Contact, Ticket, Department, User, ContactActivity, Company, Site, PortalToken, CompanyPortalAdmin, DepartmentPortalAdmin, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -246,7 +246,7 @@ const get = asyncHandler(async (req, res) => {
   }
 
   res.json({
-    contact,
+    contact: { ...contact.toJSON(), ...(await portalFields(contact)) },
     stats: { totalTickets, openTickets, overdueTickets, avgResolutionHours },
     recentTickets,
   });
@@ -442,6 +442,24 @@ const listActivity = asyncHandler(async (req, res) => {
   });
   res.json(paginated('activity', { rows, count }, { page, limit }));
 });
+
+// The contact page's "Support portal" block: how they sign in and what
+// they're a portal admin of (portalAccess and portalLastSignInAt are plain
+// columns already on the contact).
+async function portalFields(contact) {
+  const [withHash, companyAdmin, deptRows] = await Promise.all([
+    Contact.scope('withPassword').findByPk(contact.id, { attributes: ['id', 'passwordHash'] }),
+    CompanyPortalAdmin.findOne({ where: { contactId: contact.id, companyId: contact.companyId } }),
+    DepartmentPortalAdmin.findAll({
+      where: { contactId: contact.id },
+      include: [{ model: Department, as: 'department', attributes: ['id', 'name'], where: { companyId: contact.companyId } }],
+    }),
+  ]);
+  return {
+    signInMethod: withHash && withHash.passwordHash ? 'password' : null,
+    adminOf: { company: !!companyAdmin, departments: deptRows.map((r) => ({ id: r.department.id, name: r.department.name })) },
+  };
+}
 
 // POST /contacts/:id/portal-invite — turns portal access on and emails the
 // contact a one-time link to set their password (spec 7, verification link).

@@ -57,12 +57,14 @@ async function checkMerge(user, targetRaw, sourceRaws) {
 
 // Moves rows keyed (ticketId, key) onto the target, dropping the ones the
 // target already has.
+// `keyField` is a field name or a function of the row (a watcher is a user or a
+// contact, so neither id alone identifies it).
 async function moveUnique(Model, keyField, sourceIds, targetId, transaction) {
-  const have = new Set((await Model.findAll({ where: { ticketId: targetId }, attributes: [keyField], transaction }))
-    .map((r) => String(r[keyField]).toLowerCase()));
+  const keyOf = typeof keyField === 'function' ? keyField : (r) => String(r[keyField]).toLowerCase();
+  const have = new Set((await Model.findAll({ where: { ticketId: targetId }, transaction })).map(keyOf));
   const rows = await Model.findAll({ where: { ticketId: { [Op.in]: sourceIds } }, order: [['id', 'ASC']], transaction });
   for (const row of rows) {
-    const key = String(row[keyField]).toLowerCase();
+    const key = keyOf(row);
     if (have.has(key)) {
       await row.destroy({ transaction }); // eslint-disable-line no-await-in-loop
     } else {
@@ -197,7 +199,7 @@ async function mergeTickets(req, targetRaw, sourceRaws) {
       await TimeEntry.update({ ticketId: target.id }, { where: { ticketId: { [Op.in]: sourceIds } }, transaction });
       await moveTimers(sourceIds, target.id, transaction);
       await moveTasks(sources, target, transaction);
-      await moveUnique(TicketWatcher, 'userId', sourceIds, target.id, transaction);
+      await moveUnique(TicketWatcher, (r) => (r.userId != null ? `user:${r.userId}` : `contact:${r.contactId}`), sourceIds, target.id, transaction);
       await moveUnique(TicketCc, 'email', sourceIds, target.id, transaction);
       await moveUnique(AssetTicket, 'assetId', sourceIds, target.id, transaction);
       await moveRelations(sourceIds, target.id, transaction);
