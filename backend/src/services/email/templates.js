@@ -31,7 +31,9 @@ function layout(innerHtml, { orgName, hasLogo }) {
 
 // Pure. `source` is { subject, bodyHtml, placeholders }; only placeholders
 // on that list are filled, anything else renders empty.
-function renderTemplate(source, context, { orgName, hasLogo }) {
+// `footer` ({ html, text }) is server-built and trusted: it goes after the
+// sanitized body (the portal link, 7a), so admin-edited templates get it too.
+function renderTemplate(source, context, { orgName, hasLogo, footer = null }) {
   const ctx = context || {};
   const allowed = new Map((source.placeholders || []).map((p) => [p.name, p]));
   const trusted = ctx[TRUSTED_HTML] || {};
@@ -64,8 +66,9 @@ function renderTemplate(source, context, { orgName, hasLogo }) {
     return insideTag ? '' : htmlValues[Number(i)];
   });
 
-  const html = layout(body, { orgName, hasLogo });
-  const text = `${htmlToPlainText(body)}\n\n--\n${orgName || ''}`.trim();
+  const html = layout(footer ? body + footer.html : body, { orgName, hasLogo });
+  const footerText = footer ? `\n\n${footer.text}` : '';
+  const text = `${htmlToPlainText(body)}${footerText}\n\n--\n${orgName || ''}`.trim();
   return { subject, html, text };
 }
 
@@ -113,7 +116,7 @@ function renderPlainText(body, context, allowedNames) {
 
 // `override` ({ subject, bodyHtml }) renders unsaved text (the editor's
 // preview) with the key's placeholder list.
-async function render(key, context, override) {
+async function render(key, context, override, { footer = null } = {}) {
   const def = CATALOG[key];
   if (!def) throw new Error(`Unknown email template: ${key}`);
   const tpl = override ? { ...override, enabled: true } : await getTemplate(key);
@@ -121,7 +124,7 @@ async function render(key, context, override) {
   const out = renderTemplate(
     { subject: tpl.subject, bodyHtml: tpl.bodyHtml, placeholders: def.placeholders },
     { ...context, org: { name: orgName } },
-    { orgName, hasLogo: !!logoPath }
+    { orgName, hasLogo: !!logoPath, footer }
   );
   return {
     ...out,

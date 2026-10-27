@@ -51,7 +51,12 @@ function buildTransport(config) {
 // `messageId` overrides nodemailer's auto-generated one — inboundEmailService
 // .js sets this to a ticket-encoding value so replies can be threaded back
 // without a separate lookup table (see its buildTicketMessageId()).
-async function sendMail({ to, cc, bcc, subject, text, html, attachments, headers, replyTo, messageId, inReplyTo, references }) {
+// `envelopeTo`: deliver to exactly these addresses while the To/Cc headers
+// still show everyone (two copies of one ticket email that differ only in
+// the portal link). Bcc is then part of the envelope, never a header.
+async function sendMail({
+  to, cc, bcc, subject, text, html, attachments, headers, replyTo, messageId, inReplyTo, references, envelopeTo,
+}) {
   const config = await resolveSmtpConfig();
   if (!isSmtpConfigured(config)) {
     const e = new Error('Outgoing email is not set up yet (Settings → Outgoing email)');
@@ -64,7 +69,7 @@ async function sendMail({ to, cc, bcc, subject, text, html, attachments, headers
       from: config.fromName ? `"${config.fromName}" <${config.fromEmail}>` : config.fromEmail,
       to,
       cc,
-      bcc,
+      ...(envelopeTo ? { envelope: { from: config.fromEmail, to: envelopeTo } } : { bcc }),
       replyTo: replyTo || config.fromEmail,
       subject,
       text,

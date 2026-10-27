@@ -4,7 +4,8 @@
 const { SystemSettings, User, Contact } = require('../../models');
 const { sendMail } = require('../emailSender');
 const { render, TRUSTED_HTML } = require('./templates');
-const { textToHtml } = require('../../utils/richHtml');
+const { CATALOG } = require('./catalog');
+const { textToHtml, escapeHtml } = require('../../utils/richHtml');
 const { surveyBaseUrl } = require('../csatService');
 
 // Every outbound email about a ticket gets a Message-ID that encodes the
@@ -60,31 +61,77 @@ async function ticketContext({
 
 const list = (v) => (Array.isArray(v) ? v : [v]).filter(Boolean);
 
+// Client portal (7a): which of these addresses belong to a contact who can
+// open this ticket in the portal (portal on, contact active with access,
+// ticket in their scope). Only they get the "View in the portal" link.
+async function portalLinkAddresses(ticket, addresses) {
+  if (!addresses.length) return new Set();
+  /* eslint-disable global-require */
+  const { isPortalEnabled, mayUsePortal } = require('../../middleware/portalAuth');
+  const { canSeeTicket } = require('../portal/scope');
+  /* eslint-enable global-require */
+  if (!(await isPortalEnabled())) return new Set();
+  const contacts = await Contact.findAll({ where: { email: addresses, status: 'active', portalAccess: true } });
+  const out = new Set();
+  for (const c of contacts) {
+    // eslint-disable-next-line no-await-in-loop
+    if (mayUsePortal(c) && (await canSeeTicket(c, ticket.id))) out.add(String(c.email).toLowerCase());
+  }
+  return out;
+}
+
+const portalFooter = (ticketId) => {
+  const url = `${surveyBaseUrl()}/portal/tickets/${ticketId}`;
+  return {
+    html: `<p style="margin-top:20px"><a href="${escapeHtml(url)}">View this request in the portal</a></p>`,
+    text: `View this request in the portal: ${url}`,
+  };
+};
+
 // Returns what was sent, or null when the template is off or there is
 // nobody to send to. Throws on a send failure: callers queue it (below).
+// A customer email goes out as at most two copies with the same To/Cc
+// headers: one with the portal link (delivered to those who can see the
+// ticket there) and one without (everyone else).
 async function sendTicketEmail(key, {
   ticket, comment, author, contact, to, cc, bcc, extra,
 }) {
   const recipients = { to: list(to), cc: list(cc), bcc: list(bcc) };
-  if (!recipients.to.length && !recipients.cc.length && !recipients.bcc.length) return null;
-  const out = await render(key, await ticketContext({
+  const everyone = [...recipients.to, ...recipients.cc, ...recipients.bcc];
+  if (!everyone.length) return null;
+  const context = await ticketContext({
     ticket, comment, author, contact, extra,
-  }));
+  });
+  const out = await render(key, context);
   if (!out.enabled) return null;
+  const linked = CATALOG[key]?.audience === 'contact' ? await portalLinkAddresses(ticket, everyone) : new Set();
+  const withLink = everyone.filter((a) => linked.has(String(a).toLowerCase()));
+  const without = everyone.filter((a) => !linked.has(String(a).toLowerCase()));
   const fromRow = await SystemSettings.findOne({ where: { key: 'smtp.fromEmail' } });
-  const mail = {
+  const base = {
     to: recipients.to,
     ...(recipients.cc.length ? { cc: recipients.cc } : {}),
-    ...(recipients.bcc.length ? { bcc: recipients.bcc } : {}),
     subject: out.subject,
-    html: out.html,
-    text: out.text,
     attachments: out.attachments,
     headers: { 'X-PRISM-Ticket-ID': ticketNumber(ticket.id) },
-    messageId: buildTicketMessageId(ticket.id, fromRow?.value),
   };
-  await sendMail(mail);
-  return mail;
+  const copy = (rendered, envelopeTo) => ({
+    ...base,
+    ...(envelopeTo ? { envelopeTo } : (recipients.bcc.length ? { bcc: recipients.bcc } : {})),
+    html: rendered.html,
+    text: rendered.text,
+    messageId: buildTicketMessageId(ticket.id, fromRow?.value),
+  });
+  if (!withLink.length) {
+    const mail = copy(out, null);
+    await sendMail(mail);
+    return mail;
+  }
+  const linkedOut = await render(key, context, undefined, { footer: portalFooter(ticket.id) });
+  const linkedMail = copy(linkedOut, without.length ? withLink : null);
+  await sendMail(linkedMail);
+  if (without.length) await sendMail(copy(out, without));
+  return linkedMail;
 }
 
 // Outbound mail never blocks or fails the request that caused it: it runs
