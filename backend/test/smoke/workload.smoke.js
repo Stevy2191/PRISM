@@ -191,3 +191,46 @@ it("drag a task within a helper's row moves its dates and keeps the main assigne
   expect([t.assigneeId, t.startDate, t.dueDate]).toEqual([priya.user.id, plus(day, 1), plus(day, 1)]);
   expect(await models.TaskAssignee.count({ where: { taskId: shared.id, userId: sam.user.id } })).toBe(1);
 });
+
+// Follow-up from 6: dispatch without dragging, for touch and keyboard.
+it('on a phone, Assign… hands a ticket to a person and a day', async () => {
+  const t = await makeTicket(w.admin.agent, { title: 'Tap to assign', contactId: w.contact.id, departmentId: w.deptA.id });
+  const page = await smoke.pageAs('admin', undefined, { viewport: { width: 375, height: 812 } });
+  await page.goto('/workload');
+  await lane(page).getByRole('button', { name: 'Assign Tap to assign' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Assign Tap to assign' });
+  await dialog.getByLabel('Person').selectOption({ label: samUser.displayName });
+  await dialog.getByLabel('Day').selectOption(THU);
+  const patched = waitFor(page, 'PATCH', `/tickets/${t.id}`);
+  await dialog.getByRole('button', { name: 'Assign', exact: true }).click();
+  await patched;
+  await dialog.waitFor({ state: 'detached' });
+  const saved = await models.Ticket.findByPk(t.id);
+  expect([saved.assigneeId, saved.plannedDate]).toEqual([sam.user.id, THU]);
+});
+
+it('Assign… works from the keyboard, keeps dates by default, and Esc cancels', async () => {
+  const t = await makeTicket(w.admin.agent, { title: 'Keyboard assign', contactId: w.contact.id, departmentId: w.deptA.id });
+  const page = await smoke.pageAs('admin');
+  await page.goto('/workload');
+  const open = lane(page).getByRole('button', { name: 'Assign Keyboard assign' });
+  await open.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Assign Keyboard assign' });
+  await dialog.waitFor();
+  expect(await page.evaluate(() => document.activeElement.closest('[role="dialog"]') !== null)).toBe(true);
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'detached' });
+  expect(await page.evaluate(() => document.activeElement.getAttribute('aria-label'))).toBe('Assign Keyboard assign');
+  expect((await models.Ticket.findByPk(t.id)).assigneeId).toBeNull();
+
+  await page.keyboard.press('Enter');
+  await dialog.getByLabel('Person').selectOption({ label: priyaUser.displayName });
+  expect(await dialog.getByLabel('Day').inputValue()).toBe('none');
+  const patched = waitFor(page, 'PATCH', `/tickets/${t.id}`);
+  await dialog.getByRole('button', { name: 'Assign', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await patched;
+  const saved = await models.Ticket.findByPk(t.id);
+  expect([saved.assigneeId, saved.plannedDate]).toEqual([priya.user.id, null]);
+});

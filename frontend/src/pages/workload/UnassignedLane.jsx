@@ -16,7 +16,9 @@ function dueText(item) {
   return `${item.kind === 'ticket' && !item.plannedDate ? 'Due' : ''} ${longDay(due)}`.trim();
 }
 
-export function ItemCard({ item, dragging, onDragStart, onDragEnd }) {
+export function ItemCard({
+  item, dragging, onDragStart, onDragEnd, onAssign,
+}) {
   const draggable = canDrop(item);
   const due = dueText(item);
   return (
@@ -49,13 +51,26 @@ export function ItemCard({ item, dragging, onDragStart, onDragEnd }) {
         </div>
       )}
       {!draggable && <div className="text-[12px] text-navy-400">You can't change this one</div>}
+      {draggable && onAssign && (
+        <button
+          type="button"
+          onClick={() => onAssign(item)}
+          aria-label={`Assign ${item.title}`}
+          className="mt-0.5 self-start rounded-md px-1.5 py-1 text-[12.5px] font-semibold hover:bg-[var(--color-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent max-lg:min-h-[44px]"
+          style={{ color: 'var(--color-accent)' }}
+        >
+          Assign…
+        </button>
+      )}
     </div>
   );
 }
 
 const FILTERS = [['all', 'All'], ['ticket', 'Tickets'], ['task', 'Tasks']];
 
-export default function UnassignedLane({ items, dragging, onDragStart, onDragEnd }) {
+export default function UnassignedLane({
+  items, dragging, onDragStart, onDragEnd, onAssign,
+}) {
   const [filter, setFilter] = useState('all');
   const shown = items.filter((i) => filter === 'all' || i.kind === filter);
   return (
@@ -75,6 +90,7 @@ export default function UnassignedLane({ items, dragging, onDragStart, onDragEnd
             dragging={dragging && dragging.kind === item.kind && dragging.id === item.id}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            onAssign={onAssign}
           />
         ))}
         {!shown.length && <p className="text-sm text-navy-400">Nothing waiting. Everything has someone on it.</p>}

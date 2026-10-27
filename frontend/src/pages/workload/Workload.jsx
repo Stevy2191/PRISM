@@ -10,6 +10,7 @@ import Notice from '../../components/ui/Notice';
 import Pill from '../../components/ui/Pill';
 import { usePermission } from '../../context/AuthContext';
 import { localToday } from '../projects/detail/taskFilters';
+import AssignDialog from './AssignDialog';
 import CellPopover from './CellPopover';
 import UnassignedLane from './UnassignedLane';
 import WorkloadGrid from './WorkloadGrid';
@@ -33,6 +34,7 @@ export default function Workload() {
   const [dragging, setDragging] = useState(null);
   const [hoverKey, setHoverKey] = useState(null);
   const [open, setOpen] = useState(null); // { person, key, rect }
+  const [assigning, setAssigning] = useState(null); // item in the Assign… dialog
   const today = localToday();
 
   // keepError: a refetch after a refused drop must not wipe that message.
@@ -57,12 +59,9 @@ export default function Workload() {
   const move = (direction) => setFrom(shiftFrom(data?.from || from || mondayOf(today), days, direction));
   const range = data?.days?.length ? rangeLabel([data.days[0].date, data.days[data.days.length - 1].date]) : '';
 
-  const drop = async (person, key) => {
-    const item = dragging;
-    setDragging(null);
-    setHoverKey(null);
-    setOpen(null);
-    if (!item) return;
+  // A drag and the Assign… dialog both end here.
+  const dispatch = async (item, person, key) => {
+    if (!item || !person) return;
     const patch = dropPatch(item, person.id, key);
     if (!patch) return;
     const { url, body } = patch;
@@ -76,6 +75,20 @@ export default function Workload() {
     }
     await load(true);
   };
+
+  const drop = async (person, key) => {
+    const item = dragging;
+    setDragging(null);
+    setHoverKey(null);
+    setOpen(null);
+    await dispatch(item, person, key);
+  };
+
+  const assign = async (item, person, key) => {
+    await dispatch(item, person, key);
+    setAssigning(null);
+  };
+  const openAssign = (item) => { setOpen(null); setAssigning(item); };
 
   const popover = useMemo(() => {
     if (!open || !data) return null;
@@ -92,7 +105,7 @@ export default function Workload() {
       <header>
         <h1 className="page-title">Workload</h1>
         <p className="mt-1 text-sm text-navy-500">
-          Who's busy with what — tickets and project tasks together. Drag work onto a person and a day to hand it out. Counts work you can see.
+          Who's busy with what — tickets and project tasks together. Drag work onto a person and a day, or use Assign…, to hand it out. Counts work you can see.
         </p>
       </header>
 
@@ -125,6 +138,7 @@ export default function Workload() {
             dragging={dragging}
             onDragStart={setDragging}
             onDragEnd={() => { setDragging(null); setHoverKey(null); }}
+            onAssign={openAssign}
           />
           <WorkloadGrid
             data={data}
@@ -161,7 +175,18 @@ export default function Workload() {
           dragging={dragging}
           onDragStart={setDragging}
           onDragEnd={() => { setDragging(null); setHoverKey(null); }}
+          onAssign={openAssign}
           onClose={() => setOpen(null)}
+        />
+      )}
+
+      {assigning && data && (
+        <AssignDialog
+          item={assigning}
+          people={data.people}
+          days={data.days}
+          onAssign={assign}
+          onClose={() => setAssigning(null)}
         />
       )}
     </div>

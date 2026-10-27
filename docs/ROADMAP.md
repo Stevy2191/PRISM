@@ -21,8 +21,8 @@ read that before designing any sub-project.
 - **Open items carried forward:**
   - Split ticket (5b) now carries the source ticket's category (decided
     2026-10-24).
-  - Follow-up from 6: touch and keyboard dispatch on Workload (an "Assign
-    to…" action); dragging needs a mouse today.
+  - Done 2026-10-26: touch and keyboard dispatch on Workload ("Assign…" on
+    every item you may move; same rules as a drag).
   - Fixed 2026-10-26: "today", overdue, expiring-soon, report presets, chart
     buckets and CSV dates all follow the organization's time zone, server and
     browser (`utils/orgTime.js`, `frontend/src/utils/orgDate.js`).

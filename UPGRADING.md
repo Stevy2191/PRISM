@@ -35,6 +35,13 @@ few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
   the Users list shows the username under the name; the sign-in page drops the
   animated console for the Company profile tagline and bullet points.
 - Error and status boxes on older pages now follow dark mode.
+- **Workload: Assign… (new).** Every item you may move has an "Assign…"
+  button that picks a person and a day, so work can be handed out by touch or
+  keyboard as well as by dragging. It follows the same rules as a drag.
+- **Fixed:** loading or refreshing the Assets page directly (`/assets`) no
+  longer redirects to an error, and JavaScript and CSS files now carry the
+  same security headers as the rest of the app (`nosniff` and the others were
+  missing on them).
 
 ### Editing a ticket's title and description
 

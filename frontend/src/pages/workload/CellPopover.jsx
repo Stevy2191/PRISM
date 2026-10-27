@@ -8,7 +8,9 @@ const WIDTH = 330;
 
 // The drag state is set a tick late: restyling the dragged row's own popover
 // inside dragstart makes the browser cancel the drag.
-export default function CellPopover({ anchor, person, dateKey, cell, items, defaultTicketNote, dragging, onDragStart, onDragEnd, onClose }) {
+export default function CellPopover({
+  anchor, person, dateKey, cell, items, defaultTicketNote, dragging, onDragStart, onDragEnd, onAssign, onClose,
+}) {
   const ref = useRef(null);
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -57,6 +59,17 @@ export default function CellPopover({ anchor, person, dateKey, cell, items, defa
                 {days > 1 ? ` · ${hoursLabel(item.minutes)} over ${days} days` : ''}
                 {item.overdue ? ' · overdue' : ''}
               </span>
+              {canDrop(item) && onAssign && (
+                <button
+                  type="button"
+                  onClick={() => onAssign(item)}
+                  aria-label={`Assign ${item.title}`}
+                  className="mt-0.5 rounded px-1 text-[12px] font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent max-lg:min-h-[44px]"
+                  style={{ color: 'var(--color-accent)' }}
+                >
+                  Assign…
+                </button>
+              )}
             </span>
             <span className="num text-navy-500">{hoursLabel(item.byDay[dateKey])}</span>
           </div>
