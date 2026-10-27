@@ -45,6 +45,9 @@ few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
 - Ticket emails to a contact who can see the ticket in the portal gain a
   **View this request in the portal** link (people CC'd who can't see it get
   a copy without it).
+- In the portal, contacts see public replies and the files customers sent
+  (portal uploads and emailed attachments); files staff upload on a ticket
+  stay staff-only.
 - Migration 072 adds the tables and columns; it runs on backend start.
 
 ### The rest of PRISM in look A (6b)
