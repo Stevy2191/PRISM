@@ -112,7 +112,7 @@ const listArticles = asyncHandler(async (req, res) => {
   const { q, categoryId, status, visibility } = req.query;
   const where = {};
   if (status && ['draft', 'published'].includes(status)) where.status = status;
-  if (visibility && ['internal', 'public'].includes(visibility)) where.visibility = visibility;
+  if (visibility && ['internal', 'portal'].includes(visibility)) where.visibility = visibility;
   if (categoryId === 'none') where.categoryId = null;
   else if (categoryId) where.categoryId = categoryId;
   if (q && q.trim()) {
@@ -159,7 +159,7 @@ const createArticle = asyncHandler(async (req, res) => {
     excerpt: (excerpt?.trim() || toPlainText(cleanBody).slice(0, 300)) || null,
     categoryId: categoryId || null,
     status: st,
-    visibility: ['internal', 'public'].includes(visibility) ? visibility : 'internal',
+    visibility: ['internal', 'portal'].includes(visibility) ? visibility : 'internal',
     authorId: req.user.id,
     updatedById: req.user.id,
     publishedAt: st === 'published' ? new Date() : null,
@@ -182,7 +182,7 @@ const updateArticle = asyncHandler(async (req, res) => {
   if (excerpt !== undefined) article.excerpt = excerpt?.trim() || toPlainText(article.body).slice(0, 300) || null;
   else if (body !== undefined && !req.body.excerptLocked) article.excerpt = toPlainText(article.body).slice(0, 300) || null;
   if (categoryId !== undefined) article.categoryId = categoryId || null;
-  if (visibility !== undefined && ['internal', 'public'].includes(visibility)) article.visibility = visibility;
+  if (visibility !== undefined && ['internal', 'portal'].includes(visibility)) article.visibility = visibility;
   if (status !== undefined && ['draft', 'published'].includes(status)) {
     if (status === 'published' && article.status !== 'published') article.publishedAt = new Date();
     article.status = status;

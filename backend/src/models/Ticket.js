@@ -90,6 +90,12 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      // Client portal: the contact who raised it in the portal, when that is
+      // someone other than the ticket's contact (an admin raising it for them).
+      portalCreatedByContactId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       // Always the contact's company — set by models/companyHooks.js.
       companyId: { type: DataTypes.INTEGER, allowNull: false },
       departmentId: {

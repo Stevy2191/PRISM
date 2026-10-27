@@ -55,7 +55,7 @@ export default function ArticleView() {
   if (!article) return null;
 
   const published = article.status === 'published';
-  const isPublic = article.visibility === 'public';
+  const isPublic = article.visibility === 'portal';
   const onPortal = published && isPublic;
 
   return (
@@ -77,7 +77,7 @@ export default function ArticleView() {
             {published ? 'Published' : 'Draft'}
           </span>
           <span className="chip" style={{ backgroundColor: `color-mix(in srgb, ${isPublic ? 'var(--color-accent)' : MUTED} 13%, transparent)`, color: isPublic ? 'var(--color-accent)' : MUTED }}>
-            {isPublic ? <IconUsers size={12} /> : <IconLock size={12} />} {isPublic ? 'End users' : 'Agents only'}
+            {isPublic ? <IconUsers size={12} /> : <IconLock size={12} />} {isPublic ? 'Portal' : 'Agents only'}
           </span>
           {article.category && (
             <span className="chip" style={{ backgroundColor: 'color-mix(in srgb, var(--color-text-primary) 7%, transparent)', color: MUTED }}>

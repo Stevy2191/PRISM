@@ -102,6 +102,9 @@ const DEFAULTS = {
   // own hours, and how big a ticket with no task estimates counts (15-1440).
   'workload.defaultWorkHours': JSON.stringify(DEFAULT_WORK_HOURS),
   'workload.defaultTicketMinutes': String(DEFAULT_TICKET_MINUTES),
+
+  // Settings -> Client portal: the whole portal is off until switched on.
+  'portal.enabled': 'false',
 };
 
 // Settings that store JSON-encoded values rather than plain strings.

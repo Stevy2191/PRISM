@@ -158,18 +158,18 @@ export default function ArticleEditor() {
           <label className="label">Audience</label>
           <select value={visibility} onChange={(e) => setVisibility(e.target.value)} className="input">
             <option value="internal">Agents only</option>
-            <option value="public">End users</option>
+            <option value="portal">Portal</option>
           </select>
         </div>
       </div>
-      {visibility === 'public' ? (
+      {visibility === 'portal' ? (
         <p className="text-xs" style={{ color: status === 'published' ? 'var(--color-text-muted)' : 'var(--color-warning)' }}>
           {status === 'published'
-            ? 'Agents can always see this here. It’s also visible to end users in the end-user portal.'
-            : 'Agents can see this here now. It appears in the end-user portal once its status is Published.'}
+            ? 'Agents can always see this here. Contacts can also read it in the client portal.'
+            : 'Agents can see this here now. Contacts see it in the client portal once its status is Published.'}
         </p>
       ) : (
-        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Visible to agents only — not shown in the end-user portal.</p>
+        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Visible to agents only — not shown in the client portal.</p>
       )}
 
       {/* Body editor */}

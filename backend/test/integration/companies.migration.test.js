@@ -1,7 +1,21 @@
 const Sequelize = require('sequelize');
 const { sequelize, closeDb, models, resetData } = require('./helpers');
 
-const migration = require('../../migrations/20260101000048-client-companies');
+const base = require('../../migrations/20260101000048-client-companies');
+const portal = require('../../migrations/20260101000072-client-portal');
+
+// down() drops Companies, which 072's portal-admin and KB-audience tables
+// point at, so 072 is rolled back around it (and re-applied if down refuses).
+const migration = {
+  down: async (...args) => {
+    await portal.down(...args);
+    try { await base.down(...args); } catch (e) { await portal.up(...args); throw e; }
+  },
+  up: async (...args) => {
+    await base.up(...args);
+    await portal.up(...args);
+  },
+};
 
 const qi = () => sequelize.getQueryInterface();
 const q = (sql, replacements) => sequelize.query(sql, { replacements, type: Sequelize.QueryTypes.SELECT });

@@ -18,6 +18,12 @@ module.exports = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      // A reply written by a contact in the client portal (authorId is then
+      // the system actor).
+      authorContactId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       ticketId: {
         type: DataTypes.INTEGER,
         allowNull: false,

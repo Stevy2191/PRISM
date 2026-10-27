@@ -132,7 +132,7 @@ async function resetSlaPolicies() {
 async function resetData() {
   await ensureSchema();
   const tables = [
-    'Comments', 'Attachments', 'TicketWatchers', 'TicketCcs', 'EmailTemplates', 'EmailProcessingLogs', 'TaskDependencies', 'TaskAssignees', 'Tasks', 'TicketActivities',
+    'Comments', 'Attachments', 'TicketWatchers', 'PortalTokens', 'CompanyPortalAdmins', 'DepartmentPortalAdmins', 'KbArticleAudiences', 'TicketCcs', 'EmailTemplates', 'EmailProcessingLogs', 'TaskDependencies', 'TaskAssignees', 'Tasks', 'TicketActivities',
     'TicketRelations', 'TicketFieldValues', 'TimeEntries', 'ActiveTimers',
     'CannedResponses', 'RecurringTickets',
     'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'TicketSlas', 'TicketDueDateChanges', 'Tickets', 'Contacts',

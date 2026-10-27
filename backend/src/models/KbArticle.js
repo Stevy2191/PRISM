@@ -9,11 +9,10 @@ const { DataTypes, Model } = require('sequelize');
 //   status:     draft     — only visible to staff in the KB (work in progress)
 //               published  — visible to staff readers
 //   visibility: internal  — "Agents only" in the UI: staff workspace only
-//               public     — "End users" in the UI: also visible to end users
-//                            (served by the /kb portal routes), but only once
-//                            status === 'published'. The future end-user portal
-//                            reads these same visibility='public' + published
-//                            articles.
+//               portal    — "Portal" in the UI: also readable by contacts signed
+//                            in to the client portal, once published. Who
+//                            exactly is portalScope: every contact ('all'), or
+//                            only the companies/departments in KbArticleAudiences.
 module.exports = (sequelize) => {
   class KbArticle extends Model {}
 
@@ -31,7 +30,8 @@ module.exports = (sequelize) => {
       body: { type: DataTypes.TEXT('long'), allowNull: true },
       categoryId: { type: DataTypes.INTEGER, allowNull: true },
       status: { type: DataTypes.ENUM('draft', 'published'), allowNull: false, defaultValue: 'draft' },
-      visibility: { type: DataTypes.ENUM('internal', 'public'), allowNull: false, defaultValue: 'internal' },
+      visibility: { type: DataTypes.ENUM('internal', 'portal'), allowNull: false, defaultValue: 'internal' },
+      portalScope: { type: DataTypes.ENUM('all', 'companies', 'departments'), allowNull: false, defaultValue: 'all' },
       viewCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       authorId: { type: DataTypes.INTEGER, allowNull: true },
       updatedById: { type: DataTypes.INTEGER, allowNull: true },

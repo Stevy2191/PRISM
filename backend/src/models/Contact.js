@@ -41,14 +41,29 @@ module.exports = (sequelize) => {
       adSynced: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       adObjectGUID: { type: DataTypes.STRING(64), allowNull: true },
       adLastSynced: { type: DataTypes.DATE, allowNull: true },
+      // Client portal (7a): may this contact sign in to the portal at all.
+      portalAccess: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      // bcrypt hash for a password sign-in. Hidden by the default scope and
+      // toJSON: read it only through Contact.scope('withPassword').
+      passwordHash: { type: DataTypes.STRING(255), allowNull: true },
+      portalLastSignInAt: { type: DataTypes.DATE, allowNull: true },
     },
     {
       sequelize,
       modelName: 'Contact',
       tableName: 'Contacts',
       timestamps: true,
+      defaultScope: { attributes: { exclude: ['passwordHash'] } },
+      scopes: { withPassword: {} },
     }
   );
+
+  // Belt and braces for an instance loaded through the withPassword scope.
+  Contact.prototype.toJSON = function toJSON() {
+    const values = { ...this.get({ plain: true }) };
+    delete values.passwordHash;
+    return values;
+  };
 
   return Contact;
 };

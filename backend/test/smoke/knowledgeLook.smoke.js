@@ -31,7 +31,7 @@ beforeAll(async () => {
   const net = await cat('Network & VPN');
   const printers = await cat('Printers');
   const art = async (body) => expectOk(await a.post(`${API}/knowledge/articles`).send(body), 201).article;
-  vpnArticle = await art({ title: 'Connect to the office VPN', body: '<p>Install FortiClient.</p>', categoryId: net.id, status: 'published', visibility: 'public' });
+  vpnArticle = await art({ title: 'Connect to the office VPN', body: '<p>Install FortiClient.</p>', categoryId: net.id, status: 'published', visibility: 'portal' });
   await art({ title: 'Printer jams on envelopes', body: '<p>Use tray 2.</p>', categoryId: printers.id, status: 'published' });
   await art({ title: 'Printer setup draft', body: '<p>Draft.</p>', categoryId: printers.id, status: 'draft' });
   const reader = await makeStaff('reader', w.deptA.id);

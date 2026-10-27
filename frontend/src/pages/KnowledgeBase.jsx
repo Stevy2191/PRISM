@@ -34,12 +34,12 @@ function StatusChip({ status }) {
 }
 
 function VisibilityChip({ visibility }) {
-  const isEndUsers = visibility === 'public';
+  const isEndUsers = visibility === 'portal';
   const color = isEndUsers ? 'var(--color-accent)' : MUTED;
   const Icon = isEndUsers ? IconUsers : IconLock;
   return (
     <span className="chip" style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)`, color }}>
-      <Icon size={12} /> {isEndUsers ? 'End users' : 'Agents only'}
+      <Icon size={12} /> {isEndUsers ? 'Portal' : 'Agents only'}
     </span>
   );
 }
@@ -123,7 +123,7 @@ export default function KnowledgeBase() {
   const [search, setSearch] = useState('');
   const [activeCat, setActiveCat] = useState(''); // '', 'none', or category id
   const [status, setStatus] = useState('');
-  const [audience, setAudience] = useState(''); // '', 'internal' (agents), 'public' (end users)
+  const [audience, setAudience] = useState(''); // '', 'internal' (agents), 'portal' (signed-in contacts)
 
   const filterKey = JSON.stringify([search, activeCat, status, audience]);
   const pager = usePagination({ filterKey, storageKey: 'prism.kb.pageSize' });
@@ -180,7 +180,7 @@ export default function KnowledgeBase() {
   ];
   const filterCount = [audience, status].filter(Boolean).length;
   const filterSelects = (as) => [
-    ['Audience', audience, setAudience, [['', 'All audiences'], ['internal', 'Agents only'], ['public', 'End users']]],
+    ['Audience', audience, setAudience, [['', 'All audiences'], ['internal', 'Agents only'], ['portal', 'Portal']]],
     ['Status', status, setStatus, [['', 'All statuses'], ['published', 'Published'], ['draft', 'Draft']]],
   ].map(([label, value, set, options]) => {
     const opts = options.map(([v, l]) => <option key={v} value={v}>{l}</option>);

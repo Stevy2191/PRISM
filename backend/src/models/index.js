@@ -106,6 +106,10 @@ const CompanyDomain = require('./CompanyDomain')(sequelize);
 const Site = require('./Site')(sequelize);
 const UserCompanyAccess = require('./UserCompanyAccess')(sequelize);
 const RoleCompanyAccess = require('./RoleCompanyAccess')(sequelize);
+const PortalToken = require('./PortalToken')(sequelize);
+const CompanyPortalAdmin = require('./CompanyPortalAdmin')(sequelize);
+const DepartmentPortalAdmin = require('./DepartmentPortalAdmin')(sequelize);
+const KbArticleAudience = require('./KbArticleAudience')(sequelize);
 
 const db = {
   sequelize,
@@ -213,6 +217,10 @@ const db = {
   Site,
   UserCompanyAccess,
   RoleCompanyAccess,
+  PortalToken,
+  CompanyPortalAdmin,
+  DepartmentPortalAdmin,
+  KbArticleAudience,
 };
 
 // ---- Associations ----
@@ -656,6 +664,24 @@ Asset.belongsTo(Site, { foreignKey: 'siteId', as: 'site' });
 });
 UserCompanyAccess.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 RoleCompanyAccess.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+
+// ---- Client portal (7a) ----
+Contact.hasMany(PortalToken, { foreignKey: 'contactId', as: 'portalTokens', onDelete: 'CASCADE' });
+PortalToken.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+Contact.hasMany(CompanyPortalAdmin, { foreignKey: 'contactId', as: 'companyAdminOf', onDelete: 'CASCADE' });
+CompanyPortalAdmin.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+CompanyPortalAdmin.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+Contact.hasMany(DepartmentPortalAdmin, { foreignKey: 'contactId', as: 'departmentAdminOf', onDelete: 'CASCADE' });
+DepartmentPortalAdmin.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+DepartmentPortalAdmin.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+TicketWatcher.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+Contact.hasMany(TicketWatcher, { foreignKey: 'contactId', as: 'watching', onDelete: 'CASCADE' });
+Comment.belongsTo(Contact, { foreignKey: 'authorContactId', as: 'authorContact' });
+Ticket.belongsTo(Contact, { foreignKey: 'portalCreatedByContactId', as: 'portalCreatedBy' });
+KbArticle.hasMany(KbArticleAudience, { foreignKey: 'articleId', as: 'audiences', onDelete: 'CASCADE' });
+KbArticleAudience.belongsTo(KbArticle, { foreignKey: 'articleId', as: 'article' });
+KbArticleAudience.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+KbArticleAudience.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 
 require('./companyHooks')({
   Contact, Ticket, Department, Project, Asset, License, Contract, Site,
