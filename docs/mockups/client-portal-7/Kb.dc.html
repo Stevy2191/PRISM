@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Portal knowledge base</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/089f5412c3aca4c8e855b45d900a7fac">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pb{background:var(--bar);border-bottom:1px solid var(--bd)}
+.pin{max-width:1120px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;gap:28px}
+.app .pin .brand{color:var(--tx);font-size:17px}
+.hc{font-weight:500;color:var(--tx3);font-size:14px;margin-left:2px}
+.pnav{display:flex;gap:4px}
+.app .pnav a{height:36px;display:flex;align-items:center;padding:0 12px;border-radius:8px;color:var(--tx2);font-weight:500}
+.app .pnav a.on{background:var(--acc-soft);color:var(--acc-ink);font-weight:600}
+.pme{margin-left:auto;display:flex;align-items:center;gap:12px}
+.pme .nm{font-weight:600;font-size:13.5px;line-height:1.2;text-align:right}
+.pme .co{font-size:12.5px;color:var(--tx3)}
+.app .pme .so{color:var(--tx2);font-weight:500;font-size:13.5px}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 24px 64px}
+.app a.btn:not(.primary){color:var(--tx)}
+.avc{width:32px;height:32px;border-radius:50%;color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.hero{text-align:center;padding-top:8px}
+.big{height:52px;max-width:600px;margin:18px auto 0;font-size:16px;border-radius:12px}
+.cg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:36px}
+.app .cc{display:flex;align-items:center;gap:14px;padding:16px 18px;color:var(--tx)}
+.cc .e{width:44px;height:44px;border-radius:10px;background:var(--surf2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+.cc .nm{font-weight:600;font-size:15px}
+.cc .ds{font-size:13px;color:var(--tx3)}
+.cc .n{margin-left:auto;font-size:12.5px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.app .pr{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);color:var(--tx)}
+.pr:last-child{border-bottom:0}
+.pr .fi{color:var(--acc);margin-top:2px;flex:none}
+.pr .t{font-weight:600}
+.pr .x{font-size:13.5px;color:var(--tx2);margin-top:2px}
+.pr .cv{margin-left:auto;color:var(--tx3);flex:none;margin-top:2px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="pb">
+    <div class="pin">
+      <a href="#" class="brand"><span class="logo"></span>PRISM<span class="hc">· Support</span></a>
+      <nav class="pnav" aria-label="Portal"><a href="#">Tickets</a><a href="#" class="on" aria-current="page">Knowledge base</a></nav>
+      <div class="pme">
+        <div><div class="nm">Maria Chen</div><div class="co">Riverside Family Clinic</div></div>
+        <span class="avc" style="background:#0f7a6c" aria-hidden="true">MC</span>
+        <a href="#" class="so">Sign out</a>
+      </div>
+    </div>
+  </header>
+  <main class="wrap" style="max-width:920px">
+    <section class="hero">
+      <h1 style="font-size:34px">How can we help?</h1>
+      <label class="input big"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search for answers…" aria-label="Search for answers" style="font-size:16px"></label>
+    </section>
+    <div class="cg"><a href="#" class="card cc"><span class="e">🔐</span><span style="min-width:0"><div class="nm">Network &amp; VPN</div><div class="ds">Getting connected from home and on the road</div></span><span class="n">6</span></a><a href="#" class="card cc"><span class="e">🔑</span><span style="min-width:0"><div class="nm">Accounts</div><div class="ds">Passwords, sign-in and two-step approval</div></span><span class="n">5</span></a><a href="#" class="card cc"><span class="e">🖨</span><span style="min-width:0"><div class="nm">Printers</div><div class="ds">Printing, scanning and paper jams</div></span><span class="n">3</span></a><a href="#" class="card cc"><span class="e">📞</span><span style="min-width:0"><div class="nm">Phones</div><div class="ds">Desk phones, voicemail and the softphone app</div></span><span class="n">3</span></a></div>
+    <p class="eyebrow" style="margin:36px 0 10px">Articles for you</p>
+    <div class="card"><a href="#" class="pr"><span class="fi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg></span><span><div class="t">Connect to the office VPN</div><div class="x">Install FortiClient, sign in with your work email and approve the prompt on your phone.</div></span><span class="cv"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></span></a><a href="#" class="pr"><span class="fi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg></span><span><div class="t">Reset your own password</div><div class="x">Use the "Forgot password" link on the sign-in page. The link works once, for one hour.</div></span><span class="cv"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></span></a><a href="#" class="pr"><span class="fi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg></span><span><div class="t">Billing: scan to the shared folder</div><div class="x">For Billing only. Tap Scan, pick "Billing inbox" and press Start.</div></span><span class="cv"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></span></a><a href="#" class="pr"><span class="fi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg></span><span><div class="t">Set up voicemail on your desk phone</div><div class="x">Press the envelope key, enter the default PIN and follow the prompts.</div></span><span class="cv"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></span></a></div>
+    <p class="hint" style="margin-top:14px">Can't find it? <a href="#" style="color:var(--acc);font-weight:600">Raise a ticket</a></p>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

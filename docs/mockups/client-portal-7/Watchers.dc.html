@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ticket: contact watchers</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/089f5412c3aca4c8e855b45d900a7fac">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app a.btn:not(.primary){color:var(--tx)}
+.sw{width:40px;height:24px;border-radius:999px;background:var(--acc);position:relative;flex:none;border:0}
+.sw::after{content:"";position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.sw.off{background:var(--track)}
+.sw.off::after{right:auto;left:3px}
+.chipx{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 12px;border-radius:999px;border:1px solid var(--bd);background:var(--surf);font-size:13px;font-weight:500}
+.chipx .ib{width:22px;height:22px}
+.okp{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--succ-ink);background:var(--succ-bg);border-radius:999px;padding:2px 10px}
+.wrnp{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--warn-ink);background:var(--warn-bg);border-radius:999px;padding:2px 10px}
+.mut{color:var(--tx3);font-size:12.5px}
+.ctabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-top:18px}
+.app .ctabs a{padding:10px 14px;color:var(--tx2);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+.app .ctabs a.on{color:var(--tx);font-weight:600;border-bottom-color:var(--acc)}
+.cph{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.cph h2{font-size:15px;margin:0}
+.cph p{margin:2px 0 0;font-size:12.5px;color:var(--tx3)}
+.cb2{padding:16px 20px}
+.wc{max-width:380px;margin:40px auto 0}
+.wl{display:flex;flex-wrap:wrap;gap:6px}
+.wp{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 4px;border-radius:999px;background:var(--neutral-bg);font-size:12.5px;font-weight:500}
+.wp .a{width:22px;height:22px;border-radius:50%;color:#fff;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.wp .k{font-size:11px;color:var(--tx3);font-weight:600}
+.dd{border:1px solid var(--bd);border-radius:10px;background:var(--surf);box-shadow:var(--shadow);margin-top:6px;overflow:hidden}
+.dd .g{font-size:11.5px;font-weight:600;color:var(--tx3);padding:8px 12px 4px}
+.app .dd a{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;color:var(--tx);font-size:13.5px}
+.dd a:hover,.dd a.hl{background:var(--hover)}
+</style>
+</helmet>
+<div class="{{cls}}" style="min-height:640px;background:var(--bg);padding-top:1px">
+  <section class="card wc" aria-labelledby="wt">
+    <div class="cph"><h2 id="wt">Watchers</h2></div>
+    <div class="cb2" style="display:flex;flex-direction:column;gap:12px">
+      <div class="wl">
+        <span class="wp"><span class="a" style="background:#0f7a6c">SL</span>Sam Lee<button class="ib" type="button" aria-label="Remove Sam Lee" style="width:20px;height:20px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span>
+        <span class="wp"><span class="a" style="background:#9a3b6b">PS</span>Priya Shah <span class="k">Contact</span><button class="ib" type="button" aria-label="Remove Priya Shah" style="width:20px;height:20px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span>
+      </div>
+      <div>
+        <label class="input" style="height:36px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input value="to" aria-label="Add a watcher"></label>
+        <div class="dd" role="listbox" aria-label="Matches">
+          <p class="g">Staff</p>
+          <a href="#" role="option">Tom Okafor<span class="mut">Service desk</span></a>
+          <p class="g">Contacts · Riverside Family Clinic</p>
+          <a href="#" role="option" class="hl">Tom Baker<span class="mut">Reception · portal on</span></a>
+          <a href="#" role="option">Toni Reyes<span class="mut">Billing · no portal access</span></a>
+        </div>
+      </div>
+      <p class="mut" style="margin:0">Contact watchers with portal access see this ticket in their portal and can reply. CC'd people only get emails.</p>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":900,"height":640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

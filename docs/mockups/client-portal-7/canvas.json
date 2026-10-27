@@ -1,0 +1,329 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-27T12:00:00Z"
+ },
+ "title": "PRISM client portal (7)",
+ "launch": {
+  "view": "canvas",
+  "page": "signin"
+ },
+ "pages": [
+  {
+   "id": "signin",
+   "name": "Sign in"
+  },
+  {
+   "id": "tickets",
+   "name": "Tickets"
+  },
+  {
+   "id": "kb",
+   "name": "Knowledge base"
+  },
+  {
+   "id": "staff",
+   "name": "Staff side"
+  }
+ ],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "Sign in \u00b7 light",
+   "page": "signin",
+   "expand": "fill"
+  },
+  "Main-dark.dc.html": {
+   "x": 0,
+   "y": 1100,
+   "w": 1440,
+   "h": 900,
+   "title": "Sign in \u00b7 dark",
+   "page": "signin",
+   "expand": "fill"
+  },
+  "SignInPhone.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "Sign in \u00b7 phone \u00b7 light",
+   "page": "signin"
+  },
+  "SignInPhone-dark.dc.html": {
+   "x": 1520,
+   "y": 1100,
+   "w": 390,
+   "h": 844,
+   "title": "Sign in \u00b7 phone \u00b7 dark",
+   "page": "signin"
+  },
+  "AccountStates.dc.html": {
+   "x": 1990,
+   "y": 0,
+   "w": 1440,
+   "h": 760,
+   "title": "Invite \u00b7 Forgot password \u00b7 Not allowed \u00b7 light",
+   "page": "signin",
+   "expand": "fill"
+  },
+  "AccountStates-dark.dc.html": {
+   "x": 1990,
+   "y": 1100,
+   "w": 1440,
+   "h": 760,
+   "title": "Invite \u00b7 Forgot password \u00b7 Not allowed \u00b7 dark",
+   "page": "signin",
+   "expand": "fill"
+  },
+  "Tickets.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 760,
+   "title": "Tickets (a department admin) \u00b7 light",
+   "page": "tickets",
+   "expand": "fill"
+  },
+  "Tickets-dark.dc.html": {
+   "x": 0,
+   "y": 1100,
+   "w": 1440,
+   "h": 760,
+   "title": "Tickets (a department admin) \u00b7 dark",
+   "page": "tickets",
+   "expand": "fill"
+  },
+  "TicketNew.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 800,
+   "title": "New ticket \u00b7 light",
+   "page": "tickets",
+   "expand": "fill"
+  },
+  "TicketNew-dark.dc.html": {
+   "x": 1520,
+   "y": 1100,
+   "w": 1440,
+   "h": 800,
+   "title": "New ticket \u00b7 dark",
+   "page": "tickets",
+   "expand": "fill"
+  },
+  "Ticket.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "A ticket \u00b7 light",
+   "page": "tickets",
+   "expand": "fill"
+  },
+  "Ticket-dark.dc.html": {
+   "x": 3040,
+   "y": 1100,
+   "w": 1440,
+   "h": 900,
+   "title": "A ticket \u00b7 dark",
+   "page": "tickets",
+   "expand": "fill"
+  },
+  "Phone.dc.html": {
+   "x": 4560,
+   "y": 0,
+   "w": 1260,
+   "h": 844,
+   "title": "Phone: tickets \u00b7 a ticket \u00b7 new ticket \u00b7 light",
+   "page": "tickets"
+  },
+  "Phone-dark.dc.html": {
+   "x": 4560,
+   "y": 1100,
+   "w": 1260,
+   "h": 844,
+   "title": "Phone: tickets \u00b7 a ticket \u00b7 new ticket \u00b7 dark",
+   "page": "tickets"
+  },
+  "Kb.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 980,
+   "title": "Knowledge base \u00b7 light",
+   "page": "kb",
+   "expand": "fill"
+  },
+  "Kb-dark.dc.html": {
+   "x": 0,
+   "y": 1260,
+   "w": 1440,
+   "h": 980,
+   "title": "Knowledge base \u00b7 dark",
+   "page": "kb",
+   "expand": "fill"
+  },
+  "KbArticle.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 1060,
+   "title": "An article \u00b7 light",
+   "page": "kb",
+   "expand": "fill"
+  },
+  "KbArticle-dark.dc.html": {
+   "x": 1520,
+   "y": 1260,
+   "w": 1440,
+   "h": 1060,
+   "title": "An article \u00b7 dark",
+   "page": "kb",
+   "expand": "fill"
+  },
+  "ContactPortal.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 700,
+   "title": "Contact: support portal block \u00b7 light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "ContactPortal-dark.dc.html": {
+   "x": 0,
+   "y": 1900,
+   "w": 1440,
+   "h": 700,
+   "title": "Contact: support portal block \u00b7 dark",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "CompanyM365.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 1240,
+   "title": "Company: Microsoft 365 tab \u00b7 light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "CompanyM365-dark.dc.html": {
+   "x": 1520,
+   "y": 1900,
+   "w": 1440,
+   "h": 1240,
+   "title": "Company: Microsoft 365 tab \u00b7 dark",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "CompanyAdmins.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "Company: departments and admins \u00b7 light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "CompanyAdmins-dark.dc.html": {
+   "x": 3040,
+   "y": 1900,
+   "w": 1440,
+   "h": 900,
+   "title": "Company: departments and admins \u00b7 dark",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "Watchers.dc.html": {
+   "x": 4560,
+   "y": 0,
+   "w": 900,
+   "h": 640,
+   "title": "Ticket: contact watchers \u00b7 light",
+   "page": "staff"
+  },
+  "Watchers-dark.dc.html": {
+   "x": 4560,
+   "y": 1900,
+   "w": 900,
+   "h": 640,
+   "title": "Ticket: contact watchers \u00b7 dark",
+   "page": "staff"
+  },
+  "KbAudience.dc.html": {
+   "x": 5540,
+   "y": 0,
+   "w": 1440,
+   "h": 760,
+   "title": "Knowledge: who can read it \u00b7 light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "KbAudience-dark.dc.html": {
+   "x": 5540,
+   "y": 1900,
+   "w": 1440,
+   "h": 760,
+   "title": "Knowledge: who can read it \u00b7 dark",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "SettingsPortal.dc.html": {
+   "x": 7060,
+   "y": 0,
+   "w": 1440,
+   "h": 1700,
+   "title": "Settings: client portal \u00b7 light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "SettingsPortal-dark.dc.html": {
+   "x": 7060,
+   "y": 1900,
+   "w": 1440,
+   "h": 1700,
+   "title": "Settings: client portal \u00b7 dark",
+   "page": "staff",
+   "expand": "fill"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Main-dark.dc.html",
+  "SignInPhone.dc.html",
+  "SignInPhone-dark.dc.html",
+  "AccountStates.dc.html",
+  "AccountStates-dark.dc.html",
+  "Tickets.dc.html",
+  "Tickets-dark.dc.html",
+  "TicketNew.dc.html",
+  "TicketNew-dark.dc.html",
+  "Ticket.dc.html",
+  "Ticket-dark.dc.html",
+  "Phone.dc.html",
+  "Phone-dark.dc.html",
+  "Kb.dc.html",
+  "Kb-dark.dc.html",
+  "KbArticle.dc.html",
+  "KbArticle-dark.dc.html",
+  "ContactPortal.dc.html",
+  "ContactPortal-dark.dc.html",
+  "CompanyM365.dc.html",
+  "CompanyM365-dark.dc.html",
+  "CompanyAdmins.dc.html",
+  "CompanyAdmins-dark.dc.html",
+  "Watchers.dc.html",
+  "Watchers-dark.dc.html",
+  "KbAudience.dc.html",
+  "KbAudience-dark.dc.html",
+  "SettingsPortal.dc.html",
+  "SettingsPortal-dark.dc.html"
+ ],
+ "notes": {}
+}

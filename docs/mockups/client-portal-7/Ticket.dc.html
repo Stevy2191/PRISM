@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A portal ticket</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/089f5412c3aca4c8e855b45d900a7fac">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pb{background:var(--bar);border-bottom:1px solid var(--bd)}
+.pin{max-width:1120px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;gap:28px}
+.app .pin .brand{color:var(--tx);font-size:17px}
+.hc{font-weight:500;color:var(--tx3);font-size:14px;margin-left:2px}
+.pnav{display:flex;gap:4px}
+.app .pnav a{height:36px;display:flex;align-items:center;padding:0 12px;border-radius:8px;color:var(--tx2);font-weight:500}
+.app .pnav a.on{background:var(--acc-soft);color:var(--acc-ink);font-weight:600}
+.pme{margin-left:auto;display:flex;align-items:center;gap:12px}
+.pme .nm{font-weight:600;font-size:13.5px;line-height:1.2;text-align:right}
+.pme .co{font-size:12.5px;color:var(--tx3)}
+.app .pme .so{color:var(--tx2);font-weight:500;font-size:13.5px}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 24px 64px}
+.app a.btn:not(.primary){color:var(--tx)}
+.avc{width:32px;height:32px;border-radius:50%;color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.tg{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start;margin-top:18px}
+.msg{display:flex;gap:12px;align-items:flex-start}
+.bub{flex:1;min-width:0;border:1px solid var(--bd);border-radius:12px;padding:12px 16px;background:var(--surf2)}
+.bub.us{background:var(--bubble-t);border-color:var(--bubble-t-bd)}
+.bub .h{font-size:12.5px;color:var(--tx3);display:flex;gap:6px;flex-wrap:wrap}
+.bub .h b{color:var(--tx);font-size:13.5px}
+.bub p{margin:6px 0 0;font-size:14.5px;line-height:1.55}
+.reply{padding:16px;display:flex;flex-direction:column;gap:12px}
+.reply textarea{height:110px;padding:12px 14px;font:inherit;resize:vertical}
+.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px 12px;font-size:13.5px}
+.kv dt{color:var(--tx3)}
+.kv dd{margin:0;font-weight:500}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="pb">
+    <div class="pin">
+      <a href="#" class="brand"><span class="logo"></span>PRISM<span class="hc">· Support</span></a>
+      <nav class="pnav" aria-label="Portal"><a href="#" class="on" aria-current="page">Tickets</a><a href="#">Knowledge base</a></nav>
+      <div class="pme">
+        <div><div class="nm">Maria Chen</div><div class="co">Riverside Family Clinic</div></div>
+        <span class="avc" style="background:#0f7a6c" aria-hidden="true">MC</span>
+        <a href="#" class="so">Sign out</a>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Tickets</a><span>/</span><span aria-current="page" class="num">#01482</span></nav>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap"><span class="num" style="color:var(--tx3);font-weight:600">#01482</span><span class="status">In progress</span></div>
+    <h1 style="margin-top:4px">Outlook keeps asking for my password</h1>
+    <div class="tg">
+      <section style="display:flex;flex-direction:column;gap:12px" aria-label="Conversation">
+        <div class="msg"><span class="avc" style="background:#0f7a6c" aria-hidden="true">MC</span><div class="bub"><div class="h"><b>Maria Chen</b><span>You · opened this ticket</span><span>· Today, 9:12 AM</span></div><p>Since this morning Outlook pops up a password box every few minutes. I type it in and it comes straight back. Webmail works fine.</p></div></div><div class="msg"><span class="avc" style="background:#5b4bb7" aria-hidden="true">DO</span><div class="bub us"><div class="h"><b>Dana Ortiz</b><span>Service desk</span><span>· Today, 9:31 AM</span></div><p>Thanks Maria. Does this happen on your laptop only, or on the front desk PC too?</p></div></div><div class="msg"><span class="avc" style="background:#0f7a6c" aria-hidden="true">MC</span><div class="bub"><div class="h"><b>Maria Chen</b><span>You</span><span>· Today, 9:52 AM</span></div><p>Only my laptop. The front desk PC is fine.</p></div></div>
+        <form class="card reply">
+          <label for="rp" style="font-weight:600;font-size:13.5px">Reply</label>
+          <textarea id="rp" class="input" placeholder="Add details or answer the help desk…"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn quiet" type="button" style="height:40px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11l-8.5 8.5a5 5 0 0 1-7-7L13 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L14 7"></path></svg>Attach files</button>
+            <button class="btn primary" type="submit" style="height:40px">Send reply</button>
+          </div>
+        </form>
+      </section>
+      <aside class="card" style="padding:18px 20px" aria-label="Ticket details">
+        <dl class="kv">
+          <dt>Status</dt><dd>In progress</dd>
+          <dt>For</dt><dd>Maria Chen</dd>
+          <dt>Opened</dt><dd class="num">Oct 27, 9:12 AM</dd>
+          <dt>Category</dt><dd>Email › Outlook</dd>
+          <dt>Priority</dt><dd>High</dd>
+          <dt>Handled by</dt><dd>Service desk</dd>
+        </dl>
+        <p class="hint" style="margin:16px 0 0">Replies here or to our emails both land on this ticket.</p>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

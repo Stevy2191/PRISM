@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Article audience</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/089f5412c3aca4c8e855b45d900a7fac">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app a.btn:not(.primary){color:var(--tx)}
+.sw{width:40px;height:24px;border-radius:999px;background:var(--acc);position:relative;flex:none;border:0}
+.sw::after{content:"";position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.sw.off{background:var(--track)}
+.sw.off::after{right:auto;left:3px}
+.chipx{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 12px;border-radius:999px;border:1px solid var(--bd);background:var(--surf);font-size:13px;font-weight:500}
+.chipx .ib{width:22px;height:22px}
+.okp{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--succ-ink);background:var(--succ-bg);border-radius:999px;padding:2px 10px}
+.wrnp{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--warn-ink);background:var(--warn-bg);border-radius:999px;padding:2px 10px}
+.mut{color:var(--tx3);font-size:12.5px}
+.ctabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-top:18px}
+.app .ctabs a{padding:10px 14px;color:var(--tx2);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+.app .ctabs a.on{color:var(--tx);font-weight:600;border-bottom-color:var(--acc)}
+.cph{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.cph h2{font-size:15px;margin:0}
+.cph p{margin:2px 0 0;font-size:12.5px;color:var(--tx3)}
+.cb2{padding:16px 20px}
+.ed{max-width:960px;margin:0 auto}
+.meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:20px}
+.meta .input{height:40px}
+.aud{margin-top:16px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.rg{display:flex;flex-direction:column;gap:10px}
+.rg label{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.rg .mut{display:block}
+.picks{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:28px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#" class="on" aria-current="page">Knowledge</a><a href="#">Calendar</a></nav>
+    <div class="bar-right">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search  ⌘K" aria-label="Search"></label>
+      <button class="ib" type="button" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg></button>
+      <button class="ib" type="button" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
+      <button class="ib" type="button" aria-label="Switch theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
+      <span class="me" aria-label="Dana Ortiz">DO</span>
+    </div>
+  </header>
+  <main class="page">
+    <div class="ed">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Knowledge Base</a><span>/</span><a href="#">Billing: scan to the shared folder</a><span>/</span><span aria-current="page">Edit</span></nav>
+      <h1 style="margin-top:10px;padding-bottom:12px;border-bottom:1px solid var(--line)">Billing: scan to the shared folder</h1>
+      <div class="meta">
+        <div class="field"><label for="c1">Category</label><select id="c1" class="input"><option>Printers</option></select></div>
+        <div class="field"><label for="c2">Status</label><select id="c2" class="input"><option>Published</option></select></div>
+        <div class="field"><label for="c3">Audience</label><select id="c3" class="input"><option>Agents only</option><option selected>Portal</option></select></div>
+      </div>
+      <fieldset class="card aud">
+        <legend style="font-weight:600;font-size:14px;padding:0 4px">Who can read it in the portal</legend>
+        <div class="rg">
+          <label><input type="radio" name="w"><span>All companies<span class="mut">Everyone who can sign in to the portal.</span></span></label>
+          <label><input type="radio" name="w"><span>Chosen companies<span class="mut">Everyone in the companies you pick.</span></span></label>
+          <label><input type="radio" name="w" checked><span>Chosen departments<span class="mut">Only contacts in the departments you pick.</span></span></label>
+        </div>
+        <div class="picks">
+          <span class="chipx">Riverside Family Clinic › Billing<button class="ib" type="button" aria-label="Remove Riverside Family Clinic, Billing"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span>
+          <span class="chipx">Lakeside Law Group › Billing<button class="ib" type="button" aria-label="Remove Lakeside Law Group, Billing"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span>
+          <label class="input" style="height:34px;width:260px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Add a department…" aria-label="Add a department"></label>
+        </div>
+      </fieldset>
+      <p class="mut" style="margin-top:12px">The article body editor stays as it is below this.</p>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

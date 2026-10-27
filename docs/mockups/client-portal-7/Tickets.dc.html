@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Portal tickets</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/089f5412c3aca4c8e855b45d900a7fac">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pb{background:var(--bar);border-bottom:1px solid var(--bd)}
+.pin{max-width:1120px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;gap:28px}
+.app .pin .brand{color:var(--tx);font-size:17px}
+.hc{font-weight:500;color:var(--tx3);font-size:14px;margin-left:2px}
+.pnav{display:flex;gap:4px}
+.app .pnav a{height:36px;display:flex;align-items:center;padding:0 12px;border-radius:8px;color:var(--tx2);font-weight:500}
+.app .pnav a.on{background:var(--acc-soft);color:var(--acc-ink);font-weight:600}
+.pme{margin-left:auto;display:flex;align-items:center;gap:12px}
+.pme .nm{font-weight:600;font-size:13.5px;line-height:1.2;text-align:right}
+.pme .co{font-size:12.5px;color:var(--tx3)}
+.app .pme .so{color:var(--tx2);font-weight:500;font-size:13.5px}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 24px 64px}
+.app a.btn:not(.primary){color:var(--tx)}
+.avc{width:32px;height:32px;border-radius:50%;color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.th,.tr{display:grid;grid-template-columns:84px minmax(0,1fr) 160px 150px 140px;gap:16px;align-items:center;padding:0 20px}
+.th{height:44px;font-size:12.5px;font-weight:600;color:var(--tx3);border-bottom:1px solid var(--line)}
+.tr{min-height:58px;border-bottom:1px solid var(--line)}
+.tr:last-child{border-bottom:0}
+.app .tr .tt{color:var(--acc);font-weight:600}
+.tr .id{color:var(--tx3);font-variant-numeric:tabular-nums}
+.tr .up{color:var(--tx2);font-size:13.5px}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:22px}
+.tools .input{width:280px;height:36px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="pb">
+    <div class="pin">
+      <a href="#" class="brand"><span class="logo"></span>PRISM<span class="hc">· Support</span></a>
+      <nav class="pnav" aria-label="Portal"><a href="#" class="on" aria-current="page">Tickets</a><a href="#">Knowledge base</a></nav>
+      <div class="pme">
+        <div><div class="nm">Maria Chen</div><div class="co">Riverside Family Clinic</div></div>
+        <span class="avc" style="background:#0f7a6c" aria-hidden="true">MC</span>
+        <a href="#" class="so">Sign out</a>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
+      <div><h1>Tickets</h1><p class="sub">Yours, the ones you watch, and the Billing department's</p></div>
+      <a href="#" class="btn primary" style="height:40px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New ticket</a>
+    </section>
+    <div class="tools">
+      <div role="group" aria-label="Show" style="display:flex;gap:8px">
+        <button class="pill" type="button" aria-pressed="false">Mine</button>
+        <button class="pill" type="button" aria-pressed="false">Watching</button>
+        <button class="pill on" type="button" aria-pressed="true">Billing department</button>
+      </div>
+      <span style="flex:1"></span>
+      <div class="seg-ctl" role="group" aria-label="Status"><button class="on" type="button" aria-pressed="true">Open</button><button type="button" aria-pressed="false">Closed</button><button type="button" aria-pressed="false">All</button></div>
+      <label class="input"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search tickets" aria-label="Search tickets"></label>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="th"><span>#</span><span>Title</span><span>For</span><span>Status</span><span>Last update</span></div>
+      <div class="tr"><span class="id num">#01482</span><a href="#" class="tt">Outlook keeps asking for my password</a><span>Maria Chen</span><span><span class="status">In progress</span></span><span class="up">Today, 9:31 AM</span></div><div class="tr"><span class="id num">#01490</span><a href="#" class="tt">Scanner on the billing desk shows offline</a><span>Priya Shah</span><span><span class="status">Open</span></span><span class="up">Today, 8:05 AM</span></div><div class="tr"><span class="id num">#01476</span><a href="#" class="tt">New starter in billing needs a login</a><span>Maria Chen</span><span><span class="status hold">Waiting on customer</span></span><span class="up">Yesterday</span></div><div class="tr"><span class="id num">#01468</span><a href="#" class="tt">Second monitor flickers</a><span>Tom Baker</span><span><span class="status plan">On hold</span></span><span class="up">Oct 24</span></div><div class="tr"><span class="id num">#01455</span><a href="#" class="tt">Printer on the 2nd floor jams on envelopes</a><span>Maria Chen</span><span><span class="status closed">Closed</span></span><span class="up">Oct 21</span></div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings: client portal</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/089f5412c3aca4c8e855b45d900a7fac">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app a.btn:not(.primary){color:var(--tx)}
+.sw{width:40px;height:24px;border-radius:999px;background:var(--acc);position:relative;flex:none;border:0}
+.sw::after{content:"";position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.sw.off{background:var(--track)}
+.sw.off::after{right:auto;left:3px}
+.chipx{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 12px;border-radius:999px;border:1px solid var(--bd);background:var(--surf);font-size:13px;font-weight:500}
+.chipx .ib{width:22px;height:22px}
+.okp{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--succ-ink);background:var(--succ-bg);border-radius:999px;padding:2px 10px}
+.wrnp{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--warn-ink);background:var(--warn-bg);border-radius:999px;padding:2px 10px}
+.mut{color:var(--tx3);font-size:12.5px}
+.ctabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-top:18px}
+.app .ctabs a{padding:10px 14px;color:var(--tx2);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+.app .ctabs a.on{color:var(--tx);font-weight:600;border-bottom-color:var(--acc)}
+.cph{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.cph h2{font-size:15px;margin:0}
+.cph p{margin:2px 0 0;font-size:12.5px;color:var(--tx3)}
+.cb2{padding:16px 20px}
+.sgrid{display:grid;grid-template-columns:232px minmax(0,1fr);gap:32px;align-items:start}
+.smenu{padding:10px;background:var(--surf2);max-height:calc(100% - 0px)}
+.smenu .input{height:36px;margin-bottom:6px}
+.smenu .eyebrow{margin:12px 0 2px 10px}
+.smenu a{display:block;padding:6px 10px;border-radius:8px;color:var(--tx2);font-weight:500;font-size:13.5px}
+.app .smenu a.on{background:var(--surf);color:var(--tx);font-weight:600;box-shadow:inset 2px 0 0 var(--acc)}
+.app .smenu a.home{color:var(--tx);font-weight:600}
+.shead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.shead .crumbs a{color:var(--tx2)}
+.shead h1{margin-top:4px}
+.panel .ph{padding:14px 20px;border-bottom:1px solid var(--line)}
+.panel .ph h2{font-size:15px;margin:0}
+.panel .ph p{margin:2px 0 0;font-size:12.5px;color:var(--tx3)}
+.srow{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow .l{font-weight:600;font-size:13.5px}
+.srow .h{font-size:12.5px;color:var(--tx3);margin-top:2px}
+.savebar{display:flex;justify-content:flex-end;align-items:center;gap:12px}
+.cp{display:flex;align-items:center;gap:8px}
+.cp .input{height:38px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#">Knowledge</a><a href="#">Calendar</a></nav>
+    <div class="bar-right">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search  ⌘K" aria-label="Search"></label>
+      <button class="ib" type="button" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg></button>
+      <button class="ib" type="button" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
+      <button class="ib" type="button" aria-label="Switch theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
+      <span class="me" aria-label="Dana Ortiz">DO</span>
+    </div>
+  </header>
+  <main class="page">
+    <div class="sgrid">
+      <aside aria-label="Settings menu"><nav class="card smenu"><label class="input"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" placeholder="Find a setting" aria-label="Find a setting"></label><a href="#" class="home">Settings home</a><p class="eyebrow">You</p><a href="#">Preferences</a><a href="#">About PRISM</a><p class="eyebrow">Organization</p><a href="#">Company profile</a><a href="#">Companies &amp; vendors</a><p class="eyebrow">People &amp; access</p><a href="#">Users</a><a href="#">Teams</a><a href="#">Departments</a><a href="#">Roles &amp; permissions</a><a href="#">API keys</a><p class="eyebrow">Service desk</p><a href="#">Statuses</a><a href="#">Custom fields</a><a href="#">Ticket templates</a><a href="#">Ticket categories</a><a href="#">Canned responses</a><a href="#">Recurring tickets</a><a href="#">Workflow rules</a><a href="#">Notifications</a><a href="#">Customer happiness</a><p class="eyebrow">Projects</p><a href="#">Project templates</a><p class="eyebrow">Workload</p><a href="#">Hours people work</a><a href="#">Holidays</a><p class="eyebrow">Hours &amp; SLAs</p><a href="#">SLAs</a><a href="#">Business hours</a><p class="eyebrow">Time &amp; work</p><a href="#">Time tracking</a><a href="#">Work types</a><p class="eyebrow">Assets</p><a href="#">Asset categories</a><a href="#">Expiry alerts</a><p class="eyebrow">Sign-in &amp; email</p><a href="#">Single sign-on</a><a href="#" class="on" aria-current="page">Client portal</a><a href="#">Directory (AD/LDAP)</a><a href="#">Directory sync</a><a href="#">Incoming email</a><a href="#">Outgoing email</a><a href="#">Email templates</a><a href="#">Email log</a><a href="#">Calendar</a><p class="eyebrow">System</p><a href="#">Background jobs</a><a href="#">Import</a><a href="#">Export</a><a href="#">Audit log</a><a href="#">System info</a></nav></aside>
+      <div style="display:flex;flex-direction:column;gap:20px;max-width:820px">
+        <header class="shead"><div><nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><span>Sign-in &amp; email</span></nav><h1>Client portal</h1><p class="sub">Who can sign in, and the Microsoft app</p></div></header>
+        <section class="card panel" aria-label="Portal">
+          <div class="ph"><h2>Portal</h2><p>Contacts sign in here to raise and follow tickets and read the knowledge base.</p></div>
+          <div class="srow"><div><div class="l">Portal on</div><div class="h">Off: nobody can sign in to the portal.</div></div><div><button class="sw" type="button" role="switch" aria-checked="true" aria-label="Portal on"></button></div></div>
+          <div class="srow"><div><div class="l">Portal address</div><div class="h">Give this link to your customers.</div></div><div class="cp"><input class="input" readonly value="https://desk.riverside-it.com/portal" aria-label="Portal address"><button class="btn" type="button" style="height:38px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>Copy</button></div></div>
+        </section>
+        <section class="card panel" aria-label="Microsoft app">
+          <div class="ph"><h2>Microsoft 365 app</h2><p>One app registration serves every company. Each company's Microsoft 365 admin approves it once, from the company's Microsoft 365 tab.</p></div>
+          <div class="srow"><div><div class="l"><label for="cid">Application (client) ID</label></div></div><div><input id="cid" class="input num" style="height:38px" value="2c41f0d8-73aa-4f5e-9e1b-0bd6f4a7c912"></div></div>
+          <div class="srow"><div><div class="l"><label for="sec">Client secret</label></div><div class="h">Stored encrypted. Expires Oct 2027.</div></div><div class="cp"><input id="sec" class="input" type="password" value="xxxxxxxxxxxxxxxx" style="height:38px"><button class="btn" type="button" style="height:38px">Replace</button></div></div>
+          <div class="srow"><div><div class="l">Redirect address</div><div class="h">Add this in the app registration.</div></div><div class="cp"><input class="input num" readonly value="https://desk.riverside-it.com/api/v1/portal/auth/microsoft/callback" aria-label="Redirect address"><button class="btn" type="button" style="height:38px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>Copy</button></div></div>
+          <div class="srow"><div><div class="l">Status</div></div><div style="display:flex;gap:10px;align-items:center"><span class="okp"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>Working</span><span class="mut">Tested today, 8:40 AM</span><button class="btn sm" type="button">Test</button></div></div>
+        </section>
+        <section class="card panel" aria-label="Who can manage portal access">
+          <div class="ph"><h2>Who can manage portal access</h2><p>Granting access, sending invites, setting admins and watchers, and linking tenants need the "Manage portal access" permission: administrators, and anyone whose role includes it. Set that in <a href="#" style="color:var(--acc);font-weight:600">Roles &amp; permissions</a>.</p></div>
+        </section>
+        <div class="savebar"><span class="mut">Unsaved changes</span><button class="btn primary" type="button" style="height:40px">Save</button></div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

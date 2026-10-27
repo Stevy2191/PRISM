@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Invite, forgot password, not allowed</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/089f5412c3aca4c8e855b45d900a7fac">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app a.btn{color:var(--tx)}
+.st{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding:40px;background:var(--bg);min-height:760px;align-items:start}
+.st .card{padding:26px;display:flex;flex-direction:column;gap:16px}
+.st .cap{font-size:12.5px;font-weight:600;color:var(--tx3);text-transform:none;margin:0 0 -4px}
+.st h2{font-size:20px;margin:0}
+.st .input{height:44px}
+.st .ro{background:var(--surf2);color:var(--tx2)}
+.ok{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;background:var(--succ-bg);color:var(--succ-ink);font-size:13.5px}
+.bad{width:44px;height:44px;border-radius:12px;background:var(--warn-bg);color:var(--warn-ink);display:flex;align-items:center;justify-content:center}
+.app .st a.lk{color:var(--acc);font-weight:600;font-size:13.5px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <div class="st">
+    <form class="card">
+      <p class="cap">From the invite email</p>
+      <h2>Set up your account</h2>
+      <p class="sub" style="margin:0">Riverside Family Clinic's help desk invited you to the support portal. Choose a password to finish.</p>
+      <div class="field"><label for="ie">Email</label><input id="ie" class="input ro" value="james.porter@lakesidelaw.com" readonly></div>
+      <div class="field"><label for="ip">Password</label><input id="ip" class="input" type="password" autocomplete="new-password"><p class="hint" style="margin:0">At least 12 characters.</p></div>
+      <div class="field"><label for="ic">Confirm password</label><input id="ic" class="input" type="password" autocomplete="new-password"></div>
+      <button class="btn primary" type="submit" style="height:46px;justify-content:center">Create account</button>
+      <p class="hint" style="margin:0">This link works once and expires in 3 days.</p>
+    </form>
+    <form class="card">
+      <p class="cap">Forgot password</p>
+      <h2>Reset your password</h2>
+      <p class="sub" style="margin:0">Enter the email you sign in with. If it's set up for the portal, we'll send a link to choose a new password.</p>
+      <div class="field"><label for="fe">Email</label><input id="fe" class="input" type="email" value="james.porter@lakesidelaw.com"></div>
+      <button class="btn primary" type="submit" style="height:46px;justify-content:center">Send link</button>
+      <div class="ok" role="status"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg><span>Check your email. If that address can use the portal, a link is on its way.</span></div>
+      <p class="hint" style="margin:0">Signs in with Microsoft? Use <b>Sign in with Microsoft</b> instead; your password is managed by your company.</p>
+    </form>
+    <section class="card" aria-labelledby="nr">
+      <p class="cap">Microsoft account not allowed</p>
+      <span class="bad" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg></span>
+      <h2 id="nr">Your account isn't set up for this portal</h2>
+      <p class="sub" style="margin:0">You signed in as <b>svc-scanner@riversideclinic.org</b>. Ask your help desk to give this account access, or sign in with a different work account.</p>
+      <a href="#" class="btn" style="height:44px;justify-content:center">Try another account</a>
+      <a href="#" class="lk">Email the help desk</a>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

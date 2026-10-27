@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New portal ticket</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/089f5412c3aca4c8e855b45d900a7fac">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pb{background:var(--bar);border-bottom:1px solid var(--bd)}
+.pin{max-width:1120px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;gap:28px}
+.app .pin .brand{color:var(--tx);font-size:17px}
+.hc{font-weight:500;color:var(--tx3);font-size:14px;margin-left:2px}
+.pnav{display:flex;gap:4px}
+.app .pnav a{height:36px;display:flex;align-items:center;padding:0 12px;border-radius:8px;color:var(--tx2);font-weight:500}
+.app .pnav a.on{background:var(--acc-soft);color:var(--acc-ink);font-weight:600}
+.pme{margin-left:auto;display:flex;align-items:center;gap:12px}
+.pme .nm{font-weight:600;font-size:13.5px;line-height:1.2;text-align:right}
+.pme .co{font-size:12.5px;color:var(--tx3)}
+.app .pme .so{color:var(--tx2);font-weight:500;font-size:13.5px}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 24px 64px}
+.app a.btn:not(.primary){color:var(--tx)}
+.avc{width:32px;height:32px;border-radius:50%;color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.frm{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;margin-top:22px}
+.frm .card{padding:24px;display:flex;flex-direction:column;gap:18px}
+.frm .input{height:42px}
+.frm textarea.input{height:170px;padding:12px 14px;resize:vertical;font:inherit}
+.req{color:var(--dang)}
+.opt{font-weight:500;color:var(--tx3);font-size:12.5px;margin-left:4px}
+.drop{border:1.5px dashed var(--bd2);border-radius:12px;padding:22px;text-align:center;color:var(--tx2);font-size:13.5px}
+.app .drop a{color:var(--acc);font-weight:600}
+.acts{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="pb">
+    <div class="pin">
+      <a href="#" class="brand"><span class="logo"></span>PRISM<span class="hc">· Support</span></a>
+      <nav class="pnav" aria-label="Portal"><a href="#" class="on" aria-current="page">Tickets</a><a href="#">Knowledge base</a></nav>
+      <div class="pme">
+        <div><div class="nm">Maria Chen</div><div class="co">Riverside Family Clinic</div></div>
+        <span class="avc" style="background:#0f7a6c" aria-hidden="true">MC</span>
+        <a href="#" class="so">Sign out</a>
+      </div>
+    </div>
+  </header>
+  <main class="wrap" style="max-width:1000px">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Tickets</a><span>/</span><span aria-current="page">New ticket</span></nav>
+    <h1 style="margin-top:6px">New ticket</h1>
+    <form>
+      <div class="frm">
+        <div class="card">
+          <div class="field"><label for="nt">Title <span class="req" aria-hidden="true">*</span></label><input id="nt" class="input" required placeholder="A few words about the problem" value="Scanner on the billing desk shows offline"></div>
+          <div class="field"><label for="nd">Description <span class="req" aria-hidden="true">*</span></label><textarea id="nd" class="input" required>Since this morning the scanner shows "offline" on every PC. The power light is on and I've restarted it twice.</textarea></div>
+          <div class="field"><span style="font-weight:600;font-size:13.5px">Attachments<span class="opt">optional</span></span><div class="drop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"></path></svg><div style="margin-top:6px">Drop files here or <a href="#">browse</a></div></div></div>
+        </div>
+        <div class="card">
+          <div class="field"><label for="nf">For<span class="opt">optional</span></label><select id="nf" class="input"><option>Me (Maria Chen)</option><option selected>Priya Shah</option><option>Tom Baker</option></select><p class="hint" style="margin:0">You can raise tickets for people in Billing.</p></div>
+          <div class="field"><label for="nc">Category<span class="opt">optional</span></label><select id="nc" class="input"><option>Not sure</option><option selected>Printing › Scanners</option></select></div>
+          <div class="field"><label for="np">Priority<span class="opt">optional</span></label><select id="np" class="input"><option>Not sure</option><option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option></select></div>
+        </div>
+      </div>
+      <div class="acts"><a href="#" class="btn" style="height:42px">Cancel</a><button class="btn primary" type="submit" style="height:42px">Create ticket</button></div>
+    </form>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>
