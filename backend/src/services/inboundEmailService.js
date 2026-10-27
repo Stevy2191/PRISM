@@ -15,7 +15,7 @@ const { decryptToken } = require('../utils/tokenCrypto');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const { writeAudit } = require('../middleware/audit');
 const virusScan = require('./virusScan');
-const { getFirstTicketStatusByBehavior, getTicketStatusBehaviorMap } = require('./statusBehavior');
+const { getFirstTicketStatusByBehavior } = require('./statusBehavior');
 const { getAllSettings } = require('../controllers/settingsController');
 const { sendTicketEmail, buildTicketMessageId } = require('./email/ticketMail');
 const { findTicketRef, classifyInbound } = require('./email/inboundClassify');
@@ -25,8 +25,8 @@ const { ownAddresses } = require('./email/ticketMail');
 const { assertCanWorkTicket } = require('./ticketPeople');
 const { canEditTicket } = require('./permissionService');
 const { FREE_MAIL_DOMAINS } = require('./companyService');
-const { notifyComment, createNotification } = require('./notifications');
-const { moveToSystemStatus } = require('./statusMoves');
+const { notifyComment } = require('./notifications');
+const { applyCustomerReply } = require('./tickets/customerReply');
 
 const PROCESSED_FOLDER = 'PRISM Processed';
 
@@ -469,22 +469,7 @@ async function handleParsedMessage(parsed, config) {
     });
     const saved = await saveAttachments(parsed.attachments, ticket.id, systemActorId, comment.id, fromAddress);
     await addSkippedAttachmentsNote(ticket.id, saved.skipped, systemActorId);
-    // A reply never reopens a closed ticket: a person decides (user
-    // decision 2026-10-15). An open or on-hold one moves to User responded.
-    const kind = (await getTicketStatusBehaviorMap()).get(ticket.status);
-    if (kind === 'closed' || kind === 'archived') {
-      if (ticket.assigneeId) {
-        await createNotification({
-          userId: ticket.assigneeId,
-          type: 'comment',
-          message: `Customer replied to closed ticket #${String(ticket.id).padStart(5, '0')}: ${ticket.title}`,
-          ticketId: ticket.id,
-        }).catch(() => {});
-      }
-    } else {
-      await moveToSystemStatus(ticket, 'user_responded', systemActorId);
-      if (systemActorId) await notifyComment(ticket, comment, systemActorId).catch(() => {});
-    }
+    await applyCustomerReply(ticket, comment, systemActorId);
     return done({ action, ticketId: ticket.id });
   }
 

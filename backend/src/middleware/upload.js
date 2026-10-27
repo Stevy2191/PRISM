@@ -298,7 +298,7 @@ function scanUpload(entityType) {
         place: entityId ? `${label} #${entityId}` : label,
         filename,
         signature: verdict.signature,
-        who: req.user?.displayName || req.user?.username || 'unknown user',
+        who: req.user?.displayName || req.user?.username || (req.contact ? `portal contact ${req.contact.email}` : 'unknown user'),
       });
       return next(new ApiError(422, `Upload blocked: a virus was detected (${verdict.signature})`, 'VIRUS_FOUND'));
     } catch (err) {

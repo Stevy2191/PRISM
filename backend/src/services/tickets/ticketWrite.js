@@ -74,8 +74,11 @@ function cleanDescription(description) {
 // credited to (the same person, except for the recurring scheduler, which
 // runs as a user's access but is created by the system actor). `systemSource`
 // forces the source ('recurring'). `req` only supplies the audit trail.
+// Client portal (7a): with systemSource 'portal', `portal` carries the
+// contact the ticket is for (already checked by the portal's own scoping,
+// since a contact isn't a staff actor) and the contact who raised it.
 async function createTicket(actor, input, {
-  req, createdById = actor.id, source: systemSource = null, requireCategory = false,
+  req, createdById = actor.id, source: systemSource = null, requireCategory = false, portal = null,
 } = {}) {
   const {
     title, description, priority, type, status, projectId, departmentId, dueDate, dueTime,
@@ -135,7 +138,8 @@ async function createTicket(actor, input, {
   // response carries the contact's email/phone and the project's name.
   // Missing and out-of-scope get the same answer, and the checked record's
   // own id is what gets stored.
-  const contact = await findAccessibleContact(actor, contactId);
+  const portalRequest = systemSource === 'portal' && portal;
+  const contact = portalRequest ? portal.contact : await findAccessibleContact(actor, contactId);
   if (!contact) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
   const resolvedTeamId = await assertTeamExists(teamId);
   const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { required: requireCategory });
@@ -214,6 +218,7 @@ async function createTicket(actor, input, {
       customFields: Array.isArray(customFields) && customFields.length ? customFields : null,
       tags: Array.isArray(tags) && tags.length ? tags : null,
       createdBy: createdById,
+      portalCreatedByContactId: portalRequest && portal.raisedBy && portal.raisedBy.id !== contact.id ? portal.raisedBy.id : null,
     }, { transaction: t });
 
     if (input.customFieldValues) {
