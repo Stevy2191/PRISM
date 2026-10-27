@@ -53,7 +53,7 @@ function Field({ label, children }) {
   return (
     <div>
       <p className="text-xs font-medium" style={{ color: MUTED }}>{label}</p>
-      <div className="mt-0.5 text-sm" style={{ color: TEXT }}>{children ?? <span style={{ color: MUTED }}>—</span>}</div>
+      <div className="mt-0.5 text-sm [overflow-wrap:anywhere]" style={{ color: TEXT }}>{children ?? <span style={{ color: MUTED }}>—</span>}</div>
     </div>
   );
 }

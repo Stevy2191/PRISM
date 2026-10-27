@@ -1,6 +1,6 @@
-const { resetData, closeDb } = require('../integration/helpers');
+const { resetData, closeDb, models } = require('../integration/helpers');
 const {
-  makeWorld, makeTicket, makeCompany, setSettings,
+  API, expectOk, makeWorld, makeTicket, makeCompany, setSettings,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
@@ -10,6 +10,9 @@ const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
 const PHONE = { viewport: { width: 375, height: 812 } };
 const LONG_COMPANY = 'Riverside Family Clinic and Associated Practices of the Greater Valley';
+const LONG = 'Front desk shared workstation for the east wing reception and billing team';
+const CAT = 'Look A overflow laptops';
+const KB_TITLE = `${LONG} — how to sign in`;
 
 // { name, path, as = 'admin', before?: async (page) => void }; as: null is
 // signed out; path may be a function of the seeded world.
@@ -30,20 +33,42 @@ const PHONE_ROUTES = [
   { name: 'change password', path: '/change-password' },
   { name: 'a long-named company', path: () => `/companies/${longCompany.id}` },
   { name: 'tickets board', path: '/tickets', before: (p) => p.getByRole('button', { name: 'Board' }).first().click() },
+  { name: 'a ticket with a 200-character title', path: () => `/tickets/${seeded.ticket.id}` },
+  { name: 'new ticket', path: '/tickets/new' },
+  { name: 'an asset', path: () => `/assets/${seeded.asset.id}` },
+  { name: 'a license', path: () => `/assets/licenses/${seeded.license.id}` },
+  { name: 'a contract', path: () => `/assets/contracts/${seeded.contract.id}` },
+  { name: 'a knowledge article', path: () => `/knowledge/${seeded.article.id}` },
+  { name: 'licenses', path: '/assets/licenses' },
+  { name: 'contracts', path: '/assets/contracts' },
 ];
 
 let smoke;
 let w;
 let longCompany;
+const seeded = {};
+// Asset categories and knowledge rows outlive resetData: clear this file's own.
+async function clearOwn() {
+  await models.KbArticle.destroy({ where: { title: KB_TITLE } });
+  await models.Asset.destroy({ where: { assetTag: 'LT-LONG-0001' }, force: true });
+  await models.AssetCategory.destroy({ where: { name: CAT } });
+}
 beforeAll(async () => {
   smoke = await startSmoke();
   await resetData();
+  await clearOwn();
   w = await makeWorld();
   longCompany = await makeCompany(w.admin, { name: LONG_COMPANY });
-  await makeTicket(w.admin.agent, { title: 'X'.repeat(200), contactId: w.contact.id, departmentId: w.deptA.id });
+  const a = w.admin.agent;
+  seeded.ticket = await makeTicket(a, { title: 'X'.repeat(200), contactId: w.contact.id, departmentId: w.deptA.id });
+  const category = await models.AssetCategory.create({ name: CAT });
+  seeded.asset = expectOk(await a.post(`${API}/assets`).send({ categoryId: category.id, name: LONG, assetTag: 'LT-LONG-0001', serialNumber: 'SN'.repeat(30) }), 201).asset;
+  seeded.license = expectOk(await a.post(`${API}/licenses`).send({ name: LONG, vendor: LONG_COMPANY, totalSeats: 25 }), 201).license;
+  seeded.contract = expectOk(await a.post(`${API}/contracts`).send({ name: LONG, vendor: LONG_COMPANY }), 201).contract;
+  seeded.article = expectOk(await a.post(`${API}/knowledge/articles`).send({ title: KB_TITLE, body: `<p>${'word '.repeat(80)}</p>`, status: 'published' }), 201).article;
   await makeTicket(w.admin.agent, { title: 'Assigned board card', contactId: w.contact.id, departmentId: w.deptA.id, assigneeId: w.admin.user.id });
 });
-afterAll(async () => { await smoke.stop(); await closeDb(); });
+afterAll(async () => { await clearOwn(); await smoke.stop(); await closeDb(); });
 beforeEach(resetRateLimits);
 
 async function phonePage(as = 'admin') {
@@ -101,6 +126,24 @@ it.each(PHONE_ROUTES.map((r) => [r.name, r]))('no horizontal page scroll at 375p
     doc: document.documentElement.scrollWidth, win: document.documentElement.clientWidth,
   }));
   expect(widths.doc).toBeLessThanOrEqual(widths.win);
+  // Full-height pages clip with overflow:hidden, which hides overflow from
+  // scrollWidth: also look for any visible element poking past the right
+  // edge that isn't inside a sideways scroller.
+  const poking = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    const inScroller = (el) => {
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const ox = getComputedStyle(p).overflowX;
+        if (ox === 'auto' || ox === 'scroll') return true;
+      }
+      return false;
+    };
+    return [...document.querySelectorAll('body *')].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && r.right > vw + 1 && !inScroller(el);
+    }).slice(0, 5).map((el) => `${el.tagName.toLowerCase()} "${(el.textContent || '').trim().slice(0, 40)}"`);
+  });
+  expect(poking).toEqual([]);
 });
 
 it('sign in shows the Company profile tagline and bullets', async () => {
