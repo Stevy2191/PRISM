@@ -3,17 +3,14 @@ import { IconLock, IconWorld, IconMail } from '@tabler/icons-react';
 import LoadMore from '../../../components/LoadMore';
 import Avatar from '../../../components/ui/Avatar';
 import { TEXT, MUTED, timeAgo } from '../theme';
-import { DescriptionCard } from './TicketText';
 
 // ---- Conversation tab ----
 
 export function ConversationTab({
-  ticket, comments, total, onLoadMore, onSplit, canEditDescription, onSaveDescription,
+  ticket, comments, total, onLoadMore, onSplit,
 }) {
   return (
     <div className="space-y-3">
-      {/* The original request comes first, above any older messages. */}
-      <DescriptionCard description={ticket.description} canEdit={canEditDescription} onSave={onSaveDescription} />
       {/* Older messages sit above the thread, where they'd be if they were
           already loaded. */}
       <LoadMore loaded={comments.length} total={total} onLoadMore={onLoadMore} noun="messages" />

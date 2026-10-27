@@ -28,8 +28,15 @@ beforeAll(async () => {
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 beforeEach(resetRateLimits);
 
-it('the description shows at the top of the Conversation tab, line breaks kept', async () => {
+// The description has its own tab (user decision 2026-10-27), out of the
+// conversation and the reply box's way.
+const openDescription = (page) => page.getByRole('button', { name: 'Description', exact: true }).click();
+
+it('the description has its own tab, not the Conversation; line breaks kept', async () => {
   await admin.goto(`/tickets/${t.id}`);
+  await admin.getByRole('button', { name: 'Conversation', exact: true }).waitFor();
+  expect(await admin.getByTestId('ticket-description').count()).toBe(0);
+  await openDescription(admin);
   const card = admin.getByTestId('ticket-description');
   await card.waitFor();
   expect(await card.innerText()).toContain('Jobs sit in the queue.\nOther PCs print fine.');
@@ -62,6 +69,7 @@ it('a blank title is refused and the old one stays', async () => {
 
 it('the description edits with Save, and Cancel throws the change away', async () => {
   await admin.goto(`/tickets/${t.id}`);
+  await openDescription(admin);
   await admin.getByRole('button', { name: 'Edit description' }).click();
   const box = admin.getByRole('textbox', { name: 'Description' });
   await box.fill('Thrown away');
@@ -85,6 +93,7 @@ it('the edits show in the Activity tab', async () => {
 it('someone who can only view sees the text but no edit buttons', async () => {
   const viewer = await smoke.pageAs('viewer');
   await viewer.goto(`/tickets/${t.id}`);
+  await openDescription(viewer);
   await viewer.getByTestId('ticket-description').getByText('Started after the Windows update.').waitFor();
   await viewer.getByRole('heading', { name: 'Front desk printer offline' }).waitFor();
   expect(await viewer.getByRole('button', { name: 'Edit title' }).count()).toBe(0);

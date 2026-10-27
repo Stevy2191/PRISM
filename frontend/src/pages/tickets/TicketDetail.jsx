@@ -36,7 +36,7 @@ import { ResolutionTab } from './detail/ResolutionTab';
 import { AttachmentsTab } from './detail/AttachmentsTab';
 import { ActivityTab } from './detail/ActivityTab';
 import { ReplyBox } from './detail/ReplyBox';
-import { EditableTitle } from './detail/TicketText';
+import { DescriptionCard, EditableTitle } from './detail/TicketText';
 import { Modal } from './detail/Modal';
 import { ActionsMenu } from './detail/ActionsMenu';
 import { useNarrow } from '../../hooks/useNarrow';
@@ -58,7 +58,10 @@ function findStatus(ticketStatuses, name) {
   return ticketStatuses.find((s) => s.name === name) || null;
 }
 
+// The description has its own tab, out of the conversation's and the reply
+// box's way (user decision 2026-10-27); a ticket still opens on Conversation.
 const TABS = [
+  { key: 'description', label: 'Description' },
   { key: 'conversation', label: 'Conversation' },
   { key: 'resolution', label: 'Resolution' },
   { key: 'time', label: 'Time Entries' },
@@ -579,11 +582,12 @@ export default function TicketDetail() {
           </div>
 
           <div className="p-4 sm:p-5" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
+            {activeTab === 'description' && (
+              <DescriptionCard description={ticket.description} canEdit={isStaff && !!ticket.access?.edit} onSave={saveTicketText} />
+            )}
             {activeTab === 'conversation' && (
               <ConversationTab
                 ticket={ticket}
-                canEditDescription={isStaff && !!ticket.access?.edit}
-                onSaveDescription={saveTicketText}
                 comments={comments}
                 total={commentTotal}
                 onLoadMore={() => setCommentLimit((n) => n + SUBLIST_STEP)}

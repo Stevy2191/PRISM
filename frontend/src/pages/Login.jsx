@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { IconCheck, IconEye, IconEyeOff } from '@tabler/icons-react';
+import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import api, { errMessage } from '../api/api';
 import Notice from '../components/ui/Notice';
+import ServiceConsolePanel from '../components/ServiceConsolePanel';
 
 const DEFAULT_BULLETS = ['Ticket & project tracking', 'Time logging & reports', 'AD & local auth', 'API access'];
 export default function Login() {
@@ -70,36 +71,10 @@ export default function Login() {
   const tagline = settings.branding?.tagline || 'Project & Request Integrated Service Manager';
   const bullets = settings.branding?.loginBullets?.length ? settings.branding.loginBullets : DEFAULT_BULLETS;
 
-  const brand = (
-    <span className="flex items-center gap-2.5">
-      {settings.logoUrl ? (
-        <img src={settings.logoUrl} alt="" className="h-8 w-8 object-contain" />
-      ) : (
-        <span aria-hidden="true" className="h-8 w-8 flex-shrink-0 rounded-lg" style={{ backgroundColor: 'var(--color-accent)' }} />
-      )}
-      <span className="text-xl font-bold tracking-tight text-navy-900">{wordmark}</span>
-    </span>
-  );
-
   return (
     <div className="flex min-h-screen flex-col md:flex-row" style={{ backgroundColor: 'var(--color-bg)' }}>
-      {/* Brand panel: the Company profile tagline and bullet points. */}
-      <aside className="flex flex-shrink-0 flex-col border-b border-navy-100 px-5 py-5 md:w-[46%] md:border-b-0 md:border-r md:px-14 md:py-11" style={{ backgroundColor: 'var(--color-card)' }}>
-        {brand}
-        <div className="md:flex md:flex-1 md:flex-col md:justify-center">
-          <p className="mt-3 max-w-md text-lg font-semibold leading-snug tracking-tight text-navy-900 md:mt-0 md:text-[32px] md:leading-tight">{tagline}</p>
-          <ul className="mt-7 hidden space-y-3 md:block">
-            {bullets.map((text) => (
-              <li key={text} className="flex items-center gap-3 text-[15px] text-navy-600">
-                <span aria-hidden="true" className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}>
-                  <IconCheck size={14} stroke={2.5} />
-                </span>
-                {text}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
+      {/* The service console (brand, bullet points, tagline). */}
+      <ServiceConsolePanel wordmark={wordmark} logoUrl={settings.logoUrl} tagline={tagline} bullets={bullets} />
 
       {/* Sign-in form */}
       <main className="flex flex-1 items-start justify-center px-5 py-8 md:items-center md:px-12">
