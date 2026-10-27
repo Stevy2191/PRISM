@@ -22,6 +22,7 @@ const {
   portalTicketWhere, canSeeTicket, forContacts, SCOPES,
 } = require('../../services/portal/scope');
 const { displayName } = require('./authController');
+const { escapeLike } = require('../../utils/escapeLike');
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const PUBLIC_COMMENT_TYPES = ['reply', 'comment_public'];
@@ -78,7 +79,6 @@ const ticketNumber = (q) => {
   const m = /^#?0*(\d{1,10})$/.exec(q);
   return m ? Number(m[1]) : null;
 };
-const escapeLike = (s) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 // GET /portal/tickets?scope&status=open|closed|all&q&page&limit
 const list = asyncHandler(async (req, res) => {

@@ -7,6 +7,7 @@ const { portalGlobalLimiter } = require('../../middleware/rateLimit');
 const ctrl = require('../../controllers/portal/authController');
 const authRoutes = require('./auth');
 const ticketRoutes = require('./tickets');
+const kbRoutes = require('./kb');
 const ticketsCtrl = require('../../controllers/portal/ticketsController');
 
 const portalGuard = [portalAuthenticate, portalGlobalLimiter];
@@ -18,6 +19,7 @@ router.use('/auth', authRoutes);
 router.get('/me', portalGuard, ctrl.me);
 router.get('/meta', portalGuard, ticketsCtrl.meta);
 router.use('/tickets', portalGuard, ticketRoutes);
+router.use('/kb', portalGuard, kbRoutes);
 
 module.exports = router;
 module.exports.portalGuard = portalGuard;

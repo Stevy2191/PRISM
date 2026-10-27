@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const { Op } = require('sequelize');
-const { KbArticle, KbCategory, KbAttachment, User } = require('../models');
+const {
+  KbArticle, KbCategory, KbAttachment, KbArticleAudience, Company, Department, User, sequelize,
+} = require('../models');
+const { canAccessCompany, parseRecordId } = require('../services/permissionService');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
@@ -144,16 +147,68 @@ const getArticle = asyncHandler(async (req, res) => {
     order: [[{ model: KbAttachment, as: 'attachments' }, 'createdAt', 'ASC']],
   });
   if (!article) throw new ApiError(404, 'Article not found', 'NOT_FOUND');
-  res.json({ article });
+  res.json({ article: { ...article.toJSON(), audience: await audienceOf(article.id) } });
 });
+
+// ---- Portal audience (client portal, 7a) ----
+// visibility 'portal' articles are read by signed-in contacts: all of them
+// (portalScope 'all'), or only the chosen companies / departments. Every id
+// must exist and be in a company the author can reach.
+const PORTAL_SCOPES = ['all', 'companies', 'departments'];
+const badAudience = (msg = 'Unknown company or department in the audience') => new ApiError(400, msg, 'VALIDATION_ERROR');
+
+function idListFrom(raw) {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.length > 500) throw badAudience('The audience must be a list');
+  const ids = raw.map(parseRecordId);
+  if (ids.some((id) => !id)) throw badAudience();
+  return [...new Set(ids)];
+}
+
+// Returns { portalScope, rows } to save, or null when the request doesn't touch the audience.
+async function resolveAudience(req, current = {}) {
+  const { portalScope, audience } = req.body || {};
+  if (portalScope === undefined && audience === undefined) return null;
+  const scope = portalScope === undefined ? (current.portalScope || 'all') : portalScope;
+  if (!PORTAL_SCOPES.includes(scope)) throw badAudience('Unknown portal audience');
+  const companyIds = scope === 'companies' ? idListFrom(audience?.companyIds) : [];
+  const departmentIds = scope === 'departments' ? idListFrom(audience?.departmentIds) : [];
+  const companies = companyIds.length ? await Company.findAll({ where: { id: companyIds }, attributes: ['id'] }) : [];
+  const departments = departmentIds.length ? await Department.findAll({ where: { id: departmentIds }, attributes: ['id', 'companyId'] }) : [];
+  if (companies.length !== companyIds.length || departments.length !== departmentIds.length) throw badAudience();
+  const reach = [...companies.map((c) => c.id), ...departments.map((d) => d.companyId)];
+  for (const companyId of new Set(reach)) {
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await canAccessCompany(req.user, companyId))) throw badAudience();
+  }
+  return {
+    portalScope: scope,
+    rows: [...companyIds.map((companyId) => ({ companyId })), ...departmentIds.map((departmentId) => ({ departmentId }))],
+  };
+}
+
+async function saveAudience(articleId, resolved, transaction) {
+  await KbArticleAudience.destroy({ where: { articleId }, transaction });
+  if (resolved.rows.length) {
+    await KbArticleAudience.bulkCreate(resolved.rows.map((r) => ({ articleId, ...r })), { transaction });
+  }
+}
+
+async function audienceOf(articleId) {
+  const rows = await KbArticleAudience.findAll({ where: { articleId }, attributes: ['companyId', 'departmentId'] });
+  const sorted = (key) => rows.map((r) => r[key]).filter((v) => v != null).sort((a, b) => a - b);
+  return { companyIds: sorted('companyId'), departmentIds: sorted('departmentId') };
+}
 
 const createArticle = asyncHandler(async (req, res) => {
   const { title, body, excerpt, categoryId, status, visibility } = req.body;
   if (!title || !title.trim()) throw new ApiError(400, 'Title is required', 'VALIDATION');
   const cleanBody = cleanHtml(body);
   const st = ['draft', 'published'].includes(status) ? status : 'draft';
-  const article = await KbArticle.create({
-    title: title.trim(),
+  const audience = await resolveAudience(req);
+  const article = await sequelize.transaction(async (transaction) => {
+    const created = await KbArticle.create({
+      title: title.trim(),
     slug: await uniqueSlug(KbArticle, title),
     body: cleanBody,
     excerpt: (excerpt?.trim() || toPlainText(cleanBody).slice(0, 300)) || null,
@@ -163,6 +218,10 @@ const createArticle = asyncHandler(async (req, res) => {
     authorId: req.user.id,
     updatedById: req.user.id,
     publishedAt: st === 'published' ? new Date() : null,
+      portalScope: audience ? audience.portalScope : 'all',
+    }, { transaction });
+    if (audience) await saveAudience(created.id, audience, transaction);
+    return created;
   });
   await writeAudit(req, 'kbArticle.create', 'KbArticle', article.id, { title: article.title });
   res.status(201).json({ article });
@@ -187,8 +246,13 @@ const updateArticle = asyncHandler(async (req, res) => {
     if (status === 'published' && article.status !== 'published') article.publishedAt = new Date();
     article.status = status;
   }
+  const audience = await resolveAudience(req, article);
+  if (audience) article.portalScope = audience.portalScope;
   article.updatedById = req.user.id;
-  await article.save();
+  await sequelize.transaction(async (transaction) => {
+    await article.save({ transaction });
+    if (audience) await saveAudience(article.id, audience, transaction);
+  });
   await writeAudit(req, 'kbArticle.update', 'KbArticle', article.id, { title: article.title });
   res.json({ article });
 });
@@ -248,77 +312,8 @@ const removeAttachment = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
-// ==================== Public portal (auth-less) ====================
-
-// Only ever serves published + public articles. Every public handler filters
-// on BOTH conditions so a draft or internal article can never leak, even by
-// direct slug guess.
-const PUBLIC_WHERE = { status: 'published', visibility: 'public' };
-
-const publicListCategories = asyncHandler(async (req, res) => {
-  const counts = await KbArticle.findAll({
-    attributes: ['categoryId', [KbArticle.sequelize.fn('COUNT', KbArticle.sequelize.col('id')), 'count']],
-    where: PUBLIC_WHERE,
-    group: ['categoryId'],
-    raw: true,
-  });
-  const countByCat = new Map(counts.map((c) => [c.categoryId, Number(c.count)]));
-  const categories = await KbCategory.findAll({ order: [['position', 'ASC'], ['name', 'ASC']] });
-  // Only surface categories that actually have public content.
-  const withArticles = categories
-    .filter((c) => countByCat.get(c.id))
-    .map((c) => ({ id: c.id, name: c.name, slug: c.slug, icon: c.icon, description: c.description, articleCount: countByCat.get(c.id) }));
-  res.json({ categories: withArticles, uncategorizedCount: countByCat.get(null) || 0 });
-});
-
-const publicListArticles = asyncHandler(async (req, res) => {
-  const { q, category } = req.query;
-  const where = { ...PUBLIC_WHERE };
-  if (category) {
-    const cat = await KbCategory.findOne({ where: { slug: category }, attributes: ['id'] });
-    where.categoryId = cat ? cat.id : -1;
-  }
-  if (q && q.trim()) {
-    const term = `%${q.trim()}%`;
-    where[Op.or] = [{ title: { [Op.like]: term } }, { excerpt: { [Op.like]: term } }];
-  }
-  const articles = await KbArticle.findAll({
-    where,
-    include: [{ model: KbCategory, as: 'category', attributes: ['id', 'name', 'slug', 'icon'] }],
-    attributes: ['id', 'title', 'slug', 'excerpt', 'updatedAt', 'publishedAt', 'categoryId'],
-    order: [['publishedAt', 'DESC']],
-    limit: 200,
-  });
-  res.json({ articles });
-});
-
-const publicGetArticle = asyncHandler(async (req, res) => {
-  const article = await KbArticle.findOne({
-    where: { slug: req.params.slug, ...PUBLIC_WHERE },
-    include: [
-      { model: KbCategory, as: 'category', attributes: ['id', 'name', 'slug', 'icon'] },
-      { model: KbAttachment, as: 'attachments', attributes: ['id', 'originalName', 'mimeType', 'size'] },
-    ],
-    order: [[{ model: KbAttachment, as: 'attachments' }, 'createdAt', 'ASC']],
-  });
-  if (!article) throw new ApiError(404, 'Article not found', 'NOT_FOUND');
-  // Fire-and-forget view increment.
-  KbArticle.increment('viewCount', { where: { id: article.id } }).catch(() => {});
-  res.json({ article });
-});
-
-const publicDownloadAttachment = asyncHandler(async (req, res) => {
-  const article = await KbArticle.findOne({ where: { slug: req.params.slug, ...PUBLIC_WHERE }, attributes: ['id'] });
-  if (!article) throw new ApiError(404, 'Article not found', 'NOT_FOUND');
-  const attachment = await KbAttachment.findOne({ where: { id: req.params.attachmentId, articleId: article.id } });
-  if (!attachment) throw new ApiError(404, 'Attachment not found', 'NOT_FOUND');
-  const filePath = path.join(UPLOAD_ROOT, 'knowledge', String(article.id), attachment.filename);
-  res.download(filePath, attachment.originalName);
-});
-
 module.exports = {
   listCategories, createCategory, updateCategory, deleteCategory,
   listArticles, getArticle, createArticle, updateArticle, deleteArticle,
   createAttachment, downloadAttachment, removeAttachment,
-  publicListCategories, publicListArticles, publicGetArticle, publicDownloadAttachment,
 };

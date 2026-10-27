@@ -46,7 +46,6 @@ const assetsRoutes = require('./assets');
 const licensesRoutes = require('./licenses');
 const contractsRoutes = require('./contracts');
 const knowledgeRoutes = require('./knowledge');
-const kbPublicRoutes = require('./kbPublic');
 const ssoRoutes = require('./sso');
 const ssoAdminRoutes = require('./ssoAdmin');
 const cannedResponsesRoutes = require('./cannedResponses');
@@ -65,10 +64,6 @@ router.use('/auth', authRoutes);
 
 // Fully public — contact CSAT survey links, no PRISM login involved.
 router.use('/survey', surveyRoutes);
-
-// Fully public — the knowledge base portal (published + public articles only,
-// enforced in the controller). No login involved.
-router.use('/kb', kbPublicRoutes);
 
 // Fully public — single sign-on. These run before a session exists by
 // necessity; protection comes from single-use expiring state rows and the
