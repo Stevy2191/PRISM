@@ -24,6 +24,14 @@ const SURVEY = [
   { name: 'survey.url', description: 'Link to the survey page' },
 ];
 
+const PORTAL = [
+  { name: 'contact.firstName', description: "Contact's first name" },
+  { name: 'contact.name', description: "Contact's full name" },
+  { name: 'org.name', description: 'Your organization name' },
+  { name: 'portal.url', description: 'The one-time link (works once, for 72 hours)' },
+  { name: 'portal.home', description: 'The portal address' },
+];
+
 const staff = (name, subject, intro) => ({
   audience: 'staff',
   name,
@@ -87,6 +95,28 @@ const CATALOG = Object.freeze({
       + '<p><strong>{{survey.question}}</strong></p><p style="text-align:center">{{survey.starLinks}}</p>'
       + '<p style="text-align:center"><a href="{{survey.url}}">Or click here to leave detailed feedback</a></p>',
     placeholders: [...TICKET, ...SURVEY],
+    defaultEnabled: true,
+  },
+  // Client portal (7a). Sent only when staff press "Send portal invite" or
+  // the contact asks for a reset, so both start on.
+  contact_portal_invite: {
+    audience: 'contact',
+    name: 'Portal invite',
+    subject: 'Your {{org.name}} support portal account',
+    bodyHtml: '<p>Hi {{contact.firstName}},</p><p>You can now use the {{org.name}} support portal to raise requests and follow them.</p>'
+      + '<p><a href="{{portal.url}}">Set your password</a></p>'
+      + '<p style="color:#64748b">This link works once and expires in 72 hours. After that, sign in at {{portal.home}}.</p>',
+    placeholders: PORTAL,
+    defaultEnabled: true,
+  },
+  contact_portal_reset: {
+    audience: 'contact',
+    name: 'Portal password reset',
+    subject: 'Reset your {{org.name}} support portal password',
+    bodyHtml: '<p>Hi {{contact.firstName}},</p><p>Someone asked to reset your support portal password. If that was you, choose a new one here:</p>'
+      + '<p><a href="{{portal.url}}">Reset your password</a></p>'
+      + '<p style="color:#64748b">This link works once and expires in 72 hours. If you didn\'t ask, ignore this email; your password stays the same.</p>',
+    placeholders: PORTAL,
     defaultEnabled: true,
   },
   staff_assigned: staff('Ticket assigned to you', '[Ticket #{{ticket.number}}] Assigned to you: {{ticket.title}}', '{{notification.message}}'),

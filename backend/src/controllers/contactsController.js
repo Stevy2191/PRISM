@@ -1,6 +1,6 @@
 const { Op, fn, col } = require('sequelize');
 const {
-  Contact, Ticket, Department, User, ContactActivity, Company, Site, sequelize,
+  Contact, Ticket, Department, User, ContactActivity, Company, Site, PortalToken, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -16,6 +16,8 @@ const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { orgToday } = require('../utils/orgTime');
+const { issuePortalToken } = require('../services/portal/tokens');
+const { sendPortalLink } = require('../services/portal/portalMail');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const contactInclude = [
@@ -298,10 +300,24 @@ const update = asyncHandler(async (req, res) => {
     changes.siteId = site.id;
   }
 
+  // Portal access opens the client portal to this person, so it needs
+  // portal.manage, not just edit access to the contact.
+  const rawPortalAccess = (req.body || {}).portalAccess;
+  if (rawPortalAccess !== undefined) {
+    if (typeof rawPortalAccess !== 'boolean') throw new ApiError(400, 'portalAccess must be true or false', 'VALIDATION_ERROR');
+    if (!(await hasPermission(req.user.id, 'portal.manage'))) {
+      throw new ApiError(403, 'Turning portal access on or off needs Manage portal access', 'FORBIDDEN');
+    }
+    if (rawPortalAccess !== contact.portalAccess) changes.portalAccess = rawPortalAccess;
+  }
+
   const ticketsMoved = changes.companyId !== undefined ? await Ticket.count({ where: { contactId: contact.id } }) : 0;
   const previousDepartmentId = contact.departmentId;
   await contact.update(changes);
   await writeAudit(req, 'contact.update', 'Contact', contact.id, changes);
+  if (changes.portalAccess !== undefined) {
+    await writeAudit(req, 'portal.access_changed', 'Contact', contact.id, { portalAccess: changes.portalAccess });
+  }
   if (changes.companyId !== undefined) {
     await writeAudit(req, 'contact.move', 'Contact', contact.id, { fromCompanyId, toCompanyId: targetCompanyId, ticketsMoved });
   }
@@ -427,7 +443,39 @@ const listActivity = asyncHandler(async (req, res) => {
   res.json(paginated('activity', { rows, count }, { page, limit }));
 });
 
+// POST /contacts/:id/portal-invite — turns portal access on and emails the
+// contact a one-time link to set their password (spec 7, verification link).
+// Needs portal.manage (route) and the contact in the caller's reach (company
+// fence + contact scope); out of reach looks the same as missing.
+const sendPortalInvite = asyncHandler(async (req, res) => {
+  const contact = await findAccessibleContact(req.user, req.params.id);
+  if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
+  if (!contact.email) throw new ApiError(400, 'This contact has no email address to send the invite to', 'VALIDATION_ERROR');
+  if (contact.status !== 'active') throw new ApiError(400, 'This contact is inactive', 'VALIDATION_ERROR');
+
+  const { token, expiresAt } = await issuePortalToken(contact.id, 'invite');
+  let sent;
+  try {
+    sent = await sendPortalLink('invite', contact, token);
+  } catch (err) {
+    await PortalToken.update({ usedAt: new Date() }, { where: { contactId: contact.id, kind: 'invite', usedAt: null } });
+    throw new ApiError(502, `The invite email could not be sent: ${err.message}`, err.code || 'EMAIL_FAILED');
+  }
+  if (!sent) {
+    await PortalToken.update({ usedAt: new Date() }, { where: { contactId: contact.id, kind: 'invite', usedAt: null } });
+    throw new ApiError(409, 'The "Portal invite" email template is switched off (Settings → Email templates)', 'TEMPLATE_DISABLED');
+  }
+  if (!contact.portalAccess) {
+    await contact.update({ portalAccess: true });
+    await writeAudit(req, 'portal.access_changed', 'Contact', contact.id, { portalAccess: true });
+  }
+  await writeAudit(req, 'portal.invite_sent', 'Contact', contact.id, { email: contact.email });
+  await logContactActivity(contact.id, req.user.id, 'updated', { fields: ['portalInvite'] });
+  res.json({ ok: true, expiresAt });
+});
+
 module.exports = {
+  sendPortalInvite,
   list,
   alphaIndex,
   create,

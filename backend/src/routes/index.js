@@ -53,6 +53,7 @@ const cannedResponsesRoutes = require('./cannedResponses');
 const ticketCategoriesRoutes = require('./ticketCategories');
 const recurringTicketsRoutes = require('./recurringTickets');
 const workloadRoutes = require('./workload');
+const portalRoutes = require('./portal');
 
 const { getVersionInfo } = require('../utils/version');
 
@@ -73,6 +74,10 @@ router.use('/kb', kbPublicRoutes);
 // necessity; protection comes from single-use expiring state rows and the
 // protocol libraries' signature/nonce validation (see ssoController).
 router.use('/sso', ssoRoutes);
+
+// The client portal: contacts, never staff. Runs on its own session (app.js)
+// and its own guard (routes/portal), so it sits outside the staff `guard`.
+router.use('/portal', portalRoutes);
 
 // Settings has its own public (login branding) + admin endpoints inside it.
 router.use('/settings', settingsRoutes);

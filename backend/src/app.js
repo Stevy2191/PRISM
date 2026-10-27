@@ -2,6 +2,7 @@
 // process concerns: env validation, database connection, listening,
 // schedulers, shutdown) so tests can exercise the real app with supertest
 // without binding a port or starting background jobs.
+const crypto = require('crypto');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -16,6 +17,12 @@ const { notFound, errorHandler } = require('./middleware/error');
 const { sameOriginWrites } = require('./middleware/sameOrigin');
 
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const PORTAL_API_PATH = '/api/v1/portal';
+const PORTAL_PATH_RE = /^\/api\/v1\/portal(\/|$)/i;
+
+function portalSessionSecret() {
+  return crypto.createHmac('sha256', process.env.SESSION_SECRET).update('prism.portal.sid').digest('hex');
+}
 
 function createSessionStore() {
   return new SequelizeStore({
@@ -60,22 +67,36 @@ function createApp({ sessionStore } = {}) {
   // derives the key protecting stored credentials; validateEnv() refuses to
   // boot without a real one, so reaching here with it unset is a programming
   // error, not something to paper over with a default.
-  app.use(
-    session({
-      name: 'prism.sid',
-      secret: process.env.SESSION_SECRET,
-      store,
-      resave: false,
-      saveUninitialized: false,
-      rolling: true,
-      cookie: {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.COOKIE_SECURE === 'true',
-        maxAge: SESSION_MAX_AGE_MS,
-      },
-    })
-  );
+  const sessionOptions = (name, secret, sessionStore, cookie = {}) => ({
+    name,
+    secret,
+    store: sessionStore,
+    resave: false,
+    saveUninitialized: false,
+    rolling: true,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.COOKIE_SECURE === 'true',
+      maxAge: SESSION_MAX_AGE_MS,
+      ...cookie,
+    },
+  });
+  const staffSession = session(sessionOptions('prism.sid', process.env.SESSION_SECRET, store));
+  // The client portal's contact session (sub-project 7). Its own cookie,
+  // scoped to the portal API path, signed with a key derived from the session
+  // secret, so neither cookie verifies as the other.
+  // express-session writes its own store.generate (which sets the new
+  // session's cookie options) onto the store it is given, so the two
+  // instances can't be handed the same object: the second would give staff
+  // sessions the portal's cookie path. Object.create shares the table and
+  // every method while keeping each instance's generate apart.
+  const portalSession = session(sessionOptions('prism.portal.sid', portalSessionSecret(), Object.create(store), { path: PORTAL_API_PATH }));
+  // Exactly one session per request: portal paths see only the portal
+  // session and every other path only the staff one. Two instances can't
+  // share req.session, and this is what keeps a contact session off staff
+  // routes and a staff session off the portal. Case-insensitive, as routing is.
+  app.use((req, res, next) => (PORTAL_PATH_RE.test(req.path) ? portalSession : staffSession)(req, res, next));
 
   app.use('/api/v1', sameOriginWrites, apiRoutes);
 

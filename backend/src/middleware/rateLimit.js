@@ -109,14 +109,48 @@ const ssoLimiter = rateLimit({
   message: { error: true, message: 'Too many sign-on attempts, please try again later', code: 'RATE_LIMITED' },
 });
 
+// Client portal (7a). Sign-in and the set-password links: as for staff, 10
+// per 15 minutes per IP. Forgot password sends email, so 5 per hour per IP.
+// Signed-in portal traffic: the same generous backstop as staff, per contact.
+const portalLoginStore = new MemoryStore();
+const portalLoginLimiter = rateLimit({
+  store: portalLoginStore,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: true, message: 'Too many sign-in attempts, please try again later', code: 'RATE_LIMITED' },
+});
+const portalForgotStore = new MemoryStore();
+const portalForgotLimiter = rateLimit({
+  store: portalForgotStore,
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: true, message: 'Too many attempts, please try again later', code: 'RATE_LIMITED' },
+});
+const portalGlobalStore = new MemoryStore();
+const portalGlobalLimiter = rateLimit({
+  store: portalGlobalStore,
+  windowMs: 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.contact ? `contact:${req.contact.id}` : `ip:${ipKeyGenerator(req.ip)}`),
+  message: { error: true, message: 'Too many requests, please slow down', code: 'RATE_LIMITED' },
+});
+
 // Clears every limiter's counters. Used by the test suite so one case's
 // login attempts don't rate-limit the next; never called at runtime.
 function resetRateLimits() {
-  [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore]
+  [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
+    portalLoginStore, portalForgotStore, portalGlobalStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
+  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter,
 };
