@@ -60,10 +60,19 @@ it('invite → accept → login works; the link works once', async () => {
   expect((await models.Contact.findByPk(w.contact.id)).portalAccess).toBe(true);
 
   const agent = portal();
-  expectOk(await agent.post(`${API}/portal/auth/invite/accept`).send({ token, password: PASSWORD }));
-  const again = await agent.post(`${API}/portal/auth/invite/accept`).send({ token, password: PASSWORD });
+  // The invite page shows who the link is for before anything is spent.
+  const check = expectOk(await agent.post(`${API}/portal/auth/invite/check`).send({ token }));
+  expect(check).toEqual({ email: w.contact.email, companyName: expect.any(String) });
+  expect((await agent.post(`${API}/portal/auth/invite/check`).send({ token: 'nope' })).status).toBe(400);
+  // Setting the password signs the contact in.
+  const accepted = expectOk(await agent.post(`${API}/portal/auth/invite/accept`).send({ token, password: PASSWORD }));
+  expect(accepted.contact.id).toBe(w.contact.id);
+  expectOk(await agent.get(`${API}/portal/me`));
+  const again = await portal().post(`${API}/portal/auth/invite/accept`).send({ token, password: PASSWORD });
   expect([again.status, again.body.code]).toEqual([400, 'TOKEN_INVALID']);
+  expect((await portal().post(`${API}/portal/auth/invite/check`).send({ token })).status).toBe(400);
 
+  expectOk(await agent.post(`${API}/portal/auth/logout`));
   expect((await agent.get(`${API}/portal/me`)).status).toBe(401);
   const login = await agent.post(`${API}/portal/auth/login`).send({ email: w.contact.email.toUpperCase(), password: PASSWORD });
   expect(login.status).toBe(200);

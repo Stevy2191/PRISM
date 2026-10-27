@@ -99,18 +99,13 @@ it('an article has a breadcrumb back to Knowledge Base', async () => {
   await page.waitForURL(/\/knowledge$/);
 });
 
-it('public Help Center lists categories and opens an article, signed out', async () => {
+// The public Help Center moved into the client portal (7a): portal.smoke.js
+// covers reading articles there; signed out, /kb now asks the contact to sign in.
+it('the old public /kb address forwards to the portal sign-in', async () => {
   const context = await smoke.browser.newContext({ baseURL: smoke.base, ...PHONE });
   const page = await context.newPage();
   await page.goto('/kb');
-  await page.getByRole('heading', { name: 'How can we help?' }).waitFor();
-  await page.getByRole('button', { name: /^\S* ?Network & VPN/ }).waitFor();
-  await page.getByRole('link', { name: /Connect to the office VPN/ }).click();
-  await page.getByRole('heading', { name: 'Connect to the office VPN' }).waitFor();
-  await page.getByRole('link', { name: /Back to Help Center/ }).waitFor();
-  await page.getByRole('link', { name: /Staff sign in/ }).waitFor();
-  const widths = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
-  expect(widths[0]).toBeLessThanOrEqual(widths[1]);
+  await page.waitForURL(/\/portal\/sign-in/);
   await context.close();
 });
 

@@ -1,4 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import {
+  Routes, Route, Navigate, useParams,
+} from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import SettingsShell from './components/settings/SettingsShell';
@@ -29,8 +31,7 @@ import Calendar from './pages/Calendar';
 import KnowledgeBase from './pages/KnowledgeBase';
 import ArticleEditor from './pages/ArticleEditor';
 import ArticleView from './pages/ArticleView';
-import KbPortal from './pages/kb/KbPortal';
-import KbPortalArticle from './pages/kb/KbPortalArticle';
+import PortalApp from './portal/PortalApp';
 import NotFound from './pages/NotFound';
 
 // Settings hub + sections
@@ -138,6 +139,11 @@ function settingsElement(id, access) {
     : page;
 }
 
+function KbRedirect() {
+  const { slug } = useParams();
+  return <Navigate to={`/portal/kb/a/${encodeURIComponent(slug)}`} replace />;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -145,9 +151,11 @@ export default function App() {
       <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
       {/* Fully public — a contact reaches this via an emailed CSAT survey link, no PRISM login. */}
       <Route path="/survey/:token" element={<SurveyPage />} />
-      {/* Fully public knowledge base portal — published + public articles only. */}
-      <Route path="/kb" element={<KbPortal />} />
-      <Route path="/kb/a/:slug" element={<KbPortalArticle />} />
+      {/* The client portal (contacts sign in there; its own session and frame). */}
+      <Route path="/portal/*" element={<PortalApp />} />
+      {/* The old public Help Center lives in the portal now, behind sign-in. */}
+      <Route path="/kb" element={<Navigate to="/portal/kb" replace />} />
+      <Route path="/kb/a/:slug" element={<KbRedirect />} />
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

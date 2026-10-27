@@ -24,7 +24,7 @@ const PHONE_ROUTES = [
   { name: 'a contact', path: () => `/contacts/${w.contact.id}` },
   { name: 'companies', path: '/companies' },
   { name: 'knowledge', path: '/knowledge' },
-  { name: 'public Help Center', path: '/kb', as: null },
+  { name: 'portal sign in (the old /kb)', path: '/kb', as: null },
   { name: 'reports', path: '/reports' },
   { name: 'settings', path: '/settings' },
   { name: 'company profile', path: '/settings/company' },

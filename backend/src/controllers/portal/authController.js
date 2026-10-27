@@ -95,11 +95,7 @@ const login = asyncHandler(async (req, res) => {
   // Only after the password verifies, so this can't be used to probe emails.
   if (!mayUsePortal(contact)) throw accessEnded();
 
-  await regenerateSession(req);
-  req.session.contactId = contact.id;
-  await Contact.update({ portalLastSignInAt: new Date() }, { where: { id: contact.id } });
-  await portalAudit(req, 'portal.sign_in', contact.id, { method: 'password' });
-  res.json({ contact: await contactPayload(await loadPortalContact(contact.id)) });
+  res.json({ contact: await signIn(req, contact, 'password') });
 });
 
 // POST /portal/auth/logout — ends the portal session only; a staff session in
@@ -115,6 +111,15 @@ const me = asyncHandler(async (req, res) => {
   res.json({ contact: await contactPayload(req.contact) });
 });
 
+// Starts a portal session for a contact who just proved who they are.
+async function signIn(req, contact, method) {
+  await regenerateSession(req);
+  req.session.contactId = contact.id;
+  await Contact.update({ portalLastSignInAt: new Date() }, { where: { id: contact.id } });
+  await portalAudit(req, 'portal.sign_in', contact.id, { method });
+  return contactPayload(await loadPortalContact(contact.id));
+}
+
 // Shared by invite/accept and reset: check the link, check the password,
 // then spend the link and save. A refused password leaves the link usable.
 async function setPasswordFromLink(req, kind) {
@@ -128,19 +133,30 @@ async function setPasswordFromLink(req, kind) {
   return contact;
 }
 
-// POST /portal/auth/invite/accept { token, password }
+// POST /portal/auth/invite/check { token } — who the invite is for, so the
+// page can show it. Spends nothing.
+const checkInvite = asyncHandler(async (req, res) => {
+  const { contact } = await findUsableToken((req.body || {}).token, 'invite');
+  if (!mayUsePortal(contact) || !(await isPortalEnabled())) throw accessEnded();
+  const full = await loadPortalContact(contact.id);
+  res.json({ email: contact.email, companyName: full.company ? full.company.name : '' });
+});
+
+// POST /portal/auth/invite/accept { token, password } — sets the password
+// and signs the contact in.
 const acceptInvite = asyncHandler(async (req, res) => {
   const contact = await setPasswordFromLink(req, 'invite');
   await portalAudit(req, 'portal.password_set', contact.id, { via: 'invite' });
-  res.json({ ok: true });
+  res.json({ contact: await signIn(req, contact, 'invite') });
 });
 
-// POST /portal/auth/reset { token, password }
+// POST /portal/auth/reset { token, password } — ends every other portal
+// session of the contact, then signs this one in.
 const resetPassword = asyncHandler(async (req, res) => {
   const contact = await setPasswordFromLink(req, 'reset');
   await destroyPortalSessions(contact.id, req.sessionID);
   await portalAudit(req, 'portal.password_set', contact.id, { via: 'reset' });
-  res.json({ ok: true });
+  res.json({ contact: await signIn(req, contact, 'reset') });
 });
 
 // The work behind /forgot, after the response has gone: whether an email is
@@ -163,5 +179,5 @@ const forgot = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  config, login, logout, me, acceptInvite, resetPassword, forgot, contactPayload, displayName,
+  config, login, logout, me, checkInvite, acceptInvite, resetPassword, forgot, contactPayload, displayName,
 };
