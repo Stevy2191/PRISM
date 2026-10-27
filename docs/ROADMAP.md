@@ -140,7 +140,7 @@ consistent between tickets and projects, and covered by tests.
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
 | 8 | Agent gateway and Windows agent — enrollment, mutual TLS, signed updates, Windows service, internet-facing gateway service | Not started | — | — |
-| 9 | Inventory and monitoring — automatic hardware/software inventory into Assets (every computer running the agent becomes an Asset, with total owned time and in-service time), heartbeats, checks, alerts that open tickets | Not started | — | — |
+| 9 | Inventory and monitoring — automatic hardware/software inventory into Assets (every computer running the agent becomes an Asset, with total owned time and in-service time), kept current by the agent. At minimum: CPU (model, cores), memory (total), disks (each drive's size and free space), and operating system name and version (Windows edition/version/build; macOS version once the macOS agent exists), filling the Asset's existing processor, RAM, storage, OS and OS version fields. Plus heartbeats, checks, alerts that open tickets. Added 2026-10-27: the inventory field list | Not started | — | — |
 | 9b | Tray app — a per-user system-tray helper installed with the agent. One click opens a short ticket form pre-filled with the user's name, company and department and the computer's name, IP and MAC address; the ticket links the computer's Asset and carries a health snapshot (OS version, uptime, free disk, logged-in domain); an optional screenshot; a "My tickets" list showing the user's open tickets and their status | Not started | — | — |
 
 **Testing feedback (Phase 2):** _none yet_
