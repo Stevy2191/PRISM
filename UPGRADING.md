@@ -18,6 +18,35 @@ emailed attachment is refused until the scanner exists. The scanner needs about
 few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
 `.env`.
 
+### Client portal (7a)
+
+- **A client portal at `/portal`.** Contacts sign in there to raise tickets,
+  follow and reply to them, and read the knowledge base. It is **off** until
+  an administrator turns it on in **Settings → Client portal**, which also
+  shows the address to give your customers.
+- **Set `PUBLIC_APP_URL`** in `.env` to the address people use (e.g.
+  `https://desk.example.com`): invite, password-reset and "View in the
+  portal" links in emails are built from it.
+- **Who gets in:** a contact needs **Portal access** (contact page → Support
+  portal). **Send portal invite** turns it on and emails a one-time link (72
+  hours) to set a password. Making a contact inactive, or switching access
+  off, ends their portal session at its next request.
+- **Admins and watchers:** on a client company's Departments tab, mark
+  **company admins** (see all the company's tickets) and **department
+  admins** (see their department's). Contacts can be added as ticket
+  **watchers** (same company only); CC'd people still only get emails.
+- **New permission `portal.manage` ("Manage portal access")**, given to the
+  System Administrator role. Granting access, invites, admins and contact
+  watchers need it; give it to other roles in Roles & permissions if wanted.
+- **The public Help Center (`/kb`) is gone.** The knowledge base is now read
+  in the portal, signed in; `/kb` forwards there. Articles that were "End
+  users" are now **Portal, all companies**; an article can instead be limited
+  to chosen companies or departments.
+- Ticket emails to a contact who can see the ticket in the portal gain a
+  **View this request in the portal** link (people CC'd who can't see it get
+  a copy without it).
+- Migration 072 adds the tables and columns; it runs on backend start.
+
 ### The rest of PRISM in look A (6b)
 
 - **Every remaining screen now uses look A**: tickets, the dashboard, assets,
