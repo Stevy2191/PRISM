@@ -1,4 +1,5 @@
 const express = require('express');
+const contactsCtrl = require('../controllers/contactsController');
 const ctrl = require('../controllers/usersController');
 const access = require('../controllers/userAccessController');
 const { requireRole } = require('../middleware/role');
@@ -22,6 +23,8 @@ router.post('/', requirePermission('people.create_users'), ctrl.create); // crea
 router.get('/assignable', ctrl.listAssignable); // must precede /:id
 router.get('/directory', ctrl.listDirectory); // must precede /:id
 router.get('/:id', ctrl.get); // self-or-admin enforced in controller
+// "Make contact": copy this user into a contact of the internal company.
+router.post('/:id/contact', requirePermission('people.edit_users'), contactsCtrl.createFromUser);
 router.patch('/:id', ctrl.update); // self (profile fields) or people.edit_users (everything) — enforced in controller
 router.patch('/:id/work-hours', requirePermission('settings.manage_business_hours'), ctrl.updateWorkHours);
 router.patch('/:id/preferences', ctrl.updatePreferences); // self-or-admin enforced in controller

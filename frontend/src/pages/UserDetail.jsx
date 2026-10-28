@@ -893,6 +893,25 @@ export default function UserDetail() {
   };
   useEffect(load, [id]);
 
+  // "Make contact": copy this user into a contact (a one-time copy), or point
+  // at the contact that already has their email.
+  const [contactNote, setContactNote] = useState('');
+  const makeContact = async () => {
+    setContactNote('');
+    try {
+      const { data } = await api.post(`/users/${id}/contact`);
+      setUser((u) => ({ ...u, contact: { id: data.contact.id } }));
+      setContactNote('Contact created.');
+    } catch (err) {
+      if (err?.response?.data?.code === 'CONTACT_EXISTS') {
+        setUser((u) => ({ ...u, contact: { id: err.response.data.contactId } }));
+        setContactNote('A contact with this email already exists.');
+      } else {
+        setContactNote(errMessage(err));
+      }
+    }
+  };
+
   const updateUser = async (changes) => {
     try {
       const { data } = await api.patch(`/users/${id}`, changes);
@@ -935,7 +954,15 @@ export default function UserDetail() {
 
   return (
     <SettingsPage title={title} description={user.username} width="wide"
-      actions={canOpenUsers && <Link to="/admin/users" className="btn-secondary">All users</Link>}>
+      actions={(
+        <>
+          {contactNote && <span role="status" className="text-sm text-navy-500">{contactNote}</span>}
+          {canEditUsers && (user.contact
+            ? <Link to={`/contacts/${user.contact.id}`} className="btn-secondary">Open contact</Link>
+            : <button type="button" onClick={makeContact} className="btn-secondary" title="Copy this person into Contacts, so tickets can be raised for them">Make contact</button>)}
+          {canOpenUsers && <Link to="/admin/users" className="btn-secondary">All users</Link>}
+        </>
+      )}>
       {readOnly && (
         <div className="rounded-md border border-navy-200 bg-navy-50 p-3 text-sm text-navy-600">
           Only an Owner can change an administrator&apos;s account.

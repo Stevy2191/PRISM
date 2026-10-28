@@ -10,7 +10,7 @@ const {
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { andWhere, contactScopeWhere, ticketScopeWhere } = require('../services/recordScope');
 const {
-  findDepartmentInCompany, findSiteInCompany, resolveRecordCompany, isCompanyChange,
+  findDepartmentInCompany, findSiteInCompany, resolveRecordCompany, isCompanyChange, getInternalCompanyId,
 } = require('../services/companyService');
 const { logContactActivity } = require('../services/contactActivity');
 const { normalizePhone } = require('../utils/phone');
@@ -466,6 +466,49 @@ async function portalFields(contact) {
   };
 }
 
+// POST /users/:id/contact — "Make contact": copies a staff user into a contact
+// of the internal company (same department), for organisations whose people
+// don't come in through Microsoft 365 sync. A one-time copy: the two aren't
+// linked afterwards. Needs people.edit_users (route).
+const createFromUser = asyncHandler(async (req, res) => {
+  const id = parseRecordId(req.params.id);
+  const user = id ? await User.findByPk(id) : null;
+  if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
+  if (user.email) {
+    const existing = await Contact.findOne({ where: { email: user.email }, attributes: ['id'] });
+    if (existing) {
+      return res.status(409).json({
+        error: true, message: 'A contact with this email already exists', code: 'CONTACT_EXISTS', contactId: existing.id,
+      });
+    }
+  }
+  let first = (user.firstName || '').trim();
+  let last = (user.lastName || '').trim();
+  const shown = (user.displayName || '').trim() || user.username;
+  if (!first && !last) {
+    const parts = shown.split(/\s+/);
+    first = parts.shift() || shown;
+    last = parts.join(' ');
+  }
+  const companyId = await getInternalCompanyId();
+  const dept = user.departmentId ? await findDepartmentInCompany(user.departmentId, companyId) : null;
+  const contact = await Contact.create({
+    firstName: first,
+    lastName: last,
+    displayName: shown || `${first} ${last}`.trim(),
+    email: user.email || null,
+    phone: normalizePhone(user.phone),
+    companyId,
+    departmentId: dept ? dept.id : null,
+    jobTitle: user.jobTitle || null,
+    assignedTo: req.user.id,
+    createdBy: req.user.id,
+  });
+  await writeAudit(req, 'contact.create', 'Contact', contact.id, { displayName: contact.displayName, fromUserId: user.id });
+  await logContactActivity(contact.id, req.user.id, 'created', { displayName: contact.displayName });
+  return res.status(201).json({ contact: await Contact.findByPk(contact.id, { include: contactInclude }) });
+});
+
 // POST /contacts/:id/portal-invite — turns portal access on and emails the
 // contact a one-time link to set their password (spec 7, verification link).
 // Needs portal.manage (route) and the contact in the caller's reach (company
@@ -498,6 +541,7 @@ const sendPortalInvite = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  createFromUser,
   sendPortalInvite,
   list,
   alphaIndex,

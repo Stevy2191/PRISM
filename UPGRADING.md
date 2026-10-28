@@ -48,6 +48,10 @@ few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
 - In the portal, contacts see public replies and the files customers sent
   (portal uploads and emailed attachments); files staff upload on a ticket
   stay staff-only.
+- **Make contact** on a user's page (Settings → Users) copies that staff
+  member into Contacts (your own company, same department), so tickets can be
+  raised for them and they can be invited to the portal. It's a one-time
+  copy; if a contact already has their email, the button opens that one.
 - Migration 072 adds the tables and columns; it runs on backend start.
 
 ### The rest of PRISM in look A (6b)

@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const {
-  User, Department, Role, UserRole, UserCompanyAccess, Permission, UserPermissionOverride, sequelize,
+  User, Department, Role, UserRole, UserCompanyAccess, Permission, UserPermissionOverride, Contact, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { sanitizeRichHtml } = require('../utils/richHtml');
@@ -306,9 +306,16 @@ const get = asyncHandler(async (req, res) => {
   }
   const user = await User.findByPk(id, { include: userInclude });
   if (!user) throw new ApiError(404, 'User not found', 'NOT_FOUND');
+  // A contact with the same email (made with "Make contact", or by hand):
+  // the user's page links to it instead of offering the button.
+  const contact = user.email ? await Contact.findOne({ where: { email: user.email }, attributes: ['id'] }) : null;
   // administrator / owner: the screens keep an administrator's account
   // read-only for anyone but an Owner (the server decides).
-  res.json({ user: { ...user.toJSON(), administrator: await isAdministrator(user), owner: await isOwner(user) } });
+  res.json({
+    user: {
+      ...user.toJSON(), administrator: await isAdministrator(user), owner: await isOwner(user), contact: contact ? { id: contact.id } : null,
+    },
+  });
 });
 
 // PATCH /users/:id — self (profile fields only) or people.edit_users (everything).
