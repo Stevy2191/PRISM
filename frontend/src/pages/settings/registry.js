@@ -4,10 +4,25 @@
 // data: no React, so it can be unit tested with node:test. Access is what
 // the page needed before the redesign; the server enforces it regardless.
 
-export const GROUPS = [
-  'You', 'Organization', 'People & access', 'Service desk', 'Projects', 'Workload', 'Hours & SLAs',
-  'Time & work', 'Assets', 'Sign-in & email', 'System',
+// The sections, in menu order (layout B, 2026-10-28: a category rail; one
+// section's pages at a time). slug is the ?section= value on Settings home;
+// icon is a name the menu maps to an icon.
+export const SECTIONS = [
+  { name: 'You', slug: 'you', icon: 'user', desc: 'Your own preferences.' },
+  { name: 'Organization', slug: 'organization', icon: 'building', desc: 'Who you are and who you work with.' },
+  { name: 'People & access', slug: 'people-access', icon: 'users', desc: 'Accounts, teams and what each role can do.' },
+  { name: 'Service desk', slug: 'service-desk', icon: 'ticket', desc: 'How tickets work, from statuses to the client portal.' },
+  { name: 'Sign-in & email', slug: 'sign-in-email', icon: 'mail', desc: 'How people sign in and how mail comes and goes.' },
+  { name: 'Hours & SLAs', slug: 'hours-slas', icon: 'clock', desc: 'When you work and how fast you answer.' },
+  { name: 'Workload', slug: 'workload', icon: 'chart', desc: 'Capacity: the hours people work and days off.' },
+  { name: 'Time & work', slug: 'time-work', icon: 'stopwatch', desc: 'Time entries and kinds of work.' },
+  { name: 'Projects', slug: 'projects', icon: 'folder', desc: 'Starting points for new projects.' },
+  { name: 'Assets', slug: 'assets', icon: 'box', desc: 'Equipment, licenses and contracts.' },
+  { name: 'System', slug: 'system', icon: 'server', desc: 'Data in and out, jobs, the audit log and the server.' },
 ];
+export const GROUPS = SECTIONS.map((s) => s.name);
+export const sectionByName = (name) => SECTIONS.find((s) => s.name === name) || null;
+export const sectionBySlug = (slug) => SECTIONS.find((s) => s.slug === slug) || null;
 
 const SYSTEM = { permission: ['settings.manage_system'] };
 const OWNER = { permission: ['settings.manage_system'], owner: true };
@@ -99,8 +114,8 @@ export function findPage(pathname) {
 }
 
 export function visibleGroups(auth) {
-  return GROUPS
-    .map((name) => ({ name, pages: PAGES.filter((p) => p.group === name && canOpen(p.access, auth)) }))
+  return SECTIONS
+    .map((sec) => ({ ...sec, pages: PAGES.filter((p) => p.group === sec.name && canOpen(p.access, auth)) }))
     .filter((g) => g.pages.length > 0);
 }
 

@@ -3,7 +3,7 @@
 // an actions slot, then panels.
 import { useLocation } from 'react-router-dom';
 import Breadcrumbs from '../ui/Breadcrumbs';
-import { findPage } from '../../pages/settings/registry';
+import { findPage, sectionByName } from '../../pages/settings/registry';
 
 export default function SettingsPage({ title, description, actions, width, children }) {
   const { pathname } = useLocation();
@@ -13,7 +13,7 @@ export default function SettingsPage({ title, description, actions, width, child
     <div className={`space-y-5 ${w === 'narrow' ? 'max-w-3xl' : ''}`}>
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Breadcrumbs className="mb-1" items={entry ? [{ label: 'Settings', to: '/settings' }, { label: entry.group, current: false }] : [{ label: 'Settings', to: '/settings', current: false }]} />
+          <Breadcrumbs className="mb-1" items={entry ? [{ label: 'Settings', to: '/settings' }, { label: entry.group, to: `/settings?section=${sectionByName(entry.group)?.slug}`, current: false }] : [{ label: 'Settings', to: '/settings', current: false }]} />
           <h1 className="page-title">{title || entry?.name}</h1>
           {(description || entry?.desc) && <p className="mt-1 text-sm text-navy-500">{description || entry?.desc}</p>}
         </div>

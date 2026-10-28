@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  GROUPS, PAGES, REDIRECTS, allRoutes, canOpen, findPage, searchPages, visibleGroups,
+  GROUPS, PAGES, REDIRECTS, SECTIONS, allRoutes, canOpen, findPage, searchPages, sectionBySlug, visibleGroups,
 } from './registry.js';
 
 const auth = (perms = [], { role = 'technician', isOwner = false } = {}) => ({
@@ -104,4 +104,14 @@ test('Workload group holds Hours people work and Holidays (moved out of Hours & 
   assert.equal(hol.group, 'Workload');
   assert.equal(hol.path, '/settings/holidays');
   assert.equal(hol.desc, 'Days off for the SLA clock and workload');
+});
+
+test('every section has a unique slug, an icon and a description, and every group is a section', () => {
+  assert.equal(new Set(SECTIONS.map((x) => x.slug)).size, SECTIONS.length);
+  for (const x of SECTIONS) {
+    assert.match(x.slug, /^[a-z-]+$/);
+    assert.ok(x.icon && x.desc, x.name);
+    assert.equal(sectionBySlug(x.slug).name, x.name);
+  }
+  assert.equal(sectionBySlug('nope'), null);
 });

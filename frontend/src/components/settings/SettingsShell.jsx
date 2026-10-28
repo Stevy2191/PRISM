@@ -1,48 +1,43 @@
-// Every Settings page renders in here (spec: Settings redesign): the menu on
-// the left, the page on the right. Under md the menu is behind a
-// "Settings menu" button, as a full-screen sheet.
-import { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import { IconChevronDown, IconX } from '@tabler/icons-react';
+// Every Settings page renders in here (layout B, 2026-10-28): the section
+// rail on the left, the page on the right. Under md there is no rail:
+// Settings home lists the sections, then a section's pages, and a page links
+// back to its section.
+import { useEffect } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { IconChevronLeft } from '@tabler/icons-react';
 import { useNavStyle } from '../../context/NavStyleContext';
-import { findPage } from '../../pages/settings/registry';
+import { findPage, sectionByName } from '../../pages/settings/registry';
 import SettingsMenu from './SettingsMenu';
+import { rememberSection } from './sectionIcons';
 
 export default function SettingsShell() {
   const { navStyle } = useNavStyle();
   const { pathname } = useLocation();
-  const [open, setOpen] = useState(false);
   // A new page opens at its top (the menu is how you move between pages).
-  useEffect(() => { setOpen(false); window.scrollTo(0, 0); }, [pathname]);
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   // Below the fixed top bar (56px) or beside the compact sidebar.
   const top = navStyle === 'sidebar' ? 16 : 72;
-  const here = findPage(pathname)?.name || 'Settings home';
+  const section = sectionByName(findPage(pathname)?.group);
+  // Settings reopens on the section of the page last used.
+  useEffect(() => { if (section) rememberSection(section.slug); }, [section]);
 
   return (
-    <div className="mx-auto flex max-w-[1280px] gap-6 lg:gap-8 lg:px-6">
-      <aside aria-label="Settings menu" className="hidden w-[232px] flex-shrink-0 md:block">
+    <div className="mx-auto flex max-w-[1320px] gap-6 lg:gap-8 lg:px-6">
+      <aside aria-label="Settings menu" className="hidden w-[272px] flex-shrink-0 md:block">
         <div className="sticky overflow-y-auto rounded-xl border border-navy-100 bg-surface p-2.5"
           style={{ top, maxHeight: `calc(100vh - ${top + 16}px)` }}>
           <SettingsMenu />
         </div>
       </aside>
       <div className="min-w-0 flex-1">
-        <button type="button" aria-label={`Settings menu: ${here}`} onClick={() => setOpen(true)}
-          className="mb-4 flex min-h-[44px] w-full items-center justify-between rounded-lg border border-navy-100 bg-surface px-3 py-2 text-sm font-semibold text-navy-900 md:hidden">
-          <span className="truncate">Settings · {here}</span><IconChevronDown size={16} aria-hidden="true" />
-        </button>
+        {section && (
+          <Link to={`/settings?section=${section.slug}`} aria-label={`Back to ${section.name}`}
+            className="mb-3 inline-flex min-h-[44px] items-center gap-1 text-sm font-semibold md:hidden" style={{ color: 'var(--color-accent)' }}>
+            <IconChevronLeft size={16} aria-hidden="true" />{section.name}
+          </Link>
+        )}
         <Outlet />
       </div>
-      {open && (
-        <div role="dialog" aria-modal="true" aria-label="Settings menu" className="fixed inset-0 z-50 overflow-y-auto p-4 md:hidden"
-          style={{ backgroundColor: 'var(--color-bg)' }}>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-lg font-semibold text-navy-900">Settings</p>
-            <button type="button" aria-label="Close the settings menu" onClick={() => setOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-[var(--color-hover)]"><IconX size={20} aria-hidden="true" /></button>
-          </div>
-          <SettingsMenu onNavigate={() => setOpen(false)} />
-        </div>
-      )}
     </div>
   );
 }

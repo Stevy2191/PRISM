@@ -97,7 +97,7 @@ describe('System info', () => {
     await page.getByText('Saved', { exact: true }).waitFor();
     expect(await setting('system.maxAttachmentSizeMB')).toBe('30');
     await page.goto('/admin/settings');
-    await page.waitForURL(/\/settings$/);
+    await page.waitForURL(/\/settings(\?section=[\w-]+)?$/);
   });
 });
 
@@ -109,11 +109,12 @@ describe('the menu', () => {
     const groups = ['You', 'Organization', 'People & access', 'Service desk', 'Hours & SLAs', 'Time & work', 'Assets', 'Sign-in & email', 'System'];
     let page = await as('admin');
     await page.goto('/settings/preferences');
-    for (const g of groups) await menu(page).getByText(g, { exact: true }).waitFor(); // eslint-disable-line no-await-in-loop
+    for (const g of groups) await menu(page).getByRole('link', { name: new RegExp(`^${g}`) }).waitFor(); // eslint-disable-line no-await-in-loop
     await makeUser('sysadmin2', ROLE.ADMIN, w.deptA.id);
     page = await as('sysadmin2');
-    await page.goto('/settings/preferences');
-    await menu(page).getByText('Time & work', { exact: true }).waitFor();
+    // A section's pages show in the menu while it is open.
+    await page.goto('/settings?section=sign-in-email');
+    await menu(page).getByRole('link', { name: /^Time & work/ }).waitFor();
     // Email templates (plan 5a) is the one Sign-in & email page that needs no owner.
     await menu(page).getByRole('link', { name: 'Email templates' }).waitFor();
     for (const ownerOnly of ['Single sign-on', 'Incoming email', 'Outgoing email']) {
@@ -123,8 +124,8 @@ describe('the menu', () => {
     page = await as('staff1');
     await page.goto('/settings/preferences');
     await menu(page).getByRole('link', { name: 'Preferences' }).waitFor();
-    for (const hidden of ['Time tracking', 'Roles & permissions', 'Single sign-on', 'Import']) {
-      expect([hidden, await menu(page).getByRole('link', { name: hidden }).count()]).toEqual([hidden, 0]); // eslint-disable-line no-await-in-loop
+    for (const hidden of ['Time & work', 'Sign-in & email', 'System']) {
+      expect([hidden, await menu(page).getByRole('link', { name: new RegExp(`^${hidden}`) }).count()]).toEqual([hidden, 0]); // eslint-disable-line no-await-in-loop
     }
   });
 
@@ -138,7 +139,8 @@ describe('the menu', () => {
   it('someone with few pages can still open their own profile inside Settings', async () => {
     const page = await as('staff1');
     await page.goto(`/admin/users/${staff1.user.id}`);
-    await menu(page).getByRole('link', { name: 'Preferences' }).waitFor();
+    await menu(page).getByRole('link', { name: /^You/ }).waitFor();
+    await page.getByRole('main').getByRole('heading', { level: 1 }).waitFor();
   });
 
   it('search narrows the menu; Enter opens the first match; nothing matches safely', async () => {
@@ -153,46 +155,62 @@ describe('the menu', () => {
     await search.fill('([*');
     await menu(page).getByText('No settings match').waitFor();
     await search.press('Escape');
-    await menu(page).getByRole('link', { name: 'Time tracking' }).waitFor();
+    await menu(page).getByRole('link', { name: 'Company profile' }).waitFor();
   });
 
   it('old addresses land where they should', async () => {
     const page = await as('admin');
-    for (const [from, to] of [['/settings/macros', /\/settings$/], ['/settings/recycle-bin', /\/settings$/], ['/settings/blueprints', /\/admin\/blueprints$/],
-      ['/settings/assignment-rules', /\/settings\/workflow-rules$/], ['/settings/modules', /\/settings$/]]) {
+    for (const [from, to] of [['/settings/macros', /\/settings(\?section=[\w-]+)?$/], ['/settings/recycle-bin', /\/settings(\?section=[\w-]+)?$/], ['/settings/blueprints', /\/admin\/blueprints$/],
+      ['/settings/assignment-rules', /\/settings\/workflow-rules$/], ['/settings/modules', /\/settings(\?section=[\w-]+)?$/]]) {
       await page.goto(from); // eslint-disable-line no-await-in-loop
       await page.waitForURL(to); // eslint-disable-line no-await-in-loop
     }
   });
 
-  it('on a phone the menu is behind "Settings menu", closes after picking, and nothing scrolls sideways', async () => {
+  it('on a phone: sections, then a section\'s pages, then a page with a way back; nothing scrolls sideways', async () => {
     const page = await as('admin');
     await page.setViewportSize({ width: 375, height: 800 });
-    await page.goto('/settings/preferences');
-    expect(await menu(page).isVisible()).toBe(false);
-    await page.getByRole('button', { name: /Settings menu/ }).click();
-    const sheet = page.getByRole('dialog', { name: 'Settings menu' });
-    await sheet.getByRole('link', { name: 'Time tracking' }).click();
+    await page.goto('/settings');
+    const main = page.getByRole('main');
+    await main.getByRole('link', { name: /^Time & work/ }).click();
+    await page.waitForURL(/\/settings\?section=time-work$/);
+    await main.getByRole('link', { name: /Time tracking/ }).click();
     await page.waitForURL('**/settings/time-tracking');
-    expect(await sheet.count()).toBe(0);
+    expect(await menu(page).isVisible()).toBe(false);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+    await page.getByRole('link', { name: /^Back to Time & work/ }).click();
+    await page.waitForURL(/\/settings\?section=time-work$/);
+    await page.goto('/settings?section=service-desk');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
     await page.setViewportSize({ width: 1280, height: 720 });
   });
 });
 
 describe('Settings home', () => {
-  it('lists the groups, searches, and shows status hints to an owner only', async () => {
+  const menu = (page) => page.getByRole('complementary', { name: 'Settings menu' });
+  it('shows one section at a time, reopens on the last one, and shows status hints to an owner only', async () => {
     let page = await as('admin');
+    await page.goto('/settings/preferences');
+    await page.evaluate(() => localStorage.removeItem('prism.settings.section'));
     await page.goto('/settings');
+    // A first visit opens on the first section.
+    await page.waitForURL(/\/settings\?section=you$/);
     const main = page.getByRole('main');
-    await main.getByRole('heading', { level: 1, name: 'Settings' }).waitFor();
-    await main.getByRole('heading', { name: 'Hours & SLAs' }).waitFor();
+    await main.getByRole('heading', { level: 1, name: 'You' }).waitFor();
+    await menu(page).getByRole('link', { name: /^Sign-in & email/ }).click();
+    await page.waitForURL(/\/settings\?section=sign-in-email$/);
+    await main.getByRole('heading', { level: 1, name: 'Sign-in & email' }).waitFor();
     await main.getByText('Not set up').first().waitFor(); // outgoing email in a fresh install
-    await main.getByLabel('Search settings').fill('sla');
-    await main.getByRole('link', { name: /SLAs/ }).first().waitFor();
-    page = await as('sysadmin2');
+    await main.getByRole('link', { name: /Outgoing email How PRISM sends mail/ }).waitFor();
+    // Settings reopens on the section last used.
     await page.goto('/settings');
-    await page.getByRole('main').getByRole('heading', { name: 'Time & work' }).waitFor();
+    await page.waitForURL(/\/settings\?section=sign-in-email$/);
+    // Search covers every section.
+    await menu(page).getByLabel('Find a setting').fill('sla');
+    await menu(page).getByRole('link', { name: /SLAs/ }).first().waitFor();
+    page = await as('sysadmin2');
+    await page.goto('/settings?section=sign-in-email');
+    await page.getByRole('main').getByRole('link', { name: /Email templates What PRISM emails say/ }).waitFor();
     expect(await page.getByRole('main').getByText('Not set up').count()).toBe(0);
   });
 });
@@ -247,13 +265,22 @@ describe('the rest in the frame, and every page opens', () => {
 
   it('every menu page opens for an owner (no page is missing from the component map)', async () => {
     const page = await as('admin');
-    await page.goto('/settings/preferences');
-    await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link', { name: 'Time tracking' }).waitFor();
-    const links = await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link').evaluateAll(
-      (as) => as.map((a) => [a.getAttribute('href'), a.textContent.trim()]),
+    await page.goto('/settings?section=you');
+    await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link', { name: /^System/ }).waitFor();
+    const sections = await page.getByRole('complementary', { name: 'Settings menu' }).locator('a[href^="/settings?section="]').evaluateAll(
+      (as) => as.map((a) => a.getAttribute('href')),
     );
+    expect(sections.length).toBe(11);
+    const links = [];
+    for (const href of sections) {
+      await page.goto(href); // eslint-disable-line no-await-in-loop
+      await page.getByRole('main').getByRole('heading', { level: 1 }).waitFor(); // eslint-disable-line no-await-in-loop
+      links.push(...await page.getByRole('main').getByRole('link').evaluateAll( // eslint-disable-line no-await-in-loop
+        (as) => as.map((a) => [a.getAttribute('href'), a.querySelector('[data-page-name]')?.textContent.trim()]).filter(([, n]) => n),
+      ));
+    }
     expect(links.length).toBeGreaterThan(30);
-    for (const [href, name] of links.filter(([h]) => h !== '/settings')) {
+    for (const [href, name] of links) {
       resetRateLimits();
       await page.goto(href); // eslint-disable-line no-await-in-loop
       await page.getByRole('main').getByRole('heading', { level: 1, name }).waitFor(); // eslint-disable-line no-await-in-loop
@@ -280,9 +307,9 @@ describe('review fixes', () => {
     await page.getByText('Reminders for running timers').waitFor();
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-    await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link', { name: 'Time tracking' }).click();
-    await page.waitForURL('**/settings/time-tracking');
-    await page.getByRole('heading', { level: 1, name: 'Time tracking' }).waitFor();
+    await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link', { name: 'About PRISM' }).click();
+    await page.waitForURL('**/settings/about');
+    await page.getByRole('heading', { level: 1, name: 'About PRISM' }).waitFor();
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await page.setViewportSize({ width: 1280, height: 720 });
   });
