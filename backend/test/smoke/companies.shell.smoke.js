@@ -13,7 +13,8 @@ beforeEach(resetData);
 it('a one-company install shows only Settings → Companies', async () => {
   await makeAdmin();
   const page = await smoke.pageAs('admin');
-  await page.goto('/settings');
+  // Settings shows one section at a time: Companies & vendors is under Organization.
+  await page.goto('/settings?section=organization');
   await page.getByRole('link', { name: /Companies/ }).first().waitFor();
   await page.goto('/tickets');
   await page.getByRole('link', { name: 'Tickets' }).first().waitFor();
