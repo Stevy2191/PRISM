@@ -69,9 +69,11 @@
 - `GraphUser = { id, displayName, givenName, surname, mail, userPrincipalName, accountEnabled, department, jobTitle, businessPhones, mobilePhone, onPremisesImmutableId }`.
 - Errors: `GraphError { status, code }`; 429/503 retried up to 3 times honouring `Retry-After`.
 
-- [ ] **Step 1: Failing tests:** token cached; three-page member list returns every member; 429 then 200 succeeds; 403 throws `GraphError{status:403}`; secrets never appear in thrown messages.
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit** `feat(m365): read-only Microsoft Graph client`
+- [x] **Step 1: Failing tests:** token cached; three-page member list returns every member; 429 then 200 succeeds; 403 throws `GraphError{status:403}`; secrets never appear in thrown messages.
+- [x] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS.
+- [x] **Step 5: Commit** `feat(m365): read-only Microsoft Graph client`
+
+**As built (2026-11-02):** the mock serves the token endpoint and Graph only. Its OpenID Connect sign-in endpoints come with Task 3, where they are first used. Also built: `clearTokenCache()` for tests, and the cached token is dropped when the app's client ID changes. Every tenant, user and group ID must be a GUID (`GraphError` code `BAD_ID`, before any request). A paging link is only followed if it stays on the Graph base, so the token is never sent anywhere else. A 401 refreshes the token once. `memberOfAny` checks groups in batches of 20 (the Graph limit). `searchGroups('')` lists the first 25 groups. Errors carry only the status and Microsoft's error code, never Microsoft's description, the secret or a token.
 
 ### Task 3: Sign in with Microsoft
 
