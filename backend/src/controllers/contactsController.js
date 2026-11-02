@@ -18,6 +18,7 @@ const { parsePagination, paginated } = require('../utils/pagination');
 const { orgToday } = require('../utils/orgTime');
 const { issuePortalToken } = require('../services/portal/tokens');
 const { sendPortalLink } = require('../services/portal/portalMail');
+const { signInMethod } = require('../services/portal/signInMethod');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const contactInclude = [
@@ -453,7 +454,7 @@ const listActivity = asyncHandler(async (req, res) => {
 // columns already on the contact).
 async function portalFields(contact) {
   const [withHash, companyAdmin, deptRows] = await Promise.all([
-    Contact.scope('withPassword').findByPk(contact.id, { attributes: ['id', 'passwordHash'] }),
+    Contact.scope('withPassword').findByPk(contact.id, { attributes: ['id', 'passwordHash', 'msObjectId'] }),
     CompanyPortalAdmin.findOne({ where: { contactId: contact.id, companyId: contact.companyId } }),
     DepartmentPortalAdmin.findAll({
       where: { contactId: contact.id },
@@ -461,7 +462,7 @@ async function portalFields(contact) {
     }),
   ]);
   return {
-    signInMethod: withHash && withHash.passwordHash ? 'password' : null,
+    signInMethod: signInMethod(withHash),
     adminOf: { company: !!companyAdmin, departments: deptRows.map((r) => ({ id: r.department.id, name: r.department.name })) },
   };
 }

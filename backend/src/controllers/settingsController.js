@@ -8,6 +8,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { UPLOAD_ROOT } = require('../middleware/upload');
 const { assertOwner } = require('../services/ownership');
+const { encryptToken, decryptToken } = require('../utils/tokenCrypto');
 const { validWorkHours, DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES } = require('../services/workload/capacity');
 
 const BRANDING_DIR = path.join(UPLOAD_ROOT, 'branding');
@@ -105,6 +106,10 @@ const DEFAULTS = {
 
   // Settings -> Client portal: the whole portal is off until switched on.
   'portal.enabled': 'false',
+  // The Microsoft app registration contacts sign in through (7b): one
+  // multi-tenant app for the install. The secret is stored encrypted.
+  'portal.msClientId': '',
+  'portal.msClientSecret': '',
 };
 
 // Settings that store JSON-encoded values rather than plain strings.
@@ -114,7 +119,9 @@ const JSON_KEYS = ['branding.loginBullets', 'notifications.enabledTypes', 'notif
 // these to '' (with a companion `<key>Set` boolean so the UI can still show
 // "configured"), and a blank incoming value on write means "leave unchanged"
 // rather than "clear it" (same reasoning as a password field).
-const SECRET_KEYS = ['integrations.googleClientSecret', 'integrations.microsoftClientSecret'];
+const SECRET_KEYS = ['integrations.googleClientSecret', 'integrations.microsoftClientSecret', 'portal.msClientSecret'];
+// Secrets encrypted at rest (tokenCrypto); read them with decryptToken.
+const ENCRYPTED_KEYS = ['portal.msClientSecret'];
 
 // Keys writable via PATCH/PUT /settings (everything except file upload
 // pointers, which have their own dedicated upload endpoints).
@@ -140,6 +147,16 @@ async function getAllSettings() {
   const values = { ...DEFAULTS };
   for (const row of rows) values[row.key] = row.value;
   return values;
+}
+
+// The portal's Microsoft app registration, secret decrypted. Both null-safe:
+// configured only when both are set.
+async function getPortalMicrosoftApp() {
+  const values = await getAllSettings();
+  return {
+    clientId: values['portal.msClientId'] || '',
+    clientSecret: (values['portal.msClientSecret'] && decryptToken(values['portal.msClientSecret'])) || '',
+  };
 }
 
 function parseJsonValue(raw, fallback) {
@@ -265,6 +282,11 @@ async function assertCanWriteKeys(req, incoming) {
   if (Object.keys(incoming).some((k) => k.startsWith('integrations.'))) {
     await assertOwner(req.user, 'Changing integration settings');
   }
+  // The portal's Microsoft app decides how contacts sign in: a sign-in
+  // setting, so Owner only (same rule as SSO).
+  if (Object.keys(incoming).some((k) => k.startsWith('portal.ms'))) {
+    await assertOwner(req.user, 'Changing the portal\'s Microsoft app');
+  }
 }
 
 // Settings with a fixed range, checked before anything is written.
@@ -315,6 +337,7 @@ async function upsertSettings(rawIncoming, userId) {
     if (SECRET_KEYS.includes(key) && (value === undefined || value === null || String(value).trim() === '')) {
       continue; // eslint-disable-line no-continue
     }
+    if (ENCRYPTED_KEYS.includes(key)) value = encryptToken(String(value).trim());
     // eslint-disable-next-line no-await-in-loop
     await SystemSettings.upsert({
       key,
@@ -446,6 +469,7 @@ const status = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getPortalMicrosoftApp,
   status,
   getPublic,
   getLogo,

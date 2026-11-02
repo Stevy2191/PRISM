@@ -18,6 +18,19 @@ module.exports = (sequelize) => {
       accountManagerId: { type: DataTypes.INTEGER, allowNull: true },
       // null = the default SLA policy.
       slaPolicyId: { type: DataTypes.INTEGER, allowNull: true },
+      // Microsoft 365 (client portal 7b). One tenant links to one company.
+      msTenantId: { type: DataTypes.STRING(36), allowNull: true, unique: true },
+      // When the tenant's admin approved PRISM's app (admin consent).
+      msConsentAt: { type: DataTypes.DATE, allowNull: true },
+      // [{ id, name }]: only these groups' members sign in and are synced.
+      // Stored NULL reads as [].
+      msSyncGroups: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        get() { return this.getDataValue('msSyncGroups') ?? []; },
+      },
+      // { at, durationMs, updated, deactivated, newDetected, errors: [string] }
+      msLastSync: { type: DataTypes.JSON, allowNull: true },
     },
     { sequelize, modelName: 'Company', tableName: 'Companies', timestamps: true }
   );

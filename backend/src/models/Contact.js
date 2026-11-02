@@ -47,6 +47,12 @@ module.exports = (sequelize) => {
       // toJSON: read it only through Contact.scope('withPassword').
       passwordHash: { type: DataTypes.STRING(255), allowNull: true },
       portalLastSignInAt: { type: DataTypes.DATE, allowNull: true },
+      // Microsoft 365 (7b): the person's Entra object id, unique within the
+      // company. Set means they sign in with Microsoft, never a password.
+      msObjectId: { type: DataTypes.STRING(36), allowNull: true },
+      // The department name Microsoft 365 reports, before it resolves to a
+      // PRISM department (see DetectedDepartment).
+      msDepartmentName: { type: DataTypes.STRING(150), allowNull: true },
     },
     {
       sequelize,
@@ -55,6 +61,7 @@ module.exports = (sequelize) => {
       timestamps: true,
       defaultScope: { attributes: { exclude: ['passwordHash'] } },
       scopes: { withPassword: {} },
+      indexes: [{ unique: true, fields: ['companyId', 'msObjectId'], name: 'contacts_company_ms_object' }],
     }
   );
 

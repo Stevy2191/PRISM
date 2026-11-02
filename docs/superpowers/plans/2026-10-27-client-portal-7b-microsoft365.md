@@ -48,9 +48,11 @@
 - `signInMethod` (7a payload) returns `'microsoft'` when `msObjectId` is set.
 - 7a's `GET /portal/config` returns `microsoft: true` once a client ID and secret are saved.
 
-- [ ] **Step 1: Failing tests:** tenant id unique across companies; secret stored encrypted and absent from settings GET; `(companyId,msObjectId)` unique.
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS (apply 073 to the test DB).
-- [ ] **Step 5: Commit** `feat(m365): tenant link, contact identity and detected department tables`
+- [x] **Step 1: Failing tests:** tenant id unique across companies; secret stored encrypted and absent from settings GET; `(companyId,msObjectId)` unique.
+- [x] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS (apply 073 to the test DB).
+- [x] **Step 5: Commit** `feat(m365): tenant link, contact identity and detected department tables`
+
+**As built (2026-11-02):** `msSyncGroups` is stored NULL and the model reads it as `[]` (MariaDB's JSON is LONGTEXT, which can't carry a default on every supported version). The settings GET returns the flag as `settings['portal.msClientSecretSet']`, the same pattern as the calendar integration secrets. Saving `portal.ms*` needs an **Owner**: it is a sign-in setting. `getPortalMicrosoftApp()` (settingsController) returns `{ clientId, clientSecret }` with the secret decrypted, for Task 2. `signInMethod` moved to `services/portal/signInMethod.js`. `companies.migration.test.js` rolls 073 back around 048, because 073's `(companyId, msObjectId)` index stops 048 dropping `Contacts.companyId`.
 
 ### Task 2: Graph client and a mock Microsoft for tests
 

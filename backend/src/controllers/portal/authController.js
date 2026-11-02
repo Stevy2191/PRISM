@@ -6,12 +6,13 @@ const { sequelize, Contact } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { validatePassword, describeProblems } = require('../../utils/passwordPolicy');
-const { getAllSettings } = require('../settingsController');
+const { getAllSettings, getPortalMicrosoftApp } = require('../settingsController');
 const {
   isPortalEnabled, mayUsePortal, destroySession, accessEnded, loadPortalContact,
 } = require('../../middleware/portalAuth');
 const { issuePortalToken, consumePortalToken, findUsableToken } = require('../../services/portal/tokens');
 const { sendPortalLink } = require('../../services/portal/portalMail');
+const { signInMethod } = require('../../services/portal/signInMethod');
 const { isCompanyAdmin, adminDepartmentIds } = require('../../services/portal/scope');
 
 // Compared against when there's no contact or no hash, so a wrong email
@@ -36,7 +37,7 @@ async function contactPayload(contact) {
   const [companyAdmin, deptIds, withHash] = await Promise.all([
     isCompanyAdmin(contact),
     adminDepartmentIds(contact),
-    Contact.scope('withPassword').findByPk(contact.id, { attributes: ['id', 'passwordHash'] }),
+    Contact.scope('withPassword').findByPk(contact.id, { attributes: ['id', 'passwordHash', 'msObjectId'] }),
   ]);
   return {
     id: contact.id,
@@ -46,7 +47,7 @@ async function contactPayload(contact) {
     department: contact.department ? { id: contact.department.id, name: contact.department.name } : null,
     isCompanyAdmin: companyAdmin,
     adminDepartmentIds: deptIds,
-    signInMethod: withHash && withHash.passwordHash ? 'password' : null,
+    signInMethod: signInMethod(withHash),
   };
 }
 
@@ -70,10 +71,10 @@ function assertStrongPassword(password, contact) {
 
 // GET /portal/config — public: what the sign-in page needs.
 const config = asyncHandler(async (req, res) => {
-  const values = await getAllSettings();
+  const [values, msApp] = await Promise.all([getAllSettings(), getPortalMicrosoftApp()]);
   res.json({
     enabled: values['portal.enabled'] === 'true',
-    microsoft: false,
+    microsoft: !!(msApp.clientId && msApp.clientSecret),
     branding: {
       appName: values['branding.appName'],
       tagline: values['branding.tagline'],

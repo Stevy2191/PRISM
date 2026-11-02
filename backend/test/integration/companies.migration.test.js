@@ -3,17 +3,21 @@ const { sequelize, closeDb, models, resetData } = require('./helpers');
 
 const base = require('../../migrations/20260101000048-client-companies');
 const portal = require('../../migrations/20260101000072-client-portal');
+const m365 = require('../../migrations/20260101000073-microsoft365');
 
-// down() drops Companies, which 072's portal-admin and KB-audience tables
-// point at, so 072 is rolled back around it (and re-applied if down refuses).
+// down() drops Companies, which 072's portal-admin and KB-audience tables and
+// 073's Microsoft 365 columns and detected departments point at, so those are
+// rolled back around it (and re-applied if down refuses).
 const migration = {
   down: async (...args) => {
+    await m365.down(...args);
     await portal.down(...args);
-    try { await base.down(...args); } catch (e) { await portal.up(...args); throw e; }
+    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); throw e; }
   },
   up: async (...args) => {
     await base.up(...args);
     await portal.up(...args);
+    await m365.up(...args);
   },
 };
 

@@ -110,6 +110,7 @@ const PortalToken = require('./PortalToken')(sequelize);
 const CompanyPortalAdmin = require('./CompanyPortalAdmin')(sequelize);
 const DepartmentPortalAdmin = require('./DepartmentPortalAdmin')(sequelize);
 const KbArticleAudience = require('./KbArticleAudience')(sequelize);
+const DetectedDepartment = require('./DetectedDepartment')(sequelize);
 
 const db = {
   sequelize,
@@ -221,6 +222,7 @@ const db = {
   CompanyPortalAdmin,
   DepartmentPortalAdmin,
   KbArticleAudience,
+  DetectedDepartment,
 };
 
 // ---- Associations ----
@@ -683,6 +685,10 @@ KbArticle.hasMany(KbArticleAudience, { foreignKey: 'articleId', as: 'audiences',
 KbArticleAudience.belongsTo(KbArticle, { foreignKey: 'articleId', as: 'article' });
 KbArticleAudience.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 KbArticleAudience.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+// Microsoft 365 (7b): department names to create or map, per company.
+Company.hasMany(DetectedDepartment, { foreignKey: 'companyId', as: 'detectedDepartments', onDelete: 'CASCADE' });
+DetectedDepartment.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+DetectedDepartment.belongsTo(Department, { foreignKey: 'mappedDepartmentId', as: 'mappedDepartment' });
 // Portal admin roles follow the person: a department or company change drops
 // the roles that no longer match (services/portal/adminRoles). Lazy require:
 // the service needs this module.
