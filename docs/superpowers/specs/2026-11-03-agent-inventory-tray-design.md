@@ -78,20 +78,40 @@ sub-project.
 
 ### Per platform
 
-| | Windows 10/11, Server 2016+ | macOS 13+ (Intel and Apple silicon) | Linux (Ubuntu/Debian, RHEL/Fedora family) |
+| | Windows 10/11, Server 2016+ | macOS 13+ (Intel and Apple silicon) | Linux: Ubuntu, Fedora and Arch (see below) |
 |---|---|---|---|
 | Service | Windows service, runs as SYSTEM | launchd daemon, runs as root | systemd service, runs as root |
 | Tray | Notification-area icon | Menu-bar icon | Tray icon (StatusNotifierItem); GNOME needs its AppIndicator extension, so every desktop also gets a **Submit a ticket** app in its launcher |
 | Ticket window | System web view (WebView2) | System web view (WKWebView) | System web view (WebKitGTK) |
 | Tray ↔ service | Named pipe; user from the pipe's client token | Unix socket; user from the peer's credentials | Unix socket; user from the peer's credentials (SO_PEERCRED) |
 | Device key kept in | Machine certificate store, not exportable | System keychain | Root-only file (0600) |
-| Inventory from | WMI and the registry | system_profiler, sysctl, the installed-apps list | /proc, /sys, DMI, os-release, dpkg/rpm |
+| Inventory from | WMI and the registry | system_profiler, sysctl, the installed-apps list | /proc, /sys, DMI, os-release, dpkg/rpm/pacman |
 | Logged-in user | Active console session | Console user | Active graphical session (loginctl) |
-| Package | MSI | Signed .pkg | .deb and .rpm |
+| Package | MSI | .pkg | .deb, .rpm and Arch .pkg.tar.zst |
 | Install | `msiexec /i … /qn PRISM_URL=… ENROLL_KEY=…` (GPO, Intune) | Open the .pkg, override Gatekeeper once, then `sudo prism-agent enroll --url … --key …` (MDM once there's a Developer ID) | `apt`/`dnf` install, then `prism-agent enroll --url … --key …` |
 
 Servers and machines with no desktop run the service only; the tray simply
 isn't started there.
+
+### Linux distributions (owner, 2026-11-03: Ubuntu, Fedora and Arch first)
+
+| | Ubuntu | Fedora | Arch |
+|---|---|---|---|
+| Versions | 22.04 and 24.04 LTS, and the current release | the two current releases | rolling (current) |
+| Package | `.deb` | `.rpm` | `.pkg.tar.zst` |
+| Install | `sudo apt install ./prism-agent.deb` | `sudo dnf install ./prism-agent.rpm` | `sudo pacman -U prism-agent.pkg.tar.zst` |
+| Tray icon on the default desktop | yes (Ubuntu's GNOME ships tray support) | GNOME needs its AppIndicator extension; the launcher app always works | by desktop: KDE, XFCE, Cinnamon yes; GNOME with the extension |
+| Also covers | Debian 12, Linux Mint, Pop!_OS | RHEL, Rocky, Alma 9 (service only, usually servers) | Manjaro, EndeavourOS |
+
+- The service is one static Go binary: any systemd distribution can run it.
+  The tray links GTK 3, WebKitGTK and the AppIndicator library, which each
+  package declares under that distribution's names, so the package manager
+  installs them.
+- x86_64 and arm64.
+- All three packages are built from the same files by nfpm in CI and signed
+  with PRISM's GPG key.
+- Other distributions: anything systemd-based in those three families works;
+  others (openSUSE, Alpine, NixOS…) can be added later on request.
 
 ## Enrolment and identity
 
@@ -181,7 +201,7 @@ isn't started there.
     Developer ID is bought; the build is ready to sign with one (a drop-in
     signing step in CI, like the paid Windows certificate).
   - Linux: packages signed with a GPG key PRISM generates (free); the public
-    key is published for `apt`/`dnf` to trust.
+    key is published for `apt`, `dnf` and `pacman` to trust.
 
 ## Security
 
