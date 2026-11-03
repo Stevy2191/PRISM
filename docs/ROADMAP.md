@@ -12,13 +12,14 @@ read that before designing any sub-project.
 
 ## Where things stand (updated 2026-11-03)
 
-- **Phase 1:** sub-projects 1–7 (including 5d, attachment virus scanning, 6,
-  project management, 6b, the look A restyle, and 7, the client portal) are **Shipped** to `dev`,
-  untagged. Their release notes
-  are under `## Unreleased` in `UPGRADING.md`.
-- **Next up: release Phase 1 as `v0.4.0`** (see Releases below and
-  `RELEASING.md`): every Phase 1 sub-project, 7 (client portal) included, is
-  on `dev`. Then Phase 1 is tested by hand before Phase 2 starts.
+- **Phase 1 is released as `v0.4.0`** (2026-11-03): sub-projects 1–7
+  (including 5d, attachment virus scanning, 6, project management, 6b, the
+  look A restyle, and 7, the client portal). Release notes: `## v0.4.0` in
+  `UPGRADING.md`.
+- **Next up: test Phase 1 by hand.** Bugs, additions and changes go in the
+  Phase 1 **Testing feedback** list below and ship as `v0.4.1`, `v0.4.2`, …
+  Phase 2 (RMM core, starting with sub-project 8) waits until Phase 1 is
+  signed off.
 - **Open items carried forward:**
   - Split ticket (5b) now carries the source ticket's category (decided
     2026-10-24).
@@ -111,7 +112,7 @@ Status values: **Not started** → **Designing** → **Planned** → **Building*
 **Shipped** (pushed to `dev`). A phase is **Released** once its version is
 tagged.
 
-### Phase 1 — Foundation (`v0.4.0`)
+### Phase 1 — Foundation (`v0.4.0`, Released 2026-11-03)
 
 The ticket desk and project management, built to be relied on: full-featured,
 consistent between tickets and projects, and covered by tests.

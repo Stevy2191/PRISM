@@ -10,7 +10,29 @@ backend start.
 
 ## Unreleased
 
-**Action needed: pull the new `docker-compose.yml`.** Attachments are now
+Nothing yet.
+
+## v0.4.0
+
+Phase 1, the foundation: client companies, one work model for tickets and
+projects, the SLA engine, the full service desk, attachment virus scanning,
+project management and workload, the look A restyle, and the client portal
+with Microsoft 365 sign-in and sync.
+
+**Before upgrading:**
+
+1. **Take a database dump** (see `RELEASING.md`). This release runs
+   migrations 048 to 073, which add and reshape many tables. Rolling back to
+   v0.3.0 afterwards needs that dump.
+2. **Pull the new `docker-compose.yml`** for the virus scanner (below).
+3. **Set `PUBLIC_APP_URL`** in `.env` to the address people use: portal
+   invites, password resets, links in emails and the Microsoft sign-in
+   address are built from it.
+
+Everything else is optional. The client portal stays off until it is
+switched on, and Microsoft 365 sign-in needs nothing until it is set up.
+
+**Pull the new `docker-compose.yml`.** Attachments are now
 virus-scanned, which needs a `clamav` service that the new compose file adds
 (and a `clamav_data` volume). With your old compose file, every upload and every
 emailed attachment is refused until the scanner exists. The scanner needs about
