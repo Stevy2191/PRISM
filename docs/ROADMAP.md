@@ -20,11 +20,12 @@ read that before designing any sub-project.
   decision, 2026-11-03). Phase 1 bugs, additions and changes go in its
   **Testing feedback** list below and ship as `v0.4.1`, `v0.4.2`, …
 - **Next up: sub-project 8, the PRISM agent: inventory and the tray app**
-  ([spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md),
-  Designing), on Windows, macOS and Linux. The agent puts every computer into Assets with its hardware,
-  OS, network, software and usual user, and its tray app raises tickets.
-  Monitoring, scripting, patching and remote access stay later. The spec's
-  "Decisions to confirm" come before the plan.
+  ([spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md)), on
+  Windows, macOS and Linux. Design approved 2026-11-03; next its mockups and
+  plan. The agent puts every computer into Assets with its hardware, OS,
+  network, software and usual user, and its tray app's **Submit a ticket**
+  raises tickets. Monitoring, scripting, patching and remote access stay
+  later.
 - **Open items carried forward:**
   - Split ticket (5b) now carries the source ticket's category (decided
     2026-10-24).
@@ -142,13 +143,17 @@ consistent between tickets and projects, and covered by tests.
 - Settings (2026-10-12): one menu with search, regrouped pages, one page layout ([spec](superpowers/specs/2026-10-12-settings-redesign-design.md), [plan](superpowers/plans/2026-10-12-settings-redesign.md)).
 - Settings cleanup (2026-10-12): unused settings removed, one organization name, assignment rules folded into workflow rules, Modules & tabs removed.
 
-### Phase 2 — RMM core (`v0.5.0`)
+### Phase 2 — The PRISM agent (`v0.5.0`)
+
+Reshaped 2026-11-03 (owner): the agent, inventory and tray app on Windows,
+macOS and Linux, without the rest of RMM. Built as 8a (server and Windows),
+8b (macOS), 8c (Linux); released when all three are done.
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
-| 8 | PRISM agent: inventory and the tray app — for Windows, macOS and Linux (owner, 2026-11-03): a system service and per-user tray app (Go; MSI, .pkg, .deb/.rpm), enrolment per company straight to PRISM over HTTPS (no gateway yet, decided 2026-11-03), signed updates; every computer an Asset with hardware, OS, network, installed software, logged-in user and last seen; tray **Submit a ticket** form with a health snapshot. Absorbs the inventory half of 9, the first version of 9b, and 19 (macOS and Linux) | Designing (2026-11-03) | [spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md) | — |
-| 9 | Inventory and monitoring — automatic hardware/software inventory into Assets (every computer running the agent becomes an Asset, with total owned time and in-service time), kept current by the agent. At minimum: CPU (model, cores), memory (total), disks (each drive's size and free space), and operating system name and version (Windows edition/version/build; macOS version once the macOS agent exists), filling the Asset's existing processor, RAM, storage, OS and OS version fields. Plus heartbeats, checks, alerts that open tickets. Added 2026-10-27: the inventory field list | Not started | — | — |
-| 9b | Tray app — a per-user system-tray helper installed with the agent. One click opens a short ticket form pre-filled with the user's name, company and department and the computer's name, IP and MAC address; the ticket links the computer's Asset and carries a health snapshot (OS version, uptime, free disk, logged-in domain); an optional screenshot; a "My tickets" list showing the user's open tickets and their status | Not started | — | — |
+| 8 | PRISM agent: inventory and the tray app — for Windows, macOS and Linux (owner, 2026-11-03): a system service and per-user tray app (Go; MSI, .pkg, .deb/.rpm), enrolment per company straight to PRISM over HTTPS (no gateway yet, decided 2026-11-03), signed updates; every computer an Asset with hardware, OS, network, installed software, logged-in user and last seen; tray **Submit a ticket** form with a health snapshot. Absorbs the inventory half of 9, the first version of 9b, and 19 (macOS and Linux) | Designing — spec approved 2026-11-03; mockups and plan next | [spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md) | — |
+| 9 | Inventory → into 8. Monitoring (heartbeats are in 8; checks and alerts that open tickets) → moved to Phase 4 as 16a (2026-11-03) | Moved | — | — |
+| 9b | Tray app → its first version (Submit a ticket, health snapshot) is in 8; the screenshot button and a "My tickets" list come later (2026-11-03) | Moved into 8 | — | — |
 
 **Testing feedback (Phase 2):** _none yet_
 
@@ -169,11 +174,12 @@ consistent between tickets and projects, and covered by tests.
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
+| 16a | Monitoring and alerts — checks (disk, services, events, uptime) and alerts that open tickets, on the agent from 8. Moved from Phase 2 row 9 (2026-11-03) | Not started | — | — |
 | 16 | Scripting and automation — script library, run on device or group, schedules, results | Not started | — | — |
 | 17 | Patch management — approval policies, maintenance windows, compliance | Not started | — | — |
 | 18a | Remote shell and file transfer — live PowerShell/command prompt and file browse/upload/download from PRISM | Not started | — | — |
 | 18b | Remote desktop — screen and input in the browser over WebRTC, user-session helper, login/UAC screens, multi-monitor, clipboard, consent prompt, relay through the gateway | Not started | — | — |
-| 19 | macOS and Linux agents | Not started | — | — |
+| 19 | macOS and Linux agents → in 8 from the start (owner, 2026-11-03); here only what Phase 4's features need on them | Moved into 8 | — | — |
 
 **Testing feedback (Phase 4):** _none yet_
 
