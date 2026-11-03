@@ -235,9 +235,22 @@
 - `client.Sign(method, pathQuery, ts, nonce, body) string`. It must match `agentClient.js` byte for byte; a shared test vector JSON at `agent/testdata/signing.json` is checked by both the Go and Node tests.
 - `enroll` sends the payload from Task 2 and saves `{ url, deviceId, updatePublicKey }`.
 
-- [ ] **Step 1: Failing tests:** the shared signing vector matches in Go and in Node; enrolment against a fake server saves the config, and is refused without the key; the loops honour intervals and back off on 5xx and 429; the keystore round trip (Windows CI).
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS (`go test ./...` on `ubuntu-latest` and `windows-latest`).
-- [ ] **Step 5: Commit** `feat(agent): Go agent core: config, keys, signed client, schedules`
+- [x] **Step 1: Failing tests:** the shared signing vector matches in Go and in Node; enrolment against a fake server saves the config, and is refused without the key; the loops honour intervals and back off on 5xx and 429; the keystore round trip (Windows CI).
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS (`go test ./...` on `ubuntu-latest` and `windows-latest`).
+- [x] **Step 5: Commit** `feat(agent): Go agent core: config, keys, signed client, schedules`
+
+**As built (2026-11-03):**
+- **Module** `github.com/stevy2191/prism/agent`, Go 1.24. Its one dependency is `golang.org/x/sys` (Windows APIs). The version is stamped with `-ldflags -X …/internal/version.Version=…` and defaults to `dev`.
+- **Packages:**
+  - `config`: `agent.json` in `C:\ProgramData\PRISM` (Linux `/var/lib/prism-agent`, macOS `/Library/Application Support/PRISM`), or `PRISM_AGENT_DIR` when set. Written atomically. Intervals are clamped to at least 1 minute (heartbeat) and 15 minutes (inventory), with defaults of 5 minutes and 6 hours.
+  - `keystore`: `device.key`. On Windows, DPAPI with machine scope (so what an elevated installer wrote, the SYSTEM service can read) plus a SYSTEM-only, non-inherited ACL `D:P(A;;FA;;;SY)`, which is what keeps other local processes out. On macOS and Linux, a 0600 file until 8b and 8c.
+  - `client`: `Canonical`, `Sign`, `PublicKeyB64`, `NewNonce` (22 base64url characters). Every attempt gets a fresh timestamp and nonce. Network errors, 5xx and 429 are retried (3 attempts, backoff from 2 s with jitter in [½·ceiling, ceiling], honouring `Retry-After`); other 4xx are not. TLS uses the OS certificate store (Go's default).
+  - `enroll`: needs an `https://` address (`http://` only for localhost) and a key starting `pk_enr_`, otherwise nothing is sent. The new key is staged in `<dir>.enrolling` and moved in only after PRISM accepts it, so a refused enrolment leaves any earlier one untouched.
+  - `schedule`: one loop per job. Success waits the interval. A retryable failure backs off from `RetryBase` (heartbeat 30 s, inventory 2 min), doubling up to the interval. A refusal (revoked, bad request) waits the full interval. The inventory's first run is delayed 1–2 minutes at random, to spread out an office's agents after a reboot.
+- **Commands:** `enroll`, `run` (foreground until Ctrl+C or SIGTERM; becomes the Windows service in Task 8), `collect --json`, `status`, `version`. `collect` sends only the hostname until Task 8 fills the inventory.
+- **Windows tests:** a test process isn't SYSTEM, so `TestSystemOnlyACL` checks the real ACL and that the test can't read the key. The round-trip tests widen the ACL to the test's own user through `AllowCurrentUserForTests` (never called by the agent).
+- **CI:** an `agent` job in `test.yml` runs `go vet` and `go test -race` on `ubuntu-latest` and `windows-latest`.
+- **Checked end to end** against the real backend: a wrong key was refused; then enrol, a signed heartbeat (the device's version and last-seen time updated) and a signed inventory (`lastInventoryAt` set).
 
 ### Task 8: Windows inventory and the service
 

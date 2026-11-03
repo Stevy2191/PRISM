@@ -89,3 +89,31 @@ jobs:
       - name: Build
         working-directory: ./frontend
         run: npm run build
+
+  agent:
+    # The PRISM agent (Go, sub-project 8a). Windows runs the parts only it
+    # has: the DPAPI key store and its SYSTEM-only file ACL.
+    name: Agent tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ./agent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race ./...
