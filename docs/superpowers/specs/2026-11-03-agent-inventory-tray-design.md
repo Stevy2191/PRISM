@@ -1,8 +1,8 @@
 # Sub-project 8 — PRISM agent: inventory and the tray app
 
-> Status: design drafted 2026-11-03 from the owner's answers in conversation;
-> waiting for the owner's review of the "Decisions to confirm" below before
-> the plan is written. Roadmap rows: 8 and 9b in `docs/ROADMAP.md`.
+> Status: design approved 2026-11-03 (owner confirmed every decision below;
+> no Apple Developer ID for now). Mockups of the screens and the tray window
+> are approved before their plan tasks, as in 6b and 7. Roadmap rows: 8 and 9b in `docs/ROADMAP.md`.
 > Reshapes Phase 2: this is the agent without the rest of RMM.
 > Revised 2026-11-03: Windows, macOS and Linux from the start (owner); the
 > tray's action is called **Submit a ticket** (owner).
@@ -88,7 +88,7 @@ sub-project.
 | Inventory from | WMI and the registry | system_profiler, sysctl, the installed-apps list | /proc, /sys, DMI, os-release, dpkg/rpm |
 | Logged-in user | Active console session | Console user | Active graphical session (loginctl) |
 | Package | MSI | Signed .pkg | .deb and .rpm |
-| Silent install | `msiexec /i … /qn PRISM_URL=… ENROLL_KEY=…` (GPO, Intune) | `installer -pkg …` with a config profile or env (Intune, Jamf, any MDM) | `apt`/`dnf` install, then `prism-agent enroll --url … --key …` |
+| Install | `msiexec /i … /qn PRISM_URL=… ENROLL_KEY=…` (GPO, Intune) | Open the .pkg, override Gatekeeper once, then `sudo prism-agent enroll --url … --key …` (MDM once there's a Developer ID) | `apt`/`dnf` install, then `prism-agent enroll --url … --key …` |
 
 Servers and machines with no desktop run the service only; the tray simply
 isn't started there.
@@ -169,11 +169,16 @@ isn't started there.
   - Windows: as decided on 2026-10-03, PRISM signs with its own certificate
     and admins push trust for it via GPO/Intune; a paid certificate stays a
     drop-in option.
-  - macOS: Apple only lets a package install cleanly (and MDM deploy it, and
-    the menu-bar app run without warnings) when it is signed with an **Apple
-    Developer ID** and notarized. That needs an Apple Developer Program
-    membership (US$99 a year). Without it, installs need users or admins to
-    override Gatekeeper on every machine. See Decisions to confirm.
+  - macOS: **no Apple Developer ID for now** (owner, 2026-11-03). Binaries
+    are ad-hoc signed (Apple silicon requires it, and Go's linker does it),
+    and the .pkg is unsigned. The **first install on each Mac** needs a
+    Gatekeeper override: open the .pkg, then **System Settings → Privacy &
+    Security → Open Anyway** (macOS 15 dropped right-click → Open). Updates
+    don't ask again: the agent downloads and installs them itself, as root,
+    and that path isn't checked by Gatekeeper. An unsigned .pkg can't be
+    deployed by Intune or most MDMs, so Macs are installed by hand until a
+    Developer ID is bought; the build is ready to sign with one (a drop-in
+    signing step in CI, like the paid Windows certificate).
   - Linux: packages signed with a GPG key PRISM generates (free); the public
     key is published for `apt`/`dnf` to trust.
 
@@ -203,7 +208,7 @@ isn't started there.
 - Assets list: an **Online** column and an "Agent-managed" filter.
 - Ticket page: an Asset chip for agent tickets; the health snapshot note.
 
-## Decisions to confirm
+## Decisions (confirmed by the owner, 2026-11-03)
 
 1. **Phase 2 reshaped** to this sub-project (agent, inventory and tray on
    all three platforms: rows 8, 9b and 19), released as `v0.5.0`.
@@ -214,14 +219,13 @@ isn't started there.
 4. **Inventory every 6 hours, heartbeat every 5 minutes, stale after 14
    days.**
 5. **Phase 1 fixes during this work** ship from a `release/0.4` branch cut
-   from `main`, so v0.4.x patches never include unfinished agent code. (Needs
-   the owner's go-ahead to push that branch.)
+   from `main`, so v0.4.x patches never include unfinished agent code (the
+   owner agreed to that branch being pushed).
 6. **Build order inside this sub-project:** the server side and Windows
    first (8a), then macOS (8b), then Linux (8c), each shipped to `dev` and
    tested before the next; `v0.5.0` is released when all three are done.
-7. **Apple Developer ID** (US$99/yr) for signing and notarizing the macOS
-   package. Without it the macOS agent still works, but every install needs
-   a manual Gatekeeper override and MDM deployment is awkward.
+7. **No Apple Developer ID for now.** The owner overrides Gatekeeper by hand
+   on each Mac's first install; Macs are installed by hand, not by MDM.
 
 ## Done when
 
