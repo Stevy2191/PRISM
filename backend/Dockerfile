@@ -10,6 +10,12 @@ RUN npm install --omit=dev && npm cache clean --force
 # App source
 COPY . .
 
+# Agent packages (8a): CI builds the agent and places the packages and their
+# manifest.json in agent-dist/ before this image is built (COPY . . above
+# brings them in). PRISM signs and serves them to enrolled agents only.
+ENV AGENT_DIST_DIR=/app/agent-dist
+RUN mkdir -p /app/agent-dist
+
 # Uploads volume mount point
 RUN mkdir -p /uploads
 VOLUME ["/uploads"]

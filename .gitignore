@@ -152,3 +152,6 @@ vite.config.ts.timestamp-*
 
 # Stray downloads / packages
 *.deb
+
+# Agent packages built by CI (8a), served by the backend image
+backend/agent-dist/

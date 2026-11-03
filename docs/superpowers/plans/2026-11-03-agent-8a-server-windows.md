@@ -207,9 +207,18 @@
 - The heartbeat's `update` field is filled from this when a newer version exists.
 - Download streams the file (signed request), so no package is public.
 
-- [ ] **Step 1: Failing tests:** the key is generated once and its private half never appears in any response; the update signature verifies with the public key returned at enrolment; an equal or older version → 204; a missing file → 404 with nothing signed; download needs a valid device signature.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): signed agent updates served by PRISM`
+- [x] **Step 1: Failing tests:** the key is generated once and its private half never appears in any response; the update signature verifies with the public key returned at enrolment; an equal or older version → 204; a missing file → 404 with nothing signed; download needs a valid device signature.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): signed agent updates served by PRISM`
+
+**As built (2026-11-03):**
+- **The key.** `agent.updateKey` holds the 32-byte Ed25519 seed, encrypted with `tokenCrypto` like other stored secrets. It is never in `DEFAULTS`, so no settings endpoint returns it. Two first uses at the same moment agree on whichever was stored (the unique-key clash is caught and re-read). Enrolment now returns `updatePublicKey`.
+- **Platform and arch** come from the device record, as enrolled, not from query parameters: a device can only be offered its own builds.
+- **Checks before signing.** Each manifest entry must have a plain file name (no folders, no `..`), a `x.y.z[-pre]` version and a 64-hex sha256. The newest entry's file must exist and hash to its listed sha256; otherwise `GET /v1/update` and the download are 404 and nothing is signed. The heartbeat treats that as no update instead of failing. File hashes are cached by size and modification time.
+- **Versions** compare numerically; a pre-release sorts before its release (0.6.0-rc.2 < 0.6.0).
+- **Download** sends `X-Prism-Version` and `X-Prism-Sha256` headers, as `application/octet-stream`.
+- **Image.** `AGENT_DIST_DIR=/app/agent-dist`, created empty in the Dockerfile; CI (task 11) puts the packages in `backend/agent-dist/` before the image build. That folder is git-ignored.
+- **Not yet:** separate .deb and .rpm packages for Linux need a package format alongside platform and arch. That comes with 8c.
 
 ### Task 7: The Go agent's core
 
