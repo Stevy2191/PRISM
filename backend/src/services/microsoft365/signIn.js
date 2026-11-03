@@ -17,6 +17,7 @@ const { Op } = require('sequelize');
 const { Company, Contact } = require('../../models');
 const { getPortalMicrosoftApp } = require('../../controllers/settingsController');
 const graph = require('./graph');
+const { resolveDepartment } = require('./departments');
 
 const SCOPE = 'openid profile email';
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -177,7 +178,16 @@ async function resolveMicrosoftSignIn({
     }
   }
 
-  // 3. New to PRISM: a contact of this company, portal access on.
+  // 3. New to PRISM: a contact of this company, portal access on, with the
+  // department and job title Microsoft 365 has for them (if it can say).
+  let profile = null;
+  try {
+    profile = await graph.getUser(tid, oid);
+  } catch (err) {
+    console.warn('[portal] could not read the new contact\'s Microsoft profile:', err.code || err.message);
+  }
+  const msDepartmentName = profile && profile.department ? String(profile.department).trim().slice(0, 150) : null;
+  const departmentId = msDepartmentName ? await resolveDepartment(company.id, msDepartmentName) : null;
   const displayName = name || [given, family].filter(Boolean).join(' ') || email || 'Microsoft user';
   try {
     contact = await Contact.create({
@@ -188,6 +198,9 @@ async function resolveMicrosoftSignIn({
       companyId: company.id,
       portalAccess: true,
       msObjectId: oid,
+      msDepartmentName,
+      departmentId,
+      jobTitle: profile && profile.jobTitle ? String(profile.jobTitle).slice(0, 150) : null,
     });
   } catch (err) {
     // Two sign-ins of the same person at once: the other one made it.

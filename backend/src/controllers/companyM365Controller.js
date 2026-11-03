@@ -1,7 +1,7 @@
 // A company's Microsoft 365 link (client portal 7b): tenant and sync groups,
 // the admin-approval link, the group picker and Sync now. Needs
 // portal.manage (route) and the company in the caller's reach.
-const { Company } = require('../models');
+const { Company, Department, DetectedDepartment } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { loadAccessibleCompany } = require('./companiesController');
@@ -9,6 +9,9 @@ const { getPortalMicrosoftApp } = require('./settingsController');
 const graph = require('../services/microsoft365/graph');
 const { microsoftRedirectUri } = require('../services/microsoft365/signIn');
 const { syncCompany } = require('../services/microsoft365/sync');
+const { suggestMapping, applyDepartments } = require('../services/microsoft365/departments');
+const { parseRecordId } = require('../services/permissionService');
+const departments = require('./departmentsController');
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_GROUPS = 50;
@@ -104,6 +107,69 @@ const sync = asyncHandler(async (req, res) => {
   res.json({ lastSync: result });
 });
 
+// --- Detected departments ------------------------------------------------------
+
+const detectedJson = (row, suggestion) => ({
+  id: row.id, name: row.name, peopleCount: row.peopleCount, mappedDepartmentId: row.mappedDepartmentId, suggestedDepartmentId: suggestion ?? null,
+});
+
+// GET /companies/:id/m365/detected-departments → { detected (to do), mapped }
+const listDetected = asyncHandler(async (req, res) => {
+  const company = await loadAccessibleCompany(req);
+  const [rows, depts] = await Promise.all([
+    DetectedDepartment.findAll({ where: { companyId: company.id }, order: [['peopleCount', 'DESC'], ['name', 'ASC']] }),
+    Department.findAll({ where: { companyId: company.id }, attributes: ['id', 'name'] }),
+  ]);
+  res.json({
+    detected: rows.filter((r) => !r.mappedDepartmentId).map((r) => detectedJson(r, suggestMapping(r, depts))),
+    mapped: rows.filter((r) => r.mappedDepartmentId).map((r) => detectedJson(r)),
+  });
+});
+
+async function loadDetected(req, company) {
+  const row = await DetectedDepartment.findOne({ where: { id: parseRecordId(req.params.detectedId) || 0, companyId: company.id } });
+  if (!row) throw new ApiError(404, 'Detected department not found', 'NOT_FOUND');
+  return row;
+}
+
+// Map a name to a department and give its people that department now.
+async function mapAndApply(req, company, row, department, action) {
+  await row.update({ mappedDepartmentId: department.id });
+  const assigned = await applyDepartments(company.id);
+  await writeAudit(req, action, 'Company', company.id, { name: row.name, departmentId: department.id, assigned });
+  return { detected: detectedJson(row), department: { id: department.id, name: department.name }, assigned };
+}
+
+// POST /companies/:id/m365/detected-departments/:detectedId/map { departmentId }
+const mapDetected = asyncHandler(async (req, res) => {
+  const company = await loadAccessibleCompany(req);
+  const row = await loadDetected(req, company);
+  const department = await Department.findOne({ where: { id: parseRecordId((req.body || {}).departmentId) || 0, companyId: company.id } });
+  if (!department) throw new ApiError(400, 'Pick a department of this company', 'VALIDATION_ERROR');
+  res.json(await mapAndApply(req, company, row, department, 'company.m365_department_mapped'));
+});
+
+// POST /companies/:id/m365/detected-departments/:detectedId/create { shortCode? }
+// Makes a department of that name (the same checks and permission as the
+// Departments screen; the organization's own departments need a short code).
+const createFromDetected = asyncHandler(async (req, res) => {
+  const company = await loadAccessibleCompany(req);
+  const row = await loadDetected(req, company);
+  await departments.assertCanManageDepartmentsOf(req.user, company);
+  const { shortCode } = req.body || {};
+  if (company.isInternal && (typeof shortCode !== 'string' || !shortCode.trim())) {
+    throw new ApiError(400, 'Short code is required (used to prefix this department\'s project IDs)', 'VALIDATION_ERROR');
+  }
+  await departments.assertNameFreeInCompany(row.name, company.id);
+  const department = await Department.create({
+    companyId: company.id,
+    name: row.name,
+    shortCode: typeof shortCode === 'string' && shortCode.trim() ? await departments.normalizeShortCode(shortCode) : null,
+  });
+  await writeAudit(req, 'department.create', 'Department', department.id, { name: department.name, via: 'microsoft365' });
+  res.status(201).json(await mapAndApply(req, company, row, department, 'company.m365_department_created'));
+});
+
 module.exports = {
-  get, update, consentUrl, searchGroups, sync,
+  get, update, consentUrl, searchGroups, sync, listDetected, mapDetected, createFromDetected,
 };

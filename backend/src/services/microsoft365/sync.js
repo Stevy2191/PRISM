@@ -8,7 +8,8 @@
 //            linking turns portal access on and clears any password, as a
 //            Microsoft sign-in does
 //   update   a linked contact's name, email, phone (business, else mobile),
-//            job title and Microsoft 365 department name
+//            job title and Microsoft 365 department name, then the PRISM
+//            department that name resolves to (departments.js)
 //   inactive a linked contact disabled in Microsoft 365, or no longer in any
 //            sync group, is made inactive (never reactivated: staff do that)
 // When any group could not be read (consent withdrawn, an outage), the member
@@ -18,6 +19,7 @@ const { Company, Contact } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const graph = require('./graph');
+const { recountDetected, applyDepartments } = require('./departments');
 
 const MAX_ERRORS = 50;
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -135,6 +137,11 @@ async function runSync(company, result) {
       result.updated += 1;
     }
   }
+
+  // 5. Department names: the to-do list (from every member, so only when
+  // every group was read), then contacts whose name resolves get it.
+  if (complete) result.newDetected = await recountDetected(company.id, [...members.values()]);
+  result.departmentsAssigned = await applyDepartments(company.id);
 }
 
 // Syncs one company and saves the summary to Company.msLastSync.
@@ -146,7 +153,7 @@ async function syncCompany(companyId) {
   running.add(id);
   const started = Date.now();
   const result = {
-    at: new Date(started).toISOString(), durationMs: 0, updated: 0, deactivated: 0, newDetected: 0, errors: [],
+    at: new Date(started).toISOString(), durationMs: 0, updated: 0, deactivated: 0, newDetected: 0, departmentsAssigned: 0, errors: [],
   };
   try {
     const company = await Company.findByPk(id);

@@ -154,9 +154,17 @@
 
 **Interfaces — Produces:** `normalizeDepartmentName(name) → string` (trim, collapse spaces, lower-case); `resolveDepartment(companyId, msDepartmentName) → Promise<departmentId|null>` (exact normalized match on a department of that company, else a detected row's `mappedDepartmentId`, else null and the row is upserted); `suggestMapping(detected, departments) → departmentId|null` (normalized equality after stripping "dept"/"department" — drives the "Looks like" hint only).
 
-- [ ] **Step 1: Failing tests:** "Billing Dept" and "billing" both listed with counts; mapping "billing" to Billing assigns its contacts immediately and removes the row from the to-do list; "Create department" makes it in that company and assigns; a hand-set department is replaced once the name resolves; department admin of the old department is pruned.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(m365): detected departments to create or map`
+- [x] **Step 1: Failing tests:** "Billing Dept" and "billing" both listed with counts; mapping "billing" to Billing assigns its contacts immediately and removes the row from the to-do list; "Create department" makes it in that company and assigns; a hand-set department is replaced once the name resolves; department admin of the old department is pruned.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(m365): detected departments to create or map`
+
+**As built (2026-11-03):**
+- **The list:** `GET …/detected-departments` returns `{ detected, mapped }`. `detected` is the to-do list (unmapped, with `suggestedDepartmentId` for the "Looks like" hint); `mapped` is names already mapped.
+- **Recount:** the sync recounts the list from every member, but only when every sync group was read. A name that now matches a department drops off. A name nobody has any more drops off, unless it is mapped.
+- **Assigning departments:** after every sync, and straight after a map or create, contacts linked to Microsoft whose name resolves get that department (`applyDepartments`). The Contact hook prunes department-admin roles that no longer match.
+- **Create department** uses the Departments screen's own checks and permission. `companies.manage` is needed, or `people.manage_departments` for the organization's own company, whose departments also need a `shortCode`. The three department helpers are now exported from `departmentsController`.
+- **Sign-in:** a new contact from Microsoft sign-in reads their Graph profile once, getting the department name (resolved, or added to the to-do list) and job title. If Graph is unreachable the contact is still created, with no department.
+- **Sync summary:** it also reports `departmentsAssigned`.
 
 ### Task 7: Staff screens
 

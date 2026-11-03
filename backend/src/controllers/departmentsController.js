@@ -213,4 +213,6 @@ const remove = asyncHandler(async (req, res) => {
 
 module.exports = {
   list, owners, create, get, update, remove,
+  // For Microsoft 365's "Create department" (7b): the same checks.
+  assertCanManageDepartmentsOf, assertNameFreeInCompany, normalizeShortCode,
 };
