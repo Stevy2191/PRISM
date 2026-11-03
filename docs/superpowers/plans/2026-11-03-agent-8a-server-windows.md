@@ -150,9 +150,22 @@
 - Software is replaced as a whole, in one transaction.
 - Usual user: the UPN or email is matched to a contact of the Asset's company (Microsoft object ID first, then email). It sets `assignedToContactId` only when that is empty or was set by the agent, which is tracked with `Device.inventory.assignedBy = 'agent'`.
 
-- [ ] **Step 1: Failing tests:** fields map (with fixtures from a real Windows 11 and a Windows 10 machine); a staff edit to an agent field is overwritten, but location and notes are kept; 5,001 software rows → 413; software is replaced, not appended; the signed-in user matches a contact in the company, never one in another company; a hand-set assigned contact is kept; a user with no match leaves the assignment alone.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): inventory into Assets, software and the usual user`
+- [x] **Step 1: Failing tests:** fields map (with fixtures from a real Windows 11 and a Windows 10 machine); a staff edit to an agent field is overwritten, but location and notes are kept; 5,001 software rows → 413; software is replaced, not appended; the signed-in user matches a contact in the company, never one in another company; a hand-set assigned contact is kept; a user with no match leaves the assignment alone.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): inventory into Assets, software and the usual user`
+
+**As built (2026-11-03):**
+- **Request size.** Inventory may be up to 1 MB: `agentAuth({ maxBody })` sets the cap per route, and other agent routes stay at 256 KB. A list of 5,000 programs doesn't fit in 256 KB.
+- **Rate limit.** 3 inventories per 10 minutes per device, allowing a few service restarts.
+- **Formats.**
+  - `processor` = "13th Gen Intel(R) Core(TM) i5-13500 (14 cores)".
+  - `storage` counts internal disks only: external USB or removable drives are left out when there's an internal one, giving "476 GB (212 GB free)". Every disk is still kept in `Device.inventory.disks`.
+  - `osVersion` = "24H2 (26100.2314)". MAC addresses are normalised to `AA:BB:…`.
+- **Missing values.** A value the agent couldn't read (an empty serial number, say) leaves the field unchanged.
+- **Usual user.** A hand-set contact is recognised as any assigned contact that isn't the one the agent set last time (`Device.inventory.agentAssignedContactId`).
+- **Placeholder.** The Task 5 placeholder will be skipped by the `isPlaceholder` filter once that column exists.
+- **Software.** Programs with the same name and version are counted once. Windows' `YYYYMMDD` install dates are read.
+- **Asset activity.** An `agent_inventory` entry is logged only when an Asset field changed, not every 6 hours.
 
 ### Task 5: Tickets from the tray
 

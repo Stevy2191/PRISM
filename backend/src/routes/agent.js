@@ -4,8 +4,9 @@
 // (middleware/agentAuth, task 3).
 const express = require('express');
 const { asyncHandler } = require('../middleware/error');
-const { agentEnrollLimiter, agentHeartbeatLimiter } = require('../middleware/rateLimit');
-const { agentAuthenticate } = require('../middleware/agentAuth');
+const { agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter } = require('../middleware/rateLimit');
+const { agentAuth, agentAuthenticate } = require('../middleware/agentAuth');
+const { applyInventory } = require('../services/agent/inventory');
 const { ApiError } = require('../middleware/error');
 const { enroll, INTERVALS } = require('../services/agent/enrollment');
 
@@ -35,6 +36,13 @@ router.post('/v1/heartbeat', agentAuthenticate, agentHeartbeatLimiter, asyncHand
   if (account !== null) changes.inventory = { ...(req.device.inventory || {}), signedInUser: { account } };
   await req.device.update(changes);
   res.json({ update: null });
+}));
+
+// POST /agent/v1/inventory → { changedFields, software: { added, removed } }
+// The computer's hardware, OS, network, software and signed-in user, into
+// its Asset (services/agent/inventory). Up to 1 MB: a long software list.
+router.post('/v1/inventory', agentAuth({ maxBody: 1024 * 1024 }), agentInventoryLimiter, asyncHandler(async (req, res) => {
+  res.json(await applyInventory(req.device, req.body));
 }));
 
 module.exports = router;
