@@ -258,9 +258,26 @@
 - Create: `agent/internal/inventory/` with `inventory.go` (shared types), `windows.go` (WMI: `Win32_ComputerSystem`, `Win32_BIOS`, `Win32_Processor`, `Win32_LogicalDisk`, `Win32_OperatingSystem`, `Win32_NetworkAdapterConfiguration`; software from the two Uninstall registry hives, 64-bit and 32-bit, without duplicates; signed-in user from `WTSQuerySessionInformation` for the active console session; domain from `NetGetJoinInformation`), and `agent/internal/service/service_windows.go` (`golang.org/x/sys/windows/svc`)
 - Test: `agent/internal/inventory/windows_test.go` (parses captured fixtures; one live test on `windows-latest` that `collect` returns a serial, OS and at least one disk)
 
-- [ ] **Step 1: Failing tests:** fixture parsing gives the payload shape from Task 4; software has no duplicates across the hives and skips updates and system components; OS edition and build come out as "Windows 11 Pro", "24H2 (26100.2314)"; `collect --json` on the runner is valid against the schema.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): Windows inventory and the Windows service`
+- [x] **Step 1: Failing tests:** fixture parsing gives the payload shape from Task 4; software has no duplicates across the hives and skips updates and system components; OS edition and build come out as "Windows 11 Pro", "24H2 (26100.2314)"; `collect --json` on the runner is valid against the schema.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): Windows inventory and the Windows service`
+
+**As built (2026-11-03):**
+- **Split for testing.** `inventory.go` (every OS) has the payload types, `Raw` and `Assemble`, tested with a captured Windows 11 fixture (`testdata/windows11-raw.json`). `windows.go` only fills `Raw`. `TestCollectOnThisComputer` runs the real collector on `windows-latest`.
+- **WMI** goes through `github.com/yusufpapurcu/wmi` (the library gopsutil uses), not PowerShell, which is slow and flagged by security tools. A source that fails leaves its fields empty and is logged; it doesn't fail the inventory.
+- **Sources:**
+  - **Memory** is the sum of the installed modules (`Win32_PhysicalMemory`), falling back to `TotalPhysicalMemory`.
+  - **OS:** the edition is the WMI caption without "Microsoft ". `DisplayVersion` ("24H2") and `UBR` (the .2314) come from the registry.
+  - **Disks:** local (3) and removable (2) only, so no network or CD drives. The disk's bus comes from the partition associators, and a USB-attached disk gets kind `usb`.
+  - **Adapters** come from Go's `net.Interfaces()` and keep their friendly names ("Ethernet"). Loopback, tunnels without a MAC, down adapters, link-local and IPv6 addresses are skipped. The primary adapter is the one holding the default route's source address (a UDP connect to TEST-NET-1; no packet is sent).
+  - **Software:** both Uninstall views (64- and 32-bit). Skips `SystemComponent=1`, anything with `ParentKeyName` or an update `ReleaseType`, and names with a KB number. Deduplicated by name and version, and sorted.
+  - **Signed-in user:** the console session's token gives `DOMAIN\user`. The UPN comes from `TranslateName` (Active Directory), then the Entra ID IdentityStore cache. When not running as SYSTEM (`collect` by hand), it's the current user.
+  - **Domain** comes from `NetGetJoinInformation`, and is blank for workgroup computers.
+  - Placeholder values ("To be filled by O.E.M.", "Default string"…) are dropped from make, model and serial.
+- **Service:** `PRISMAgent` (LocalSystem, automatic delayed start; restarts after 30 s, 2 min and 10 min; Application event log source). `prism-agent service install|uninstall` sets it up by hand; the MSI does this in Task 11. A service started before enrolment checks again every minute.
+- **Enrolment** sends the serial, make and model so PRISM can claim an existing Asset.
+- **Checked against the server:** the Go payload for the fixture, run through `parseInventory` and `assetFields`, gives the same Asset fields as Task 4's test, including "476 GB (212 GB free)".
+- **macOS and Linux:** `Collect` returns the hostname and network only, until 8b and 8c.
 
 ### Task 9: The tray and Submit a ticket (Windows)
 
@@ -299,7 +316,7 @@
 ### Task 12: Staff screens
 
 **Files:**
-- Create: `frontend/src/components/companies/CompanyDevices.jsx` (`Main` board: enrolment keys, the install command with Windows / macOS / Linux tabs where macOS and Linux say "coming in 8b/8c" until then, and the devices table with filters), `frontend/src/components/assets/AssetDevice.jsx` (`AssetDevice` board), `frontend/src/components/assets/AssetSoftware.jsx` (`AssetSoftware` board)
+- Create: `frontend/src/components/companies/CompanyDevices.jsx` (`Main` board: enrolment keys, the install command with Windows / macOS / Linux tabs where macOS and Linux say "coming in 8b/8c" until then, a **Download installer** button per platform served by PRISM itself (staff sign-in; never published as GitHub release assets — owner, 2026-11-03), and the devices table with filters), `frontend/src/components/assets/AssetDevice.jsx` (`AssetDevice` board), `frontend/src/components/assets/AssetSoftware.jsx` (`AssetSoftware` board)
 - Modify: the Asset page (Device and Software tabs on agent-managed Assets, the Agent-managed badge, the note on agent fields in the edit form), the Assets list (Online column, the Agent-managed / Online / Stale pills), the ticket page (a "PRISM tray" source label and the Asset chip in the sidebar)
 - Backend: `GET /companies/:id/devices`, `GET /assets/:id/device`, `GET /assets/:id/software?q`, `POST /devices/:id/revoke`, and the Assets list's `online` and `agent` filters
 - Test: `backend/test/integration/agent.staff.test.js`, `backend/test/smoke/agent.smoke.js`

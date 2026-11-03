@@ -1,16 +1,18 @@
 // prism-agent: the PRISM agent (8a).
 //
 //	prism-agent enroll --url https://prism.example.com --key pk_enr_…
-//	prism-agent run           the service's loops (heartbeat, inventory)
+//	prism-agent run           the service's loops (heartbeat, inventory);
+//	                          the Windows service runs this
 //	prism-agent collect --json   print what the inventory would send
 //	prism-agent status        enrolment and last contact
+//	prism-agent service install|uninstall   set the Windows service up by hand
 //
-// Task 8 makes `run` a Windows service and fills the inventory; task 9 adds
-// the tray; task 10 installs updates.
+// Task 9 adds the tray; task 10 installs updates.
 package main
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -25,8 +27,10 @@ import (
 	"github.com/stevy2191/prism/agent/internal/client"
 	"github.com/stevy2191/prism/agent/internal/config"
 	"github.com/stevy2191/prism/agent/internal/enroll"
+	"github.com/stevy2191/prism/agent/internal/inventory"
 	"github.com/stevy2191/prism/agent/internal/keystore"
 	"github.com/stevy2191/prism/agent/internal/schedule"
+	"github.com/stevy2191/prism/agent/internal/service"
 	"github.com/stevy2191/prism/agent/internal/version"
 )
 
@@ -36,6 +40,7 @@ const usage = `prism-agent %s
   prism-agent run
   prism-agent collect --json
   prism-agent status
+  prism-agent service install|uninstall
   prism-agent version
 `
 
@@ -54,6 +59,8 @@ func main() {
 		err = cmdCollect(os.Args[2:])
 	case "status":
 		err = cmdStatus()
+	case "service":
+		err = cmdService(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Println(version.Version)
 	default:
@@ -86,23 +93,38 @@ func cmdEnroll(args []string) error {
 	return nil
 }
 
-// The service's loops, until stopped (Ctrl+C here; the service manager in
-// task 8).
+// The service's loops, until stopped: by the Windows service manager when
+// it started us, else Ctrl+C or SIGTERM.
 func cmdRun() error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-	key, err := keystore.Load(config.Dir())
-	if err != nil {
-		return err
+	if service.IsService() {
+		return service.Run(work)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	c := client.New(cfg.URL, cfg.DeviceID, key)
-	log.Printf("prism-agent %s: device %d, reporting to %s", version.Version, cfg.DeviceID, cfg.URL)
-	schedule.RunAll(ctx, jobs(cfg, c), nil, log.Printf)
+	work(ctx, log.Printf)
 	return nil
+}
+
+// work runs until ctx ends. A computer that isn't enrolled yet (the service
+// can start before the installer enrols) checks again every minute.
+func work(ctx context.Context, logf func(string, ...any)) {
+	for {
+		cfg, err := config.Load()
+		var key ed25519.PrivateKey
+		if err == nil {
+			key, err = keystore.Load(config.Dir())
+		}
+		if err == nil {
+			c := client.New(cfg.URL, cfg.DeviceID, key)
+			logf("prism-agent %s: device %d, reporting to %s", version.Version, cfg.DeviceID, cfg.URL)
+			schedule.RunAll(ctx, jobs(cfg, c), nil, logf)
+			return
+		}
+		logf("prism-agent %s: waiting: %v", version.Version, err)
+		if client.SleepCtx(ctx, time.Minute) != nil {
+			return
+		}
+	}
 }
 
 func jobs(cfg *config.Config, c *client.Client) []schedule.Job {
@@ -122,7 +144,11 @@ func jobs(cfg *config.Config, c *client.Client) []schedule.Job {
 			Name: "inventory", Interval: cfg.Inventory(), RetryBase: 2 * time.Minute,
 			FirstDelay: client.Backoff(0, 0, 2*time.Minute),
 			Run: func(ctx context.Context) error {
-				_, err := c.Do(ctx, "POST", "/api/v1/agent/v1/inventory", collect(), nil)
+				inv, problems := inventory.Collect()
+				for _, p := range problems {
+					log.Printf("inventory: %v", p)
+				}
+				_, err := c.Do(ctx, "POST", "/api/v1/agent/v1/inventory", inv, nil)
 				return err
 			},
 		},
@@ -135,9 +161,13 @@ func cmdCollect(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	inv, problems := inventory.Collect()
+	for _, p := range problems {
+		fmt.Fprintln(os.Stderr, "warning:", p)
+	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	return enc.Encode(collect())
+	return enc.Encode(inv)
 }
 
 func cmdStatus() error {
@@ -155,12 +185,29 @@ func cmdStatus() error {
 	return nil
 }
 
-// The inventory: task 8 fills it from Windows (WMI and the registry). Until
-// then, what Go knows without asking the OS.
-func collect() map[string]any {
-	host, _ := os.Hostname()
-	return map[string]any{"hostname": host}
+func cmdService(args []string) error {
+	if len(args) != 1 {
+		return errors.New("service needs install or uninstall")
+	}
+	switch args[0] {
+	case "install":
+		if err := service.Install(); err != nil {
+			return err
+		}
+		fmt.Println("Installed the PRISMAgent service (starts automatically). Start it now with: sc start PRISMAgent")
+	case "uninstall":
+		if err := service.Uninstall(); err != nil {
+			return err
+		}
+		fmt.Println("Removed the PRISMAgent service.")
+	default:
+		return errors.New("service needs install or uninstall")
+	}
+	return nil
 }
 
-// Serial, make and model for enrolment's Asset match: task 8.
-func hardware() enroll.Hardware { return enroll.Hardware{} }
+// Serial, make and model help PRISM claim an existing Asset at enrolment.
+func hardware() enroll.Hardware {
+	inv, _ := inventory.Collect()
+	return enroll.Hardware{SerialNumber: inv.SerialNumber, Make: inv.Make, Model: inv.Model}
+}
