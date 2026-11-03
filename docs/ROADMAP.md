@@ -10,14 +10,15 @@ its design and plan live. The reasoning behind the shape of the roadmap is in
 [the roadmap design](superpowers/specs/2026-10-03-prism-psa-roadmap-design.md);
 read that before designing any sub-project.
 
-## Where things stand (updated 2026-10-26)
+## Where things stand (updated 2026-11-03)
 
-- **Phase 1:** sub-projects 1–6b (including 5d, attachment virus scanning, 6,
-  project management, and 6b, the look A restyle) are **Shipped** to `dev`,
+- **Phase 1:** sub-projects 1–7 (including 5d, attachment virus scanning, 6,
+  project management, 6b, the look A restyle, and 7, the client portal) are **Shipped** to `dev`,
   untagged. Their release notes
   are under `## Unreleased` in `UPGRADING.md`.
-- **Next up: sub-project 7** (client portal). Then Phase 1 is released as `v0.4.0` (see Releases below)
-  and tested by hand before Phase 2 starts.
+- **Next up: release Phase 1 as `v0.4.0`** (see Releases below and
+  `RELEASING.md`): every Phase 1 sub-project, 7 (client portal) included, is
+  on `dev`. Then Phase 1 is tested by hand before Phase 2 starts.
 - **Open items carried forward:**
   - Split ticket (5b) now carries the source ticket's category (decided
     2026-10-24).
@@ -125,7 +126,7 @@ consistent between tickets and projects, and covered by tests.
 | 5d | Attachment virus scanning (security) — every uploaded file is scanned with ClamAV before it is stored: staff uploads on tickets, projects, assets, contracts, licenses and the KB, plus inbound email attachments. Decided 2026-10-15: runs as a `clamd` container in docker-compose with freshclam signature updates; PRISM streams files to it over TCP (INSTREAM), no new npm dependency; **fails closed** — if the scanner is unreachable, uploads are refused with a clear error and inbound attachments are not saved (the note lists them as not scanned). Built after 5b | Shipped (2026-10-20) | [spec](superpowers/specs/2026-10-16-attachment-virus-scanning-design.md) | [plan](superpowers/plans/2026-10-16-attachment-virus-scanning.md) |
 | 6 | Project management, full feature — phases and milestones, dependencies, timeline view, templates, hour budgets, workload view (one screen over tickets and project tasks; absorbs the dispatch board moved from 5). Also lays the look A foundation and builds every project and workload screen in it ([mockups](https://claude.ai/artifact/NXd5ZYb4P98kk8VjxHwx3H)) | Shipped (to dev, 2026-10-26) | [spec](superpowers/specs/2026-10-25-project-management-design.md) | [plan](superpowers/plans/2026-10-25-project-management.md) |
 | 6b | Restyle the rest of PRISM in look A — tickets, dashboard, assets, contacts, companies, knowledge, reports, settings and login, on the foundation 6 builds ([mockups](https://claude.ai/artifact/8New39PfVsHf1Hsjdnk6oM); copies in `docs/mockups/look-a-6b/`). Added 2026-10-25 | Shipped (to dev, 2026-10-26) | [spec](superpowers/specs/2026-10-26-look-a-restyle-design.md) | [plan](superpowers/plans/2026-10-26-look-a-restyle.md) |
-| 7 | Client portal (desk) — contact logins (Microsoft 365 sign-in, invite links), submit and track tickets, department/company admins and contact watchers, portal-only KB with per-company/department audiences, Microsoft 365 directory sync for every company | Building — 7a (portal core) built 2026-10-27 on dev; 7b (Microsoft 365) tasks 1–7 (data model and app settings; Graph client; Sign in with Microsoft; 15-minute re-check; the sync; detected departments; the screens) done 2026-11-03, task 8 (finish: release notes, full suites, security review) next | [spec](superpowers/specs/2026-10-27-client-portal-design.md) | [plan 7a](superpowers/plans/2026-10-27-client-portal-7a-core.md) (portal core); [plan 7b](superpowers/plans/2026-10-27-client-portal-7b-microsoft365.md) (Microsoft 365) |
+| 7 | Client portal (desk) — contact logins (Microsoft 365 sign-in, invite links), submit and track tickets, department/company admins and contact watchers, portal-only KB with per-company/department audiences, Microsoft 365 directory sync for every company | Shipped (to dev, 2026-11-03) — 7a (portal core) 2026-10-27; 7b (Microsoft 365) 2026-11-03 | [spec](superpowers/specs/2026-10-27-client-portal-design.md) | [plan 7a](superpowers/plans/2026-10-27-client-portal-7a-core.md) (portal core); [plan 7b](superpowers/plans/2026-10-27-client-portal-7b-microsoft365.md) (Microsoft 365) |
 
 **Testing feedback (Phase 1):**
 - Accounts (2026-10-11): choose the role and permission overrides when creating an account; usernames can be changed.

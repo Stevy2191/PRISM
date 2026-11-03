@@ -54,6 +54,60 @@ few minutes to download signatures. To opt out, set `CLAMAV_ENABLED=false` in
   copy; if a contact already has their email, the button opens that one.
 - Migration 072 adds the tables and columns; it runs on backend start.
 
+### Client portal: Microsoft 365 (7b)
+
+- **Contacts sign in with their work Microsoft account.** A company linked
+  to its Microsoft 365 tenant has its people sign in to the portal with
+  **Sign in with Microsoft**. Only members of the company's chosen **sync
+  groups** get in. Someone new gets a contact in that company with portal
+  access on, and an existing contact with the same email is linked instead.
+  An email that belongs to another company's contact is refused, and nothing
+  is moved. Staff in the groups get a contact too; their staff account is
+  untouched.
+- **Set up the Microsoft app once** (an Owner does this, in **Settings →
+  Client portal**):
+  1. In the Microsoft Entra admin center (your own tenant): **App
+     registrations → New registration**. Supported account types:
+     **Accounts in any organizational directory (multitenant)**. Redirect URI:
+     platform **Web**, the **Redirect address** shown in Settings
+     (`<PUBLIC_APP_URL>/api/v1/portal/auth/microsoft/callback`, so set
+     `PUBLIC_APP_URL` first).
+  2. **API permissions → Add a permission → Microsoft Graph → Application
+     permissions:** `User.Read.All` and `GroupMember.Read.All`. Sign-in
+     itself uses the delegated `openid`, `profile` and `email`. Everything
+     PRISM reads is read-only.
+  3. **Certificates & secrets → New client secret.** Paste the
+     **Application (client) ID** and the secret's **Value** into Settings.
+     The secret is stored encrypted and never shown again; note its expiry
+     date and replace it before then.
+- **Per company** (company page → **Microsoft 365** tab, needs **Manage
+  portal access**): enter the **tenant ID**, then **Approve PRISM for this
+  tenant**, which a Microsoft 365 admin of that tenant must do once (admin
+  consent). Then search and add the **sync groups**. A tenant can be linked
+  to only one company, including your own organization.
+- **The sync** runs every night after 02:00 (your organization's time
+  zone), and on **Sync now**. It only touches existing contacts: it links
+  them (by AD object GUID or email), updates name, email, phone, job title
+  and department, and makes people **inactive** when they're disabled in
+  Microsoft 365 or no longer in a sync group. It never creates or deletes
+  contacts, and if a group can't be read (approval withdrawn, an outage) it
+  makes nobody inactive. The last sync's numbers and errors show on the tab.
+- **Detected departments:** department names from Microsoft 365 that match
+  no department of the company are listed on the tab with a people count.
+  **Create department** or **Map** each one; its people get that department
+  at once and on every sync. Microsoft 365 then wins over a department set
+  by hand.
+- **Every 15 minutes** a Microsoft portal session is checked with Microsoft
+  again: someone disabled or removed from the groups is signed out and made
+  inactive. If Microsoft can't be reached, the session carries on and the
+  check is retried a minute later.
+- **Password sign-in is off for Microsoft-linked contacts.** Linking clears
+  any password, and invites and reset links aren't offered.
+- **Test** in Settings signs the app in to a linked tenant, to check the
+  client ID and secret.
+- Migration 073 adds the tenant link, the contacts' Microsoft identity and
+  the detected-departments table; it runs on backend start.
+
 ### The rest of PRISM in look A (6b)
 
 - **Every remaining screen now uses look A**: tickets, the dashboard, assets,
