@@ -157,16 +157,30 @@ const agentEnrollLimiter = rateLimit({
   message: { error: true, message: 'Too many enrolment attempts, please try again later', code: 'RATE_LIMITED' },
 });
 
+// Signed agent routes, per device (req.device, set by agentAuthenticate). The
+// agent sends a heartbeat every 5 minutes; 2 a minute leaves room for one
+// retry after a network blip.
+const agentHeartbeatStore = new MemoryStore();
+const agentHeartbeatLimiter = rateLimit({
+  store: agentHeartbeatStore,
+  windowMs: 60 * 1000,
+  max: 2,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `device:${req.device.id}`,
+  message: { error: true, message: 'Too many check-ins', code: 'RATE_LIMITED' },
+});
+
 // Clears every limiter's counters. Used by the test suite so one case's
 // login attempts don't rate-limit the next; never called at runtime.
 function resetRateLimits() {
   [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
-    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore]
+    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
-  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter,
+  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter,
 };

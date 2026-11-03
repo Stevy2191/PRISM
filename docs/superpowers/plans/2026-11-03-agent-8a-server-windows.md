@@ -119,9 +119,17 @@
 - `agentAuthenticate` sets `req.device`. It checks the device exists and isn't revoked, the timestamp is within ±5 minutes, the nonce is unused (then records it), and the signature verifies with `crypto.verify(null, canonical, publicKey, sig)`. The canonical string is built from the raw body, so `express.json({ verify })` keeps the raw buffer for agent routes.
 - `POST /agent/v1/heartbeat { agentVersion, signedInUser? }` → `{ update: null | { version } }`. It sets `lastSeenAt` and the version.
 
-- [ ] **Step 1: Failing tests:** a valid signature → 200; an old timestamp, a reused nonce, a changed body, another device's ID, or a revoked device → 401 `AGENT_UNAUTHORIZED`; a second heartbeat within a minute → 429; the staff and portal sessions aren't read on agent routes.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): signed device requests and the heartbeat`
+- [x] **Step 1: Failing tests:** a valid signature → 200; an old timestamp, a reused nonce, a changed body, another device's ID, or a revoked device → 401 `AGENT_UNAUTHORIZED`; a second heartbeat within a minute → 429; the staff and portal sessions aren't read on agent routes.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): signed device requests and the heartbeat`
+
+**As built (2026-11-03):**
+- **Header format.** The timestamp is unix seconds. The nonce is 16 to 32 base64url characters. The signature is a 64-byte Ed25519 signature in base64. The path that's signed is `req.originalUrl`, the full `/api/v1/agent/...` path with its query string.
+- **Order of checks.** Header format, the time window, then the device (exists and isn't revoked), then the signature, and only then the nonce is recorded. Anyone without the key can't fill the nonce table, and every refusal is the same 401 `AGENT_UNAUTHORIZED`.
+- **Pruning.** Nonces older than 10 minutes are deleted, at most once a minute.
+- **Raw body.** It's kept only for `/api/v1/agent/` paths (the `express.json` `verify` hook in `app.js`). Agent requests are capped at 256 KB, giving 413.
+- **Heartbeat limit.** It's 2 a minute per device, not 1, leaving room for one retry after a network blip. It also records the signed-in account in `Device.inventory.signedInUser`.
+- **Shared signing vector.** `agent/testdata/signing.json` holds a fixed seed, request, canonical string and signature. The seed is RFC 8032 test 1, so its public key is the RFC's. The Node test checks it now, and the Go agent checks the same file in Task 7.
 
 ### Task 4: Inventory into Assets
 
