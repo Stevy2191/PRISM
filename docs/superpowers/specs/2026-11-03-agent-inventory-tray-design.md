@@ -124,7 +124,8 @@ isn't started there.
   adapter).
 - New: per-disk detail, all adapters, domain/workgroup, last boot, the
   software list, last seen, agent version — on a new **Device** record linked
-  1:1 to the Asset, shown as a **Device** tab on the Asset page.
+  1:1 to the Asset, shown as a **Device** tab on the Asset page (the
+  software list has its own **Software** tab).
 - **Software**: an `AssetSoftware` table (name, version, publisher, install
   date), replaced as a whole on each inventory; the Asset page lists and
   searches it. (License tracking against it is a later step.)
@@ -203,8 +204,9 @@ isn't started there.
 - Company page → **Devices** tab: enrolment keys (create, copy install
   command, revoke) and the company's devices (online / last seen, agent
   version, revoke).
-- Asset page → **Device** tab: the live inventory, the software list, last
-  seen.
+- Asset page → **Device** tab: the main hardware information only (hardware
+  and OS, disks, network, last seen). → **Software** tab: the installed
+  software list, on its own (owner, 2026-11-03).
 - Assets list: an **Online** column and an "Agent-managed" filter.
 - Ticket page: an Asset chip for agent tickets; the health snapshot note.
 
