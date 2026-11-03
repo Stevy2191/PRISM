@@ -143,16 +143,30 @@ const portalGlobalLimiter = rateLimit({
   message: { error: true, message: 'Too many requests, please slow down', code: 'RATE_LIMITED' },
 });
 
+// POST /agent/v1/enroll — unauthenticated (the enrolment key is the
+// credential). Generous per IP: a Group Policy rollout can enrol hundreds of
+// computers behind one office address at once, and a 256-bit key can't be
+// guessed; this only stops a runaway loop.
+const agentEnrollStore = new MemoryStore();
+const agentEnrollLimiter = rateLimit({
+  store: agentEnrollStore,
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: true, message: 'Too many enrolment attempts, please try again later', code: 'RATE_LIMITED' },
+});
+
 // Clears every limiter's counters. Used by the test suite so one case's
 // login attempts don't rate-limit the next; never called at runtime.
 function resetRateLimits() {
   [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
-    portalLoginStore, portalForgotStore, portalGlobalStore]
+    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
-  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter,
+  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter,
 };

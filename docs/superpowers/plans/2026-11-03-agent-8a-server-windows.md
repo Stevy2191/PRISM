@@ -96,9 +96,17 @@
 - Re-enrolling a revoked device's Asset replaces that Device record (new key, revocation cleared, audited).
 - Audit: `agent.key_created`, `agent.key_revoked`, `agent.enrolled`.
 
-- [ ] **Step 1: Failing tests:** enrolment with a revoked, expired or unknown key → 401 and nothing created; a new serial makes a Computers Asset in the key's company; a matching serial in the same company is claimed (no duplicate); a matching serial in another company is ignored and a new Asset is made; the secret never comes back after creation; a staff member without access to the company can't list or create keys.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): enrolment keys and device enrolment`
+- [x] **Step 1: Failing tests:** enrolment with a revoked, expired or unknown key → 401 and nothing created; a new serial makes a Computers Asset in the key's company; a matching serial in the same company is claimed (no duplicate); a matching serial in another company is ignored and a new Asset is made; the secret never comes back after creation; a staff member without access to the company can't list or create keys.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): enrolment keys and device enrolment`
+
+**As built (2026-11-03):**
+- **Placeholder serials never match.** Makers' stand-ins such as "To be filled by O.E.M.", "Default string" and "0" never claim an Asset.
+- **Simultaneous enrolments.** Computers enrolling at the same moment (a Group Policy rollout) can clash on the next asset tag, or on claiming the same Asset. Enrolment retries up to 5 times on a unique-index clash.
+- **New limiter.** `agentEnrollLimiter` allows 600 attempts per 15 minutes per IP. It's generous because a rollout comes from one office address, and the 256-bit key is the real guard.
+- **Revoking a key** only stops new enrolments. Computers already enrolled with it keep working; a computer is revoked on its own (Task 12).
+- **No update key yet.** `updatePublicKey` is `null` until Task 6.
+- **Placement.** The staff routes live in `routes/companies.js` and need `devices.manage` plus the company fence. The agent routes are in `routes/agent.js`, mounted outside the staff guard.
 
 ### Task 3: Signed requests and the heartbeat
 
