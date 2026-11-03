@@ -111,6 +111,10 @@ const CompanyPortalAdmin = require('./CompanyPortalAdmin')(sequelize);
 const DepartmentPortalAdmin = require('./DepartmentPortalAdmin')(sequelize);
 const KbArticleAudience = require('./KbArticleAudience')(sequelize);
 const DetectedDepartment = require('./DetectedDepartment')(sequelize);
+const AgentEnrollmentKey = require('./AgentEnrollmentKey')(sequelize);
+const Device = require('./Device')(sequelize);
+const AssetSoftware = require('./AssetSoftware')(sequelize);
+const AgentNonce = require('./AgentNonce')(sequelize);
 
 const db = {
   sequelize,
@@ -223,6 +227,10 @@ const db = {
   DepartmentPortalAdmin,
   KbArticleAudience,
   DetectedDepartment,
+  AgentEnrollmentKey,
+  Device,
+  AssetSoftware,
+  AgentNonce,
 };
 
 // ---- Associations ----
@@ -689,6 +697,19 @@ KbArticleAudience.belongsTo(Department, { foreignKey: 'departmentId', as: 'depar
 Company.hasMany(DetectedDepartment, { foreignKey: 'companyId', as: 'detectedDepartments', onDelete: 'CASCADE' });
 DetectedDepartment.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 DetectedDepartment.belongsTo(Department, { foreignKey: 'mappedDepartmentId', as: 'mappedDepartment' });
+// The PRISM agent (8a): enrolment keys and devices per company; an
+// agent-managed Asset has one Device and its installed software.
+Company.hasMany(AgentEnrollmentKey, { foreignKey: 'companyId', as: 'agentKeys', onDelete: 'CASCADE' });
+AgentEnrollmentKey.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+AgentEnrollmentKey.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
+Company.hasMany(Device, { foreignKey: 'companyId', as: 'devices', onDelete: 'CASCADE' });
+Device.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+Asset.hasOne(Device, { foreignKey: 'assetId', as: 'device', onDelete: 'CASCADE' });
+Device.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+Device.belongsTo(AgentEnrollmentKey, { foreignKey: 'enrollmentKeyId', as: 'enrollmentKey' });
+Asset.hasMany(AssetSoftware, { foreignKey: 'assetId', as: 'software', onDelete: 'CASCADE' });
+AssetSoftware.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+Device.hasMany(AgentNonce, { foreignKey: 'deviceId', as: 'nonces', onDelete: 'CASCADE' });
 // Portal admin roles follow the person: a department or company change drops
 // the roles that no longer match (services/portal/adminRoles). Lazy require:
 // the service needs this module.

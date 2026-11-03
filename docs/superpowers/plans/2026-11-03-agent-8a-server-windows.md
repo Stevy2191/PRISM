@@ -68,9 +68,16 @@
 - New permission `devices.manage` ("Manage devices": enrolment keys, revoke), held by System Administrator.
 - New setting `agent.updateKey`, created at first use: an Ed25519 private key, encrypted with `tokenCrypto`, never returned by the API.
 
-- [ ] **Step 1: Failing tests:** one Device per Asset; nonce pair unique; `devices.manage` is held by System Administrator only; a ticket can be saved with source `agent`; down → up round trip (keeping 073's index rules in mind).
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS (apply 074 to the test DB).
-- [ ] **Step 5: Commit** `feat(agent): devices, enrolment keys, software and the agent ticket source`
+- [x] **Step 1: Failing tests:** one Device per Asset; nonce pair unique; `devices.manage` is held by System Administrator only; a ticket can be saved with source `agent`; down → up round trip (keeping 073's index rules in mind).
+- [x] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS (apply 074 to the test DB).
+- [x] **Step 5: Commit** `feat(agent): devices, enrolment keys, software and the agent ticket source`
+
+**As built (2026-11-03):**
+- The enrolment key hides `keyHash` by default (`scope('withHash')` reads it).
+- `devices.manage` sits in the `assets` permission category.
+- Migration 074's rollback turns tray tickets into `manual` ones rather than deleting them.
+- `companies.migration.test.js` now rolls back 074 around 048 as well.
+- **Found for Task 5:** every ticket must have a contact (`ticketWrite`: "A contact is required"), so a tray ticket from someone with no matching contact can't be saved without a requester as planned. The owner decides how Task 5 handles that.
 
 ### Task 2: Enrolment keys and enrolment
 
