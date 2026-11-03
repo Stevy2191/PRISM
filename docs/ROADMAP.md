@@ -16,10 +16,15 @@ read that before designing any sub-project.
   (including 5d, attachment virus scanning, 6, project management, 6b, the
   look A restyle, and 7, the client portal). Release notes: `## v0.4.0` in
   `UPGRADING.md`.
-- **Next up: test Phase 1 by hand.** Bugs, additions and changes go in the
-  Phase 1 **Testing feedback** list below and ship as `v0.4.1`, `v0.4.2`, …
-  Phase 2 (RMM core, starting with sub-project 8) waits until Phase 1 is
-  signed off.
+- **Now: test Phase 1 by hand, and design the agent alongside it** (owner's
+  decision, 2026-11-03). Phase 1 bugs, additions and changes go in its
+  **Testing feedback** list below and ship as `v0.4.1`, `v0.4.2`, …
+- **Next up: sub-project 8, the PRISM agent: inventory and the tray app**
+  ([spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md),
+  Designing). The agent puts every computer into Assets with its hardware,
+  OS, network, software and usual user, and its tray app raises tickets.
+  Monitoring, scripting, patching and remote access stay later. The spec's
+  "Decisions to confirm" come before the plan.
 - **Open items carried forward:**
   - Split ticket (5b) now carries the source ticket's category (decided
     2026-10-24).
@@ -141,7 +146,7 @@ consistent between tickets and projects, and covered by tests.
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
-| 8 | Agent gateway and Windows agent — enrollment, mutual TLS, signed updates, Windows service, internet-facing gateway service | Not started | — | — |
+| 8 | PRISM agent: inventory and the tray app — Windows service and per-user tray app (one MSI, Go), enrolment per company straight to PRISM over HTTPS (no gateway yet, decided 2026-11-03), signed updates; every computer an Asset with hardware, OS, network, installed software, logged-in user and last seen; tray ticket form with a health snapshot. Absorbs the inventory half of 9 and the first version of 9b | Designing (2026-11-03) | [spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md) | — |
 | 9 | Inventory and monitoring — automatic hardware/software inventory into Assets (every computer running the agent becomes an Asset, with total owned time and in-service time), kept current by the agent. At minimum: CPU (model, cores), memory (total), disks (each drive's size and free space), and operating system name and version (Windows edition/version/build; macOS version once the macOS agent exists), filling the Asset's existing processor, RAM, storage, OS and OS version fields. Plus heartbeats, checks, alerts that open tickets. Added 2026-10-27: the inventory field list | Not started | — | — |
 | 9b | Tray app — a per-user system-tray helper installed with the agent. One click opens a short ticket form pre-filled with the user's name, company and department and the computer's name, IP and MAC address; the ticket links the computer's Asset and carries a health snapshot (OS version, uptime, free disk, logged-in domain); an optional screenshot; a "My tickets" list showing the user's open tickets and their status | Not started | — | — |
 
