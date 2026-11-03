@@ -53,6 +53,10 @@ module.exports = (sequelize) => {
       // The department name Microsoft 365 reports, before it resolves to a
       // PRISM department (see DetectedDepartment).
       msDepartmentName: { type: DataTypes.STRING(150), allowNull: true },
+      // The company's "Unknown tray user" (8a): requester of tray tickets from
+      // people who match no contact. No email, no portal access; inventory
+      // matching skips it.
+      isPlaceholder: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     },
     {
       sequelize,

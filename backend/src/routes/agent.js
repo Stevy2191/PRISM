@@ -4,11 +4,14 @@
 // (middleware/agentAuth, task 3).
 const express = require('express');
 const { asyncHandler } = require('../middleware/error');
-const { agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter } = require('../middleware/rateLimit');
+const {
+  agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter,
+} = require('../middleware/rateLimit');
 const { agentAuth, agentAuthenticate } = require('../middleware/agentAuth');
 const { applyInventory } = require('../services/agent/inventory');
 const { ApiError } = require('../middleware/error');
 const { enroll, INTERVALS } = require('../services/agent/enrollment');
+const { whoami, raiseTrayTicket } = require('../services/agent/trayTickets');
 
 const router = express.Router();
 
@@ -43,6 +46,19 @@ router.post('/v1/heartbeat', agentAuthenticate, agentHeartbeatLimiter, asyncHand
 // its Asset (services/agent/inventory). Up to 1 MB: a long software list.
 router.post('/v1/inventory', agentAuth({ maxBody: 1024 * 1024 }), agentInventoryLimiter, asyncHandler(async (req, res) => {
   res.json(await applyInventory(req.device, req.body));
+}));
+
+// GET /agent/v1/tray/whoami?account=&upn= → { name, company, department,
+// computer, helpdesk: { name, email, portalUrl } }. Fills the tray's form.
+// The agent's service passes the account the tray's pipe token belongs to.
+router.get('/v1/tray/whoami', agentAuthenticate, asyncHandler(async (req, res) => {
+  res.json(await whoami(req.device, req.query));
+}));
+
+// POST /agent/v1/tray/tickets { account, upn?, subject, description, snapshot }
+// → { ticketId, number }
+router.post('/v1/tray/tickets', agentAuthenticate, agentTrayTicketLimiter, asyncHandler(async (req, res) => {
+  res.status(201).json(await raiseTrayTicket(req.device, req.body, req));
 }));
 
 module.exports = router;

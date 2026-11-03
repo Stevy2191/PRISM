@@ -184,16 +184,29 @@ const agentInventoryLimiter = rateLimit({
   message: { error: true, message: 'Too many inventories', code: 'RATE_LIMITED' },
 });
 
+// POST /agent/v1/tray/tickets, per device: people raise a few tickets; 10 an
+// hour stops a stuck or scripted tray from flooding the queue.
+const agentTrayTicketStore = new MemoryStore();
+const agentTrayTicketLimiter = rateLimit({
+  store: agentTrayTicketStore,
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `device:${req.device.id}`,
+  message: { error: true, message: 'Too many tickets from this computer; try again later', code: 'RATE_LIMITED' },
+});
+
 // Clears every limiter's counters. Used by the test suite so one case's
 // login attempts don't rate-limit the next; never called at runtime.
 function resetRateLimits() {
   [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
-    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore]
+    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
-  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter,
+  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter,
 };

@@ -133,8 +133,7 @@ async function matchContact(companyId, user, transaction) {
   if (!user) return null;
   const emails = [user.upn, user.email].filter(Boolean).map((e) => e.toLowerCase());
   if (!emails.length) return null;
-  const where = { companyId, email: { [Op.in]: [...new Set(emails)] } };
-  if (Contact.rawAttributes.isPlaceholder) where.isPlaceholder = false;
+  const where = { companyId, email: { [Op.in]: [...new Set(emails)] }, isPlaceholder: false };
   return Contact.findOne({ where, attributes: ['id'], transaction });
 }
 
@@ -196,5 +195,5 @@ async function applyInventory(device, body) {
 const AGENT_FIELDS = ['name', 'make', 'model', 'serialNumber', 'processor', 'ram', 'storage', 'operatingSystem', 'osVersion', 'firmwareVersion', 'ipAddress', 'macAddress'];
 
 module.exports = {
-  applyInventory, parseInventory, assetFields, AGENT_FIELDS, MAX_SOFTWARE,
+  applyInventory, parseInventory, assetFields, matchContact, AGENT_FIELDS, MAX_SOFTWARE,
 };

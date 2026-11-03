@@ -181,9 +181,17 @@
   - With no matching contact, the requester is the company's **Unknown tray user** placeholder, created on first use and marked `Contact.isPlaceholder = true` (a small migration 075 in this task adds the column, with a round-trip test). The placeholder has no email, portal access off, and is skipped by inventory matching, the portal, imports and merge suggestions. The ticket's description starts "Raised from RFC-FD-01 by RIVERSIDE\mchen", so staff can set the right person.
   - The snapshot becomes a private note headed "Health snapshot".
 
-- [ ] **Step 1: Failing tests:** a ticket is created and linked with the matched contact; with no match, the requester is the company's one placeholder (created once, reused, with no email and no portal access), and no other contact is created; the snapshot note is private; the subject is required (400); the 11th ticket in an hour → 429; a ticket can't be raised for another company's contact.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): tickets from the tray with a health snapshot`
+- [x] **Step 1: Failing tests:** a ticket is created and linked with the matched contact; with no match, the requester is the company's one placeholder (created once, reused, with no email and no portal access), and no other contact is created; the snapshot note is private; the subject is required (400); the 11th ticket in an hour → 429; a ticket can't be raised for another company's contact.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): tickets from the tray with a health snapshot`
+
+**As built (2026-11-03):**
+- **Shared ticket path.** `createTicket` takes `source: 'agent'` with a contact the caller already checked (`portal: { contact }`), as the portal does, so the system actor's scope isn't used to look it up. Everything else (SLA, workflow rules, notifications, Asset link and its activity) is the normal path.
+- **Placeholder.** "Unknown tray user" (first name Unknown, last name tray user), no email, portal access off, a note saying what it is. Created on first use inside a transaction that locks the company row, so two tickets at once make one. Inventory matching filters `isPlaceholder: false`. Imports, merges and the portal need no change: they match by email, and the placeholder has none.
+- **Description.** A matched user's ticket keeps their description as written. A placeholder ticket starts "Raised from RFC-FD-01 by RIVERSIDE\mchen", then a blank line, then the description.
+- **Snapshot note.** A private note: "Health snapshot from <computer>", then one line each for OS and build, uptime, memory in use, free space per disk, signed-in user, domain, directory or realm, IP addresses, agent version and the time taken. Lines with nothing to show are left out. A snapshot that isn't an object gives just the heading.
+- **whoami.** Takes `account` and `upn`. With no match, `name` is the account name and nothing is created. `helpdesk.name` is the organisation name; `email` is the inbound email address when inbound email is on; `portalUrl` is `PUBLIC_APP_URL/portal` when the portal is on (otherwise null). There is no separate support-email setting.
+- **Rate limit.** 10 tray tickets an hour per device.
 
 ### Task 6: Signed updates (server)
 
