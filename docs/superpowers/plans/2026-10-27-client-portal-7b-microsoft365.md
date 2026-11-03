@@ -127,15 +127,26 @@
 
 **Interfaces — Produces:** `syncCompany(companyId) → Promise<SyncResult>` with `SyncResult = { at, durationMs, updated, deactivated, newDetected, errors }`, saved to `Company.msLastSync`. Order: read all sync-group members (dedupe by id) → link unlinked contacts (email within company, else `onPremisesImmutableId` base64 → GUID vs `adObjectGUID`) → update linked contacts' fields → deactivate linked contacts not in the member set or `accountEnabled=false` → recount detected departments → resolve departments (Task 6) → call `pruneAdminRoles` on department changes. Consent URL: `https://login.microsoftonline.com/<tenantId>/adminconsent?client_id=…&redirect_uri=…`.
 
-- [ ] **Step 1: Failing tests** (mock Graph, 3 pages):
+- [x] **Step 1: Failing tests** (mock Graph, 3 pages):
   - links by email and by AD GUID; never creates a contact for an unknown member.
   - updates name/email/phone/job title/department name; phone prefers business, else mobile.
   - disabled user → inactive; removed from groups → inactive; their tickets untouched.
   - consent withdrawn (403) → error recorded, nobody deactivated.
   - two members with one contact's email → one links, the other is a recorded error.
   - running sync twice concurrently → second returns 409.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(m365): nightly and on-demand Microsoft 365 sync`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(m365): nightly and on-demand Microsoft 365 sync`
+
+**As built (2026-11-03):**
+- Also built: `GET /companies/:id/m365`, which returns the tenant, approval time, sync groups and last sync.
+- **Approval link:** Microsoft returns to the portal callback (the one address registered on the app), which recognises `state=consent-<companyId>` and forwards to `/companies/<id>?m365=approved|not_approved`. Nothing is recorded from that redirect, since anyone can craft it. `msConsentAt` is set when a group search or a complete sync for the tenant first succeeds.
+- **Linking** also turns portal access on and clears any password, the same as a Microsoft sign-in. Without that, a sync-linked contact whose access was off would be refused at sign-in.
+- **Deactivation:** contacts are made inactive but never reactivated (staff do that). If any sync group can't be read, nobody is made inactive for being missing from the list.
+- **Changing the tenant** clears the sync groups (unless new ones are sent), the approval time and the last sync. A tenant already linked to another company gets 409 `TENANT_IN_USE`.
+- **Concurrency:** a lock in memory per company (PRISM runs as one backend instance) gives 409 `SYNC_RUNNING`.
+- **Nightly run:** the scheduler checks every 15 minutes and syncs each linked company once after 02:00 in the organization's time zone (companies have no time zone of their own).
+- **Departments:** the detected-department recount and department resolution are Task 6, so `newDetected` is 0 until then. Contacts get `msDepartmentName` now.
+- Audit: `company.m365_changed`, `company.m365_synced`, and `portal.access_ended_by_directory` (via `sync`).
 
 ### Task 6: Detected departments
 

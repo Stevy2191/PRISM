@@ -15,6 +15,7 @@ const { startWorkflowScheduler } = require('./services/workflowScheduler');
 const { startSlaScheduler } = require('./services/sla/slaScheduler');
 const { startRecurringScheduler } = require('./services/recurring/recurringScheduler');
 const { startAdSyncScheduler } = require('./services/adSyncScheduler');
+const { startMicrosoftSyncScheduler } = require('./services/microsoft365/syncScheduler');
 const { startCalendarSyncScheduler } = require('./services/calendarSyncScheduler');
 const { startInboundEmailScheduler } = require('./services/inboundEmailScheduler');
 const { startCsatScheduler } = require('./services/csatScheduler');
@@ -107,6 +108,7 @@ async function start() {
     startSlaScheduler();
     startRecurringScheduler();
     startAdSyncScheduler();
+    startMicrosoftSyncScheduler();
     startCalendarSyncScheduler();
     startInboundEmailScheduler();
     startCsatScheduler();

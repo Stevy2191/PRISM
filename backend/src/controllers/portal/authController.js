@@ -218,6 +218,14 @@ const microsoftStart = asyncHandler(async (req, res) => {
 // pending request is spent whatever happens next, so a callback URL works
 // once, and only in the browser that started it.
 const microsoftCallback = asyncHandler(async (req, res) => {
+  // A tenant admin back from "Approve PRISM" (the app registers this one
+  // address for both): on to that company's page. Nothing is recorded here,
+  // as anyone can craft this URL; a successful Graph call marks the approval.
+  const consent = typeof req.query.state === 'string' && /^consent-(\d{1,10})$/.exec(req.query.state);
+  if (consent && (req.query.admin_consent !== undefined || req.query.error)) {
+    const outcome = req.query.admin_consent === 'True' ? 'approved' : 'not_approved';
+    return res.redirect(302, `${publicBaseUrl()}/companies/${consent[1]}?m365=${outcome}`);
+  }
   const pending = req.session.msSignIn;
   delete req.session.msSignIn;
   const refuse = async (code, meta = {}) => {
