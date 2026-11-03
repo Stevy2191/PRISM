@@ -35,7 +35,7 @@
   - A revoked or unknown device is refused at once.
 - **Enrolment keys** are 32 random bytes, shown once, stored as a sha256. They can be revoked or expire. An enrolment creates or claims Assets only in its key's company.
 - **Agent-owned Asset fields** are overwritten at every inventory: name, make, model, serial number, processor, RAM, storage, OS, OS version, firmware version, IP and MAC. Everything else stays staff-owned. Usual user: a hand-set assigned contact wins.
-- **No contact is ever created** from the agent: not from inventory, not from a tray ticket.
+- **No real person's contact is ever created** from the agent, whether from inventory or a tray ticket. The one exception is a single placeholder contact per company, **"Unknown tray user"**, created when first needed. Tray tickets from people with no matching contact use it as requester, and staff then reassign them (owner, 2026-11-03). The placeholder has no email and no portal access, and is never matched by inventory.
 - **Inventory is untrusted text.** It's size-limited (256 KB a request, 5,000 software rows), stored as text, and escaped wherever it's shown.
 - **Rate limits per device:** heartbeat 1 a minute, inventory 1 every 10 minutes, tray tickets 10 an hour.
 - **Timings:** heartbeat every 5 minutes, inventory every 6 hours and at service start. "Online" means a heartbeat within 10 minutes; "stale" means silent for 14 days.
@@ -149,10 +149,10 @@
 - `GET /agent/v1/tray/whoami?account=` → `{ name, company, department, computer, helpdesk: { name, email, portalUrl } }`, used to fill the form. The service passes the account taken from the pipe token.
 - `POST /agent/v1/tray/tickets { account, upn?, subject, description, snapshot }` → `{ ticketId, number }`.
   - Creates a ticket with `source: 'agent'` in the device's company, links the Asset (`AssetTicket`), sets the requester to the matched contact, and runs the normal new-ticket path (SLA, workflow rules, notifications).
-  - With no matching contact: no requester, and the description starts "Raised from RFC-FD-01 by RIVERSIDE\mchen".
+  - With no matching contact, the requester is the company's **Unknown tray user** placeholder, created on first use and marked `Contact.isPlaceholder = true` (a small migration 075 in this task adds the column, with a round-trip test). The placeholder has no email, portal access off, and is skipped by inventory matching, the portal, imports and merge suggestions. The ticket's description starts "Raised from RFC-FD-01 by RIVERSIDE\mchen", so staff can set the right person.
   - The snapshot becomes a private note headed "Health snapshot".
 
-- [ ] **Step 1: Failing tests:** a ticket is created and linked with the matched contact; with no match, there's no contact and none is created; the snapshot note is private; the subject is required (400); the 11th ticket in an hour → 429; a ticket can't be raised for another company's contact.
+- [ ] **Step 1: Failing tests:** a ticket is created and linked with the matched contact; with no match, the requester is the company's one placeholder (created once, reused, with no email and no portal access), and no other contact is created; the snapshot note is private; the subject is required (400); the 11th ticket in an hour → 429; a ticket can't be raised for another company's contact.
 - [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
 - [ ] **Step 5: Commit** `feat(agent): tickets from the tray with a health snapshot`
 

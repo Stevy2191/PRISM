@@ -167,9 +167,11 @@ isn't started there.
   window (the system web view): name, company and computer already filled in
   (read-only), a **subject**, a **description**, and **Submit**.
 - The ticket is created as source `agent`, linked to the Asset, with the
-  matched contact as requester. If the user matches no contact, the ticket
-  has no contact and says "Raised from PC-1234 by CONTOSO\jsmith" so staff
-  can set one (the same rule as inbound email: no contact is invented).
+  matched contact as requester. If the user matches no contact, the
+  requester is the company's **Unknown tray user** placeholder contact (one
+  per company, no email, no portal access), and the ticket says "Raised from
+  PC-1234 by CONTOSO\jsmith" so staff can set the right person (owner,
+  2026-11-03: PRISM requires a contact on every ticket).
 - **Health snapshot** added to the ticket as a private note: OS and build,
   uptime, free space per disk, memory in use, signed-in user (and domain on
   Windows, directory binding on macOS, realm on Linux where joined),
