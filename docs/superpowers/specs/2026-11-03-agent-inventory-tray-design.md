@@ -4,6 +4,8 @@
 > waiting for the owner's review of the "Decisions to confirm" below before
 > the plan is written. Roadmap rows: 8 and 9b in `docs/ROADMAP.md`.
 > Reshapes Phase 2: this is the agent without the rest of RMM.
+> Revised 2026-11-03: Windows, macOS and Linux from the start (owner); the
+> tray's action is called **Submit a ticket** (owner).
 
 ## Intent
 
@@ -12,8 +14,8 @@ software, network details and usual user kept current, and the people using
 those computers should be able to raise a ticket in two clicks from the
 system tray without signing in to anything.
 
-That is the PRISM agent: a small Windows service plus a tray app, installed
-together. It is the foundation the rest of RMM (monitoring, scripting,
+That is the PRISM agent: a small background service plus a tray app,
+installed together, for **Windows, macOS and Linux**. It is the foundation the rest of RMM (monitoring, scripting,
 patching, remote access) builds on later, but none of that is in this
 sub-project.
 
@@ -26,17 +28,18 @@ sub-project.
    Asset:
    - Hardware: make, model, serial number, CPU (model, cores), memory total,
      each disk's size and free space, BIOS/firmware version.
-   - OS: name, edition, version and build (e.g. "Windows 11 Pro", 24H2,
-     26100.2314).
+   - OS: name, edition, version and build (e.g. "Windows 11 Pro 24H2
+     26100.2314", "macOS 15.1 (24B83)", "Ubuntu 24.04.1 LTS, kernel 6.8").
    - Network: computer name, domain or workgroup, each active adapter's IPv4
      and MAC address.
    - Installed software: name, version, publisher, install date.
    - Logged-in user: the interactive user's account, matched to a contact.
 3. **Online status**: a heartbeat every 5 minutes. Assets show *Online* or
    *Last seen …*.
-4. **Tray app**: one click opens a short ticket form, pre-filled with who the
-   user is, their company and department, and the computer. The ticket is
-   linked to the computer's Asset and carries a **health snapshot**.
+4. **Tray app**: one click on **Submit a ticket** opens a short ticket form,
+   pre-filled with who the user is, their company and department, and the
+   computer. The ticket is linked to the computer's Asset and carries a
+   **health snapshot**.
 5. **Signed updates**: agents update themselves, only to builds signed with
    the install's own update key.
 
@@ -46,43 +49,59 @@ sub-project.
 - Scripting, patching, remote shell, remote desktop (Phase 4).
 - A separate internet-facing gateway service: agents talk to PRISM's own
   address for now (decided 2026-11-03). Remote access will need the gateway.
-- macOS and Linux agents (row 19). The agent is written in Go so they follow.
 - The tray app's screenshot button and "My tickets" list (not chosen for v1).
 
 ## How it fits together
 
 ```
- Windows PC                                   PRISM (existing server)
+ Computer (Windows, macOS, Linux)             PRISM (existing server)
  ┌──────────────────────────────┐            ┌─────────────────────────────┐
- │ PRISM Agent service (SYSTEM) │── HTTPS ──▶│ /api/v1/agent/*             │
+ │ PRISM Agent service (system) │── HTTPS ──▶│ /api/v1/agent/*             │
  │  enrol, heartbeat, inventory │  mTLS-like │  enrol, heartbeat,          │
  │  updates, ticket relay       │  device    │  inventory, tickets,        │
  └──────────────▲───────────────┘  cert      │  updates                    │
-                │ named pipe (local only)    │ Assets, Contacts, Tickets   │
+                │ local socket / named pipe  │ Assets, Contacts, Tickets   │
  ┌──────────────┴───────────────┐            └─────────────────────────────┘
  │ PRISM tray (per user)        │
  │  ticket form, health snapshot│
  └──────────────────────────────┘
 ```
 
-- **One Go codebase**, two binaries: `prism-agent.exe` (a Windows service
-  running as SYSTEM) and `prism-tray.exe` (started at user sign-in). One MSI
-  installs both.
+- **One Go codebase**, two programs: `prism-agent` (the system service) and
+  `prism-tray` (started at each user's sign-in), built for every platform
+  from the same source in CI.
 - The **tray never talks to PRISM**. It sends the ticket to the service over
-  a local named pipe; the service identifies the Windows user from the pipe's
-  client token (not from anything the tray says) and relays the ticket with
-  the computer's identity. So there is no login, and a user can't raise a
-  ticket as someone else.
+  a local channel; the service identifies the signed-in user from the
+  operating system (not from anything the tray says) and relays the ticket
+  with the computer's identity. So there is no login, and a user can't raise
+  a ticket as someone else.
+
+### Per platform
+
+| | Windows 10/11, Server 2016+ | macOS 13+ (Intel and Apple silicon) | Linux (Ubuntu/Debian, RHEL/Fedora family) |
+|---|---|---|---|
+| Service | Windows service, runs as SYSTEM | launchd daemon, runs as root | systemd service, runs as root |
+| Tray | Notification-area icon | Menu-bar icon | Tray icon (StatusNotifierItem); GNOME needs its AppIndicator extension, so every desktop also gets a **Submit a ticket** app in its launcher |
+| Ticket window | System web view (WebView2) | System web view (WKWebView) | System web view (WebKitGTK) |
+| Tray ↔ service | Named pipe; user from the pipe's client token | Unix socket; user from the peer's credentials | Unix socket; user from the peer's credentials (SO_PEERCRED) |
+| Device key kept in | Machine certificate store, not exportable | System keychain | Root-only file (0600) |
+| Inventory from | WMI and the registry | system_profiler, sysctl, the installed-apps list | /proc, /sys, DMI, os-release, dpkg/rpm |
+| Logged-in user | Active console session | Console user | Active graphical session (loginctl) |
+| Package | MSI | Signed .pkg | .deb and .rpm |
+| Silent install | `msiexec /i … /qn PRISM_URL=… ENROLL_KEY=…` (GPO, Intune) | `installer -pkg …` with a config profile or env (Intune, Jamf, any MDM) | `apt`/`dnf` install, then `prism-agent enroll --url … --key …` |
+
+Servers and machines with no desktop run the service only; the tray simply
+isn't started there.
 
 ## Enrolment and identity
 
 - Staff create an **enrolment key** per company (company page → new
   **Devices** tab, or Settings → Agent). It is a long random secret, shown
   once, stored hashed, revocable, optionally expiring.
-- Install: `msiexec /i prism-agent.msi /qn PRISM_URL=https://desk.example.com
-  ENROLL_KEY=…` (the same command works from GPO or Intune).
-- On first start the service generates a key pair (private key in the
-  machine's Windows certificate store, not exportable) and sends `enroll`
+- Install: one silent command per platform (table above), carrying the PRISM
+  address and the enrolment key; it works from GPO, Intune, Jamf or by hand.
+- On first start the service generates a key pair (private key kept as in
+  the table above) and sends `enroll`
   with the key, its public key and the hardware identity. PRISM answers with
   a **device certificate** signed by PRISM's own agent CA and a device ID.
 - Every later call is signed with that device key: PRISM verifies the request
@@ -122,15 +141,17 @@ sub-project.
 
 ## The tray app
 
-- An icon in the notification area. Click → **Get help** window (WebView2,
-  which every supported Windows has): name, company and computer already
-  filled in (read-only), a **subject**, a **description**, and **Send**.
+- An icon in the notification area (Windows), menu bar (macOS) or tray
+  (Linux), whose menu's first item is **Submit a ticket**. It opens a small
+  window (the system web view): name, company and computer already filled in
+  (read-only), a **subject**, a **description**, and **Submit**.
 - The ticket is created as source `agent`, linked to the Asset, with the
   matched contact as requester. If the user matches no contact, the ticket
   has no contact and says "Raised from PC-1234 by CONTOSO\jsmith" so staff
   can set one (the same rule as inbound email: no contact is invented).
 - **Health snapshot** added to the ticket as a private note: OS and build,
-  uptime, free space per disk, memory in use, signed-in domain and user,
+  uptime, free space per disk, memory in use, signed-in user (and domain on
+  Windows, directory binding on macOS, realm on Linux where joined),
   IP addresses, agent version, time taken.
 - Offline: the tray says the help desk can't be reached and shows the
   portal address and support email from PRISM's branding.
@@ -139,13 +160,22 @@ sub-project.
 
 - Each install has an **update signing key** (Ed25519) generated on first
   start; agents receive its public key at enrolment.
-- Agent builds are produced in CI (Go cross-compile; MSI with WiX on a
-  Windows runner), and PRISM serves the latest MSI with a signature it makes
-  with the install's key. The agent checks on each heartbeat, verifies the
+- Agent builds are produced in CI: Go for all three platforms; the MSI with
+  WiX on a Windows runner, the .pkg on a macOS runner, .deb and .rpm on
+  Linux. PRISM serves the latest package for each platform with a signature
+  it makes with the install's key. The agent checks on each heartbeat, verifies the
   signature and the version, and installs.
-- **Code signing** stays as decided on 2026-10-03: PRISM signs the binaries
-  with its own certificate, and admins push trust for it via GPO/Intune. A
-  paid certificate stays a drop-in option.
+- **Code signing:**
+  - Windows: as decided on 2026-10-03, PRISM signs with its own certificate
+    and admins push trust for it via GPO/Intune; a paid certificate stays a
+    drop-in option.
+  - macOS: Apple only lets a package install cleanly (and MDM deploy it, and
+    the menu-bar app run without warnings) when it is signed with an **Apple
+    Developer ID** and notarized. That needs an Apple Developer Program
+    membership (US$99 a year). Without it, installs need users or admins to
+    override Gatekeeper on every machine. See Decisions to confirm.
+  - Linux: packages signed with a GPG key PRISM generates (free); the public
+    key is published for `apt`/`dnf` to trust.
 
 ## Security
 
@@ -155,8 +185,8 @@ sub-project.
   request bodies are size-limited and rate-limited per device.
 - The agent accepts **no commands** from PRISM in this sub-project other than
   "update available". It is read-and-report only.
-- The tray's identity comes from the Windows session (pipe client token), so
-  a user can't forge another user's ticket.
+- The tray's identity comes from the operating system (pipe client token or
+  socket peer credentials), so a user can't forge another user's ticket.
 - Inventory is data, not instructions: names and versions are stored as
   text and escaped everywhere they are shown.
 - New permissions: **Manage devices** (enrolment keys, revoke) for the
@@ -175,9 +205,9 @@ sub-project.
 
 ## Decisions to confirm
 
-1. **Phase 2 reshaped** to this sub-project (agent, inventory and tray, rows
-   8 and 9b), released as `v0.5.0`. Monitoring and alerts (old row 9) move to
-   Phase 4 with the rest of RMM.
+1. **Phase 2 reshaped** to this sub-project (agent, inventory and tray on
+   all three platforms: rows 8, 9b and 19), released as `v0.5.0`.
+   Monitoring and alerts (old row 9) move to Phase 4 with the rest of RMM.
 2. **Signed requests instead of strict mutual TLS**, because of the reverse
    proxy (see Enrolment). Mutual TLS can be added when the gateway arrives.
 3. **Agent-owned fields** overwrite staff edits on agent-managed Assets.
@@ -186,10 +216,17 @@ sub-project.
 5. **Phase 1 fixes during this work** ship from a `release/0.4` branch cut
    from `main`, so v0.4.x patches never include unfinished agent code. (Needs
    the owner's go-ahead to push that branch.)
+6. **Build order inside this sub-project:** the server side and Windows
+   first (8a), then macOS (8b), then Linux (8c), each shipped to `dev` and
+   tested before the next; `v0.5.0` is released when all three are done.
+7. **Apple Developer ID** (US$99/yr) for signing and notarizing the macOS
+   package. Without it the macOS agent still works, but every install needs
+   a manual Gatekeeper override and MDM deployment is awkward.
 
 ## Done when
 
-- An MSI built in CI installs silently from one command, enrols, and the
+- On each of Windows, macOS and Linux, a package built in CI installs
+  silently from one command, enrols, and the
   computer appears as an Asset of the right company with its hardware, OS,
   network, software and usual user, and shows Online.
 - The tray raises a linked ticket with the health snapshot, as the signed-in
