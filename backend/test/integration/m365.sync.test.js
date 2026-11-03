@@ -1,5 +1,7 @@
+const request = require('supertest');
+const bcrypt = require('bcryptjs');
 const {
-  resetData, closeDb, models, createUserAndLogin, ROLE,
+  resetData, closeDb, models, createUserAndLogin, ROLE, getApp,
 } = require('./helpers');
 const { makeWorld, makeCompany } = require('./fixtures');
 const { startMockMicrosoft } = require('./mockMicrosoft');
@@ -188,4 +190,19 @@ it('the nightly run syncs each linked company once after 02:00 in the organizati
   expect(await runChecks(new Date(runAt.getTime() - 60000))).toEqual([]);
   expect(await runChecks(new Date(runAt.getTime() + 60000))).toEqual([company.id]);
   expect(await runChecks(new Date(Date.now() + 60000))).toEqual([]);
+});
+
+it('linking a contact ends the portal sessions they started with their password', async () => {
+  const PASSWORD = 'Harbour-Lights-2026';
+  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
+  try {
+    await contact({ email: 'person1@tenant.test', portalAccess: true, passwordHash: await bcrypt.hash(PASSWORD, 4) });
+    const agent = request.agent(getApp());
+    expect((await agent.post(`${API}/portal/auth/login`).send({ email: 'person1@tenant.test', password: PASSWORD })).status).toBe(200);
+    expect((await agent.get(`${API}/portal/me`)).status).toBe(200);
+    await syncCompany(company.id);
+    expect((await agent.get(`${API}/portal/me`)).status).toBe(401);
+  } finally {
+    await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
+  }
 });

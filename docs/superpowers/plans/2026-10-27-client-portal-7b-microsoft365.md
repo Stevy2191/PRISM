@@ -183,6 +183,18 @@
 
 ### Task 8: Finish
 
-- [ ] **Step 1:** ROADMAP row 7 → Shipped (date, commits, both plans); UPGRADING: Microsoft app registration steps (multi-tenant, redirect address, application permissions User.Read.All and GroupMember.Read.All, admin consent per tenant), migration 073, nightly sync, the 15-minute re-check.
-- [ ] **Step 2:** Full backend and smoke suites → all green.
-- [ ] **Step 3:** One fresh reviewer (security: token validation, tenant isolation, scoping), fix pass, commit, `git push origin dev`.
+- [x] **Step 1:** ROADMAP row 7 → Shipped (date, commits, both plans); UPGRADING: Microsoft app registration steps (multi-tenant, redirect address, application permissions User.Read.All and GroupMember.Read.All, admin consent per tenant), migration 073, nightly sync, the 15-minute re-check.
+- [x] **Step 2:** Full backend and smoke suites → all green.
+- [x] **Step 3:** One fresh reviewer (security: token validation, tenant isolation, scoping), fix pass, commit, `git push origin dev`.
+
+**Security review (2026-11-03):** done in the session, not by a separate reviewer.
+- **Checked and found sound:**
+  - ID token validation: signature against Microsoft's keys, our client ID as audience, expiry, the issuer equal to the token's own tenant, nonce, single-use state with PKCE, and GUID tenant and object IDs.
+  - Tenant isolation: one tenant per company, unique. Group membership is asked of Graph, never taken from the token. Matching is by object ID within the company, and by email only within the company linked to the tenant.
+  - Scoping: every `/companies/:id/m365…` route takes `portal.manage` plus the company fence; detected rows and mapped departments must belong to that company; Create department adds the Departments screen's own permission.
+  - The approval return redirects only to `/companies/<digits>` and records nothing.
+  - Secrets and tokens never appear in errors or logs.
+- **Fixed:** linking a contact to Microsoft (at sign-in or in the sync) cleared their password but left the portal sessions they had started with it. Those sessions were never re-checked against Microsoft. Linking now ends them (`services/portal/sessions.js`, moved out of the auth controller).
+- **Accepted:**
+  - Entra's `email` and `preferred_username` claims can be set by the tenant's own admin, so a tenant admin can link a contact of *their own* company by email. Cross-company is refused.
+  - Password login says "Use Sign in with Microsoft" for a Microsoft-linked email (as this plan asked), which tells a guesser that the email is linked.

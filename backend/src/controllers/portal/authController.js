@@ -1,8 +1,7 @@
 // Client-portal sign-in: email + password, the invite link (set your first
 // password), forgot / reset password, sign-out and "who am I".
 const bcrypt = require('bcryptjs');
-const { QueryTypes } = require('sequelize');
-const { sequelize, Contact } = require('../../models');
+const { Contact } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { validatePassword, describeProblems } = require('../../utils/passwordPolicy');
@@ -13,6 +12,7 @@ const {
 const { issuePortalToken, consumePortalToken, findUsableToken } = require('../../services/portal/tokens');
 const { sendPortalLink } = require('../../services/portal/portalMail');
 const { signInMethod } = require('../../services/portal/signInMethod');
+const { destroyPortalSessions } = require('../../services/portal/sessions');
 const {
   buildSignInRequest, completeSignIn, resolveMicrosoftSignIn, publicBaseUrl,
 } = require('../../services/microsoft365/signIn');
@@ -52,17 +52,6 @@ async function contactPayload(contact) {
     adminDepartmentIds: deptIds,
     signInMethod: signInMethod(withHash),
   };
-}
-
-// Revoke every stored portal session of a contact except keepSid (after a
-// password reset). Same approach as the staff side: match the JSON payload.
-async function destroyPortalSessions(contactId, keepSid) {
-  const rows = await sequelize.query('SELECT sid, data FROM Sessions', { type: QueryTypes.SELECT });
-  const stale = rows.filter((row) => {
-    if (row.sid === keepSid) return false;
-    try { return JSON.parse(row.data)?.contactId === contactId; } catch { return false; }
-  }).map((row) => row.sid);
-  if (stale.length) await sequelize.query('DELETE FROM Sessions WHERE sid IN (:sids)', { replacements: { sids: stale } });
 }
 
 // A contact linked to a Microsoft person signs in only with Microsoft.
@@ -250,6 +239,8 @@ const microsoftCallback = asyncHandler(async (req, res) => {
   }
   if (result.created) await portalAudit(req, 'portal.contact_created', result.contact.id, { via: 'microsoft', companyId: result.company.id });
   await signIn(req, result.contact, 'microsoft', { msTenantId: person.tid, msCheckedAt: Date.now() });
+  // Just linked: sessions from their old password end with it.
+  if (result.linked) await destroyPortalSessions(result.contact.id, req.sessionID);
   return res.redirect(302, `${publicBaseUrl()}/portal`);
 });
 

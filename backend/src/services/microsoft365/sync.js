@@ -20,6 +20,7 @@ const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const graph = require('./graph');
 const { recountDetected, applyDepartments } = require('./departments');
+const { destroyPortalSessions } = require('../portal/sessions');
 
 const MAX_ERRORS = 50;
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -99,6 +100,9 @@ async function runSync(company, result) {
     try {
       // eslint-disable-next-line no-await-in-loop
       await contact.update({ msObjectId: oid, portalAccess: true, passwordHash: null });
+      // Sessions from their old password end with it (a Microsoft sign-in
+      // starts one that is re-checked every 15 minutes).
+      await destroyPortalSessions(contact.id); // eslint-disable-line no-await-in-loop
       byOid.set(oid, contact);
     } catch (err) {
       result.errors.push(`Could not link ${contact.email || contact.displayName}: ${err.message}`);

@@ -1,4 +1,5 @@
 const request = require('supertest');
+const bcrypt = require('bcryptjs');
 const {
   resetData, closeDb, models, getApp,
 } = require('./helpers');
@@ -162,4 +163,19 @@ it('without the Microsoft app or with the portal off, start sends the browser ba
   const res = await portal().get(`${API}/portal/auth/microsoft/start`);
   expect(res.status).toBe(302);
   expect(refusedWith(res)).toBe('unavailable');
+});
+
+it('linking a contact to Microsoft ends the sessions they started with their password', async () => {
+  const PASSWORD = 'Harbour-Lights-2026';
+  await models.Contact.scope('withPassword').create({
+    firstName: 'Pat', displayName: 'Pat Two', email: 'person2@tenant.test', companyId: company.id, portalAccess: true,
+    passwordHash: await bcrypt.hash(PASSWORD, 4),
+  });
+  const old = portal();
+  expect((await old.post(`${API}/portal/auth/login`).send({ email: 'person2@tenant.test', password: PASSWORD })).status).toBe(200);
+  expect((await old.get(`${API}/portal/me`)).status).toBe(200);
+  const fresh = portal();
+  expect(signedInPortal((await microsoftSignIn(fresh, person(2))).res)).toBe(true);
+  expect((await old.get(`${API}/portal/me`)).status).toBe(401);
+  expect((await fresh.get(`${API}/portal/me`)).status).toBe(200);
 });
