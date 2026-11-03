@@ -13,6 +13,9 @@ const {
 const { issuePortalToken, consumePortalToken, findUsableToken } = require('../../services/portal/tokens');
 const { sendPortalLink } = require('../../services/portal/portalMail');
 const { signInMethod } = require('../../services/portal/signInMethod');
+const {
+  buildSignInRequest, completeSignIn, resolveMicrosoftSignIn, publicBaseUrl,
+} = require('../../services/microsoft365/signIn');
 const { isCompanyAdmin, adminDepartmentIds } = require('../../services/portal/scope');
 
 // Compared against when there's no contact or no hash, so a wrong email
@@ -62,6 +65,9 @@ async function destroyPortalSessions(contactId, keepSid) {
   if (stale.length) await sequelize.query('DELETE FROM Sessions WHERE sid IN (:sids)', { replacements: { sids: stale } });
 }
 
+// A contact linked to a Microsoft person signs in only with Microsoft.
+const useMicrosoft = () => new ApiError(400, 'Your account signs in with Microsoft. Use "Sign in with Microsoft".', 'USE_MICROSOFT');
+
 function assertStrongPassword(password, contact) {
   const policy = validatePassword(password, {
     email: contact.email, displayName: contact.displayName, firstName: contact.firstName, lastName: contact.lastName,
@@ -92,6 +98,7 @@ const login = asyncHandler(async (req, res) => {
 
   const contact = await Contact.scope('withPassword').findOne({ where: { email } });
   const ok = await bcrypt.compare(password, (contact && contact.passwordHash) || DUMMY_HASH);
+  if (contact && contact.msObjectId) throw useMicrosoft();
   if (!contact || !contact.passwordHash || !ok) throw new ApiError(401, 'Invalid email or password', 'INVALID_CREDENTIALS');
   // Only after the password verifies, so this can't be used to probe emails.
   if (!mayUsePortal(contact)) throw accessEnded();
@@ -113,9 +120,11 @@ const me = asyncHandler(async (req, res) => {
 });
 
 // Starts a portal session for a contact who just proved who they are.
-async function signIn(req, contact, method) {
+// extra: more session fields (a Microsoft sign-in's tenant and check time).
+async function signIn(req, contact, method, extra = {}) {
   await regenerateSession(req);
   req.session.contactId = contact.id;
+  Object.assign(req.session, extra);
   await Contact.update({ portalLastSignInAt: new Date() }, { where: { id: contact.id } });
   await portalAudit(req, 'portal.sign_in', contact.id, { method });
   return contactPayload(await loadPortalContact(contact.id));
@@ -127,6 +136,7 @@ async function setPasswordFromLink(req, kind) {
   const { token, password } = req.body || {};
   const { contact } = await findUsableToken(token, kind);
   if (!mayUsePortal(contact) || !(await isPortalEnabled())) throw accessEnded();
+  if (contact.msObjectId) throw useMicrosoft();
   assertStrongPassword(password, contact);
   await consumePortalToken(token, kind);
   const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
@@ -139,6 +149,7 @@ async function setPasswordFromLink(req, kind) {
 const checkInvite = asyncHandler(async (req, res) => {
   const { contact } = await findUsableToken((req.body || {}).token, 'invite');
   if (!mayUsePortal(contact) || !(await isPortalEnabled())) throw accessEnded();
+  if (contact.msObjectId) throw useMicrosoft();
   const full = await loadPortalContact(contact.id);
   res.json({ email: contact.email, companyName: full.company ? full.company.name : '' });
 });
@@ -168,7 +179,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 async function sendResetIfAllowed(email) {
   if (!(await isPortalEnabled())) return;
   const contact = await Contact.findOne({ where: { email } });
-  if (!mayUsePortal(contact)) return;
+  if (!mayUsePortal(contact) || contact.msObjectId) return;
   const { token } = await issuePortalToken(contact.id, 'reset');
   await sendPortalLink('reset', contact, token);
   await portalAudit(null, 'portal.reset_sent', contact.id, null);
@@ -182,6 +193,59 @@ const forgot = asyncHandler(async (req, res) => {
   sendResetIfAllowed(email).catch((err) => console.error('[portal] reset email failed:', err.message));
 });
 
+// --- Sign in with Microsoft (7b) ---------------------------------------------
+
+// How long the browser may spend at Microsoft between start and callback.
+const MS_SIGN_IN_MAX_AGE_MS = 10 * 60 * 1000;
+const refusedUrl = (code) => `${publicBaseUrl()}/portal/sign-in?refused=${encodeURIComponent(code)}`;
+
+// GET /portal/auth/microsoft/start — off to Microsoft. The state, nonce and
+// PKCE verifier stay in this browser's portal session (server-side) until
+// the callback spends them.
+const microsoftStart = asyncHandler(async (req, res) => {
+  if (!(await isPortalEnabled())) return res.redirect(302, refusedUrl('unavailable'));
+  let built;
+  try {
+    built = await buildSignInRequest();
+  } catch {
+    return res.redirect(302, refusedUrl('unavailable'));
+  }
+  req.session.msSignIn = { ...built.pending, at: Date.now() };
+  return res.redirect(302, built.url);
+});
+
+// GET /portal/auth/microsoft/callback?code&state — back from Microsoft. The
+// pending request is spent whatever happens next, so a callback URL works
+// once, and only in the browser that started it.
+const microsoftCallback = asyncHandler(async (req, res) => {
+  const pending = req.session.msSignIn;
+  delete req.session.msSignIn;
+  const refuse = async (code, meta = {}) => {
+    await portalAudit(req, 'portal.sign_in_refused', meta.contactId || null, { method: 'microsoft', reason: code, tenantId: meta.tenantId || null });
+    return res.redirect(302, refusedUrl(code));
+  };
+  const fresh = pending && Date.now() - pending.at <= MS_SIGN_IN_MAX_AGE_MS;
+  if (!fresh || typeof req.query.state !== 'string' || req.query.state !== pending.state || req.query.error) return refuse('failed');
+  if (!(await isPortalEnabled())) return refuse('unavailable');
+
+  let person;
+  try {
+    person = await completeSignIn({ code: req.query.code, nonce: pending.nonce, codeVerifier: pending.codeVerifier });
+  } catch (err) {
+    console.warn('[portal] Microsoft sign-in failed:', err.message);
+    return refuse('failed');
+  }
+  const result = await resolveMicrosoftSignIn(person);
+  if (result.refused) {
+    if (result.error) console.warn('[portal] Microsoft group check failed:', result.error);
+    return refuse(result.refused, { tenantId: person.tid, contactId: result.contact && result.contact.id });
+  }
+  if (result.created) await portalAudit(req, 'portal.contact_created', result.contact.id, { via: 'microsoft', companyId: result.company.id });
+  await signIn(req, result.contact, 'microsoft', { msTenantId: person.tid, msCheckedAt: Date.now() });
+  return res.redirect(302, `${publicBaseUrl()}/portal`);
+});
+
 module.exports = {
+  microsoftStart, microsoftCallback,
   config, login, logout, me, checkInvite, acceptInvite, resetPassword, forgot, contactPayload, displayName,
 };

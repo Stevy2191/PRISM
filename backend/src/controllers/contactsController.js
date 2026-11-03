@@ -518,6 +518,7 @@ const sendPortalInvite = asyncHandler(async (req, res) => {
   const contact = await findAccessibleContact(req.user, req.params.id);
   if (!contact) throw new ApiError(404, 'Contact not found', 'NOT_FOUND');
   if (!contact.email) throw new ApiError(400, 'This contact has no email address to send the invite to', 'VALIDATION_ERROR');
+  if (contact.msObjectId) throw new ApiError(400, 'This contact signs in with Microsoft, so there is no invite to send', 'USE_MICROSOFT');
   if (contact.status !== 'active') throw new ApiError(400, 'This contact is inactive', 'VALIDATION_ERROR');
 
   const { token, expiresAt } = await issuePortalToken(contact.id, 'invite');

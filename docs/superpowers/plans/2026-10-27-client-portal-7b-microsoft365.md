@@ -87,15 +87,24 @@
 - Sign-in state (nonce, PKCE verifier, state) kept server-side like the SSO module (`SsoAuthRequest` pattern); the portal session stores `{ contactId, msTenantId, msCheckedAt }`.
 - Refusal redirects to `/portal/sign-in?refused=<code>`; the frontend shows the AccountStates "not allowed" panel.
 
-- [ ] **Step 1: Failing tests** (mock Microsoft):
+- [x] **Step 1: Failing tests** (mock Microsoft):
   - linked tenant + member of a sync group + new email → contact created in that company, portal access on, signed in.
   - existing contact with the same email in that company → linked (not duplicated), password hash cleared.
   - unlinked tenant → `not_linked`; not in a sync group → `not_in_groups`; email used by another company's contact → `other_company`, nothing moved; inactive contact → `inactive`.
   - a token with a forged `tid` (not matching `iss`) is rejected; a replayed state/nonce is rejected.
   - a staff user's email in a linked tenant still gets a contact (staff not refused); their staff session is untouched.
   - password login for a Microsoft-linked contact → 400 with the Microsoft message.
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** + `ssoOidc.test.js` → PASS.
-- [ ] **Step 5: Commit** `feat(m365): sign in to the portal with a work Microsoft account`
+- [x] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** + `ssoOidc.test.js` → PASS.
+- [x] **Step 5: Commit** `feat(m365): sign in to the portal with a work Microsoft account`
+
+**As built (2026-11-03):**
+- The ID token is checked with `jose`, not `openid-client`. Microsoft's multi-tenant discovery names its issuer `…/{tenantid}/v2.0`, which a standard client can't check. The check covers the signature against Microsoft's keys, the audience (our client ID), expiry, the issuer (exactly `…/<tid>/v2.0` for the token's own `tid`), the nonce, and that `tid` and `oid` are GUIDs. Group membership is always asked of Graph, never read from the token.
+- The state, nonce and PKCE verifier are kept in the browser's server-side portal session (not `SsoAuthRequest`, which belongs to an SSO provider). They are spent on the callback whatever happens, valid for 10 minutes, and refused in any other browser.
+- More refusal codes than planned: `conflict` (the email belongs to a contact already linked to another Microsoft person), `no_access` (staff turned a linked contact's portal access off), `unavailable` (no app, portal off, or Graph unreachable: fails closed) and `failed` (bad state, nonce, issuer or code).
+- Linking an existing contact turns their portal access on ("everyone in the sync groups gets portal access") and clears their password. After that, access switched off by staff is respected.
+- Password sign-in, invite check and accept, reset and forgot all refuse Microsoft-linked contacts (`USE_MICROSOFT`). The password login says so even though that shows the email is Microsoft-linked, as this plan asked.
+- **Deferred to Task 6:** a new contact's department (`resolveDepartment` doesn't exist yet). New contacts get no department for now.
+- Audit: `portal.sign_in` (method `microsoft`), `portal.sign_in_refused` (reason and tenant), `portal.contact_created`. `microsoftRedirectUri()` in `signIn.js` is the address to register on the app; Settings shows it in Task 7.
 
 ### Task 4: The 15-minute session re-check
 

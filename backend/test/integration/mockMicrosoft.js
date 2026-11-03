@@ -13,12 +13,24 @@
 //   ms.pageSize          members per page (default 2, so 5 members = 3 pages)
 //   ms.tokenRequests     how many tokens were issued
 //   ms.requests          every "METHOD path?query" served, oldest first
-// Sign-in (OpenID Connect) endpoints are added with the sign-in task.
+//
+// Sign-in (OpenID Connect, the multi-tenant "organizations" authority): the
+// authorize endpoint signs in whoever ms.nextSignIn describes and redirects
+// straight back with a code; the token endpoint swaps it (PKCE checked) for a
+// genuine RS256 id_token whose keys are at /common/discovery/v2.0/keys.
+//   ms.nextSignIn = { tid, oid, email, name, given_name, family_name,
+//                     iss?, aud?, nonce? }   (iss/aud/nonce override the real values)
 const http = require('http');
 const crypto = require('crypto');
 
 async function startMockMicrosoft({ clientId = 'ms-test-client', clientSecret = 'ms-test-secret', expiresIn = 3600 } = {}) {
+  const jose = await import('jose');
+  const { publicKey, privateKey } = await jose.generateKeyPair('RS256', { extractable: true });
+  const jwk = { ...(await jose.exportJWK(publicKey)), kid: 'ms-test-key', alg: 'RS256', use: 'sig' };
+  // code -> { profile, nonce, challenge, redirectUri }
+  const codes = new Map();
   const state = {
+    nextSignIn: null,
     tenants: {},
     failures: [],
     pageSize: 2,
@@ -51,11 +63,57 @@ async function startMockMicrosoft({ clientId = 'ms-test-client', clientSecret = 
       return json({ error: { code: f.code || 'Failure', message: 'Injected failure' } }, f.status, headers);
     }
 
-    // POST /{tenant}/oauth2/v2.0/token (client credentials)
+    const base = `http://127.0.0.1:${server.address().port}`;
+
+    if (url.pathname === '/common/discovery/v2.0/keys') return json({ keys: [jwk] });
+
+    if (url.pathname === '/organizations/oauth2/v2.0/authorize' && req.method === 'GET') {
+      const q = url.searchParams;
+      if (q.get('client_id') !== clientId || q.get('response_type') !== 'code' || q.get('code_challenge_method') !== 'S256') {
+        return json({ error: 'invalid_request' }, 400);
+      }
+      if (!state.nextSignIn) return json({ error: 'access_denied' }, 400);
+      const code = crypto.randomBytes(16).toString('hex');
+      codes.set(code, {
+        profile: state.nextSignIn, nonce: q.get('nonce'), challenge: q.get('code_challenge'), redirectUri: q.get('redirect_uri'),
+      });
+      const back = new URL(q.get('redirect_uri'));
+      back.searchParams.set('code', code);
+      back.searchParams.set('state', q.get('state'));
+      res.writeHead(302, { Location: back.toString() });
+      return res.end();
+    }
+
+    // POST /{tenant}/oauth2/v2.0/token (client credentials, or a sign-in code)
     let m = url.pathname.match(/^\/([^/]+)\/oauth2\/v2\.0\/token$/);
     if (m && req.method === 'POST') {
       const form = new URLSearchParams(await readBody(req));
       const tenantId = decodeURIComponent(m[1]);
+      if (form.get('grant_type') === 'authorization_code') {
+        const pending = codes.get(form.get('code'));
+        codes.delete(form.get('code'));
+        if (tenantId !== 'organizations' || form.get('client_id') !== clientId || form.get('client_secret') !== clientSecret) {
+          return json({ error: 'invalid_client' }, 401);
+        }
+        const challenge = crypto.createHash('sha256').update(form.get('code_verifier') || '').digest('base64url');
+        if (!pending || pending.redirectUri !== form.get('redirect_uri') || pending.challenge !== challenge) {
+          return json({ error: 'invalid_grant' }, 400);
+        }
+        const p = pending.profile;
+        const now = Math.floor(Date.now() / 1000);
+        const claims = {
+          tid: p.tid, oid: p.oid, sub: `sub-${p.oid}`, email: p.email, preferred_username: p.email,
+          name: p.name, given_name: p.given_name, family_name: p.family_name, nonce: p.nonce ?? pending.nonce, ver: '2.0',
+        };
+        const idToken = await new jose.SignJWT(claims)
+          .setProtectedHeader({ alg: 'RS256', kid: jwk.kid })
+          .setIssuer(p.iss || `${base}/${p.tid}/v2.0`)
+          .setAudience(p.aud || clientId)
+          .setIssuedAt(now)
+          .setExpirationTime(now + 3600)
+          .sign(privateKey);
+        return json({ token_type: 'Bearer', expires_in: 3600, id_token: idToken, access_token: 'unused' });
+      }
       if (form.get('grant_type') !== 'client_credentials') return json({ error: 'unsupported_grant_type' }, 400);
       if (form.get('client_id') !== clientId || form.get('client_secret') !== clientSecret) {
         return json({ error: 'invalid_client', error_description: 'AADSTS7000215: Invalid client secret provided.' }, 401);
