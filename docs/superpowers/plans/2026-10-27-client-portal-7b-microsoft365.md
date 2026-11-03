@@ -112,9 +112,11 @@
 
 **Interfaces:** `recheckMicrosoftSession(session, contact) → Promise<'ok'|'ended'>` — when `msCheckedAt` is older than 15 minutes: `getUser` + `memberOfAny`; disabled, missing or out of groups → contact inactive (audited `portal.access_ended_by_directory`) and `'ended'`; Graph error → `'ok'` (fail open for a transient outage, retried next request) but logged.
 
-- [ ] **Step 1: Failing tests** with frozen time: under 15 min no Graph call; after 15 min a disabled user's next request is 401 `PORTAL_ACCESS_ENDED` and the contact is inactive; a transient 503 keeps the session.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(m365): Microsoft sessions re-check the account every 15 minutes`
+- [x] **Step 1: Failing tests** with frozen time: under 15 min no Graph call; after 15 min a disabled user's next request is 401 `PORTAL_ACCESS_ENDED` and the contact is inactive; a transient 503 keeps the session.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(m365): Microsoft sessions re-check the account every 15 minutes`
+
+**As built (2026-11-03):** the check is registered from `routes/portal/index.js` (requiring `sessionCheck.js` pushes it onto `portalSessionChecks`). It also ends the session, without deactivating the contact, when the company is no longer linked to the session's tenant or has no sync groups left. A user deleted in Microsoft counts as disabled. During a Microsoft outage the session is kept and the check is retried a minute later rather than on every request, so an outage doesn't slow each portal page by Graph's retries. The shared test helper `test/integration/m365Fixtures.js` holds the sign-in round trip.
 
 ### Task 5: The sync
 

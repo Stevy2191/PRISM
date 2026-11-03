@@ -9,6 +9,8 @@ const authRoutes = require('./auth');
 const ticketRoutes = require('./tickets');
 const kbRoutes = require('./kb');
 const ticketsCtrl = require('../../controllers/portal/ticketsController');
+// Registers the Microsoft 15-minute re-check on every portal request (7b).
+require('../../services/microsoft365/sessionCheck');
 
 const portalGuard = [portalAuthenticate, portalGlobalLimiter];
 
