@@ -462,12 +462,14 @@ export default function ContactDetail() {
   const [activityLimit, setActivityLimit] = useState(SUBLIST_STEP);
   const [activityTotal, setActivityTotal] = useState(0);
 
-  const loadDetail = () => {
+  // Returns the request, so callers (the Support portal block) can wait for
+  // the fresh contact before saying what changed.
+  const loadDetail = () => (
     api.get(`/contacts/${id}`)
       .then(({ data }) => { setContact(data.contact); setStats(data.stats); setRecentTickets(data.recentTickets); })
       .catch((err) => setError(errMessage(err)))
-      .finally(() => setLoading(false));
-  };
+      .finally(() => setLoading(false))
+  );
 
   useEffect(() => {
     setLoading(true);
