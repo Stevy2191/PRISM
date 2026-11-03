@@ -1,0 +1,163 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-03T05:00:00Z"
+ },
+ "title": "PRISM agent (8)",
+ "launch": {
+  "view": "canvas",
+  "page": "staff"
+ },
+ "pages": [
+  {
+   "id": "staff",
+   "name": "Staff screens"
+  },
+  {
+   "id": "tray",
+   "name": "Submit a ticket (tray)"
+  }
+ ],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 1120,
+   "title": "Company · Devices · light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "Main-dark.dc.html": {
+   "x": 0,
+   "y": 1240,
+   "w": 1440,
+   "h": 1120,
+   "title": "Company · Devices · dark",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "AssetDevice.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "Asset · Device tab · light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "AssetDevice-dark.dc.html": {
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "Asset · Device tab · dark",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "AssetsList.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 820,
+   "title": "Assets list · Online column · light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "AssetsList-dark.dc.html": {
+   "x": 3040,
+   "y": 940,
+   "w": 1440,
+   "h": 820,
+   "title": "Assets list · dark",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "TicketAgent.dc.html": {
+   "x": 4560,
+   "y": 0,
+   "w": 1440,
+   "h": 940,
+   "title": "Ticket raised from the tray · light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "TrayWindows.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1040,
+   "h": 700,
+   "title": "Windows · Submit a ticket",
+   "page": "tray"
+  },
+  "TrayMac.dc.html": {
+   "x": 1120,
+   "y": 0,
+   "w": 1040,
+   "h": 700,
+   "title": "macOS · Submit a ticket",
+   "page": "tray"
+  },
+  "TrayLinux.dc.html": {
+   "x": 2240,
+   "y": 0,
+   "w": 1040,
+   "h": 700,
+   "title": "Linux · Submit a ticket",
+   "page": "tray"
+  },
+  "TraySent.dc.html": {
+   "x": 3360,
+   "y": 0,
+   "w": 520,
+   "h": 700,
+   "title": "Sent, and can't reach the help desk",
+   "page": "tray"
+  },
+  "TrayForm.dc.html": {
+   "x": 3960,
+   "y": 0,
+   "w": 460,
+   "h": 600,
+   "title": "The Submit a ticket window (shared)",
+   "page": "tray"
+  },
+  "AssetSoftware.dc.html": {
+   "x": 1520,
+   "y": 2040,
+   "w": 1440,
+   "h": 900,
+   "title": "Asset · Software tab · light",
+   "page": "staff",
+   "expand": "fill"
+  },
+  "AssetSoftware-dark.dc.html": {
+   "x": 1520,
+   "y": 3060,
+   "w": 1440,
+   "h": 900,
+   "title": "Asset · Software tab · dark",
+   "page": "staff",
+   "expand": "fill"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Main-dark.dc.html",
+  "AssetDevice.dc.html",
+  "AssetDevice-dark.dc.html",
+  "AssetSoftware.dc.html",
+  "AssetSoftware-dark.dc.html",
+  "AssetsList.dc.html",
+  "AssetsList-dark.dc.html",
+  "TicketAgent.dc.html",
+  "TrayWindows.dc.html",
+  "TrayMac.dc.html",
+  "TrayLinux.dc.html",
+  "TraySent.dc.html",
+  "TrayForm.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assets list with online status</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/415a6fd9e753b77c959a764dfd417e32">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.mut{color:var(--tx3);font-size:12.5px}
+.okp,.ntp,.wrnp,.accp{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.okp{color:var(--succ-ink);background:var(--succ-bg)}
+.ntp{color:var(--neutral-ink);background:var(--neutral-bg)}
+.wrnp{color:var(--warn-ink);background:var(--warn-bg)}
+.accp{color:var(--acc-ink);background:var(--acc-soft);font-size:11.5px;padding:1px 8px}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{text-align:left;font-size:12.5px;font-weight:600;color:var(--tx3);padding:10px 16px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .new{background:var(--acc-soft)}
+.app .tbl .new th{color:var(--acc-ink)}
+.nm{font-weight:600;color:var(--tx)}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#" class="on" aria-current="page">Assets</a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#">Knowledge</a><a href="#">Calendar</a></nav>
+    <div class="bar-right">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search  ⌘K" aria-label="Search"></label>
+      <span class="me" aria-label="Dana Ortiz">DO</span>
+    </div>
+  </header>
+  <main class="page">
+    <div class="head">
+      <div><h1>Assets</h1><p class="sub">Computers report themselves through the PRISM agent; everything else you add by hand.</p></div>
+      <button class="btn primary" type="button">New asset</button>
+    </div>
+    <div class="toolbar" style="margin-top:20px">
+      <button class="pill on" type="button">All <span class="n" style="color:inherit;opacity:.7">312</span></button>
+      <button class="pill" type="button">Agent-managed <span class="n">96</span></button>
+      <button class="pill" type="button">Online <span class="n">81</span></button>
+      <button class="pill" type="button">Stale <span class="n">3</span></button>
+      <span class="sel">Company <b>All</b></span>
+      <span class="sel">Category <b>All</b></span>
+      <span class="sp"></span>
+      <label class="search" style="width:260px;height:32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Tag, name, serial, user" aria-label="Find an asset"></label>
+    </div>
+    <section class="card" style="margin-top:14px;overflow-x:auto" aria-label="Assets">
+      <table class="tbl">
+        <thead><tr><th scope="col">Asset</th><th scope="col">Company</th><th scope="col">Category</th><th scope="col">Used by</th><th scope="col" style="background:var(--acc-soft);color:var(--acc-ink)">Online</th><th scope="col">Status</th></tr></thead>
+        <tbody>
+          <tr><td><a href="#" class="nm">RFC-FD-01</a> <span class="accp">Agent</span><div class="mut">RFC-0117 · Dell OptiPlex 7010</div></td><td>Riverside Family Clinic</td><td>Computers</td><td>Maria Chen</td><td><span class="okp"><span class="dot"></span>Online</span></td><td><span class="status">Active</span></td></tr>
+          <tr><td><a href="#" class="nm">Dr-Patel-MacBook</a> <span class="accp">Agent</span><div class="mut">RFC-0140 · MacBook Air (M3, 2024)</div></td><td>Riverside Family Clinic</td><td>Computers</td><td>Anika Patel</td><td><span class="ntp"><span class="dot"></span>3 h ago</span></td><td><span class="status">Active</span></td></tr>
+          <tr><td><a href="#" class="nm">LLG-RECEPTION</a> <span class="accp">Agent</span><div class="mut">LLG-0031 · HP ProDesk 400 G9</div></td><td>Lakeside Law Group</td><td>Computers</td><td>James Porter</td><td><span class="okp"><span class="dot"></span>Online</span></td><td><span class="status">Active</span></td></tr>
+          <tr><td><a href="#" class="nm">RFC-RAD-02</a> <span class="accp">Agent</span><div class="mut">RFC-0109 · HP EliteDesk 800 G6</div></td><td>Riverside Family Clinic</td><td>Computers</td><td class="mut">No contact</td><td><span class="wrnp"><span class="dot"></span>Stale · 16 d</span></td><td><span class="status">Active</span></td></tr>
+          <tr><td><a href="#" class="nm">Front desk printer</a><div class="mut">RFC-0088 · Brother MFC-L8900</div></td><td>Riverside Family Clinic</td><td>Printers</td><td class="mut">—</td><td class="mut">—</td><td><span class="status">Active</span></td></tr>
+          <tr><td><a href="#" class="nm">Old reception PC</a><div class="mut">RFC-0042 · Dell OptiPlex 3060</div></td><td>Riverside Family Clinic</td><td>Computers</td><td class="mut">—</td><td class="mut">—</td><td><span class="status plan">In storage</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+    <p class="mut" style="margin-top:10px">Online: checked in within 10 minutes. Stale: not seen for 14 days (nothing is retired automatically). Assets without the agent show a dash.</p>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

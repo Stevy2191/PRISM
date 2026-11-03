@@ -1,8 +1,8 @@
 # Sub-project 8 — PRISM agent: inventory and the tray app
 
 > Status: design approved 2026-11-03 (owner confirmed every decision below;
-> no Apple Developer ID for now). Mockups of the screens and the tray window
-> are approved before their plan tasks, as in 6b and 7. Roadmap rows: 8 and 9b in `docs/ROADMAP.md`.
+> no Apple Developer ID for now). Mockups approved 2026-11-03
+> (`docs/mockups/agent-8/`). Plan 8a: `docs/superpowers/plans/2026-11-03-agent-8a-server-windows.md`. Roadmap rows: 8 and 9b in `docs/ROADMAP.md`.
 > Reshapes Phase 2: this is the agent without the rest of RMM.
 > Revised 2026-11-03: Windows, macOS and Linux from the start (owner); the
 > tray's action is called **Submit a ticket** (owner).

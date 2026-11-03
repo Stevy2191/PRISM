@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ticket sent, and offline</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/415a6fd9e753b77c959a764dfd417e32">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.win{border:1px solid var(--bd);border-radius:12px;background:var(--surf);overflow:hidden}
+.wh{padding:16px 20px 0;display:flex;align-items:center;gap:10px}
+.wb{padding:16px 20px 20px;display:flex;flex-direction:column;gap:12px}
+.ic{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.mut{color:var(--tx3);font-size:13px}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:520px;height:700px;padding:24px;display:flex;flex-direction:column;gap:24px;box-sizing:border-box">
+  <section class="win" aria-labelledby="ok">
+    <div class="wh"><span class="logo" aria-hidden="true"></span><div><div style="font-weight:700">Riverside IT help desk</div><div class="mut" style="font-size:12.5px">Powered by PRISM</div></div></div>
+    <div class="wb">
+      <div style="display:flex;gap:14px;align-items:center">
+        <span class="ic" style="background:var(--succ-bg);color:var(--succ-ink)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span>
+        <div><h2 id="ok" style="font-size:19px">Ticket #2418 sent</h2><p class="mut" style="margin:2px 0 0">The help desk will reply by email to maria.chen@riversideclinic.org.</p></div>
+      </div>
+      <p style="margin:0;font-size:14px">You can follow it, and reply, in the support portal.</p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><a href="#" class="btn">Open in the portal</a><button class="btn primary" type="button">Done</button></div>
+    </div>
+  </section>
+
+  <section class="win" aria-labelledby="off">
+    <div class="wh"><span class="logo" aria-hidden="true"></span><div><div style="font-weight:700">Riverside IT help desk</div><div class="mut" style="font-size:12.5px">Powered by PRISM</div></div></div>
+    <div class="wb">
+      <div style="display:flex;gap:14px;align-items:center">
+        <span class="ic" style="background:var(--warn-bg);color:var(--warn-ink)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 9-2.7M8.5 15.5a5 5 0 0 1 4.6-1.3M12 19h.01M3 3l18 18"></path></svg></span>
+        <div><h2 id="off" style="font-size:19px">Can't reach the help desk</h2><p class="mut" style="margin:2px 0 0">This computer isn't connected to the internet right now, so the ticket can't be sent.</p></div>
+      </div>
+      <p style="margin:0;font-size:14px">Your message is kept. Try again once you're back online, or contact the help desk another way:</p>
+      <dl style="display:grid;grid-template-columns:70px minmax(0,1fr);gap:6px 12px;margin:0;font-size:14px">
+        <dt class="mut">Email</dt><dd style="margin:0">help@riverside-it.com</dd>
+        <dt class="mut">Portal</dt><dd style="margin:0">desk.riverside-it.com/portal</dd>
+      </dl>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" type="button">Close</button><button class="btn primary" type="button">Try again</button></div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":520,"height":700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

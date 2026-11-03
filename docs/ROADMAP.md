@@ -21,8 +21,8 @@ read that before designing any sub-project.
   **Testing feedback** list below and ship as `v0.4.1`, `v0.4.2`, …
 - **Next up: sub-project 8, the PRISM agent: inventory and the tray app**
   ([spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md)), on
-  Windows, macOS and Linux. Design approved 2026-11-03; next its mockups and
-  plan. The agent puts every computer into Assets with its hardware, OS,
+  Windows, macOS and Linux. Design and mockups approved 2026-11-03; plan 8a
+  (server side and Windows) is next to build. The agent puts every computer into Assets with its hardware, OS,
   network, software and usual user, and its tray app's **Submit a ticket**
   raises tickets. Monitoring, scripting, patching and remote access stay
   later.
@@ -151,7 +151,7 @@ macOS and Linux, without the rest of RMM. Built as 8a (server and Windows),
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
-| 8 | PRISM agent: inventory and the tray app — for Windows, macOS and Linux (owner, 2026-11-03): a system service and per-user tray app (Go; MSI, .pkg, .deb/.rpm), enrolment per company straight to PRISM over HTTPS (no gateway yet, decided 2026-11-03), signed updates; every computer an Asset with hardware, OS, network, installed software, logged-in user and last seen; tray **Submit a ticket** form with a health snapshot. Absorbs the inventory half of 9, the first version of 9b, and 19 (macOS and Linux) | Designing — spec approved 2026-11-03; mockups and plan next | [spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md) | — |
+| 8 | PRISM agent: inventory and the tray app — for Windows, macOS and Linux (owner, 2026-11-03): a system service and per-user tray app (Go; MSI, .pkg, .deb/.rpm), enrolment per company straight to PRISM over HTTPS (no gateway yet, decided 2026-11-03), signed updates; every computer an Asset with hardware, OS, network, installed software, logged-in user and last seen; tray **Submit a ticket** form with a health snapshot. Absorbs the inventory half of 9, the first version of 9b, and 19 (macOS and Linux) | Planned — 8a (server and Windows) planned 2026-11-03; 8b (macOS) and 8c (Linux) plans follow 8a | [spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md); [mockups](mockups/agent-8/) ([canvas](https://claude.ai/artifact/3yKJ5XAMj7giMFSS2XuxCe)) | [plan 8a](superpowers/plans/2026-11-03-agent-8a-server-windows.md) (server and Windows) |
 | 9 | Inventory → into 8. Monitoring (heartbeats are in 8; checks and alerts that open tickets) → moved to Phase 4 as 16a (2026-11-03) | Moved | — | — |
 | 9b | Tray app → its first version (Submit a ticket, health snapshot) is in 8; the screenshot button and a "My tickets" list come later (2026-11-03) | Moved into 8 | — | — |
 

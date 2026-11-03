@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ticket raised from the tray</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/415a6fd9e753b77c959a764dfd417e32">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.mut{color:var(--tx3);font-size:12.5px}
+.layout{display:flex;flex-wrap:wrap;gap:20px;margin-top:20px;align-items:flex-start}
+.convo{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.side{flex:1 1 300px;min-width:0}
+.msg{border:1px solid var(--bd);border-radius:12px;background:var(--bubble-c);padding:14px 16px}
+.msg.priv{background:var(--bubble-p);border-color:var(--bubble-p-bd)}
+.mh{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.av{width:28px;height:28px;border-radius:50%;background:var(--neutral-bg);color:var(--neutral-ink);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px;flex:none}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:999px;padding:1px 9px;white-space:nowrap}
+.tag.p{color:var(--warn-ink);background:var(--warn-bg)}
+.tag.a{color:var(--acc-ink);background:var(--acc-soft)}
+.snap{display:grid;grid-template-columns:150px minmax(0,1fr);gap:6px 14px;font-size:13px;margin:0}
+.snap dt{color:var(--tx3)}
+.snap dd{margin:0;overflow-wrap:anywhere}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px}
+.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px 12px;font-size:13.5px;margin:0;padding:16px 18px}
+.kv dt{color:var(--tx3)}
+.kv dd{margin:0;min-width:0}
+.achip{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-radius:10px;padding:8px 10px;background:var(--surf2)}
+.okp{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:999px;padding:1px 8px;color:var(--succ-ink);background:var(--succ-bg)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#" class="on" aria-current="page">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#">Knowledge</a><a href="#">Calendar</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Dana Ortiz">DO</span></div>
+  </header>
+  <main class="page" style="max-width:1232px">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Tickets</a><span>/</span><span aria-current="page">#2418</span></nav>
+    <div class="head" style="margin-top:6px">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>Scanner won't show up in the practice software</h1><span class="status">New</span></div>
+        <div class="meta"><span>#2418</span><span>From <b>Maria Chen</b> · Riverside Family Clinic</span><span>Raised from the <b>PRISM tray</b> on <b>RFC-FD-01</b></span><span>2 minutes ago</span></div>
+      </div>
+      <div class="toolbar"><button class="btn sm" type="button">Take it</button><button class="btn sm primary" type="button">Reply</button></div>
+    </div>
+    <div class="layout">
+      <div class="convo">
+        <article class="msg" aria-label="Description">
+          <div class="mh"><span class="av" aria-hidden="true">MC</span><b>Maria Chen</b><span class="mut">via the PRISM tray · 2 minutes ago</span></div>
+          <p style="margin:0">Since this morning the front-desk scanner doesn't appear when I click Scan in the practice software. It still shows in Windows. I restarted once already.</p>
+        </article>
+        <article class="msg priv" aria-label="Health snapshot">
+          <div class="mh"><span class="av" aria-hidden="true" style="background:var(--acc-soft);color:var(--acc-ink)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg></span><b>Health snapshot</b><span class="tag p">Private</span><span class="mut">taken when the ticket was raised</span></div>
+          <dl class="snap">
+            <dt>Computer</dt><dd>RFC-FD-01 · Dell OptiPlex 7010</dd>
+            <dt>Operating system</dt><dd>Windows 11 Pro 24H2 · build 26100.2314</dd>
+            <dt>Signed in</dt><dd>RIVERSIDE\mchen (domain RIVERSIDE)</dd>
+            <dt>Up for</dt><dd>22 hours (last boot Nov 2, 7:41 AM)</dd>
+            <dt>Disks</dt><dd>C: 212 GB free of 476 GB · D: 51 GB free of 932 GB</dd>
+            <dt>Memory in use</dt><dd>11.2 of 16 GB (70%)</dd>
+            <dt>IP addresses</dt><dd class="mono">10.20.1.45</dd>
+            <dt>Agent</dt><dd>0.5.0</dd>
+          </dl>
+        </article>
+        <div class="card" style="padding:14px 16px;color:var(--tx3)">Write a reply…</div>
+      </div>
+      <aside class="side">
+        <section class="card" aria-labelledby="props">
+          <div class="card-h"><h3 id="props">Details</h3></div>
+          <dl class="kv">
+            <dt>Requester</dt><dd><a href="#">Maria Chen</a></dd>
+            <dt>Company</dt><dd>Riverside Family Clinic</dd>
+            <dt>Source</dt><dd><span class="tag a">PRISM tray</span></dd>
+            <dt>Priority</dt><dd>Medium</dd>
+            <dt>Assigned</dt><dd class="mut" style="font-size:13.5px">Unassigned</dd>
+            <dt>Asset</dt>
+            <dd>
+              <a href="#" class="achip" style="color:var(--tx)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--tx3);flex:none"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span style="min-width:0"><b style="display:block">RFC-FD-01</b><span class="mut">RFC-0117</span></span>
+                <span class="okp" style="margin-left:auto"><span class="dot"></span>Online</span>
+              </a>
+            </dd>
+          </dl>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

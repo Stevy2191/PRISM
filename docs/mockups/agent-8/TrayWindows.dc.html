@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Windows: Submit a ticket from the tray</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/415a6fd9e753b77c959a764dfd417e32">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.menu{list-style:none;margin:0;padding:6px;background:#FFFFFF;border:1px solid #D0D5DB;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.25);min-width:236px;font:14px 'Instrument Sans',system-ui,sans-serif;color:#16202B}
+.menu a{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:6px;color:#16202B;text-decoration:none}
+.menu a.hi{background:#E8EDFB;color:#16328F;font-weight:600}
+.menu hr{border:0;border-top:1px solid #E3E7EC;margin:4px 6px}
+.pi{width:16px;height:16px;border-radius:4px;background:#2448C9;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none}
+</style>
+</helmet>
+<div style="width:1040px;height:700px;position:relative;overflow:hidden;background:#33465C;font-family:'Instrument Sans',system-ui,sans-serif">
+  <div style="position:absolute;left:96px;top:28px;width:462px;border-radius:8px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.45);border:1px solid #1F2A36;background:#fff">
+    <div style="height:34px;background:#F3F4F6;border-bottom:1px solid #E1E4E8;display:flex;align-items:center;gap:8px;padding:0 0 0 12px;font-size:12.5px;color:#16202B">
+      <span class="pi" aria-hidden="true">P</span><span>Submit a ticket</span>
+      <span style="margin-left:auto;display:flex">
+        <button type="button" aria-label="Minimize" style="width:44px;height:34px;border:0;background:transparent;color:#4A5663">—</button>
+        <button type="button" aria-label="Close" style="width:44px;height:34px;border:0;background:transparent;color:#4A5663">✕</button>
+      </span>
+    </div>
+    <dc-import name="TrayForm" hint-size="460px,560px"></dc-import>
+  </div>
+
+  <ul class="menu" style="position:absolute;right:96px;bottom:62px" aria-label="PRISM menu">
+    <li><a href="#" class="hi"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Submit a ticket</a></li>
+    <li><a href="#"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></svg>Open the support portal</a></li>
+    <li><hr></li>
+    <li><a href="#" style="color:#5B6875;font-size:13px">RFC-FD-01 · connected to the help desk</a></li>
+    <li><a href="#" style="color:#5B6875;font-size:13px">About PRISM Agent 0.5.0</a></li>
+  </ul>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:48px;background:#1B2430;border-top:1px solid #2A3644;display:flex;align-items:center;padding:0 12px;gap:6px;color:#E6EAEF">
+    <span style="width:32px;height:32px;border-radius:6px;background:#2A3644" aria-hidden="true"></span>
+    <span style="width:32px;height:32px;border-radius:6px;background:#2A3644" aria-hidden="true"></span>
+    <span style="width:32px;height:32px;border-radius:6px;background:#2A3644" aria-hidden="true"></span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:14px;font-size:12px">
+      <span aria-hidden="true">^</span>
+      <span style="width:28px;height:28px;border-radius:6px;background:#3A4A5E;display:inline-flex;align-items:center;justify-content:center;outline:2px solid #7C93F5" aria-label="PRISM tray icon"><span class="pi" style="width:18px;height:18px">P</span></span>
+      <span style="text-align:right;line-height:1.25">9:42 AM<br>11/3/2026</span>
+    </span>
+  </div>
+  <div style="position:absolute;right:20px;top:20px;max-width:300px;background:rgba(255,255,255,.92);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#16202B;line-height:1.45">
+    <b>Windows:</b> notification-area icon (click it, or right-click for the menu). The window is a WebView2 window; it follows the system's light or dark setting.
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
