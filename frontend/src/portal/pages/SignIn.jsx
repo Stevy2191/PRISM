@@ -6,11 +6,26 @@ import { Brand } from '../PortalLayout';
 import { errMessage, safeNext } from '../api';
 import Notice from '../../components/ui/Notice';
 
+// Why Microsoft sign-in sent someone back (?refused=, from the callback).
+const NOT_SET_UP = ["Your account isn't set up for this portal", 'Ask your help desk to give this account access, or sign in with a different work account.'];
+const REFUSED = {
+  not_linked: NOT_SET_UP,
+  not_in_groups: NOT_SET_UP,
+  no_access: NOT_SET_UP,
+  other_company: ['Your account is linked to another organization', 'Contact support: nothing has been changed.'],
+  conflict: ['Your account needs a hand from support', 'Your email belongs to a portal account linked to a different Microsoft account. Contact support.'],
+  inactive: ['Your portal access has ended', 'Contact support if this is unexpected.'],
+  unavailable: ['Microsoft sign-in isn\'t available right now', 'Try again later, or sign in with email if you have a password.'],
+  failed: ['Sign-in with Microsoft didn\'t finish', 'Please try again.'],
+};
+
 // Mockups Main / SignInPhone: brand panel on the left (above on a phone),
 // Microsoft first when offered, then email and password.
 export default function SignIn() {
   const { me, config, signIn } = usePortalAuth();
   const [params] = useSearchParams();
+  const reason = params.get('refused');
+  const refused = reason ? (Object.hasOwn(REFUSED, reason) ? REFUSED[reason] : REFUSED.failed) : null;
   const navigate = useNavigate();
   const next = safeNext(params.get('next'));
   const [email, setEmail] = useState('');
@@ -55,9 +70,15 @@ export default function SignIn() {
           </div>
           {config && config.enabled === false && <Notice tone="warn">The support portal is switched off at the moment.</Notice>}
           {error && <Notice tone="bad">{error}</Notice>}
+          {refused && (
+            <section aria-label="Microsoft account not allowed" className="rounded-lg border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
+              <h2 className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{refused[0]}</h2>
+              <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{refused[1]}</p>
+            </section>
+          )}
           {config?.microsoft && (
             <>
-              <a href="/api/v1/portal/auth/microsoft" className="btn-primary h-12 justify-center text-[15px]">
+              <a href="/api/v1/portal/auth/microsoft/start" className="btn-primary h-12 justify-center text-[15px]">
                 <IconLayoutGrid size={16} aria-hidden="true" />Sign in with Microsoft
               </a>
               <div className="flex items-center gap-3 text-[12.5px] before:flex-1 before:border-t after:flex-1 after:border-t" style={{ color: 'var(--color-text-muted)', borderColor: 'var(--color-border)' }}>or with email</div>

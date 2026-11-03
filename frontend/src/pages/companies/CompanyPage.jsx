@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import Breadcrumbs from '../../components/ui/Breadcrumbs';
@@ -9,6 +10,7 @@ import CompanyOverview from '../../components/companies/CompanyOverview';
 import CompanySites from '../../components/companies/CompanySites';
 import CompanyDepartments from '../../components/companies/CompanyDepartments';
 import CompanyRecordList from '../../components/companies/CompanyRecordList';
+import CompanyMicrosoft365 from '../../components/companies/CompanyMicrosoft365';
 import { CompanyFlags } from './CompaniesList';
 
 const TABS = [
@@ -19,9 +21,13 @@ const TABS = [
 // A company's page (spec: Companies nav tab).
 export default function CompanyPage() {
   const { id } = useParams();
+  const { hasPermission } = useAuth();
+  // ?m365=approved|not_approved: back from a tenant admin's approval.
+  const [params] = useSearchParams();
+  const m365Notice = params.get('m365');
   const [company, setCompany] = useState(null);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState(m365Notice ? 'm365' : 'overview');
   const load = useCallback(() => {
     api.get(`/companies/${id}`).then(({ data }) => setCompany(data.company)).catch((err) => setError(errMessage(err)));
   }, [id]);
@@ -29,7 +35,9 @@ export default function CompanyPage() {
 
   if (error) return <Notice tone="bad">{error}</Notice>;
   if (!company) return <Spinner />;
-  const tabs = company.isVendor ? [...TABS, ['vendor', 'Vendor']] : TABS;
+  // Microsoft 365 (7b) after Overview, for staff who manage portal access.
+  let tabs = hasPermission('portal.manage') ? [TABS[0], ['m365', 'Microsoft 365'], ...TABS.slice(1)] : TABS;
+  if (company.isVendor) tabs = [...tabs, ['vendor', 'Vendor']];
   return (
     <div className="mx-auto max-w-[1144px] space-y-5 lg:px-6">
       <div>
@@ -56,6 +64,7 @@ export default function CompanyPage() {
       </div>
       {/* Keyed on updatedAt so the form re-reads a saved company. */}
       {tab === 'overview' && <CompanyOverview key={company.updatedAt} company={company} onSaved={setCompany} />}
+      {tab === 'm365' && <CompanyMicrosoft365 company={company} notice={m365Notice} />}
       {tab === 'sites' && <CompanySites company={company} />}
       {tab === 'departments' && <CompanyDepartments company={company} />}
       {['contacts', 'tickets', 'projects', 'assets'].includes(tab) && <CompanyRecordList key={tab} kind={tab} companyId={company.id} />}

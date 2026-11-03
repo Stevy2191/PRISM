@@ -1,6 +1,7 @@
 // A company's Microsoft 365 link (client portal 7b): tenant and sync groups,
 // the admin-approval link, the group picker and Sync now. Needs
 // portal.manage (route) and the company in the caller's reach.
+const { Op } = require('sequelize');
 const { Company, Department, DetectedDepartment } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -107,6 +108,34 @@ const sync = asyncHandler(async (req, res) => {
   res.json({ lastSync: result });
 });
 
+// --- The Microsoft app (Settings → Client portal) -------------------------------
+
+// GET /settings/portal-microsoft — what the app registration needs.
+const appInfo = asyncHandler(async (req, res) => {
+  const linked = await Company.count({ where: { msTenantId: { [Op.ne]: null } } });
+  res.json({ redirectUri: microsoftRedirectUri(), linkedTenants: linked });
+});
+
+// POST /settings/portal-microsoft/test — signs the app in to a linked
+// tenant (the first one approved, else the first linked) with the saved
+// client ID and secret. Microsoft needs a tenant to test against.
+const testApp = asyncHandler(async (req, res) => {
+  const companies = await Company.findAll({ where: { msTenantId: { [Op.ne]: null } }, order: [['msConsentAt', 'DESC'], ['id', 'ASC']], limit: 1 });
+  if (!companies.length) {
+    return res.json({ ok: null, message: 'Link a company to its Microsoft 365 tenant (the company\'s Microsoft 365 tab), then test.' });
+  }
+  const [company] = companies;
+  graph.clearTokenCache();
+  try {
+    await graph.appToken(company.msTenantId);
+    return res.json({ ok: true, message: `Signed in to ${company.name}'s tenant.`, testedAt: new Date().toISOString() });
+  } catch (err) {
+    const why = err.code === 'APP_NOT_CONFIGURED' ? 'Save the client ID and secret first.'
+      : (err.code === 'invalid_client' ? 'Microsoft refused the client ID or secret.' : `Microsoft said: ${err.code || err.status || 'no response'}.`);
+    return res.json({ ok: false, message: `Could not sign in to ${company.name}'s tenant. ${why}`, testedAt: new Date().toISOString() });
+  }
+});
+
 // --- Detected departments ------------------------------------------------------
 
 const detectedJson = (row, suggestion) => ({
@@ -171,5 +200,5 @@ const createFromDetected = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  get, update, consentUrl, searchGroups, sync, listDetected, mapDetected, createFromDetected,
+  get, update, consentUrl, searchGroups, sync, listDetected, mapDetected, createFromDetected, appInfo, testApp,
 };

@@ -88,6 +88,11 @@ const writeSettings = [authenticate, blockUntilPasswordChanged, async (req, res,
 router.get('/', readSettings, ctrl.get);
 router.put('/', writeSettings, ctrl.update);
 router.patch('/', writeSettings, ctrl.patch);
+// The client portal's Microsoft app (7b): its redirect address, and a test
+// sign-in to a linked tenant (Owner, like the other sign-in tests).
+const m365Ctrl = require('../controllers/companyM365Controller');
+router.get('/portal-microsoft', manageSystem, m365Ctrl.appInfo);
+router.post('/portal-microsoft/test', ownerSettings, m365Ctrl.testApp);
 router.get('/ldap', ownerSettings, ldapCtrl.get);
 router.patch('/ldap', ownerSettings, ldapCtrl.update);
 router.post('/ldap/test', ownerSettings, ldapCtrl.test);

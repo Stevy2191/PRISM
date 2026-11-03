@@ -170,9 +170,16 @@
 
 **Files:** Create `frontend/src/components/companies/CompanyMicrosoft365.jsx` (tab per `CompanyM365`: tenant + approval link, Sync now + last sync summary, sync groups picker, detected departments table); modify `frontend/src/pages/companies/CompanyPage.jsx` (add the "Microsoft 365" tab after Overview, shown with `portal.manage`), `frontend/src/pages/settings/ClientPortal.jsx` (Microsoft 365 app panel: client ID, secret replace, redirect address with Copy, Test), the contact "Support portal" block (Microsoft sign-in details; no invite button when linked), `frontend/src/portal/pages/SignIn.jsx` (Sign in with Microsoft button; refused panel from `?refused=`). Test: `backend/test/smoke/m365.smoke.js` (mock Microsoft).
 
-- [ ] **Step 1: Failing smoke tests:** link a tenant and pick a sync group; Sync now shows the summary; map a detected department; Settings saves the app ID and never shows the secret; the portal "Sign in with Microsoft" round-trip against the mock signs a member in and shows the refused panel for a non-member.
-- [ ] **Step 2–4:** Run → FAIL; implement per boards; run + `settings.smoke.js`, `companies.page.smoke.js`, `portal.smoke.js` → PASS.
-- [ ] **Step 5: Commit** `feat(m365): company Microsoft 365 tab and the Microsoft app settings`
+- [x] **Step 1: Failing smoke tests:** link a tenant and pick a sync group; Sync now shows the summary; map a detected department; Settings saves the app ID and never shows the secret; the portal "Sign in with Microsoft" round-trip against the mock signs a member in and shows the refused panel for a non-member.
+- [x] **Step 2–4:** Run → FAIL; implement per boards; run + `settings.smoke.js`, `companies.page.smoke.js`, `portal.smoke.js` → PASS.
+- [x] **Step 5: Commit** `feat(m365): company Microsoft 365 tab and the Microsoft app settings`
+
+**As built (2026-11-03):**
+- **Settings:** the Microsoft app panel reads its redirect address from new `GET /settings/portal-microsoft` (`settings.manage_system`). **Test** is `POST /settings/portal-microsoft/test` (Owner, like the other sign-in tests). Microsoft needs a tenant for an app sign-in, so Test signs in to a linked tenant (an approved one first). With none linked it says there is nothing to test against. The secret's expiry date from the mockup isn't shown: Microsoft doesn't report it to the app.
+- **Company tab:** the Microsoft 365 tab opens by itself, with a notice, when the page is reached with `?m365=approved|not_approved` (back from a tenant admin's approval). The "Domains seen" line from the mockup isn't built.
+- **Portal sign-in page:** the Microsoft button now points at `/microsoft/start` (7a had linked to a route that didn't exist). Each `?refused=` reason shows its own panel. The refused panel doesn't show which account was used: the callback doesn't put the person's email in a URL.
+- **Contact block:** "Invite sent" now appears after the contact reloads. It used to appear before, which raced `portal.staff.smoke.js`.
+- **Smoke test** `m365.smoke.js` runs the whole browser round trip against the fake Microsoft by pointing `PUBLIC_APP_URL` at the smoke server.
 
 ### Task 8: Finish
 

@@ -22,8 +22,9 @@ export default function ContactPortalBlock({ contact, onChanged }) {
     setBusy(true); setError(''); setMessage('');
     try {
       await fn();
-      if (done) setMessage(done);
       await onChanged();
+      // After the reload, so what it says and what's shown agree.
+      if (done) setMessage(done);
     } catch (err) {
       setError(errMessage(err));
     } finally {
@@ -34,6 +35,7 @@ export default function ContactPortalBlock({ contact, onChanged }) {
   const invite = () => run(() => api.post(`/contacts/${contact.id}/portal-invite`), `Invite sent to ${contact.email}.`);
 
   const MUTED = { color: 'var(--color-text-muted)' };
+  const microsoft = contact.signInMethod === 'microsoft';
   return (
     <section aria-label="Support portal" className="space-y-3 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
       <p className="text-xs font-semibold" style={MUTED}>Support portal</p>
@@ -47,6 +49,12 @@ export default function ContactPortalBlock({ contact, onChanged }) {
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-xs">
         <dt style={MUTED}>Signs in with</dt>
         <dd>{SIGN_IN[contact.signInMethod] || 'Not set up yet'}</dd>
+        {microsoft && contact.email && (
+          <>
+            <dt style={MUTED}>Account</dt>
+            <dd className="break-words">{contact.email}</dd>
+          </>
+        )}
         {contact.portalLastSignInAt && (
           <>
             <dt style={MUTED}>Last sign-in</dt>
@@ -56,9 +64,10 @@ export default function ContactPortalBlock({ contact, onChanged }) {
         <dt style={MUTED}>Admin of</dt>
         <dd className="break-words">{adminOf.length ? adminOf.join(', ') : 'None'}</dd>
       </dl>
+      {microsoft && <p className="text-xs" style={MUTED}>Name, email, phone and department come from Microsoft 365. Password sign-in is off for this contact.</p>}
       {error && <p role="alert" className="text-xs" style={{ color: 'var(--color-danger)' }}>{error}</p>}
       {message && <p role="status" className="text-xs" style={{ color: 'var(--color-timer)' }}>{message}</p>}
-      {canManage && contact.email && contact.status !== 'inactive' && (
+      {canManage && !microsoft && contact.email && contact.status !== 'inactive' && (
         <div className="space-y-1.5">
           <button type="button" disabled={busy} onClick={invite} className="btn-secondary h-9 w-full justify-center text-sm max-sm:h-11">
             {contact.signInMethod ? 'Send a new portal invite' : 'Send portal invite'}
