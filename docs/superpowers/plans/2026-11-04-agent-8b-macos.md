@@ -222,10 +222,10 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
   4. Enrolling again with the same PRISM changes nothing.
   5. `sudo prism-agent uninstall` removes the daemon, the app and the binaries and keeps the enrolment; `--remove-data` removes it.
 
-- [ ] **Step 1:** The install test above passes on `macos-latest`; the Windows job is unchanged; `agent-dist` holds three packages and one manifest.
-- [ ] **Step 2: Commit** `ci(agent): build, package and test the Mac agent`
+- [x] **Step 1:** The install test above passes on `macos-latest`; the Windows job is unchanged; `agent-dist` holds three packages and one manifest.
+- [x] **Step 2: Commit** `ci(agent): build, package and test the Mac agent`
 
-**As built (2026-11-04, before its first CI run):**
+**As built (2026-11-04):**
 - **`build.sh`:**
   - Builds both programs for arm64 and amd64 with cgo (`clang -arch`, `MACOSX_DEPLOYMENT_TARGET` 13.0), joins them with `lipo` (and checks both architectures), and signs them ad hoc with the hardened runtime; with a Developer ID when `APPLE_DEVELOPER_ID_APP` is set.
   - The bundle version is the release's x.y.z; a dev build's run number goes in `CFBundleVersion`.
@@ -241,6 +241,9 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
   - `whoami` over the socket with `nc -U` answers with the runner's own name although the message claims `EVIL\\boss`.
   - Re-enrolling changes nothing.
   - `uninstall` keeps `agent.json`; a reinstall, then `uninstall --remove-data`, removes the data folder.
+- **First runs:**
+  - CI run 220 failed twice, in the tests. On the Windows runner Git checked the job files out with CRLF line endings, so the "same job files" test failed; `.gitattributes` now keeps `agent/packaging/macos/**` as LF on every checkout. The Mac install test expected the key's group to be `wheel`, but macOS gives a new file its folder's group (`admin`), so the check is now owner `root` and mode `600`.
+  - Run 221 passed everything: the package (about 10 MB), a signed heartbeat from the root daemon, `status` as a normal user (which reports the key as another user's, as intended), `whoami` over the socket answering `runner` while the message claimed `EVIL\\boss`, re-enrolling, uninstall and `--remove-data`. The manifest job joined two MSIs and the `.pkg` into four entries for the backend image.
 
 ### Task 9: The Mac on the staff screens
 
