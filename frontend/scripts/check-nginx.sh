@@ -18,6 +18,7 @@ site="$work/site"
 mkdir -p "$site/assets"
 echo '<!doctype html><title>app</title>' > "$site/index.html"
 echo 'console.log(1)' > "$site/assets/index-abc123.js"
+echo 'font' > "$site/assets/inter-abc123.woff2"
 chmod -R a+rX "$site"
 
 # The test certificate, made by setup.sh's functions (everything above its banner).
@@ -59,7 +60,12 @@ for base in http://127.0.0.1:18089 https://localhost:18443; do
   check "client route" $base/tickets/12 200 "X-Frame-Options: DENY"
   check "/assets refresh loads the app" $base/assets 200 "X-Frame-Options: DENY"
   check "/assets/ refresh loads the app" $base/assets/ 200
+  check "an asset's page loads the app" $base/assets/12 200 "X-Frame-Options: DENY"
+  check "a Licenses page loads the app" $base/assets/licenses/3 200
+  check "the Contracts page loads the app" $base/assets/contracts 200
+  check "an asset's page isn't cached as a file" $base/assets/12 200 "Content-Type: text/html"
   check "hashed file" $base/assets/index-abc123.js 200 "Cache-Control: public, immutable"
+  check "a font" $base/assets/inter-abc123.woff2 200 "Cache-Control: public, immutable"
   check "hashed file keeps nosniff" $base/assets/index-abc123.js 200 "X-Content-Type-Options: nosniff"
   check "missing hashed file is a 404" $base/assets/index-missing.js 404
 done
