@@ -1,9 +1,12 @@
+//go:build darwin || linux
+
 package ipc
 
-// The tray ↔ service channel on macOS (plan 8b, Task 4): a Unix socket at
-// /var/run/prism-agent.sock, where only root can create files. Who is
-// asking comes from the socket's peer credentials (LOCAL_PEERCRED), never
-// from the message; the same Server.Handle answers as on Windows.
+// The tray ↔ service channel on macOS and Linux (plans 8b and 8c): a Unix
+// socket where only root can create files (SocketPath, per platform). Who
+// is asking comes from the socket's peer credentials (peercred_*.go:
+// LOCAL_PEERCRED on macOS, SO_PEERCRED on Linux), never from the message;
+// the same Server.Handle answers as on Windows.
 
 import (
 	"bufio"
@@ -19,13 +22,8 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/stevy2191/prism/agent/internal/inventory"
 )
-
-// SocketPath is the service's socket.
-const SocketPath = "/var/run/prism-agent.sock"
 
 // ErrNotRunning: the service isn't running (no socket, or nobody behind it).
 var ErrNotRunning = errors.New("the PRISM Agent service isn't running")
@@ -75,10 +73,10 @@ func trustUIDForTests(uid uint32) func() {
 	return func() { confMu.Lock(); conf.uid = prev; confMu.Unlock() }
 }
 
-// peerIdentity: the person behind a uid (Task 3); root and system accounts
-// aren't people and are refused.
+// peerIdentity: the person behind a uid (inventory.PersonFor, per
+// platform); root and system accounts aren't people and are refused.
 var peerIdentity = func(uid uint32) (Identity, error) {
-	u, _, err := inventory.MacUserFor(uid)
+	u, err := inventory.PersonFor(uid)
 	if err != nil {
 		return Identity{}, err
 	}
@@ -178,17 +176,12 @@ func peerUID(conn *net.UnixConn) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	var cred *unix.Xucred
+	var uid uint32
 	var cerr error
-	if err := raw.Control(func(fd uintptr) {
-		cred, cerr = unix.GetsockoptXucred(int(fd), unix.SOL_LOCAL, unix.LOCAL_PEERCRED)
-	}); err != nil {
+	if err := raw.Control(func(fd uintptr) { uid, cerr = peerCredUID(int(fd)) }); err != nil {
 		return 0, err
 	}
-	if cerr != nil {
-		return 0, cerr
-	}
-	return cred.Uid, nil
+	return uid, cerr
 }
 
 func serveConn(ctx context.Context, conn *net.UnixConn, h Handler, logf func(string, ...any)) {
@@ -207,7 +200,7 @@ func serveConn(ctx context.Context, conn *net.UnixConn, h Handler, logf func(str
 	}
 	if err != nil {
 		logf("tray socket: caller refused: %v", err)
-		answer = SubmitAnswer{Error: "refused", Message: "macOS couldn't say who you are."}
+		answer = SubmitAnswer{Error: "refused", Message: "The computer couldn't say who you are."}
 	} else {
 		// The handler may wait on PRISM; give the answer its own time.
 		_ = conn.SetDeadline(time.Now().Add(3 * time.Minute))

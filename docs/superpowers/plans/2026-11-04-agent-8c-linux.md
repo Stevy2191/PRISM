@@ -53,9 +53,23 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 - **Realm:** `realm list --name-only` (realmd, SSSD) gives the AD or IPA domain. The account is `DOMAIN\user` (first label of the domain, upper-cased, as on Windows and macOS) or the plain name.
 - **UPN:** a realm user's name is often `user@domain` already (SSSD with `use_fully_qualified_names`); otherwise `user@<realm domain>` when joined; else none (the placeholder). The same `IsPerson`-style checks as macOS apply (uid ≥ 1000, a safe name).
 
-- [ ] **Step 1: Failing tests:** `loginctl` output parses to the active graphical local session and skips remote, TTY and greeter sessions; `realm list` gives the domain; account and UPN rules for joined, `user@domain` and plain accounts; the socket tests from 8b pass on Linux (the caller identified by `SO_PEERCRED`, the message's account ignored, a socket of the wrong owner, a symlink or a writable folder refused, a second server refused, a stale socket replaced).
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS (`ubuntu-latest` and `macos-latest`).
-- [ ] **Step 5: Commit** `feat(agent): Linux socket and signed-in user`
+- [x] **Step 1: Failing tests:** `loginctl` output parses to the active graphical local session and skips remote, TTY and greeter sessions; `realm list` gives the domain; account and UPN rules for joined, `user@domain` and plain accounts; the socket tests from 8b pass on Linux (the caller identified by `SO_PEERCRED`, the message's account ignored, a socket of the wrong owner, a symlink or a writable folder refused, a second server refused, a stale socket replaced).
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS (`ubuntu-latest` and `macos-latest`).
+- [x] **Step 5: Commit** `feat(agent): Linux socket and signed-in user`
+
+**As built (2026-11-04):**
+- **Shared socket:** `ipc/socket_unix.go` (`darwin || linux`) is the 8b socket, unchanged apart from where it gets the caller. `peercred_darwin.go` (`LOCAL_PEERCRED`, `/var/run/prism-agent.sock`) and `peercred_linux.go` (`SO_PEERCRED` through `GetsockoptUcred`, `/run/prism-agent.sock`) give the uid, and `inventory.PersonFor(uid)` (per platform) the person. The refusal text is now "The computer couldn't say who you are."
+- **Parsing** (`linuxuser.go`, tested on every OS):
+  - `ParseSessionIDs` and `ParseKeyValues` read `loginctl`. `IsDesktopSession` means active, local, `x11` or `wayland`, class `user` (so no greeter, SSH or text console).
+  - `ParseRealmList`, and `ParseGetentPasswd`.
+  - `IsLinuxPerson`: uid 1000 or above, not `nobody`, and a safe name; SSSD's `user@domain` names are allowed.
+  - `LinuxPerson`: `DOMAIN\\user` plus `user@domain` from a fully qualified name or the realm, else the plain name and no UPN.
+- **`user_linux.go`:**
+  - `nameFor` uses Go's own lookup, then `getent passwd <uid>`, since the static service binary's lookup reads only `/etc/passwd` and SSSD users aren't in it.
+  - `PersonFor(uid)` and `desktopUser()` (Task 2 uses it for the inventory's signed-in user) check each `loginctl` session id is safe before passing it as an argument.
+  - On macOS, `PersonFor` wraps `MacUserFor`.
+- **Commands:** `run` moved to `cmd_unix.go` (`darwin || linux`). A tool named without a path is looked for only in `/usr/bin`, `/usr/sbin`, `/bin` and `/sbin`, never the inherited `PATH`, since its location varies between distributions.
+- **Tests:** the parsing tests here; `TestPersonForThisProcess` and `TestDesktopUserOnThisComputer` live on Linux. The 8b socket tests now run on Linux as well as macOS. Run here as a test user (uid 1500), the caller was identified by `SO_PEERCRED` as `ptest` with the message's `EVIL\\boss` ignored; the wrong owner, a symlink, a writable folder and a second server were refused; and a stale socket was replaced. GitHub's Ubuntu runner (an ordinary user) runs them on every push.
 
 ### Task 2: Linux inventory
 

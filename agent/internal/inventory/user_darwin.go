@@ -63,3 +63,10 @@ func consoleUser() (*SignedUser, string, error) {
 	}
 	return su, domain, err
 }
+
+// PersonFor is the person with this uid (the tray's socket peer), as
+// MacUserFor gives it.
+func PersonFor(uid uint32) (*SignedUser, error) {
+	u, _, err := MacUserFor(uid)
+	return u, err
+}

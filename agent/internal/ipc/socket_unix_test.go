@@ -1,3 +1,5 @@
+//go:build darwin || linux
+
 package ipc
 
 import (
@@ -13,7 +15,7 @@ import (
 	"github.com/stevy2191/prism/agent/internal/inventory"
 )
 
-// Unix socket paths are limited to about 100 bytes on macOS: a short
+// Unix socket paths are limited to about 100 bytes: a short
 // folder under /tmp rather than the test's long temporary one.
 func shortDir(t *testing.T) string {
 	t.Helper()
@@ -65,7 +67,7 @@ func TestSocketIdentifiesTheCallerFromTheOS(t *testing.T) {
 	if err := Call(map[string]string{"op": "whoami", "account": `EVIL\boss`}, &out, 10*time.Second); err != nil {
 		t.Fatal(err)
 	}
-	me, _, err := inventory.MacUserFor(uint32(os.Getuid()))
+	me, err := inventory.PersonFor(uint32(os.Getuid()))
 	if err != nil || me == nil {
 		t.Fatalf("this user: %+v %v", me, err)
 	}

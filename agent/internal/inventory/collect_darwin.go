@@ -1,11 +1,9 @@
 package inventory
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -17,18 +15,6 @@ import (
 // directly; system_profiler, networksetup and diskutil are run with fixed
 // arguments and a timeout, never through a shell. A source that fails
 // leaves its fields empty and is reported, as on Windows.
-
-const cmdTimeout = 30 * time.Second
-
-func run(name string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, name, args...).Output()
-	if ctx.Err() != nil {
-		return nil, fmt.Errorf("%s timed out", name)
-	}
-	return out, err
-}
 
 // The user is filled by Task 3 (console user, directory binding).
 var macUser = func() (*SignedUser, string, error) { return nil, "", nil }
