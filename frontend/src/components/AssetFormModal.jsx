@@ -194,7 +194,16 @@ const DEFAULT_FORM = {
   notes: '',
 };
 
-export default function AssetFormModal({ asset, categories, departments, onClose, onSaved }) {
+// Labels for the fields the PRISM agent owns on an agent-managed Asset (8a).
+const AGENT_FIELD_LABELS = {
+  name: 'name', make: 'make', model: 'model', serialNumber: 'serial number', processor: 'processor', ram: 'RAM',
+  storage: 'storage', operatingSystem: 'operating system', osVersion: 'OS version', firmwareVersion: 'firmware',
+  ipAddress: 'IP address', macAddress: 'MAC address',
+};
+
+export default function AssetFormModal({
+  asset, categories, departments, onClose, onSaved, agentFields = [],
+}) {
   const isEdit = !!asset;
   const [form, setForm] = useState(() => {
     if (!asset) return DEFAULT_FORM;
@@ -265,6 +274,11 @@ export default function AssetFormModal({ asset, categories, departments, onClose
     <Modal title={isEdit ? 'Edit asset' : 'New asset'} onClose={onClose} wide>
       <form onSubmit={submit} className="space-y-4">
         {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {agentFields.length > 0 && (
+          <p className="rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
+            This computer reports itself through the PRISM agent: its {agentFields.map((f) => AGENT_FIELD_LABELS[f] || f).join(', ')} are replaced at the next inventory. Location, purchase, warranty and notes stay as you set them.
+          </p>
+        )}
 
         <Section title="Basic info">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -1,5 +1,5 @@
 // Small badges on the ticket page: source and CSAT.
-import { IconWorld, IconMail, IconPhone } from '@tabler/icons-react';
+import { IconWorld, IconMail, IconPhone, IconDeviceDesktop } from '@tabler/icons-react';
 import { MUTED } from '../theme';
 
 // Hardcoded colors (not theme CSS variables) per spec — these identify how
@@ -9,6 +9,9 @@ const SOURCE_META = {
   email: { label: 'Email', color: '#2563eb', icon: IconMail },
   phone: { label: 'Phone', color: '#16a34a', icon: IconPhone },
   portal: { label: 'Portal', color: '#7c3aed', icon: IconWorld },
+  // Raised from the PRISM agent's tray app (8a).
+  agent: { label: 'PRISM tray', color: '#0e7490', icon: IconDeviceDesktop },
+  recurring: { label: 'Recurring', color: '#64748b', icon: null },
 };
 
 export function SourceBadge({ source }) {

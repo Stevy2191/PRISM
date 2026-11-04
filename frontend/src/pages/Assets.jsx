@@ -18,6 +18,9 @@ import Notice from '../components/ui/Notice';
 import Button from '../components/ui/Button';
 import StatusChip from '../components/ui/StatusChip';
 import { orgToday, addDays } from '../utils/orgDate';
+import Pill from '../components/ui/Pill';
+import PillRow from '../components/ui/PillRow';
+import { AgentStatus } from '../components/agent/agentFormat';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -86,6 +89,9 @@ export default function Assets() {
   const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [assignedTo, setAssignedTo] = useState('');
+  // The PRISM agent (8a): '' | managed | online | stale, and the pill counts.
+  const [agent, setAgent] = useState(() => searchParams.get('agent') || '');
+  const [agentCounts, setAgentCounts] = useState(null);
   const [view, setView] = useState('table');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const pageHeight = useFullPageHeight();
@@ -96,7 +102,7 @@ export default function Assets() {
   // fetch returns one page instead of every asset.
   const quickFilter = searchParams.get('filter');
 
-  const filterKey = JSON.stringify([search, categoryId, departmentId, companyId, status, assignedTo, quickFilter]);
+  const filterKey = JSON.stringify([search, categoryId, departmentId, companyId, status, assignedTo, quickFilter, agent]);
   const pager = usePagination({ filterKey, storageKey: 'prism.assets.pageSize' });
 
   const [showForm, setShowForm] = useState(false);
@@ -114,6 +120,7 @@ export default function Assets() {
     if (status) params.status = status;
     if (assignedTo) params.assignedTo = assignedTo;
     if (quickFilter) params.quickFilter = quickFilter;
+    if (agent) params.agent = agent;
     api.get('/assets', { params: { ...params, ...pager.params } })
       .then(({ data }) => { setAssets(data.assets); pager.applyMeta(data); })
       .catch((err) => setError(errMessage(err)))
@@ -129,7 +136,12 @@ export default function Assets() {
     const t = setTimeout(load, search ? 300 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, categoryId, departmentId, companyId, status, assignedTo, quickFilter, pager.page, pager.limit]);
+  }, [search, categoryId, departmentId, companyId, status, assignedTo, quickFilter, agent, pager.page, pager.limit]);
+
+  useEffect(() => {
+    api.get('/assets/agent-summary', { params: companyId ? { companyId } : {} })
+      .then(({ data }) => setAgentCounts(data)).catch(() => setAgentCounts(null));
+  }, [companyId]);
 
   const requestDelete = (asset) => {
     setDeleteTarget(asset);
@@ -249,6 +261,16 @@ export default function Assets() {
           {filterSelects('chip')}
         </div>
 
+        {agentCounts && agentCounts.managed > 0 && (
+          <PillRow label="Agent">
+            {[['', 'All', agentCounts.all], ['managed', 'Agent-managed', agentCounts.managed], ['online', 'Online', agentCounts.online], ['stale', 'Stale', agentCounts.stale]].map(([key, label, n]) => (
+              <Pill key={key || 'all'} on={agent === key} onClick={() => setAgent(key)}>
+                {label} <span className="num ml-1 opacity-70">{n.toLocaleString()}</span>
+              </Pill>
+            ))}
+          </PillRow>
+        )}
+
         {error && <Notice tone="bad">{error}</Notice>}
       </div>
 
@@ -280,7 +302,10 @@ export default function Assets() {
                     <p className="num text-xs font-semibold" style={{ color: MUTED }}>{a.assetTag}</p>
                     <h2 className="truncate font-semibold" style={{ color: TEXT }}>{a.name}</h2>
                   </div>
-                  <StatusBadge status={a.status} />
+                  <span className="flex flex-shrink-0 flex-col items-end gap-1">
+                    <StatusBadge status={a.status} />
+                    {a.device && <AgentStatus device={a.device} short />}
+                  </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                   <CategoryBadge category={a.category} />
@@ -304,7 +329,7 @@ export default function Assets() {
             <table className="min-w-full">
               <thead>
                 <tr>
-                  {['Asset tag', 'Name', 'Category', 'Make/Model', 'Assigned to', 'Department', 'Status', 'Warranty expiry', 'Replacement plan', 'Actions'].map((h) => (
+                  {['Asset tag', 'Name', 'Category', 'Make/Model', 'Assigned to', 'Online', 'Department', 'Status', 'Warranty expiry', 'Replacement plan', 'Actions'].map((h) => (
                     <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}>{h}</th>
                   ))}
                 </tr>
@@ -317,10 +342,12 @@ export default function Assets() {
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold">
                       <Link to={`/assets/${a.id}`} className="hover:underline" style={{ color: BLUE }}>{a.name}</Link>
+                      {a.device && a.device.status !== 'revoked' && <span className="ml-2 rounded-full px-2 py-px text-[11.5px] font-semibold" style={{ backgroundColor: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}>Agent</span>}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3"><CategoryBadge category={a.category} /></td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{[a.make, a.model].filter(Boolean).join(' / ') || '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: TEXT }}>{assignedToLabel(a) || <span style={{ color: MUTED }}>Unassigned</span>}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm"><AgentStatus device={a.device} short /></td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{a.department?.name || '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3"><StatusBadge status={a.status} /></td>
                     <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: dateUrgencyColor(a.warrantyExpiryDate) }}>{a.warrantyExpiryDate || '—'}</td>

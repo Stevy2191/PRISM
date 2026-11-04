@@ -11,6 +11,7 @@ import CompanySites from '../../components/companies/CompanySites';
 import CompanyDepartments from '../../components/companies/CompanyDepartments';
 import CompanyRecordList from '../../components/companies/CompanyRecordList';
 import CompanyMicrosoft365 from '../../components/companies/CompanyMicrosoft365';
+import CompanyDevices from '../../components/companies/CompanyDevices';
 import { CompanyFlags } from './CompaniesList';
 
 const TABS = [
@@ -36,7 +37,9 @@ export default function CompanyPage() {
   if (error) return <Notice tone="bad">{error}</Notice>;
   if (!company) return <Spinner />;
   // Microsoft 365 (7b) after Overview, for staff who manage portal access.
-  let tabs = hasPermission('portal.manage') ? [TABS[0], ['m365', 'Microsoft 365'], ...TABS.slice(1)] : TABS;
+  // Then Devices (the PRISM agent, 8a) for staff who can see assets.
+  let tabs = [TABS[0], ...(hasPermission('portal.manage') ? [['m365', 'Microsoft 365']] : []),
+    ...(hasPermission('assets.view') ? [['devices', 'Devices']] : []), ...TABS.slice(1)];
   if (company.isVendor) tabs = [...tabs, ['vendor', 'Vendor']];
   return (
     <div className="mx-auto max-w-[1144px] space-y-5 lg:px-6">
@@ -65,6 +68,7 @@ export default function CompanyPage() {
       {/* Keyed on updatedAt so the form re-reads a saved company. */}
       {tab === 'overview' && <CompanyOverview key={company.updatedAt} company={company} onSaved={setCompany} />}
       {tab === 'm365' && <CompanyMicrosoft365 company={company} notice={m365Notice} />}
+      {tab === 'devices' && <CompanyDevices company={company} />}
       {tab === 'sites' && <CompanySites company={company} />}
       {tab === 'departments' && <CompanyDepartments company={company} />}
       {['contacts', 'tickets', 'projects', 'assets'].includes(tab) && <CompanyRecordList key={tab} kind={tab} companyId={company.id} />}

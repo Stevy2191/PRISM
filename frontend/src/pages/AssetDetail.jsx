@@ -11,6 +11,9 @@ import Breadcrumbs from '../components/ui/Breadcrumbs';
 import Button from '../components/ui/Button';
 import Notice from '../components/ui/Notice';
 import AssetFormModal from '../components/AssetFormModal';
+import AssetDevice from '../components/assets/AssetDevice';
+import AssetSoftware from '../components/assets/AssetSoftware';
+import { AgentStatus, AgentBadge } from '../components/agent/agentFormat';
 import { StatusBadge, CategoryBadge, dateUrgencyColor } from './Assets';
 import { formatTicketId } from '../utils/ticketId';
 import { orgToday } from '../utils/orgDate';
@@ -86,6 +89,9 @@ export default function AssetDetail() {
 
   const [asset, setAsset] = useState(null);
   const [stats, setStats] = useState(null);
+  // The PRISM agent (8a): its status, and which fields it owns.
+  const [device, setDevice] = useState(null);
+  const [agentFields, setAgentFields] = useState([]);
   const [categories, setCategories] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -98,7 +104,7 @@ export default function AssetDetail() {
 
   const load = () => {
     api.get(`/assets/${id}`)
-      .then(({ data }) => { setAsset(data.asset); setStats(data.stats); })
+      .then(({ data }) => { setAsset(data.asset); setStats(data.stats); setDevice(data.device || null); setAgentFields(data.agentFields || []); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
   };
@@ -149,6 +155,8 @@ export default function AssetDetail() {
               <span className="num text-sm font-semibold" style={{ color: MUTED }}>{asset.assetTag}</span>
               <CategoryBadge category={asset.category} />
               <StatusBadge status={asset.status} />
+              {device && <AgentStatus device={device} />}
+              {device && device.status !== 'revoked' && <AgentBadge />}
             </div>
             <h1 className="page-title mt-1 break-words">{asset.name}</h1>
           </div>
@@ -176,7 +184,10 @@ export default function AssetDetail() {
 
       <div className="flex gap-1 overflow-x-auto border-b border-navy-100">
         {[
-          ['overview', 'Overview'], ['tickets', 'Tickets'], ['activity', 'Activity'],
+          ['overview', 'Overview'],
+          // Agent-managed computers: the Device tab, and Software on its own.
+          ...(device ? [['device', 'Device'], ['software', `Software${device.softwareCount ? ` ${device.softwareCount}` : ''}`]] : []),
+          ['tickets', 'Tickets'], ['activity', 'Activity'],
           ['attachments', 'Attachments'], ['checkouts', 'Checkout History'],
         ].map(([key, label]) => (
           <button
@@ -193,6 +204,8 @@ export default function AssetDetail() {
       </div>
 
       {tab === 'overview' && <OverviewTab asset={asset} departments={departments} onPatch={patchAsset} onCheckedOut={load} />}
+      {tab === 'device' && device && <AssetDevice assetId={id} asset={asset} />}
+      {tab === 'software' && device && <AssetSoftware assetId={id} lastInventoryAt={device.lastInventoryAt} />}
       {tab === 'tickets' && <TicketsTab assetId={id} asset={asset} canLinkTickets={canLinkTickets} navigate={navigate} />}
       {tab === 'activity' && <ActivityTab assetId={id} />}
       {tab === 'attachments' && <AttachmentsTab assetId={id} />}
@@ -203,6 +216,7 @@ export default function AssetDetail() {
           asset={asset}
           categories={categories}
           departments={departments}
+          agentFields={agentFields}
           onClose={() => setShowEditForm(false)}
           onSaved={(updated) => { setAsset(updated); setShowEditForm(false); }}
         />
@@ -664,6 +678,8 @@ const ACTIVITY_LABEL = {
   attachment_added: 'Attachment added',
   attachment_removed: 'Attachment removed',
   subscription_alert_ticket_created: 'Subscription renewal alert created',
+  agent_inventory: 'Updated by the PRISM agent',
+  agent_revoked: 'Agent revoked',
 };
 
 function activityDescription(a) {
@@ -676,6 +692,8 @@ function activityDescription(a) {
   if (a.action === 'checked_out') return `Checked out to ${d.contactName || 'a contact'}`;
   if (a.action === 'checkout_form_sent') return `Sent to ${d.to || ''}`;
   if (a.action === 'attachment_added' || a.action === 'attachment_removed') return d.originalName || '';
+  if (a.action === 'agent_inventory') return `Changed: ${(d.changed || []).join(', ')}`;
+  if (a.action === 'agent_revoked') return `${d.hostname || 'This computer'} can no longer report to PRISM`;
   if (a.action === 'subscription_alert_ticket_created') return `Ticket #${d.ticketNumber} created — renews ${d.renewalDate}`;
   return a.action;
 }

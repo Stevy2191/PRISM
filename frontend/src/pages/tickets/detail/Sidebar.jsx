@@ -12,6 +12,7 @@ import SlaPanel from './SlaPanel';
 import CcPanel from './CcPanel';
 import DueDateModal from './DueDateModal';
 import { useAuth } from '../../../context/AuthContext';
+import { AgentStatus, statusOf } from '../../../components/agent/agentFormat';
 import {
   BG,
   CARD_BG,
@@ -599,6 +600,7 @@ export function Sidebar({
                     <Link to={`/assets/${a.id}`} className="min-w-0 flex-1 truncate hover:underline">
                       <span className="font-mono">{a.assetTag}</span> — {a.name}
                     </Link>
+                    {a.device && <AgentStatus device={{ ...a.device, status: statusOf(a.device) }} short />}
                     <button type="button" onClick={() => onUnlinkAsset(a.id)} style={{ color: MUTED }}><IconX size={11} /></button>
                   </span>
                 ))}

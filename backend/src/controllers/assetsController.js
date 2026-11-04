@@ -4,8 +4,10 @@ const { Op, col } = require('sequelize');
 const {
   Asset, AssetCategory, AssetTicket, AssetActivity, AssetCategoryField, AssetFieldValue,
   AssetCheckout, AssetAttachment, License, Contract,
-  Ticket, Contact, User, Department, Company, Site,
+  Ticket, Contact, User, Department, Company, Site, Device, AssetSoftware,
 } = require('../models');
+const { statusWhere, deviceSummary } = require('./devicesController');
+const { AGENT_FIELDS } = require('../services/agent/inventory');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { writeAudit } = require('../middleware/audit');
@@ -169,18 +171,50 @@ const list = asyncHandler(async (req, res) => {
   const vendorFilter = req.query.vendorCompanyId ? { vendorCompanyId: parseRecordId(req.query.vendorCompanyId) || -1 } : {};
 
   const { page, limit, offset } = parsePagination(req);
+  // The PRISM agent (8a): ?agent=managed|online|offline|stale keeps
+  // agent-managed computers (in that state); every row carries its device's
+  // status for the Online column. A hasOne, so LIMIT and COUNT stay safe.
+  const agent = ['managed', 'online', 'offline', 'stale'].includes(req.query.agent) ? req.query.agent : null;
+  const deviceInclude = {
+    model: Device,
+    as: 'device',
+    attributes: ['id', 'lastSeenAt', 'lastInventoryAt', 'revokedAt', 'agentVersion', 'platform'],
+    required: !!agent,
+    ...(agent ? { where: statusWhere(agent === 'managed' ? null : agent) } : {}),
+  };
   // assetInclude is belongsTo-only, so LIMIT and COUNT are both safe to apply
   // directly here.
   const { rows, count } = await Asset.findAndCountAll({
     where: andWhere(where, companyFilter, vendorFilter, await companyScopeWhere(req.user)),
-    include: assetInclude,
+    include: [...assetInclude, deviceInclude],
     order: [['assetTag', 'ASC'], ['id', 'ASC']],
     limit,
     offset,
     distinct: true,
   });
   await hideUnreachableVendors(req.user, rows);
-  res.json(paginated('assets', { rows, count }, { page, limit }));
+  const out = rows.map((a) => ({ ...a.toJSON(), device: deviceSummary(a.device) }));
+  res.json(paginated('assets', { rows: out, count }, { page, limit }));
+});
+
+// GET /assets/agent-summary?companyId= → { all, managed, online, stale },
+// for the Assets list's pills.
+const agentSummary = asyncHandler(async (req, res) => {
+  const scope = await companyScopeWhere(req.user);
+  const companyFilter = req.query.companyId ? { companyId: parseRecordId(req.query.companyId) || -1 } : {};
+  const where = andWhere(companyFilter, scope);
+  const countWith = (status) => Asset.count({
+    where,
+    include: [{
+      model: Device, as: 'device', attributes: [], required: true, where: statusWhere(status),
+    }],
+  });
+  const [all, managed, online, stale] = await Promise.all([
+    Asset.count({ where }), countWith(null), countWith('online'), countWith('stale'),
+  ]);
+  res.json({
+    all, managed, online, stale,
+  });
 });
 
 // GET /assets/categories — includes a live "next tag" suggestion + the
@@ -281,8 +315,14 @@ const get = asyncHandler(async (req, res) => {
   ]);
 
   await hideUnreachableVendors(req.user, asset);
+  const device = await Device.findOne({ where: { assetId: asset.id }, attributes: ['id', 'lastSeenAt', 'lastInventoryAt', 'revokedAt', 'agentVersion', 'platform'] });
+  const softwareCount = device ? await AssetSoftware.count({ where: { assetId: asset.id } }) : 0;
   res.json({
     asset,
+    // The PRISM agent (8a): the Online / Agent-managed badges, the Device and
+    // Software tabs, and the agent-owned fields' note in the edit form.
+    device: device ? { ...deviceSummary(device), softwareCount } : null,
+    agentFields: device && !device.revokedAt ? AGENT_FIELDS : [],
     stats: {
       totalTicketsLinked: totalTickets,
       openTicketsLinked: openTickets,
@@ -824,6 +864,7 @@ const removeAttachment = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  agentSummary,
   list, listCategories, stats, expirySummary, get, create, update, remove,
   listTickets, linkTicket, unlinkTicket, listActivity,
   listCheckouts, createCheckout, checkInCheckout, sendCheckoutForm, updateCheckout,

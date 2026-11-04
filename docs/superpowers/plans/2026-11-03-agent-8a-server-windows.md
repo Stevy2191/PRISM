@@ -379,11 +379,28 @@
 - Backend: `GET /companies/:id/devices`, `GET /assets/:id/device`, `GET /assets/:id/software?q`, `POST /devices/:id/revoke`, and the Assets list's `online` and `agent` filters
 - Test: `backend/test/integration/agent.staff.test.js`, `backend/test/smoke/agent.smoke.js`
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - Integration: devices and software respect company access; revoke needs `devices.manage`.
   - Smoke: create a key and copy the command; an enrolled fake device appears Online; the Asset's Device and Software tabs show its inventory; the Assets list Online filter works; a tray ticket shows the source and the Asset chip.
-- [ ] **Step 2–4:** Run → FAIL; implement per the boards; run with `assets.*` and `companies.page` smoke → PASS.
-- [ ] **Step 5: Commit** `feat(agent): Devices tab, Asset Device and Software tabs, Online column`
+- [x] **Step 2–4:** Run → FAIL; implement per the boards; run with `assets.*` and `companies.page` smoke → PASS.
+- [x] **Step 5: Commit** `feat(agent): Devices tab, Asset Device and Software tabs, Online column`
+
+**As built (2026-11-04):**
+- **Status rules** (`devicesController.deviceStatus`, mirrored by `statusOf` in the browser): revoked; online if seen within 10 minutes; stale if never seen or not seen for 14 days; otherwise offline. `statusWhere` gives the same rules as SQL for list filters.
+- **Endpoints:**
+  - `GET /companies/:id/devices?status=` (assets.view and company access) → devices with OS, usual user, signed-in account, status and `updatePending` (a newer package for its platform and arch), plus counts (all, online, offline, stale, revoked). Revoked devices are kept apart from "all".
+  - `GET /assets/:id/device` (the company fence) → the Device tab's detail: no public key, the key it enrolled with, and the signed-in contact only when the agent set it as the usual user.
+  - `GET /assets/:id/software?search=&page=&limit=` → name order; `total` is the matching count, `programs` everything installed. LIKE wildcards are escaped.
+  - `POST /devices/:id/revoke` (devices.manage and the company in reach) → audit plus an `agent_revoked` activity on the Asset. Also `GET /devices/packages` and `GET /devices/packages/:platform/:arch` (devices.manage, audited), the **Download installer** button. Packages are checked against the manifest's sha256 by `latestPackage`, as for updates.
+  - **Assets list:** `?agent=managed|online|offline|stale` filters, and every row carries a `device` summary. `GET /assets/agent-summary?companyId=` gives the pill counts within the user's reach.
+  - `GET /assets/:id` adds `device` (with `softwareCount` and `lastInventoryAt`) and `agentFields`. A ticket's `linkedAssets` include their device's last check-in.
+- **Screens:**
+  - **Company → Devices** (`CompanyDevices`, shown with assets.view, after Microsoft 365): enrolment keys and the install command for devices.manage (the Windows / macOS / Linux tabs; the command with the origin and the new key, shown in full only right after it's created, Copy enabled only then; Download for Windows plus an ARM link when packages exist), then the devices table with All / Offline / Stale (/ Revoked) pills and Revoke.
+  - **Asset page:** Online and Agent-managed chips. Device and Software (with count) tabs on agent-managed Assets. `AssetDevice` shows the note, Hardware and OS (make and model, serial and firmware from the Asset), disks with usage meters, and network. `AssetSoftware` is searchable, 50 at a time with "Show more". The edit form names the agent-owned fields. Activity labels for `agent_inventory` and `agent_revoked`.
+  - **Assets list:** an Online column, an "Agent" tag by the name, and All / Agent-managed / Online / Stale pills (shown once any computer is agent-managed).
+  - **Ticket page:** a "PRISM tray" source badge (and Recurring, which had no label), and the computer's Online chip in Linked Assets.
+- **Tests:** `agent.staff.test.js` (6 tests: statuses and counts, the tabs' data, access by company and permission, revoke, list filters, installers). `test/smoke/agent.smoke.js` covers the whole flow in a browser: a key from the Devices tab, a device enrolled with the secret copied from the command, Online, the Device and Software tabs, the Online pill, and a tray ticket's badge and chip. The `assetsLook`, `companies.page`, `companies.assets`, `m365` and `ticketEdit` smokes still pass.
+- **Not done:** the mockups' ••• menu (re-enrol) and "New ticket for this computer" button; the snapshot note is authored by the system account, as portal tickets are.
 
 ### Task 13: Finish
 

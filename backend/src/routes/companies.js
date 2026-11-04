@@ -4,6 +4,7 @@ const sites = require('../controllers/sitesController');
 const portalAdmins = require('../controllers/portal/adminsController');
 const m365 = require('../controllers/companyM365Controller');
 const agentKeys = require('../controllers/agentKeysController');
+const devices = require('../controllers/devicesController');
 const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
@@ -39,6 +40,8 @@ const canManageDevices = requirePermission('devices.manage');
 router.get('/:id/agent-keys', canManageDevices, agentKeys.list);
 router.post('/:id/agent-keys', canManageDevices, agentKeys.create);
 router.post('/:id/agent-keys/:keyId/revoke', canManageDevices, agentKeys.revoke);
+// Its devices: viewing follows Assets' view permission (and company access).
+router.get('/:id/devices', requirePermission('assets.view'), devices.listForCompany);
 router.get('/:id/sites', canView, sites.list);
 router.post('/:id/sites', canManage, sites.create);
 router.patch('/:id/sites/:siteId', canManage, sites.update);
