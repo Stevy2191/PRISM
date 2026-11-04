@@ -38,7 +38,7 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 
 - **Tray identity:** the ticket's requester comes from the socket's peer credentials, never from what the tray sends → Task 4.
 - **Socket trust:** the tray talks only to a socket owned by root in a root-owned folder, and refuses a symlink or anything else → Task 4.
-- **Key storage:** the device key is a root-only file (`0600`, `root:wheel`), never readable by a user → Task 3.
+- **Key storage:** the device key is a root-only file (owned by root, mode `0600`; the group, inherited from its folder as macOS does, has no access), never readable by a user → Task 3.
 - **Update trust:** a package signed with another install's key, a wrong hash or a lower version is refused, and the agent keeps running; `installer` only ever runs a package the updater checked, from a root-only folder → Task 6.
 - **Untrusted command output:** everything read from `system_profiler`, `dscl` and the app bundles goes through `Assemble`'s cleaning, and the agent never runs a command built from that output → Tasks 2 and 3.
 
@@ -270,10 +270,18 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 
 ### Task 10: Finish
 
-- [ ] **Step 1:** ROADMAP row 8 → "8b shipped to `dev`"; UPGRADING `## Unreleased`: installing on a Mac (the package, the Gatekeeper override once per Mac, `sudo prism-agent enroll`), uninstalling, that Macs are installed by hand until there's a Developer ID, and the network needs (as Windows).
-- [ ] **Step 2:** Full backend and smoke suites, and the agent workflow (Windows and Mac jobs), all green.
-- [ ] **Step 3:** Security review (Review Focus above), fix pass, commit, push to `dev`.
+- [x] **Step 1:** ROADMAP row 8 → "8b shipped to `dev`"; UPGRADING `## Unreleased`: installing on a Mac (the package, the Gatekeeper override once per Mac, `sudo prism-agent enroll`), uninstalling, that Macs are installed by hand until there's a Developer ID, and the network needs (as Windows).
+- [x] **Step 2:** Full backend and smoke suites, and the agent workflow (Windows and Mac jobs), all green.
+- [x] **Step 3:** Security review (Review Focus above), fix pass, commit, push to `dev`.
 - [ ] **Step 4:** Hand test by the owner on a real Mac (Apple silicon; and an Intel one if there is one), macOS 14 or 15: install with the override, enrol, the Asset appears with its apps, a menu-bar ticket arrives, an update installs itself, revoke stops it, uninstall cleans up.
+
+**As built (2026-11-04):**
+- **Docs:** UPGRADING `## Unreleased` now covers Windows and macOS: installing on a Mac (Download for Mac, Open Anyway once, `sudo prism-agent enroll`, the full path to the binary), that Macs are installed by hand until there's a Developer ID, and uninstalling. ROADMAP row 8 has 8a and 8b on `dev`, waiting on hand tests, with 8c next.
+- **Security review of the five Review Focus points**, each already enforced and tested on `macos-latest` (Tasks 3, 4, 6 and 8: identity from `LOCAL_PEERCRED`, a message claiming `EVIL\\boss` answered as the real user; the socket refused if not root's, a symlink, or in a writable folder; the key root's with mode 600, refused if wider; the shared update checks, and only `installer` on the checked file in the 0700 folder; command output only cleaned and stored, every command with fixed arguments, usernames checked before `dscl`, mount paths always starting with `/`). One fix and one wording change:
+  - `postinstall` uses `ln -sfn`. With `-sf`, an existing `/usr/local/bin/prism-agent` that was a link to a folder would have got the new link inside that folder.
+  - The key-storage point said `root:wheel`. The real guarantee is owner root and mode 600 (the folder's group, often `admin`, has no access), as the install test checks.
+- **Accepted:** on Intel Macs with Homebrew, `/usr/local/bin` usually belongs to the Homebrew user, who could replace the `prism-agent` link that an administrator then runs with `sudo`. That user is nearly always an administrator already; UPGRADING gives the full path for anyone who'd rather not trust the link.
+- **Not yet exercised:** a real self-update (`installer` started by the daemon, surviving the package's `bootout`) and the menu bar and window on a desktop. Both are in the owner's hand test (Step 4).
 
 ## Notes on the spec
 

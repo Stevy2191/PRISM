@@ -9,7 +9,7 @@ chown -R root:wheel "$DATA/bin" "/Applications/Utilities/PRISM Agent.app" \
 chmod 0755 "$DATA" "$DATA/bin"
 chown root:wheel "$DATA"
 mkdir -p /usr/local/bin /Library/Logs/PRISM
-ln -sf "$DATA/bin/prism-agent" /usr/local/bin/prism-agent
+ln -sfn "$DATA/bin/prism-agent" /usr/local/bin/prism-agent
 
 /bin/launchctl bootout system/com.prism.agent 2>/dev/null || true
 /bin/launchctl bootstrap system /Library/LaunchDaemons/com.prism.agent.plist

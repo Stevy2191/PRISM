@@ -10,11 +10,11 @@ backend start.
 
 ## Unreleased
 
-The PRISM agent for Windows (sub-project 8a). Every Windows computer it's
-installed on becomes an Asset of its company and keeps its hardware, OS,
-disks, network, installed software and usual user current; people at the
-computer get **Submit a ticket** in the notification area. macOS (8b) and
-Linux (8c) follow before this is released as v0.5.0.
+The PRISM agent for Windows (sub-project 8a) and macOS (8b). Every computer
+it's installed on becomes an Asset of its company and keeps its hardware,
+OS, disks, network, installed software and usual user current; people at
+the computer get **Submit a ticket** in the notification area or the menu
+bar. Linux (8c) follows before this is released as v0.5.0.
 
 **Database:** migrations 074 (devices, enrolment keys, installed software,
 the `agent` ticket source) and 075 (the "Unknown tray user" placeholder
@@ -44,6 +44,32 @@ follows the Assets view permission and company access, as before.
    A wrong or revoked key fails the install. Running the installer again on
    a computer already enrolled with the same PRISM changes nothing. Uninstall
    keeps the enrolment unless `REMOVE_DATA=1` is passed.
+
+**Installing the agent on a Mac** (macOS 13 or later, Apple silicon or
+Intel; sub-project 8b):
+
+1. Company → **Devices** → **New enrolment key**, then the **macOS** tab:
+   **Download for Mac** gives one `.pkg` for every Mac.
+2. Open the package. The first time on each Mac, macOS stops it because it
+   isn't signed with an Apple Developer ID (PRISM has none yet): open
+   **System Settings → Privacy & Security**, click **Open Anyway**, then
+   open the package again and install it with an administrator's password.
+3. In Terminal, run the command the tab shows (copy it when the key is
+   created):
+
+       sudo prism-agent enroll --url https://prism.example.com --key pk_enr_...
+
+   (`prism-agent` is a link to
+   `/Library/Application Support/PRISM/bin/prism-agent`; use the full path
+   if `/usr/local/bin` isn't trusted on that Mac.)
+
+The Mac appears in Assets with its hardware, macOS version, disks,
+network, apps and usual user; people get **Submit a ticket…** in the menu
+bar. Updates install themselves without asking. Macs are installed by
+hand, not by MDM, until there is a Developer ID (an unsigned package can't
+be deployed by most MDMs). To remove the agent:
+`sudo prism-agent uninstall` (keeps the enrolment, so reinstalling brings
+the same device back) or `sudo prism-agent uninstall --remove-data`.
 
 **Network:** agents only make outgoing HTTPS requests to `PUBLIC_APP_URL`
 (the same address staff use). Nothing connects to the computers; no ports
