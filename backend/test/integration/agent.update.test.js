@@ -158,6 +158,12 @@ it('versions compare by number, with a pre-release before its release', () => {
   expect(compareVersions('1.0.0-rc.1', '1.0.0')).toBe(-1);
   expect(compareVersions('1.0.0', '1.0.0-rc.1')).toBe(1);
   expect(compareVersions('dev', '0.1.0')).toBe(-1);
+  // Branch builds: 0.0.0-dev.<CI run>, so run 10 is newer than run 9.
+  expect(compareVersions('0.0.0-dev.10', '0.0.0-dev.9')).toBe(1);
+  expect(compareVersions('0.0.0-dev.9', '0.0.0-dev.10')).toBe(-1);
+  expect(compareVersions('0.0.0-dev.10', '0.5.0')).toBe(-1);
+  expect(compareVersions('1.0.0-rc.1', '1.0.0-rc.1.1')).toBe(-1);
+  expect(compareVersions('1.0.0-1', '1.0.0-alpha')).toBe(-1);
 });
 
 it('the shared update-signing vector holds in Node (the Go agent checks the same file)', () => {

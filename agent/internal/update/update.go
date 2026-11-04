@@ -75,8 +75,10 @@ var (
 	hex64   = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 
-// Compare orders versions as PRISM does: numeric major.minor.patch, a
-// pre-release before its release, anything unreadable ("dev") lowest.
+// Compare orders versions as PRISM does (semver precedence): numeric
+// major.minor.patch, a pre-release before its release, pre-release parts
+// numbers-as-numbers (0.0.0-dev.10 > 0.0.0-dev.9), anything unreadable
+// ("dev") lowest.
 func Compare(a, b string) int {
 	type v struct {
 		nums [3]int
@@ -119,11 +121,45 @@ func Compare(a, b string) int {
 		return 1
 	case y.pre == "":
 		return -1
-	case x.pre < y.pre:
-		return -1
 	default:
-		return 1
+		return comparePre(x.pre, y.pre)
 	}
+}
+
+// comparePre: identifiers one by one, numbers as numbers (dev.10 > dev.9)
+// and before words, fewer identifiers first.
+func comparePre(a, b string) int {
+	x, y := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < len(x) || i < len(y); i++ {
+		if i >= len(x) {
+			return -1
+		}
+		if i >= len(y) {
+			return 1
+		}
+		xn, xerr := strconv.Atoi(x[i])
+		yn, yerr := strconv.Atoi(y[i])
+		switch {
+		case xerr == nil && yerr == nil:
+			if xn != yn {
+				if xn < yn {
+					return -1
+				}
+				return 1
+			}
+		case (xerr == nil) != (yerr == nil):
+			if xerr == nil {
+				return -1
+			}
+			return 1
+		case x[i] != y[i]:
+			if x[i] < y[i] {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
 }
 
 // Verify checks an offer before anything is downloaded: its shape, that it

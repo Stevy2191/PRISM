@@ -57,8 +57,30 @@ async function updateKey() {
   return keyFromSeed(seed);
 }
 
-// Version order: numeric major.minor.patch; a pre-release sorts before its
-// release (0.6.0-rc.1 < 0.6.0). Anything unreadable sorts lowest.
+// Version order (semver precedence): numeric major.minor.patch; a
+// pre-release sorts before its release (0.6.0-rc.2 < 0.6.0); pre-release
+// identifiers compare one by one, numbers as numbers (dev.10 > dev.9) and
+// before words. Anything unreadable sorts lowest.
+function comparePre(a, b) {
+  const x = a.split('.');
+  const y = b.split('.');
+  for (let i = 0; i < Math.max(x.length, y.length); i += 1) {
+    if (x[i] === undefined) return -1;
+    if (y[i] === undefined) return 1;
+    const xn = /^\d+$/.test(x[i]);
+    const yn = /^\d+$/.test(y[i]);
+    if (xn && yn) {
+      const d = Number(x[i]) - Number(y[i]);
+      if (d) return d < 0 ? -1 : 1;
+    } else if (xn !== yn) {
+      return xn ? -1 : 1;
+    } else if (x[i] !== y[i]) {
+      return x[i] < y[i] ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
 function compareVersions(a, b) {
   const parse = (v) => {
     if (typeof v !== 'string' || !VERSION.test(v)) return null;
@@ -72,7 +94,7 @@ function compareVersions(a, b) {
   if (x.pre === y.pre) return 0;
   if (!x.pre) return 1;
   if (!y.pre) return -1;
-  return x.pre < y.pre ? -1 : 1;
+  return comparePre(x.pre, y.pre);
 }
 
 function readManifest() {

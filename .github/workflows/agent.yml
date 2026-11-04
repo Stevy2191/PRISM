@@ -1,0 +1,222 @@
+name: Agent packages
+
+# Builds the Windows agent (amd64 and arm64), packages each as an MSI,
+# install-tests the amd64 one on a real Windows runner, and hands the
+# packages and their manifest.json to the backend image (docker-publish.yml),
+# which serves them to enrolled agents as signed updates and to staff as
+# the Download installer button. Packages are never published anywhere else.
+#
+# Version: a v1.2.3 tag gives 1.2.3 (MSI 1.2.3); a branch build gives
+# 0.0.0-dev.<run number> (MSI 0.0.<run number>), so each dev build is newer
+# than the last for both PRISM and Windows Installer.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths: ['agent/**', '.github/workflows/agent.yml']
+
+jobs:
+  windows:
+    name: Windows MSI (build, sign, install test)
+    runs-on: windows-latest
+    env:
+      WIX_VERSION: 4.0.5
+      HAS_PFX: ${{ secrets.AGENT_SIGNING_PFX != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      - name: Version
+        id: v
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            v="${GITHUB_REF#refs/tags/v}"; msi="${v%%-*}"
+          else
+            v="0.0.0-dev.${GITHUB_RUN_NUMBER}"; msi="0.0.$((GITHUB_RUN_NUMBER % 65536))"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "msi=$msi" >> "$GITHUB_OUTPUT"
+          echo "Agent $v (MSI $msi)"
+
+      - name: Build
+        shell: bash
+        working-directory: agent
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          ld="-s -w -X github.com/stevy2191/prism/agent/internal/version.Version=${VERSION}"
+          for arch in amd64 arm64; do
+            GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$ld" -o dist/windows-$arch/prism-agent.exe ./cmd/prism-agent
+            GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$ld -H windowsgui" -o dist/windows-$arch/prism-tray.exe ./cmd/prism-tray
+          done
+          ls -la dist/*
+
+      # PRISM's own code-signing certificate (owner decision 2026-10-03), when
+      # the AGENT_SIGNING_PFX secret (base64 .pfx) and AGENT_SIGNING_PASSWORD
+      # exist. Without them the packages are unsigned: PRISM's update
+      # signature still protects self-updates.
+      - name: Sign programs
+        if: env.HAS_PFX == 'true'
+        env:
+          PFX_B64: ${{ secrets.AGENT_SIGNING_PFX }}
+          PFX_PASSWORD: ${{ secrets.AGENT_SIGNING_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+          Get-ChildItem agent\dist -Recurse -Filter *.exe | ForEach-Object {
+            & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:PFX_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signing $($_.Name) failed" }
+          }
+          Remove-Item $pfx
+
+      - name: Install WiX
+        run: |
+          dotnet tool install --global wix --version $env:WIX_VERSION
+          wix extension add -g "WixToolset.Util.wixext/$env:WIX_VERSION"
+
+      - name: Package
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          MSI_VERSION: ${{ steps.v.outputs.msi }}
+        run: |
+          New-Item -ItemType Directory -Force agent-dist | Out-Null
+          foreach ($pair in @(@('x64','amd64'), @('arm64','arm64'))) {
+            $wixArch, $goArch = $pair
+            $out = "agent-dist\prism-agent-$env:VERSION-windows-$goArch.msi"
+            wix build -arch $wixArch -ext WixToolset.Util.wixext `
+              -d "MsiVersion=$env:MSI_VERSION" -d "BinDir=agent\dist\windows-$goArch" `
+              -o $out agent\packaging\windows\prism-agent.wxs
+            if ($LASTEXITCODE -ne 0) { throw "wix build ($wixArch) failed" }
+          }
+          Get-ChildItem agent-dist
+
+      - name: Sign installers
+        if: env.HAS_PFX == 'true'
+        env:
+          PFX_B64: ${{ secrets.AGENT_SIGNING_PFX }}
+          PFX_PASSWORD: ${{ secrets.AGENT_SIGNING_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+          Get-ChildItem agent-dist -Filter *.msi | ForEach-Object {
+            & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:PFX_PASSWORD /tr http://timestamp.digicert.com /td SHA256 /d "PRISM Agent" $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signing $($_.Name) failed" }
+          }
+          Remove-Item $pfx
+
+      # Install the amd64 MSI silently against a stub PRISM (agent/tools/
+      # stubprism, which checks request signatures), the way GPO or Intune
+      # would, and check everything the installer promises.
+      - name: Install test
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $t = $env:RUNNER_TEMP
+          $msi = (Resolve-Path "agent-dist\prism-agent-$env:VERSION-windows-amd64.msi").Path
+          $exe = "$env:ProgramFiles\PRISM\Agent\prism-agent.exe"
+          function Msi([string[]]$a, [string]$log) {
+            $p = Start-Process msiexec.exe -ArgumentList ($a + @('/qn', '/l*v', $log)) -Wait -PassThru
+            return $p.ExitCode
+          }
+          function Ok($code) { return ($code -eq 0 -or $code -eq 3010) }
+
+          Push-Location agent; go build -o "$t\stubprism.exe" ./tools/stubprism; Pop-Location
+          Start-Process "$t\stubprism.exe" -ArgumentList '-addr', '127.0.0.1:8765', '-key', 'pk_enr_ci_9f8e7d', '-out', "$t\stub" -WindowStyle Hidden
+          Start-Sleep 2
+
+          Write-Host '--- A wrong key fails the install and leaves nothing'
+          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_wrong_1a2b3c') "$t\bad.log"
+          if (Ok $c) { throw "the install with a wrong key succeeded ($c)" }
+          if (Get-Service PRISMAgent -ErrorAction SilentlyContinue) { throw 'the service was left after a failed install' }
+          if (Test-Path $exe) { throw 'files were left after a failed install' }
+          if (Select-String -Path "$t\bad.log" -Pattern 'pk_enr_wrong_1a2b3c' -SimpleMatch -Quiet) { throw 'the key is in the failed install log' }
+
+          Write-Host '--- Silent install with enrolment'
+          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\install.log"
+          if (-not (Ok $c)) { Get-Content "$t\install.log" -Tail 150; throw "install failed ($c)" }
+          if (Select-String -Path "$t\install.log" -Pattern 'pk_enr_ci_9f8e7d' -SimpleMatch -Quiet) { throw 'the enrolment key is in the install log' }
+
+          Write-Host '--- The service runs as LocalSystem and reports a signed heartbeat'
+          $svc = Get-Service PRISMAgent
+          $svc.WaitForStatus('Running', '00:01:30')
+          $cfg = Get-CimInstance Win32_Service -Filter "Name='PRISMAgent'"
+          if ($cfg.StartName -ne 'LocalSystem' -or $cfg.StartMode -ne 'Auto') { throw "service runs as $($cfg.StartName), start $($cfg.StartMode)" }
+          $deadline = (Get-Date).AddSeconds(90)
+          while (-not (Test-Path "$t\stub\heartbeat.ok") -and (Get-Date) -lt $deadline) { Start-Sleep 2 }
+          Get-Content "$t\stub\stub.log"
+          if (-not (Test-Path "$t\stub\heartbeat.ok")) { throw 'no signed heartbeat reached the stub' }
+
+          Write-Host '--- status reports the enrolment'
+          $status = & $exe status | Out-String
+          Write-Host $status
+          if ($status -notmatch 'Device:\s+1' -or $status -notmatch 'PRISM:\s+http://127\.0\.0\.1:8765') { throw 'status does not report the enrolment' }
+          if ($status -notmatch ('Version:\s+' + [regex]::Escape($env:VERSION) + ' ')) { throw 'status does not report the stamped version' }
+
+          Write-Host '--- The device key is SYSTEM-only; the tray starts at sign-in; the Start menu has Submit a ticket'
+          try { [IO.File]::ReadAllBytes("$env:ProgramData\PRISM\device.key") | Out-Null; throw 'the device key is readable by an administrator' } catch [UnauthorizedAccessException] { }
+          $run = (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run').PRISM
+          if ($run -notlike '*prism-tray.exe*') { throw "Run key: $run" }
+          if (-not (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Submit a ticket.lnk")) { throw 'no Start menu shortcut' }
+
+          Write-Host '--- Installing again with the key keeps the same enrolment'
+          $before = Get-Content "$env:ProgramData\PRISM\agent.json" -Raw
+          $c = Msi @('/fa', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\repair.log"
+          if (-not (Ok $c)) { Get-Content "$t\repair.log" -Tail 80; throw "repair failed ($c)" }
+          if ((Get-Content "$env:ProgramData\PRISM\agent.json" -Raw) -ne $before) { throw 'a reinstall with the key enrolled again' }
+
+          Write-Host '--- Uninstall keeps the enrolment'
+          $c = Msi @('/x', $msi) "$t\uninstall.log"
+          if (-not (Ok $c)) { Get-Content "$t\uninstall.log" -Tail 80; throw "uninstall failed ($c)" }
+          if (Get-Service PRISMAgent -ErrorAction SilentlyContinue) { throw 'the service is still there' }
+          if (Test-Path $exe) { throw 'the program is still there' }
+          if (-not (Test-Path "$env:ProgramData\PRISM\agent.json")) { throw 'uninstall removed the enrolment' }
+
+          Write-Host '--- Reinstall (already enrolled), then uninstall with REMOVE_DATA=1'
+          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\install2.log"
+          if (-not (Ok $c)) { Get-Content "$t\install2.log" -Tail 80; throw "reinstall failed ($c)" }
+          (Get-Service PRISMAgent).WaitForStatus('Running', '00:01:30')
+          $c = Msi @('/x', $msi, 'REMOVE_DATA=1') "$t\uninstall2.log"
+          if (-not (Ok $c)) { Get-Content "$t\uninstall2.log" -Tail 80; throw "uninstall failed ($c)" }
+          if (Test-Path "$env:ProgramData\PRISM") { throw 'REMOVE_DATA=1 left ProgramData\PRISM' }
+          Write-Host 'Install test passed.'
+
+      - name: Install logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-install-logs
+          path: ${{ runner.temp }}/*.log
+          retention-days: 7
+
+      - name: Manifest
+        shell: bash
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          cd agent-dist
+          entries=()
+          for arch in amd64 arm64; do
+            f="prism-agent-${VERSION}-windows-${arch}.msi"
+            sum=$(sha256sum "$f" | cut -d' ' -f1)
+            entries+=("{\"platform\":\"windows\",\"arch\":\"${arch}\",\"version\":\"${VERSION}\",\"file\":\"${f}\",\"sha256\":\"${sum}\"}")
+          done
+          (IFS=,; echo "[${entries[*]}]") > manifest.json
+          cat manifest.json
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist
+          path: agent-dist/
+          retention-days: 7

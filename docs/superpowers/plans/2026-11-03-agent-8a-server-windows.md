@@ -344,9 +344,32 @@
 - Create: `.github/workflows/agent.yml` (Go tests on ubuntu and windows; build `windows/amd64` and `windows/arm64`; WiX; optional signtool step when the `AGENT_SIGNING_PFX` secret exists; uploads `agent-dist/` with `manifest.json`)
 - Modify: `.github/workflows/docker-publish.yml` (needs `agent`, downloads `agent-dist` into the backend image build)
 
-- [ ] **Step 1:** a CI job installs the MSI silently on `windows-latest` with a test key against a stub server, checks the service runs and `prism-agent status` reports "enrolled", then uninstalls cleanly.
-- [ ] **Step 2:** the version comes from the git tag, or `0.0.0-dev+<sha>` on branches, and is stamped into the binaries and the MSI.
-- [ ] **Step 3: Commit** `ci(agent): build, package and test the Windows agent`
+- [x] **Step 1:** a CI job installs the MSI silently on `windows-latest` with a test key against a stub server, checks the service runs and `prism-agent status` reports "enrolled", then uninstalls cleanly.
+- [x] **Step 2:** the version comes from the git tag, or `0.0.0-dev+<sha>` on branches, and is stamped into the binaries and the MSI.
+- [x] **Step 3: Commit** `ci(agent): build, package and test the Windows agent`
+
+**As built (2026-11-04):**
+- **Version:** a `v1.2.3` tag gives `1.2.3` (MSI `1.2.3`; a pre-release tag's MSI version is its core). A branch gives `0.0.0-dev.<run number>` (MSI `0.0.<run number>`), not the planned `0.0.0-dev+<sha>`: hashes don't order, so `dev` agents would never know which build is newer. Version comparison in both the server and the agent now follows semver precedence for pre-release parts (numbers as numbers, so `dev.10` > `dev.9`), with tests on both sides.
+- **MSI** (`agent/packaging/windows/prism-agent.wxs`, WiX 4.0.5 plus the Util extension):
+  - perMachine. `MajorUpgrade` with same-version upgrades allowed, and a fixed UpgradeCode.
+  - The service: `ServiceConfig` for delayed auto-start and `util:ServiceConfig` for restart on failure. The event-log source is registered (EventCreate.exe).
+  - The tray in HKLM `Run`, and a Start menu "Submit a ticket" (`prism-tray form`).
+  - `C:\ProgramData\PRISM` gets `PermissionEx` `D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)`, as Task 10 noted.
+  - **Enrolment:** a deferred `WixQuietExec` as SYSTEM, after InstallFiles and before the service starts. `ENROLL_KEY` is `Hidden` and the CA is `HideTarget`. A refused key fails and rolls back the install.
+  - **Remove data:** `REMOVE_DATA=1` at uninstall runs `rmdir` on the data folder (not during upgrades).
+- **`prism-agent enroll` is idempotent:** already enrolled with the same PRISM means "Already enrolled", and nothing changes. So a GPO or Intune redeploy with the key doesn't make a second identity (and a second Asset). `--force` re-enrols. `keystore.Exists` checks for the key without reading it.
+- **CI** (`.github/workflows/agent.yml`, called by `docker-publish.yml`, which now needs it, and run on PRs touching `agent/`):
+  - Builds amd64 and arm64 (`-trimpath -s -w`, the tray `-H windowsgui`).
+  - **Signing:** signtool when the `AGENT_SIGNING_PFX` and `AGENT_SIGNING_PASSWORD` secrets exist, for both the programs and the MSIs.
+  - Builds both MSIs, install-tests the amd64 one, then writes `manifest.json` and uploads `agent-dist`. The backend image build downloads it into `backend/agent-dist`. Packages are never published elsewhere (owner, 2026-11-03). The Go tests stay in `test.yml`.
+- **Install test** (Step 1), on `windows-latest` against `agent/tools/stubprism` (a stand-in PRISM that checks request signatures):
+  - **Bad key:** the install fails and leaves no service or files, and the key isn't in the log.
+  - **Good install:** the key isn't in the log. The service runs as LocalSystem with auto start, and a correctly signed heartbeat reaches the stub. `status` shows the URL, device 1 and the stamped version.
+  - **Locked down and set up:** `device.key` can't be read by an administrator. The Run key and the Start menu shortcut exist.
+  - **Repair** (`/fa`) with the key leaves `agent.json` unchanged.
+  - **Uninstall** removes the service and the programs and keeps `agent.json`. A reinstall, then `/x REMOVE_DATA=1`, removes `ProgramData\PRISM`.
+  - On failure, the msiexec logs are uploaded.
+- **Not covered:** the tray in a running session after a self-update. A file in use is replaced at the next reboot (`/norestart`), and the old tray talks to the new service through the same pipe protocol.
 
 ### Task 12: Staff screens
 

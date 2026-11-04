@@ -27,6 +27,12 @@ var ErrNoKey = errors.New("no device key")
 // Path is the key file in dir.
 func Path(dir string) string { return filepath.Join(dir, FileName) }
 
+// Exists: a key file is there (it may only be readable by SYSTEM).
+func Exists(dir string) bool {
+	_, err := os.Stat(Path(dir))
+	return err == nil
+}
+
 // Load reads the device key from dir.
 func Load(dir string) (ed25519.PrivateKey, error) {
 	blob, err := os.ReadFile(Path(dir))

@@ -80,11 +80,20 @@ func cmdEnroll(args []string) error {
 	fs := flag.NewFlagSet("enroll", flag.ContinueOnError)
 	url := fs.String("url", "", "PRISM's address, https://…")
 	key := fs.String("key", "", "the enrolment key from the company's Agent page (pk_enr_…)")
+	force := fs.Bool("force", false, "enrol again even if already enrolled with this PRISM (a new device identity)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *url == "" || *key == "" {
 		return errors.New("enroll needs --url and --key")
+	}
+	// Re-running the installer with a key (a GPO or Intune redeploy) mustn't
+	// make a second identity, and so a second Asset, for the same computer.
+	if base, err := enroll.CheckURL(*url); err == nil && !*force {
+		if cfg, err := config.Load(); err == nil && cfg.URL == base && keystore.Exists(config.Dir()) {
+			fmt.Printf("Already enrolled with %s as device %d (use --force to enrol again).\n", cfg.URL, cfg.DeviceID)
+			return nil
+		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()

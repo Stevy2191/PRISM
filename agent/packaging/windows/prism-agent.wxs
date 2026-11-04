@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The PRISM Agent installer (WiX 4), built per architecture by
+  .github/workflows/agent.yml:
+
+    wix build -arch x64 -ext WixToolset.Util.wixext
+      -d MsiVersion=0.6.0 -d BinDir=dist\windows-amd64 -o prism-agent.msi prism-agent.wxs
+
+  Silent install with enrolment (GPO, Intune, by hand):
+
+    msiexec /i prism-agent.msi /qn PRISM_URL=https://prism.example.com ENROLL_KEY=pk_enr_...
+
+  - Both programs go to Program Files\PRISM\Agent.
+  - The PRISMAgent service: automatic (delayed) start as LocalSystem,
+    restarted on failure, with an Application event-log source.
+  - The tray starts at every user's sign-in (HKLM Run); the Start menu gets
+    "Submit a ticket".
+  - With PRISM_URL and ENROLL_KEY, "prism-agent enroll" runs once, as
+    SYSTEM, before the service starts. A refused key fails the install
+    (rolled back). ENROLL_KEY is a hidden property and the command line is
+    hidden, so the key is never in the log, and it is never written to
+    disk. A computer already enrolled with that PRISM is left as it is
+    (prism-agent enroll --force re-enrols), and self-updates pass no key.
+  - C:\ProgramData\PRISM: SYSTEM and Administrators full control, users
+    read. Uninstall keeps it (the enrolment) unless REMOVE_DATA=1.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package Name="PRISM Agent" Manufacturer="PRISM" Language="1033"
+           Version="$(var.MsiVersion)" UpgradeCode="90E9EF06-8478-4D8C-A5B5-632C3CB6D904"
+           Scope="perMachine" Compressed="yes" InstallerVersion="500">
+    <SummaryInformation Description="PRISM Agent $(var.MsiVersion)" />
+
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer PRISM Agent is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="PRISM_URL" Secure="yes" />
+    <Property Id="ENROLL_KEY" Secure="yes" Hidden="yes" />
+    <Property Id="REMOVE_DATA" Secure="yes" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPCOMMENTS" Value="Reports this computer to PRISM and puts Submit a ticket in the notification area." />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="PrismDir" Name="PRISM">
+        <Directory Id="INSTALLFOLDER" Name="Agent" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="DATADIR" Name="PRISM" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main" Title="PRISM Agent" Level="1">
+      <ComponentRef Id="AgentExe" />
+      <ComponentRef Id="TrayExe" />
+      <ComponentRef Id="StartMenu" />
+      <ComponentRef Id="DataFolder" />
+    </Feature>
+
+    <Component Id="AgentExe" Directory="INSTALLFOLDER" Bitness="always64">
+      <File Id="AgentExe" Source="$(var.BinDir)\prism-agent.exe" KeyPath="yes" />
+      <ServiceInstall Id="AgentService" Name="PRISMAgent" DisplayName="PRISM Agent"
+                      Description="Reports this computer's inventory to PRISM and relays tickets from the PRISM tray."
+                      Type="ownProcess" Start="auto" Account="LocalSystem" ErrorControl="normal"
+                      Arguments="run" Vital="yes">
+        <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall="yes" />
+        <util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart"
+                            ThirdFailureActionType="restart" RestartServiceDelayInSeconds="30"
+                            ResetPeriodInDays="1" />
+      </ServiceInstall>
+      <ServiceControl Id="AgentServiceControl" Name="PRISMAgent" Start="install" Stop="both"
+                      Remove="uninstall" Wait="yes" />
+      <RegistryKey Root="HKLM" Key="SYSTEM\CurrentControlSet\Services\EventLog\Application\PRISMAgent">
+        <RegistryValue Name="EventMessageFile" Type="expandable" Value="%SystemRoot%\System32\EventCreate.exe" />
+        <RegistryValue Name="TypesSupported" Type="integer" Value="7" />
+      </RegistryKey>
+    </Component>
+
+    <Component Id="TrayExe" Directory="INSTALLFOLDER" Bitness="always64">
+      <File Id="TrayExe" Source="$(var.BinDir)\prism-tray.exe" KeyPath="yes" />
+      <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                     Name="PRISM" Type="string" Value="&quot;[#TrayExe]&quot;" />
+    </Component>
+
+    <Component Id="StartMenu" Directory="ProgramMenuFolder" Bitness="always64">
+      <Shortcut Id="SubmitTicket" Name="Submit a ticket" Description="Send the help desk a ticket from this computer"
+                Target="[#TrayExe]" Arguments="form" WorkingDirectory="INSTALLFOLDER" />
+      <RegistryValue Root="HKLM" Key="Software\PRISM\Agent" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Component Id="DataFolder" Directory="DATADIR" Bitness="always64">
+      <CreateFolder>
+        <PermissionEx Sddl="D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
+      </CreateFolder>
+      <RegistryValue Root="HKLM" Key="Software\PRISM\Agent" Name="DataFolder" Type="string" Value="[DATADIR]" KeyPath="yes" />
+    </Component>
+
+    <!-- Enrol once at install, as SYSTEM, before the service starts. -->
+    <SetProperty Id="EnrollAgent" Sequence="execute" Before="EnrollAgent"
+                 Value="&quot;[#AgentExe]&quot; enroll --url &quot;[PRISM_URL]&quot; --key &quot;[ENROLL_KEY]&quot;"
+                 Condition="PRISM_URL AND ENROLL_KEY AND NOT REMOVE" />
+    <CustomAction Id="EnrollAgent" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
+                  Execute="deferred" Return="check" Impersonate="no" HideTarget="yes" />
+
+    <!-- Uninstall with REMOVE_DATA=1 also forgets the enrolment. -->
+    <SetProperty Id="RemoveData" Sequence="execute" Before="RemoveData"
+                 Value="&quot;[System64Folder]cmd.exe&quot; /c rmdir /s /q &quot;[DATADIR]&quot;"
+                 Condition="REMOVE~=&quot;ALL&quot; AND REMOVE_DATA=&quot;1&quot; AND NOT UPGRADINGPRODUCTCODE" />
+    <CustomAction Id="RemoveData" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
+                  Execute="deferred" Return="ignore" Impersonate="no" />
+
+    <InstallExecuteSequence>
+      <Custom Action="EnrollAgent" After="InstallFiles"
+              Condition="PRISM_URL AND ENROLL_KEY AND NOT REMOVE" />
+      <Custom Action="RemoveData" After="RemoveFiles"
+              Condition="REMOVE~=&quot;ALL&quot; AND REMOVE_DATA=&quot;1&quot; AND NOT UPGRADINGPRODUCTCODE" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>
