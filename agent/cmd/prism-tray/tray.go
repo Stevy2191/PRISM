@@ -70,19 +70,16 @@ func onReady() {
 	about := systray.AddMenuItem("About PRISM Agent "+version.Version, "")
 	about.Disable()
 
-	refresh := func() {
+	// refresh asks the service who we are, shows it, and says when to ask
+	// again (soon while something's wrong).
+	refresh := func() time.Duration {
 		var a ipc.WhoamiAnswer
 		err := ipc.Call(map[string]string{"op": "whoami"}, &a, 30*time.Second)
+		title, detail, next := trayui.Status(err, a.Computer, a.Offline, connectedLabel)
 		mu.Lock()
 		defer mu.Unlock()
-		switch {
-		case err != nil:
-			status.SetTitle("The PRISM Agent service isn't running")
-		case a.Offline:
-			status.SetTitle(a.Computer + " · can't reach the help desk")
-		default:
-			status.SetTitle(a.Computer + " · " + connectedLabel)
-		}
+		status.SetTitle(title)
+		status.SetTooltip(detail)
 		if err == nil && trayui.SafePortalURL(a.Helpdesk.PortalURL) {
 			portalURL = a.Helpdesk.PortalURL
 			portal.Show()
@@ -90,11 +87,11 @@ func onReady() {
 			portalURL = ""
 			portal.Hide()
 		}
+		return next
 	}
 	go func() {
 		for {
-			refresh()
-			time.Sleep(5 * time.Minute)
+			time.Sleep(refresh())
 		}
 	}()
 	go func() {
