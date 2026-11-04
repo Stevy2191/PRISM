@@ -117,13 +117,28 @@ function InstallCommand({ fresh, keys, packages }) {
   const usable = keys.filter((k) => k.usable);
   const keyName = fresh ? fresh.key.name : (usable[0] && usable[0].name);
   const secret = fresh ? fresh.secret : 'pk_enr_…';
-  const win = packages.find((p) => p.platform === 'windows' && p.arch === 'amd64');
-  const winArm = packages.find((p) => p.platform === 'windows' && p.arch === 'arm64');
-  const msi = win ? win.file : 'prism-agent.msi';
-  const command = `msiexec /i ${msi} /qn PRISM_URL=${window.location.origin} ENROLL_KEY=${secret}`;
+  const has = (plat, arch) => packages.find((p) => p.platform === plat && (p.arches || [p.arch]).includes(arch));
+  const win = has('windows', 'amd64');
+  const winArm = has('windows', 'arm64');
+  const winArmOwn = winArm && (!win || winArm.file !== win.file) ? winArm : null;
+  const mac = has('macos', 'arm64') || has('macos', 'amd64');
+  const origin = window.location.origin;
+  // Windows: one silent command (GPO, Intune). Mac: the package can't take
+  // settings, so enrolment is a command after installing (spec, decision 7).
+  const command = platform === 'macos'
+    ? `sudo prism-agent enroll --url ${origin} --key ${secret}`
+    : `msiexec /i ${win ? win.file : 'prism-agent.msi'} /qn PRISM_URL=${origin} ENROLL_KEY=${secret}`;
   const copy = async () => {
     try { await navigator.clipboard.writeText(command); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* no clipboard */ }
   };
+  const commandBox = (
+    <>
+      {fresh && <Notice tone="info">This is the only time the full key is shown. Copy the command now; PRISM keeps only a fingerprint of the key.</Notice>}
+      <pre aria-label="Command" className="m-0 whitespace-pre-wrap break-all rounded-lg border p-3 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{command}</pre>
+    </>
+  );
+  const copyButton = <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={copy} disabled={!fresh}>{copied ? 'Copied' : 'Copy'}</button>;
+  const keyNote = fresh ? '' : 'The key is shown in full once, when it\'s created: create a new one to copy a complete command.';
   return (
     <Card title="Install command" hint={keyName ? `With the key “${keyName}”` : 'Create an enrolment key first'}>
       <div className="space-y-3 px-5 py-4">
@@ -142,28 +157,48 @@ function InstallCommand({ fresh, keys, packages }) {
             </button>
           ))}
         </div>
-        {platform === 'windows' ? (
+        {platform === 'windows' && (
           <>
-            {fresh && <Notice tone="info">This is the only time the full key is shown. Copy the command now; PRISM keeps only a fingerprint of the key.</Notice>}
-            <pre aria-label="Command" className="m-0 whitespace-pre-wrap break-all rounded-lg border p-3 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{command}</pre>
+            {commandBox}
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={copy} disabled={!fresh}>{copied ? 'Copied' : 'Copy'}</button>
+              {copyButton}
               {win ? (
-                <a className="btn-primary inline-flex h-9 items-center px-3 text-sm" href={`/api/v1/devices/packages/windows/amd64`} download>
+                <a className="btn-primary inline-flex h-9 items-center px-3 text-sm" href="/api/v1/devices/packages/windows/amd64" download>
                   Download for Windows (MSI, {mb(win.size)})
                 </a>
               ) : <span className="text-sm" style={MUTED}>No Windows installer in this PRISM build yet.</span>}
-              {winArm && <a className="text-sm text-prism hover:underline" href="/api/v1/devices/packages/windows/arm64" download>ARM version</a>}
+              {winArmOwn && <a className="text-sm text-prism hover:underline" href="/api/v1/devices/packages/windows/arm64" download>ARM version</a>}
             </div>
+            <p className="m-0 text-[12.5px]" style={MUTED}>Works from Group Policy, Intune or by hand. {keyNote}</p>
+          </>
+        )}
+        {platform === 'macos' && (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              {mac ? (
+                <a className="btn-primary inline-flex h-9 items-center px-3 text-sm" href="/api/v1/devices/packages/macos/arm64" download>
+                  Download for Mac (.pkg, {mb(mac.size)})
+                </a>
+              ) : <span className="text-sm" style={MUTED}>No Mac package in this PRISM build yet.</span>}
+              {mac && <span className="text-[12.5px]" style={MUTED}>Apple silicon and Intel · macOS 13 or later</span>}
+            </div>
+            <ol aria-label="Installing on a Mac" className="m-0 list-decimal space-y-1.5 pl-5 text-sm text-navy-900">
+              <li>
+                Open the package. The first time on each Mac, macOS stops it: go to
+                {' '}<b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>, then open it again.
+              </li>
+              <li>Install it (it asks for an administrator&apos;s password).</li>
+              <li>In Terminal, enrol the Mac with this company&apos;s key:</li>
+            </ol>
+            {commandBox}
+            <div className="flex flex-wrap items-center gap-2">{copyButton}</div>
             <p className="m-0 text-[12.5px]" style={MUTED}>
-              Works from Group Policy, Intune or by hand.{' '}
-              {fresh ? '' : 'The key is shown in full once, when it\'s created: create a new one to copy a complete command.'}
+              Macs are installed by hand for now (no Apple Developer ID); updates install themselves without asking. {keyNote}
             </p>
           </>
-        ) : (
-          <p className="m-0 text-sm" style={MUTED}>
-            The {PLATFORM[platform]} agent is coming in {platform === 'macos' ? '8b' : '8c'}.
-          </p>
+        )}
+        {platform === 'linux' && (
+          <p className="m-0 text-sm" style={MUTED}>The Linux agent (Ubuntu, Fedora and Arch) is coming in 8c.</p>
         )}
       </div>
     </Card>

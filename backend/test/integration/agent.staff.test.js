@@ -177,7 +177,7 @@ it('installers: listed and downloaded by staff with devices.manage only', async 
   }]));
   const list = await w.admin.agent.get(`${API}/devices/packages`).expect(200);
   expect(list.body.packages).toEqual([{
-    platform: 'windows', arch: 'amd64', version: '0.6.0', size: 2048, file,
+    platform: 'windows', arch: 'amd64', arches: ['amd64'], universal: false, version: '0.6.0', size: 2048, file,
   }]);
   const dl = await w.admin.agent.get(`${API}/devices/packages/windows/amd64`).buffer(true).parse((r, cb) => {
     const chunks = [];
@@ -195,4 +195,24 @@ it('installers: listed and downloaded by staff with devices.manage only', async 
   // Not signed in: nothing.
   const request = require('supertest'); // eslint-disable-line global-require
   expect((await request(getApp()).get(`${API}/devices/packages/windows/amd64`)).status).toBe(401);
+});
+
+it('the Mac\'s universal package (8b) is listed once and downloads for either chip', async () => {
+  const bytes = crypto.randomBytes(4096);
+  const file = 'prism-agent-0.6.0-macos-universal.pkg';
+  fs.writeFileSync(path.join(dist, file), bytes);
+  const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+  fs.writeFileSync(path.join(dist, 'manifest.json'), JSON.stringify(['amd64', 'arm64'].map((arch) => ({
+    platform: 'macos', arch, version: '0.6.0', file, sha256,
+  }))));
+  const list = await w.admin.agent.get(`${API}/devices/packages`).expect(200);
+  expect(list.body.packages).toEqual([{
+    platform: 'macos', arch: 'amd64', arches: ['amd64', 'arm64'], universal: true, version: '0.6.0', size: 4096, file,
+  }]);
+  for (const arch of ['amd64', 'arm64']) {
+    // eslint-disable-next-line no-await-in-loop
+    const dl = await w.admin.agent.get(`${API}/devices/packages/macos/${arch}`);
+    expect(dl.status).toBe(200);
+    expect(dl.headers['content-disposition']).toContain(file);
+  }
 });

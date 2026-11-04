@@ -39,6 +39,13 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   expect(text).toContain('msiexec /i ');
   expect(text).toContain(`PRISM_URL=${smoke.base}`);
   await page.getByRole('cell', { name: /Clinic rollout/ }).waitFor();
+  // The macOS tab (8b): the package, Open Anyway once, then the enrol
+  // command with the same new key.
+  await page.getByRole('tab', { name: 'macOS' }).click();
+  await page.getByRole('list', { name: 'Installing on a Mac' }).getByText('Open Anyway').waitFor();
+  const macCommand = await page.getByLabel('Command', { exact: true }).textContent();
+  expect(macCommand).toBe(`sudo prism-agent enroll --url ${smoke.base} --key ${text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1]}`);
+  await page.getByRole('tab', { name: 'Windows' }).click();
 
   // A computer enrols with that key and reports in.
   const secret = text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1];

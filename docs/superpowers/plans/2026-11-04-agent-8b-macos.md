@@ -258,9 +258,15 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - **Asset Device tab:** "Joined to" reads "<domain> (Active Directory, bound with dsconfigad)" on a Mac; disks show "Internal" / "External"; the OS line reads "macOS 15.1 · build 24B83".
 - **Server:** no new endpoints; `GET /devices/packages` lists the Mac package once (it covers both architectures), with "Universal" in its label.
 
-- [ ] **Step 1: Failing tests:** a Mac inventory fixture fills the Asset ("Apple", "MacBook Air (M3)", "macOS", "15.1 (24B83)", storage counted once); the Mac package is listed once and downloads for both architectures; the smoke test shows the macOS steps and the enrol command with the new key.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS (with the `assets.*` and `companies.page` smokes).
-- [ ] **Step 5: Commit** `feat(agent): the Mac on the Devices and Asset screens`
+- [x] **Step 1: Failing tests:** a Mac inventory fixture fills the Asset ("Apple", "MacBook Air (M3)", "macOS", "15.1 (24B83)", storage counted once); the Mac package is listed once and downloads for both architectures; the smoke test shows the macOS steps and the enrol command with the new key.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS (with the `assets.*` and `companies.page` smokes).
+- [x] **Step 5: Commit** `feat(agent): the Mac on the Devices and Asset screens`
+
+**As built (2026-11-04):**
+- **Server:** `GET /devices/packages` lists one entry per file, `{ platform, arch, arches, universal, version, size, file }`, so the Mac's universal `.pkg` appears once (`arches: ["amd64", "arm64"], universal: true`). The download works with either arch. Test: `agent.staff.test.js` ("the Mac's universal package is listed once…"), and the Windows entry's new shape.
+- **Devices → Install command → macOS:** Download for Mac (`.pkg`, size; "Apple silicon and Intel · macOS 13 or later"), then the three steps: open the package and **Open Anyway** in Privacy & Security the first time, install (with an administrator's password), then the Terminal command `sudo prism-agent enroll --url <this PRISM> --key <the new key>`. The full key and Copy appear only right after the key is created, as on Windows. A line says Macs are installed by hand until there's a Developer ID, and that updates install themselves. The Windows ARM link shows only when it's a different file. The Linux tab still says 8c.
+- **Asset Device tab:** on a Mac the row is "Directory": "<domain> (Active Directory, bound)" or "Not bound to a directory". External disks read "External" (Task 2), and the OS line already reads "macOS 15.1 · build 24B83".
+- **Smoke** (`agent.smoke.js`): the macOS tab shows the steps, and its command is exactly `sudo prism-agent enroll --url <base> --key <the key just created>`. The Mac inventory through the server was covered in Task 2 (`macos15.json`).
 
 ### Task 10: Finish
 

@@ -192,7 +192,9 @@ const revoke = asyncHandler(async (req, res) => {
   res.json({ device: deviceSummary(d) });
 });
 
-// GET /devices/packages → the installers this PRISM can hand out.
+// GET /devices/packages → the installers this PRISM can hand out, one entry
+// per file: { platform, arch, arches, universal, version, size, file }. The
+// Mac's universal .pkg covers amd64 and arm64 and is listed once.
 const listPackages = asyncHandler(async (req, res) => {
   const packages = [];
   for (const platform of PLATFORMS) {
@@ -200,9 +202,16 @@ const listPackages = asyncHandler(async (req, res) => {
       let pkg = null;
       try { pkg = latestPackage(platform, arch); } catch (err) { pkg = null; }
       if (pkg) {
-        packages.push({
-          platform, arch, version: pkg.version, size: pkg.size, file: path.basename(pkg.file),
-        });
+        const file = path.basename(pkg.file);
+        const same = packages.find((p) => p.platform === platform && p.file === file);
+        if (same) {
+          same.arches.push(arch);
+          same.universal = true;
+        } else {
+          packages.push({
+            platform, arch, arches: [arch], universal: false, version: pkg.version, size: pkg.size, file,
+          });
+        }
       }
     }
   }
