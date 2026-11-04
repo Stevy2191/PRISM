@@ -51,6 +51,25 @@ func ParseHardwareJSON(b []byte) (MacHardware, error) {
 	}, nil
 }
 
+// ParseIORegSerial reads the serial number from
+// `ioreg -a -r -d 1 -c IOPlatformExpertDevice` (a plist array of the
+// platform device's properties). The collector asks it when
+// system_profiler gives none.
+func ParseIORegSerial(b []byte) (string, error) {
+	var devices []struct {
+		Serial string `plist:"IOPlatformSerialNumber"`
+	}
+	if _, err := plist.Unmarshal(b, &devices); err != nil {
+		return "", err
+	}
+	for _, d := range devices {
+		if s := tidy(d.Serial); s != "" {
+			return s, nil
+		}
+	}
+	return "", nil
+}
+
 var appleChip = regexp.MustCompile(`^Apple (M\d+(?: (?:Pro|Max|Ultra))?)$`)
 
 // MacModel is the model as PRISM shows it: "MacBook Air (M3)" on Apple

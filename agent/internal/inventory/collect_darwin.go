@@ -33,12 +33,25 @@ func Collect() (Inventory, []error) {
 		r.Hostname = strings.TrimSuffix(n, ".local")
 	}
 
-	if b, err := run("/usr/sbin/system_profiler", "-json", "-detailLevel", "mini", "SPHardwareDataType"); err == nil {
+	// The default detail level: "-detailLevel mini" leaves out the serial
+	// number (Apple counts it as personal information).
+	if b, err := run("/usr/sbin/system_profiler", "-json", "SPHardwareDataType"); err == nil {
 		h, perr := ParseHardwareJSON(b)
 		note("system_profiler", perr)
 		r.Manufacturer, r.Model, r.BIOSSerial, r.BIOSVersion = "Apple", MacModel(h), h.Serial, h.BootROM
 	} else {
 		note("system_profiler", err)
+	}
+	// The serial straight from the hardware registry when system_profiler
+	// has none: PRISM matches a reinstalled computer to its Asset by it.
+	if r.BIOSSerial == "" {
+		if b, err := run("/usr/sbin/ioreg", "-a", "-r", "-d", "1", "-c", "IOPlatformExpertDevice"); err == nil {
+			s, perr := ParseIORegSerial(b)
+			note("ioreg", perr)
+			r.BIOSSerial = s
+		} else {
+			note("ioreg", err)
+		}
 	}
 	cpu, _ := unix.Sysctl("machdep.cpu.brand_string")
 	cores, _ := unix.SysctlUint32("hw.physicalcpu")

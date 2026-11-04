@@ -216,3 +216,33 @@ func TestMacSnapshot(t *testing.T) {
 		t.Fatalf("disks %+v", s.Disks)
 	}
 }
+
+// What the first Mac agent saw: "-detailLevel mini" has no serial, so the
+// collector asks ioreg for it.
+func TestMacSerialWhenSystemProfilerHasNone(t *testing.T) {
+	b, err := os.ReadFile("testdata/macos-m3-hardware-mini.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := ParseHardwareJSON(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.Serial != "" || MacModel(h) != "MacBook Air (M3)" {
+		t.Fatalf("mini: serial %q, model %q", h.Serial, MacModel(h))
+	}
+	b, err = os.ReadFile("testdata/macos-ioreg-platform.plist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := ParseIORegSerial(b)
+	if err != nil || s != "FVFG4P3XQ6LR" {
+		t.Fatalf("ioreg serial %q, %v", s, err)
+	}
+	if s, err := ParseIORegSerial([]byte(`<plist version="1.0"><array><dict><key>IOPlatformSerialNumber</key><string> </string></dict></array></plist>`)); err != nil || s != "" {
+		t.Fatalf("blank serial: %q, %v", s, err)
+	}
+	if _, err := ParseIORegSerial([]byte("not a plist")); err == nil {
+		t.Fatal("expected an error for junk")
+	}
+}

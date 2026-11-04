@@ -1,0 +1,16 @@
+{
+  "SPHardwareDataType" : [
+    {
+      "_name" : "hardware_overview",
+      "activation_lock_status" : "activation_lock_disabled",
+      "boot_rom_version" : "11881.81.4",
+      "chip_type" : "Apple M3",
+      "machine_model" : "Mac15,12",
+      "machine_name" : "MacBook Air",
+      "model_number" : "MRXN3LL/A",
+      "number_processors" : "proc 8:4:4",
+      "os_loader_version" : "11881.81.4",
+      "physical_memory" : "16 GB"
+    }
+  ]
+}
