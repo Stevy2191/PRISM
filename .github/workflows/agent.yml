@@ -207,7 +207,10 @@ jobs:
           retention-days: 7
 
   macos:
-    name: macOS package (build, sign, install test)
+    # Also the agent's macOS tests (test.yml runs them on Linux and
+    # Windows): one Mac per push rather than two, since hosted Macs are
+    # scarce and a job left waiting for one gets cancelled.
+    name: macOS tests and package (build, sign, install test)
     runs-on: macos-latest
     env:
       HAS_APPLE_ID: ${{ secrets.APPLE_DEVELOPER_ID_APP != '' }}
@@ -220,6 +223,20 @@ jobs:
         with:
           go-version-file: agent/go.mod
           cache-dependency-path: agent/go.sum
+
+      - name: Vet
+        working-directory: ./agent
+        run: go vet ./...
+
+      - name: Test
+        working-directory: ./agent
+        run: go test -race ./...
+
+      # Both programs with cgo (Cocoa for the menu bar, WKWebView for the
+      # ticket window), as test.yml builds them elsewhere.
+      - name: Build
+        working-directory: ./agent
+        run: go build ./cmd/...
 
       - name: Version
         id: v

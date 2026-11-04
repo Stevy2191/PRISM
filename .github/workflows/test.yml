@@ -92,13 +92,15 @@ jobs:
 
   agent:
     # The PRISM agent (Go, sub-project 8). Windows runs the parts only it
-    # has (the DPAPI key store, its SYSTEM-only ACL, the named pipe); macOS
-    # its own (8b).
+    # has (the DPAPI key store, its SYSTEM-only ACL, the named pipe). macOS
+    # runs the same steps in agent.yml's package job, before it builds the
+    # package: hosted Macs are scarce, and asking for two per push left runs
+    # cancelled waiting for one.
     name: Agent tests (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
