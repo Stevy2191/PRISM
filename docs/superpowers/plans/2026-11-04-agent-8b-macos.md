@@ -50,8 +50,14 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - Modify: `agent/internal/*/…_other.go` → split into `_darwin.go` and `_linux.go` stubs where 8b and 8c differ (inventory, snapshot, service, ipc, update, keystore, tray), so each platform's code has its own file and Linux keeps building.
 - Modify: `.github/workflows/test.yml` (the agent matrix gains `macos-latest`), `agent/cmd/prism-tray/main_other.go` (Linux only).
 
-- [ ] **Step 1:** `go vet ./...` and `go test ./...` pass for `GOOS=darwin` (cross-compiled here, and natively on `macos-latest`) and stay green on Windows and Linux.
-- [ ] **Step 2: Commit** `refactor(agent): per-platform files for macOS and Linux`
+- [x] **Step 1:** `go vet ./...` and `go test ./...` pass for `GOOS=darwin` (cross-compiled here, and natively on `macos-latest`) and stay green on Windows and Linux.
+- [x] **Step 2: Commit** `refactor(agent): per-platform files for macOS and Linux`
+
+**As built (2026-11-04):**
+- `_darwin.go` and `_linux.go` files replace the shared `!windows` stubs where the two will differ: `inventory/collect_*`, `inventory/snapshot_*`, `service/service_*`, `ipc/ipc_*`, `update/update_*` (`packageExt`, `PlatformInstall`) and `cmd/prism-tray/main_*`. Each Mac stub names the Task that replaces it.
+- Shared on both (`//go:build darwin || linux`): `keystore_unix.go` (the 0600 root-only key file, which is the Mac's final form; see Notes on the spec) and `update_unix.go` (the 0700 updates folder).
+- `test.yml`'s agent job runs `go vet` and `go test -race` on `macos-latest` as well as Ubuntu and Windows.
+- Checked here: `go vet` for linux, darwin and windows; both programs build for darwin; the tests pass with `-race`.
 
 ### Task 2: Mac inventory
 

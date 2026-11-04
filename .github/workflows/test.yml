@@ -91,13 +91,14 @@ jobs:
         run: npm run build
 
   agent:
-    # The PRISM agent (Go, sub-project 8a). Windows runs the parts only it
-    # has: the DPAPI key store and its SYSTEM-only file ACL.
+    # The PRISM agent (Go, sub-project 8). Windows runs the parts only it
+    # has (the DPAPI key store, its SYSTEM-only ACL, the named pipe); macOS
+    # its own (8b).
     name: Agent tests (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:

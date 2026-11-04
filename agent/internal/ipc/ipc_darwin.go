@@ -1,5 +1,3 @@
-//go:build !windows
-
 package ipc
 
 import (
@@ -8,7 +6,7 @@ import (
 	"time"
 )
 
-// macOS and Linux use a Unix socket with the peer's credentials (8b, 8c).
+// macOS: a Unix socket with the peer's credentials, plan 8b, Task 4.
 
 // ErrNotRunning: the service isn't running.
 var ErrNotRunning = errors.New("the PRISM Agent service isn't running")

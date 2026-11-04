@@ -5,8 +5,8 @@
 // Windows (keystore_windows.go): the 32-byte seed is protected with DPAPI
 // (machine scope, so the SYSTEM service can read what an elevated installer
 // wrote) in a file whose ACL allows SYSTEM alone. macOS and Linux
-// (keystore_other.go) are a 0600 file until 8b and 8c bring the keychain
-// and the system's own protections.
+// (keystore_unix.go) are a file only root can read (0600); the macOS
+// keychain waits for a Developer ID (plan 8b, Notes on the spec).
 package keystore
 
 import (

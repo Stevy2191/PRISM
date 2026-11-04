@@ -1,11 +1,11 @@
-//go:build !windows
+//go:build darwin || linux
 
 package keystore
 
 import "os"
 
-// macOS and Linux for now: the seed in a file only root can read. 8b moves
-// macOS to the System keychain.
+// macOS and Linux: the seed in a file only root can read (0600). On macOS
+// this stays until there is a Developer ID (plan 8b, Notes on the spec).
 func protect(seed []byte) ([]byte, error)   { return append([]byte(nil), seed...), nil }
 func unprotect(blob []byte) ([]byte, error) { return blob, nil }
 
