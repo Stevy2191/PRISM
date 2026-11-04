@@ -296,7 +296,9 @@ jobs:
           test -f "$t/stub/heartbeat.ok"
 
           echo "--- The key is root's alone; the socket is root's; status works for a user"
-          [ "$(sudo stat -f '%Su:%Sg %Lp' "$data/device.key")" = "root:wheel 600" ]
+          # Root's, and no one else's: mode 600 (the group, inherited from
+          # the folder as macOS does, has no access).
+          [ "$(sudo stat -f '%Su %Lp' "$data/device.key")" = "root 600" ]
           if cat "$data/device.key" 2>/dev/null; then echo "the key is readable"; exit 1; fi
           [ "$(stat -f %u /var/run/prism-agent.sock)" = "0" ]
           prism-agent status | tee "$t/status.txt"
