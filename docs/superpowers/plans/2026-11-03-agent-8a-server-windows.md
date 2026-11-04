@@ -322,9 +322,20 @@
 
 **Files:** Create `agent/internal/update/update.go` and `update_windows.go` (download to `C:\ProgramData\PRISM\updates`, check sha256 and the Ed25519 signature with the stored public key, check the version is higher, then run `msiexec /i … /qn` detached so the service restarts itself). Test: `agent/internal/update/update_test.go`.
 
-- [ ] **Step 1: Failing tests:** a good package is accepted; another key's signature, a hash mismatch, or a lower or equal version is refused and the file deleted; a refused update leaves the running version and is logged.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): signed self-update on Windows`
+- [x] **Step 1: Failing tests:** a good package is accepted; another key's signature, a hash mismatch, or a lower or equal version is refused and the file deleted; a refused update leaves the running version and is logged.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): signed self-update on Windows`
+
+**As built (2026-11-04):**
+- **Order of checks:**
+  1. **Before downloading:** the offer's shape (version `x.y.z[-pre]`, a 64-hex sha256, size 1 byte to 200 MB). The version must be newer than the running one (`update.Compare`, the same order as the server, so `dev` sorts lowest). The Ed25519 signature over `platform|arch|version|sha256` must verify with `agent.json`'s `updatePublicKey`. A computer with no key (enrolled before Task 6) gets no updates and is told to re-enrol.
+  2. **The download** (signed request): `X-Prism-Version` must equal the offered version, so a build published in between is refused. It's written with `O_EXCL` to `.partial`, read up to size+1, and the byte count and sha256 must match exactly. Then it's renamed to `prism-agent-<version>.msi`.
+  3. **Install:** `msiexec /i … /qn /norestart /l*v install-<version>.log`, started detached in a new process group and broken away from any job (if the job forbids that, it starts without breaking away), so stopping the service can't end the installer.
+- **Updates folder:** `C:\ProgramData\PRISM\updates`, with its DACL reset to SYSTEM and Administrators only (`D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)`) before each update, so no user can plant or swap a file between the check and msiexec.
+- **Failures:** every refusal deletes the file, logs "update to X refused: why (staying on Y)" and records the version in `updates/state.json`. That version isn't tried again for 6 hours; records older than 7 days are dropped. One update runs at a time (`Offered`).
+- **Shared vector** `agent/testdata/update-signing.json`: Node (`signedText`, `crypto.sign`) and Go (`Verify`) both check it. The amd64 signature is refused for arm64.
+- **Checked end to end** against the real backend: an agent at 0.6.0 was offered 0.7.0 from `AGENT_DIST_DIR`, verified the signature from the install's real update key, downloaded the package and matched the hash. On Linux it then stops at "not installed on this platform yet" and records the failure.
+- **For Task 11:** the MSI must give `C:\ProgramData\PRISM` itself a SYSTEM and Administrators ACL (users read at most), since `agent.json` and `helpdesk.json` live there.
 
 ### Task 11: The MSI and CI
 

@@ -9,7 +9,7 @@ const {
 const { makeWorld, makeCompany } = require('./fixtures');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 const { makeKeys, agentClient } = require('./agentClient');
-const { compareVersions, updateKey } = require('../../src/services/agent/updates');
+const { compareVersions, updateKey, signedText } = require('../../src/services/agent/updates');
 
 // Sub-project 8a, task 6: signed agent updates served by PRISM.
 
@@ -158,4 +158,14 @@ it('versions compare by number, with a pre-release before its release', () => {
   expect(compareVersions('1.0.0-rc.1', '1.0.0')).toBe(-1);
   expect(compareVersions('1.0.0', '1.0.0-rc.1')).toBe(1);
   expect(compareVersions('dev', '0.1.0')).toBe(-1);
+});
+
+it('the shared update-signing vector holds in Node (the Go agent checks the same file)', () => {
+  const v = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../agent/testdata/update-signing.json'), 'utf8'));
+  expect(sha(Buffer.from(v.packageText))).toBe(v.sha256);
+  const text = signedText({ platform: v.platform, arch: v.arch, version: v.version, sha256: v.sha256 });
+  expect(text).toBe(v.signedText);
+  const key = crypto.createPrivateKey({ key: Buffer.concat([Buffer.from('302e020100300506032b657004220420', 'hex'), Buffer.from(v.seedHex, 'hex')]), format: 'der', type: 'pkcs8' });
+  expect(crypto.sign(null, Buffer.from(text), key).toString('base64')).toBe(v.signatureB64);
+  expect(verifies(v.publicKeyB64, text, v.signatureB64)).toBe(true);
 });

@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -32,6 +33,7 @@ import (
 	"github.com/stevy2191/prism/agent/internal/keystore"
 	"github.com/stevy2191/prism/agent/internal/schedule"
 	"github.com/stevy2191/prism/agent/internal/service"
+	"github.com/stevy2191/prism/agent/internal/update"
 	"github.com/stevy2191/prism/agent/internal/version"
 )
 
@@ -130,7 +132,7 @@ func work(ctx context.Context, logf func(string, ...any)) {
 			c := client.New(cfg.URL, cfg.DeviceID, key)
 			tray.SetPRISM(c)
 			logf("prism-agent %s: device %d, reporting to %s", version.Version, cfg.DeviceID, cfg.URL)
-			schedule.RunAll(ctx, jobs(cfg, c), nil, logf)
+			schedule.RunAll(ctx, jobs(cfg, c, logf), nil, logf)
 			return
 		}
 		logf("prism-agent %s: waiting: %v", version.Version, err)
@@ -140,15 +142,25 @@ func work(ctx context.Context, logf func(string, ...any)) {
 	}
 }
 
-func jobs(cfg *config.Config, c *client.Client) []schedule.Job {
+func jobs(cfg *config.Config, c *client.Client, logf func(string, ...any)) []schedule.Job {
+	updater := &update.Updater{
+		PRISM: c, Dir: filepath.Join(config.Dir(), "updates"), PublicKey: cfg.UpdatePublicKey,
+		Platform: enroll.Platform(), Arch: runtime.GOARCH, Current: version.Version,
+		Install: update.PlatformInstall, Logf: logf,
+	}
 	return []schedule.Job{
 		{
 			Name: "heartbeat", Interval: cfg.Heartbeat(), RetryBase: 30 * time.Second,
 			Run: func(ctx context.Context) error {
 				var out struct {
-					Update json.RawMessage `json:"update"`
+					Update *update.Offer `json:"update"`
 				}
 				_, err := c.Do(ctx, "POST", "/api/v1/agent/v1/heartbeat", map[string]any{"agentVersion": version.Version}, &out)
+				if err == nil && out.Update != nil {
+					// Checked, downloaded and installed in the background; a
+					// refused offer is logged and the agent carries on.
+					updater.Offered(ctx, *out.Update)
+				}
 				return err
 			},
 		},
