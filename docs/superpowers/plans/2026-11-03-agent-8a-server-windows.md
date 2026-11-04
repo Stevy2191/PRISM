@@ -404,10 +404,22 @@
 
 ### Task 13: Finish
 
-- [ ] **Step 1:** ROADMAP row 8 → "8a shipped"; UPGRADING `## Unreleased`: migration 074, the `devices.manage` permission, how to create a key and deploy the MSI (GPO and Intune), firewall needs (agents reach `PUBLIC_APP_URL` over HTTPS only), and pushing trust for the self-signed code-signing certificate if one is used.
-- [ ] **Step 2:** Full backend and smoke suites, and the agent workflow, all green.
-- [ ] **Step 3:** Security review (Review Focus above), fix pass, commit, push to `dev`.
+- [x] **Step 1:** ROADMAP row 8 → "8a shipped"; UPGRADING `## Unreleased`: migration 074, the `devices.manage` permission, how to create a key and deploy the MSI (GPO and Intune), firewall needs (agents reach `PUBLIC_APP_URL` over HTTPS only), and pushing trust for the self-signed code-signing certificate if one is used.
+- [x] **Step 2:** Full backend and smoke suites, and the agent workflow, all green.
+- [x] **Step 3:** Security review (Review Focus above), fix pass, commit, push to `dev`.
 - [ ] **Step 4:** Hand test by the owner on a real Windows 11 machine and a Windows 10 one: install, the Asset appears, a tray ticket arrives, revoke stops it.
+
+**As built (2026-11-04):**
+- **Docs:** UPGRADING `## Unreleased` covers migrations 074 and 075, `devices.manage`, creating a key and installing (Group Policy: a startup script, since Software Installation could only pass the properties through a transform; Intune: a Win32 app), the network (outgoing HTTPS to `PUBLIC_APP_URL` only), code signing and pushing trust, and updates. ROADMAP row 8 is Building, with 8a on `dev`.
+- **Security review** of the five Review Focus points. Each already has tests (Tasks 2, 3, 6, 7, 9 and 10). Beyond them, three fixes:
+  - **A body the signature can't cover is refused.** The signature covers the raw JSON body. A body sent as a form was parsed without being kept, so it was checked as empty, and its parsed values reached the handler unsigned. (Exploiting it still needed a fresh signature from the device key.) `agentAuth` now refuses any agent request with a body that wasn't captured, and there's a test.
+  - **Rate limits on the agent's other signed calls**, per device: `whoami` and the update check 60 per 10 minutes, downloads 6 an hour. Tested.
+  - **The Go client doesn't follow redirects** (`ErrRedirect`, not retried). A redirect would have carried the signed headers to another host. Tested.
+- **Accepted, by design:**
+  - Whoever holds a computer's device key (a local administrator who takes it from SYSTEM) can act as that computer: raise tray tickets for any contact of its company, look up names and departments of that company's contacts through `whoami`, and send false inventory. Revoking the computer ends it.
+  - An enrolment key of company A can claim any Asset of company A whose serial it presents (without a live agent). Keys are per company and revocable.
+- **Checks:** the full backend suite, the full smoke suite and the agent workflow (MSI build and install test on `windows-latest`) all pass. See the Task 13 commit.
+- **Step 4 (the owner's hand test)** is still to do: install on a Windows 11 and a Windows 10 computer, check the Asset appears, a tray ticket arrives, and revoking stops it.
 
 ## Notes on the spec
 

@@ -10,7 +10,56 @@ backend start.
 
 ## Unreleased
 
-Nothing yet.
+The PRISM agent for Windows (sub-project 8a). Every Windows computer it's
+installed on becomes an Asset of its company and keeps its hardware, OS,
+disks, network, installed software and usual user current; people at the
+computer get **Submit a ticket** in the notification area. macOS (8b) and
+Linux (8c) follow before this is released as v0.5.0.
+
+**Database:** migrations 074 (devices, enrolment keys, installed software,
+the `agent` ticket source) and 075 (the "Unknown tray user" placeholder
+contact). They run on start; nothing to do.
+
+**Permission:** a new **Manage devices** permission (`devices.manage`), given
+to System Administrator only. It lets staff create and revoke enrolment keys,
+download the installer and revoke computers. Seeing a company's devices
+follows the Assets view permission and company access, as before.
+
+**Installing the agent:**
+
+1. Open a company → **Devices** → **New enrolment key**. Copy the install
+   command straight away: the full key is shown once.
+2. **Download for Windows (MSI)** on the same tab. The installer is served by
+   your PRISM only (staff sign-in) and is never published anywhere else.
+3. Install silently:
+
+       msiexec /i prism-agent-<version>-windows-amd64.msi /qn PRISM_URL=https://prism.example.com ENROLL_KEY=pk_enr_...
+
+   - **Group Policy:** a computer startup script running that command
+     (Software Installation could only pass the two properties through a
+     transform).
+   - **Intune:** a Windows app (Win32) wrapping the MSI with that command
+     line; detection by the MSI's product code, or the `PRISMAgent` service.
+
+   A wrong or revoked key fails the install. Running the installer again on
+   a computer already enrolled with the same PRISM changes nothing. Uninstall
+   keeps the enrolment unless `REMOVE_DATA=1` is passed.
+
+**Network:** agents only make outgoing HTTPS requests to `PUBLIC_APP_URL`
+(the same address staff use). Nothing connects to the computers; no ports
+need opening on them. `PUBLIC_APP_URL` must be reachable from the client
+networks, with a certificate those computers trust.
+
+**Code signing:** the installer is unsigned unless the `AGENT_SIGNING_PFX`
+(base64 .pfx) and `AGENT_SIGNING_PASSWORD` secrets are set on the repository.
+With your own (self-signed) certificate, push it to the computers' **Trusted
+Publishers** and **Trusted Root Certification Authorities** stores by Group
+Policy or Intune first, so SmartScreen and application control accept it.
+Self-updates don't depend on this: each PRISM signs its agent updates with
+its own key, which the agents learned at enrolment.
+
+**Updates:** a new PRISM image brings a new agent; enrolled computers are
+offered it at their next heartbeat (every 5 minutes) and update themselves.
 
 ## v0.4.0
 

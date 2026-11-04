@@ -101,3 +101,16 @@ it('a bad agentVersion is refused after authentication', async () => {
   const res = await device.post(HB, { agentVersion: '<script>' });
   expect(res.status).toBe(400);
 });
+
+it('a body the signature can\'t cover (not JSON) is refused, even signed as empty', async () => {
+  const request = require('supertest'); // eslint-disable-line global-require
+  const ts = String(Math.floor(Date.now() / 1000));
+  const nonce = 'formBodyNonce12345';
+  const sig = sign(device.keys.privateKey, canonical('POST', HB, ts, nonce, Buffer.alloc(0)));
+  const res = await request(getApp()).post(HB)
+    .set('X-Prism-Device', String(device.deviceId)).set('X-Prism-Timestamp', ts)
+    .set('X-Prism-Nonce', nonce).set('X-Prism-Signature', sig)
+    .type('form').send('agentVersion=9.9.9');
+  expect(res.status).toBe(401);
+  expect((await models.Device.findByPk(device.deviceId)).agentVersion).not.toBe('9.9.9');
+});

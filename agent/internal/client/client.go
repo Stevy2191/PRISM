@@ -55,6 +55,10 @@ func NewNonce() string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
+// ErrRedirect: PRISM's address answered with a redirect, which the agent
+// doesn't follow (check the PRISM address: https, and the exact host).
+var ErrRedirect = errors.New("PRISM's address redirected the agent; use the exact https:// address of PRISM")
+
 // Error is PRISM's answer to a refused request.
 type Error struct {
 	Status     int
@@ -81,7 +85,7 @@ func Retryable(err error) bool {
 	if errors.As(err, &e) {
 		return e.Status == http.StatusTooManyRequests || e.Status >= 500
 	}
-	return !errors.Is(err, context.Canceled)
+	return !errors.Is(err, context.Canceled) && !errors.Is(err, ErrRedirect)
 }
 
 // Client is one enrolled device's connection to PRISM.
@@ -105,7 +109,12 @@ type Client struct {
 func New(baseURL string, deviceID int64, key ed25519.PrivateKey) *Client {
 	return &Client{
 		BaseURL: strings.TrimRight(baseURL, "/"), DeviceID: deviceID, Key: key,
-		HTTP:     &http.Client{Timeout: 60 * time.Second},
+		HTTP: &http.Client{
+			Timeout: 60 * time.Second,
+			// PRISM's agent API never redirects; a redirect would carry the
+			// signed headers somewhere else, so it is refused.
+			CheckRedirect: func(*http.Request, []*http.Request) error { return ErrRedirect },
+		},
 		Attempts: 3, BaseBackoff: 2 * time.Second, MaxBackoff: time.Minute,
 	}
 }
@@ -226,6 +235,9 @@ func (c *Client) send(ctx context.Context, method, path string, body []byte, sig
 			last = err
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
+			}
+			if errors.Is(err, ErrRedirect) {
+				return nil, err
 			}
 			continue
 		}

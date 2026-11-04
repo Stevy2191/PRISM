@@ -6,7 +6,7 @@ const path = require('path');
 const express = require('express');
 const { asyncHandler } = require('../middleware/error');
 const {
-  agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter,
+  agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter,
 } = require('../middleware/rateLimit');
 const { agentAuth, agentAuthenticate } = require('../middleware/agentAuth');
 const { applyInventory } = require('../services/agent/inventory');
@@ -62,7 +62,7 @@ router.post('/v1/inventory', agentAuth({ maxBody: 1024 * 1024 }), agentInventory
 // GET /agent/v1/tray/whoami?account=&upn= → { name, company, department,
 // computer, helpdesk: { name, email, portalUrl } }. Fills the tray's form.
 // The agent's service passes the account the tray's pipe token belongs to.
-router.get('/v1/tray/whoami', agentAuthenticate, asyncHandler(async (req, res) => {
+router.get('/v1/tray/whoami', agentAuthenticate, agentReadLimiter, asyncHandler(async (req, res) => {
   res.json(await whoami(req.device, req.query));
 }));
 
@@ -76,7 +76,7 @@ router.post('/v1/tray/tickets', agentAuthenticate, agentTrayTicketLimiter, async
 // this device's agent is up to date. The signature is Ed25519, with the
 // install's update key, over "platform|arch|version|sha256". The platform
 // and arch are the device's own, as enrolled.
-router.get('/v1/update', agentAuthenticate, asyncHandler(async (req, res) => {
+router.get('/v1/update', agentAuthenticate, agentReadLimiter, asyncHandler(async (req, res) => {
   const update = await updateFor(req.device);
   if (!update) return res.status(204).end();
   return res.json(update);
@@ -85,7 +85,7 @@ router.get('/v1/update', agentAuthenticate, asyncHandler(async (req, res) => {
 // GET /agent/v1/update/download → the package's bytes (signed request: no
 // package is public). The agent checks the sha256 and the signature from
 // GET /v1/update before installing.
-router.get('/v1/update/download', agentAuthenticate, asyncHandler(async (req, res) => {
+router.get('/v1/update/download', agentAuthenticate, agentDownloadLimiter, asyncHandler(async (req, res) => {
   const pkg = latestPackage(req.device.platform, req.device.arch);
   if (!pkg) throw new ApiError(404, 'The agent package is not available', 'NOT_FOUND');
   res.set('X-Prism-Version', pkg.version);

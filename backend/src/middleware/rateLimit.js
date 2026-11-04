@@ -197,16 +197,41 @@ const agentTrayTicketLimiter = rateLimit({
   message: { error: true, message: 'Too many tickets from this computer; try again later', code: 'RATE_LIMITED' },
 });
 
+// The agent's other signed calls, per device: the tray's whoami and the
+// update check (60 per 10 minutes: far above a heartbeat-paced agent and a
+// person opening the form), and package downloads (6 an hour: an update is
+// one). A stolen device key can't hammer them.
+const agentReadStore = new MemoryStore();
+const agentReadLimiter = rateLimit({
+  store: agentReadStore,
+  windowMs: 10 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `device:${req.device.id}`,
+  message: { error: true, message: 'Too many requests from this computer', code: 'RATE_LIMITED' },
+});
+const agentDownloadStore = new MemoryStore();
+const agentDownloadLimiter = rateLimit({
+  store: agentDownloadStore,
+  windowMs: 60 * 60 * 1000,
+  max: 6,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `device:${req.device.id}`,
+  message: { error: true, message: 'Too many downloads from this computer', code: 'RATE_LIMITED' },
+});
+
 // Clears every limiter's counters. Used by the test suite so one case's
 // login attempts don't rate-limit the next; never called at runtime.
 function resetRateLimits() {
   [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
-    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore]
+    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
-  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter,
+  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter,
 };

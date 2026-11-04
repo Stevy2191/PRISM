@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -180,4 +181,39 @@ func asError(err error, target **Error) bool {
 		*target = e
 	}
 	return ok
+}
+
+func TestRedirectsAreNotFollowed(t *testing.T) {
+	var elsewhere atomic.Int32
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Prism-Signature") != "" {
+			elsewhere.Add(1)
+		}
+		w.WriteHeader(200)
+	}))
+	defer other.Close()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, other.URL+r.URL.Path, http.StatusTemporaryRedirect)
+	}))
+	defer srv.Close()
+	var calls atomic.Int32
+	c, _ := testClient(srv.URL)
+	c.HTTP.Transport = countingTransport{&calls}
+	_, err := c.Do(context.Background(), "POST", "/api/v1/agent/v1/heartbeat", map[string]string{"agentVersion": "0.6.0"}, nil)
+	if calls.Load() != 1 {
+		t.Fatalf("%d requests, want 1 (a redirect isn't retried)", calls.Load())
+	}
+	if !errors.Is(err, ErrRedirect) || Retryable(err) {
+		t.Fatalf("err %v, want ErrRedirect (not retried)", err)
+	}
+	if elsewhere.Load() != 0 {
+		t.Fatal("the signed request was sent to the redirect target")
+	}
+}
+
+type countingTransport struct{ n *atomic.Int32 }
+
+func (t countingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	t.n.Add(1)
+	return http.DefaultTransport.RoundTrip(r)
 }

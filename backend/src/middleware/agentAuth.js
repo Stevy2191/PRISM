@@ -61,6 +61,11 @@ function agentAuth({ maxBody = MAX_BODY_BYTES } = {}) {
       if (!Number.isInteger(id) || id <= 0 || !/^\d{1,12}$/.test(ts) || !NONCE_RE.test(nonce) || !signature) throw refused();
       const now = Date.now();
       if (Math.abs(now / 1000 - Number(ts)) > MAX_SKEW_SEC) throw refused();
+      // The signature covers the raw JSON body. A body sent as anything
+      // else (a form, say) was parsed without being kept, so it could never
+      // be checked: refuse it rather than check an empty one.
+      const sent = Number(req.get('content-length') || 0) > 0 || !!req.get('transfer-encoding');
+      if (sent && !req.rawBody) throw refused();
       const body = req.rawBody || Buffer.alloc(0);
       if (body.length > maxBody) throw new ApiError(413, 'Too much data in one request', 'PAYLOAD_TOO_LARGE');
 

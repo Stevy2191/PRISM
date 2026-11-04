@@ -175,3 +175,12 @@ it('the shared update-signing vector holds in Node (the Go agent checks the same
   expect(crypto.sign(null, Buffer.from(text), key).toString('base64')).toBe(v.signatureB64);
   expect(verifies(v.publicKeyB64, text, v.signatureB64)).toBe(true);
 });
+
+it('downloads are limited to 6 an hour per computer', async () => {
+  const { client } = await enroll();
+  publish([pkg('0.6.0')]);
+  for (let i = 0; i < 6; i += 1) expect((await client.get(DOWNLOAD)).status).toBe(200); // eslint-disable-line no-await-in-loop
+  expect((await client.get(DOWNLOAD)).status).toBe(429);
+  // The update check has its own, roomier limit.
+  expect((await client.get(UPDATE)).status).toBe(200);
+});
