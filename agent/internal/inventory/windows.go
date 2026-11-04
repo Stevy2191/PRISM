@@ -204,9 +204,23 @@ func consoleUser() (*SignedUser, error) {
 	} else {
 		defer tok.Close()
 	}
+	return UserFromToken(tok)
+}
+
+// ErrAnonymous: the token is the anonymous logon (a pipe client that
+// refused to be identified).
+var ErrAnonymous = errors.New("anonymous caller")
+
+// UserFromToken is the token's user as DOMAIN\user with their UPN when
+// Windows can say it. Used for the console user and for the tray's pipe
+// client.
+func UserFromToken(tok windows.Token) (*SignedUser, error) {
 	tu, err := tok.GetTokenUser()
 	if err != nil {
 		return nil, err
+	}
+	if tu.User.Sid.IsWellKnown(windows.WinAnonymousSid) {
+		return nil, ErrAnonymous
 	}
 	account, dom, _, err := tu.User.Sid.LookupAccount("")
 	if err != nil {

@@ -67,7 +67,7 @@ router.get('/v1/tray/whoami', agentAuthenticate, asyncHandler(async (req, res) =
 }));
 
 // POST /agent/v1/tray/tickets { account, upn?, subject, description, snapshot }
-// → { ticketId, number }
+// → { ticketId, number, replyTo }
 router.post('/v1/tray/tickets', agentAuthenticate, agentTrayTicketLimiter, asyncHandler(async (req, res) => {
   res.status(201).json(await raiseTrayTicket(req.device, req.body, req));
 }));

@@ -28,6 +28,7 @@ import (
 	"github.com/stevy2191/prism/agent/internal/config"
 	"github.com/stevy2191/prism/agent/internal/enroll"
 	"github.com/stevy2191/prism/agent/internal/inventory"
+	"github.com/stevy2191/prism/agent/internal/ipc"
 	"github.com/stevy2191/prism/agent/internal/keystore"
 	"github.com/stevy2191/prism/agent/internal/schedule"
 	"github.com/stevy2191/prism/agent/internal/service"
@@ -108,6 +109,17 @@ func cmdRun() error {
 // work runs until ctx ends. A computer that isn't enrolled yet (the service
 // can start before the installer enrols) checks again every minute.
 func work(ctx context.Context, logf func(string, ...any)) {
+	// The tray's pipe answers from the start (offline until enrolled).
+	tray := &ipc.Server{
+		AgentVersion: version.Version,
+		Snapshot:     func(account string) any { return inventory.CollectSnapshot(account, version.Version) },
+		CacheDir:     config.Dir(),
+	}
+	go func() {
+		if err := ipc.Serve(ctx, tray.Handle, logf); err != nil {
+			logf("tray pipe: %v", err)
+		}
+	}()
 	for {
 		cfg, err := config.Load()
 		var key ed25519.PrivateKey
@@ -116,6 +128,7 @@ func work(ctx context.Context, logf func(string, ...any)) {
 		}
 		if err == nil {
 			c := client.New(cfg.URL, cfg.DeviceID, key)
+			tray.SetPRISM(c)
 			logf("prism-agent %s: device %d, reporting to %s", version.Version, cfg.DeviceID, cfg.URL)
 			schedule.RunAll(ctx, jobs(cfg, c), nil, logf)
 			return

@@ -53,6 +53,7 @@ it('a ticket is raised as the matched contact, linked to the computer, with a pr
   const res = await device.post(TICKETS, ask());
   expect(res.status).toBe(201);
   expect(res.body.number).toBe(String(res.body.ticketId).padStart(5, '0'));
+  expect(res.body.replyTo).toBe('maria.chen@riversideclinic.org');
   const t = await models.Ticket.findByPk(res.body.ticketId);
   expect(t).toMatchObject({
     source: 'agent', contactId: maria.id, companyId: company.id, title: 'Printer won\'t print', description: 'The front desk printer shows offline.',
@@ -81,6 +82,8 @@ it('with no match the requester is the company\'s one placeholder, created once 
     displayName: 'Unknown tray user', email: null, portalAccess: false, isPlaceholder: true,
   });
   expect(await models.Contact.count()).toBe(before + 1);
+  // Nobody to email: the tray doesn't promise a reply by email.
+  expect(r1.body.replyTo).toBeNull();
   const t1 = await models.Ticket.findByPk(r1.body.ticketId);
   const t2 = await models.Ticket.findByPk(r2.body.ticketId);
   expect(t1.contactId).toBe(ph[0].id);

@@ -290,9 +290,33 @@
 - The service adds `account` and `upn` from the token, and the snapshot it collects itself. It never accepts either from the tray.
 - When offline, the draft is kept in `%LOCALAPPDATA%\PRISM\draft.json` and **Try again** is offered (TraySent board).
 
-- [ ] **Step 1: Failing tests:** a `submit` with an `account` field in the message is ignored in favour of the token's; the snapshot has the fields from the spec; an offline answer keeps the draft; the form escapes the help desk name and the computer name.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): tray app and Submit a ticket on Windows`
+- [x] **Step 1: Failing tests:** a `submit` with an `account` field in the message is ignored in favour of the token's; the snapshot has the fields from the spec; an offline answer keeps the draft; the form escapes the help desk name and the computer name.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): tray app and Submit a ticket on Windows`
+
+**As built (2026-11-04):**
+- **The pipe** (`internal/ipc`), one JSON request and answer per connection:
+  - **ACL** `D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x12008b;;;IU)`: interactive users get read plus write-data, but not `FILE_CREATE_PIPE_INSTANCE`, so they can't add instances of their own. Remote clients are refused, and the first instance uses `FILE_FLAG_FIRST_PIPE_INSTANCE`, so the service won't serve alongside a squatter.
+  - **Identity:** after the request line is read, `ImpersonateNamedPipeClient` (loaded from advapi32; `x/sys` lacks it), then `OpenThreadToken`, then `RevertToSelf` straight away on a locked OS thread (if reverting fails, the service panics rather than carry on as the client). Anonymous tokens are refused. The UPN is looked up as SYSTEM, via `inventory.UserFromToken`, shared with the console-user lookup.
+  - **Tray side:** opens the pipe at `SECURITY_IDENTIFICATION`, so even a fake server can't impersonate the user, and refuses a pipe not owned by SYSTEM or Administrators. A client that doesn't finish its line within 30 s is disconnected.
+- **Handler** (plain Go, tested on every OS):
+  - Reads only `op`, `subject` and `description`; the account, UPN and snapshot always come from the service.
+  - Answers: `offline` (not enrolled, network, 5xx), `refused` (429 with its own message, other 4xx), `invalid` (400 or bad input).
+  - `whoami` keeps the help desk's details in `helpdesk.json` beside `agent.json`, so the offline screen can show the email and portal while PRISM is unreachable.
+- **Snapshot** (`inventory.CollectSnapshot`): 2 WMI queries plus the registry (no software scan). It holds the OS and build, uptime from the last boot, memory in use, free space per local or removable drive, the signed-in account, the domain, IPv4 addresses (primary first), the agent version and the time taken.
+- **Server:** the tray-ticket answer adds `replyTo` (the matched contact's email; null for the placeholder), for "The help desk will reply by email to …".
+- **Tray** (`cmd/prism-tray`): `fyne.io/systray`, where a left or right click opens the menu. Menu: Submit a ticket; Open the support portal (shown only when the portal is on); a status line ("RFC-FD-01 · connected to the help desk", "· can't reach the help desk", "The PRISM Agent service isn't running"), refreshed every 5 minutes; About. One icon per session (named mutex). The icon is drawn in code: a blue rounded square with a white P.
+- **Window** (`prism-tray form`, its own process):
+  - WebView2 via `jchv/go-webview2` (no cgo), with its profile in `%LOCALAPPDATA%\PRISM\WebView2`, 460×660. One window at a time; a second click brings it to the front.
+  - Bindings run on the UI thread, so a send starts in the background (`prismSubmitStart`) and answers through `window.prismDone`; the window never freezes.
+  - Without the WebView2 runtime, a message box gives the help desk's email and portal instead.
+- **Page** (`internal/trayui/form.html`):
+  - `html/template` escaping, and a CSP of `default-src 'none'`, so nothing loads from anywhere; system fonts.
+  - Light and dark follow `prefers-color-scheme`, using the mockups' colour tokens.
+  - Screens: the form, Sent, Offline (Try again resends the kept text) and a refusal message inline. Esc closes.
+  - Only an `https://` portal address is shown or opened; ticket links are `<portal>/tickets/<id>`.
+- **Draft:** `%LOCALAPPDATA%\PRISM\draft.json` (0600). Saved on an offline answer, put back in the form next time, deleted once sent.
+- **Checked:** the window's four screens rendered in Chromium (WebView2's engine), light and dark, compare with the TrayForm and TraySent boards. Both programs build for windows/amd64 and windows/arm64 (the tray with `-H windowsgui`). The real pipe tests (identity, 8 concurrent callers, a second server refused, no service) run on `windows-latest`.
 
 ### Task 10: Self-update (Windows)
 

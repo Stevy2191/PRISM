@@ -132,7 +132,7 @@ function snapshotNote(snap, computer) {
   return out.join('\n');
 }
 
-// → { ticketId, number }
+// → { ticketId, number, replyTo }
 async function raiseTrayTicket(device, body, req) {
   const b = body || {};
   const subject = line(b.subject);
@@ -159,7 +159,9 @@ async function raiseTrayTicket(device, body, req) {
   await Comment.create({
     body: snapshotNote(b.snapshot, asset.name), authorId: actorId, ticketId: ticket.id, type: 'comment_private',
   });
-  return { ticketId: ticket.id, number: String(ticket.id).padStart(5, '0') };
+  // Where the help desk's replies go, for the tray's "Ticket sent" screen:
+  // the matched contact's email; none for the placeholder.
+  return { ticketId: ticket.id, number: String(ticket.id).padStart(5, '0'), replyTo: matched ? contact.email : null };
 }
 
 module.exports = {
