@@ -1,0 +1,26 @@
+{
+ "hostname": "Dr-Patel-MacBook",
+ "make": "Apple",
+ "model": "MacBook Air (M3)",
+ "serialNumber": "FVFG4P3XQ6LR",
+ "firmware": "11881.41.5",
+ "memoryBytes": 17179869184,
+ "cpu": { "model": "Apple M3", "cores": 8 },
+ "os": { "name": "macOS", "edition": "macOS", "version": "15.1", "build": "24B83" },
+ "lastBootAt": "2026-11-03T07:31:00Z",
+ "disks": [
+  { "name": "Macintosh HD", "kind": "fixed", "sizeBytes": 494384795648, "freeBytes": 227633270784 },
+  { "name": "Projects", "kind": "external", "sizeBytes": 2000398934016, "freeBytes": 966367641600 },
+  { "name": "Backup", "kind": "usb", "sizeBytes": 1000202039296, "freeBytes": 429496729600 }
+ ],
+ "adapters": [
+  { "name": "Wi-Fi", "ipv4": ["192.168.1.23"], "mac": "A4:83:E7:2C:5D:91", "primary": true },
+  { "name": "USB 10/100/1000 LAN", "ipv4": [], "mac": "00:E0:4C:68:01:2B", "primary": false }
+ ],
+ "software": [
+  { "name": "Google Chrome", "version": "130.0.6723.92", "publisher": "Google LLC", "installDate": "2026-10-31" },
+  { "name": "Microsoft Word", "version": "16.90", "publisher": "Microsoft Corporation", "installDate": "2026-10-15" },
+  { "name": "zoom.us", "version": "6.2.5", "publisher": "Zoom" }
+ ],
+ "signedInUser": { "account": "apatel" }
+}

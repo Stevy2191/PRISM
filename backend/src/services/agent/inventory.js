@@ -107,8 +107,9 @@ function assetFields(p) {
   if (p.cpu.model) fields.processor = (p.cpu.cores ? `${p.cpu.model} (${p.cpu.cores} cores)` : p.cpu.model).slice(0, 150);
   if (p.memoryBytes) fields.ram = gb(p.memoryBytes);
   // The computer's own storage: external drives (USB, removable) are left
-  // out when there is an internal one; every disk is still in the Device tab.
-  const internal = p.disks.filter((d) => !/^(usb|removable)$/i.test(d.kind || ''));
+  // out when there is an internal one (USB, Thunderbolt and other external
+  // buses, SD cards); every disk is still in the Device tab.
+  const internal = p.disks.filter((d) => !/^(usb|external|removable)$/i.test(d.kind || ''));
   const counted = internal.length ? internal : p.disks;
   if (counted.length) {
     const total = counted.reduce((n, d) => n + d.sizeBytes, 0);

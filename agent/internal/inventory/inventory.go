@@ -45,8 +45,8 @@ type OS struct {
 	Build   string `json:"build,omitempty"`
 }
 
-// Disk.Kind: "fixed", "usb" or "removable". PRISM leaves usb and removable
-// out of the Asset's storage figure.
+// Disk.Kind: "fixed", "usb", "external" or "removable". PRISM leaves all but
+// fixed out of the Asset's storage figure.
 type Disk struct {
 	Name      string `json:"name"`
 	Label     string `json:"label,omitempty"`
@@ -195,6 +195,9 @@ func Assemble(r Raw) Inventory {
 		switch {
 		case strings.EqualFold(d.Interface, "USB"):
 			kind = "usb"
+		case strings.EqualFold(d.Interface, "External"):
+			// Thunderbolt and other external buses (Mac).
+			kind = "external"
 		case d.DriveType == 2:
 			kind = "removable"
 		}

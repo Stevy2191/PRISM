@@ -74,10 +74,20 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - Apps: the `.app` bundles in `/Applications` and `/Applications/Utilities` (two levels deep, so apps in vendor folders count; helper apps nested inside other bundles don't), read from each `Contents/Info.plist` (`CFBundleName`, `CFBundleShortVersionString`, `CFBundleIdentifier` → publisher from the identifier's vendor part, install date from the bundle's modification time). No `SPApplicationsDataType`: it takes tens of seconds and walks the whole disk.
 - Every command runs with a timeout, with fixed arguments, through `exec.Command` (never a shell).
 
-- [ ] **Step 1: Failing tests:** the Apple silicon and Intel fixtures give the payload shape 8a's server reads ("Apple", "MacBook Air (M3)", "macOS 15.1", the build, cores, memory); the data volume is counted once and a USB disk is marked `usb`; apps are read from bundles with versions and dates, nested helper apps skipped, duplicates collapsed; a missing tool or a timeout leaves those fields empty without failing the inventory.
-- [ ] **Step 2: Live test on `macos-latest`:** `collect` returns a serial, macOS and at least one disk and one app.
-- [ ] **Step 3–4:** Implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): Mac inventory`
+- [x] **Step 1: Failing tests:** the Apple silicon and Intel fixtures give the payload shape 8a's server reads ("Apple", "MacBook Air (M3)", "macOS 15.1", the build, cores, memory); the data volume is counted once and a USB disk is marked `usb`; apps are read from bundles with versions and dates, nested helper apps skipped, duplicates collapsed; a missing tool or a timeout leaves those fields empty without failing the inventory.
+- [x] **Step 2: Live test on `macos-latest`:** `collect` returns a serial, macOS and at least one disk and one app.
+- [x] **Step 3–4:** Implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): Mac inventory`
+
+**As built (2026-11-04):**
+- **Parsing** lives in `macparse.go` (no build tag, so it's tested here from fixtures): `ParseHardwareJSON`, `MacModel`, `ParseHardwarePorts`, `ParseDiskutilInfo`, `MacDisks`, `ParseAppInfoPlist` and `publisher`. `collect_darwin.go` only gathers the data.
+- **Sources, changed from the plan:** the kernel values come from `sysctl` through `golang.org/x/sys/unix` instead of running `sw_vers` and `sysctl`: `kern.osproductversion` and `kern.osversion` (version and build), `kern.boottime`, `hw.memsize`, `hw.physicalcpu` and `machdep.cpu.brand_string`. Only `system_profiler` (serial, model name, chip, boot ROM), `networksetup` (adapter names) and `diskutil info -plist` (per volume) are run, each with a 30 s timeout and fixed arguments.
+- **Model:** "MacBook Air (M3)" (M1 to M4, with Pro, Max or Ultra); Intel Macs get the plain name ("MacBook Pro"). Make is "Apple". Firmware is the boot ROM version.
+- **Disks** (from `getfsstat`): the data volume `/System/Volumes/Data` is the internal disk ("Macintosh HD", from its volume name without " - Data"), counted once. The sealed system volume and the other `/System/Volumes/*` are skipped, as are network shares, non-disk file systems and mounted disk images (bus "Disk Image"). Under `/Volumes`: USB is `usb`, Thunderbolt and other external buses are a new kind `external`, and an internal removable card is `removable`. **Server:** `external` is now left out of an Asset's storage figure as `usb` and `removable` are, and the Device tab labels it "External".
+- **Apps:** the `.app` bundles in `/Applications`, plus one level of vendor folders and `/Applications/Utilities` (each counted once). Fields come from `Info.plist` (XML or binary): display name, short version (else bundle version), and the publisher from the copyright line ("Copyright © 2008-2024 Microsoft Corporation." → "Microsoft Corporation"), else the identifier's vendor part capitalised. The install date is the `Info.plist` file's date.
+- **Network:** Go's interfaces renamed from `networksetup` ("en0" → "Wi-Fi"); `utun` tunnels and loopback are dropped by the shared rules.
+- **User and domain:** a hook (`macUser`) that Task 3 fills.
+- **Tests:** Apple silicon and Intel hardware fixtures; adapter names; disks (the data volume once, USB, Thunderbolt, SD, a disk image skipped, a share skipped); apps from XML and binary plists; publishers; and `TestCollectOnThisMac` on `macos-latest`, where a virtual Mac may have no serial (logged, not failed). Server: `macos15.json` through `agent.inventory.test.js` gives "Apple", "MacBook Air (M3)", "Apple M3 (8 cores)", "macOS", "15.1 (24B83)" and "460 GB (212 GB free)".
 
 ### Task 3: The console user, directory binding and the device key
 

@@ -154,3 +154,21 @@ it('is rate-limited per device and needs a valid device signature', async () => 
   const request = require('supertest'); // eslint-disable-line global-require
   expect((await request(getApp()).post(INV).send(inv)).status).toBe(401);
 });
+
+it('a Mac inventory (8b): Apple, the model with its chip, macOS and its build, the internal disk only', async () => {
+  const { client: mac, assetId: macAsset } = await enrolled(company, { platform: 'macos', arch: 'arm64', hostname: 'Dr-Patel-MacBook' });
+  await mac.post(INV, fixture('macos15')).expect(200);
+  expect(await models.Asset.findByPk(macAsset)).toMatchObject({
+    make: 'Apple',
+    model: 'MacBook Air (M3)',
+    serialNumber: 'FVFG4P3XQ6LR',
+    processor: 'Apple M3 (8 cores)',
+    ram: '16 GB',
+    // Thunderbolt and USB disks aren't the Mac's own storage.
+    storage: '460 GB (212 GB free)',
+    operatingSystem: 'macOS',
+    osVersion: '15.1 (24B83)',
+    ipAddress: '192.168.1.23',
+  });
+  expect(await models.AssetSoftware.count({ where: { assetId: macAsset } })).toBe(3);
+});

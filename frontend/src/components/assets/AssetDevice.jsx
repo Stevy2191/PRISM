@@ -39,7 +39,9 @@ function KV({ rows }) {
   );
 }
 
-const KIND = { usb: 'USB', removable: 'Removable', fixed: 'Internal', nvme: 'NVMe' };
+const KIND = {
+  usb: 'USB', external: 'External', removable: 'Removable', fixed: 'Internal', nvme: 'NVMe',
+};
 
 function uptime(lastBootAt) {
   if (!lastBootAt) return null;
@@ -59,7 +61,7 @@ export default function AssetDevice({ assetId, asset }) {
   const os = device.os || {};
   const cpu = device.cpu || {};
   const osText = [os.edition || os.name, os.version].filter(Boolean).join(' ') + (os.build ? ` · build ${os.build}` : '');
-  const internal = device.disks.filter((d) => !/^(usb|removable)$/i.test(d.kind || ''));
+  const internal = device.disks.filter((d) => !/^(usb|external|removable)$/i.test(d.kind || ''));
   const counted = internal.length ? internal : device.disks;
   const total = counted.reduce((n, d) => n + (d.sizeBytes || 0), 0);
   const free = counted.reduce((n, d) => n + (d.freeBytes || 0), 0);

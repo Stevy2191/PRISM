@@ -7,6 +7,7 @@ require (
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/yusufpapurcu/wmi v1.2.4
 	golang.org/x/sys v0.30.0
+	howett.net/plist v1.0.1
 )
 
 require (

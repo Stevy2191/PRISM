@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key><string>Secure Digital</string>
+	<key>Ejectable</key><true/>
+	<key>FilesystemType</key><string>msdos</string>
+	<key>Internal</key><true/>
+	<key>RemovableMedia</key><true/>
+	<key>SolidState</key><true/>
+	<key>VolumeName</key><string>CAMERA</string>
+</dict>
+</plist>
