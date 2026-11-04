@@ -1,7 +1,7 @@
 name: Agent packages
 
-# Builds the Windows agent (amd64 and arm64), packages each as an MSI,
-# install-tests the amd64 one on a real Windows runner, and hands the
+# Builds the Windows agent (amd64 and arm64) as MSIs and the Mac agent as
+# one universal .pkg, install-tests each on a real runner, and hands the
 # packages and their manifest.json to the backend image (docker-publish.yml),
 # which serves them to enrolled agents as signed updates and to staff as
 # the Download installer button. Packages are never published anywhere else.
@@ -199,20 +199,169 @@ jobs:
           path: ${{ runner.temp }}/*.log
           retention-days: 7
 
-      - name: Manifest
-        shell: bash
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist-windows
+          path: agent-dist/*.msi
+          retention-days: 7
+
+  macos:
+    name: macOS package (build, sign, install test)
+    runs-on: macos-latest
+    env:
+      HAS_APPLE_ID: ${{ secrets.APPLE_DEVELOPER_ID_APP != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      - name: Version
+        id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF#refs/tags/v}"; else v="0.0.0-dev.${GITHUB_RUN_NUMBER}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Agent $v"
+
+      # A Developer ID (owner decision 7: none for now). When the secrets
+      # exist: a temporary keychain with the certificates, then build.sh
+      # signs with them and notarises.
+      - name: Signing identity
+        if: env.HAS_APPLE_ID == 'true'
+        env:
+          P12_B64: ${{ secrets.APPLE_DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.APPLE_NOTARY_ISSUER }}
+          NOTARY_KEY_B64: ${{ secrets.APPLE_NOTARY_KEY }}
+        run: |
+          kc="$RUNNER_TEMP/signing.keychain-db"; pw="$(uuidgen)"
+          security create-keychain -p "$pw" "$kc"
+          security set-keychain-settings -lut 3600 "$kc"
+          security unlock-keychain -p "$pw" "$kc"
+          echo "$P12_B64" | base64 --decode > "$RUNNER_TEMP/id.p12"
+          security import "$RUNNER_TEMP/id.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple: -k "$pw" "$kc"
+          security list-keychains -d user -s "$kc" login.keychain-db
+          rm "$RUNNER_TEMP/id.p12"
+          echo "$NOTARY_KEY_B64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool store-credentials prism-notary --key "$RUNNER_TEMP/notary.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" --keychain "$kc"
+          echo "APPLE_NOTARY_PROFILE=prism-notary" >> "$GITHUB_ENV"
+
+      - name: Build the package
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          APPLE_DEVELOPER_ID_APP: ${{ secrets.APPLE_DEVELOPER_ID_APP }}
+          APPLE_DEVELOPER_ID_INSTALLER: ${{ secrets.APPLE_DEVELOPER_ID_INSTALLER }}
+        run: agent/packaging/macos/build.sh agent-dist
+
+      # Install the package the way a person would (installer as root), enrol
+      # against a stub PRISM that checks request signatures, and check what
+      # the package promises.
+      - name: Install test
         env:
           VERSION: ${{ steps.v.outputs.version }}
         run: |
+          set -euo pipefail
+          t="$RUNNER_TEMP"
+          pkg="$PWD/agent-dist/prism-agent-$VERSION-macos-universal.pkg"
+          data="/Library/Application Support/PRISM"
+          (cd agent && go build -o "$t/stubprism" ./tools/stubprism)
+          "$t/stubprism" -addr 127.0.0.1:8765 -key pk_enr_ci_9f8e7d -out "$t/stub" > "$t/stub-out.log" 2>&1 &
+          sleep 2
+
+          echo "--- The package installs and the service starts"
+          sudo installer -pkg "$pkg" -target /
+          sudo launchctl print system/com.prism.agent | grep -E "state = running"
+          test -x /usr/local/bin/prism-agent
+          test -d "/Applications/Utilities/PRISM Agent.app"
+          lipo -info "$data/bin/prism-agent" | grep -q arm64
+          lipo -info "$data/bin/prism-agent" | grep -q x86_64
+          /usr/local/bin/prism-agent version | grep -qx "$VERSION"
+
+          echo "--- A wrong key is refused and leaves no key"
+          if sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_wrong_1a2b3c; then echo "enrolled with a wrong key"; exit 1; fi
+          sudo test ! -e "$data/device.key"
+
+          echo "--- Enrolment, then a signed heartbeat from the service"
+          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
+          sudo launchctl kickstart -k system/com.prism.agent
+          for i in $(seq 1 45); do [ -f "$t/stub/heartbeat.ok" ] && break; sleep 2; done
+          cat "$t/stub/stub.log"
+          test -f "$t/stub/heartbeat.ok"
+
+          echo "--- The key is root's alone; the socket is root's; status works for a user"
+          [ "$(sudo stat -f '%Su:%Sg %Lp' "$data/device.key")" = "root:wheel 600" ]
+          if cat "$data/device.key" 2>/dev/null; then echo "the key is readable"; exit 1; fi
+          [ "$(stat -f %u /var/run/prism-agent.sock)" = "0" ]
+          prism-agent status | tee "$t/status.txt"
+          grep -q "Device: *1" "$t/status.txt"
+
+          echo "--- The tray's socket knows who is asking (from macOS, not the message)"
+          answer=$(printf '%s\n' '{"op":"whoami","account":"EVIL\\boss"}' | nc -U /var/run/prism-agent.sock)
+          echo "$answer"
+          echo "$answer" | grep -q "\"name\":\"$(id -un)\""
+
+          echo "--- Enrolling again with the same PRISM changes nothing"
+          before=$(sudo cat "$data/agent.json")
+          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d | grep -q "Already enrolled"
+          [ "$(sudo cat "$data/agent.json")" = "$before" ]
+
+          echo "--- Uninstall keeps the enrolment; --remove-data removes it"
+          sudo prism-agent uninstall
+          if sudo launchctl print system/com.prism.agent >/dev/null 2>&1; then echo "the service is still loaded"; exit 1; fi
+          test ! -e /usr/local/bin/prism-agent
+          test ! -e "/Applications/Utilities/PRISM Agent.app"
+          sudo test -f "$data/agent.json"
+          sudo installer -pkg "$pkg" -target /
+          sudo "$data/bin/prism-agent" uninstall --remove-data
+          test ! -e "$data"
+          echo "Install test passed."
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist-macos
+          path: agent-dist/*.pkg
+          retention-days: 7
+
+  # One set of packages and one manifest for the backend image: the Windows
+  # MSIs and the Mac's universal .pkg (listed for both amd64 and arm64).
+  manifest:
+    name: Agent packages and manifest
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: agent-dist-*
+          merge-multiple: true
+          path: agent-dist
+
+      - name: Manifest
+        run: |
           cd agent-dist
-          entries=()
-          for arch in amd64 arm64; do
-            f="prism-agent-${VERSION}-windows-${arch}.msi"
-            sum=$(sha256sum "$f" | cut -d' ' -f1)
-            entries+=("{\"platform\":\"windows\",\"arch\":\"${arch}\",\"version\":\"${VERSION}\",\"file\":\"${f}\",\"sha256\":\"${sum}\"}")
-          done
-          (IFS=,; echo "[${entries[*]}]") > manifest.json
-          cat manifest.json
+          python3 - <<'PY'
+          import glob, hashlib, json, re
+          entries = []
+          for f in sorted(glob.glob("prism-agent-*")):
+              m = re.match(r"prism-agent-(.+)-(windows|macos)-(amd64|arm64|universal)\.(msi|pkg)$", f)
+              if not m:
+                  raise SystemExit(f"unexpected file {f}")
+              version, platform, arch, _ = m.groups()
+              sha = hashlib.sha256(open(f, "rb").read()).hexdigest()
+              for a in (["amd64", "arm64"] if arch == "universal" else [arch]):
+                  entries.append({"platform": platform, "arch": a, "version": version, "file": f, "sha256": sha})
+          json.dump(entries, open("manifest.json", "w"))
+          print(json.dumps(entries, indent=1))
+          PY
+          test "$(python3 -c 'import json;print(len(json.load(open("manifest.json"))))')" = 4
 
       - name: Upload packages
         uses: actions/upload-artifact@v4

@@ -1,0 +1,6 @@
+#!/bin/bash
+# PRISM Agent .pkg: stop a running service before its files are replaced
+# (an upgrade, or a self-update started by that service: the installer runs
+# in its own session, so this doesn't end it).
+/bin/launchctl bootout system/com.prism.agent 2>/dev/null || true
+exit 0

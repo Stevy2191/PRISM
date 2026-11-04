@@ -225,6 +225,23 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - [ ] **Step 1:** The install test above passes on `macos-latest`; the Windows job is unchanged; `agent-dist` holds three packages and one manifest.
 - [ ] **Step 2: Commit** `ci(agent): build, package and test the Mac agent`
 
+**As built (2026-11-04, before its first CI run):**
+- **`build.sh`:**
+  - Builds both programs for arm64 and amd64 with cgo (`clang -arch`, `MACOSX_DEPLOYMENT_TARGET` 13.0), joins them with `lipo` (and checks both architectures), and signs them ad hoc with the hardened runtime; with a Developer ID when `APPLE_DEVELOPER_ID_APP` is set.
+  - The bundle version is the release's x.y.z; a dev build's run number goes in `CFBundleVersion`.
+  - `pkgbuild` (identifier `com.prism.agent`, recommended ownership, the scripts), then `productbuild` with `distribution.xml` (macOS 13 or later, arm64 and x86_64, no customising), then `productsign` and `notarytool` and `stapler` when the installer identity and notary profile exist.
+- **The job files** `com.prism.agent.plist` and `com.prism.tray.plist` are checked in, and `TestThePackageShipsTheSameJobFiles` fails if they ever differ from what `service.DaemonPlist` and `TrayPlist` write.
+- **Scripts:** `preinstall` boots out the daemon. `postinstall` sets `root:wheel` and the modes, links `/usr/local/bin/prism-agent`, makes the logs folder, bootstraps the daemon, and restarts the console user's LaunchAgent, so an update replaces the running menu-bar app too. The package carries no enrolment, so one from before is kept.
+- **CI** (`agent.yml`): the `windows` job now uploads only its MSIs (`agent-dist-windows`). A new `macos` job uses the version step as Windows does, the optional Developer ID keychain and notary steps, `build.sh` and the install test, and uploads `agent-dist-macos`. A new `manifest` job joins both into `agent-dist` with one `manifest.json`: four entries, the universal `.pkg` listed for `macos/amd64` and `macos/arm64`. `docker-publish.yml` is unchanged.
+- **Install test** (`macos-latest`, against `stubprism`):
+  - `installer -pkg`: the daemon is running; the link, app, both architectures and the stamped version are present.
+  - A wrong key is refused, with no key file left.
+  - Enrolment, then `launchctl kickstart`, then a signed heartbeat at the stub.
+  - The key is `root:wheel 600` and unreadable by the runner; the socket is root's; `status` as the runner shows device 1.
+  - `whoami` over the socket with `nc -U` answers with the runner's own name although the message claims `EVIL\\boss`.
+  - Re-enrolling changes nothing.
+  - `uninstall` keeps `agent.json`; a reinstall, then `uninstall --remove-data`, removes the data folder.
+
 ### Task 9: The Mac on the staff screens
 
 **Files:**

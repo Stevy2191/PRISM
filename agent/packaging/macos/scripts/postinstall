@@ -1,0 +1,22 @@
+#!/bin/bash
+# PRISM Agent .pkg: owners and modes, the command-line link, the logs
+# folder, then start the service and (for whoever is at the screen) the
+# menu-bar app. The enrolment, if any, is kept from before.
+set -u
+DATA="/Library/Application Support/PRISM"
+chown -R root:wheel "$DATA/bin" "/Applications/Utilities/PRISM Agent.app" \
+  /Library/LaunchDaemons/com.prism.agent.plist /Library/LaunchAgents/com.prism.tray.plist
+chmod 0755 "$DATA" "$DATA/bin"
+chown root:wheel "$DATA"
+mkdir -p /usr/local/bin /Library/Logs/PRISM
+ln -sf "$DATA/bin/prism-agent" /usr/local/bin/prism-agent
+
+/bin/launchctl bootout system/com.prism.agent 2>/dev/null || true
+/bin/launchctl bootstrap system /Library/LaunchDaemons/com.prism.agent.plist
+
+uid=$(/usr/bin/stat -f %u /dev/console 2>/dev/null || echo 0)
+if [ "$uid" -ge 500 ] 2>/dev/null; then
+  /bin/launchctl bootout "gui/$uid/com.prism.tray" 2>/dev/null || true
+  /bin/launchctl bootstrap "gui/$uid" /Library/LaunchAgents/com.prism.tray.plist 2>/dev/null || true
+fi
+exit 0

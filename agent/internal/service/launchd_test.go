@@ -68,3 +68,20 @@ func TestRotateLog(t *testing.T) {
 		t.Fatal("the old log is still there")
 	}
 }
+
+// The package (agent/packaging/macos) ships these files: they must be
+// exactly what the agent itself would write.
+func TestThePackageShipsTheSameJobFiles(t *testing.T) {
+	for file, want := range map[string][]byte{
+		"../../packaging/macos/com.prism.agent.plist": DaemonPlist(MacAgentBin),
+		"../../packaging/macos/com.prism.tray.plist":  TrayPlist(MacTrayBin),
+	} {
+		got, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(want) {
+			t.Errorf("%s differs from what the agent writes; regenerate it", file)
+		}
+	}
+}
