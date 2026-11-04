@@ -8,6 +8,7 @@ import Pill from '../ui/Pill';
 import PillRow from '../ui/PillRow';
 import StatusChip from '../ui/StatusChip';
 import { AgentStatus, shortDate, PLATFORM } from '../agent/agentFormat';
+import { agentNeedsHttps, isTestCertificate } from '../agent/agentAddress';
 
 // Mockup Main (agent-8): a company's Devices tab (8a). Installing the agent
 // (enrolment keys, the install command, the installer download, for staff
@@ -111,7 +112,55 @@ function Keys({ company, keys, onChanged, onCreated }) {
   );
 }
 
+// setup.sh's test certificate (HTTPS for testing): each computer trusts the
+// test authority once, before installing. Shown only when PRISM serves one.
+const TRUST_STEPS = {
+  windows: { label: 'As an administrator, in Command Prompt or PowerShell', command: 'certutil -addstore -f Root prism-test-ca.crt' },
+  macos: { label: 'In Terminal', command: 'sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/Downloads/prism-test-ca.crt' },
+};
+
+function useTestCertificate() {
+  const [present, setPresent] = useState(false);
+  useEffect(() => {
+    let live = true;
+    fetch('/prism-test-ca.crt', { method: 'HEAD', cache: 'no-store' })
+      .then((r) => { if (live) setPresent(isTestCertificate(r.status, r.headers.get('content-type'))); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+  return present;
+}
+
+function AddressNotice({ testCertificate, platform }) {
+  const { protocol, hostname } = window.location;
+  if (agentNeedsHttps(protocol, hostname)) {
+    return (
+      <Notice tone="warn">
+        The agent connects only over HTTPS, and this command has the address you&apos;re using now
+        ({window.location.origin}). Open PRISM at its https:// address and copy the command from there.
+        For testing without a certificate, run <code>setup.sh</code> again and answer yes to HTTPS with a test certificate.
+      </Notice>
+    );
+  }
+  if (!testCertificate || !TRUST_STEPS[platform]) return null;
+  const step = TRUST_STEPS[platform];
+  return (
+    <section aria-label="Test certificate" className="space-y-2 rounded-lg border px-3.5 py-3" style={BORDER}>
+      <p className="m-0 text-sm text-navy-900">
+        <b>This PRISM uses a test certificate.</b> First, on each computer, trust PRISM&apos;s test certificate authority (once):
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <a className="btn-secondary inline-flex h-8 items-center px-3 text-sm" href="/prism-test-ca.crt" download>Download test certificate</a>
+        <span className="text-[12.5px]" style={MUTED}>{step.label}, from the folder it&apos;s in:</span>
+      </div>
+      <pre aria-label="Trust command" className="m-0 whitespace-pre-wrap break-all rounded-lg border p-2.5 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{step.command}</pre>
+      <p className="m-0 text-[12.5px]" style={MUTED}>For testing only. With a real certificate (e.g. a reverse proxy with Let&apos;s Encrypt) this step goes away.</p>
+    </section>
+  );
+}
+
 function InstallCommand({ fresh, keys, packages }) {
+  const testCertificate = useTestCertificate();
   const [platform, setPlatform] = useState('windows');
   const [copied, setCopied] = useState(false);
   const usable = keys.filter((k) => k.usable);
@@ -157,6 +206,7 @@ function InstallCommand({ fresh, keys, packages }) {
             </button>
           ))}
         </div>
+        {platform !== 'linux' && <AddressNotice testCertificate={testCertificate} platform={platform} />}
         {platform === 'windows' && (
           <>
             {commandBox}

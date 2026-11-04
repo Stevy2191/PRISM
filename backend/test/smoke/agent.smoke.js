@@ -96,3 +96,32 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   await linked.waitFor();
   await page.getByText('Online', { exact: true }).first().waitFor();
 });
+
+it('the install card shows the trust step only when PRISM serves a test certificate', async () => {
+  const admin = await makeAdmin();
+  const company = await makeCompany(admin, { name: 'Riverside' });
+  const page = await smoke.pageAs('admin');
+
+  // No test certificate (here the address falls through to the app page).
+  await page.goto(`/companies/${company.id}`);
+  await page.getByRole('button', { name: 'Devices' }).click();
+  await page.getByRole('region', { name: 'Install command' }).waitFor();
+  await page.waitForLoadState('networkidle');
+  expect(await page.getByRole('region', { name: 'Test certificate' }).count()).toBe(0);
+  // 127.0.0.1 over HTTP is fine for the agent: no HTTPS warning.
+  expect(await page.getByText('The agent connects only over HTTPS').count()).toBe(0);
+
+  // setup.sh's test certificate (nginx serves it; faked here).
+  await page.route('**/prism-test-ca.crt', (route) => route.fulfill({
+    status: 200, contentType: 'application/x-x509-ca-cert', body: '-----BEGIN CERTIFICATE-----\n',
+  }));
+  await page.reload();
+  await page.getByRole('button', { name: 'Devices' }).click();
+  const trust = page.getByRole('region', { name: 'Test certificate' });
+  await trust.getByRole('link', { name: 'Download test certificate' }).waitFor();
+  expect(await trust.getByRole('link', { name: 'Download test certificate' }).getAttribute('href')).toBe('/prism-test-ca.crt');
+  expect(await trust.getByLabel('Trust command').textContent()).toBe('certutil -addstore -f Root prism-test-ca.crt');
+  await page.getByRole('tab', { name: 'macOS' }).click();
+  expect(await page.getByRole('region', { name: 'Test certificate' }).getByLabel('Trust command').textContent())
+    .toContain('security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain');
+});

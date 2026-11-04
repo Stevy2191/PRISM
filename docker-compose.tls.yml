@@ -1,0 +1,17 @@
+# PRISM over HTTPS with the test certificate setup.sh makes. FOR TESTING ONLY:
+# use a real certificate (e.g. a reverse proxy with Let's Encrypt) in production.
+#
+# You don't run this file by hand: setup.sh puts
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.tls.yml
+# in .env, so `docker compose ...` picks it up. It adds an HTTPS port to the
+# frontend and gives it ./certs (the server certificate, its key and the test
+# certificate authority's public certificate; never the authority's key).
+services:
+  frontend:
+    environment:
+      PRISM_HTTPS_PORT: ${HTTPS_PORT:-8443}
+    ports:
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      # z: lets the container read it on SELinux hosts (Fedora, RHEL).
+      - ./certs:/etc/nginx/certs:ro,z
