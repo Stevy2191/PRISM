@@ -35,6 +35,9 @@ func Exists(dir string) bool {
 
 // Load reads the device key from dir.
 func Load(dir string) (ed25519.PrivateKey, error) {
+	if err := checkFile(Path(dir)); err != nil {
+		return nil, err
+	}
 	blob, err := os.ReadFile(Path(dir))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, ErrNoKey

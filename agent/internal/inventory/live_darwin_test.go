@@ -2,6 +2,8 @@ package inventory
 
 import (
 	"encoding/json"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -32,4 +34,28 @@ func TestCollectOnThisMac(t *testing.T) {
 		t.Fatalf("payload %d bytes, over PRISM's 1 MB", len(b))
 	}
 	t.Logf("%s", b)
+}
+
+// This process's own user, as the tray's socket will see it (Task 4).
+func TestMacUserForThisProcess(t *testing.T) {
+	u, domain, err := MacUserFor(uint32(os.Getuid()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.Getuid() == 0 {
+		if u != nil {
+			t.Fatalf("root became a person: %+v", u)
+		}
+		return
+	}
+	if u == nil || u.Account == "" {
+		t.Fatal("no account for this user")
+	}
+	if domain == "" && strings.Contains(u.Account, `\`) {
+		t.Fatalf("an unbound Mac gave a domain account %q", u.Account)
+	}
+	t.Logf("account %q, upn %q, domain %q", u.Account, u.UPN, domain)
+	if _, _, err := MacUserFor(0); err != nil {
+		t.Fatalf("root lookup: %v", err)
+	}
 }

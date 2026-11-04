@@ -100,9 +100,15 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - **UPN / email:** from the directory when bound (`dscl "/Active Directory/<DOMAIN>/All Domains" -read /Users/<user> userPrincipalName`), else the local account's `EMailAddress` attribute (`dscl . -read`), else none, so the ticket goes to the placeholder as on Windows.
 - **Device key:** a root-only file, `0600 root:wheel`, in `/Library/Application Support/PRISM` (see Notes on the spec for why not the System keychain yet). The folder's own mode is checked at start, and the agent refuses to run if the key file is readable by anyone but root.
 
-- [ ] **Step 1: Failing tests:** console-owner parsing skips system accounts; `dsconfigad` and `dscl` output parse to domain and UPN; an unbound Mac uses the local email or none; the key file is created `0600` and refused if its mode is wider.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): Mac console user, directory binding and device key`
+- [x] **Step 1: Failing tests:** console-owner parsing skips system accounts; `dsconfigad` and `dscl` output parse to domain and UPN; an unbound Mac uses the local email or none; the key file is created `0600` and refused if its mode is wider.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): Mac console user, directory binding and device key`
+
+**As built (2026-11-04):**
+- **Parsing** (`macuser.go`, tested on every OS): `IsMacPerson` (uid 500 or above, not root, `_`-accounts, `loginwindow` or `_mbsetupuser`, and a name safe to pass as an argument), `ParseDsconfigad` (the "Active Directory Domain" line, lower-cased), `ParseDscl` (the first value of each attribute, including keys containing colons and values on a continuation line), `MacAccount` ("RIVERSIDE\\apatel" from the domain's first label, as Windows writes it; else the short name), and `MacUPN` (the directory's `userPrincipalName`, then `EMailAddress`, then `mail`; only a plain address).
+- **`user_darwin.go`:** the console user is the owner of `/dev/console`. `MacUserFor(uid)` is shared with Task 4's socket: it looks up the account and runs `dscl /Search -read /Users/<name> <attribute>` once per attribute, so a missing attribute doesn't hide the other. `/Search` covers the local accounts and a bound directory in one look-up, rather than naming the AD node.
+- **Key file:** `keystore.Load` now checks the file first (`checkFile`). On macOS and Linux it must be a plain file (not a symlink), with no group or other permission bits, owned by the user the agent runs as (root for the service). Otherwise it's refused with "enrol again". On Windows the check does nothing (the ACL and DPAPI protect the key). A normal user's `prism-agent status` reports the key as belonging to another user, as intended.
+- **Tests:** people versus system accounts; bound and unbound; the UPN order and refusals; the key file (0600 accepted; 0644 and a symlink refused). Live on `macos-latest`: this process's user is identified, an unbound Mac gives a plain account name, and root is not a person.
 
 ### Task 4: The socket between the tray and the service
 

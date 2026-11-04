@@ -86,3 +86,6 @@ func writeRestricted(path string, data []byte) error {
 	return windows.SetNamedSecurityInfo(path, windows.SE_FILE_OBJECT,
 		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, dacl, nil)
 }
+
+// checkFile: on Windows the SYSTEM-only ACL (and DPAPI) protect the key.
+func checkFile(string) error { return nil }
