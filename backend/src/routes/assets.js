@@ -62,6 +62,9 @@ router.post('/:id/checkouts', canEdit, ctrl.createCheckout);
 router.patch('/:id/checkouts/:checkoutId', canEdit, ctrl.updateCheckout);
 router.post('/:id/checkouts/:checkoutId/check-in', canEdit, ctrl.checkInCheckout);
 router.post('/:id/checkouts/:checkoutId/send-form', canEdit, ctrl.sendCheckoutForm);
+router.post('/:id/checkouts/:checkoutId/form', canEdit, ctrl.createCheckoutForm);
+router.post('/:id/checkouts/:checkoutId/printed', canEdit, ctrl.markCheckoutFormPrinted);
+router.post('/:id/checkouts/:checkoutId/signed', canEdit, assetUpload.single('file'), verifyFileSignature, scanUpload('Asset'), ctrl.uploadSignedCheckoutForm);
 
 router.get('/:id/attachments', ctrl.listAttachments);
 router.post('/:id/attachments', canEdit, assetUpload.single('file'), verifyFileSignature, scanUpload('Asset'), ctrl.createAttachment);

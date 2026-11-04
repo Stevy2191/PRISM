@@ -125,3 +125,33 @@ it('the install card shows the trust step only when PRISM serves a test certific
   expect(await page.getByRole('region', { name: 'Test certificate' }).getByLabel('Trust command').textContent())
     .toContain('security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain');
 });
+
+it('Scan now on the Asset page and the Devices tab; the next inventory answers it', async () => {
+  const admin = await makeAdmin();
+  const company = await makeCompany(admin, { name: 'Riverside' });
+  const key = await admin.agent.post(`/api/v1/companies/${company.id}/agent-keys`).send({ name: 'Scan test' });
+  const device = await enrollDevice(getApp(), key.body.secret);
+  await device.post('/api/v1/agent/v1/inventory', inventory()).expect(200);
+  const d = await models.Device.findByPk(device.deviceId);
+
+  const page = await smoke.pageAs('admin');
+  await page.goto(`/assets/${d.assetId}`);
+  await page.getByRole('button', { name: 'Scan now' }).click();
+  await page.getByText(/^Scan requested just now$/).waitFor();
+  expect((await models.Device.findByPk(d.id)).scanRequestedAt).not.toBeNull();
+
+  // The Devices tab shows it pending too.
+  await page.goto(`/companies/${company.id}`);
+  await page.getByRole('button', { name: 'Devices' }).click();
+  const row = page.getByRole('row').filter({ hasText: 'RFC-FD-01' });
+  await row.getByText(/Scan requested/).waitFor();
+
+  // The computer checks in (scan: true) and reports; the request clears.
+  resetRateLimits();
+  const beat = await device.post('/api/v1/agent/v1/heartbeat', { agentVersion: '0.5.0' }).expect(200);
+  expect(beat.body.scan).toBe(true);
+  await device.post('/api/v1/agent/v1/inventory', inventory()).expect(200);
+  await page.reload();
+  await page.getByRole('button', { name: 'Devices' }).click();
+  await page.getByRole('row').filter({ hasText: 'RFC-FD-01' }).getByRole('button', { name: 'Scan now' }).waitFor();
+});

@@ -135,7 +135,7 @@ async function matchContact(companyId, user, transaction) {
   const emails = [user.upn, user.email].filter(Boolean).map((e) => e.toLowerCase());
   if (!emails.length) return null;
   const where = { companyId, email: { [Op.in]: [...new Set(emails)] }, isPlaceholder: false };
-  return Contact.findOne({ where, attributes: ['id'], transaction });
+  return Contact.findOne({ where, attributes: ['id', 'departmentId'], transaction });
 }
 
 // → { changedFields, software: { added, removed } }
@@ -152,6 +152,8 @@ async function applyInventory(device, body) {
       const contact = await matchContact(asset.companyId, p.signedInUser, transaction);
       const handSet = asset.assignedToContactId && asset.assignedToContactId !== inventory.agentAssignedContactId;
       if (contact && !handSet) {
+        // A new usual user brings their department with them.
+        if (contact.id !== asset.assignedToContactId && contact.departmentId) fields.departmentId = contact.departmentId;
         fields.assignedToContactId = contact.id;
         inventory.agentAssignedContactId = contact.id;
       }
@@ -173,7 +175,7 @@ async function applyInventory(device, body) {
       signedInUser: p.signedInUser,
     });
     await device.update({
-      inventory, lastInventoryAt: new Date(), lastSeenAt: new Date(), ...(p.hostname ? { hostname: p.hostname } : {}),
+      inventory, lastInventoryAt: new Date(), lastSeenAt: new Date(), scanRequestedAt: null, ...(p.hostname ? { hostname: p.hostname } : {}),
     }, { transaction });
 
     return {

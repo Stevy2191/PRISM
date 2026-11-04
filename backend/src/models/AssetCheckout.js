@@ -14,6 +14,11 @@ module.exports = (sequelize) => {
       checkedInBy: { type: DataTypes.INTEGER, allowNull: true },
       checkoutFormSentAt: { type: DataTypes.DATE, allowNull: true },
       checkoutFormReturnedAt: { type: DataTypes.DATE, allowNull: true },
+      checkoutFormPrintedAt: { type: DataTypes.DATE, allowNull: true },
+      // The form PRISM generated for this checkout, and the signed copy
+      // uploaded back (both AssetAttachments; deleting one unlinks it).
+      formAttachmentId: { type: DataTypes.INTEGER, allowNull: true },
+      signedAttachmentId: { type: DataTypes.INTEGER, allowNull: true },
       notes: { type: DataTypes.TEXT, allowNull: true },
     },
     {

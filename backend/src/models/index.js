@@ -490,6 +490,8 @@ AssetCheckout.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
 AssetCheckout.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 AssetCheckout.belongsTo(User, { foreignKey: 'checkedOutBy', as: 'checkedOutByUser' });
 AssetCheckout.belongsTo(User, { foreignKey: 'checkedInBy', as: 'checkedInByUser' });
+AssetCheckout.belongsTo(AssetAttachment, { foreignKey: 'formAttachmentId', as: 'formAttachment', constraints: false });
+AssetCheckout.belongsTo(AssetAttachment, { foreignKey: 'signedAttachmentId', as: 'signedAttachment', constraints: false });
 
 // Attachments (separate model per parent type, same convention as ProjectFile)
 Asset.hasMany(AssetAttachment, { foreignKey: 'assetId', as: 'attachments', onDelete: 'CASCADE' });

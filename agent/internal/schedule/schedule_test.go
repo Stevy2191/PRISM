@@ -118,3 +118,52 @@ func TestStopsWhenTheContextEnds(t *testing.T) {
 		t.Fatal("RunAll did not stop")
 	}
 }
+
+// Scan now: a wake ends the wait and the job runs again at once.
+func TestWakeRunsTheJobNow(t *testing.T) {
+	wake := make(chan struct{}, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runs := make(chan struct{}, 4)
+	j := Job{Name: "inventory", Interval: time.Hour, Wake: wake, Run: func(context.Context) error {
+		runs <- struct{}{}
+		return nil
+	}}
+	go Loop(ctx, j, client.SleepCtx, func(string, ...any) {})
+	<-runs // the first run
+	select {
+	case <-runs:
+		t.Fatal("ran again without a wake")
+	case <-time.After(50 * time.Millisecond):
+	}
+	wake <- struct{}{}
+	select {
+	case <-runs:
+	case <-time.After(2 * time.Second):
+		t.Fatal("a wake didn't run the job")
+	}
+	// A wake sent while the job runs isn't lost: the next wait ends at once.
+	wake <- struct{}{}
+	select {
+	case <-runs:
+	case <-time.After(2 * time.Second):
+		t.Fatal("a pending wake didn't run the job")
+	}
+	cancel()
+}
+
+func TestWakeLoopStopsWithItsContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		Loop(ctx, Job{Name: "x", Interval: time.Hour, Wake: make(chan struct{}, 1), Run: func(context.Context) error { return nil }}, client.SleepCtx, func(string, ...any) {})
+		close(done)
+	}()
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the loop didn't stop")
+	}
+}

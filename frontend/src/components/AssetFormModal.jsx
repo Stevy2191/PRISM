@@ -225,6 +225,17 @@ export default function AssetFormModal({
   const [saving, setSaving] = useState(false);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  // Assigning someone fills in the department with theirs (when it's one this
+  // asset can have); it can still be changed by hand afterwards.
+  const followDepartment = (person) => {
+    const id = person && person.departmentId;
+    if (!id) return;
+    const dept = departments.find((d) => String(d.id) === String(id));
+    if (!dept || (multiCompany && form.companyId && String(dept.companyId) !== String(form.companyId))) return;
+    setForm((f) => ({ ...f, departmentId: String(id) }));
+  };
+  const assignContact = (c) => { setContact(c); followDepartment(c); };
+  const assignUser = (u) => { setUser(u); followDepartment(u); };
   const setFieldValue = (fieldId) => (value) => setFieldValues((v) => ({ ...v, [fieldId]: value }));
 
   // Auto-fill the suggested tag whenever category changes, unless the admin
@@ -386,7 +397,7 @@ export default function AssetFormModal({
               if (String(v) !== String(form.companyId || '')) setContact(null);
             }}
           />
-          <AssignedToPicker contact={contact} user={user} onChangeContact={setContact} onChangeUser={setUser} companyId={form.companyId} />
+          <AssignedToPicker contact={contact} user={user} onChangeContact={assignContact} onChangeUser={assignUser} companyId={form.companyId} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Label>Department</Label>

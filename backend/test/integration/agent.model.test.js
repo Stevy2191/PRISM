@@ -4,6 +4,9 @@ const {
 } = require('./helpers');
 const { makeWorld, makeTicket, makeCompany } = require('./fixtures');
 const migration = require('../../migrations/20260101000074-agent');
+// Later migrations that add to the tables 074 makes: re-applied after its
+// round trip, which recreates those tables without them.
+const later = [require('../../migrations/20260101000077-device-scan-request')];
 
 // Sub-project 8a, task 1: devices, enrolment keys, software, nonces, the
 // agent ticket source and the devices.manage permission.
@@ -80,6 +83,7 @@ it('round trip: down keeps tray tickets as manual ones and removes the tables; u
     expect(await select("SELECT id FROM Permissions WHERE `key` = 'devices.manage'")).toHaveLength(0);
   } finally {
     await migration.up(qi(), Sequelize);
+    for (const m of later) await m.up(qi(), Sequelize); // eslint-disable-line no-await-in-loop
   }
   await migration.up(qi(), Sequelize); // idempotent
   await models.Ticket.update({ source: 'agent' }, { where: { id: t.id } });

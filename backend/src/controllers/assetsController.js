@@ -30,10 +30,13 @@ const {
 
 const userAttrs = ['id', 'displayName', 'username'];
 
+const checkoutFileAttrs = ['id', 'originalName', 'mimeType', 'size', 'createdAt'];
 const checkoutInclude = [
   { model: Contact, as: 'contact', attributes: ['id', 'displayName', 'email'] },
   { model: User, as: 'checkedOutByUser', attributes: userAttrs },
   { model: User, as: 'checkedInByUser', attributes: userAttrs },
+  { model: AssetAttachment, as: 'formAttachment', attributes: checkoutFileAttrs },
+  { model: AssetAttachment, as: 'signedAttachment', attributes: checkoutFileAttrs },
 ];
 
 // Chunk size for the "load more" lists on an asset's detail page.
@@ -178,7 +181,7 @@ const list = asyncHandler(async (req, res) => {
   const deviceInclude = {
     model: Device,
     as: 'device',
-    attributes: ['id', 'lastSeenAt', 'lastInventoryAt', 'revokedAt', 'agentVersion', 'platform'],
+    attributes: ['id', 'lastSeenAt', 'lastInventoryAt', 'scanRequestedAt', 'revokedAt', 'agentVersion', 'platform'],
     required: !!agent,
     ...(agent ? { where: statusWhere(agent === 'managed' ? null : agent) } : {}),
   };
@@ -315,7 +318,7 @@ const get = asyncHandler(async (req, res) => {
   ]);
 
   await hideUnreachableVendors(req.user, asset);
-  const device = await Device.findOne({ where: { assetId: asset.id }, attributes: ['id', 'lastSeenAt', 'lastInventoryAt', 'revokedAt', 'agentVersion', 'platform'] });
+  const device = await Device.findOne({ where: { assetId: asset.id }, attributes: ['id', 'lastSeenAt', 'lastInventoryAt', 'scanRequestedAt', 'revokedAt', 'agentVersion', 'platform'] });
   const softwareCount = device ? await AssetSoftware.count({ where: { assetId: asset.id } }) : 0;
   res.json({
     asset,
@@ -609,29 +612,94 @@ const createCheckout = asyncHandler(async (req, res) => {
   });
 
   if (asset.assignedToContactId !== contactId || asset.assignedToUserId) {
-    await asset.update({ assignedToContactId: contactId, assignedToUserId: null });
-    await logAssetActivity(asset.id, req.user.id, 'assignment_changed', { assignedToContactId: contactId, assignedToUserId: null });
+    // The asset takes the person's department with them, when they have one.
+    const dept = contact.departmentId && contact.departmentId !== asset.departmentId ? { departmentId: contact.departmentId } : {};
+    await asset.update({ assignedToContactId: contactId, assignedToUserId: null, ...dept });
+    await logAssetActivity(asset.id, req.user.id, 'assignment_changed', { assignedToContactId: contactId, assignedToUserId: null, ...dept });
   }
   await logAssetActivity(asset.id, req.user.id, 'checked_out', { contactId, contactName: contact.displayName, checkedOutAt });
 
-  let attachment = null;
-  if (req.body.generateForm) {
-    const { filename, size } = await generateCheckoutFormPdf({
-      asset,
-      contact,
-      checkoutDate: dateInZone(checkedOutAt, await orgTimeZone()),
-    });
-    attachment = await AssetAttachment.create({
-      assetId: asset.id,
-      filename,
-      originalName: `Checkout Form - ${asset.assetTag}.pdf`,
-      mimeType: 'application/pdf',
-      size,
-      uploadedById: req.user.id,
-    });
-    await logAssetActivity(asset.id, req.user.id, 'checkout_form_generated', { attachmentId: attachment.id });
-  }
+  const attachment = req.body.generateForm ? await makeCheckoutForm(asset, contact, checkout, req.user) : null;
 
+  const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
+  res.status(201).json({ checkout: fresh, attachment });
+});
+
+// The checkout's agreement as a PDF on the asset's attachments, linked to
+// the checkout as its form (a new one replaces the link, not the file).
+async function makeCheckoutForm(asset, contact, checkout, user) {
+  const { filename, size } = await generateCheckoutFormPdf({
+    asset,
+    contact,
+    checkoutDate: dateInZone(checkout.checkedOutAt, await orgTimeZone()),
+  });
+  const attachment = await AssetAttachment.create({
+    assetId: asset.id,
+    filename,
+    originalName: `Checkout Form - ${asset.assetTag}.pdf`,
+    mimeType: 'application/pdf',
+    size,
+    uploadedById: user.id,
+  });
+  await checkout.update({ formAttachmentId: attachment.id });
+  await logAssetActivity(asset.id, user.id, 'checkout_form_generated', { checkoutId: checkout.id, attachmentId: attachment.id });
+  return attachment;
+}
+
+async function findCheckout(req, include) {
+  const asset = await Asset.findByPk(req.params.id, include ? { include: assetInclude } : undefined);
+  if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
+  const checkout = await AssetCheckout.findOne({ where: { id: req.params.checkoutId, assetId: asset.id }, include: checkoutInclude });
+  if (!checkout) throw new ApiError(404, 'Checkout not found', 'NOT_FOUND');
+  return { asset, checkout };
+}
+
+// POST /assets/:id/checkouts/:checkoutId/form — makes the checkout form
+// for a checkout that has none (checked out without one, or its file was
+// deleted), or a fresh one.
+const createCheckoutForm = asyncHandler(async (req, res) => {
+  const { asset, checkout } = await findCheckout(req, true);
+  const contact = await Contact.findByPk(checkout.contactId, { include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] });
+  const attachment = await makeCheckoutForm(asset, contact, checkout, req.user);
+  const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
+  res.status(201).json({ checkout: fresh, attachment });
+});
+
+// POST /assets/:id/checkouts/:checkoutId/printed — the form was opened for
+// printing (to sign on paper there and then).
+const markCheckoutFormPrinted = asyncHandler(async (req, res) => {
+  const { asset, checkout } = await findCheckout(req);
+  if (!checkout.formAttachmentId) throw new ApiError(400, 'This checkout has no checkout form', 'NO_FORM');
+  await checkout.update({ checkoutFormPrintedAt: new Date() });
+  await logAssetActivity(asset.id, req.user.id, 'checkout_form_printed', { checkoutId: checkout.id });
+  const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
+  res.json({ checkout: fresh });
+});
+
+// POST /assets/:id/checkouts/:checkoutId/signed — the signed form, scanned
+// or photographed (multipart "file", checked and virus-scanned like any
+// attachment): saved to the asset, linked to the checkout, and the form
+// marked received.
+const uploadSignedCheckoutForm = asyncHandler(async (req, res) => {
+  const asset = await Asset.findByPk(req.params.id);
+  const checkout = asset && await AssetCheckout.findOne({ where: { id: req.params.checkoutId, assetId: asset.id } });
+  if (!asset || !checkout) {
+    if (req.file) fs.rm(req.file.path, { force: true }, () => {});
+    throw new ApiError(404, asset ? 'Checkout not found' : 'Asset not found', 'NOT_FOUND');
+  }
+  if (!req.file) throw new ApiError(400, 'No file uploaded (field name must be "file")', 'NO_FILE');
+  const ext = path.extname(req.file.originalname || '').toLowerCase().replace(/[^a-z0-9.]/g, '').slice(0, 8);
+  const attachment = await AssetAttachment.create({
+    assetId: asset.id,
+    filename: req.file.filename,
+    originalName: `Signed Checkout Form - ${asset.assetTag}${ext}`,
+    mimeType: req.file.mimetype,
+    size: req.file.size,
+    uploadedById: req.user.id,
+  });
+  await checkout.update({ signedAttachmentId: attachment.id, checkoutFormReturnedAt: checkout.checkoutFormReturnedAt || new Date() });
+  await writeAudit(req, 'assetAttachment.create', 'AssetAttachment', attachment.id, { assetId: asset.id, originalName: attachment.originalName });
+  await logAssetActivity(asset.id, req.user.id, 'checkout_form_received', { checkoutId: checkout.id, attachmentId: attachment.id });
   const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
   res.status(201).json({ checkout: fresh, attachment });
 });
@@ -665,24 +733,25 @@ const checkInCheckout = asyncHandler(async (req, res) => {
   res.json({ checkout: fresh });
 });
 
-// POST /assets/:id/checkouts/:checkoutId/send-form — { attachmentId }
+const CHECKOUT_EMAIL_BODY = 'Please find attached your equipment checkout form. Please print it, sign it and return it to the IT department.';
+
+// POST /assets/:id/checkouts/:checkoutId/send-form — { to, subject, body }
 // Emails the previously-generated checkout PDF to the contact, using the
 // configured SMTP settings (emailSender.js — same as CSAT surveys /
 // inbound-email replies).
 const sendCheckoutForm = asyncHandler(async (req, res) => {
-  const asset = await Asset.findByPk(req.params.id);
-  if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
-  const checkout = await AssetCheckout.findOne({ where: { id: req.params.checkoutId, assetId: asset.id }, include: checkoutInclude });
-  if (!checkout) throw new ApiError(404, 'Checkout not found', 'NOT_FOUND');
+  const { asset, checkout } = await findCheckout(req);
 
-  const attachmentId = parseInt(req.body.attachmentId, 10);
-  const attachment = await AssetAttachment.findOne({ where: { id: attachmentId, assetId: asset.id } });
+  // The checkout's own form. (attachmentId is still accepted from older
+  // pages, but only one of this asset's attachments.)
+  const attachmentId = checkout.formAttachmentId || parseInt(req.body.attachmentId, 10);
+  const attachment = attachmentId && await AssetAttachment.findOne({ where: { id: attachmentId, assetId: asset.id } });
   if (!attachment) throw new ApiError(404, 'Checkout form attachment not found', 'NOT_FOUND');
 
   const to = req.body.to || checkout.contact?.email;
   if (!to) throw new ApiError(400, 'No recipient email address', 'VALIDATION_ERROR');
   const subject = req.body.subject || `Equipment Checkout Form — ${asset.assetTag} ${asset.name}`;
-  const body = req.body.body || 'Please find attached your equipment checkout form. Please sign and return to the IT department.';
+  const body = req.body.body || CHECKOUT_EMAIL_BODY;
   const filePath = path.join(UPLOAD_ROOT, 'assets', String(asset.id), attachment.filename);
 
   await sendMail({
@@ -844,6 +913,14 @@ const downloadAttachment = asyncHandler(async (req, res) => {
 
   const filePath = path.join(UPLOAD_ROOT, 'assets', String(asset.id), attachment.filename);
   if (!fs.existsSync(filePath)) throw new ApiError(404, 'File missing from storage', 'FILE_MISSING');
+  // ?inline=1 opens a PDF in the browser's viewer, to print (the checkout
+  // form). Only PDFs: anything else is always a download.
+  if (req.query.inline === '1' && attachment.mimeType === 'application/pdf' && /\.pdf$/i.test(attachment.filename)) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${attachment.originalName.replace(/[^\w .()-]/g, '_')}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.sendFile(filePath);
+  }
   res.download(filePath, attachment.originalName);
 });
 
@@ -866,6 +943,7 @@ const removeAttachment = asyncHandler(async (req, res) => {
 module.exports = {
   agentSummary,
   list, listCategories, stats, expirySummary, get, create, update, remove,
+  createCheckoutForm, markCheckoutFormPrinted, uploadSignedCheckoutForm,
   listTickets, linkTicket, unlinkTicket, listActivity,
   listCheckouts, createCheckout, checkInCheckout, sendCheckoutForm, updateCheckout,
   listAttachments, createAttachment, downloadAttachment, removeAttachment,

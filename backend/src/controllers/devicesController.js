@@ -65,6 +65,7 @@ const deviceSummary = (d) => (d ? {
   status: deviceStatus(d),
   lastSeenAt: d.lastSeenAt,
   lastInventoryAt: d.lastInventoryAt,
+  scanRequestedAt: d.scanRequestedAt || null,
   agentVersion: d.agentVersion,
   platform: d.platform,
 } : null);
@@ -95,6 +96,8 @@ const listForCompany = asyncHandler(async (req, res) => {
     updatePending: d.revokedAt ? false : updatePending(d),
     status: deviceStatus(d, now),
     lastSeenAt: d.lastSeenAt,
+    lastInventoryAt: d.lastInventoryAt,
+    scanRequestedAt: d.scanRequestedAt || null,
     revokedAt: d.revokedAt,
     signedInAccount: d.inventory && d.inventory.signedInUser ? d.inventory.signedInUser.account || null : null,
     asset: d.asset ? {
@@ -192,6 +195,21 @@ const revoke = asyncHandler(async (req, res) => {
   res.json({ device: deviceSummary(d) });
 });
 
+// POST /devices/:id/scan — Scan now: the computer sends a fresh inventory
+// right after its next check-in (within its heartbeat interval, 5 minutes
+// by default). Asking again while one is pending changes nothing.
+const requestScan = asyncHandler(async (req, res) => {
+  const d = await Device.findByPk(parseRecordId(req.params.id) || 0);
+  if (!d) throw new ApiError(404, 'Device not found', 'NOT_FOUND');
+  if (!(await canAccessCompany(req.user, d.companyId))) throw new ApiError(403, 'You do not have access to this device', 'FORBIDDEN');
+  if (d.revokedAt) throw new ApiError(400, 'This computer was revoked', 'DEVICE_REVOKED');
+  if (!d.scanRequestedAt) {
+    await d.update({ scanRequestedAt: new Date() });
+    await logAssetActivity(d.assetId, req.user.id, 'agent_scan_requested', { hostname: d.hostname });
+  }
+  res.json({ device: deviceSummary(d) });
+});
+
 // GET /devices/packages → the installers this PRISM can hand out, one entry
 // per file: { platform, arch, arches, universal, version, size, file }. The
 // Mac's universal .pkg covers amd64 and arm64 and is listed once.
@@ -233,5 +251,5 @@ const downloadPackage = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  listForCompany, getForAsset, listSoftware, revoke, listPackages, downloadPackage, deviceStatus, statusWhere, deviceSummary, ONLINE_MS, STALE_MS,
+  listForCompany, getForAsset, listSoftware, revoke, requestScan, listPackages, downloadPackage, deviceStatus, statusWhere, deviceSummary, ONLINE_MS, STALE_MS,
 };

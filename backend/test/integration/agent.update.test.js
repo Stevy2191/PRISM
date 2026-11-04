@@ -105,7 +105,7 @@ it('an equal or older version, or no package at all, is 204 and the heartbeat of
   expect((await client.get(UPDATE)).status).toBe(204);
   publish([pkg('0.6.0'), pkg('0.6.0-rc.2'), pkg('0.5.9')]);
   expect((await client.get(UPDATE)).status).toBe(204);
-  expect((await client.post(HB, { agentVersion: '0.6.0' })).body).toEqual({ update: null });
+  expect((await client.post(HB, { agentVersion: '0.6.0' })).body).toEqual({ update: null, scan: false });
 });
 
 it('a missing or altered package is a 404 with nothing signed; the heartbeat carries on', async () => {

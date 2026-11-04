@@ -29,9 +29,10 @@ router.post('/v1/enroll', agentEnrollLimiter, asyncHandler(async (req, res) => {
   });
 }));
 
-// POST /agent/v1/heartbeat { agentVersion, signedInUser? } → { update }
+// POST /agent/v1/heartbeat { agentVersion, signedInUser? } → { update, scan }
 // "I'm here": sets last seen and the running version. `update` says whether
-// a newer signed build is waiting (task 6).
+// a newer signed build is waiting (task 6); `scan`, that staff asked for a
+// fresh inventory (Scan now), which the agent then sends at once.
 router.post('/v1/heartbeat', agentAuthenticate, agentHeartbeatLimiter, asyncHandler(async (req, res) => {
   const { agentVersion, signedInUser } = req.body || {};
   if (typeof agentVersion !== 'string' || !/^[0-9A-Za-z.+-]{1,50}$/.test(agentVersion)) {
@@ -49,7 +50,7 @@ router.post('/v1/heartbeat', agentAuthenticate, agentHeartbeatLimiter, asyncHand
   } catch (err) {
     if (err.status !== 404) throw err;
   }
-  res.json({ update });
+  res.json({ update, scan: !!req.device.scanRequestedAt });
 }));
 
 // POST /agent/v1/inventory → { changedFields, software: { added, removed } }

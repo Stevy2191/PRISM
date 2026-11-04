@@ -24,6 +24,9 @@ module.exports = (sequelize) => {
       hostname: { type: DataTypes.STRING(255), allowNull: false },
       lastSeenAt: { type: DataTypes.DATE, allowNull: true },
       lastInventoryAt: { type: DataTypes.DATE, allowNull: true },
+      // Scan now: set by staff, answered by the next heartbeat, cleared by
+      // the inventory that follows.
+      scanRequestedAt: { type: DataTypes.DATE, allowNull: true },
       revokedAt: { type: DataTypes.DATE, allowNull: true },
       inventory: { type: DataTypes.JSON, allowNull: true },
     },

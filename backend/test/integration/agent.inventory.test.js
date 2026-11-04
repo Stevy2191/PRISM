@@ -122,6 +122,20 @@ it('the signed-in user becomes the usual user, only within the Asset\'s company'
   expect((await models.Asset.findByPk(theirAsset)).assignedToContactId).toBeNull();
 });
 
+it('a new usual user brings their department to the Asset', async () => {
+  const front = await models.Department.create({ name: 'Front desk', companyId: company.id });
+  const maria = await contactIn(company, 'maria.chen@riversideclinic.org', { departmentId: front.id });
+  await device.post(INV, fixture('windows11')).expect(200);
+  const a = await asset();
+  expect([a.assignedToContactId, a.departmentId]).toEqual([maria.id, front.id]);
+  // Changed by hand afterwards, it stays while the same user signs in.
+  const billing = await models.Department.create({ name: 'Billing', companyId: company.id });
+  await models.Asset.update({ departmentId: billing.id }, { where: { id: assetId } });
+  resetRateLimits();
+  await device.post(INV, fixture('windows11')).expect(200);
+  expect((await asset()).departmentId).toBe(billing.id);
+});
+
 it('a contact set by hand is kept; one the agent set follows the user', async () => {
   const maria = await contactIn(company, 'maria.chen@riversideclinic.org');
   const james = await contactIn(company, 'james.porter@riversideclinic.org');

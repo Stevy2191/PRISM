@@ -8,6 +8,8 @@ import Pill from '../ui/Pill';
 import PillRow from '../ui/PillRow';
 import StatusChip from '../ui/StatusChip';
 import { AgentStatus, shortDate, PLATFORM } from '../agent/agentFormat';
+import ScanNow from '../agent/ScanNow';
+import { scanState } from '../agent/scanState';
 import { agentNeedsHttps, isTestCertificate } from '../agent/agentAddress';
 
 // Mockup Main (agent-8): a company's Devices tab (8a). Installing the agent
@@ -255,7 +257,7 @@ function InstallCommand({ fresh, keys, packages }) {
   );
 }
 
-function Devices({ company, canManage }) {
+function Devices({ company, canManage, canScan }) {
   const [filter, setFilter] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -264,6 +266,14 @@ function Devices({ company, canManage }) {
       .then(({ data: d }) => setData(d)).catch((err) => setError(errMessage(err)));
   }, [company.id, filter]);
   useEffect(load, [load]);
+  // While any computer here has a Scan now waiting, look again every 20
+  // seconds so its fresh details and status show up.
+  const waiting = !!data && data.devices.some((d) => scanState(d) === 'waiting');
+  useEffect(() => {
+    if (!waiting) return undefined;
+    const t = setInterval(load, 20 * 1000);
+    return () => clearInterval(t);
+  }, [waiting, load]);
   const revoke = async (d) => {
     if (!window.confirm(`Revoke ${d.hostname}? PRISM will refuse it from now on. Its Asset and history stay; installing the agent again with a new key brings it back.`)) return;
     try { await api.post(`/devices/${d.id}/revoke`); load(); } catch (err) { setError(errMessage(err)); }
@@ -316,7 +326,10 @@ function Devices({ company, canManage }) {
                   {d.updatePending && <span className="block"><StatusChip tone="waiting">Update pending</StatusChip></span>}
                 </td>
                 <td className="table-td whitespace-nowrap text-right">
-                  {canManage && d.status !== 'revoked' && <button type="button" className="btn-secondary h-8 px-3 text-sm" onClick={() => revoke(d)}>Revoke</button>}
+                  <span className="inline-flex items-center justify-end gap-2">
+                    {canScan && <ScanNow device={d} onRequested={load} />}
+                    {canManage && d.status !== 'revoked' && <button type="button" className="btn-secondary h-8 px-3 text-sm" onClick={() => revoke(d)}>Revoke</button>}
+                  </span>
                 </td>
               </tr>
             ))}
@@ -330,6 +343,7 @@ function Devices({ company, canManage }) {
 
 export default function CompanyDevices({ company }) {
   const canManage = usePermission('devices.manage');
+  const canEditAssets = usePermission('assets.edit');
   const [keys, setKeys] = useState(null);
   const [packages, setPackages] = useState([]);
   const [fresh, setFresh] = useState(null);
@@ -349,7 +363,7 @@ export default function CompanyDevices({ company }) {
           <InstallCommand fresh={fresh} keys={keys} packages={packages} />
         </div>
       ) : <Spinner />)}
-      <Devices company={company} canManage={canManage} />
+      <Devices company={company} canManage={canManage} canScan={canManage || canEditAssets} />
     </div>
   );
 }

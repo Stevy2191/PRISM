@@ -25,6 +25,9 @@ type Job struct {
 	// The first retry wait after a retryable failure; doubled each time,
 	// capped at Interval.
 	RetryBase time.Duration
+	// Wake, when set, ends a wait early so the job runs now (PRISM's Scan
+	// now). Send without blocking into a channel with room for one.
+	Wake <-chan struct{}
 }
 
 // Sleeper waits d or until ctx ends; tests record the waits instead.
@@ -42,11 +45,38 @@ func Loop(ctx context.Context, j Job, sleep Sleeper, logf func(string, ...any)) 
 	if base <= 0 {
 		base = 30 * time.Second
 	}
+	// A wait that a wake ends early; only the job's own context ending
+	// stops the loop.
+	pause := func(d time.Duration) error {
+		if j.Wake == nil {
+			return sleep(ctx, d)
+		}
+		select {
+		case <-j.Wake:
+			return nil
+		default:
+		}
+		sctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		done := make(chan struct{})
+		defer close(done)
+		go func() {
+			select {
+			case <-j.Wake:
+				cancel()
+			case <-done:
+			}
+		}()
+		if err := sleep(sctx, d); err != nil && ctx.Err() != nil {
+			return err
+		}
+		return nil
+	}
 	wait := j.FirstDelay
 	failures := 0
 	for {
 		if wait > 0 {
-			if err := sleep(ctx, wait); err != nil {
+			if err := pause(wait); err != nil {
 				return
 			}
 		}

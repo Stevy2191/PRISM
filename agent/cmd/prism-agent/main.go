@@ -164,14 +164,25 @@ func jobs(cfg *config.Config, c *client.Client, logf func(string, ...any)) []sch
 		Platform: enroll.Platform(), Arch: runtime.GOARCH, Current: version.Version,
 		Install: update.PlatformInstall, Logf: logf,
 	}
+	// PRISM's Scan now: the heartbeat's answer asks for an inventory, which
+	// then runs at once rather than at its next turn.
+	scanNow := make(chan struct{}, 1)
 	return []schedule.Job{
 		{
 			Name: "heartbeat", Interval: cfg.Heartbeat(), RetryBase: 30 * time.Second,
 			Run: func(ctx context.Context) error {
 				var out struct {
 					Update *update.Offer `json:"update"`
+					Scan   bool          `json:"scan"`
 				}
 				_, err := c.Do(ctx, "POST", "/api/v1/agent/v1/heartbeat", map[string]any{"agentVersion": version.Version}, &out)
+				if err == nil && out.Scan {
+					select {
+					case scanNow <- struct{}{}:
+						logf("PRISM asked for a scan: sending the inventory now")
+					default:
+					}
+				}
 				if err == nil && out.Update != nil {
 					// Checked, downloaded and installed in the background; a
 					// refused offer is logged and the agent carries on.
@@ -183,7 +194,7 @@ func jobs(cfg *config.Config, c *client.Client, logf func(string, ...any)) []sch
 		{
 			// A short random delay spreads an office's agents after a reboot.
 			Name: "inventory", Interval: cfg.Inventory(), RetryBase: 2 * time.Minute,
-			FirstDelay: client.Backoff(0, 0, 2*time.Minute),
+			FirstDelay: client.Backoff(0, 0, 2*time.Minute), Wake: scanNow,
 			Run: func(ctx context.Context) error {
 				inv, problems := inventory.Collect()
 				for _, p := range problems {

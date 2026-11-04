@@ -17,8 +17,26 @@ the computer get **Submit a ticket** in the notification area or the menu
 bar. Linux (8c) follows before this is released as v0.5.0.
 
 **Database:** migrations 074 (devices, enrolment keys, installed software,
-the `agent` ticket source) and 075 (the "Unknown tray user" placeholder
-contact). They run on start; nothing to do.
+the `agent` ticket source), 075 (the "Unknown tray user" placeholder
+contact), 076 (a checkout's own form, when it was printed, and its signed
+copy) and 077 (Scan now). They run on start; nothing to do.
+
+**Scan now:** an agent-managed Asset's page, and each computer on a
+company's Devices tab, has **Scan now** (for staff who can edit Assets or
+manage devices). The computer sends a fresh inventory at its next check-in,
+within 5 minutes. Agents from before this change ignore it until they update
+themselves.
+
+**Checkout forms:** after checking equipment out, **Print** the form for the
+person to sign there and then, or **Email** it for them to print, sign and
+return. In Checkout History, **Upload signed copy** saves the scan or photo to
+the checkout and marks the form received; **Create form** makes one for a
+checkout that has none. Emailing now always sends the checkout's own form
+(before, it sent the asset's first attachment).
+
+**Department follows the assignee:** assigning someone in Edit asset fills in
+their department; checking out to a contact, or the agent finding a new
+usual user, sets the Asset's department to theirs when they have one.
 
 **Permission:** a new **Manage devices** permission (`devices.manage`), given
 to System Administrator only. It lets staff create and revoke enrolment keys,

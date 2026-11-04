@@ -43,7 +43,7 @@ it('a signed heartbeat sets last seen, the version and the signed-in user', asyn
   await models.Device.update({ lastSeenAt: new Date(Date.now() - 3600 * 1000) }, { where: { id: device.deviceId } });
   const res = await device.post(HB, { ...beat, signedInUser: { account: 'RIVERSIDE\\mchen' } });
   expect(res.status).toBe(200);
-  expect(res.body).toEqual({ update: null });
+  expect(res.body).toEqual({ update: null, scan: false });
   const d = await models.Device.findByPk(device.deviceId);
   expect(d.agentVersion).toBe('0.5.1');
   expect(Date.now() - new Date(d.lastSeenAt).getTime()).toBeLessThan(5000);

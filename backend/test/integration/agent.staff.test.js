@@ -147,6 +147,47 @@ it('revoking a computer needs devices.manage and its company in reach; it is ref
   expect((await w.admin.agent.post(`${API}/devices/999999/revoke`)).status).toBe(404);
 });
 
+it('Scan now: the next heartbeat asks for an inventory, which clears it', async () => {
+  const { client, device } = await enrolledIn(company, 'RFC-FD-01');
+  const inventory = JSON.parse(fs.readFileSync(path.join(__dirname, '../fixtures/agent/windows11.json'), 'utf8'));
+  // The heartbeat limit is per device and tight: reset it for each beat.
+  const beat = async () => { resetRateLimits(); return (await client.post(`${API}/agent/v1/heartbeat`, { agentVersion: '0.5.0' }).expect(200)).body.scan; };
+  expect(await beat()).toBe(false);
+
+  // Staff who can edit Assets may ask, within their companies.
+  const tech = await makeTech('tech-scan', w.deptA.id);
+  await grant(tech, 'assets.edit', false);
+  expect((await tech.agent.post(`${API}/devices/${device.id}/scan`)).status).toBe(403);
+  await grant(tech, 'assets.edit');
+  await setCompanyAccess(w.admin, tech.user.id, { allCompanies: false, companyIds: [other.id] });
+  expect((await tech.agent.post(`${API}/devices/${device.id}/scan`)).status).toBe(403);
+  await setCompanyAccess(w.admin, tech.user.id, { allCompanies: true, companyIds: [] });
+
+  const asked = (await tech.agent.post(`${API}/devices/${device.id}/scan`).expect(200)).body.device;
+  expect(asked.scanRequestedAt).toBeTruthy();
+  // Asking again while one is pending changes nothing.
+  const again = (await tech.agent.post(`${API}/devices/${device.id}/scan`).expect(200)).body.device;
+  const sec = (t) => Math.floor(Date.parse(t) / 1000);
+  expect(sec(again.scanRequestedAt)).toBe(sec(asked.scanRequestedAt));
+  expect(await models.AssetActivity.count({ where: { assetId: device.assetId, action: 'agent_scan_requested' } })).toBe(1);
+  // It shows on the Devices tab and the Asset's device.
+  const list = (await w.admin.agent.get(`${API}/companies/${company.id}/devices`).expect(200)).body.devices;
+  expect(list[0].scanRequestedAt).toBeTruthy();
+  expect((await w.admin.agent.get(`${API}/assets/${device.assetId}/device`).expect(200)).body.device.scanRequestedAt).toBeTruthy();
+
+  expect(await beat()).toBe(true);
+  expect(await beat()).toBe(true); // until the inventory arrives
+  resetRateLimits();
+  await client.post(`${API}/agent/v1/inventory`, inventory).expect(200);
+  expect(await beat()).toBe(false);
+  expect((await models.Device.findByPk(device.id)).scanRequestedAt).toBeNull();
+
+  // Not for a revoked computer, nor one that doesn't exist.
+  await models.Device.update({ revokedAt: new Date() }, { where: { id: device.id } });
+  expect((await w.admin.agent.post(`${API}/devices/${device.id}/scan`)).body.code).toBe('DEVICE_REVOKED');
+  expect((await w.admin.agent.post(`${API}/devices/999999/scan`)).status).toBe(404);
+});
+
 it('the Assets list: Online status per row, agent filters and counts', async () => {
   const { device: a } = await enrolledIn(company, 'RFC-FD-01');
   const { device: b } = await enrolledIn(company, 'RFC-RAD-02');
