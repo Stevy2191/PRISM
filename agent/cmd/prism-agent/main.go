@@ -45,6 +45,7 @@ const usage = `prism-agent %s
   prism-agent status
   prism-agent service install|uninstall
   prism-agent uninstall [--remove-data]     (macOS; on Windows, the MSI)
+  prism-agent whoami     what the tray sees: run it as yourself, not root
   prism-agent version
 `
 
@@ -67,6 +68,8 @@ func main() {
 		err = cmdService(os.Args[2:])
 	case "uninstall":
 		err = cmdUninstall(os.Args[2:])
+	case "whoami":
+		err = cmdWhoami()
 	case "version", "--version", "-v":
 		fmt.Println(version.Version)
 	default:
@@ -241,6 +244,21 @@ func cmdService(args []string) error {
 	default:
 		return errors.New("service needs install or uninstall")
 	}
+	return nil
+}
+
+// What the tray sees: asks the service exactly as the tray does (the same
+// pipe or socket, the same checks), as whoever runs it.
+func cmdWhoami() error {
+	var a ipc.WhoamiAnswer
+	if err := ipc.Call(map[string]string{"op": "whoami"}, &a, 30*time.Second); err != nil {
+		return fmt.Errorf("the tray can't reach the PRISM Agent service: %w", err)
+	}
+	state := "connected to the help desk"
+	if a.Offline {
+		state = "the service is running, but can't reach PRISM (not enrolled, or PRISM is unreachable)"
+	}
+	fmt.Printf("You:       %s\nCompany:   %s\nComputer:  %s\nHelp desk: %s\nState:     %s\n", a.Name, a.Company, a.Computer, a.Helpdesk.Name, state)
 	return nil
 }
 

@@ -114,10 +114,22 @@ func trusted(c sockConf) error {
 	if err != nil {
 		return ErrUntrusted
 	}
-	if uid, ok := ownerOf(dir); !ok || uid != c.uid || dir.Mode().Perm()&0o022 != 0 {
+	st, ok := dir.Sys().(*syscall.Stat_t)
+	if !ok || !dirTrusted(dir.Mode().Perm(), uint32(st.Uid), uint32(st.Gid), c.uid) {
 		return ErrUntrusted
 	}
 	return nil
+}
+
+// dirTrusted: the socket's folder belongs to the service's owner, no one
+// else may write to it, and if its group may, that group is a system one
+// (0 wheel/root, 1 daemon). macOS's /var/run is root:daemon 0775; Linux's
+// /run is root:root 0755.
+func dirTrusted(perm os.FileMode, uid, gid, wantUID uint32) bool {
+	if uid != wantUID || perm&0o002 != 0 {
+		return false
+	}
+	return perm&0o020 == 0 || gid <= 1
 }
 
 // Serve answers the tray until ctx ends.

@@ -283,6 +283,11 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - **Accepted:** on Intel Macs with Homebrew, `/usr/local/bin` usually belongs to the Homebrew user, who could replace the `prism-agent` link that an administrator then runs with `sudo`. That user is nearly always an administrator already; UPGRADING gives the full path for anyone who'd rather not trust the link.
 - **Not yet exercised:** a real self-update (`installer` started by the daemon, surviving the package's `bootout`) and the menu bar and window on a desktop. Both are in the owner's hand test (Step 4).
 
+### After the owner's first try (2026-11-04)
+
+- **The tray said "The PRISM Agent service isn't running" while the service ran.** The tray's socket check required the socket's folder to be writable by its owner only, but macOS's `/var/run` is `root:daemon` 0775, so the tray refused the real service. The CI install test talked to the socket with `nc`, past that check, so it didn't catch this. Fix: `dirTrusted` allows a group-writable folder only when the group is a system one (gid 0 or 1), and still refuses one anyone can write to. There's a table test of the rule, and a new `prism-agent whoami` (the tray's exact path, run as yourself) that the Mac install test now runs as the normal user.
+- **Plain `http://` PRISM addresses are refused by `enroll`** (only `https://`, or `http://localhost`), by design: the enrolment key and the inventory would cross the network unencrypted.
+
 ## Notes on the spec
 
 - **The device key is a root-only file, not the System keychain, for now.** A keychain item's access list trusts an app by its code signature. With ad-hoc signing (no Developer ID), every build has a different signature, so after each self-update the daemon would lose access to its own key and, having no user session, couldn't answer the prompt. A `0600 root:wheel` file is readable only by root, as the keychain item would be. When a Developer ID is bought, the key moves into the System keychain, trusted by the stable Team ID, in a later release.

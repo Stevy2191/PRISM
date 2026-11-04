@@ -308,6 +308,9 @@ jobs:
           answer=$(printf '%s\n' '{"op":"whoami","account":"EVIL\\boss"}' | nc -U /var/run/prism-agent.sock)
           echo "$answer"
           echo "$answer" | grep -q "\"name\":\"$(id -un)\""
+          echo "--- The tray's own way in (its socket checks included) works for a normal user"
+          prism-agent whoami | tee "$t/whoami.txt"
+          grep -q "You: *$(id -un)" "$t/whoami.txt"
 
           echo "--- Enrolling again with the same PRISM changes nothing"
           before=$(sudo cat "$data/agent.json")
