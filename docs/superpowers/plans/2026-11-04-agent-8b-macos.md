@@ -121,9 +121,20 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - **Client:** `Lstat` the socket: a socket (not a symlink), owned by uid 0, in a folder owned by root; anything else is refused before connecting.
 - Reuses `ipc.Server.Handle` unchanged, so "a message's own account is ignored" stays covered by the existing tests.
 
-- [ ] **Step 1: Failing tests:** a round trip identifies the calling user; a socket owned by a non-root user is refused by the client; a symlink in its place is refused; several callers at once; a second server on the same path is refused while the first runs.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS (on `macos-latest`, with a test hook for the path and owner, as on Windows).
-- [ ] **Step 5: Commit** `feat(agent): Mac socket between the tray and the service`
+- [x] **Step 1: Failing tests:** a round trip identifies the calling user; a socket owned by a non-root user is refused by the client; a symlink in its place is refused; several callers at once; a second server on the same path is refused while the first runs.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS (on `macos-latest`, with a test hook for the path and owner, as on Windows).
+- [x] **Step 5: Commit** `feat(agent): Mac socket between the tray and the service`
+
+**As built (2026-11-04):**
+- `ipc/socket_darwin.go` replaces the stub. Same `Serve(ctx, handler, logf)` and `Call(req, out, timeout)` as the Windows pipe, so `cmd/prism-agent` and the tray don't change.
+- **Server start:** if something is already at the path: a plain file is never touched (refused); a socket that answers means another server is running (refused); a dead socket is removed only if it's our own owner's. Then it listens and sets mode `0666`. The socket is removed when `Serve` returns.
+- **Each connection:** 30 s to send the line. `LOCAL_PEERCRED` (`GetsockoptXucred` on the raw fd) gives the uid; `inventory.MacUserFor` (Task 3) gives the account and UPN; root and system accounts are refused as callers. The handler then gets up to 3 minutes, since a send can wait on PRISM.
+- **Client:** checks before connecting that the path is a socket (not a symlink) owned by root, in a folder owned by root that no one else can write to; otherwise `ErrUntrusted`. A missing socket, or nobody listening, is `ErrNotRunning`.
+- **Tests** (`socket_darwin_test.go`, on `macos-latest`, in a short folder under `/tmp` because macOS limits socket paths to about 100 bytes):
+  - The caller is identified from macOS, and a message claiming another account is ignored; 8 callers at once; the socket is gone after the server stops.
+  - The client refuses a socket of the wrong owner, a symlink to a real socket, and a folder others can write to.
+  - A second server is refused while the first answers; a stale socket is replaced; a plain file at the path is left untouched.
+- Test hooks (`AllowCurrentUserForTests`, `trustUIDForTests`) let the test's own user stand in for root; the agent never calls them.
 
 ### Task 5: The launchd daemon, uninstalling, and the Mac snapshot
 
