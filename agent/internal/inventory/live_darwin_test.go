@@ -59,3 +59,11 @@ func TestMacUserForThisProcess(t *testing.T) {
 		t.Fatalf("root lookup: %v", err)
 	}
 }
+
+func TestSnapshotOnThisMac(t *testing.T) {
+	s := CollectSnapshot("someone", "0.0.0-test")
+	if s.OS.Name != "macOS" || s.OS.Version == "" || s.UptimeSec <= 0 || s.Memory == nil || s.Memory.UsedBytes == 0 || len(s.Disks) == 0 {
+		t.Fatalf("snapshot %+v", s)
+	}
+	t.Logf("memory in use %d of %d; disks %+v", s.Memory.UsedBytes, s.Memory.TotalBytes, s.Disks)
+}

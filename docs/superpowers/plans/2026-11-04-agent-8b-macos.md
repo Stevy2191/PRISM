@@ -147,9 +147,22 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - **Uninstall:** `sudo prism-agent uninstall` stops and removes the daemon and the LaunchAgent, the app and the binaries, and keeps the enrolment unless `--remove-data`. (A `.pkg` has no uninstaller of its own.)
 - **Snapshot:** OS and build, uptime, memory in use (`vm_stat` and `hw.memsize`), free space per volume, the console user, the directory binding, IP addresses, agent version and time taken; shared `BuildSnapshot`.
 
-- [ ] **Step 1: Failing tests:** the daemon plist runs `prism-agent run` as root with `KeepAlive`; `vm_stat` output parses to memory in use; the snapshot has the spec's fields.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): Mac launchd daemon, uninstall and health snapshot`
+- [x] **Step 1: Failing tests:** the daemon plist runs `prism-agent run` as root with `KeepAlive`; `vm_stat` output parses to memory in use; the snapshot has the spec's fields.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): Mac launchd daemon, uninstall and health snapshot`
+
+**As built (2026-11-04):**
+- **`service/launchd.go`** (tested on every OS) holds the Mac's paths and the two job files, written with the plist library rather than a text template. A test caught that a template doesn't escape `&` or `<` in a path. Files:
+  - `DaemonPlist`: `com.prism.agent`, `<bin> run`, `RunAtLoad`, `KeepAlive`, `ThrottleInterval` 30, output to `/Library/Logs/PRISM/agent.log`, `ProcessType` Background, and no `UserName` (so root).
+  - `TrayPlist`: `com.prism.tray`, `LimitLoadToSessionType` Aqua.
+  - Task 8's package ships the same files.
+- **`service_darwin.go`:** on macOS `run` is a plain process; `IsService` is false, and launchd's SIGTERM is already handled. `Install` and `Uninstall` (for `prism-agent service install|uninstall`) write or remove the daemon file and `launchctl bootstrap|bootout system`, root only.
+  - `Remove(removeData, dataDir)` stops the console user's tray (`launchctl bootout gui/<uid>/com.prism.tray`, then `pkill -x prism-tray`) and the daemon. It removes both job files, the `/usr/local/bin` link, the app, `bin/` and the logs, and `pkgutil --forget com.prism.agent`. The data folder goes only with `--remove-data`, and only a folder named `PRISM`.
+  - Windows' and Linux's `Remove` point to their packages.
+- **Logs:** `StartLog`, at the start of `run` as root on a Mac: past 10 MB, `agent.log` becomes `agent.log.1`, and the process points its stdout and stderr (`Dup2`) at a fresh `agent.log`, since launchd opened the old one before the agent started.
+- **`prism-agent uninstall [--remove-data]`** is a new command.
+- **Snapshot** (`snapshot_darwin.go`): version and build and uptime from sysctl. Memory in use from `vm_stat`: active, wired and compressor-occupied pages times the page size (16 KiB on Apple silicon, 4 KiB on Intel), as Activity Monitor counts it. Free space per volume as in Task 2's disk rules, and IPv4 addresses. The AD binding goes in the snapshot's `directory` ("Active Directory: riverside.local"), which the server's note already shows. `SnapRaw` gains `Directory`.
+- **Tests:** the job files (root, kept alive, the paths; escaping); log rotation; `vm_stat` for M3 and Intel; the Mac snapshot. Live on `macos-latest`: `CollectSnapshot` gives macOS, uptime, memory in use and a disk. Loading the daemon with launchd for real is in Task 8's install test (it needs root).
 
 ### Task 6: Self-update on the Mac
 

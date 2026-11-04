@@ -134,3 +134,12 @@ func Uninstall() error {
 	_ = eventlog.Remove(Name)
 	return nil
 }
+
+// Remove: on Windows the MSI removes the agent (Apps, or
+// msiexec /x <package> [REMOVE_DATA=1]).
+func Remove(bool, string) error {
+	return fmt.Errorf("on Windows, uninstall PRISM Agent from Settings → Apps, or run: msiexec /x <the PRISM Agent MSI> /qn [REMOVE_DATA=1]")
+}
+
+// StartLog: nothing to do here.
+func StartLog() {}

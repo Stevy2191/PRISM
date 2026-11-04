@@ -44,6 +44,7 @@ const usage = `prism-agent %s
   prism-agent collect --json
   prism-agent status
   prism-agent service install|uninstall
+  prism-agent uninstall [--remove-data]     (macOS; on Windows, the MSI)
   prism-agent version
 `
 
@@ -64,6 +65,8 @@ func main() {
 		err = cmdStatus()
 	case "service":
 		err = cmdService(os.Args[2:])
+	case "uninstall":
+		err = cmdUninstall(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Println(version.Version)
 	default:
@@ -108,6 +111,7 @@ func cmdEnroll(args []string) error {
 // The service's loops, until stopped: by the Windows service manager when
 // it started us, else Ctrl+C or SIGTERM.
 func cmdRun() error {
+	service.StartLog()
 	if service.IsService() {
 		return service.Run(work)
 	}
@@ -236,6 +240,25 @@ func cmdService(args []string) error {
 		fmt.Println("Removed the PRISMAgent service.")
 	default:
 		return errors.New("service needs install or uninstall")
+	}
+	return nil
+}
+
+// The agent off this computer, keeping the enrolment unless --remove-data
+// (macOS: a .pkg has no uninstaller; Windows and Linux use their package).
+func cmdUninstall(args []string) error {
+	fs := flag.NewFlagSet("uninstall", flag.ContinueOnError)
+	removeData := fs.Bool("remove-data", false, "also forget the enrolment (device key and settings)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := service.Remove(*removeData, config.Dir()); err != nil {
+		return err
+	}
+	if *removeData {
+		fmt.Println("Removed the PRISM Agent and its enrolment. Revoke the computer in PRISM if it isn't coming back.")
+	} else {
+		fmt.Println("Removed the PRISM Agent. Its enrolment is kept: installing it again brings the same device back.")
 	}
 	return nil
 }

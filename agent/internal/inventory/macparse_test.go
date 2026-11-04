@@ -156,3 +156,63 @@ func TestMacAppsFromInfoPlists(t *testing.T) {
 		t.Fatalf("software %+v", soft)
 	}
 }
+
+const vmStatM3 = `Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                3615.
+Pages active:                            338012.
+Pages inactive:                          330154.
+Pages speculative:                         2190.
+Pages throttled:                              0.
+Pages wired down:                        127530.
+Pages purgeable:                           9025.
+"Translation faults":                 512345678.
+Pages copy-on-write:                   12345678.
+Pages zero filled:                    234567890.
+Pages reactivated:                     12345678.
+Pages purged:                           1234567.
+File-backed pages:                       216054.
+Anonymous pages:                         454302.
+Pages stored in compressor:              455631.
+Pages occupied by compressor:            143875.
+Decompressions:                        12345678.
+Compressions:                          23456789.
+Pageins:                                9876543.
+Pageouts:                                 12345.
+Swapins:                                      0.
+Swapouts:                                     0.
+`
+
+func TestVMStatMemoryInUse(t *testing.T) {
+	// (338012 + 127530 + 143875) pages × 16 KiB ≈ 9.3 GiB of 16.
+	want := uint64(338012+127530+143875) * 16384
+	if got := ParseVMStat(vmStatM3); got != want {
+		t.Fatalf("used %d, want %d", got, want)
+	}
+	// Intel Macs have 4 KiB pages.
+	if got := ParseVMStat("Mach Virtual Memory Statistics: (page size of 4096 bytes)\nPages active: 10.\nPages wired down: 5.\n"); got != 15*4096 {
+		t.Fatalf("intel %d", got)
+	}
+	if ParseVMStat("") != 0 {
+		t.Fatal("nothing should be nothing")
+	}
+}
+
+func TestMacSnapshot(t *testing.T) {
+	now := time.Date(2026, 11, 4, 14, 0, 0, 0, time.UTC)
+	used := ParseVMStat(vmStatM3)
+	s := BuildSnapshot(SnapRaw{
+		OSCaption: "macOS", OSDisplayVersion: "15.1", OSBuild: "24B83", LastBoot: now.Add(-30 * time.Hour),
+		MemTotal: 16 << 30, MemFree: 16<<30 - used,
+		Disks:     []RawDisk{{Name: "Macintosh HD", DriveType: 3, Size: 494 << 30, Free: 212 << 30}},
+		Directory: "Active Directory: riverside.local",
+	}, `RIVERSIDE\apatel`, "0.6.0", now)
+	if s.OS != (SnapOS{Name: "macOS", Version: "15.1", Build: "24B83"}) || s.UptimeSec != 30*3600 {
+		t.Fatalf("os/uptime %+v", s)
+	}
+	if s.Memory == nil || s.Memory.UsedBytes != used || s.Directory != "Active Directory: riverside.local" || s.Domain != "" {
+		t.Fatalf("memory/directory %+v", s)
+	}
+	if len(s.Disks) != 1 || s.Disks[0].Name != "Macintosh HD" {
+		t.Fatalf("disks %+v", s.Disks)
+	}
+}

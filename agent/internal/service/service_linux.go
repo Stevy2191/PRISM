@@ -15,3 +15,10 @@ func Run(run func(ctx context.Context, logf func(string, ...any))) error {
 
 func Install() error   { return errors.New("not supported on Linux yet (8c)") }
 func Uninstall() error { return errors.New("not supported on Linux yet (8c)") }
+
+// Remove: Linux packages arrive with 8c (and their package manager removes
+// them).
+func Remove(bool, string) error { return errors.New("not supported on Linux yet (8c)") }
+
+// StartLog: nothing to do here.
+func StartLog() {}

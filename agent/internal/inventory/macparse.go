@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -230,4 +231,35 @@ func ParseAppInfoPlist(b []byte, fallbackName string, modified time.Time) (RawSo
 		s.InstallDate = modified.UTC().Format("2006-01-02")
 	}
 	return s, tidy(s.Name) != ""
+}
+
+// ParseVMStat reads `vm_stat`: memory in use, as Activity Monitor counts it
+// (app memory, wired and compressed: active + wired + occupied by the
+// compressor), in bytes.
+func ParseVMStat(text string) uint64 {
+	var page, used uint64
+	sc := bufio.NewScanner(strings.NewReader(text))
+	for sc.Scan() {
+		line := sc.Text()
+		if i := strings.Index(line, "page size of "); i >= 0 {
+			f := strings.Fields(line[i+len("page size of "):])
+			if len(f) > 0 {
+				page, _ = strconv.ParseUint(f[0], 10, 64)
+			}
+			continue
+		}
+		k, v, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		switch strings.TrimSpace(k) {
+		case "Pages active", "Pages wired down", "Pages occupied by compressor":
+			n, _ := strconv.ParseUint(strings.TrimSuffix(strings.TrimSpace(v), "."), 10, 64)
+			used += n
+		}
+	}
+	if page == 0 {
+		page = 4096
+	}
+	return used * page
 }
