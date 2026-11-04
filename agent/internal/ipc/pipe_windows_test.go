@@ -73,10 +73,19 @@ func TestNoServiceIsNotRunning(t *testing.T) {
 func TestASecondServerOnTheSameNameIsRefused(t *testing.T) {
 	defer AllowCurrentUserForTests(fmt.Sprintf(`\\.\pipe\prism-agent-dup-%d`, time.Now().UnixNano()))()
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() { _ = Serve(ctx, func(context.Context, Identity, []byte) any { return nil }, t.Logf) }()
+	first := make(chan error, 1)
+	go func() { first <- Serve(ctx, func(context.Context, Identity, []byte) any { return nil }, t.Logf) }()
 	time.Sleep(200 * time.Millisecond)
-	if err := Serve(ctx, func(context.Context, Identity, []byte) any { return nil }, t.Logf); err == nil {
+	err := Serve(ctx, func(context.Context, Identity, []byte) any { return nil }, t.Logf)
+	// The first server stops before the test ends (and its pipe name is
+	// put back).
+	cancel()
+	select {
+	case <-first:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the first server didn't stop")
+	}
+	if err == nil {
 		t.Fatal("a second server took the same pipe name")
 	}
 }

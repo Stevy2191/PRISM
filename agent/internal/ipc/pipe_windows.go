@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 
 	"golang.org/x/sys/windows"
@@ -26,10 +27,17 @@ const PipeName = `\\.\pipe\prism-agent`
 // without FILE_CREATE_PIPE_INSTANCE). Remote clients are refused.
 const pipeSDDL = "D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x12008b;;;IU)"
 
+// pipeConf is the pipe's name and test-only additions, read once per
+// Serve or Call (tests change it).
+type pipeConf struct {
+	name      string
+	extraSDDL string
+	extraSID  *windows.SID
+}
+
 var (
-	pipeName      = PipeName
-	extraSDDL     = ""
-	extraOwnerSID *windows.SID
+	confMu sync.Mutex
+	conf   = pipeConf{name: PipeName}
 
 	advapi32                       = windows.NewLazySystemDLL("advapi32.dll")
 	procImpersonateNamedPipeClient = advapi32.NewProc("ImpersonateNamedPipeClient")
@@ -50,10 +58,20 @@ func AllowCurrentUserForTests(name string) func() {
 	if err != nil {
 		panic(err)
 	}
-	pipeName = name
-	extraSDDL = "(A;;0x12008b;;;" + u.User.Sid.String() + ")"
-	extraOwnerSID = u.User.Sid
-	return func() { pipeName, extraSDDL, extraOwnerSID = PipeName, "", nil }
+	confMu.Lock()
+	conf = pipeConf{name: name, extraSDDL: "(A;;0x12008b;;;" + u.User.Sid.String() + ")", extraSID: u.User.Sid}
+	confMu.Unlock()
+	return func() {
+		confMu.Lock()
+		conf = pipeConf{name: PipeName}
+		confMu.Unlock()
+	}
+}
+
+func current() pipeConf {
+	confMu.Lock()
+	defer confMu.Unlock()
+	return conf
 }
 
 // Handler answers one request from an identified user.
@@ -61,11 +79,12 @@ type Handler func(ctx context.Context, id Identity, line []byte) any
 
 // Serve answers the tray until ctx ends.
 func Serve(ctx context.Context, h Handler, logf func(string, ...any)) error {
-	name, err := windows.UTF16PtrFromString(pipeName)
+	c := current()
+	name, err := windows.UTF16PtrFromString(c.name)
 	if err != nil {
 		return err
 	}
-	sd, err := windows.SecurityDescriptorFromString(pipeSDDL + extraSDDL)
+	sd, err := windows.SecurityDescriptorFromString(pipeSDDL + c.extraSDDL)
 	if err != nil {
 		return err
 	}
@@ -77,7 +96,7 @@ func Serve(ctx context.Context, h Handler, logf func(string, ...any)) error {
 	go func() {
 		<-ctx.Done()
 		for {
-			if f, err := dial(); err == nil {
+			if f, err := dial(c); err == nil {
 				f.Close()
 			}
 			select {
@@ -173,8 +192,8 @@ func clientIdentity(hp windows.Handle) (Identity, error) {
 
 // dial opens the pipe as a client, letting the server identify but not
 // impersonate us, and checks the pipe is the service's.
-func dial() (*os.File, error) {
-	name, err := windows.UTF16PtrFromString(pipeName)
+func dial(c pipeConf) (*os.File, error) {
+	name, err := windows.UTF16PtrFromString(c.name)
 	if err != nil {
 		return nil, err
 	}
@@ -193,14 +212,14 @@ func dial() (*os.File, error) {
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
-	if !trustedOwner(h) {
+	if !trustedOwner(h, c.extraSID) {
 		windows.CloseHandle(h)
 		return nil, ErrUntrusted
 	}
 	return os.NewFile(uintptr(h), "prism-agent pipe"), nil
 }
 
-func trustedOwner(h windows.Handle) bool {
+func trustedOwner(h windows.Handle, extra *windows.SID) bool {
 	sd, err := windows.GetSecurityInfo(h, windows.SE_KERNEL_OBJECT, windows.OWNER_SECURITY_INFORMATION)
 	if err != nil {
 		return false
@@ -212,12 +231,12 @@ func trustedOwner(h windows.Handle) bool {
 	if owner.IsWellKnown(windows.WinLocalSystemSid) || owner.IsWellKnown(windows.WinBuiltinAdministratorsSid) {
 		return true
 	}
-	return extraOwnerSID != nil && owner.Equals(extraOwnerSID)
+	return extra != nil && owner.Equals(extra)
 }
 
 // Call sends one request to the service and reads its answer into out.
 func Call(req any, out any, timeout time.Duration) error {
-	f, err := dial()
+	f, err := dial(current())
 	if err != nil {
 		return err
 	}
