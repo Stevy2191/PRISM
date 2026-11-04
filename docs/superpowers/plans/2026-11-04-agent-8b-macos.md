@@ -172,9 +172,14 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - After the shared checks (newer version, the install's signature, size and sha256), run `/usr/sbin/installer -pkg <file> -target /` in its own session (`Setsid`), so `launchctl` restarting the daemon from the package's `postinstall` doesn't end the installer. The installer's output goes to `install-<version>.log` beside the package.
 - A downloaded file carries no quarantine attribute and `installer` run as root doesn't consult Gatekeeper, so updates need no override (spec). The PRISM signature is the gate.
 
-- [ ] **Step 1: Failing tests:** the shared refusals still pass on macOS; the install command is exactly `installer -pkg <checked path> -target /`, never built from the offer's text.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): signed self-update on the Mac`
+- [x] **Step 1: Failing tests:** the shared refusals still pass on macOS; the install command is exactly `installer -pkg <checked path> -target /`, never built from the offer's text.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): signed self-update on the Mac`
+
+**As built (2026-11-04):**
+- **`update_unix.go`** (macOS and Linux): `prepareDir` creates the updates folder, refuses it if it's not a folder (a symlink, say) or not owned by the agent's user, and resets it to `0700` before each update, like the Windows ACL reset.
+- **`update_darwin.go`:** `installCommand(path)` is always `/usr/sbin/installer -pkg <checked path> -target /`. `InstallPkg` starts it with `Setsid`, so the package's `postinstall` restarting the daemon doesn't end it, with its output in `install-<version>.log` beside the package, and returns once it has started. `PlatformInstall = InstallPkg`. Everything before that (version, signature, size, sha256, the 6-hour wait after a failure) is the shared, already-tested `Updater`.
+- **Tests:** the folder reset from `0777` to `0700` and a symlink refused (macOS and Linux); the exact Mac install command; the shared update tests unchanged. A real update on a Mac comes with Task 8's package and the owner's hand test.
 
 ### Task 7: The menu-bar app and the ticket window
 
