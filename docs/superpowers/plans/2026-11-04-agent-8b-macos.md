@@ -191,9 +191,19 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - **Window:** `prism-tray form` in its own process, as on Windows; WKWebView 460×660, the same `trayui` page (Light or Dark from the system appearance), the same asynchronous send. The draft goes in `~/Library/Application Support/PRISM/draft.json` (0600). Links open with `open` only for an `https://` portal address.
 - One menu-bar icon per user session (a lock file in the user's temporary folder).
 
-- [ ] **Step 1:** The tray builds for darwin/arm64 and darwin/amd64 with cgo on `macos-latest`; the page tests still pass; the draft path is the user's own.
-- [ ] **Step 2:** Screenshots of the window in Light and Dark from Chromium (as in 8a) match the TrayForm and TraySent boards; the menu matches TrayMac.
-- [ ] **Step 3: Commit** `feat(agent): Mac menu-bar app and Submit a ticket window`
+- [x] **Step 1:** The tray builds for darwin/arm64 and darwin/amd64 with cgo on `macos-latest`; the page tests still pass; the draft path is the user's own.
+- [x] **Step 2:** Screenshots of the window in Light and Dark from Chromium (as in 8a) match the TrayForm and TraySent boards; the menu matches TrayMac.
+- [x] **Step 3: Commit** `feat(agent): Mac menu-bar app and Submit a ticket window`
+
+**As built (2026-11-04):**
+- **One tray for both platforms:** `cmd/prism-tray/tray.go` (`windows || (darwin && cgo)`) now holds the menu, the status refresh, `openForm` and the whole ticket window, which moved out of the Windows files unchanged in behaviour. Platform files give the differences:
+  - `platform_windows.go`: the named-mutex single instance, `ShellExecute`, WebView2, the no-WebView2 message box, bringing the window to the front, the colour icon, "Submit a ticket" and "connected to the help desk".
+  - `platform_darwin.go` (`darwin && cgo`): a `flock` on a lock file in the user's own temporary folder, `/usr/bin/open` for `https://` links only, WKWebView (`webview_go`, 460×660, fixed size), the template icon, "Submit a ticket…" and "connected" (TrayMac board). `runtime.LockOSThread` in `init`, since Cocoa needs the main thread.
+  - The form needs only `window`, the methods both web-view libraries share (`Bind`, `Dispatch`, `Eval`, `SetHtml`, `Run`, `Terminate`, `Destroy`). The page, the asynchronous send and the draft are unchanged; on a Mac the draft is in `~/Library/Application Support/PRISM`.
+- **Menu-bar icon:** `trayTemplateIcon`, a black boxed P on transparent (36×36 PNG), set with `SetTemplateIcon`, so macOS draws it to suit a light or dark menu bar.
+- **Without cgo** (cross-builds from Linux), `main_darwin_nocgo.go` builds a stub that says it needs cgo, so `go vet` for darwin still passes here. The real Mac tray is compiled by the new **Build** step in `test.yml` (`go build ./cmd/...` on all three runners; on macOS with cgo).
+- **App bundle:** `agent/packaging/macos/Info.plist` for `PRISM Agent.app`: bundle id `com.prism.tray`, executable `prism-tray`, `LSUIElement` (no Dock icon), `LSMinimumSystemVersion` 13.0, and `__VERSION__` and `__BUILD__` for Task 8 to fill.
+- **Not changed:** the page and its tests (`trayui`), so 8a's Chromium screenshots of TrayForm and TraySent stand for the Mac's WKWebView too. The menu itself is checked in the owner's hand test.
 
 ### Task 8: The `.pkg` and CI
 

@@ -62,3 +62,31 @@ func trayIcon() []byte {
 	ico.Write(p.Bytes())
 	return ico.Bytes()
 }
+
+// trayTemplateIcon is the Mac menu-bar icon: a black P on transparent, as a
+// PNG. macOS treats it as a template (it uses only the shape and draws it
+// to suit the menu bar). 36×36 for sharp Retina rendering at 18 points.
+func trayTemplateIcon() []byte {
+	const n = 36
+	img := image.NewNRGBA(image.Rect(0, 0, n, n))
+	ink := color.NRGBA{0, 0, 0, 0xFF}
+	fill := func(x0, y0, x1, y1 int) {
+		for y := y0; y < y1; y++ {
+			for x := x0; x < x1; x++ {
+				img.Set(x, y, ink)
+			}
+		}
+	}
+	// A rounded square outline with the P inside, like the Windows icon.
+	fill(4, 4, 32, 7)
+	fill(4, 29, 32, 32)
+	fill(4, 4, 7, 32)
+	fill(29, 4, 32, 32)
+	fill(12, 10, 16, 27)
+	fill(16, 10, 22, 13)
+	fill(16, 17, 22, 20)
+	fill(21, 12, 25, 18)
+	var p bytes.Buffer
+	_ = png.Encode(&p, img)
+	return p.Bytes()
+}

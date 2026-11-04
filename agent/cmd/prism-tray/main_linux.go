@@ -8,6 +8,7 @@ import (
 
 func main() {
 	_ = trayIcon
+	_ = trayTemplateIcon
 	fmt.Fprintln(os.Stderr, "prism-tray: the Linux tray app arrives with 8c")
 	os.Exit(1)
 }

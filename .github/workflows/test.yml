@@ -118,3 +118,8 @@ jobs:
 
       - name: Test
         run: go test -race ./...
+
+      # Both programs, as each platform builds them: on macOS with cgo
+      # (Cocoa for the menu bar, WKWebView for the ticket window).
+      - name: Build
+        run: go build ./cmd/...
