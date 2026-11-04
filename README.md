@@ -76,6 +76,9 @@ cd PRISM
 ./setup.sh
 ```
 
+(For a test instance on the dev branch's images: `git clone -b dev …` and
+`IMAGE_TAG=dev ./setup.sh`.)
+
 `setup.sh` handles everything:
 
 1. Checks that Docker and Docker Compose are installed.

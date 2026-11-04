@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # PRISM interactive setup — checks prerequisites, collects the minimum required
 # input, writes .env, pulls images, starts containers, and confirms the app is up.
+#
+# Which images a new .env runs: latest (released code) unless you say otherwise,
+#   IMAGE_TAG=dev ./setup.sh      # the dev branch, for a test instance
 
 set -euo pipefail
 
@@ -368,7 +371,7 @@ if [[ "$SKIP_CONFIG" == false ]]; then
 # Which published image build to run. latest tracks released code; set a
 # version (e.g. 0.2.0) to pin or roll back, or dev for a test instance.
 # See RELEASING.md.
-IMAGE_TAG=latest
+IMAGE_TAG=${IMAGE_TAG:-latest}
 
 DB_HOST=mariadb
 DB_PORT=3306
