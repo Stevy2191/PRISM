@@ -52,12 +52,26 @@ function daysLabel(days) {
   return `${days}d`;
 }
 
-function Field({ label, children }) {
+// A label over its value: the value in a stronger weight than the label, so
+// each pair reads as one item. mono for identifiers (serial, MAC address).
+function Field({ label, mono = false, children }) {
   return (
-    <div>
-      <p className="text-xs font-medium" style={{ color: MUTED }}>{label}</p>
-      <div className="mt-0.5 text-sm [overflow-wrap:anywhere]" style={{ color: TEXT }}>{children ?? <span style={{ color: MUTED }}>—</span>}</div>
+    <div className="min-w-0">
+      <p className="text-xs" style={{ color: MUTED }}>{label}</p>
+      <div className={`mt-0.5 font-medium [overflow-wrap:anywhere] ${mono ? 'text-[13px]' : 'text-sm'}`} style={{ color: TEXT, fontFamily: mono ? 'var(--font-mono)' : undefined }}>
+        {children ?? <span className="font-normal" style={{ color: MUTED }}>—</span>}
+      </div>
     </div>
+  );
+}
+
+// A titled group of fields in the Device info card, set off by a line.
+function FieldGroup({ title, children }) {
+  return (
+    <section aria-label={title} className="border-t pt-4" style={{ borderColor: BORDER }}>
+      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>{title}</h3>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4">{children}</div>
+    </section>
   );
 }
 
@@ -266,34 +280,32 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <div className="space-y-4 rounded-xl border p-5 border-navy-100 bg-surface">
         <h2 className="font-semibold" style={{ color: TEXT }}>Device info</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <FieldGroup title="Hardware">
           <Field label="Make">{asset.make}</Field>
           <Field label="Model">{asset.model}</Field>
-        </div>
-        <Field label="Serial number">{asset.serialNumber}</Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Operating system">{asset.operatingSystem}</Field>
-          <Field label="OS version">{asset.osVersion}</Field>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
+          <Field label="Serial number" mono>{asset.serialNumber}</Field>
+          <Field label="Firmware version">{asset.firmwareVersion}</Field>
           <Field label="Processor">{asset.processor}</Field>
           <Field label="RAM">{asset.ram}</Field>
           <Field label="Storage">{asset.storage}</Field>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="IP address">{asset.ipAddress}</Field>
-          <Field label="MAC address">{asset.macAddress}</Field>
-        </div>
-        <Field label="Firmware version">{asset.firmwareVersion}</Field>
-        {asset.deployedDate && <Field label="Deployed date">{asset.deployedDate}</Field>}
+          {asset.deployedDate && <Field label="Deployed date">{asset.deployedDate}</Field>}
+        </FieldGroup>
+        <FieldGroup title="Operating system">
+          <Field label="Operating system">{asset.operatingSystem}</Field>
+          <Field label="Version">{asset.osVersion}</Field>
+        </FieldGroup>
+        <FieldGroup title="Network">
+          <Field label="IP address" mono>{asset.ipAddress}</Field>
+          <Field label="MAC address" mono>{asset.macAddress}</Field>
+        </FieldGroup>
         {deviceValues.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 border-t pt-4" style={{ borderColor: BORDER }}>
+          <FieldGroup title="More details">
             {deviceValues.map((fv) => (
               <Field key={fv.id} label={fv.field?.label}>{formatFieldValue(fv.field, fv.value)}</Field>
             ))}
-          </div>
+          </FieldGroup>
         )}
-        <div>
+        <div className="border-t pt-4" style={{ borderColor: BORDER }}>
           <p className="text-xs font-medium" style={{ color: MUTED }}>Notes</p>
           <textarea
             className="input mt-1 resize-y text-sm"

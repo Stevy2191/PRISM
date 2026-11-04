@@ -14,6 +14,9 @@ import '@fontsource/instrument-sans/500.css';
 import '@fontsource/instrument-sans/600.css';
 import '@fontsource/instrument-sans/700.css';
 import './index.css';
+import { installDatePickerOpener } from './utils/datePicker';
+
+installDatePickerOpener(document);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

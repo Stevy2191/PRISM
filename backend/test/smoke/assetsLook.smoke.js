@@ -121,3 +121,29 @@ it('each asset is in the page once (table on desktop, cards on a phone)', async 
   await phone.getByText('LT-0014').first().waitFor();
   expect(await phone.locator('text=LT-0014').count()).toBe(1);
 });
+
+it('clicking anywhere in a date field opens its calendar', async () => {
+  const page = await smoke.pageAs('admin', undefined, DESKTOP);
+  // Count the calendar opening (headless Chromium draws no pop-up to see).
+  await page.addInitScript(() => {
+    window.pickersOpened = 0;
+    HTMLInputElement.prototype.showPicker = function showPicker() { window.pickersOpened += 1; };
+  });
+  await page.goto(`/assets/${laptop.id}`);
+  await page.getByRole('button', { name: 'Edit' }).click();
+  const date = page.locator('input[type=date]').first();
+  await date.click({ position: { x: 16, y: 10 } }); // on the text, not the icon
+  expect(await page.evaluate(() => window.pickersOpened)).toBe(1);
+  await page.locator('input[type=text], input:not([type])').first().click();
+  expect(await page.evaluate(() => window.pickersOpened)).toBe(1);
+});
+
+it('the Device info card groups hardware, operating system and network', async () => {
+  const page = await smoke.pageAs('admin', undefined, DESKTOP);
+  await page.goto(`/assets/${laptop.id}`);
+  for (const group of ['Hardware', 'Operating system', 'Network']) {
+    await page.getByRole('region', { name: group }).waitFor();
+  }
+  await page.getByRole('region', { name: 'Hardware' }).getByText('Serial number').waitFor();
+  await page.getByRole('region', { name: 'Network' }).getByText('MAC address').waitFor();
+});
