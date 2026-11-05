@@ -218,8 +218,17 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 - **Config path:** `config.Dir()` on Linux becomes `/var/lib/prism-agent` (already), and the socket `/run/prism-agent.sock`.
 - **Signing:** when the `AGENT_GPG_KEY` secret exists, nfpm signs the `.rpm` and `.pkg.tar.zst` (and the `.deb` with a detached signature), and CI publishes the public key beside the packages. See Notes on the spec.
 
-- [ ] **Step 1:** `build.sh` makes six packages (three formats × two architectures) from one version; `rpm -qpR`, `dpkg-deb -I` and `pacman -Qip` show the right dependencies and scripts.
-- [ ] **Step 2: Commit** `feat(agent): Linux packages`
+- [x] **Step 1:** `build.sh` makes six packages (three formats × two architectures) from one version; `rpm -qpR`, `dpkg-deb -I` and `pacman -Qip` show the right dependencies and scripts.
+- [x] **Step 2: Commit** `feat(agent): Linux packages`
+
+**As built (2026-11-05):**
+- `nfpm.yaml` is a template; `build.sh` fills in version, architecture and the binaries' folder and makes the three formats for one architecture (CI runs it per architecture, Task 9). Checked here with nfpm v2.41.1 for amd64: contents, modes (`/var/lib/prism-agent` 0700 root), dependencies and scripts in all three; the .deb installed, upgraded, removed (enrollment kept) and purged (enrollment gone).
+- Versions: .deb and .rpm `0.0.0~dev.N` (before any release); Arch `0.0.0.dev.N`, because nfpm drops a pre-release from Arch's pkgver unless there's an epoch, so `build.sh` gives Arch the version with dots for the dash.
+- Arch: nfpm can't write `optdepends`, so `gtk3` and `webkit2gtk-4.1` are plain dependencies there (on .deb and .rpm they stay weak: Recommends).
+- Scripts: one `postinstall` for .deb (`configure [old]`) and .rpm (count), plus Arch's `postupgrade`; `preremove` does nothing on an upgrade, else disables the service and closes the trays; `postremove` reloads systemd and on `apt purge` removes the data folder. They skip systemctl when systemd isn't running (a container).
+- A tray whose libraries are missing (a server installed without recommends) can't start: the dynamic loader stops it, and the autostart entry fails quietly into the journal. Not handled in the tray itself.
+- Not done: signing the packages (`AGENT_GPG_KEY`). The update path doesn't need it (updates are checked with the install's own Ed25519 key); it would matter only for installing from a repository.
+
 
 ### Task 9: CI — build and install-test on the three distributions
 

@@ -1,0 +1,10 @@
+#!/bin/sh
+# prism-agent package (Arch): after an upgrade, restart the service on the
+# new version (pacman runs this instead of post_install).
+set -e
+install -d -m 0700 -o root -g root /var/lib/prism-agent
+if [ -d /run/systemd/system ]; then
+  systemctl daemon-reload || true
+  systemctl try-restart prism-agent.service || true
+fi
+exit 0

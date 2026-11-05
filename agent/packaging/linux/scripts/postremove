@@ -1,0 +1,12 @@
+#!/bin/sh
+# prism-agent package: after removal. Reloads systemd; on `apt purge` also
+# forgets the enrollment (the data folder). A plain removal keeps it, so
+# installing again brings the same device back.
+set -e
+if [ -d /run/systemd/system ]; then
+  systemctl daemon-reload || true
+fi
+if [ "$1" = "purge" ]; then
+  rm -rf /var/lib/prism-agent
+fi
+exit 0

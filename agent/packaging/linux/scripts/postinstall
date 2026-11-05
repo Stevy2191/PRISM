@@ -1,0 +1,24 @@
+#!/bin/sh
+# prism-agent package: after install or upgrade. Called as
+#   .deb: postinst configure [<old version>]
+#   .rpm: %post <count>       (1 install, 2+ upgrade)
+#   Arch: post_install <new version>  (upgrades run postupgrade instead)
+# It only reloads systemd and starts or restarts the service; nothing is
+# read from the data folder.
+set -e
+upgrade=0
+case "$1" in
+  configure) [ -n "${2:-}" ] && upgrade=1 ;;
+  ''|*[!0-9]*) ;;
+  *) [ "$1" -ge 2 ] && upgrade=1 ;;
+esac
+install -d -m 0700 -o root -g root /var/lib/prism-agent
+if [ -d /run/systemd/system ]; then
+  systemctl daemon-reload || true
+  if [ "$upgrade" = 1 ]; then
+    systemctl try-restart prism-agent.service || true
+  else
+    systemctl enable --now prism-agent.service || true
+  fi
+fi
+exit 0
