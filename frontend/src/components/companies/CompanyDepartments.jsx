@@ -87,6 +87,20 @@ export default function CompanyDepartments({ company }) {
     }
   };
 
+  // Client departments live here only (Settings → Departments is the help
+  // desk's own), so they're renamed and deleted here too.
+  const rename = async (d) => {
+    const next = window.prompt(`Rename "${d.name}" to:`, d.name);
+    if (!next || !next.trim() || next.trim() === d.name) return;
+    setError('');
+    try { await api.patch(`/departments/${d.id}`, { name: next.trim() }); load(); } catch (err) { setError(errMessage(err)); }
+  };
+  const remove = async (d) => {
+    if (!window.confirm(`Delete the department "${d.name}"? Its contacts and assets stay, with no department.`)) return;
+    setError('');
+    try { await api.delete(`/departments/${d.id}`); load(); } catch (err) { setError(errMessage(err)); }
+  };
+
   return (
     <div className="space-y-4">
       {error && <Notice tone="bad">{error}</Notice>}
@@ -101,6 +115,12 @@ export default function CompanyDepartments({ company }) {
           <li key={d.id} className={portalAdmins ? 'flex min-w-0 flex-col gap-2 border-b py-2.5 sm:flex-row sm:items-center sm:gap-4' : ''} style={portalAdmins ? { borderColor: 'var(--color-border)' } : undefined}>
             <span className={portalAdmins ? 'font-semibold sm:w-48 sm:flex-shrink-0' : ''}>{d.name}{d.shortCode ? <span className="ml-2 num text-xs">{d.shortCode}</span> : null}</span>
             {portalAdmins && <DepartmentAdmins department={d} companyId={company.id} canEdit={canManagePortal} onError={setError} />}
+            {canAdd && (
+              <span className={`flex flex-shrink-0 gap-3 ${portalAdmins ? 'sm:ml-auto' : 'ml-3'}`}>
+                <button type="button" className="text-xs text-prism hover:underline" onClick={() => rename(d)} aria-label={`Rename ${d.name}`}>Rename</button>
+                <button type="button" className="text-xs hover:underline" style={{ color: 'var(--color-danger)' }} onClick={() => remove(d)} aria-label={`Delete ${d.name}`}>Delete</button>
+              </span>
+            )}
           </li>
         ))}
         {!departments.length && <li style={{ color: 'var(--color-text-muted)' }}>No departments yet.</li>}

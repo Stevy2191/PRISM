@@ -57,7 +57,7 @@ it('the department list is fenced and filterable', async () => {
   const fencedIds = expectOk(await tech.agent.get(`${API}/departments`)).departments.map((d) => d.id);
   expect(fencedIds).not.toContain(acmeHR.id);
   const { departments } = expectOk(await a().get(`${API}/departments?companyId=${acme.id}`));
-  expect(departments.map((d) => [d.name, d.company])).toEqual([['HR', { id: acme.id, name: 'Acme' }]]);
+  expect(departments.map((d) => [d.name, d.company])).toEqual([['HR', { id: acme.id, name: 'Acme', isInternal: false }]]);
 });
 
 it('a ticket\'s department must belong to its contact\'s company', async () => {

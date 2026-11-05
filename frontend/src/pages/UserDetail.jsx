@@ -12,6 +12,7 @@ import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 import { formatPhone } from '../utils/formatPhone';
 import SettingsPage from '../components/settings/SettingsPage';
 import { canOpen, findPage } from './settings/registry';
+import DepartmentOptions from '../components/companies/DepartmentOptions';
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString() : 'Never';
@@ -124,7 +125,7 @@ function AssignRoleModal({ roles, departments, assignedRoleIds, onAssign, onClos
         {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
         <select className="input mb-4" value={deptChoice} onChange={(e) => setDeptChoice(e.target.value)}>
           <option value="">Select department…</option>
-          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          <DepartmentOptions departments={departments} />
         </select>
         <div className="flex justify-end gap-3">
           <button type="button" className="btn-secondary" onClick={() => setPendingRole(null)}>Back</button>
@@ -740,7 +741,7 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
           <label className="label">Department</label>
           <select className="input" value={form.departmentId} onChange={set('departmentId')}>
             <option value="">None</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <DepartmentOptions departments={departments} />
           </select>
         </div>
         {canManageContractor && (

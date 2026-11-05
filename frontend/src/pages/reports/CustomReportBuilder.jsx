@@ -8,6 +8,7 @@ import Spinner from '../../components/Spinner';
 import {
   StatCard, ChartCard, SimpleBarChart, MultiLineChart, DonutChart, SortableTable, PALETTE,
 } from './shared';
+import DepartmentOptions from '../../components/companies/DepartmentOptions';
 
 const VIS_OPTIONS = [
   { key: 'table', label: 'Table' },
@@ -274,7 +275,7 @@ export default function CustomReportBuilder({ loadSavedId, onSaved, onDeleted })
                 <label className="label">Department</label>
                 <select className="input h-9" value={filters.departmentId} onChange={(e) => setFilters((f) => ({ ...f, departmentId: e.target.value }))}>
                   <option value="">All departments</option>
-                  {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  <DepartmentOptions departments={departments} />
                 </select>
               </div>
             )}

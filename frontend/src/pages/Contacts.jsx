@@ -11,7 +11,6 @@ import Modal from '../components/Modal';
 import ImportContactsModal from '../components/ImportContactsModal';
 import CompanyPicker from '../components/companies/CompanyPicker';
 import CompanyFilter from '../components/companies/CompanyFilter';
-import CompanyTag from '../components/companies/CompanyTag';
 import { IconSearch } from '@tabler/icons-react';
 import { useFullPageHeight } from '../hooks/useFullPageHeight';
 import PageHeader from '../components/ui/PageHeader';
@@ -19,6 +18,8 @@ import SelectChip from '../components/ui/SelectChip';
 import Pill from '../components/ui/Pill';
 import Notice from '../components/ui/Notice';
 import Button from '../components/ui/Button';
+import DepartmentOptions from '../components/companies/DepartmentOptions';
+import { useCompanySummary } from '../context/CompanyContext';
 
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
@@ -90,7 +91,7 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Department</label>
           <select className="input" style={fieldStyle} value={form.departmentId} onChange={set('departmentId')}>
             <option value="">None</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <DepartmentOptions departments={departments} companyId={form.companyId} />
           </select>
         </div>
         <div>
@@ -180,13 +181,21 @@ export default function Contacts() {
   const [search, setSearch] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [searchParams] = useSearchParams();
-  const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
+  const [companyId, setCompanyIdState] = useState(searchParams.get('companyId') || '');
+  const { multiCompany } = useCompanySummary();
   const [assignedTo, setAssignedTo] = useState('');
   const [myContacts, setMyContacts] = useState(false);
   const [noDept, setNoDept] = useState(false);
   const [status, setStatus] = useState('');
   const [sortBy, setSortBy] = useState('lastName');
   const [sortDir, setSortDir] = useState('asc');
+
+  // Another company's department can't stay selected.
+  const setCompanyId = (id) => {
+    setCompanyIdState(id);
+    const dept = departments.find((d) => String(d.id) === String(departmentId));
+    if (id && dept && String(dept.companyId) !== String(id)) setDepartmentId('');
+  };
 
   const [showNew, setShowNew] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -319,11 +328,13 @@ export default function Contacts() {
                 className="input h-11 pl-9 text-sm lg:h-8 lg:pl-8 lg:text-[13px]"
               />
             </label>
+            {/* Company first: departments belong to a company, so the
+                department filter lists the chosen company's only. */}
+            <CompanyFilter value={companyId} onChange={setCompanyId} className="sel" />
             <SelectChip label="Department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
               <option value="">All departments</option>
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              <DepartmentOptions departments={departments} companyId={companyId} />
             </SelectChip>
-            <CompanyFilter value={companyId} onChange={setCompanyId} className="sel" />
             <SelectChip label="Assigned to" showLabel={false} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
               <option value="">Assigned to (anyone)</option>
               {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
@@ -404,6 +415,7 @@ export default function Contacts() {
                         </div>
                       </div>
                       <div className="mt-2 space-y-0.5 text-sm" style={{ color: MUTED }}>
+                        {multiCompany && c.company && <p className="truncate" style={{ color: TEXT }}>{c.company.name}</p>}
                         <p className="truncate">{c.email || '—'}</p>
                         <p>{c.phone ? formatPhone(c.phone) : '—'}</p>
                       </div>
@@ -425,7 +437,7 @@ export default function Contacts() {
                         {col.label} {sortBy === col.key ? (sortDir === 'asc' ? '▲' : '▼') : ''}
                       </th>
                     ))}
-                    {['Department', 'Phone', 'Assigned to', 'Tickets', 'Last ticket'].map((h) => (
+                    {[...(multiCompany ? ['Company'] : []), 'Department', 'Phone', 'Assigned to', 'Tickets', 'Last ticket'].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}>
                         {h}
                       </th>
@@ -446,7 +458,6 @@ export default function Contacts() {
                           <Link to={`/contacts/${c.id}`} className="whitespace-nowrap font-semibold hover:underline" style={{ color: TEXT }}>
                             {c.displayName}
                           </Link>
-                          <CompanyTag company={c.company} />
                           {c.status === 'inactive' && (
                             <span
                               className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
@@ -459,6 +470,11 @@ export default function Contacts() {
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.email || '—'}</td>
                       <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{c.createdAt ? c.createdAt.slice(0, 10) : '—'}</td>
+                      {multiCompany && (
+                        <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: TEXT }}>
+                          {c.company ? <Link to={`/companies/${c.company.id}`} className="hover:underline">{c.company.name}</Link> : '—'}
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         {c.department ? (
                           <span className="whitespace-nowrap rounded px-1.5 py-px text-xs font-semibold" style={{ backgroundColor: 'var(--color-accent-soft)', color: BLUE }}>

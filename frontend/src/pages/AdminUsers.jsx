@@ -9,6 +9,7 @@ import OwnerBadge from '../components/users/OwnerBadge';
 import { useAuth } from '../context/AuthContext';
 import StatusChip from '../components/ui/StatusChip';
 import SettingsPage from '../components/settings/SettingsPage';
+import DepartmentOptions from '../components/companies/DepartmentOptions';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -151,7 +152,7 @@ export default function AdminUsers() {
                     onChange={(e) => updateUser(u.id, { departmentId: e.target.value || null })}
                   >
                     <option value="">None</option>
-                    {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    <DepartmentOptions departments={departments} />
                   </select>
                 </td>
                 <td className="table-td num whitespace-nowrap text-navy-400">

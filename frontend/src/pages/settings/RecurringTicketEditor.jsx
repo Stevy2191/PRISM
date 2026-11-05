@@ -11,6 +11,7 @@ import SettingsPage from '../../components/settings/SettingsPage';
 import TimeDropdownPicker from '../../components/TimeDropdownPicker';
 import { ContactPicker } from '../tickets/new/ContactPicker';
 import { orgToday } from '../../utils/orgDate';
+import DepartmentOptions from '../../components/companies/DepartmentOptions';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -159,7 +160,7 @@ export default function RecurringTicketEditor() {
               <label className="label" htmlFor="rt-dept">Department</label>
               <select id="rt-dept" className="input" value={form.departmentId} onChange={set('departmentId')}>
                 <option value="">Customer's department</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                <DepartmentOptions departments={departments} />
               </select>
             </div>
             <div>

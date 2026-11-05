@@ -51,7 +51,8 @@ it('a new contact can be created for a company, and the list shows and filters b
   await form.getByRole('button', { name: 'Save' }).click();
   await poll(async () => (await models.Contact.findOne({ where: { firstName: 'Cara' } }))?.companyId, acme.id);
   await page.goto('/contacts');
-  await page.getByText('· Acme').first().waitFor();
+  await page.getByRole('columnheader', { name: 'Company' }).waitFor();
+  await page.getByRole('link', { name: 'Acme', exact: true }).first().waitFor();
   await page.getByLabel('Company').selectOption(String(acme.id));
   await page.getByRole('link', { name: 'Cara Client' }).first().waitFor();
 });
