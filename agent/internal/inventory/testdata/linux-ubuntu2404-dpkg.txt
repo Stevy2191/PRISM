@@ -1,0 +1,12 @@
+adduser	3.137ubuntu1	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1793130121
+apt	2.8.3	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1792851115
+bash	5.2.21-2ubuntu4	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1792850736
+curl	8.5.0-2ubuntu10.16	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1793130129
+git	1:2.43.0-1ubuntu7.4	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1793130133
+git-lfs	3.4.1-1ubuntu0.4	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1793130133
+git-man	1:2.43.0-1ubuntu7.4	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1793130133
+libc6:amd64	2.39-0ubuntu8.9	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1792851112
+openssl	3.0.13-0ubuntu3.16	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1793130109
+code	1.95.3-1731513102	Microsoft Corporation <vscode-linux@microsoft.com>	1730800000
+libreoffice-writer	4:24.2.7-0ubuntu0.24.04.1	Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>	1730000000
+google-chrome-stable	131.0.6778.69-1	Chrome Linux Team <chromium-dev@chromium.org>	1731000000

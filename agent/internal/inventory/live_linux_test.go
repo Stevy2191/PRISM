@@ -29,3 +29,25 @@ func TestDesktopUserOnThisComputer(t *testing.T) {
 	u, r, err := desktopUser()
 	t.Logf("user %+v, realm %q, err %v", u, r, err)
 }
+
+// The real collector on this computer (a CI runner or a developer's
+// machine): a distribution, memory, a disk and some software.
+func TestCollectOnThisComputer(t *testing.T) {
+	inv, problems := Collect()
+	for _, p := range problems {
+		t.Logf("problem: %v", p)
+	}
+	if inv.OS.Name == "" || inv.OS.Name == "linux" {
+		t.Errorf("no distribution: %+v", inv.OS)
+	}
+	if inv.MemoryBytes == 0 || inv.CPU.Cores == 0 {
+		t.Errorf("memory %d, cores %d", inv.MemoryBytes, inv.CPU.Cores)
+	}
+	if len(inv.Disks) == 0 {
+		t.Error("no disk")
+	}
+	if len(inv.Software) == 0 {
+		t.Error("no software")
+	}
+	t.Logf("%s %s (%s), %s %d cores, %d disks, %d programs, %d adapters", inv.OS.Name, inv.OS.Version, inv.OS.Build, inv.CPU.Model, inv.CPU.Cores, len(inv.Disks), len(inv.Software), len(inv.Adapters))
+}

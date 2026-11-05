@@ -1,0 +1,31 @@
+processor	: 0
+vendor_id	: GenuineIntel
+model name	: 13th Gen Intel(R) Core(TM) i7-1365U
+physical id	: 0
+siblings	: 12
+core id	: 0
+cpu cores	: 10
+
+processor	: 1
+vendor_id	: GenuineIntel
+model name	: 13th Gen Intel(R) Core(TM) i7-1365U
+physical id	: 0
+siblings	: 12
+core id	: 0
+cpu cores	: 10
+
+processor	: 2
+vendor_id	: GenuineIntel
+model name	: 13th Gen Intel(R) Core(TM) i7-1365U
+physical id	: 0
+siblings	: 12
+core id	: 4
+cpu cores	: 10
+
+processor	: 3
+vendor_id	: GenuineIntel
+model name	: 13th Gen Intel(R) Core(TM) i7-1365U
+physical id	: 0
+siblings	: 12
+core id	: 8
+cpu cores	: 10

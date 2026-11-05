@@ -1,0 +1,5 @@
+60 1 0:35 /root / rw,relatime shared:1 - btrfs /dev/mapper/luks-1a2b rw,seclabel,compress=zstd:1,ssd,subvol=/root
+61 60 0:35 /home /home rw,relatime shared:60 - btrfs /dev/mapper/luks-1a2b rw,seclabel,compress=zstd:1,ssd,subvol=/home
+62 60 259:2 / /boot rw,relatime shared:62 - ext4 /dev/nvme0n1p2 rw,seclabel
+63 62 259:1 / /boot/efi rw,relatime shared:63 - vfat /dev/nvme0n1p1 rw
+90 60 8:17 / /run/media/alex/Projects rw,nosuid,nodev,relatime shared:90 - xfs /dev/sdb1 rw,seclabel

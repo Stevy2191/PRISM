@@ -1,0 +1,13 @@
+22 28 0:21 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw
+23 28 0:22 / /proc rw,nosuid,nodev,noexec,relatime shared:13 - proc proc rw
+24 28 0:5 / /dev rw,nosuid,relatime shared:2 - devtmpfs udev rw,size=7972000k
+26 24 0:25 / /run rw,nosuid,nodev,noexec,relatime shared:5 - tmpfs tmpfs rw,size=1600000k,mode=755
+28 1 259:2 / / rw,relatime shared:1 - ext4 /dev/nvme0n1p2 rw,errors=remount-ro
+40 28 7:0 / /snap/firefox/5187 ro,nodev,relatime shared:21 - squashfs /dev/loop0 ro
+41 28 7:1 / /snap/core22/1663 ro,nodev,relatime shared:22 - squashfs /dev/loop1 ro
+60 28 259:1 / /boot/efi rw,relatime shared:31 - vfat /dev/nvme0n1p1 rw,fmask=0077,dmask=0077
+70 26 0:60 / /run/user/1000 rw,nosuid,nodev,relatime shared:400 - tmpfs tmpfs rw,size=1600000k,mode=700,uid=1000,gid=1000
+80 28 8:1 / /media/sam/BACKUP\040DRIVE rw,nosuid,nodev,relatime shared:500 - exfat /dev/sda1 rw,uid=1000
+81 28 179:1 / /media/sam/3061-3135 rw,nosuid,nodev,relatime shared:501 - vfat /dev/mmcblk0p1 rw,uid=1000
+82 28 0:70 / /mnt/share rw,relatime shared:600 - cifs //nas/share rw,vers=3.1.1
+83 28 0:80 / /var/lib/docker/overlay2/abc/merged rw,relatime - overlay overlay rw

@@ -90,10 +90,18 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
   - Plus `flatpak list --app --columns=…` and `snap list` when present.
   - Capped at the server's 5,000, explicit packages first.
 
-- [ ] **Step 1: Failing tests:** the four fixtures give the payload 8a's server reads (make, model, serial, CPU and cores, memory, "Ubuntu" / "24.04 (noble)", disks counted once with a USB disk marked, adapters without the virtual ones); each package manager's output parses to programs with versions, publishers and dates; Flatpak and Snap apps are added; a missing tool or a timeout leaves those fields empty.
-- [ ] **Step 2: Live test on `ubuntu-latest`:** `collect` returns Ubuntu, a disk, memory and some software.
-- [ ] **Step 3–4:** Implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): Linux inventory`
+- [x] **Step 1: Failing tests:** the four fixtures give the payload 8a's server reads (make, model, serial, CPU and cores, memory, "Ubuntu" / "24.04 (noble)", disks counted once with a USB disk marked, adapters without the virtual ones); each package manager's output parses to programs with versions, publishers and dates; Flatpak and Snap apps are added; a missing tool or a timeout leaves those fields empty.
+- [x] **Step 2: Live test on `ubuntu-latest`:** `collect` returns Ubuntu, a disk, memory and some software.
+- [x] **Step 3–4:** Implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): Linux inventory`
+
+**As built (2026-11-05):**
+- Parsers in `linuxparse.go` (every OS): `ParseOSRelease`/`LinuxOS`, `LinuxModel` (Lenovo's model from `product_version`), `ParseCPUInfo` (distinct physical/core id pairs; `cpu cores`, then the processor count, as on ARM), `ParseMemTotal`, `ParseUptime`, `ParseMountInfo` (octal escapes decoded), `ParseLsblk` (partitions, LUKS and LVM take their disk's bus; `rm`/`hotplug` as booleans or "0"/"1"), `LinuxDisks`, `LinuxVirtualAdapter`, `ParseDpkg`, `ParseRPM`, `ParsePacman`, `ParseFlatpak`, `ParseSnapList` (the snap system's own snaps left out).
+- Disks: the root first; each device once by major:minor (btrfs subvolumes, bind mounts); `/boot`, `/efi`, snaps, container storage and `/run` (but `/run/media`) skipped; label from lsblk, else the `/media` folder name. A disk under `/media` with no lsblk entry counts as external.
+- `dnf -C` (cache only) so the inventory never goes to the network; `pacman -Qei` under `LC_ALL=C` (new `runEnv`) so dates parse. Fedora's version has no codename ("41"); Arch is "rolling".
+- Fixtures: this container's real Ubuntu 24.04 `os-release`, `cpuinfo` and `dpkg-query` lines; the Fedora, Arch, laptop and ARM samples follow those tools' documented formats (no such machines to capture from). The live test on `ubuntu-latest` checks distribution, memory, a disk and software.
+- On a computer without systemd-logind (a container) the signed-in user is reported as a problem and left empty, as intended.
+
 
 ### Task 3: The health snapshot and the realm
 

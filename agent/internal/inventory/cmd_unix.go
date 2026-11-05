@@ -33,14 +33,21 @@ func toolPath(name string) (string, error) {
 }
 
 // run: a tool with fixed arguments, a timeout and no shell.
-func run(name string, args ...string) ([]byte, error) {
+func run(name string, args ...string) ([]byte, error) { return runEnv(nil, name, args...) }
+
+// runEnv: run, with extra environment variables (e.g. LC_ALL=C).
+func runEnv(env []string, name string, args ...string) ([]byte, error) {
 	path, err := toolPath(name)
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, path, args...).Output()
+	cmd := exec.CommandContext(ctx, path, args...)
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
+	out, err := cmd.Output()
 	if ctx.Err() != nil {
 		return nil, fmt.Errorf("%s timed out", name)
 	}

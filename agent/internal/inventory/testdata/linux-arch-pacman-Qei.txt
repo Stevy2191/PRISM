@@ -1,0 +1,27 @@
+Name            : firefox
+Version         : 132.0.2-1
+Description     : Fast, Private & Safe Web Browser
+Architecture    : x86_64
+URL             : https://www.mozilla.org/firefox/
+Licenses        : MPL-2.0
+Packager        : Jan Alexander Steffens (heftig) <heftig@archlinux.org>
+Build Date      : Tue Nov 12 10:00:00 2024
+Install Date    : Wed Nov 13 08:15:42 2024
+Install Reason  : Explicitly installed
+
+Name            : base
+Version         : 3-2
+Description     : Minimal package set to define a basic Arch Linux installation
+Packager        : Unknown Packager
+Install Date    : Mon Jan  8 12:00:00 2024
+Install Reason  : Explicitly installed
+
+Name            : visual-studio-code-bin
+Version         : 1.95.3-1
+Description     : Visual Studio Code (vscode)
+Depends On      : libxkbfile  gnupg  gtk3  libsecret  nss  gcc-libs  libnotify
+                  libxss  glibc  lsof  shared-mime-info  xdg-utils  alsa-lib
+Packager        : Unknown Packager
+Install Date    : Thu Nov 14 17:02:11 2024
+Install Reason  : Explicitly installed
+
