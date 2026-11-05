@@ -87,8 +87,12 @@ cd PRISM
 4. Asks whether you use Active Directory / LDAP — completely optional, safe to skip.
 5. Generates secure random values for all database credentials and the session secret.
 6. Writes the `.env` file automatically.
-7. Optionally turns on HTTPS with a test certificate (see below). It asks this
-   on a re-run too, so an existing install can switch it on without starting over.
+7. Asks how people will reach PRISM: through **your own HTTPS reverse proxy**
+   (you give its address, e.g. `https://helpdesk.example.com`), **HTTPS with a
+   test certificate** (see below), or **plain HTTP** on your network (a quick
+   look only: the agent needs HTTPS). This sets `PUBLIC_APP_URL`, the address
+   used in emailed links, single sign-on and the agent's portal link, and
+   `COOKIE_SECURE`. A re-run asks again only if `.env` has no address yet.
 8. Pulls the latest images from GitHub Container Registry.
 9. Starts all containers (`docker compose up -d`).
 10. Waits for the app to pass its health check.
@@ -105,8 +109,8 @@ On first start the backend waits for MariaDB and applies all migrations automati
 
 The PRISM agent only connects over HTTPS (or plain HTTP on the PRISM machine
 itself), and secure cookies need it too. To try them on a local network without
-a real certificate, answer **yes** when `setup.sh` asks about HTTPS with a test
-certificate. It asks for an HTTPS port (default **8443**) and the address(es)
+a real certificate, choose **HTTPS with a test certificate** when `setup.sh`
+asks how people will reach PRISM. It asks for an HTTPS port (default **8443**) and the address(es)
 other computers will use, such as `192.168.1.50` or `prism.lan`, then:
 
 - makes a small certificate authority of its own in `.prism-test-ca/` (keep it

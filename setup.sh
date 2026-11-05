@@ -217,15 +217,51 @@ ensure_test_cert() {
 
 # Asks whether to turn HTTPS on, and for the port and names. Sets TLS_NAMES
 # and HTTPS_PORT, and returns 1 if the answer is no.
-ask_test_https() {
-  local answer guess input name
+# How people will reach PRISM: sets ACCESS_MODE to proxy (their own HTTPS
+# reverse proxy), test (HTTPS with a test certificate from this script) or
+# http (plain HTTP on this network). PUBLIC_APP_URL — the address in emailed
+# links, single sign-on and the agent's portal link — follows from it.
+ask_access_mode() {
+  local answer
   echo ""
-  echo "  HTTPS with a test certificate lets you try the PRISM agent and secure"
-  echo "  sign-in without a real certificate. It's FOR TESTING ONLY: each test"
-  echo "  computer must trust PRISM's test certificate authority, and Microsoft 365"
-  echo "  sign-in still needs a real certificate."
-  read -r -p "  Serve PRISM over HTTPS with a test certificate? [y/N] " answer
-  [[ "$answer" =~ ^[Yy]$ ]] || return 1
+  echo "  How will people reach PRISM?"
+  echo "    1) Through my own reverse proxy that serves it over HTTPS"
+  echo "       (e.g. https://helpdesk.example.com). Recommended."
+  echo "    2) HTTPS with a test certificate made by this setup. For testing:"
+  echo "       each computer must trust the test certificate, and Microsoft 365"
+  echo "       sign-in still needs a real one."
+  echo "    3) Plain HTTP on this network. For a quick look only: the PRISM agent"
+  echo "       and secure sign-in need HTTPS."
+  while true; do
+    read -r -p "  Choose 1, 2 or 3 [1]: " answer
+    case "${answer:-1}" in
+      1) ACCESS_MODE=proxy; return ;;
+      2) ACCESS_MODE=test; return ;;
+      3) ACCESS_MODE=http; return ;;
+      *) warn "Enter 1, 2 or 3." ;;
+    esac
+  done
+}
+
+# The proxy's address, https:// with an optional port and no path.
+ask_proxy_url() {
+  local input
+  echo "  The address people type to reach PRISM through your proxy. Point the"
+  echo "  proxy at http://<this machine>:${APP_PORT}."
+  while true; do
+    read -r -p "  Address (https://…): " input
+    input="${input%/}"
+    if [[ "$input" =~ ^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?$ ]]; then
+      PUBLIC_URL="$input"
+      return
+    fi
+    warn "That isn't an https:// address (like https://helpdesk.example.com, with no path)."
+  done
+}
+
+# The test certificate's port and addresses. Sets HTTPS_PORT and TLS_NAMES.
+ask_test_https() {
+  local guess input name
   command -v openssl &>/dev/null || die "openssl is needed to make the test certificate. Install it and re-run setup.sh."
   choose_port HTTPS_PORT "8443" "Host port for HTTPS"
   guess="$(lan_ip)"
@@ -430,12 +466,14 @@ if [[ "$SKIP_CONFIG" == true ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# HTTPS with a test certificate (optional, for testing)
+# How people reach PRISM: their own HTTPS proxy, a test certificate, or HTTP
 # ---------------------------------------------------------------------------
 TLS_ON=false
 TLS_NAMES=""
 HTTPS_PORT=""
 CA_STATE=""
+ACCESS_MODE=""
+PUBLIC_URL=""
 if [[ "$(env_get COMPOSE_FILE)" == *docker-compose.tls.yml* ]]; then
   TLS_ON=true
   TLS_NAMES="$(env_get TEST_CERT_NAMES)"
@@ -443,14 +481,37 @@ if [[ "$(env_get COMPOSE_FILE)" == *docker-compose.tls.yml* ]]; then
   HTTPS_PORT="${HTTPS_PORT:-8443}"
   [[ -n "$TLS_NAMES" ]] || die ".env serves HTTPS but has no TEST_CERT_NAMES. Add TEST_CERT_NAMES=<address> to .env, or remove the COMPOSE_FILE line to go back to HTTP."
   command -v openssl &>/dev/null || die "openssl is needed to check the test certificate. Install it and re-run setup.sh."
-elif ask_test_https; then
-  TLS_ON=true
-  env_set COMPOSE_FILE "docker-compose.yml:docker-compose.tls.yml"
-  env_set HTTPS_PORT "$HTTPS_PORT"
-  env_set TEST_CERT_NAMES "$TLS_NAMES"
-  env_set COOKIE_SECURE "true"
-  env_set PUBLIC_APP_URL "$(https_url "${TLS_NAMES%%,*}" "$HTTPS_PORT")"
-  success ".env updated for HTTPS."
+elif [[ -n "$(env_get PUBLIC_APP_URL)" ]]; then
+  # Already set (an earlier run, or by hand): keep it.
+  PUBLIC_URL="$(env_get PUBLIC_APP_URL)"
+  [[ "$PUBLIC_URL" == https://* ]] && ACCESS_MODE=proxy || ACCESS_MODE=http
+else
+  ask_access_mode
+  case "$ACCESS_MODE" in
+    proxy)
+      ask_proxy_url
+      env_set PUBLIC_APP_URL "$PUBLIC_URL"
+      env_set COOKIE_SECURE "true"
+      success ".env updated: PRISM is at ${PUBLIC_URL}."
+      ;;
+    test)
+      ask_test_https
+      TLS_ON=true
+      env_set COMPOSE_FILE "docker-compose.yml:docker-compose.tls.yml"
+      env_set HTTPS_PORT "$HTTPS_PORT"
+      env_set TEST_CERT_NAMES "$TLS_NAMES"
+      env_set COOKIE_SECURE "true"
+      env_set PUBLIC_APP_URL "$(https_url "${TLS_NAMES%%,*}" "$HTTPS_PORT")"
+      success ".env updated for HTTPS."
+      ;;
+    http)
+      local_ip="$(lan_ip)"
+      PUBLIC_URL="http://${local_ip:-localhost}:${APP_PORT}"
+      env_set PUBLIC_APP_URL "$PUBLIC_URL"
+      env_set COOKIE_SECURE "false"
+      warn "Plain HTTP: the PRISM agent won't enrol and sign-in cookies aren't secure. Re-run setup.sh to switch to HTTPS later."
+      ;;
+  esac
 fi
 
 if [[ "$TLS_ON" == true ]]; then
@@ -537,8 +598,10 @@ echo -e "${GREEN}${BOLD}╚═════════════════�
 echo ""
 if [[ "$TLS_ON" == true ]]; then
   echo -e "  ${BOLD}URL:${RESET}       $(https_url "${TLS_NAMES%%,*}" "$HTTPS_PORT")  (http://…:${APP_PORT} redirects here)"
+elif [[ "$ACCESS_MODE" == proxy ]]; then
+  echo -e "  ${BOLD}URL:${RESET}       ${PUBLIC_URL}  (through your proxy; on this machine: http://localhost:${APP_PORT})"
 else
-  echo -e "  ${BOLD}URL:${RESET}       http://localhost:${APP_PORT}"
+  echo -e "  ${BOLD}URL:${RESET}       ${PUBLIC_URL:-http://localhost:${APP_PORT}}"
 fi
 echo -e "  ${BOLD}Login tab:${RESET} Local Account"
 
@@ -569,6 +632,13 @@ if [[ "$TLS_ON" == true ]]; then
   echo -e "  Keep ${CA_DIR}/ private: it can sign certificates for these addresses."
   echo -e "  Back to plain HTTP: delete the COMPOSE_FILE line in .env, set COOKIE_SECURE=false,"
   echo -e "  remove PUBLIC_APP_URL, then ${CYAN}${COMPOSE} up -d${RESET}"
+fi
+
+if [[ "$ACCESS_MODE" == proxy ]]; then
+  echo ""
+  echo -e "  ${BOLD}Your proxy:${RESET} forward ${PUBLIC_URL} to http://<this machine>:${APP_PORT}, and allow"
+  echo -e "  uploads up to 30 MB (nginx: ${CYAN}client_max_body_size 30m;${RESET}; Nginx Proxy Manager: the"
+  echo -e "  host's Advanced tab). Agent inventories and ticket attachments need it."
 fi
 
 echo ""
