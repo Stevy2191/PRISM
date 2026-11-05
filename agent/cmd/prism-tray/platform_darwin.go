@@ -47,6 +47,7 @@ func singleInstance(name string) bool {
 		f.Close()
 		return false
 	}
+	recordPID(f)
 	// Kept open (and locked) until the process ends.
 	return true
 }
@@ -75,12 +76,13 @@ func newWindow(title string, width, height uint, _ string) window {
 	}
 	w.SetTitle(title)
 	w.SetSize(int(width), int(height), webview.HintFixed)
+	// Once its window is up, bring it in front of every other app's.
+	w.Dispatch(func() { frontWindow(w.Window()) })
 	return w
 }
 
 // WKWebView is part of macOS; this can't happen, but say so in the log.
 func noWebView(ipc.WhoamiAnswer) { log.Print("prism-tray: the web view could not be created") }
 
-// The window that's already open comes to the front by itself when its
-// app is activated; nothing more to do.
-func bringToFront(string) {}
+// The form is already open (in its own process): bring it to the front.
+func bringToFront(string) { activateForm() }
