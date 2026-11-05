@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stevy2191/prism/agent/internal/client"
 )
@@ -128,5 +129,29 @@ func TestGarbageIsRefused(t *testing.T) {
 		if a, ok := s.Handle(context.Background(), maria, []byte(line)).(SubmitAnswer); !ok || a.Error != "invalid" {
 			t.Errorf("%.20q → %+v", line, a)
 		}
+	}
+}
+
+// A PRISM that hangs: whoami stops waiting and answers offline, inside the
+// tray's own time (on Windows the tray used to be cut off first).
+type hangingPrism struct{}
+
+func (hangingPrism) Do(ctx context.Context, _, _ string, _, _ any) (int, error) {
+	<-ctx.Done()
+	return 0, ctx.Err()
+}
+
+func TestWhoamiDoesNotWaitForeverOnPRISM(t *testing.T) {
+	saved := WhoamiWait
+	WhoamiWait = 50 * time.Millisecond
+	defer func() { WhoamiWait = saved }()
+	s := &Server{PRISM: hangingPrism{}, CacheDir: t.TempDir()}
+	start := time.Now()
+	a := s.Handle(context.Background(), maria, []byte(`{"op":"whoami"}`)).(WhoamiAnswer)
+	if !a.Offline || time.Since(start) > 2*time.Second {
+		t.Fatalf("answer %+v after %v", a, time.Since(start))
+	}
+	if WhoamiWait >= 30*time.Second || saved >= 30*time.Second {
+		t.Fatal("whoami must answer inside the tray's 30 seconds")
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/stevy2191/prism/agent/internal/client"
@@ -118,9 +119,17 @@ func (s *Server) Handle(ctx context.Context, id Identity, line []byte) any {
 	}
 }
 
+// WhoamiWait is how long whoami waits for PRISM before answering offline:
+// well inside the tray's own 30 seconds, so a slow or unreachable PRISM
+// shows as "can't reach the help desk", not as no answer at all.
+var WhoamiWait = 10 * time.Second
+
 func (s *Server) whoami(ctx context.Context, id Identity) WhoamiAnswer {
 	host, _ := os.Hostname()
 	if p := s.prism(); p != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, WhoamiWait)
+		defer cancel()
 		q := url.Values{"account": {id.Account}}
 		if id.UPN != "" {
 			q.Set("upn", id.UPN)

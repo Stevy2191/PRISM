@@ -159,6 +159,10 @@ func serveOne(ctx context.Context, hp windows.Handle, h Handler, logf func(strin
 		logf("tray pipe: caller refused: %v", err)
 		answer = SubmitAnswer{Error: "refused", Message: "Windows couldn't say who you are."}
 	} else {
+		// The handler may wait on PRISM; give the answer its own time, as
+		// the Unix socket does (the 30 seconds were for reading the request,
+		// and cut the tray off while a slow PRISM was still being asked).
+		timer.Reset(3 * time.Minute)
 		answer = h(ctx, id, line)
 	}
 	b, _ := json.Marshal(answer)
