@@ -179,16 +179,19 @@ function InstallCommand({ fresh, keys, packages }) {
   const command = platform === 'macos'
     ? `sudo prism-agent enroll --url ${origin} --key ${secret}`
     : `msiexec /i ${win ? win.file : 'prism-agent.msi'} /qn PRISM_URL=${origin} ENROLL_KEY=${secret}`;
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(command); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* no clipboard */ }
+  // An MSI installed by double-clicking isn't enrolled: enrol it afterwards.
+  const winEnroll = `& "C:\\Program Files\\PRISM\\Agent\\prism-agent.exe" enroll --url ${origin} --key ${secret}`;
+  const copyText = async (text) => {
+    try { await navigator.clipboard.writeText(text); setCopied(text); setTimeout(() => setCopied(false), 1500); } catch { /* no clipboard */ }
   };
+  const copy = () => copyText(command);
   const commandBox = (
     <>
       {fresh && <Notice tone="info">This is the only time the full key is shown. Copy the command now; PRISM keeps only a fingerprint of the key.</Notice>}
       <pre aria-label="Command" className="m-0 whitespace-pre-wrap break-all rounded-lg border p-3 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{command}</pre>
     </>
   );
-  const copyButton = <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={copy} disabled={!fresh}>{copied ? 'Copied' : 'Copy'}</button>;
+  const copyButton = <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={copy} disabled={!fresh}>{copied === command ? 'Copied' : 'Copy'}</button>;
   const keyNote = fresh ? '' : 'The key is shown in full once, when it\'s created: create a new one to copy a complete command.';
   return (
     <Card title="Install command" hint={keyName ? `With the key “${keyName}”` : 'Create an enrolment key first'}>
@@ -222,6 +225,19 @@ function InstallCommand({ fresh, keys, packages }) {
               {winArmOwn && <a className="text-sm text-prism hover:underline" href="/api/v1/devices/packages/windows/arm64" download>ARM version</a>}
             </div>
             <p className="m-0 text-[12.5px]" style={MUTED}>Works from Group Policy, Intune or by hand. {keyNote}</p>
+            <details className="text-sm text-navy-900">
+              <summary className="cursor-pointer text-[13px] font-medium">Installed it by double-clicking the MSI?</summary>
+              <div className="mt-2 space-y-2">
+                <p className="m-0 text-[12.5px]" style={MUTED}>
+                  Opening the MSI installs the agent but can&apos;t enrol it (the key goes on the command line), so the computer
+                  doesn&apos;t appear here. Enrol it from PowerShell run as administrator:
+                </p>
+                <pre aria-label="Enrol command" className="m-0 whitespace-pre-wrap break-all rounded-lg border p-3 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{winEnroll}</pre>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => copyText(winEnroll)} disabled={!fresh}>{copied === winEnroll ? 'Copied' : 'Copy'}</button>
+                </div>
+              </div>
+            </details>
           </>
         )}
         {platform === 'macos' && (

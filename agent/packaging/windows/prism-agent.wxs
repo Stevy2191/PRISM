@@ -14,7 +14,10 @@
   - The PRISMAgent service: automatic (delayed) start as LocalSystem,
     restarted on failure, with an Application event-log source.
   - The tray starts at every user's sign-in (HKLM Run); the Start menu gets
-    "Submit a ticket".
+    "Submit a ticket". An install with a window (double-clicked, or /qb)
+    also starts it straight away for the person installing; a silent one
+    (/qn: GPO, Intune, self-updates) leaves it to the next sign-in, since it
+    runs as SYSTEM with nobody to show it to.
   - With PRISM_URL and ENROLL_KEY, "prism-agent enroll" runs once, as
     SYSTEM, before the service starts. A refused key fails the install
     (rolled back). ENROLL_KEY is a hidden property and the command line is
@@ -111,7 +114,12 @@
     <CustomAction Id="RemoveData" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
                   Execute="deferred" Return="ignore" Impersonate="no" />
 
+    <!-- Start the tray now on an install someone is watching. -->
+    <CustomAction Id="StartTray" FileRef="TrayExe" ExeCommand="tray" Execute="immediate"
+                  Impersonate="yes" Return="asyncNoWait" />
+
     <InstallExecuteSequence>
+      <Custom Action="StartTray" After="InstallFinalize" Condition="UILevel &gt; 2 AND NOT REMOVE" />
       <Custom Action="EnrollAgent" After="InstallFiles"
               Condition="PRISM_URL AND ENROLL_KEY AND NOT REMOVE" />
       <Custom Action="RemoveData" After="RemoveFiles"

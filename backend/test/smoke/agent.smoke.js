@@ -39,6 +39,11 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   expect(text).toContain('msiexec /i ');
   expect(text).toContain(`PRISM_URL=${smoke.base}`);
   await page.getByRole('cell', { name: /Clinic rollout/ }).waitFor();
+  // An MSI opened by double-clicking isn't enrolled: the enrol command for after.
+  await page.getByText('Installed it by double-clicking the MSI?').click();
+  const enrolSecret = text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1];
+  expect(await page.getByLabel('Enrol command').textContent())
+    .toBe(`& "C:\\Program Files\\PRISM\\Agent\\prism-agent.exe" enroll --url ${smoke.base} --key ${enrolSecret}`);
   // The macOS tab (8b): the package, Open Anyway once, then the enrol
   // command with the same new key.
   await page.getByRole('tab', { name: 'macOS' }).click();
