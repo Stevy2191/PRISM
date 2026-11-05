@@ -27,6 +27,20 @@ const PipeName = `\\.\pipe\prism-agent`
 // without FILE_CREATE_PIPE_INSTANCE). Remote clients are refused.
 const pipeSDDL = "D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x12008b;;;IU)"
 
+// interactiveMask is what the pipe allows a signed-in user (the IU entry
+// above): read and write data, read attributes and extended attributes,
+// read its security (to check its owner), and wait on it.
+const interactiveMask = 0x12008b
+
+// clientAccess is what the tray asks for: exactly what it uses, all within
+// interactiveMask. GENERIC_READ|GENERIC_WRITE (as before) also asks for
+// write-attributes, write-EA and append (create-pipe-instance), which the
+// pipe deliberately doesn't grant, so an ordinary, non-elevated user (every
+// real tray) was refused and saw "can't get an answer from its service"
+// (owner, 2026-11-05); only an administrator's elevated token got through.
+const clientAccess = windows.FILE_READ_DATA | windows.FILE_WRITE_DATA | windows.FILE_READ_ATTRIBUTES |
+	windows.READ_CONTROL | windows.SYNCHRONIZE
+
 // pipeConf is the pipe's name and test-only additions, read once per
 // Serve or Call (tests change it).
 type pipeConf struct {
@@ -203,7 +217,7 @@ func dial(c pipeConf) (*os.File, error) {
 	}
 	var h windows.Handle
 	for i := 0; ; i++ {
-		h, err = windows.CreateFile(name, windows.GENERIC_READ|windows.GENERIC_WRITE, 0, nil, windows.OPEN_EXISTING,
+		h, err = windows.CreateFile(name, clientAccess, 0, nil, windows.OPEN_EXISTING,
 			windows.SECURITY_SQOS_PRESENT|windows.SECURITY_IDENTIFICATION, 0)
 		if err == nil {
 			break

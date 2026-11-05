@@ -163,6 +163,21 @@ jobs:
           if ($status -notmatch 'Device:\s+1' -or $status -notmatch 'PRISM:\s+http://127\.0\.0\.1:8765') { throw 'status does not report the enrollment' }
           if ($status -notmatch ('Version:\s+' + [regex]::Escape($env:VERSION) + ' ')) { throw 'status does not report the stamped version' }
 
+          Write-Host '--- An ordinary user reaches the service the way the tray does'
+          # The tray runs as a signed-in user without admin rights; this
+          # runner is an administrator, so ask as a new standard user
+          # (owner, 2026-11-05: every real tray was refused the pipe).
+          $pw = ConvertTo-SecureString ('Ci-' + [guid]::NewGuid().ToString('N') + '!a1') -AsPlainText -Force
+          New-LocalUser -Name prismci -Password $pw -AccountNeverExpires | Out-Null
+          $cred = New-Object System.Management.Automation.PSCredential ("$env:COMPUTERNAME\prismci", $pw)
+          $out = "$env:PUBLIC\whoami-ci.out"; $err = "$env:PUBLIC\whoami-ci.err"
+          $p = Start-Process $exe -ArgumentList 'whoami' -Credential $cred -WorkingDirectory "$env:SystemRoot\Temp" `
+            -RedirectStandardOutput $out -RedirectStandardError $err -Wait -PassThru -LoadUserProfile
+          $who = (Get-Content $out -Raw) + (Get-Content $err -Raw)
+          Write-Host $who
+          if ($p.ExitCode -ne 0 -or $who -notmatch 'You:\s+\S*prismci') { throw "a standard user couldn't reach the service: $who" }
+          Remove-LocalUser -Name prismci
+
           Write-Host '--- The device key is SYSTEM-only; the tray starts at sign-in; the Start menu has Submit a ticket'
           try { [IO.File]::ReadAllBytes("$env:ProgramData\PRISM\device.key") | Out-Null; throw 'the device key is readable by an administrator' } catch [UnauthorizedAccessException] { }
           $run = (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run').PRISM
