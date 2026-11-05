@@ -94,7 +94,12 @@ async function attemptEnrollment(p, key) {
         order: [['id', 'ASC']],
         transaction,
       });
-      asset = candidates.find((a) => !a.device || a.device.revokedAt) || null;
+      // Free to claim: no device, a revoked one, or one that never sent
+      // its inventory. That last is an enrolment that failed on the
+      // computer after PRISM accepted it (e.g. the key couldn't be saved,
+      // 2026-11-05); with the same serial it's the same computer trying
+      // again, so it takes that device over rather than make a second Asset.
+      asset = candidates.find((a) => !a.device || a.device.revokedAt || !a.device.lastInventoryAt) || null;
       device = asset ? asset.device : null;
     }
     const claimed = !!asset;
@@ -126,7 +131,8 @@ async function attemptEnrollment(p, key) {
       revokedAt: null,
       lastSeenAt: new Date(),
     };
-    // A revoked device on the claimed Asset is replaced: new key, fresh start.
+    // A revoked (or never-reported) device on the claimed Asset is replaced:
+    // new key, fresh start.
     // (Devices.assetId is unique, so two computers can't claim one Asset.)
     if (device) await device.update(fields, { transaction });
     else device = await Device.create(fields, { transaction });

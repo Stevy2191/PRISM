@@ -95,6 +95,8 @@ it('a matching serial in another company is never claimed', async () => {
 it('a second computer with the same serial gets its own Asset; a revoked device\'s Asset is re-used', async () => {
   const { secret } = await newKey();
   const first = await enrollAs(payload(secret));
+  // The first has reported in, so it's a working computer, not a failed try.
+  await models.Device.update({ lastInventoryAt: new Date() }, { where: { id: first.body.deviceId } });
   const second = await enrollAs(payload(secret));
   const [d1, d2] = await Promise.all([models.Device.findByPk(first.body.deviceId), models.Device.findByPk(second.body.deviceId)]);
   expect(d1.assetId).not.toBe(d2.assetId);
@@ -104,6 +106,23 @@ it('a second computer with the same serial gets its own Asset; a revoked device\
   expect(d3.assetId).toBe(d1.assetId);
   expect(d3.id).toBe(d1.id);
   expect(d3.revokedAt).toBeNull();
+});
+
+it('enrolling again after a try that failed on the computer takes over its device, not a second Asset', async () => {
+  const { secret } = await newKey();
+  // PRISM accepted the first try, but the computer couldn't save its key, so
+  // it never reported in.
+  const failed = await enrollAs(payload(secret));
+  const retryBody = payload(secret);
+  const retry = await enrollAs(retryBody);
+  expect(retry.status).toBe(201);
+  expect(retry.body.deviceId).toBe(failed.body.deviceId);
+  const d = await models.Device.findByPk(retry.body.deviceId);
+  expect(d.revokedAt).toBeNull();
+  expect(await models.Device.count({ where: { companyId: company.id } })).toBe(1);
+  expect(await models.Asset.count({ where: { companyId: company.id } })).toBe(1);
+  // Only the retry's key works now.
+  expect(d.publicKey).toBe(retryBody.publicKey);
 });
 
 it('placeholder serials ("To be filled by O.E.M.") never claim an Asset', async () => {
