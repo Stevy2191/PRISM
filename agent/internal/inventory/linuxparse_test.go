@@ -1,10 +1,12 @@
 package inventory
 
 import (
+	"encoding/json"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // lfix: a Linux fixture as text (macparse_test's fixture gives bytes).
@@ -241,5 +243,34 @@ func TestLinuxPayloadFromFixtures(t *testing.T) {
 	}
 	if len(inv.Software) != 9 || inv.Software[0].Name != "apt" {
 		t.Errorf("software %d %+v", len(inv.Software), inv.Software)
+	}
+}
+
+func TestSnapshotMemoryAndRealm(t *testing.T) {
+	mem := lfix(t, "linux-meminfo")
+	if a := ParseMemAvailable(mem); a != 9876543*1024 {
+		t.Errorf("available %d", a)
+	}
+	if a := ParseMemAvailable("MemTotal: 1 kB\n"); a != 0 {
+		t.Errorf("no MemAvailable: %d", a)
+	}
+	if r := ParseRealm(lfix(t, "linux-realm-list.txt")); r != "Active Directory: riverside.local" {
+		t.Errorf("realm %q", r)
+	}
+	if r := ParseRealm("corp.example.com\n  server-software: ipa\nother.example\n  server-software: active-directory\n"); r != "IPA: corp.example.com" {
+		t.Errorf("ipa %q", r)
+	}
+	if r := ParseRealm(""); r != "" {
+		t.Errorf("not joined %q", r)
+	}
+	// The snapshot carries the realm and memory in use.
+	s := BuildSnapshot(SnapRaw{OSCaption: "Ubuntu", OSDisplayVersion: "24.04 (noble)", MemTotal: ParseMemTotal(mem), MemFree: ParseMemAvailable(mem),
+		Realm: ParseRealm(lfix(t, "linux-realm-list.txt"))}, `RIVERSIDE\mchen`, "0.6.0", time.Now())
+	if s.Realm != "Active Directory: riverside.local" || s.Memory == nil || s.Memory.UsedBytes != (16261316-9876543)*1024 {
+		t.Fatalf("snapshot %+v %+v", s, s.Memory)
+	}
+	b, _ := json.Marshal(s)
+	if !strings.Contains(string(b), `"realm":"Active Directory: riverside.local"`) {
+		t.Fatalf("json %s", b)
 	}
 }

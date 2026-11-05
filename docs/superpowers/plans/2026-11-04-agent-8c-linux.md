@@ -109,9 +109,12 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 
 - OS and version, uptime, memory in use (`MemTotal − MemAvailable`), free space per file system (Task 2's rules), the signed-in account, the realm in the snapshot's `realm` field ("Active Directory: riverside.local"), IPv4 addresses, the agent version and the time taken. The server's note already shows a Realm line.
 
-- [ ] **Step 1: Failing tests:** `/proc/meminfo` gives memory in use; the snapshot has the spec's fields and the realm.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): Linux health snapshot`
+- [x] **Step 1: Failing tests:** `/proc/meminfo` gives memory in use; the snapshot has the spec's fields and the realm.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): Linux health snapshot`
+
+**As built (2026-11-05):** `ParseMemAvailable` and `ParseRealm` (from `realm list`: "Active Directory: …", "IPA: …", or the realm alone; the first realm only) in `linuxparse.go`; `SnapRaw.Realm` carried into the snapshot's `realm`. Memory is left out (not shown as all in use) on kernels without `MemAvailable`. The snapshot reuses Task 2's disks and adapters and runs no package lists, so a ticket isn't held up.
+
 
 ### Task 4: The systemd service
 

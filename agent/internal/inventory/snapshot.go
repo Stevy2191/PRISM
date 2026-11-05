@@ -50,6 +50,8 @@ type SnapRaw struct {
 	Domain                                      string
 	// The directory a Mac is bound to ("Active Directory: riverside.local").
 	Directory string
+	// The realm a Linux computer has joined ("Active Directory: riverside.local").
+	Realm string
 }
 
 // BuildSnapshot turns what was read into the snapshot; account is the user
@@ -61,6 +63,7 @@ func BuildSnapshot(r SnapRaw, account, agentVersion string, now time.Time) Snaps
 		SignedInUser: account,
 		Domain:       tidy(r.Domain),
 		Directory:    tidy(r.Directory),
+		Realm:        tidy(r.Realm),
 		IPAddresses:  []string{},
 		AgentVersion: agentVersion,
 		// The computer's own clock, with its offset from UTC, so the help

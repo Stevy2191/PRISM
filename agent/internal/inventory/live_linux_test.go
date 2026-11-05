@@ -51,3 +51,12 @@ func TestCollectOnThisComputer(t *testing.T) {
 	}
 	t.Logf("%s %s (%s), %s %d cores, %d disks, %d programs, %d adapters", inv.OS.Name, inv.OS.Version, inv.OS.Build, inv.CPU.Model, inv.CPU.Cores, len(inv.Disks), len(inv.Software), len(inv.Adapters))
 }
+
+// The snapshot on this computer: the distribution, memory and a disk.
+func TestSnapshotOnThisComputer(t *testing.T) {
+	s := CollectSnapshot("tester", "0.0.0-test")
+	if s.OS.Name == "" || s.Memory == nil || len(s.Disks) == 0 || s.TakenAt == "" {
+		t.Fatalf("snapshot %+v", s)
+	}
+	t.Logf("%s %s, %d of %d bytes in use, %d disks, realm %q", s.OS.Name, s.OS.Version, s.Memory.UsedBytes, s.Memory.TotalBytes, len(s.Disks), s.Realm)
+}

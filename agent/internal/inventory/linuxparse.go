@@ -147,6 +147,62 @@ func ParseMemTotal(text string) uint64 {
 	return 0
 }
 
+// ParseMemAvailable: MemAvailable from /proc/meminfo (what can be used
+// without swapping), in bytes; 0 when the kernel doesn't say.
+func ParseMemAvailable(text string) uint64 {
+	for _, line := range strings.Split(text, "\n") {
+		if !strings.HasPrefix(line, "MemAvailable:") {
+			continue
+		}
+		f := strings.Fields(strings.TrimPrefix(line, "MemAvailable:"))
+		if len(f) == 0 {
+			return 0
+		}
+		n, err := strconv.ParseUint(f[0], 10, 64)
+		if err != nil {
+			return 0
+		}
+		if len(f) > 1 && strings.EqualFold(f[1], "kB") {
+			n *= 1024
+		}
+		return n
+	}
+	return 0
+}
+
+// ParseRealm reads `realm list` (each joined realm, then indented
+// "key: value" lines) into what the help desk sees: "Active Directory:
+// riverside.local", "IPA: corp.example.com", or the realm alone.
+func ParseRealm(text string) string {
+	name, software := "", ""
+	for _, line := range strings.Split(text, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if line[0] != ' ' && line[0] != '\t' {
+			if name != "" {
+				break // the first realm only
+			}
+			name = strings.ToLower(strings.TrimSpace(line))
+			continue
+		}
+		k, v, ok := strings.Cut(strings.TrimSpace(line), ":")
+		if ok && strings.TrimSpace(k) == "server-software" {
+			software = strings.TrimSpace(v)
+		}
+	}
+	switch {
+	case name == "":
+		return ""
+	case software == "active-directory":
+		return "Active Directory: " + name
+	case software == "ipa":
+		return "IPA: " + name
+	default:
+		return name
+	}
+}
+
 // ParseUptime: the seconds since boot, from /proc/uptime.
 func ParseUptime(text string) time.Duration {
 	f := strings.Fields(text)
