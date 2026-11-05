@@ -243,8 +243,11 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
   5. Re-enrolling changes nothing, and the package removes cleanly (purge removes the data).
 - **systemd for real**, on the runner itself (`ubuntu-22.04`, which has systemd): install the `.deb`, check the service is active and sends a heartbeat after `enroll` and `systemctl restart`, then `apt-get remove`.
 
-- [ ] **Step 1:** The four container tests and the host test pass; Windows and macOS are unchanged; `agent-dist` holds 2 MSIs, 1 `.pkg` and 6 Linux packages, with one manifest.
-- [ ] **Step 2: Commit** `ci(agent): build, package and test the Linux agent`
+- [x] **Step 1:** The four container tests and the host test pass; Windows and macOS are unchanged; `agent-dist` holds 2 MSIs, 1 `.pkg` and 6 Linux packages, with one manifest.
+- [x] **Step 2: Commit** `ci(agent): build, package and test the Linux agent`
+
+**As built (2026-11-05):** green on the first run (run 253): `linux` on `ubuntu-22.04` and `ubuntu-22.04-arm` (the repository is public, so the arm runners are available), install tests in `ubuntu:22.04`, `ubuntu:24.04`, `fedora:latest` and `archlinux:latest`, and `linux-systemd` on the `ubuntu-22.04` runner; the manifest (10 entries, each with its `format`) waits for all of them. The test stub is built static on the amd64 job and handed to the tests as an artifact, so the containers need no Go. The install tests also check that `prism-agent uninstall` refuses a packaged install and names the right command. `test.yml`'s Linux job got the GTK headers in Task 7.
+
 
 ### Task 10: Linux on the staff screens
 
