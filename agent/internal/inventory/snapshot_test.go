@@ -59,3 +59,13 @@ func TestSnapshotWithLittleKnown(t *testing.T) {
 		t.Fatalf("made-up values: %+v", s)
 	}
 }
+
+// The time is the computer's own, with its offset, so PRISM can show it in
+// the help desk's zone and the computer's.
+func TestSnapshotTimeKeepsTheComputersOffset(t *testing.T) {
+	chicago := time.FixedZone("CST", -6*3600)
+	s := BuildSnapshot(SnapRaw{}, "u", "0.6.0", time.Date(2026, 11, 4, 8, 2, 0, 0, chicago))
+	if s.TakenAt != "2026-11-04T08:02:00-06:00" {
+		t.Fatalf("takenAt %q", s.TakenAt)
+	}
+}

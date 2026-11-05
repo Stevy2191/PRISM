@@ -63,7 +63,9 @@ func BuildSnapshot(r SnapRaw, account, agentVersion string, now time.Time) Snaps
 		Directory:    tidy(r.Directory),
 		IPAddresses:  []string{},
 		AgentVersion: agentVersion,
-		TakenAt:      now.UTC().Format(time.RFC3339),
+		// The computer's own clock, with its offset from UTC, so the help
+		// desk can show the time in its zone and the computer's.
+		TakenAt: now.Format(time.RFC3339),
 	}
 	if s.OS.Build != "" && tidy(r.OSUBR) != "" {
 		s.OS.Build += "." + tidy(r.OSUBR)

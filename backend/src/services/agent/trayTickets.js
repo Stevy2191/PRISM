@@ -21,6 +21,7 @@ const { ApiError } = require('../../middleware/error');
 const { createTicket } = require('../tickets/ticketWrite');
 const { getSystemActorUserId } = require('../inboundEmailService');
 const { matchContact } = require('./inventory');
+const { orgTimeZone } = require('../../utils/orgTime');
 
 const PLACEHOLDER_NAME = 'Unknown tray user';
 const MAX_DESCRIPTION = 20000;
@@ -104,7 +105,41 @@ const GB = 1024 ** 3;
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
 const gb = (b) => `${(b / GB).toFixed(b >= 100 * GB ? 0 : 1)} GB`;
 
-function snapshotNote(snap, computer) {
+// "Nov 4, 2026, 2:15 PM CST": an instant in a time zone, with the zone.
+function wallTime(instant, timeZone) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  }).format(instant);
+}
+
+// When the snapshot was taken: in the help desk's time zone, and also as the
+// computer's own clock showed it when that differs (agents send their local
+// time with its offset; older ones sent UTC).
+function takenLine(takenAt, timeZone) {
+  if (typeof takenAt !== 'string' || Number.isNaN(Date.parse(takenAt))) return null;
+  const instant = new Date(takenAt);
+  const desk = wallTime(instant, timeZone);
+  const m = /([+-])(\d{2}):(\d{2})$/.exec(takenAt);
+  if (!m) return desk;
+  const offsetMin = (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3]));
+  const deskOffsetMin = zoneOffsetMinutes(instant, timeZone);
+  if (offsetMin === deskOffsetMin) return desk;
+  const local = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC', hour: 'numeric', minute: '2-digit',
+  }).format(new Date(instant.getTime() + offsetMin * 60000));
+  return `${desk} (${local} on the computer, UTC${m[1] === '-' ? '−' : '+'}${m[2]}:${m[3]})`;
+}
+
+// A zone's offset from UTC at an instant, in minutes.
+function zoneOffsetMinutes(instant, timeZone) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric',
+  }).formatToParts(instant).map((p) => [p.type, p.value]));
+  const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+  return Math.round((asUTC - Math.floor(instant.getTime() / 60000) * 60000) / 60000);
+}
+
+function snapshotNote(snap, computer, timeZone = 'UTC') {
   const s = snap && typeof snap === 'object' ? snap : {};
   const out = [`Health snapshot from ${computer}`];
   const add = (label, value) => { if (value) out.push(`${label}: ${value}`); };
@@ -127,8 +162,7 @@ function snapshotNote(snap, computer) {
   const ips = (Array.isArray(s.ipAddresses) ? s.ipAddresses : []).map((ip) => line(ip, 64)).filter(Boolean).slice(0, 16);
   if (ips.length) add('IP addresses', ips.join(', '));
   add('Agent version', line(s.agentVersion, 50));
-  const at = typeof s.takenAt === 'string' && !Number.isNaN(Date.parse(s.takenAt)) ? new Date(s.takenAt).toISOString() : null;
-  add('Taken', at);
+  add('Taken', takenLine(s.takenAt, timeZone));
   return out.join('\n');
 }
 
@@ -157,7 +191,7 @@ async function raiseTrayTicket(device, body, req) {
     req, createdById: actorId, source: 'agent', portal: { contact },
   });
   await Comment.create({
-    body: snapshotNote(b.snapshot, asset.name), authorId: actorId, ticketId: ticket.id, type: 'comment_private',
+    body: snapshotNote(b.snapshot, asset.name, await orgTimeZone()), authorId: actorId, ticketId: ticket.id, type: 'comment_private',
   });
   // Where the help desk's replies go, for the tray's "Ticket sent" screen:
   // the matched contact's email; none for the placeholder.
@@ -165,5 +199,5 @@ async function raiseTrayTicket(device, body, req) {
 }
 
 module.exports = {
-  whoami, raiseTrayTicket, placeholderFor, snapshotNote, PLACEHOLDER_NAME,
+  whoami, raiseTrayTicket, placeholderFor, snapshotNote, takenLine, PLACEHOLDER_NAME,
 };

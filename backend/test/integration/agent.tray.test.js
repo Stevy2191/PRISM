@@ -68,6 +68,25 @@ it('a ticket is raised as the matched contact, linked to the computer, with a pr
   expect(notes[0].body).toContain('Memory in use: 11.0 GB of 16.0 GB (69%)');
   expect(notes[0].body).toContain('Free on C:: 212 GB of 476 GB');
   expect(notes[0].body).toContain('IP addresses: 10.20.1.45');
+  // No time zone set: UTC (the agent sent UTC here).
+  expect(notes[0].body).toContain('Taken: Nov 3, 2026, 2:02 PM UTC');
+});
+
+it('the snapshot\'s time is in the help desk\'s time zone, with the computer\'s clock when it differs', async () => {
+  await contactIn(company, 'maria.chen@riversideclinic.org');
+  await models.SystemSettings.upsert({ key: 'company.timezone', value: 'America/Chicago' });
+  const body = async (takenAt) => {
+    resetRateLimits();
+    const res = await device.post(TICKETS, { ...ask(), snapshot: { ...ask().snapshot, takenAt } });
+    expect(res.status).toBe(201);
+    return (await models.Comment.findOne({ where: { ticketId: res.body.ticketId } })).body;
+  };
+  // A computer in the same zone: just the time.
+  expect(await body('2026-11-03T08:02:00-06:00')).toMatch(/^Taken: Nov 3, 2026, 8:02 AM CST$/m);
+  // Elsewhere: the computer's own clock too.
+  expect(await body('2026-11-03T19:32:00+05:30')).toMatch(/^Taken: Nov 3, 2026, 8:02 AM CST \(7:32 PM on the computer, UTC\+05:30\)$/m);
+  // An older agent's UTC time: shown in the help desk's zone.
+  expect(await body('2026-11-03T14:02:00Z')).toMatch(/^Taken: Nov 3, 2026, 8:02 AM CST$/m);
 });
 
 it('with no match the requester is the company\'s one placeholder, created once and reused', async () => {
