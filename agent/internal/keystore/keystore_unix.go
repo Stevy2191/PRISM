@@ -27,6 +27,9 @@ func writeRestricted(path string, data []byte) error {
 	return f.Close()
 }
 
+// seal: the 0600 file is root's from the start; nothing to narrow.
+func seal(string) error { return nil }
+
 // AllowCurrentUserForTests is Windows-only; elsewhere the 0600 file is
 // already readable by the user who wrote it.
 func AllowCurrentUserForTests() func() { return func() {} }

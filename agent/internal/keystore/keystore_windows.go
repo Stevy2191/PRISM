@@ -70,12 +70,26 @@ func FileACL(path string) (string, error) {
 	return sd.String(), nil
 }
 
+// While it's being made, the key also allows Administrators: enrolling
+// writes it in a staging folder and then moves it into place, and an
+// administrator running enroll (not SYSTEM, as the installer is) needs to
+// be able to move it. Seal narrows it to fileACL once it's there.
+func stagingACL() string { return fileACL + "(A;;FA;;;BA)" }
+
 func writeRestricted(path string, data []byte) error {
 	_ = os.Remove(path)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return err
 	}
-	sd, err := windows.SecurityDescriptorFromString(fileACL)
+	return setACL(path, stagingACL())
+}
+
+// seal: SYSTEM only (fileACL), once the key is in place. The administrator
+// who made it can still set this: an owner may always change the ACL.
+func seal(path string) error { return setACL(path, fileACL) }
+
+func setACL(path, acl string) error {
+	sd, err := windows.SecurityDescriptorFromString(acl)
 	if err != nil {
 		return err
 	}

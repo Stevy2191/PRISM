@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stevy2191/prism/agent/internal/client"
@@ -37,6 +38,27 @@ func fakePrism(t *testing.T, seen *client.EnrollRequest) *httptest.Server {
 		w.WriteHeader(201)
 		_, _ = w.Write([]byte(`{"deviceId":42,"updatePublicKey":"11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=","intervals":{"heartbeatSec":300,"inventorySec":21600}}`))
 	}))
+}
+
+// The tests enrol into a temporary folder as an ordinary user.
+func TestMain(m *testing.M) {
+	skipPrivilegeCheck = true
+	os.Exit(m.Run())
+}
+
+// Without the service's rights, enrolling stops before asking PRISM, and
+// says how to get them.
+func TestEnrollingNeedsAdministratorOrRoot(t *testing.T) {
+	skipPrivilegeCheck = false
+	defer func() { skipPrivilegeCheck = true }()
+	if checkPrivileges() == nil {
+		t.Skip("running with the rights already (root, or an elevated Windows runner)")
+	}
+	t.Setenv("PRISM_AGENT_DIR", t.TempDir())
+	_, err := Run(context.Background(), "https://prism.example.com", "pk_enr_x", Hardware{})
+	if err == nil || !(strings.Contains(err.Error(), "sudo") || strings.Contains(err.Error(), "administrator")) {
+		t.Fatalf("err %v", err)
+	}
 }
 
 func TestEnrolmentSavesTheConfigAndKey(t *testing.T) {

@@ -57,6 +57,23 @@ func Load(dir string) (ed25519.PrivateKey, error) {
 
 // Create makes a new key and saves it in dir, replacing any old one
 // (re-enrolling is a new identity).
+// Install moves a key made by Create in stage into dir (replacing one that
+// is there) and seals it: on Windows, SYSTEM only from then on.
+func Install(stage, dir string) error {
+	from, to := Path(stage), Path(dir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	if err := os.Rename(from, to); err != nil {
+		// A stale file in the way: remove it and try once more.
+		_ = os.Remove(to)
+		if err := os.Rename(from, to); err != nil {
+			return err
+		}
+	}
+	return seal(to)
+}
+
 func Create(dir string) (ed25519.PrivateKey, error) {
 	seed := make([]byte, ed25519.SeedSize)
 	if _, err := rand.Read(seed); err != nil {

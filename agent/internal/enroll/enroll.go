@@ -55,6 +55,11 @@ func Run(ctx context.Context, rawURL, enrollKey string, hw Hardware) (*config.Co
 	if !strings.HasPrefix(strings.TrimSpace(enrollKey), "pk_enr_") {
 		return nil, errors.New("that is not an enrolment key (they start pk_enr_)")
 	}
+	// Before anything reaches PRISM: enrolling needs the rights the
+	// service has (an administrator's PowerShell on Windows, sudo elsewhere).
+	if err := checkPrivileges(); err != nil {
+		return nil, err
+	}
 	host, _ := os.Hostname()
 	dir := config.Dir()
 	// The new key goes in a staging folder until PRISM accepts it.
@@ -77,12 +82,8 @@ func Run(ctx context.Context, rawURL, enrollKey string, hw Hardware) (*config.Co
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	if err := os.Rename(keystore.Path(stage), keystore.Path(dir)); err != nil {
-		// Different volume or a stale file: write it again in place.
-		_ = os.Remove(keystore.Path(dir))
-		if err := os.Rename(keystore.Path(stage), keystore.Path(dir)); err != nil {
-			return nil, fmt.Errorf("could not save the device key: %w", err)
-		}
+	if err := keystore.Install(stage, dir); err != nil {
+		return nil, fmt.Errorf("could not save the device key: %w", err)
 	}
 	cfg := &config.Config{
 		URL: base, DeviceID: resp.DeviceID, UpdatePublicKey: resp.UpdatePublicKey,
@@ -94,3 +95,7 @@ func Run(ctx context.Context, rawURL, enrollKey string, hw Hardware) (*config.Co
 	}
 	return cfg, nil
 }
+
+// skipPrivilegeCheck lets tests enrol into a temporary folder as an
+// ordinary user. Never set by the agent.
+var skipPrivilegeCheck = false
