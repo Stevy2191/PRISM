@@ -182,9 +182,18 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 - **One icon per session:** a lock in `$XDG_RUNTIME_DIR`. Links open with `xdg-open`, for an https portal address only.
 - **Without a tray** (GNOME without the AppIndicator extension), the icon never appears, and the launcher app is the way in.
 
-- [ ] **Step 1:** The tray builds for linux/amd64 and linux/arm64 with cgo on Ubuntu 22.04; the page tests pass; the draft path is the user's own.
+- [x] **Step 1:** The tray builds for linux/amd64 and linux/arm64 with cgo on Ubuntu 22.04; the page tests pass; the draft path is the user's own.
 - [ ] **Step 2:** The menu and window are checked by hand on Ubuntu (GNOME, with Ubuntu's AppIndicator), Fedora (GNOME: launcher only, unless the extension is installed) and Arch (KDE).
-- [ ] **Step 3: Commit** `feat(agent): Linux tray, launcher and ticket window`
+- [x] **Step 3: Commit** `feat(agent): Linux tray, launcher and ticket window`
+
+**As built (2026-11-05):**
+- `webview_go` asks pkg-config for `webkit2gtk-4.0`, which Ubuntu 24.04 and Fedora 40+ no longer ship. `packaging/linux/pkgconfig/webkit2gtk-4.0.pc` is a shim requiring `webkit2gtk-4.1` (same C API), used through `PKG_CONFIG_PATH` in CI and the package build; the tray links `libwebkit2gtk-4.1.so.0`.
+- Built and opened here on Ubuntu 24.04 under Xvfb: the form renders at 460×660 (screenshot in the session). The tray icon is the 32×32 PNG (`trayPNG`, split out of the Windows `.ico`).
+- Locks in `$XDG_RUNTIME_DIR` (else `~/.cache/PRISM`). A second "Submit a ticket" while the window is open does nothing: window managers don't let one process raise another's window.
+- `prism-tray.desktop` (autostart, `NoDisplay`) and `prism-submit-ticket.desktop` (the launcher) pass `desktop-file-validate`; the icon is `prism-agent.svg`.
+- `test.yml`'s Linux agent job installs `libgtk-3-dev` and `libwebkit2gtk-4.1-dev` and sets the shim, since vet and build now compile the tray with cgo there.
+- Step 2 (the hand check on Ubuntu, Fedora and Arch) waits for the packages (Task 8).
+
 
 ### Task 8: The packages
 

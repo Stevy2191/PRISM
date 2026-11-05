@@ -12,6 +12,24 @@ import (
 // a white P, as an .ico holding a 32×32 PNG (Windows scales it).
 func trayIcon() []byte {
 	const n = 32
+	p := trayPNG()
+	var ico bytes.Buffer
+	w := func(v any) { _ = binary.Write(&ico, binary.LittleEndian, v) }
+	w(uint16(0))
+	w(uint16(1)) // icon
+	w(uint16(1)) // one image
+	ico.Write([]byte{n, n, 0, 0})
+	w(uint16(1))  // planes
+	w(uint16(32)) // bits
+	w(uint32(len(p)))
+	w(uint32(6 + 16))
+	ico.Write(p)
+	return ico.Bytes()
+}
+
+// trayPNG is the same icon as a PNG (Linux's StatusNotifierItem takes one).
+func trayPNG() []byte {
+	const n = 32
 	img := image.NewNRGBA(image.Rect(0, 0, n, n))
 	blue := color.NRGBA{0x24, 0x48, 0xC9, 0xFF}
 	white := color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF}
@@ -49,18 +67,7 @@ func trayIcon() []byte {
 	fill(19, 9, 23, 16)
 	var p bytes.Buffer
 	_ = png.Encode(&p, img)
-	var ico bytes.Buffer
-	w := func(v any) { _ = binary.Write(&ico, binary.LittleEndian, v) }
-	w(uint16(0))
-	w(uint16(1)) // icon
-	w(uint16(1)) // one image
-	ico.Write([]byte{n, n, 0, 0})
-	w(uint16(1))  // planes
-	w(uint16(32)) // bits
-	w(uint32(p.Len()))
-	w(uint32(6 + 16))
-	ico.Write(p.Bytes())
-	return ico.Bytes()
+	return p.Bytes()
 }
 
 // trayTemplateIcon is the Mac menu-bar icon: a black P on transparent, as a

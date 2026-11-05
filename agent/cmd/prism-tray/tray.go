@@ -1,4 +1,4 @@
-//go:build windows || (darwin && cgo)
+//go:build windows || (darwin && cgo) || (linux && cgo)
 
 // prism-tray: PRISM in the notification area (Windows) or the menu bar
 // (macOS), started at each user's sign-in. Its first item is Submit a

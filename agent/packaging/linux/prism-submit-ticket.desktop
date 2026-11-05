@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Submit a ticket
+GenericName=Help desk ticket
+Comment=Send the help desk a ticket from this computer
+Exec=/usr/bin/prism-tray form
+Icon=prism-agent
+Terminal=false
+Categories=Utility;
+Keywords=help;support;ticket;PRISM;
+StartupNotify=true

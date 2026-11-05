@@ -1,0 +1,9 @@
+# Build shim (8c, Task 7): github.com/webview/webview_go asks pkg-config for
+# webkit2gtk-4.0, which current distributions (Ubuntu 24.04, Fedora 40+) no
+# longer ship; they have webkit2gtk-4.1, whose C API webview uses unchanged.
+# The tray is built with PKG_CONFIG_PATH=agent/packaging/linux/pkgconfig so
+# it links WebKitGTK 4.1, the library the packages depend on.
+Name: webkit2gtk-4.0
+Description: WebKitGTK 4.0 name, built against 4.1
+Version: 2.40.0
+Requires: webkit2gtk-4.1
