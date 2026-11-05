@@ -39,7 +39,6 @@ import "C"
 
 import (
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -57,7 +56,7 @@ func recordPID(f *os.File) {
 // activateForm brings the already-open form to the front, if its lock file
 // names a process.
 func activateForm() {
-	b, err := os.ReadFile(filepath.Join(os.TempDir(), formLock))
+	b, err := os.ReadFile(lockPath(formLock))
 	if err != nil {
 		return
 	}

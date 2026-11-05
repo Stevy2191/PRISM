@@ -349,6 +349,22 @@ jobs:
           sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d | grep -q "Already enrolled"
           [ "$(sudo cat "$data/agent.json")" = "$before" ]
 
+          echo "--- Installing over itself leaves one menu bar app (owner, 2026-11-05: two after an update)"
+          if [ "$(stat -f %u /dev/console)" = "$(id -u)" ]; then
+            # A copy started by hand, outside launchd, as an old one was.
+            "/Applications/Utilities/PRISM Agent.app/Contents/MacOS/prism-tray" > /dev/null 2>&1 &
+            extra=$!
+            sleep 3
+            sudo installer -pkg "$pkg" -target /
+            sleep 3
+            if kill -0 "$extra" 2> /dev/null; then echo "the copy started by hand is still running"; exit 1; fi
+            n=$(pgrep -U "$(id -u)" -x prism-tray | wc -l | tr -d ' ')
+            echo "menu bar apps running: $n"
+            [ "$n" -le 1 ]
+          else
+            echo "(no one signed in at the screen here: skipped)"
+          fi
+
           echo "--- Uninstall keeps the enrollment; --remove-data removes it"
           sudo prism-agent uninstall
           if sudo launchctl print system/com.prism.agent >/dev/null 2>&1; then echo "the service is still loaded"; exit 1; fi

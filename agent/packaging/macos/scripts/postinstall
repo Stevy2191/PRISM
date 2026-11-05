@@ -17,6 +17,10 @@ ln -sfn "$DATA/bin/prism-agent" /usr/local/bin/prism-agent
 uid=$(/usr/bin/stat -f %u /dev/console 2>/dev/null || echo 0)
 if [ "$uid" -ge 500 ] 2>/dev/null; then
   /bin/launchctl bootout "gui/$uid/com.prism.tray" 2>/dev/null || true
+  # Any other copy still running (opened by hand, or from before an update)
+  # would stay beside the new one as a second menu bar icon.
+  /usr/bin/pkill -U "$uid" -x prism-tray 2>/dev/null || true
+  /bin/sleep 1
   /bin/launchctl bootstrap "gui/$uid" /Library/LaunchAgents/com.prism.tray.plist 2>/dev/null || true
 fi
 exit 0

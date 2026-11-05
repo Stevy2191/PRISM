@@ -36,10 +36,25 @@ func setTrayIcon() {
 	systray.SetTemplateIcon(icon, icon)
 }
 
+// lockPath: the user's own ~/Library/Caches/PRISM. Not the temporary
+// folder: launchd and an app opened by hand can be given different ones, so
+// a second copy of the menu bar app didn't see the first's lock and two
+// icons showed after an update (owner, 2026-11-05).
+func lockPath(name string) string {
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		dir = os.TempDir()
+	} else {
+		dir = filepath.Join(dir, "PRISM")
+		_ = os.MkdirAll(dir, 0o700)
+	}
+	return filepath.Join(dir, name)
+}
+
 // singleInstance holds an exclusive lock on a file in the user's own
-// temporary folder for the life of the process.
+// folder for the life of the process.
 func singleInstance(name string) bool {
-	f, err := os.OpenFile(filepath.Join(os.TempDir(), name), os.O_RDWR|os.O_CREATE, 0o600)
+	f, err := os.OpenFile(lockPath(name), os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
 		return false
 	}
