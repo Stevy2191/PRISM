@@ -1,7 +1,9 @@
 name: Agent packages
 
-# Builds the Windows agent (amd64 and arm64) as MSIs and the Mac agent as
-# one universal .pkg, install-tests each on a real runner, and hands the
+# Builds the Windows agent (amd64 and arm64) as MSIs, the Mac agent as one
+# universal .pkg and the Linux agent as .deb, .rpm and .pkg.tar.zst (amd64
+# and arm64), install-tests each on a real runner (Linux also on Ubuntu,
+# Fedora and Arch containers, and under systemd), and hands the
 # packages and their manifest.json to the backend image (docker-publish.yml),
 # which serves them to enrolled agents as signed updates and to staff as
 # the Download installer button. Packages are never published anywhere else.
@@ -383,11 +385,224 @@ jobs:
           path: agent-dist/*.pkg
           retention-days: 7
 
+  # The Linux agent (8c): .deb, .rpm and Arch's .pkg.tar.zst for x86_64 and
+  # arm64, built on Ubuntu 22.04 (the oldest glibc of the three families,
+  # so the tray runs on the newer ones), then install-tested on each
+  # distribution and once with systemd for real.
+  linux:
+    name: Linux packages (${{ matrix.arch }})
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      - name: Version
+        id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF#refs/tags/v}"; else v="0.0.0-dev.${GITHUB_RUN_NUMBER}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Agent $v"
+
+      - name: GTK, WebKitGTK and nfpm
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libgtk-3-dev libwebkit2gtk-4.1-dev
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        working-directory: agent
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          PKG_CONFIG_PATH: ${{ github.workspace }}/agent/packaging/linux/pkgconfig
+        run: |
+          ld="-s -w -X github.com/stevy2191/prism/agent/internal/version.Version=${VERSION}"
+          bin="dist/linux-${{ matrix.arch }}"
+          CGO_ENABLED=0 go build -trimpath -ldflags "$ld" -o "$bin/prism-agent" ./cmd/prism-agent
+          CGO_ENABLED=1 go build -trimpath -ldflags "$ld" -o "$bin/prism-tray" ./cmd/prism-tray
+          file "$bin"/*
+          ldd "$bin/prism-tray" | grep -q 'libwebkit2gtk-4.1'
+          # The install tests' stand-in for PRISM (static, any distribution).
+          if [ "${{ matrix.arch }}" = amd64 ]; then CGO_ENABLED=0 go build -o dist/stubprism ./tools/stubprism; fi
+
+      - name: Package
+        working-directory: agent
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          VERSION="$VERSION" ARCH=${{ matrix.arch }} BIN=dist/linux-${{ matrix.arch }} OUT=../agent-dist sh packaging/linux/build.sh
+          dpkg-deb -I ../agent-dist/*.deb
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist-linux-${{ matrix.arch }}
+          path: agent-dist/*
+          retention-days: 7
+
+      - name: Upload the test stub
+        if: matrix.arch == 'amd64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stubprism-linux
+          path: agent/dist/stubprism
+          retention-days: 1
+
+  linux-test:
+    name: Linux install test (${{ matrix.distro }})
+    needs: linux
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: ['ubuntu:22.04', 'ubuntu:24.04', 'fedora:latest', 'archlinux:latest']
+    container: ${{ matrix.distro }}
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-dist-linux-amd64
+          path: dist
+
+      - name: Download the test stub
+        uses: actions/download-artifact@v4
+        with:
+          name: stubprism-linux
+          path: stub
+
+      - name: Install test
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x stub/stubprism
+          data=/var/lib/prism-agent
+          echo "--- The package installs with its dependencies"
+          if command -v apt-get > /dev/null; then
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -q && apt-get install -y -q ./dist/*.deb
+          elif command -v dnf > /dev/null; then
+            dnf install -y -q ./dist/*.rpm util-linux procps-ng
+          else
+            pacman -Syu --noconfirm --needed util-linux procps-ng
+            pacman -U --noconfirm dist/*.pkg.tar.zst
+          fi
+          prism-agent version
+          test -x /usr/bin/prism-tray
+          [ "$(stat -c '%a %U' "$data")" = "700 root" ]
+          test -f /usr/lib/systemd/system/prism-agent.service
+          test -f /etc/xdg/autostart/prism-tray.desktop
+          test -f /usr/share/applications/prism-submit-ticket.desktop
+          # The tray's libraries are there (the dynamic loader finds them all).
+          ! ldd /usr/bin/prism-tray | grep -q 'not found'
+
+          ./stub/stubprism -addr 127.0.0.1:8765 -key pk_enr_ci_9f8e7d -out /tmp/stub > /tmp/stub-out.log 2>&1 &
+          sleep 2
+
+          echo "--- A wrong key is refused and leaves no key"
+          if prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_wrong_1a2b3c; then echo "enrolled with a wrong key"; exit 1; fi
+          test ! -e "$data/device.key"
+
+          echo "--- Enrollment, then a signed heartbeat (run started directly: no systemd here)"
+          prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
+          [ "$(stat -c '%a %U' "$data/device.key")" = "600 root" ]
+          prism-agent run > /tmp/agent.log 2>&1 &
+          for i in $(seq 1 45); do [ -f /tmp/stub/heartbeat.ok ] && break; sleep 2; done
+          cat /tmp/stub/stub.log
+          test -f /tmp/stub/heartbeat.ok
+
+          echo "--- The tray's socket knows who is asking (SO_PEERCRED), for an ordinary user"
+          useradd -m -u 1500 prismci
+          for i in $(seq 1 15); do [ -S /run/prism-agent.sock ] && break; sleep 1; done
+          runuser -u prismci -- prism-agent whoami | tee /tmp/whoami.txt
+          grep -q "You: *prismci" /tmp/whoami.txt
+
+          echo "--- Enrolling again with the same PRISM changes nothing"
+          before=$(cat "$data/agent.json")
+          prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d | grep -q "Already enrolled"
+          [ "$(cat "$data/agent.json")" = "$before" ]
+
+          echo "--- uninstall says how; the package removes cleanly"
+          if prism-agent uninstall 2> /tmp/uninstall.txt; then echo "uninstall didn't refuse a packaged install"; exit 1; fi
+          cat /tmp/uninstall.txt
+          pkill -x prism-agent || true
+          if command -v apt-get > /dev/null; then
+            grep -q "apt remove" /tmp/uninstall.txt
+            apt-get remove -y -q prism-agent
+            test -f "$data/agent.json"
+            apt-get purge -y -q prism-agent
+            test ! -e "$data"
+          elif command -v dnf > /dev/null; then
+            grep -q "dnf remove" /tmp/uninstall.txt
+            dnf remove -y -q prism-agent
+          else
+            grep -q "pacman -R" /tmp/uninstall.txt
+            pacman -R --noconfirm prism-agent
+          fi
+          test ! -e /usr/bin/prism-agent
+          echo "Install test passed."
+
+  linux-systemd:
+    name: Linux service under systemd (Ubuntu 22.04)
+    needs: linux
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-dist-linux-amd64
+          path: dist
+
+      - name: Download the test stub
+        uses: actions/download-artifact@v4
+        with:
+          name: stubprism-linux
+          path: stub
+
+      - name: systemd test
+        run: |
+          set -euo pipefail
+          chmod +x stub/stubprism
+          ./stub/stubprism -addr 127.0.0.1:8765 -key pk_enr_ci_9f8e7d -out /tmp/stub > /tmp/stub-out.log 2>&1 &
+          sleep 2
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q ./dist/*.deb
+          echo "--- The package enabled and started the service"
+          systemctl is-enabled prism-agent
+          systemctl is-active prism-agent
+          echo "--- Enroll, restart: a signed heartbeat"
+          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
+          sudo systemctl restart prism-agent
+          for i in $(seq 1 45); do [ -f /tmp/stub/heartbeat.ok ] && break; sleep 2; done
+          cat /tmp/stub/stub.log
+          test -f /tmp/stub/heartbeat.ok
+          echo "--- The unit's limits don't stop it: the socket, and whoami as this user"
+          prism-agent whoami | tee /tmp/whoami.txt
+          grep -q "You: *$(id -un)" /tmp/whoami.txt
+          sudo journalctl -u prism-agent --no-pager | tail -20
+          echo "--- Removal stops and disables it"
+          sudo apt-get remove -y -q prism-agent
+          if systemctl is-active prism-agent; then echo "still running"; exit 1; fi
+          echo "systemd test passed."
+
   # One set of packages and one manifest for the backend image: the Windows
   # MSIs and the Mac's universal .pkg (listed for both amd64 and arm64).
   manifest:
     name: Agent packages and manifest
-    needs: [windows, macos]
+    needs: [windows, macos, linux, linux-test, linux-systemd]
     runs-on: ubuntu-latest
     steps:
       - name: Download the packages
@@ -403,18 +618,20 @@ jobs:
           python3 - <<'PY'
           import glob, hashlib, json, re
           entries = []
+          formats = {"msi": "msi", "pkg": "pkg", "deb": "deb", "rpm": "rpm", "pkg.tar.zst": "pacman"}
           for f in sorted(glob.glob("prism-agent-*")):
-              m = re.match(r"prism-agent-(.+)-(windows|macos)-(amd64|arm64|universal)\.(msi|pkg)$", f)
+              m = re.match(r"prism-agent-(.+)-(windows|macos|linux)-(amd64|arm64|universal)\.(msi|pkg\.tar\.zst|pkg|deb|rpm)$", f)
               if not m:
                   raise SystemExit(f"unexpected file {f}")
-              version, platform, arch, _ = m.groups()
+              version, platform, arch, ext = m.groups()
               sha = hashlib.sha256(open(f, "rb").read()).hexdigest()
               for a in (["amd64", "arm64"] if arch == "universal" else [arch]):
-                  entries.append({"platform": platform, "arch": a, "version": version, "file": f, "sha256": sha})
+                  entries.append({"platform": platform, "arch": a, "format": formats[ext], "version": version, "file": f, "sha256": sha})
           json.dump(entries, open("manifest.json", "w"))
           print(json.dumps(entries, indent=1))
           PY
-          test "$(python3 -c 'import json;print(len(json.load(open("manifest.json"))))')" = 4
+          # 2 MSIs, the Mac .pkg (listed for both chips), 6 Linux packages.
+          test "$(python3 -c 'import json;print(len(json.load(open("manifest.json"))))')" = 10
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
