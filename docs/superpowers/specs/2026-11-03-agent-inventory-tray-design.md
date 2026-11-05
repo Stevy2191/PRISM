@@ -21,7 +21,7 @@ sub-project.
 
 ## Goals
 
-1. **Enrol a computer** into a company with one install command (GPO, Intune
+1. **Enroll a computer** into a company with one install command (GPO, Intune
    or by hand). It becomes an Asset of that company, or claims the existing
    Asset with the same serial number.
 2. **Inventory**, refreshed every 6 hours and at service start, into the
@@ -57,7 +57,7 @@ sub-project.
  Computer (Windows, macOS, Linux)             PRISM (existing server)
  ┌──────────────────────────────┐            ┌─────────────────────────────┐
  │ PRISM Agent service (system) │── HTTPS ──▶│ /api/v1/agent/*             │
- │  enrol, heartbeat, inventory │  mTLS-like │  enrol, heartbeat,          │
+ │  enroll, heartbeat, inventory │  mTLS-like │  enroll, heartbeat,          │
  │  updates, ticket relay       │  device    │  inventory, tickets,        │
  └──────────────▲───────────────┘  cert      │  updates                    │
                 │ local socket / named pipe  │ Assets, Contacts, Tickets   │
@@ -113,13 +113,13 @@ isn't started there.
 - Other distributions: anything systemd-based in those three families works;
   others (openSUSE, Alpine, NixOS…) can be added later on request.
 
-## Enrolment and identity
+## Enrollment and identity
 
-- Staff create an **enrolment key** per company (company page → new
+- Staff create an **enrollment key** per company (company page → new
   **Devices** tab, or Settings → Agent). It is a long random secret, shown
   once, stored hashed, revocable, optionally expiring.
 - Install: one silent command per platform (table above), carrying the PRISM
-  address and the enrolment key; it works from GPO, Intune, Jamf or by hand.
+  address and the enrollment key; it works from GPO, Intune, Jamf or by hand.
 - On first start the service generates a key pair (private key kept as in
   the table above) and sends `enroll`
   with the key, its public key and the hardware identity. PRISM answers with
@@ -131,8 +131,8 @@ isn't started there.
   TLS needs proxy changes. Same guarantee: only the enrolled machine can
   speak for itself.)
 - Staff can **revoke** a device (it stops being accepted at once) or
-  **re-enrol** it.
-- **Asset matching on enrol:** an Asset of that company with the same serial
+  **re-enroll** it.
+- **Asset matching on enroll:** an Asset of that company with the same serial
   number is claimed (no duplicate); otherwise a new Asset is created in the
   company's "Computers" category with the next asset tag.
 
@@ -182,7 +182,7 @@ isn't started there.
 ## Updates
 
 - Each install has an **update signing key** (Ed25519) generated on first
-  start; agents receive its public key at enrolment.
+  start; agents receive its public key at enrollment.
 - Agent builds are produced in CI: Go for all three platforms; the MSI with
   WiX on a Windows runner, the .pkg on a macOS runner, .deb and .rpm on
   Linux. PRISM serves the latest package for each platform with a signature
@@ -207,7 +207,7 @@ isn't started there.
 
 ## Security
 
-- Enrolment keys: random, hashed, revocable, per company; an enrolment
+- Enrollment keys: random, hashed, revocable, per company; an enrollment
   can only create or claim Assets in that key's company.
 - Device requests are signed per device; a revoked device is refused at once;
   request bodies are size-limited and rate-limited per device.
@@ -217,13 +217,13 @@ isn't started there.
   socket peer credentials), so a user can't forge another user's ticket.
 - Inventory is data, not instructions: names and versions are stored as
   text and escaped everywhere they are shown.
-- New permissions: **Manage devices** (enrolment keys, revoke) for the
+- New permissions: **Manage devices** (enrollment keys, revoke) for the
   System Administrator role; viewing devices follows Assets' existing view
   permission and company access.
 
 ## Staff screens (mockups first, as in 6b and 7)
 
-- Company page → **Devices** tab: enrolment keys (create, copy install
+- Company page → **Devices** tab: enrollment keys (create, copy install
   command, revoke) and the company's devices (online / last seen, agent
   version, revoke).
 - Asset page → **Device** tab: the main hardware information only (hardware
@@ -238,7 +238,7 @@ isn't started there.
    all three platforms: rows 8, 9b and 19), released as `v0.5.0`.
    Monitoring and alerts (old row 9) move to Phase 4 with the rest of RMM.
 2. **Signed requests instead of strict mutual TLS**, because of the reverse
-   proxy (see Enrolment). Mutual TLS can be added when the gateway arrives.
+   proxy (see Enrollment). Mutual TLS can be added when the gateway arrives.
 3. **Agent-owned fields** overwrite staff edits on agent-managed Assets.
 4. **Inventory every 6 hours, heartbeat every 5 minutes, stale after 14
    days.**
@@ -254,12 +254,12 @@ isn't started there.
 ## Done when
 
 - On each of Windows, macOS and Linux, a package built in CI installs
-  silently from one command, enrols, and the
+  silently from one command, enrolls, and the
   computer appears as an Asset of the right company with its hardware, OS,
   network, software and usual user, and shows Online.
 - The tray raises a linked ticket with the health snapshot, as the signed-in
   user's contact.
 - A revoked device is refused; an update signed with another key is refused.
-- Backend tests cover enrolment, signatures, revocation, inventory mapping,
+- Backend tests cover enrollment, signatures, revocation, inventory mapping,
   contact matching and tray tickets; Go tests cover collection parsing and
   the update check; a smoke test covers the new screens.

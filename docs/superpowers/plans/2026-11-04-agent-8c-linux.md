@@ -5,7 +5,7 @@
 **Goal:** A Linux computer running Ubuntu (22.04, 24.04 or the current release), Fedora (the two current releases) or Arch gets the PRISM agent from its own package (`.deb`, `.rpm` or `.pkg.tar.zst`) and one `sudo prism-agent enroll …` command. It appears as an Asset of its company with its hardware, distribution, disks, network, installed software, usual user and online status, kept current. On a desktop, its tray icon (or the **Submit a ticket** launcher app) raises a ticket linked to that Asset with a health snapshot. It updates itself, in its own package format, only to builds signed by the install. With 8a and 8b this completes sub-project 8, released as **v0.5.0**.
 
 **Architecture:**
-- **Same Go module and programs.** Linux code lives in `_linux.go` files. The Unix-socket channel and the root-only key file are already shared with macOS, and everything platform-neutral (signing, schedules, enrolment, `Assemble`, `ipc.Server`, `trayui`, `update.Updater`) is reused as it is.
+- **Same Go module and programs.** Linux code lives in `_linux.go` files. The Unix-socket channel and the root-only key file are already shared with macOS, and everything platform-neutral (signing, schedules, enrollment, `Assemble`, `ipc.Server`, `trayui`, `update.Updater`) is reused as it is.
 - **Service:** a systemd unit, `prism-agent.service`, running `prism-agent run` as root. Logs go to the journal.
 - **Tray:** `prism-tray`, a StatusNotifierItem icon (`fyne.io/systray`'s Linux backend talks D-Bus in pure Go), started at each graphical sign-in through `/etc/xdg/autostart`. The ticket window is WebKitGTK (cgo). Because GNOME shows tray icons only with its AppIndicator extension, every desktop also gets a **Submit a ticket** launcher app that opens the window directly (spec).
 - **Tray ↔ service:** `/run/prism-agent.sock`, the user taken from `SO_PEERCRED`. The macOS socket code becomes shared Unix code with a per-platform peer-credential call.
@@ -17,7 +17,7 @@
 **Tech Stack:**
 - **Agent:** Go 1.24 as before; `fyne.io/systray` (Linux: D-Bus StatusNotifierItem, no cgo), `github.com/webview/webview_go` (WebKitGTK 4.1, cgo), `golang.org/x/sys/unix` (`SO_PEERCRED`, `statfs`). Tools the distributions ship: `loginctl`, `realm`, `lsblk`, `dpkg-query`/`apt-mark`, `rpm`/`dnf`, `pacman`, and optionally `flatpak` and `snap`.
 - **Packaging:** nfpm (one `nfpm.yaml`, three packagers), on `ubuntu-22.04` (x86_64) and `ubuntu-22.04-arm` (arm64) runners.
-- **Backend and frontend:** migration 078 (`Devices.packageFormat`), nothing else new (076 and 077 went to checkout forms and Scan now, 2026-11-04).
+- **Backend and frontend:** migration 079 (`Devices.packageFormat`), nothing else new (076 and 077 went to checkout forms and Scan now, 078 to the enrollment spelling).
 
 **Spec:** `docs/superpowers/specs/2026-11-03-agent-inventory-tray-design.md` (the Per platform table, Linux distributions, Updates)
 **Plans 8a and 8b:** `docs/superpowers/plans/2026-11-03-agent-8a-server-windows.md`, `docs/superpowers/plans/2026-11-04-agent-8b-macos.md`
@@ -125,7 +125,7 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
   - Hardening that still lets the inventory read what it needs: `ProtectSystem=full`, `ProtectHome=read-only`, `PrivateTmp=yes`, `NoNewPrivileges=no` (the update installs packages), `ReadWritePaths=/var/lib/prism-agent /run`.
   - `WantedBy=multi-user.target`.
 - **`prism-agent service install|uninstall`** writes or removes the unit and enables or disables it (for running from a tarball by hand). The packages ship the unit themselves.
-- **`prism-agent uninstall`** on Linux says which command removes the package (`sudo apt remove prism-agent`, `sudo dnf remove prism-agent`, `sudo pacman -R prism-agent`), and that purging (`apt purge`) or `--remove-data` also forgets the enrolment.
+- **`prism-agent uninstall`** on Linux says which command removes the package (`sudo apt remove prism-agent`, `sudo dnf remove prism-agent`, `sudo pacman -R prism-agent`), and that purging (`apt purge`) or `--remove-data` also forgets the enrollment.
 - **Logs** go to the journal (`journalctl -u prism-agent`), so no log file and no rotation.
 
 - [ ] **Step 1: Failing tests:** the unit runs `prism-agent run` as root, restarts on failure, and allows writing only its data folder and `/run`.
@@ -135,8 +135,8 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 ### Task 5: Package formats on the server
 
 **Files:**
-- Create: `backend/migrations/20260101000078-agent-package-format.js` (`Devices.packageFormat` ENUM `msi`, `pkg`, `deb`, `rpm`, `pacman`, null)
-- Modify: `backend/src/services/agent/enrollment.js` and `routes/agent.js` (the agent sends `packageFormat` at enrolment and on each heartbeat; Windows `msi`, macOS `pkg`), `backend/src/services/agent/updates.js` (manifest entries gain `format`; `latestPackage(platform, arch, format)`; Windows and Mac entries without one keep working), `backend/src/controllers/devicesController.js` (the packages list and download by format)
+- Create: `backend/migrations/20260101000079-agent-package-format.js` (`Devices.packageFormat` ENUM `msi`, `pkg`, `deb`, `rpm`, `pacman`, null)
+- Modify: `backend/src/services/agent/enrollment.js` and `routes/agent.js` (the agent sends `packageFormat` at enrollment and on each heartbeat; Windows `msi`, macOS `pkg`), `backend/src/services/agent/updates.js` (manifest entries gain `format`; `latestPackage(platform, arch, format)`; Windows and Mac entries without one keep working), `backend/src/controllers/devicesController.js` (the packages list and download by format)
 - Modify: `agent/internal/enroll/enroll.go` and the heartbeat (send the format: from `/etc/os-release` `ID` and `ID_LIKE` on Linux, together with which package manager exists)
 - Test: `backend/test/integration/agent.update.test.js`, `agent.staff.test.js`, `agent.model.test.js` (the migration's round trip), `agent/internal/enroll/enroll_test.go`
 
@@ -208,7 +208,7 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 - **Install test, in containers** (`ubuntu:22.04`, `ubuntu:24.04`, `fedora:latest`, `archlinux:latest`, on x86_64):
   1. The package installs with its dependencies through the distribution's own manager.
   2. The files, modes and owners are right; a wrong key is refused.
-  3. Enrolment, then `prism-agent run` started directly (no systemd in a plain container) sends a signed heartbeat to `stubprism`.
+  3. Enrollment, then `prism-agent run` started directly (no systemd in a plain container) sends a signed heartbeat to `stubprism`.
   4. The socket identifies a test user through `SO_PEERCRED`.
   5. Re-enrolling changes nothing, and the package removes cleanly (purge removes the data).
 - **systemd for real**, on the runner itself (`ubuntu-22.04`, which has systemd): install the `.deb`, check the service is active and sends a heartbeat after `enroll` and `systemctl restart`, then `apt-get remove`.
@@ -226,21 +226,21 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 - A line on GNOME: the tray icon needs the AppIndicator extension (Ubuntu has it); everywhere, **Submit a ticket** is in the applications list.
 - **Asset Device tab:** "Realm" for Linux ("riverside.local (joined with realmd)" or "Not joined to a realm"), and the OS line reads "Ubuntu 24.04 (noble)".
 
-- [ ] **Step 1: Failing tests:** an Ubuntu inventory fixture fills the Asset ("Ubuntu", "24.04 (noble)", the root file system counted once); the smoke test shows the three distributions' commands and the enrol command with the new key.
+- [ ] **Step 1: Failing tests:** an Ubuntu inventory fixture fills the Asset ("Ubuntu", "24.04 (noble)", the root file system counted once); the smoke test shows the three distributions' commands and the enroll command with the new key.
 - [ ] **Step 2–4:** Run → FAIL; implement; run → PASS (with the `assets.*` and `companies.page` smokes).
 - [ ] **Step 5: Commit** `feat(agent): Linux on the Devices and Asset screens`
 
 ### Task 11: Finish, and v0.5.0
 
-- [ ] **Step 1:** ROADMAP row 8 → 8c on `dev`; UPGRADING `## Unreleased` gains installing on Linux (the three distributions, the enrol command, GNOME's AppIndicator note, removing).
+- [ ] **Step 1:** ROADMAP row 8 → 8c on `dev`; UPGRADING `## Unreleased` gains installing on Linux (the three distributions, the enroll command, GNOME's AppIndicator note, removing).
 - [ ] **Step 2:** Full backend and smoke suites, and the agent workflow (Windows, macOS, Linux), all green.
 - [ ] **Step 3:** Security review (Review Focus above), fix pass, commit, push to `dev`.
-- [ ] **Step 4:** The owner's hand test on Ubuntu 24.04, Fedora (current) and Arch (with KDE or GNOME): install, enrol, the Asset appears with its software, a ticket from the tray or the launcher, an update installs itself, revoke stops it, removal cleans up. A server install (no desktop) appears Online with no tray.
-- [ ] **Step 5:** With 8a's, 8b's and 8c's hand tests passed: fold `## Unreleased` into `## v0.5.0` in UPGRADING (with "Before upgrading": migrations 074 to 078, nothing else required), merge `dev` into `main`, and tag `v0.5.0` (the owner pushes the tag, as for v0.4.0). The release builds the agent packages from the tag (version 0.5.0), so every enrolled computer updates to the release.
+- [ ] **Step 4:** The owner's hand test on Ubuntu 24.04, Fedora (current) and Arch (with KDE or GNOME): install, enroll, the Asset appears with its software, a ticket from the tray or the launcher, an update installs itself, revoke stops it, removal cleans up. A server install (no desktop) appears Online with no tray.
+- [ ] **Step 5:** With 8a's, 8b's and 8c's hand tests passed: fold `## Unreleased` into `## v0.5.0` in UPGRADING (with "Before upgrading": migrations 074 to 079, nothing else required), merge `dev` into `main`, and tag `v0.5.0` (the owner pushes the tag, as for v0.4.0). The release builds the agent packages from the tag (version 0.5.0), so every enrolled computer updates to the release.
 
 ## Notes on the spec
 
 - **Software is what a person installed.** The spec says "dpkg/rpm/pacman". Listing every package would fill the Software tab with libraries (around 2,000 on a default Ubuntu desktop, sometimes past PRISM's 5,000 cap on a busy server). The packages marked as explicitly installed, plus Flatpak and Snap apps, are the applications staff look for. The cut can be revisited if staff want the full list.
 - **Package signing.** The spec says Linux packages are "signed with a GPG key PRISM generates", whose public key apt, dnf and pacman trust. But installing a downloaded file (`apt install ./x.deb`, `dnf install ./x.rpm`, `pacman -U x.pkg.tar.zst`) doesn't check a repository signature by default, and updates are protected by PRISM's own signature as on Windows and macOS. So 8c signs the packages when a CI key exists and publishes its public key, without making signing a requirement. A real repository (`apt`/`dnf` sources pointing at PRISM) would need the key and is left for later.
-- **A package format per device.** The spec's manifest is platform and architecture. Linux needs the format too, so a Fedora computer is never offered a `.deb`: migration 078 and Task 5.
+- **A package format per device.** The spec's manifest is platform and architecture. Linux needs the format too, so a Fedora computer is never offered a `.deb`: migration 079 and Task 5.
 - **One tray build for all three distributions,** linked against WebKitGTK 4.1 and GTK 3. These are on Ubuntu 22.04 and later, current Fedora and Arch, the spec's versions. The libraries are weak dependencies (Task 8), so a server without a desktop installs the service alone.

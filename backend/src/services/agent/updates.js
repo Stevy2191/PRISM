@@ -3,7 +3,7 @@
 // Each PRISM install has its own update signing key (Ed25519), created on
 // first use and kept encrypted in SystemSettings ('agent.updateKey', never
 // returned by any settings endpoint). Agents receive its public half at
-// enrolment and install only builds whose signature verifies with it, so a
+// enrollment and install only builds whose signature verifies with it, so a
 // package swapped on the way, or served by anyone else, is refused.
 //
 // The packages come from the CI build, in AGENT_DIST_DIR (default

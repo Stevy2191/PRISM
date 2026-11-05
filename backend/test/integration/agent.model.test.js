@@ -8,7 +8,7 @@ const migration = require('../../migrations/20260101000074-agent');
 // round trip, which recreates those tables without them.
 const later = [require('../../migrations/20260101000077-device-scan-request')];
 
-// Sub-project 8a, task 1: devices, enrolment keys, software, nonces, the
+// Sub-project 8a, task 1: devices, enrollment keys, software, nonces, the
 // agent ticket source and the devices.manage permission.
 
 const qi = () => sequelize.getQueryInterface();
@@ -44,7 +44,7 @@ it('one device per Asset; it goes with its Asset, and its nonces with it', async
   expect(await models.AssetSoftware.count({ where: { assetId: asset.id } })).toBe(0);
 });
 
-it('an enrolment key keeps its hash out of reach and knows when it can be used', async () => {
+it('an enrollment key keeps its hash out of reach and knows when it can be used', async () => {
   const key = await models.AgentEnrollmentKey.scope('withHash').create({
     companyId: company.id, name: 'Rollout', keyHash: 'f'.repeat(64), createdById: w.admin.user.id,
   });
@@ -89,4 +89,13 @@ it('round trip: down keeps tray tickets as manual ones and removes the tables; u
   await models.Ticket.update({ source: 'agent' }, { where: { id: t.id } });
   expect((await models.Ticket.findByPk(t.id)).source).toBe('agent');
   expect(await select("SELECT id FROM Permissions WHERE `key` = 'devices.manage'")).toHaveLength(1);
+});
+
+it('the Manage devices permission says "enrollment" (078 fixes installs made before)', async () => {
+  const spelling = require('../../migrations/20260101000078-enrollment-spelling');
+  await sequelize.query("UPDATE Permissions SET description = 'Create and revoke agent enrolment keys, and revoke enrolled computers' WHERE `key` = 'devices.manage'");
+  await spelling.up(qi(), Sequelize);
+  const [row] = await select("SELECT description FROM Permissions WHERE `key` = 'devices.manage'");
+  expect(row.description).toBe('Create and revoke agent enrollment keys, and revoke enrolled computers');
+  await spelling.up(qi(), Sequelize); // nothing left to change
 });

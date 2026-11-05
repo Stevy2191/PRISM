@@ -14,7 +14,7 @@
 // (agent.updateKey) is created on first use, not here.
 
 const PERMISSION = {
-  key: 'devices.manage', category: 'assets', label: 'Manage devices', description: 'Create and revoke agent enrolment keys, and revoke enrolled computers',
+  key: 'devices.manage', category: 'assets', label: 'Manage devices', description: 'Create and revoke agent enrollment keys, and revoke enrolled computers',
 };
 const SOURCES = "'manual','email','phone','portal','recurring'";
 

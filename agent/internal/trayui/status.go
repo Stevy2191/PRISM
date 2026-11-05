@@ -8,7 +8,7 @@ import (
 )
 
 // How often the tray asks the service again: rarely once all is well, and
-// soon while something's wrong, so it catches up with an enrolment, a
+// soon while something's wrong, so it catches up with an enrollment, a
 // service restart or the network coming back without the user waiting.
 const (
 	RefreshWhenFine    = 5 * time.Minute

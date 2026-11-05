@@ -143,8 +143,8 @@ const portalGlobalLimiter = rateLimit({
   message: { error: true, message: 'Too many requests, please slow down', code: 'RATE_LIMITED' },
 });
 
-// POST /agent/v1/enroll — unauthenticated (the enrolment key is the
-// credential). Generous per IP: a Group Policy rollout can enrol hundreds of
+// POST /agent/v1/enroll — unauthenticated (the enrollment key is the
+// credential). Generous per IP: a Group Policy rollout can enroll hundreds of
 // computers behind one office address at once, and a 256-bit key can't be
 // guessed; this only stops a runaway loop.
 const agentEnrollStore = new MemoryStore();
@@ -154,7 +154,7 @@ const agentEnrollLimiter = rateLimit({
   max: 600,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: true, message: 'Too many enrolment attempts, please try again later', code: 'RATE_LIMITED' },
+  message: { error: true, message: 'Too many enrollment attempts, please try again later', code: 'RATE_LIMITED' },
 });
 
 // Signed agent routes, per device (req.device, set by agentAuthenticate). The

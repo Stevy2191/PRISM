@@ -1,5 +1,5 @@
 // stubprism is a tiny stand-in for PRISM, for the installer test in CI
-// (.github/workflows/agent.yml): it enrols one device with the key given,
+// (.github/workflows/agent.yml): it enrolls one device with the key given,
 // checks each later request's signature against that device's key, and
 // writes heartbeat.ok once a correctly signed heartbeat arrives. Not part
 // of any package.
@@ -24,7 +24,7 @@ import (
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8765", "listen address")
-	key := flag.String("key", "pk_enr_ci", "the enrolment key to accept")
+	key := flag.String("key", "pk_enr_ci", "the enrollment key to accept")
 	out := flag.String("out", ".", "folder for heartbeat.ok and stub.log")
 	flag.Parse()
 	_ = os.MkdirAll(*out, 0o755)
@@ -39,7 +39,7 @@ func main() {
 		log.Printf("enroll: platform=%s arch=%s version=%s host=%s", req.Platform, req.Arch, req.AgentVersion, req.Hostname)
 		if req.EnrollKey != *key {
 			w.WriteHeader(401)
-			_, _ = w.Write([]byte(`{"error":true,"code":"ENROLL_KEY_INVALID","message":"That enrolment key is not valid"}`))
+			_, _ = w.Write([]byte(`{"error":true,"code":"ENROLL_KEY_INVALID","message":"That enrollment key is not valid"}`))
 			return
 		}
 		pub, err := base64.StdEncoding.DecodeString(req.PublicKey)

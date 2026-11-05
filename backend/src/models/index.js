@@ -699,7 +699,7 @@ KbArticleAudience.belongsTo(Department, { foreignKey: 'departmentId', as: 'depar
 Company.hasMany(DetectedDepartment, { foreignKey: 'companyId', as: 'detectedDepartments', onDelete: 'CASCADE' });
 DetectedDepartment.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 DetectedDepartment.belongsTo(Department, { foreignKey: 'mappedDepartmentId', as: 'mappedDepartment' });
-// The PRISM agent (8a): enrolment keys and devices per company; an
+// The PRISM agent (8a): enrollment keys and devices per company; an
 // agent-managed Asset has one Device and its installed software.
 Company.hasMany(AgentEnrollmentKey, { foreignKey: 'companyId', as: 'agentKeys', onDelete: 'CASCADE' });
 AgentEnrollmentKey.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });

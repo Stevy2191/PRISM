@@ -76,7 +76,7 @@ router.use('/sso', ssoRoutes);
 // and its own guard (routes/portal), so it sits outside the staff `guard`.
 router.use('/portal', portalRoutes);
 
-// The PRISM agent (8a): computers, not people. No session; enrolment keys and
+// The PRISM agent (8a): computers, not people. No session; enrollment keys and
 // per-device request signatures authenticate it (routes/agent).
 router.use('/agent', agentRoutes);
 

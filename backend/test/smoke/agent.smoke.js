@@ -30,7 +30,7 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   const page = await smoke.pageAs('admin');
   await page.goto(`/companies/${company.id}`);
   await page.getByRole('button', { name: 'Devices' }).click();
-  await page.getByRole('button', { name: 'New enrolment key' }).click();
+  await page.getByRole('button', { name: 'New enrollment key' }).click();
   await page.getByLabel('Name').fill('Clinic rollout');
   await page.getByRole('button', { name: 'Create key' }).click();
   const command = page.getByLabel('Command', { exact: true });
@@ -39,12 +39,12 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   expect(text).toContain('msiexec /i ');
   expect(text).toContain(`PRISM_URL=${smoke.base}`);
   await page.getByRole('cell', { name: /Clinic rollout/ }).waitFor();
-  // An MSI opened by double-clicking isn't enrolled: the enrol command for after.
+  // An MSI opened by double-clicking isn't enrolled: the enroll command for after.
   await page.getByText('Installed it by double-clicking the MSI?').click();
-  const enrolSecret = text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1];
-  expect(await page.getByLabel('Enrol command').textContent())
-    .toBe(`& "C:\\Program Files\\PRISM\\Agent\\prism-agent.exe" enroll --url ${smoke.base} --key ${enrolSecret}`);
-  // The macOS tab (8b): the package, Open Anyway once, then the enrol
+  const enrollSecret = text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1];
+  expect(await page.getByLabel('Enroll command').textContent())
+    .toBe(`& "C:\\Program Files\\PRISM\\Agent\\prism-agent.exe" enroll --url ${smoke.base} --key ${enrollSecret}`);
+  // The macOS tab (8b): the package, Open Anyway once, then the enroll
   // command with the same new key.
   await page.getByRole('tab', { name: 'macOS' }).click();
   await page.getByRole('list', { name: 'Installing on a Mac' }).getByText('Open Anyway').waitFor();
@@ -52,7 +52,7 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   expect(macCommand).toBe(`sudo prism-agent enroll --url ${smoke.base} --key ${text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1]}`);
   await page.getByRole('tab', { name: 'Windows' }).click();
 
-  // A computer enrols with that key and reports in.
+  // A computer enrolls with that key and reports in.
   const secret = text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1];
   const device = await enrollDevice(getApp(), secret);
   await device.post('/api/v1/agent/v1/inventory', inventory()).expect(200);

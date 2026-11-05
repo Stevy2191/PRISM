@@ -1,5 +1,5 @@
 // Device authentication for the PRISM agent's API (8a). Every request after
-// enrolment is signed with the device's Ed25519 key over
+// enrollment is signed with the device's Ed25519 key over
 //
 //   METHOD \n path?query \n timestamp \n nonce \n sha256(body) as hex
 //

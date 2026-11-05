@@ -1,4 +1,4 @@
-// Package client talks to PRISM: unsigned enrolment, then every request
+// Package client talks to PRISM: unsigned enrollment, then every request
 // signed with the device's Ed25519 key, exactly as the server checks it
 // (backend/src/middleware/agentAuth.js):
 //
@@ -42,7 +42,7 @@ func Sign(key ed25519.PrivateKey, method, pathQuery, ts, nonce string, body []by
 	return base64.StdEncoding.EncodeToString(ed25519.Sign(key, []byte(Canonical(method, pathQuery, ts, nonce, body))))
 }
 
-// PublicKeyB64 is the raw public key, base64, as enrolment sends it.
+// PublicKeyB64 is the raw public key, base64, as enrollment sends it.
 func PublicKeyB64(key ed25519.PrivateKey) string {
 	return base64.StdEncoding.EncodeToString(key.Public().(ed25519.PublicKey))
 }
@@ -291,7 +291,7 @@ type EnrollResponse struct {
 	} `json:"intervals"`
 }
 
-// Enroll registers this computer with PRISM using an enrolment key. The
+// Enroll registers this computer with PRISM using an enrollment key. The
 // one unsigned call: the device has no id yet.
 func (c *Client) Enroll(ctx context.Context, r EnrollRequest) (*EnrollResponse, error) {
 	body, err := json.Marshal(r)
@@ -305,10 +305,10 @@ func (c *Client) Enroll(ctx context.Context, r EnrollRequest) (*EnrollResponse, 
 	defer resp.Body.Close()
 	var out EnrollResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out); err != nil {
-		return nil, fmt.Errorf("PRISM's enrolment answer could not be read: %w", err)
+		return nil, fmt.Errorf("PRISM's enrollment answer could not be read: %w", err)
 	}
 	if out.DeviceID <= 0 {
-		return nil, errors.New("PRISM's enrolment answer has no device id")
+		return nil, errors.New("PRISM's enrollment answer has no device id")
 	}
 	return &out, nil
 }

@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A Windows computer gets the PRISM agent from one silent MSI command, enrols into a company, and appears as an Asset with its hardware, OS, network, software, usual user and online status, kept current. Its tray's **Submit a ticket** raises a ticket linked to that Asset with a health snapshot. Agents update themselves, but only to builds signed by the install. macOS (8b) and Linux (8c) follow on the same server side.
+**Goal:** A Windows computer gets the PRISM agent from one silent MSI command, enrolls into a company, and appears as an Asset with its hardware, OS, network, software, usual user and online status, kept current. Its tray's **Submit a ticket** raises a ticket linked to that Asset with a health snapshot. Agents update themselves, but only to builds signed by the install. macOS (8b) and Linux (8c) follow on the same server side.
 
 **Architecture:**
 - **Server:** a new `/api/v1/agent/*` API in the existing backend, outside the staff session.
-  - Enrolment uses a per-company key, stored hashed.
+  - Enrollment uses a per-company key, stored hashed.
   - Each device registers an Ed25519 public key, and every later request is signed with it.
   - Inventory maps into the existing Asset fields, plus a `Device` record and an `AssetSoftware` table.
   - Tray tickets come in through the service with the computer's identity.
@@ -28,12 +28,12 @@
 
 ## Global Constraints
 
-- **Read-and-report only.** The agent runs no commands from PRISM. The only thing it acts on is "update available", and only for a package whose Ed25519 signature verifies against the install key it got at enrolment.
+- **Read-and-report only.** The agent runs no commands from PRISM. The only thing it acts on is "update available", and only for a package whose Ed25519 signature verifies against the install key it got at enrollment.
 - **Device identity is a signed request**, not a session or bearer token:
   - headers `X-Prism-Device`, `X-Prism-Timestamp` (within ±5 minutes), `X-Prism-Nonce` (single-use, kept 10 minutes), `X-Prism-Signature`.
   - The signature covers `METHOD\npath?query\ntimestamp\nnonce\nsha256(body)`.
   - A revoked or unknown device is refused at once.
-- **Enrolment keys** are 32 random bytes, shown once, stored as a sha256. They can be revoked or expire. An enrolment creates or claims Assets only in its key's company.
+- **Enrollment keys** are 32 random bytes, shown once, stored as a sha256. They can be revoked or expire. An enrollment creates or claims Assets only in its key's company.
 - **Agent-owned Asset fields** are overwritten at every inventory: name, make, model, serial number, processor, RAM, storage, OS, OS version, firmware version, IP and MAC. Everything else stays staff-owned. Usual user: a hand-set assigned contact wins.
 - **No real person's contact is ever created** from the agent, whether from inventory or a tray ticket. The one exception is a single placeholder contact per company, **"Unknown tray user"**, created when first needed. Tray tickets from people with no matching contact use it as requester, and staff then reassign them (owner, 2026-11-03). The placeholder has no email and no portal access, and is never matched by inventory.
 - **Inventory is untrusted text.** It's size-limited (256 KB a request, 5,000 software rows), stored as text, and escaped wherever it's shown.
@@ -45,7 +45,7 @@
 ## Review Focus
 
 - **Replay and forgery:** a request with an old timestamp, a reused nonce, a body changed after signing, or another device's ID is refused → Task 3.
-- **Enrolment scope:** a key from company A can never create or claim an Asset in company B, even when the serial number matches one there → Task 2.
+- **Enrollment scope:** a key from company A can never create or claim an Asset in company B, even when the serial number matches one there → Task 2.
 - **Tray identity:** the ticket's requester comes from the named pipe's client token, never from what the tray sends → Task 9.
 - **Update trust:** a package signed with another install's key, a wrong hash, or a lower version is refused, and the agent keeps running → Tasks 6 and 10.
 - **Key storage:** the device private key is readable only by SYSTEM (DPAPI machine scope plus a SYSTEM-only ACL) → Task 7.
@@ -65,21 +65,21 @@
 - `AssetSoftware { id, assetId, name(255), version(100), publisher(255), installDate DATEONLY null }`, indexed `(assetId)` and `(name)`.
 - `AgentNonce { deviceId, nonce(32), seenAt }`, unique `(deviceId, nonce)`. Pruned when older than 10 minutes.
 - `Tickets.source` gains `'agent'`.
-- New permission `devices.manage` ("Manage devices": enrolment keys, revoke), held by System Administrator.
+- New permission `devices.manage` ("Manage devices": enrollment keys, revoke), held by System Administrator.
 - New setting `agent.updateKey`, created at first use: an Ed25519 private key, encrypted with `tokenCrypto`, never returned by the API.
 
 - [x] **Step 1: Failing tests:** one Device per Asset; nonce pair unique; `devices.manage` is held by System Administrator only; a ticket can be saved with source `agent`; down → up round trip (keeping 073's index rules in mind).
 - [x] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS (apply 074 to the test DB).
-- [x] **Step 5: Commit** `feat(agent): devices, enrolment keys, software and the agent ticket source`
+- [x] **Step 5: Commit** `feat(agent): devices, enrollment keys, software and the agent ticket source`
 
 **As built (2026-11-03):**
-- The enrolment key hides `keyHash` by default (`scope('withHash')` reads it).
+- The enrollment key hides `keyHash` by default (`scope('withHash')` reads it).
 - `devices.manage` sits in the `assets` permission category.
 - Migration 074's rollback turns tray tickets into `manual` ones rather than deleting them.
 - `companies.migration.test.js` now rolls back 074 around 048 as well.
 - **Found for Task 5:** every ticket must have a contact (`ticketWrite`: "A contact is required"), so a tray ticket from someone with no matching contact can't be saved without a requester as planned. The owner decides how Task 5 handles that.
 
-### Task 2: Enrolment keys and enrolment
+### Task 2: Enrollment keys and enrollment
 
 **Files:**
 - Create: `backend/src/services/agent/enrollment.js`, `backend/src/controllers/agentKeysController.js`, `backend/src/routes/agent.js` (mounted at `/api/v1/agent`, no staff session)
@@ -96,15 +96,15 @@
 - Re-enrolling a revoked device's Asset replaces that Device record (new key, revocation cleared, audited).
 - Audit: `agent.key_created`, `agent.key_revoked`, `agent.enrolled`.
 
-- [x] **Step 1: Failing tests:** enrolment with a revoked, expired or unknown key → 401 and nothing created; a new serial makes a Computers Asset in the key's company; a matching serial in the same company is claimed (no duplicate); a matching serial in another company is ignored and a new Asset is made; the secret never comes back after creation; a staff member without access to the company can't list or create keys.
+- [x] **Step 1: Failing tests:** enrollment with a revoked, expired or unknown key → 401 and nothing created; a new serial makes a Computers Asset in the key's company; a matching serial in the same company is claimed (no duplicate); a matching serial in another company is ignored and a new Asset is made; the secret never comes back after creation; a staff member without access to the company can't list or create keys.
 - [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [x] **Step 5: Commit** `feat(agent): enrolment keys and device enrolment`
+- [x] **Step 5: Commit** `feat(agent): enrollment keys and device enrollment`
 
 **As built (2026-11-03):**
 - **Placeholder serials never match.** Makers' stand-ins such as "To be filled by O.E.M.", "Default string" and "0" never claim an Asset.
-- **Simultaneous enrolments.** Computers enrolling at the same moment (a Group Policy rollout) can clash on the next asset tag, or on claiming the same Asset. Enrolment retries up to 5 times on a unique-index clash.
+- **Simultaneous enrollments.** Computers enrolling at the same moment (a Group Policy rollout) can clash on the next asset tag, or on claiming the same Asset. Enrollment retries up to 5 times on a unique-index clash.
 - **New limiter.** `agentEnrollLimiter` allows 600 attempts per 15 minutes per IP. It's generous because a rollout comes from one office address, and the 256-bit key is the real guard.
-- **Revoking a key** only stops new enrolments. Computers already enrolled with it keep working; a computer is revoked on its own (Task 12).
+- **Revoking a key** only stops new enrollments. Computers already enrolled with it keep working; a computer is revoked on its own (Task 12).
 - **No update key yet.** `updatePublicKey` is `null` until Task 6.
 - **Placement.** The staff routes live in `routes/companies.js` and need `devices.manage` plus the company fence. The agent routes are in `routes/agent.js`, mounted outside the staff guard.
 
@@ -207,12 +207,12 @@
 - The heartbeat's `update` field is filled from this when a newer version exists.
 - Download streams the file (signed request), so no package is public.
 
-- [x] **Step 1: Failing tests:** the key is generated once and its private half never appears in any response; the update signature verifies with the public key returned at enrolment; an equal or older version → 204; a missing file → 404 with nothing signed; download needs a valid device signature.
+- [x] **Step 1: Failing tests:** the key is generated once and its private half never appears in any response; the update signature verifies with the public key returned at enrollment; an equal or older version → 204; a missing file → 404 with nothing signed; download needs a valid device signature.
 - [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
 - [x] **Step 5: Commit** `feat(agent): signed agent updates served by PRISM`
 
 **As built (2026-11-03):**
-- **The key.** `agent.updateKey` holds the 32-byte Ed25519 seed, encrypted with `tokenCrypto` like other stored secrets. It is never in `DEFAULTS`, so no settings endpoint returns it. Two first uses at the same moment agree on whichever was stored (the unique-key clash is caught and re-read). Enrolment now returns `updatePublicKey`.
+- **The key.** `agent.updateKey` holds the 32-byte Ed25519 seed, encrypted with `tokenCrypto` like other stored secrets. It is never in `DEFAULTS`, so no settings endpoint returns it. Two first uses at the same moment agree on whichever was stored (the unique-key clash is caught and re-read). Enrollment now returns `updatePublicKey`.
 - **Platform and arch** come from the device record, as enrolled, not from query parameters: a device can only be offered its own builds.
 - **Checks before signing.** Each manifest entry must have a plain file name (no folders, no `..`), a `x.y.z[-pre]` version and a 64-hex sha256. The newest entry's file must exist and hash to its listed sha256; otherwise `GET /v1/update` and the download are 404 and nothing is signed. The heartbeat treats that as no update instead of failing. File hashes are cached by size and modification time.
 - **Versions** compare numerically; a pre-release sorts before its release (0.6.0-rc.2 < 0.6.0).
@@ -235,7 +235,7 @@
 - `client.Sign(method, pathQuery, ts, nonce, body) string`. It must match `agentClient.js` byte for byte; a shared test vector JSON at `agent/testdata/signing.json` is checked by both the Go and Node tests.
 - `enroll` sends the payload from Task 2 and saves `{ url, deviceId, updatePublicKey }`.
 
-- [x] **Step 1: Failing tests:** the shared signing vector matches in Go and in Node; enrolment against a fake server saves the config, and is refused without the key; the loops honour intervals and back off on 5xx and 429; the keystore round trip (Windows CI).
+- [x] **Step 1: Failing tests:** the shared signing vector matches in Go and in Node; enrollment against a fake server saves the config, and is refused without the key; the loops honour intervals and back off on 5xx and 429; the keystore round trip (Windows CI).
 - [x] **Step 2–4:** Run → FAIL; implement; run → PASS (`go test ./...` on `ubuntu-latest` and `windows-latest`).
 - [x] **Step 5: Commit** `feat(agent): Go agent core: config, keys, signed client, schedules`
 
@@ -245,12 +245,12 @@
   - `config`: `agent.json` in `C:\ProgramData\PRISM` (Linux `/var/lib/prism-agent`, macOS `/Library/Application Support/PRISM`), or `PRISM_AGENT_DIR` when set. Written atomically. Intervals are clamped to at least 1 minute (heartbeat) and 15 minutes (inventory), with defaults of 5 minutes and 6 hours.
   - `keystore`: `device.key`. On Windows, DPAPI with machine scope (so what an elevated installer wrote, the SYSTEM service can read) plus a SYSTEM-only, non-inherited ACL `D:P(A;;FA;;;SY)`, which is what keeps other local processes out. On macOS and Linux, a 0600 file until 8b and 8c.
   - `client`: `Canonical`, `Sign`, `PublicKeyB64`, `NewNonce` (22 base64url characters). Every attempt gets a fresh timestamp and nonce. Network errors, 5xx and 429 are retried (3 attempts, backoff from 2 s with jitter in [½·ceiling, ceiling], honouring `Retry-After`); other 4xx are not. TLS uses the OS certificate store (Go's default).
-  - `enroll`: needs an `https://` address (`http://` only for localhost) and a key starting `pk_enr_`, otherwise nothing is sent. The new key is staged in `<dir>.enrolling` and moved in only after PRISM accepts it, so a refused enrolment leaves any earlier one untouched.
+  - `enroll`: needs an `https://` address (`http://` only for localhost) and a key starting `pk_enr_`, otherwise nothing is sent. The new key is staged in `<dir>.enrolling` and moved in only after PRISM accepts it, so a refused enrollment leaves any earlier one untouched.
   - `schedule`: one loop per job. Success waits the interval. A retryable failure backs off from `RetryBase` (heartbeat 30 s, inventory 2 min), doubling up to the interval. A refusal (revoked, bad request) waits the full interval. The inventory's first run is delayed 1–2 minutes at random, to spread out an office's agents after a reboot.
 - **Commands:** `enroll`, `run` (foreground until Ctrl+C or SIGTERM; becomes the Windows service in Task 8), `collect --json`, `status`, `version`. `collect` sends only the hostname until Task 8 fills the inventory.
 - **Windows tests:** a test process isn't SYSTEM, so `TestSystemOnlyACL` checks the real ACL and that the test can't read the key. The round-trip tests widen the ACL to the test's own user through `AllowCurrentUserForTests` (never called by the agent).
 - **CI:** an `agent` job in `test.yml` runs `go vet` and `go test -race` on `ubuntu-latest` and `windows-latest`.
-- **Checked end to end** against the real backend: a wrong key was refused; then enrol, a signed heartbeat (the device's version and last-seen time updated) and a signed inventory (`lastInventoryAt` set).
+- **Checked end to end** against the real backend: a wrong key was refused; then enroll, a signed heartbeat (the device's version and last-seen time updated) and a signed inventory (`lastInventoryAt` set).
 
 ### Task 8: Windows inventory and the service
 
@@ -274,8 +274,8 @@
   - **Signed-in user:** the console session's token gives `DOMAIN\user`. The UPN comes from `TranslateName` (Active Directory), then the Entra ID IdentityStore cache. When not running as SYSTEM (`collect` by hand), it's the current user.
   - **Domain** comes from `NetGetJoinInformation`, and is blank for workgroup computers.
   - Placeholder values ("To be filled by O.E.M.", "Default string"…) are dropped from make, model and serial.
-- **Service:** `PRISMAgent` (LocalSystem, automatic delayed start; restarts after 30 s, 2 min and 10 min; Application event log source). `prism-agent service install|uninstall` sets it up by hand; the MSI does this in Task 11. A service started before enrolment checks again every minute.
-- **Enrolment** sends the serial, make and model so PRISM can claim an existing Asset.
+- **Service:** `PRISMAgent` (LocalSystem, automatic delayed start; restarts after 30 s, 2 min and 10 min; Application event log source). `prism-agent service install|uninstall` sets it up by hand; the MSI does this in Task 11. A service started before enrollment checks again every minute.
+- **Enrollment** sends the serial, make and model so PRISM can claim an existing Asset.
 - **Checked against the server:** the Go payload for the fixture, run through `parseInventory` and `assetFields`, gives the same Asset fields as Task 4's test, including "476 GB (212 GB free)".
 - **macOS and Linux:** `Collect` returns the hostname and network only, until 8b and 8c.
 
@@ -328,7 +328,7 @@
 
 **As built (2026-11-04):**
 - **Order of checks:**
-  1. **Before downloading:** the offer's shape (version `x.y.z[-pre]`, a 64-hex sha256, size 1 byte to 200 MB). The version must be newer than the running one (`update.Compare`, the same order as the server, so `dev` sorts lowest). The Ed25519 signature over `platform|arch|version|sha256` must verify with `agent.json`'s `updatePublicKey`. A computer with no key (enrolled before Task 6) gets no updates and is told to re-enrol.
+  1. **Before downloading:** the offer's shape (version `x.y.z[-pre]`, a 64-hex sha256, size 1 byte to 200 MB). The version must be newer than the running one (`update.Compare`, the same order as the server, so `dev` sorts lowest). The Ed25519 signature over `platform|arch|version|sha256` must verify with `agent.json`'s `updatePublicKey`. A computer with no key (enrolled before Task 6) gets no updates and is told to re-enroll.
   2. **The download** (signed request): `X-Prism-Version` must equal the offered version, so a build published in between is refused. It's written with `O_EXCL` to `.partial`, read up to size+1, and the byte count and sha256 must match exactly. Then it's renamed to `prism-agent-<version>.msi`.
   3. **Install:** `msiexec /i … /qn /norestart /l*v install-<version>.log`, started detached in a new process group and broken away from any job (if the job forbids that, it starts without breaking away), so stopping the service can't end the installer.
 - **Updates folder:** `C:\ProgramData\PRISM\updates`, with its DACL reset to SYSTEM and Administrators only (`D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)`) before each update, so no user can plant or swap a file between the check and msiexec.
@@ -355,9 +355,9 @@
   - The service: `ServiceConfig` for delayed auto-start and `util:ServiceConfig` for restart on failure. The event-log source is registered (EventCreate.exe).
   - The tray in HKLM `Run`, and a Start menu "Submit a ticket" (`prism-tray form`).
   - `C:\ProgramData\PRISM` gets `PermissionEx` `D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)`, as Task 10 noted.
-  - **Enrolment:** a deferred `WixQuietExec` as SYSTEM, after InstallFiles and before the service starts. `ENROLL_KEY` is `Hidden` and the CA is `HideTarget`. A refused key fails and rolls back the install.
+  - **Enrollment:** a deferred `WixQuietExec` as SYSTEM, after InstallFiles and before the service starts. `ENROLL_KEY` is `Hidden` and the CA is `HideTarget`. A refused key fails and rolls back the install.
   - **Remove data:** `REMOVE_DATA=1` at uninstall runs `rmdir` on the data folder (not during upgrades).
-- **`prism-agent enroll` is idempotent:** already enrolled with the same PRISM means "Already enrolled", and nothing changes. So a GPO or Intune redeploy with the key doesn't make a second identity (and a second Asset). `--force` re-enrols. `keystore.Exists` checks for the key without reading it.
+- **`prism-agent enroll` is idempotent:** already enrolled with the same PRISM means "Already enrolled", and nothing changes. So a GPO or Intune redeploy with the key doesn't make a second identity (and a second Asset). `--force` re-enrolls. `keystore.Exists` checks for the key without reading it.
 - **CI** (`.github/workflows/agent.yml`, called by `docker-publish.yml`, which now needs it, and run on PRs touching `agent/`):
   - Builds amd64 and arm64 (`-trimpath -s -w`, the tray `-H windowsgui`).
   - **Signing:** signtool when the `AGENT_SIGNING_PFX` and `AGENT_SIGNING_PASSWORD` secrets exist, for both the programs and the MSIs.
@@ -374,7 +374,7 @@
 ### Task 12: Staff screens
 
 **Files:**
-- Create: `frontend/src/components/companies/CompanyDevices.jsx` (`Main` board: enrolment keys, the install command with Windows / macOS / Linux tabs where macOS and Linux say "coming in 8b/8c" until then, a **Download installer** button per platform served by PRISM itself (staff sign-in; never published as GitHub release assets — owner, 2026-11-03), and the devices table with filters), `frontend/src/components/assets/AssetDevice.jsx` (`AssetDevice` board), `frontend/src/components/assets/AssetSoftware.jsx` (`AssetSoftware` board)
+- Create: `frontend/src/components/companies/CompanyDevices.jsx` (`Main` board: enrollment keys, the install command with Windows / macOS / Linux tabs where macOS and Linux say "coming in 8b/8c" until then, a **Download installer** button per platform served by PRISM itself (staff sign-in; never published as GitHub release assets — owner, 2026-11-03), and the devices table with filters), `frontend/src/components/assets/AssetDevice.jsx` (`AssetDevice` board), `frontend/src/components/assets/AssetSoftware.jsx` (`AssetSoftware` board)
 - Modify: the Asset page (Device and Software tabs on agent-managed Assets, the Agent-managed badge, the note on agent fields in the edit form), the Assets list (Online column, the Agent-managed / Online / Stale pills), the ticket page (a "PRISM tray" source label and the Asset chip in the sidebar)
 - Backend: `GET /companies/:id/devices`, `GET /assets/:id/device`, `GET /assets/:id/software?q`, `POST /devices/:id/revoke`, and the Assets list's `online` and `agent` filters
 - Test: `backend/test/integration/agent.staff.test.js`, `backend/test/smoke/agent.smoke.js`
@@ -395,12 +395,12 @@
   - **Assets list:** `?agent=managed|online|offline|stale` filters, and every row carries a `device` summary. `GET /assets/agent-summary?companyId=` gives the pill counts within the user's reach.
   - `GET /assets/:id` adds `device` (with `softwareCount` and `lastInventoryAt`) and `agentFields`. A ticket's `linkedAssets` include their device's last check-in.
 - **Screens:**
-  - **Company → Devices** (`CompanyDevices`, shown with assets.view, after Microsoft 365): enrolment keys and the install command for devices.manage (the Windows / macOS / Linux tabs; the command with the origin and the new key, shown in full only right after it's created, Copy enabled only then; Download for Windows plus an ARM link when packages exist), then the devices table with All / Offline / Stale (/ Revoked) pills and Revoke.
+  - **Company → Devices** (`CompanyDevices`, shown with assets.view, after Microsoft 365): enrollment keys and the install command for devices.manage (the Windows / macOS / Linux tabs; the command with the origin and the new key, shown in full only right after it's created, Copy enabled only then; Download for Windows plus an ARM link when packages exist), then the devices table with All / Offline / Stale (/ Revoked) pills and Revoke.
   - **Asset page:** Online and Agent-managed chips. Device and Software (with count) tabs on agent-managed Assets. `AssetDevice` shows the note, Hardware and OS (make and model, serial and firmware from the Asset), disks with usage meters, and network. `AssetSoftware` is searchable, 50 at a time with "Show more". The edit form names the agent-owned fields. Activity labels for `agent_inventory` and `agent_revoked`.
   - **Assets list:** an Online column, an "Agent" tag by the name, and All / Agent-managed / Online / Stale pills (shown once any computer is agent-managed).
   - **Ticket page:** a "PRISM tray" source badge (and Recurring, which had no label), and the computer's Online chip in Linked Assets.
 - **Tests:** `agent.staff.test.js` (6 tests: statuses and counts, the tabs' data, access by company and permission, revoke, list filters, installers). `test/smoke/agent.smoke.js` covers the whole flow in a browser: a key from the Devices tab, a device enrolled with the secret copied from the command, Online, the Device and Software tabs, the Online pill, and a tray ticket's badge and chip. The `assetsLook`, `companies.page`, `companies.assets`, `m365` and `ticketEdit` smokes still pass.
-- **Not done:** the mockups' ••• menu (re-enrol) and "New ticket for this computer" button; the snapshot note is authored by the system account, as portal tickets are.
+- **Not done:** the mockups' ••• menu (re-enroll) and "New ticket for this computer" button; the snapshot note is authored by the system account, as portal tickets are.
 
 ### Task 13: Finish
 
@@ -417,7 +417,7 @@
   - **The Go client doesn't follow redirects** (`ErrRedirect`, not retried). A redirect would have carried the signed headers to another host. Tested.
 - **Accepted, by design:**
   - Whoever holds a computer's device key (a local administrator who takes it from SYSTEM) can act as that computer: raise tray tickets for any contact of its company, look up names and departments of that company's contacts through `whoami`, and send false inventory. Revoking the computer ends it.
-  - An enrolment key of company A can claim any Asset of company A whose serial it presents (without a live agent). Keys are per company and revocable.
+  - An enrollment key of company A can claim any Asset of company A whose serial it presents (without a live agent). Keys are per company and revocable.
 - **Checks:** the full backend suite, the full smoke suite and the agent workflow (MSI build and install test on `windows-latest`) all pass. See the Task 13 commit.
 - **Step 4 (the owner's hand test)** is still to do: install on a Windows 11 and a Windows 10 computer, check the Asset appears, a tray ticket arrives, and revoking stops it.
 

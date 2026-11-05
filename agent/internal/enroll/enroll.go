@@ -1,5 +1,5 @@
 // Package enroll registers this computer with PRISM: makes the device key,
-// sends the public half with the enrolment key, and saves agent.json.
+// sends the public half with the enrollment key, and saves agent.json.
 package enroll
 
 import (
@@ -46,14 +46,14 @@ func Platform() string {
 	return runtime.GOOS
 }
 
-// Run enrols and saves. A failure leaves any earlier enrolment as it was.
+// Run enrolls and saves. A failure leaves any earlier enrollment as it was.
 func Run(ctx context.Context, rawURL, enrollKey string, hw Hardware) (*config.Config, error) {
 	base, err := CheckURL(rawURL)
 	if err != nil {
 		return nil, err
 	}
 	if !strings.HasPrefix(strings.TrimSpace(enrollKey), "pk_enr_") {
-		return nil, errors.New("that is not an enrolment key (they start pk_enr_)")
+		return nil, errors.New("that is not an enrollment key (they start pk_enr_)")
 	}
 	// Before anything reaches PRISM: enrolling needs the rights the
 	// service has (an administrator's PowerShell on Windows, sudo elsewhere).
@@ -96,6 +96,6 @@ func Run(ctx context.Context, rawURL, enrollKey string, hw Hardware) (*config.Co
 	return cfg, nil
 }
 
-// skipPrivilegeCheck lets tests enrol into a temporary folder as an
+// skipPrivilegeCheck lets tests enroll into a temporary folder as an
 // ordinary user. Never set by the agent.
 var skipPrivilegeCheck = false

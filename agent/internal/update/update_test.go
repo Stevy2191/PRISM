@@ -151,7 +151,7 @@ func TestNoUpdateKeyNoUpdates(t *testing.T) {
 	r := newRig(t)
 	o := r.offer("0.7.0", []byte("MSI 0.7.0"), r.key)
 	r.u.PublicKey = ""
-	r.refused(o, "re-enrol")
+	r.refused(o, "re-enroll")
 }
 
 func TestAFailedVersionWaitsBeforeRetrying(t *testing.T) {

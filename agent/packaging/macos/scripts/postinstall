@@ -1,7 +1,7 @@
 #!/bin/bash
 # PRISM Agent .pkg: owners and modes, the command-line link, the logs
 # folder, then start the service and (for whoever is at the screen) the
-# menu-bar app. The enrolment, if any, is kept from before.
+# menu-bar app. The enrollment, if any, is kept from before.
 set -u
 DATA="/Library/Application Support/PRISM"
 chown -R root:wheel "$DATA/bin" "/Applications/Utilities/PRISM Agent.app" \

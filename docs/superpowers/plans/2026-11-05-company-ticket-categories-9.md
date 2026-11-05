@@ -129,7 +129,7 @@
 - Create: `frontend/src/components/companies/CompanySetup.jsx`, `GET /companies/:id/setup` (counts only)
 - Modify: `CompanyPage.jsx` (a **Setup** tab, first for a company whose checklist isn't complete)
 
-- The checklist: sites, departments, contacts, ticket categories, software list, portal access, agent installed (enrolment key made, computers reporting). Each line says what's there ("3 departments") or what's missing, with a button to the tab that fixes it. It shows the state; it doesn't block anything.
+- The checklist: sites, departments, contacts, ticket categories, software list, portal access, agent installed (enrollment key made, computers reporting). Each line says what's there ("3 departments") or what's missing, with a button to the tab that fixes it. It shows the state; it doesn't block anything.
 - Later, outside this plan: the same checklist as a form the client's own admin fills in through the portal.
 
 - [ ] **Step 1–5:** tests, implement, commit `feat(companies): a setup checklist`

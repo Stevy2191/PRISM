@@ -4,7 +4,7 @@
 //	prism-agent run           the service's loops (heartbeat, inventory);
 //	                          the Windows service runs this
 //	prism-agent collect --json   print what the inventory would send
-//	prism-agent status        enrolment and last contact
+//	prism-agent status        enrollment and last contact
 //	prism-agent service install|uninstall   set the Windows service up by hand
 //
 // Task 9 adds the tray; task 10 installs updates.
@@ -39,7 +39,7 @@ import (
 
 const usage = `prism-agent %s
 
-  prism-agent enroll --url <PRISM address> --key <enrolment key>
+  prism-agent enroll --url <PRISM address> --key <enrollment key>
   prism-agent run
   prism-agent collect --json
   prism-agent status
@@ -85,8 +85,8 @@ func main() {
 func cmdEnroll(args []string) error {
 	fs := flag.NewFlagSet("enroll", flag.ContinueOnError)
 	url := fs.String("url", "", "PRISM's address, https://…")
-	key := fs.String("key", "", "the enrolment key from the company's Agent page (pk_enr_…)")
-	force := fs.Bool("force", false, "enrol again even if already enrolled with this PRISM (a new device identity)")
+	key := fs.String("key", "", "the enrollment key from the company's Agent page (pk_enr_…)")
+	force := fs.Bool("force", false, "enroll again even if already enrolled with this PRISM (a new device identity)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func cmdEnroll(args []string) error {
 	// make a second identity, and so a second Asset, for the same computer.
 	if base, err := enroll.CheckURL(*url); err == nil && !*force {
 		if cfg, err := config.Load(); err == nil && cfg.URL == base && keystore.Exists(config.Dir()) {
-			fmt.Printf("Already enrolled with %s as device %d (use --force to enrol again).\n", cfg.URL, cfg.DeviceID)
+			fmt.Printf("Already enrolled with %s as device %d (use --force to enroll again).\n", cfg.URL, cfg.DeviceID)
 			return nil
 		}
 	}
@@ -125,7 +125,7 @@ func cmdRun() error {
 }
 
 // work runs until ctx ends. A computer that isn't enrolled yet (the service
-// can start before the installer enrols) checks again every minute.
+// can start before the installer enrolls) checks again every minute.
 func work(ctx context.Context, logf func(string, ...any)) {
 	// The tray's pipe answers from the start (offline until enrolled).
 	tray := &ipc.Server{
@@ -273,11 +273,11 @@ func cmdWhoami() error {
 	return nil
 }
 
-// The agent off this computer, keeping the enrolment unless --remove-data
+// The agent off this computer, keeping the enrollment unless --remove-data
 // (macOS: a .pkg has no uninstaller; Windows and Linux use their package).
 func cmdUninstall(args []string) error {
 	fs := flag.NewFlagSet("uninstall", flag.ContinueOnError)
-	removeData := fs.Bool("remove-data", false, "also forget the enrolment (device key and settings)")
+	removeData := fs.Bool("remove-data", false, "also forget the enrollment (device key and settings)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -285,14 +285,14 @@ func cmdUninstall(args []string) error {
 		return err
 	}
 	if *removeData {
-		fmt.Println("Removed the PRISM Agent and its enrolment. Revoke the computer in PRISM if it isn't coming back.")
+		fmt.Println("Removed the PRISM Agent and its enrollment. Revoke the computer in PRISM if it isn't coming back.")
 	} else {
-		fmt.Println("Removed the PRISM Agent. Its enrolment is kept: installing it again brings the same device back.")
+		fmt.Println("Removed the PRISM Agent. Its enrollment is kept: installing it again brings the same device back.")
 	}
 	return nil
 }
 
-// Serial, make and model help PRISM claim an existing Asset at enrolment.
+// Serial, make and model help PRISM claim an existing Asset at enrollment.
 func hardware() enroll.Hardware {
 	inv, _ := inventory.Collect()
 	return enroll.Hardware{SerialNumber: inv.SerialNumber, Make: inv.Make, Model: inv.Model}

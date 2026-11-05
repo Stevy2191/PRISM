@@ -509,7 +509,7 @@ else
       PUBLIC_URL="http://${local_ip:-localhost}:${APP_PORT}"
       env_set PUBLIC_APP_URL "$PUBLIC_URL"
       env_set COOKIE_SECURE "false"
-      warn "Plain HTTP: the PRISM agent won't enrol and sign-in cookies aren't secure. Re-run setup.sh to switch to HTTPS later."
+      warn "Plain HTTP: the PRISM agent won't enroll and sign-in cookies aren't secure. Re-run setup.sh to switch to HTTPS later."
       ;;
   esac
 fi

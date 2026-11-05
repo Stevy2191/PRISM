@@ -1,5 +1,5 @@
 // Package keystore keeps the device's Ed25519 identity key: made once at
-// enrolment, read by the service at every start. The private key never
+// enrollment, read by the service at every start. The private key never
 // leaves the computer; PRISM has only the public half.
 //
 // Windows (keystore_windows.go): the 32-byte seed is protected with DPAPI

@@ -49,7 +49,7 @@ func checkFile(path string) error {
 		return fmt.Errorf("the device key %s is not a plain file", path)
 	}
 	if st.Mode().Perm()&0o077 != 0 {
-		return fmt.Errorf("the device key %s is readable by others (mode %v); enrol again", path, st.Mode().Perm())
+		return fmt.Errorf("the device key %s is readable by others (mode %v); enroll again", path, st.Mode().Perm())
 	}
 	if sys, ok := st.Sys().(*syscall.Stat_t); ok && int(sys.Uid) != os.Geteuid() {
 		return fmt.Errorf("the device key %s belongs to another user", path)

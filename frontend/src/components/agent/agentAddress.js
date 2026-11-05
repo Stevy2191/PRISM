@@ -1,7 +1,7 @@
 // What the Devices tab needs to know about the address staff are using, since
 // the install command carries it (window.location.origin).
 
-// The agent enrols only over https://, or http:// on this machine itself
+// The agent enrolls only over https://, or http:// on this machine itself
 // (agent/internal/enroll CheckURL), so a plain-HTTP LAN address won't work.
 export function agentNeedsHttps(protocol, hostname) {
   if (protocol === 'https:') return false;

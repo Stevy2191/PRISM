@@ -1,6 +1,6 @@
 // The PRISM agent's API (8a), mounted at /api/v1/agent. Not behind the staff
-// guard: agents have no session. Enrolment is authenticated by the
-// enrolment key; every other route by the device's request signature
+// guard: agents have no session. Enrollment is authenticated by the
+// enrollment key; every other route by the device's request signature
 // (middleware/agentAuth, task 3).
 const path = require('path');
 const express = require('express');

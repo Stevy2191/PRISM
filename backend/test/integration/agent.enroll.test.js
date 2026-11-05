@@ -9,7 +9,7 @@ const {
 } = require('./fixtures');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
-// Sub-project 8a, task 2: enrolment keys and device enrolment.
+// Sub-project 8a, task 2: enrollment keys and device enrollment.
 
 const API = '/api/v1';
 let w;

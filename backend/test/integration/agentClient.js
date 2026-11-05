@@ -42,7 +42,7 @@ function agentClient(app, deviceId, keys) {
   };
 }
 
-// Enrols a new device with an enrolment secret and returns its client.
+// Enrolls a new device with an enrollment secret and returns its client.
 async function enrollDevice(app, secret, extra = {}) {
   const keys = makeKeys();
   const res = await request(app).post('/api/v1/agent/v1/enroll').send({

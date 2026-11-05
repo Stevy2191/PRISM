@@ -5,7 +5,7 @@
 // over "platform|arch|version|sha256" (backend services/agent/updates.js).
 // An offer is installed only when:
 //   - the version is higher than the running one;
-//   - the signature verifies with the public key PRISM gave at enrolment
+//   - the signature verifies with the public key PRISM gave at enrollment
 //     (kept in agent.json), so no one else's build is ever installed;
 //   - the downloaded bytes have exactly that sha256 (and the size offered).
 //
@@ -173,7 +173,7 @@ func (u *Updater) Verify(o Offer) error {
 	}
 	pub, err := base64.StdEncoding.DecodeString(u.PublicKey)
 	if err != nil || len(pub) != ed25519.PublicKeySize {
-		return errors.New("no update key from enrolment: re-enrol to receive updates")
+		return errors.New("no update key from enrollment: re-enroll to receive updates")
 	}
 	sig, err := base64.StdEncoding.DecodeString(o.Signature)
 	if err != nil {

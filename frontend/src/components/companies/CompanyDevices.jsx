@@ -13,7 +13,7 @@ import { scanState } from '../agent/scanState';
 import { agentNeedsHttps, isTestCertificate } from '../agent/agentAddress';
 
 // Mockup Main (agent-8): a company's Devices tab (8a). Installing the agent
-// (enrolment keys, the install command, the installer download, for staff
+// (enrollment keys, the install command, the installer download, for staff
 // with devices.manage) and the company's computers.
 const MUTED = { color: 'var(--color-text-muted)' };
 const BORDER = { borderColor: 'var(--color-border)' };
@@ -51,7 +51,7 @@ function NewKey({ company, onCreated, onCancel }) {
     } catch (err) { setError(errMessage(err)); } finally { setBusy(false); }
   };
   return (
-    <form onSubmit={create} aria-label="New enrolment key" className="space-y-3 border-b px-5 py-4" style={BORDER}>
+    <form onSubmit={create} aria-label="New enrollment key" className="space-y-3 border-b px-5 py-4" style={BORDER}>
       {error && <Notice tone="bad">{error}</Notice>}
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
         <div>
@@ -83,13 +83,13 @@ function Keys({ company, keys, onChanged, onCreated }) {
     <Card
       title="Install the agent"
       hint="Every computer it's installed on becomes an Asset of this company and keeps its details current."
-      action={!adding && company.status === 'active' && <button type="button" className="btn-primary h-9 px-3 text-sm" onClick={() => setAdding(true)}>New enrolment key</button>}
+      action={!adding && company.status === 'active' && <button type="button" className="btn-primary h-9 px-3 text-sm" onClick={() => setAdding(true)}>New enrollment key</button>}
     >
       {adding && <NewKey company={company} onCancel={() => setAdding(false)} onCreated={(k, secret) => { setAdding(false); onCreated(k, secret); }} />}
       {error && <div className="px-5 pt-3"><Notice tone="bad">{error}</Notice></div>}
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead><tr><th className="table-th">Enrolment key</th><th className="table-th">Used</th><th className="table-th">Expires</th><th className="table-th"><span className="sr-only">Actions</span></th></tr></thead>
+          <thead><tr><th className="table-th">Enrollment key</th><th className="table-th">Used</th><th className="table-th">Expires</th><th className="table-th"><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {keys.map((k) => (
               <tr key={k.id} className="border-t" style={BORDER}>
@@ -106,7 +106,7 @@ function Keys({ company, keys, onChanged, onCreated }) {
                 </td>
               </tr>
             ))}
-            {!keys.length && <tr><td className="table-td" colSpan={4}>No enrolment keys yet. Create one to install the agent.</td></tr>}
+            {!keys.length && <tr><td className="table-td" colSpan={4}>No enrollment keys yet. Create one to install the agent.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -175,11 +175,11 @@ function InstallCommand({ fresh, keys, packages }) {
   const mac = has('macos', 'arm64') || has('macos', 'amd64');
   const origin = window.location.origin;
   // Windows: one silent command (GPO, Intune). Mac: the package can't take
-  // settings, so enrolment is a command after installing (spec, decision 7).
+  // settings, so enrollment is a command after installing (spec, decision 7).
   const command = platform === 'macos'
     ? `sudo prism-agent enroll --url ${origin} --key ${secret}`
     : `msiexec /i ${win ? win.file : 'prism-agent.msi'} /qn PRISM_URL=${origin} ENROLL_KEY=${secret}`;
-  // An MSI installed by double-clicking isn't enrolled: enrol it afterwards.
+  // An MSI installed by double-clicking isn't enrolled: enroll it afterwards.
   const winEnroll = `& "C:\\Program Files\\PRISM\\Agent\\prism-agent.exe" enroll --url ${origin} --key ${secret}`;
   const copyText = async (text) => {
     try { await navigator.clipboard.writeText(text); setCopied(text); setTimeout(() => setCopied(false), 1500); } catch { /* no clipboard */ }
@@ -194,7 +194,7 @@ function InstallCommand({ fresh, keys, packages }) {
   const copyButton = <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={copy} disabled={!fresh}>{copied === command ? 'Copied' : 'Copy'}</button>;
   const keyNote = fresh ? '' : 'The key is shown in full once, when it\'s created: create a new one to copy a complete command.';
   return (
-    <Card title="Install command" hint={keyName ? `With the key “${keyName}”` : 'Create an enrolment key first'}>
+    <Card title="Install command" hint={keyName ? `With the key “${keyName}”` : 'Create an enrollment key first'}>
       <div className="space-y-3 px-5 py-4">
         <div role="tablist" aria-label="Platform" className="inline-flex overflow-hidden rounded-md border" style={BORDER}>
           {['windows', 'macos', 'linux'].map((p) => (
@@ -229,10 +229,10 @@ function InstallCommand({ fresh, keys, packages }) {
               <summary className="cursor-pointer text-[13px] font-medium">Installed it by double-clicking the MSI?</summary>
               <div className="mt-2 space-y-2">
                 <p className="m-0 text-[12.5px]" style={MUTED}>
-                  Opening the MSI installs the agent but can&apos;t enrol it (the key goes on the command line), so the computer
-                  doesn&apos;t appear here. Enrol it from PowerShell run as administrator:
+                  Opening the MSI installs the agent but can&apos;t enroll it (the key goes on the command line), so the computer
+                  doesn&apos;t appear here. Enroll it from PowerShell run as administrator:
                 </p>
-                <pre aria-label="Enrol command" className="m-0 whitespace-pre-wrap break-all rounded-lg border p-3 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{winEnroll}</pre>
+                <pre aria-label="Enroll command" className="m-0 whitespace-pre-wrap break-all rounded-lg border p-3 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{winEnroll}</pre>
                 <div className="flex flex-wrap items-center gap-2">
                   <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => copyText(winEnroll)} disabled={!fresh}>{copied === winEnroll ? 'Copied' : 'Copy'}</button>
                 </div>
@@ -256,7 +256,7 @@ function InstallCommand({ fresh, keys, packages }) {
                 {' '}<b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>, then open it again.
               </li>
               <li>Install it (it asks for an administrator&apos;s password).</li>
-              <li>In Terminal, enrol the Mac with this company&apos;s key:</li>
+              <li>In Terminal, enroll the Mac with this company&apos;s key:</li>
             </ol>
             {commandBox}
             <div className="flex flex-wrap items-center gap-2">{copyButton}</div>

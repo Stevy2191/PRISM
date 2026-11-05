@@ -142,10 +142,10 @@ jobs:
           if (Test-Path $exe) { throw 'files were left after a failed install' }
           if (Select-String -Path "$t\bad.log" -Pattern 'pk_enr_wrong_1a2b3c' -SimpleMatch -Quiet) { throw 'the key is in the failed install log' }
 
-          Write-Host '--- Silent install with enrolment'
+          Write-Host '--- Silent install with enrollment'
           $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\install.log"
           if (-not (Ok $c)) { Get-Content "$t\install.log" -Tail 150; throw "install failed ($c)" }
-          if (Select-String -Path "$t\install.log" -Pattern 'pk_enr_ci_9f8e7d' -SimpleMatch -Quiet) { throw 'the enrolment key is in the install log' }
+          if (Select-String -Path "$t\install.log" -Pattern 'pk_enr_ci_9f8e7d' -SimpleMatch -Quiet) { throw 'the enrollment key is in the install log' }
 
           Write-Host '--- The service runs as LocalSystem and reports a signed heartbeat'
           $svc = Get-Service PRISMAgent
@@ -157,10 +157,10 @@ jobs:
           Get-Content "$t\stub\stub.log"
           if (-not (Test-Path "$t\stub\heartbeat.ok")) { throw 'no signed heartbeat reached the stub' }
 
-          Write-Host '--- status reports the enrolment'
+          Write-Host '--- status reports the enrollment'
           $status = & $exe status | Out-String
           Write-Host $status
-          if ($status -notmatch 'Device:\s+1' -or $status -notmatch 'PRISM:\s+http://127\.0\.0\.1:8765') { throw 'status does not report the enrolment' }
+          if ($status -notmatch 'Device:\s+1' -or $status -notmatch 'PRISM:\s+http://127\.0\.0\.1:8765') { throw 'status does not report the enrollment' }
           if ($status -notmatch ('Version:\s+' + [regex]::Escape($env:VERSION) + ' ')) { throw 'status does not report the stamped version' }
 
           Write-Host '--- The device key is SYSTEM-only; the tray starts at sign-in; the Start menu has Submit a ticket'
@@ -169,18 +169,18 @@ jobs:
           if ($run -notlike '*prism-tray.exe*') { throw "Run key: $run" }
           if (-not (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Submit a ticket.lnk")) { throw 'no Start menu shortcut' }
 
-          Write-Host '--- Installing again with the key keeps the same enrolment'
+          Write-Host '--- Installing again with the key keeps the same enrollment'
           $before = Get-Content "$env:ProgramData\PRISM\agent.json" -Raw
           $c = Msi @('/fa', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\repair.log"
           if (-not (Ok $c)) { Get-Content "$t\repair.log" -Tail 80; throw "repair failed ($c)" }
           if ((Get-Content "$env:ProgramData\PRISM\agent.json" -Raw) -ne $before) { throw 'a reinstall with the key enrolled again' }
 
-          Write-Host '--- Uninstall keeps the enrolment'
+          Write-Host '--- Uninstall keeps the enrollment'
           $c = Msi @('/x', $msi) "$t\uninstall.log"
           if (-not (Ok $c)) { Get-Content "$t\uninstall.log" -Tail 80; throw "uninstall failed ($c)" }
           if (Get-Service PRISMAgent -ErrorAction SilentlyContinue) { throw 'the service is still there' }
           if (Test-Path $exe) { throw 'the program is still there' }
-          if (-not (Test-Path "$env:ProgramData\PRISM\agent.json")) { throw 'uninstall removed the enrolment' }
+          if (-not (Test-Path "$env:ProgramData\PRISM\agent.json")) { throw 'uninstall removed the enrollment' }
 
           Write-Host '--- Reinstall (already enrolled), then uninstall with REMOVE_DATA=1'
           $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\install2.log"
@@ -277,7 +277,7 @@ jobs:
           APPLE_DEVELOPER_ID_INSTALLER: ${{ secrets.APPLE_DEVELOPER_ID_INSTALLER }}
         run: agent/packaging/macos/build.sh agent-dist
 
-      # Install the package the way a person would (installer as root), enrol
+      # Install the package the way a person would (installer as root), enroll
       # against a stub PRISM that checks request signatures, and check what
       # the package promises.
       - name: Install test
@@ -305,7 +305,7 @@ jobs:
           if sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_wrong_1a2b3c; then echo "enrolled with a wrong key"; exit 1; fi
           sudo test ! -e "$data/device.key"
 
-          echo "--- Enrolment, then a signed heartbeat from the service"
+          echo "--- Enrollment, then a signed heartbeat from the service"
           sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
           sudo launchctl kickstart -k system/com.prism.agent
           for i in $(seq 1 45); do [ -f "$t/stub/heartbeat.ok" ] && break; sleep 2; done
@@ -334,7 +334,7 @@ jobs:
           sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d | grep -q "Already enrolled"
           [ "$(sudo cat "$data/agent.json")" = "$before" ]
 
-          echo "--- Uninstall keeps the enrolment; --remove-data removes it"
+          echo "--- Uninstall keeps the enrollment; --remove-data removes it"
           sudo prism-agent uninstall
           if sudo launchctl print system/com.prism.agent >/dev/null 2>&1; then echo "the service is still loaded"; exit 1; fi
           test ! -e /usr/local/bin/prism-agent

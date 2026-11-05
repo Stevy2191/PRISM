@@ -1,4 +1,4 @@
-// Package config is the agent's enrolment record: which PRISM it talks to,
+// Package config is the agent's enrollment record: which PRISM it talks to,
 // its device id, the install's update-signing public key and the intervals
 // PRISM asked for. Written once by `prism-agent enroll`, read by the
 // service.
@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// Intervals are PRISM's, in seconds (enrolment's `intervals`).
+// Intervals are PRISM's, in seconds (enrollment's `intervals`).
 type Intervals struct {
 	HeartbeatSec int `json:"heartbeatSec"`
 	InventorySec int `json:"inventorySec"`
@@ -56,7 +56,7 @@ func clamp(sec int, def, min time.Duration) time.Duration {
 }
 
 // ErrNotEnrolled: there is no agent.json yet.
-var ErrNotEnrolled = errors.New("this computer is not enrolled: run prism-agent enroll --url <PRISM address> --key <enrolment key>")
+var ErrNotEnrolled = errors.New("this computer is not enrolled: run prism-agent enroll --url <PRISM address> --key <enrollment key>")
 
 // Dir is the agent's data folder: PRISM_AGENT_DIR when set (tests, and
 // running by hand), else the platform's (see dir_*.go).

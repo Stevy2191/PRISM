@@ -1,9 +1,9 @@
-// PRISM agent enrolment (8a). Staff create per-company enrolment keys; an
+// PRISM agent enrollment (8a). Staff create per-company enrollment keys; an
 // install command carries one, and the agent trades it, with its own
 // Ed25519 public key, for a device identity. Every later agent request is
 // signed with that key (middleware/agentAuth).
 //
-// An enrolment only ever creates or claims Assets in its key's company: it
+// An enrollment only ever creates or claims Assets in its key's company: it
 // claims an Asset there with the same serial number and no live device, or
 // creates a new Asset in Computers.
 const crypto = require('crypto');
@@ -37,14 +37,14 @@ async function createEnrollmentKey({ companyId, name, expiresAt = null, userId =
   return { key: await AgentEnrollmentKey.findByPk(created.id), secret };
 }
 
-// --- Enrolment ------------------------------------------------------------------
+// --- Enrollment ------------------------------------------------------------------
 
 const str = (v, max) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 
 function parseEnrollment(body) {
   const b = body || {};
   if (typeof b.enrollKey !== 'string' || !b.enrollKey.startsWith(KEY_PREFIX) || b.enrollKey.length > 100) {
-    throw new ApiError(401, 'That enrolment key is not valid', 'ENROLL_KEY_INVALID');
+    throw new ApiError(401, 'That enrollment key is not valid', 'ENROLL_KEY_INVALID');
   }
   let raw;
   try { raw = Buffer.from(String(b.publicKey || ''), 'base64'); } catch { raw = Buffer.alloc(0); }
@@ -77,7 +77,7 @@ async function computersCategory(transaction) {
   return category;
 }
 
-// One enrolment attempt, in one transaction. → { device, asset, claimed, created }
+// One enrollment attempt, in one transaction. → { device, asset, claimed, created }
 async function attemptEnrollment(p, key) {
   return sequelize.transaction(async (transaction) => {
     // 1. Claim an Asset of this company with the same serial and no live device.
@@ -95,7 +95,7 @@ async function attemptEnrollment(p, key) {
         transaction,
       });
       // Free to claim: no device, a revoked one, or one that never sent
-      // its inventory. That last is an enrolment that failed on the
+      // its inventory. That last is an enrollment that failed on the
       // computer after PRISM accepted it (e.g. the key couldn't be saved,
       // 2026-11-05); with the same serial it's the same computer trying
       // again, so it takes that device over rather than make a second Asset.
@@ -150,9 +150,9 @@ const isClash = (err) => err && err.name === 'SequelizeUniqueConstraintError';
 async function enroll(body, req) {
   const p = parseEnrollment(body);
   const key = await AgentEnrollmentKey.scope('withHash').findOne({ where: { keyHash: hashKey(p.secret) } });
-  if (!key || !key.isUsable()) throw new ApiError(401, 'That enrolment key is not valid, has expired or was revoked', 'ENROLL_KEY_INVALID');
+  if (!key || !key.isUsable()) throw new ApiError(401, 'That enrollment key is not valid, has expired or was revoked', 'ENROLL_KEY_INVALID');
   const company = await Company.findByPk(key.companyId);
-  if (!company || company.status !== 'active') throw new ApiError(401, 'That enrolment key is not valid', 'ENROLL_KEY_INVALID');
+  if (!company || company.status !== 'active') throw new ApiError(401, 'That enrollment key is not valid', 'ENROLL_KEY_INVALID');
 
   let result;
   for (let attempt = 0; ; attempt += 1) {

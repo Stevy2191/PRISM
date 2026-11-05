@@ -41,7 +41,7 @@ const verifies = (publicKeyB64, text, sigB64) => crypto.verify(
   Buffer.from(sigB64, 'base64'),
 );
 
-// Enrols a device and returns its client plus the update key it was given.
+// Enrolls a device and returns its client plus the update key it was given.
 async function enroll(extra = {}) {
   const keys = makeKeys();
   const res = await request(getApp()).post('/api/v1/agent/v1/enroll').send({
@@ -83,7 +83,7 @@ it('the update key is made once, stored encrypted, and its private half is never
   expect(k1.publicKeyB64).toBe(k2.publicKeyB64);
 });
 
-it('a newer package is offered with a signature that verifies with the key from enrolment', async () => {
+it('a newer package is offered with a signature that verifies with the key from enrollment', async () => {
   const { client, updatePublicKey } = await enroll();
   const p = pkg('0.6.0');
   publish([pkg('0.5.0'), p, pkg('0.7.0', { arch: 'arm64' }), pkg('0.9.0', { platform: 'linux' })]);

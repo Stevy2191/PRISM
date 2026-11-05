@@ -90,7 +90,7 @@ func consoleUID() (int, bool) {
 
 // Remove takes the agent off this Mac (a .pkg has no uninstaller): the
 // daemon, the menu-bar app and its LaunchAgent, the programs and the
-// command-line link, and the installer's receipt. The enrolment (the
+// command-line link, and the installer's receipt. The enrollment (the
 // device key, agent.json) stays unless removeData, so reinstalling keeps
 // the same device in PRISM.
 func Remove(removeData bool, dataDir string) error {

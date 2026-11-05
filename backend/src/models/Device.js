@@ -2,7 +2,7 @@ const { DataTypes, Model } = require('sequelize');
 
 // A computer running the PRISM agent (8a), one per agent-managed Asset.
 // publicKey: the device's Ed25519 public key (raw, base64); every agent
-// request after enrolment is signed with its private half.
+// request after enrollment is signed with its private half.
 // inventory: what the Asset's own fields don't hold (disks, adapters,
 // domain, last boot, signed-in user, and assignedBy: 'agent' when the agent
 // set the Asset's assigned contact).

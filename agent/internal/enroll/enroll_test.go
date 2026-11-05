@@ -32,7 +32,7 @@ func fakePrism(t *testing.T, seen *client.EnrollRequest) *httptest.Server {
 		*seen = req
 		if req.EnrollKey != goodKey {
 			w.WriteHeader(401)
-			_, _ = w.Write([]byte(`{"error":true,"code":"ENROLL_KEY_INVALID","message":"That enrolment key is not valid"}`))
+			_, _ = w.Write([]byte(`{"error":true,"code":"ENROLL_KEY_INVALID","message":"That enrollment key is not valid"}`))
 			return
 		}
 		w.WriteHeader(201)
@@ -40,7 +40,7 @@ func fakePrism(t *testing.T, seen *client.EnrollRequest) *httptest.Server {
 	}))
 }
 
-// The tests enrol into a temporary folder as an ordinary user.
+// The tests enroll into a temporary folder as an ordinary user.
 func TestMain(m *testing.M) {
 	skipPrivilegeCheck = true
 	os.Exit(m.Run())
@@ -61,7 +61,7 @@ func TestEnrollingNeedsAdministratorOrRoot(t *testing.T) {
 	}
 }
 
-func TestEnrolmentSavesTheConfigAndKey(t *testing.T) {
+func TestEnrollmentSavesTheConfigAndKey(t *testing.T) {
 	defer keystore.AllowCurrentUserForTests()()
 	t.Setenv("PRISM_AGENT_DIR", t.TempDir())
 	var seen client.EnrollRequest

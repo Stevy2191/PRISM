@@ -6,7 +6,7 @@
     wix build -arch x64 -ext WixToolset.Util.wixext
       -d MsiVersion=0.6.0 -d BinDir=dist\windows-amd64 -o prism-agent.msi prism-agent.wxs
 
-  Silent install with enrolment (GPO, Intune, by hand):
+  Silent install with enrollment (GPO, Intune, by hand):
 
     msiexec /i prism-agent.msi /qn PRISM_URL=https://prism.example.com ENROLL_KEY=pk_enr_...
 
@@ -23,10 +23,10 @@
     (rolled back). ENROLL_KEY is a hidden property and the command line is
     hidden, so the key is never in the log, and it is never written to
     disk. A computer already enrolled with that PRISM is left as it is
-    (running enroll with its force option re-enrols), and self-updates
+    (running enroll with its force option re-enrolls), and self-updates
     pass no key.
   - C:\ProgramData\PRISM: SYSTEM and Administrators full control, users
-    read. Uninstall keeps it (the enrolment) unless REMOVE_DATA=1.
+    read. Uninstall keeps it (the enrollment) unless REMOVE_DATA=1.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
@@ -100,14 +100,14 @@
       <RegistryValue Root="HKLM" Key="Software\PRISM\Agent" Name="DataFolder" Type="string" Value="[DATADIR]" KeyPath="yes" />
     </Component>
 
-    <!-- Enrol once at install, as SYSTEM, before the service starts. -->
+    <!-- Enroll once at install, as SYSTEM, before the service starts. -->
     <SetProperty Id="EnrollAgent" Sequence="execute" Before="EnrollAgent"
                  Value="&quot;[#AgentExe]&quot; enroll --url &quot;[PRISM_URL]&quot; --key &quot;[ENROLL_KEY]&quot;"
                  Condition="PRISM_URL AND ENROLL_KEY AND NOT REMOVE" />
     <CustomAction Id="EnrollAgent" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
                   Execute="deferred" Return="check" Impersonate="no" HideTarget="yes" />
 
-    <!-- Uninstall with REMOVE_DATA=1 also forgets the enrolment. -->
+    <!-- Uninstall with REMOVE_DATA=1 also forgets the enrollment. -->
     <SetProperty Id="RemoveData" Sequence="execute" Before="RemoveData"
                  Value="&quot;[System64Folder]cmd.exe&quot; /c rmdir /s /q &quot;[DATADIR]&quot;"
                  Condition="REMOVE~=&quot;ALL&quot; AND REMOVE_DATA=&quot;1&quot; AND NOT UPGRADINGPRODUCTCODE" />

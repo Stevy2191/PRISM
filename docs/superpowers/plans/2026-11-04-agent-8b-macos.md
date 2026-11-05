@@ -5,7 +5,7 @@
 **Goal:** A Mac (macOS 13 or later, Apple silicon or Intel) gets the PRISM agent from one `.pkg` and one `sudo prism-agent enroll …` command. It appears as an Asset of its company with its hardware, OS, disks, network, installed apps, usual user and online status, kept current. Its menu-bar **Submit a ticket…** raises a ticket linked to that Asset, with a health snapshot. It updates itself, but only to builds signed by the install. Everything on the server side from 8a is reused; 8b adds the Mac agent, its package, and the Mac parts of the staff screens.
 
 **Architecture:**
-- **Same Go module** (`agent/`), same two programs. The Mac code lives in `_darwin.go` files beside the Windows ones. Everything that isn't platform-specific (signing, schedules, enrolment, `inventory.Assemble`, `ipc.Server`, `trayui`, `update.Updater`) is shared and already tested.
+- **Same Go module** (`agent/`), same two programs. The Mac code lives in `_darwin.go` files beside the Windows ones. Everything that isn't platform-specific (signing, schedules, enrollment, `inventory.Assemble`, `ipc.Server`, `trayui`, `update.Updater`) is shared and already tested.
 - **Service:** a launchd daemon (`/Library/LaunchDaemons/com.prism.agent.plist`), running `prism-agent run` as root.
 - **Tray:** `PRISM Agent.app` (a menu-bar app with no Dock icon), started for each user at sign-in by a LaunchAgent. The ticket window is a WKWebView showing the same `trayui` page as on Windows.
 - **Tray ↔ service:** a Unix socket at `/var/run/prism-agent.sock`. The service takes the user from the socket's peer credentials (`LOCAL_PEERCRED`), never from the message.
@@ -27,7 +27,7 @@
 
 ## Global Constraints
 
-Everything in 8a's Global Constraints still holds (read-and-report only, signed requests, per-company enrolment keys, agent-owned fields, no contacts created except the "Unknown tray user" placeholder, inventory as untrusted text, per-device rate limits). For the Mac, also:
+Everything in 8a's Global Constraints still holds (read-and-report only, signed requests, per-company enrollment keys, agent-owned fields, no contacts created except the "Unknown tray user" placeholder, inventory as untrusted text, per-device rate limits). For the Mac, also:
 
 - **Root only where it matters.** `/Library/Application Support/PRISM` is `root:wheel 0755`; the device key, the updates folder and anything with a secret in it are `0600` / `0700`, owned by root. The socket lives in `/var/run`, where only root can create files.
 - **No prompt the daemon can't answer.** The daemon runs with no user session. Nothing it does may raise a keychain, TCC or Gatekeeper prompt: it reads only what root can read without asking (no Full Disk Access needed).
@@ -107,7 +107,7 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 **As built (2026-11-04):**
 - **Parsing** (`macuser.go`, tested on every OS): `IsMacPerson` (uid 500 or above, not root, `_`-accounts, `loginwindow` or `_mbsetupuser`, and a name safe to pass as an argument), `ParseDsconfigad` (the "Active Directory Domain" line, lower-cased), `ParseDscl` (the first value of each attribute, including keys containing colons and values on a continuation line), `MacAccount` ("RIVERSIDE\\apatel" from the domain's first label, as Windows writes it; else the short name), and `MacUPN` (the directory's `userPrincipalName`, then `EMailAddress`, then `mail`; only a plain address).
 - **`user_darwin.go`:** the console user is the owner of `/dev/console`. `MacUserFor(uid)` is shared with Task 4's socket: it looks up the account and runs `dscl /Search -read /Users/<name> <attribute>` once per attribute, so a missing attribute doesn't hide the other. `/Search` covers the local accounts and a bound directory in one look-up, rather than naming the AD node.
-- **Key file:** `keystore.Load` now checks the file first (`checkFile`). On macOS and Linux it must be a plain file (not a symlink), with no group or other permission bits, owned by the user the agent runs as (root for the service). Otherwise it's refused with "enrol again". On Windows the check does nothing (the ACL and DPAPI protect the key). A normal user's `prism-agent status` reports the key as belonging to another user, as intended.
+- **Key file:** `keystore.Load` now checks the file first (`checkFile`). On macOS and Linux it must be a plain file (not a symlink), with no group or other permission bits, owned by the user the agent runs as (root for the service). Otherwise it's refused with "enroll again". On Windows the check does nothing (the ACL and DPAPI protect the key). A normal user's `prism-agent status` reports the key as belonging to another user, as intended.
 - **Tests:** people versus system accounts; bound and unbound; the UPN order and refusals; the key file (0600 accepted; 0644 and a symlink refused). Live on `macos-latest`: this process's user is identified, an unbound Mac gives a plain account name, and root is not a person.
 
 ### Task 4: The socket between the tray and the service
@@ -144,7 +144,7 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - Test: `agent/internal/service/service_darwin_test.go` (the plist it writes)
 
 - **Daemon:** `/Library/LaunchDaemons/com.prism.agent.plist`: `RunAtLoad`, `KeepAlive` (restarts after a crash, throttled to 30 s), stdout and stderr to `/Library/Logs/PRISM/agent.log` (rotated by size by the agent). `prism-agent service install|uninstall` writes or removes it and runs `launchctl bootstrap|bootout system`. `run` notices `SIGTERM` from launchd.
-- **Uninstall:** `sudo prism-agent uninstall` stops and removes the daemon and the LaunchAgent, the app and the binaries, and keeps the enrolment unless `--remove-data`. (A `.pkg` has no uninstaller of its own.)
+- **Uninstall:** `sudo prism-agent uninstall` stops and removes the daemon and the LaunchAgent, the app and the binaries, and keeps the enrollment unless `--remove-data`. (A `.pkg` has no uninstaller of its own.)
 - **Snapshot:** OS and build, uptime, memory in use (`vm_stat` and `hw.memsize`), free space per volume, the console user, the directory binding, IP addresses, agent version and time taken; shared `BuildSnapshot`.
 
 - [x] **Step 1: Failing tests:** the daemon plist runs `prism-agent run` as root with `KeepAlive`; `vm_stat` output parses to memory in use; the snapshot has the spec's fields.
@@ -217,10 +217,10 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - **Manifest:** `prism-agent-<version>-macos-universal.pkg`, listed for both `macos/amd64` and `macos/arm64` (one file, two entries), beside the two Windows entries.
 - **Install test** on `macos-latest` against `agent/tools/stubprism`:
   1. `sudo installer -pkg … -target /` succeeds; the daemon is loaded (`launchctl print system/com.prism.agent`).
-  2. `sudo prism-agent enroll` with a wrong key is refused and leaves no key file; with the right key it enrols, and a correctly signed heartbeat from the daemon reaches the stub.
+  2. `sudo prism-agent enroll` with a wrong key is refused and leaves no key file; with the right key it enrolls, and a correctly signed heartbeat from the daemon reaches the stub.
   3. The key file is `0600 root:wheel`; the socket is root's; a normal user's `prism-agent status` works and can't read the key.
   4. Enrolling again with the same PRISM changes nothing.
-  5. `sudo prism-agent uninstall` removes the daemon, the app and the binaries and keeps the enrolment; `--remove-data` removes it.
+  5. `sudo prism-agent uninstall` removes the daemon, the app and the binaries and keeps the enrollment; `--remove-data` removes it.
 
 - [x] **Step 1:** The install test above passes on `macos-latest`; the Windows job is unchanged; `agent-dist` holds three packages and one manifest.
 - [x] **Step 2: Commit** `ci(agent): build, package and test the Mac agent`
@@ -231,12 +231,12 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
   - The bundle version is the release's x.y.z; a dev build's run number goes in `CFBundleVersion`.
   - `pkgbuild` (identifier `com.prism.agent`, recommended ownership, the scripts), then `productbuild` with `distribution.xml` (macOS 13 or later, arm64 and x86_64, no customising), then `productsign` and `notarytool` and `stapler` when the installer identity and notary profile exist.
 - **The job files** `com.prism.agent.plist` and `com.prism.tray.plist` are checked in, and `TestThePackageShipsTheSameJobFiles` fails if they ever differ from what `service.DaemonPlist` and `TrayPlist` write.
-- **Scripts:** `preinstall` boots out the daemon. `postinstall` sets `root:wheel` and the modes, links `/usr/local/bin/prism-agent`, makes the logs folder, bootstraps the daemon, and restarts the console user's LaunchAgent, so an update replaces the running menu-bar app too. The package carries no enrolment, so one from before is kept.
+- **Scripts:** `preinstall` boots out the daemon. `postinstall` sets `root:wheel` and the modes, links `/usr/local/bin/prism-agent`, makes the logs folder, bootstraps the daemon, and restarts the console user's LaunchAgent, so an update replaces the running menu-bar app too. The package carries no enrollment, so one from before is kept.
 - **CI** (`agent.yml`): the `windows` job now uploads only its MSIs (`agent-dist-windows`). A new `macos` job uses the version step as Windows does, the optional Developer ID keychain and notary steps, `build.sh` and the install test, and uploads `agent-dist-macos`. A new `manifest` job joins both into `agent-dist` with one `manifest.json`: four entries, the universal `.pkg` listed for `macos/amd64` and `macos/arm64`. `docker-publish.yml` is unchanged.
 - **Install test** (`macos-latest`, against `stubprism`):
   - `installer -pkg`: the daemon is running; the link, app, both architectures and the stamped version are present.
   - A wrong key is refused, with no key file left.
-  - Enrolment, then `launchctl kickstart`, then a signed heartbeat at the stub.
+  - Enrollment, then `launchctl kickstart`, then a signed heartbeat at the stub.
   - The key is `root:wheel 600` and unreadable by the runner; the socket is root's; `status` as the runner shows device 1.
   - `whoami` over the socket with `nc -U` answers with the runner's own name although the message claims `EVIL\\boss`.
   - Re-enrolling changes nothing.
@@ -258,7 +258,7 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - **Asset Device tab:** "Joined to" reads "<domain> (Active Directory, bound with dsconfigad)" on a Mac; disks show "Internal" / "External"; the OS line reads "macOS 15.1 · build 24B83".
 - **Server:** no new endpoints; `GET /devices/packages` lists the Mac package once (it covers both architectures), with "Universal" in its label.
 
-- [x] **Step 1: Failing tests:** a Mac inventory fixture fills the Asset ("Apple", "MacBook Air (M3)", "macOS", "15.1 (24B83)", storage counted once); the Mac package is listed once and downloads for both architectures; the smoke test shows the macOS steps and the enrol command with the new key.
+- [x] **Step 1: Failing tests:** a Mac inventory fixture fills the Asset ("Apple", "MacBook Air (M3)", "macOS", "15.1 (24B83)", storage counted once); the Mac package is listed once and downloads for both architectures; the smoke test shows the macOS steps and the enroll command with the new key.
 - [x] **Step 2–4:** Run → FAIL; implement; run → PASS (with the `assets.*` and `companies.page` smokes).
 - [x] **Step 5: Commit** `feat(agent): the Mac on the Devices and Asset screens`
 
@@ -273,7 +273,7 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 - [x] **Step 1:** ROADMAP row 8 → "8b shipped to `dev`"; UPGRADING `## Unreleased`: installing on a Mac (the package, the Gatekeeper override once per Mac, `sudo prism-agent enroll`), uninstalling, that Macs are installed by hand until there's a Developer ID, and the network needs (as Windows).
 - [x] **Step 2:** Full backend and smoke suites, and the agent workflow (Windows and Mac jobs), all green.
 - [x] **Step 3:** Security review (Review Focus above), fix pass, commit, push to `dev`.
-- [ ] **Step 4:** Hand test by the owner on a real Mac (Apple silicon; and an Intel one if there is one), macOS 14 or 15: install with the override, enrol, the Asset appears with its apps, a menu-bar ticket arrives, an update installs itself, revoke stops it, uninstall cleans up.
+- [ ] **Step 4:** Hand test by the owner on a real Mac (Apple silicon; and an Intel one if there is one), macOS 14 or 15: install with the override, enroll, the Asset appears with its apps, a menu-bar ticket arrives, an update installs itself, revoke stops it, uninstall cleans up.
 
 **As built (2026-11-04):**
 - **Docs:** UPGRADING `## Unreleased` now covers Windows and macOS: installing on a Mac (Download for Mac, Open Anyway once, `sudo prism-agent enroll`, the full path to the binary), that Macs are installed by hand until there's a Developer ID, and uninstalling. ROADMAP row 8 has 8a and 8b on `dev`, waiting on hand tests, with 8c next.
@@ -286,11 +286,11 @@ Everything in 8a's Global Constraints still holds (read-and-report only, signed 
 ### After the owner's first try (2026-11-04)
 
 - **The tray said "The PRISM Agent service isn't running" while the service ran.** The tray's socket check required the socket's folder to be writable by its owner only, but macOS's `/var/run` is `root:daemon` 0775, so the tray refused the real service. The CI install test talked to the socket with `nc`, past that check, so it didn't catch this. Fix: `dirTrusted` allows a group-writable folder only when the group is a system one (gid 0 or 1), and still refuses one anyone can write to. There's a table test of the rule, and a new `prism-agent whoami` (the tray's exact path, run as yourself) that the Mac install test now runs as the normal user.
-- **Plain `http://` PRISM addresses are refused by `enroll`** (only `https://`, or `http://localhost`), by design: the enrolment key and the inventory would cross the network unencrypted.
+- **Plain `http://` PRISM addresses are refused by `enroll`** (only `https://`, or `http://localhost`), by design: the enrollment key and the inventory would cross the network unencrypted.
 
 ## Notes on the spec
 
 - **The device key is a root-only file, not the System keychain, for now.** A keychain item's access list trusts an app by its code signature. With ad-hoc signing (no Developer ID), every build has a different signature, so after each self-update the daemon would lose access to its own key and, having no user session, couldn't answer the prompt. A `0600 root:wheel` file is readable only by root, as the keychain item would be. When a Developer ID is bought, the key moves into the System keychain, trusted by the stable Team ID, in a later release.
-- **Enrolment after install, not inside it.** A `.pkg` can't take properties the way an MSI does, so `sudo prism-agent enroll` is a separate step, as the spec says. For MDM later (with a Developer ID), the package will also read a pre-placed `/Library/Application Support/PRISM/enroll.json`; not in 8b.
+- **Enrollment after install, not inside it.** A `.pkg` can't take properties the way an MSI does, so `sudo prism-agent enroll` is a separate step, as the spec says. For MDM later (with a Developer ID), the package will also read a pre-placed `/Library/Application Support/PRISM/enroll.json`; not in 8b.
 - **No `SPApplicationsDataType`.** The spec names "the installed-apps list". Reading the bundles in `/Applications` gives the same list in well under a second, where `system_profiler` takes tens of seconds and searches the whole disk.
 - **Model names without the year.** "MacBook Air (M3)" rather than the mockup's "MacBook Air (M3, 2024)": macOS gives the year only through Apple's online lookup or a table PRISM would have to maintain.

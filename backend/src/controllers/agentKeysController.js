@@ -1,4 +1,4 @@
-// A company's agent enrolment keys (8a): list, create (the secret is shown
+// A company's agent enrollment keys (8a): list, create (the secret is shown
 // once), revoke. Needs devices.manage (route) and the company in the caller's
 // reach.
 const { AgentEnrollmentKey, User } = require('../models');
@@ -44,11 +44,11 @@ const create = asyncHandler(async (req, res) => {
 });
 
 // POST /companies/:id/agent-keys/:keyId/revoke — computers already enrolled
-// with it keep working; only new enrolments stop.
+// with it keep working; only new enrollments stop.
 const revoke = asyncHandler(async (req, res) => {
   const company = await loadAccessibleCompany(req);
   const key = await AgentEnrollmentKey.findOne({ where: { id: parseRecordId(req.params.keyId) || 0, companyId: company.id } });
-  if (!key) throw new ApiError(404, 'Enrolment key not found', 'NOT_FOUND');
+  if (!key) throw new ApiError(404, 'Enrollment key not found', 'NOT_FOUND');
   if (!key.revokedAt) {
     await key.update({ revokedAt: new Date() });
     await writeAudit(req, 'agent.key_revoked', 'Company', company.id, { keyId: key.id, name: key.name });

@@ -35,7 +35,7 @@ router.post('/:id/m365/sync', canManagePortal, m365.sync);
 router.get('/:id/m365/detected-departments', canManagePortal, m365.listDetected);
 router.post('/:id/m365/detected-departments/:detectedId/map', canManagePortal, m365.mapDetected);
 router.post('/:id/m365/detected-departments/:detectedId/create', canManagePortal, m365.createFromDetected);
-// The PRISM agent (8a): the company's enrolment keys.
+// The PRISM agent (8a): the company's enrollment keys.
 const canManageDevices = requirePermission('devices.manage');
 router.get('/:id/agent-keys', canManageDevices, agentKeys.list);
 router.post('/:id/agent-keys', canManageDevices, agentKeys.create);

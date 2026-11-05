@@ -16,10 +16,11 @@ OS, disks, network, installed software and usual user current; people at
 the computer get **Submit a ticket** in the notification area or the menu
 bar. Linux (8c) follows before this is released as v0.5.0.
 
-**Database:** migrations 074 (devices, enrolment keys, installed software,
+**Database:** migrations 074 (devices, enrollment keys, installed software,
 the `agent` ticket source), 075 (the "Unknown tray user" placeholder
 contact), 076 (a checkout's own form, when it was printed, and its signed
-copy) and 077 (Scan now). They run on start; nothing to do.
+copy), 077 (Scan now) and 078 (the Manage devices permission's description,
+now spelled "enrollment"). They run on start; nothing to do.
 
 **Scan now:** an agent-managed Asset's page, and each computer on a
 company's Devices tab, has **Scan now** (for staff who can edit Assets or
@@ -39,13 +40,13 @@ their department; checking out to a contact, or the agent finding a new
 usual user, sets the Asset's department to theirs when they have one.
 
 **Permission:** a new **Manage devices** permission (`devices.manage`), given
-to System Administrator only. It lets staff create and revoke enrolment keys,
+to System Administrator only. It lets staff create and revoke enrollment keys,
 download the installer and revoke computers. Seeing a company's devices
 follows the Assets view permission and company access, as before.
 
 **Installing the agent:**
 
-1. Open a company → **Devices** → **New enrolment key**. Copy the install
+1. Open a company → **Devices** → **New enrollment key**. Copy the install
    command straight away: the full key is shown once.
 2. **Download for Windows (MSI)** on the same tab. The installer is served by
    your PRISM only (staff sign-in) and is never published anywhere else.
@@ -61,12 +62,12 @@ follows the Assets view permission and company access, as before.
 
    A wrong or revoked key fails the install. Running the installer again on
    a computer already enrolled with the same PRISM changes nothing. Uninstall
-   keeps the enrolment unless `REMOVE_DATA=1` is passed.
+   keeps the enrollment unless `REMOVE_DATA=1` is passed.
 
 **Installing the agent on a Mac** (macOS 13 or later, Apple silicon or
 Intel; sub-project 8b):
 
-1. Company → **Devices** → **New enrolment key**, then the **macOS** tab:
+1. Company → **Devices** → **New enrollment key**, then the **macOS** tab:
    **Download for Mac** gives one `.pkg` for every Mac.
 2. Open the package. The first time on each Mac, macOS stops it because it
    isn't signed with an Apple Developer ID (PRISM has none yet): open
@@ -86,7 +87,7 @@ network, apps and usual user; people get **Submit a ticket…** in the menu
 bar. Updates install themselves without asking. Macs are installed by
 hand, not by MDM, until there is a Developer ID (an unsigned package can't
 be deployed by most MDMs). To remove the agent:
-`sudo prism-agent uninstall` (keeps the enrolment, so reinstalling brings
+`sudo prism-agent uninstall` (keeps the enrollment, so reinstalling brings
 the same device back) or `sudo prism-agent uninstall --remove-data`.
 
 **Network:** agents only make outgoing HTTPS requests to `PUBLIC_APP_URL`
@@ -100,7 +101,7 @@ With your own (self-signed) certificate, push it to the computers' **Trusted
 Publishers** and **Trusted Root Certification Authorities** stores by Group
 Policy or Intune first, so SmartScreen and application control accept it.
 Self-updates don't depend on this: each PRISM signs its agent updates with
-its own key, which the agents learned at enrolment.
+its own key, which the agents learned at enrollment.
 
 **Updates:** a new PRISM image brings a new agent; enrolled computers are
 offered it at their next heartbeat (every 5 minutes) and update themselves.
