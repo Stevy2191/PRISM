@@ -131,9 +131,12 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 - **`prism-agent uninstall`** on Linux says which command removes the package (`sudo apt remove prism-agent`, `sudo dnf remove prism-agent`, `sudo pacman -R prism-agent`), and that purging (`apt purge`) or `--remove-data` also forgets the enrollment.
 - **Logs** go to the journal (`journalctl -u prism-agent`), so no log file and no rotation.
 
-- [ ] **Step 1: Failing tests:** the unit runs `prism-agent run` as root, restarts on failure, and allows writing only its data folder and `/run`.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): Linux systemd service`
+- [x] **Step 1: Failing tests:** the unit runs `prism-agent run` as root, restarts on failure, and allows writing only its data folder and `/run`.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): Linux systemd service`
+
+**As built (2026-11-05):** the unit is `service.Unit` in `systemd.go` (no build tag, tested everywhere); `packaging/linux/prism-agent.service` is generated from it by `go run ./tools/genunit`, and a test fails if they differ (kept LF by `.gitattributes`, as the Mac files are). Also `Wants`/`After=network-online.target`. `systemd-analyze verify` accepts it. `prism-agent uninstall` on a packaged install (the unit in `/usr/lib/systemd/system`) refuses and names the package manager's command (and `rm -rf /var/lib/prism-agent` for `--remove-data`); on a hand install it stops, disables and removes the unit, and the data folder with `--remove-data`.
+
 
 ### Task 5: Package formats on the server
 

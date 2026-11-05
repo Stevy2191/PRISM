@@ -3,3 +3,6 @@
 # included: macOS reads them as they are, and a test compares them byte for
 # byte with what the agent writes.
 agent/packaging/macos/** text eol=lf
+
+# The Linux packages' files: the same, for the systemd unit (8c).
+agent/packaging/linux/** text eol=lf

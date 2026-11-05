@@ -1,0 +1,21 @@
+# The PRISM Agent: reports this computer's inventory to PRISM and relays
+# tickets from the PRISM tray. Installed by the prism-agent package.
+[Unit]
+Description=PRISM Agent
+Documentation=https://github.com/Stevy2191/PRISM
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/prism-agent run
+Restart=on-failure
+RestartSec=30
+KillMode=mixed
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+ReadWritePaths=/var/lib/prism-agent /run
+
+[Install]
+WantedBy=multi-user.target

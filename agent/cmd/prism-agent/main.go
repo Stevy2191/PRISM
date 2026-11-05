@@ -5,7 +5,7 @@
 //	                          the Windows service runs this
 //	prism-agent collect --json   print what the inventory would send
 //	prism-agent status        enrollment and last contact
-//	prism-agent service install|uninstall   set the Windows service up by hand
+//	prism-agent service install|uninstall   set the service up by hand (Windows, or Linux without a package)
 //
 // Task 9 adds the tray; task 10 installs updates.
 package main
@@ -44,7 +44,7 @@ const usage = `prism-agent %s
   prism-agent collect --json
   prism-agent status
   prism-agent service install|uninstall
-  prism-agent uninstall [--remove-data]     (macOS; on Windows, the MSI)
+  prism-agent uninstall [--remove-data]     (macOS; Windows and Linux packages say how)
   prism-agent whoami     what the tray sees: run it as yourself, not root
   prism-agent version
 `
