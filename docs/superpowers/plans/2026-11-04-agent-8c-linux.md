@@ -163,9 +163,12 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
   - pacman: `pacman -U --noconfirm <file>`.
 - The package's own scripts restart the service. The updates folder is `/var/lib/prism-agent/updates` (0700, as on the other platforms).
 
-- [ ] **Step 1: Failing tests:** each format gives exactly its command on the checked path, wrapped in `systemd-run`; the shared refusals still pass on Linux.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): signed self-update on Linux`
+- [x] **Step 1: Failing tests:** each format gives exactly its command on the checked path, wrapped in `systemd-run`; the shared refusals still pass on Linux.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): signed self-update on Linux`
+
+**As built (2026-11-05):** `Updater.Format` (from `enroll.PackageFormat()`) names the downloaded file (`extFor`: .deb, .rpm, .pkg.tar.zst; Windows and Mac keep their one), and the Linux installer goes by the checked file's extension. The unit is `prism-agent-update-<version>` (characters other than letters, digits, `.` and `-` replaced), `--collect --quiet --setenv=DEBIAN_FRONTEND=noninteractive`. For `.deb`, apt keeps changed config files (`--force-confdef --force-confold`) rather than stop to ask; apt's default already refuses a downgrade (and the updater only takes newer versions). A relative path or another extension is refused.
+
 
 ### Task 7: The tray, the launcher and the ticket window
 

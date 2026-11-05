@@ -10,6 +10,9 @@ import (
 // The Mac's package (plan 8b, Task 6).
 const packageExt = ".pkg"
 
+// extFor: this platform has one package format.
+func extFor(string) string { return packageExt }
+
 // installCommand is always the system installer on the file the updater
 // checked; nothing from the offer goes into it.
 func installCommand(path string) []string {

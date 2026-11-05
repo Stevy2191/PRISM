@@ -13,6 +13,9 @@ import (
 
 const packageExt = ".msi"
 
+// extFor: this platform has one package format.
+func extFor(string) string { return packageExt }
+
 // The updates folder allows SYSTEM and Administrators only, so no user can
 // put or swap a file there between the check and msiexec. Reset each time.
 func prepareDir(dir string) error {

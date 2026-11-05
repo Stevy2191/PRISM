@@ -60,6 +60,10 @@ type Updater struct {
 	Platform  string // "windows"
 	Arch      string // runtime.GOARCH
 	Current   string // the running version
+	// Format is the package format this computer installs (msi, pkg; on
+	// Linux deb, rpm or pacman): it names the downloaded file, whose
+	// extension the Linux installer goes by.
+	Format string
 	// Install starts the installer for a checked package; it returns once
 	// the installer is launched (it restarts the service itself).
 	Install func(path, version string) error
@@ -224,7 +228,11 @@ func (u *Updater) apply(ctx context.Context, o Offer) error {
 	if err := prepareDir(u.Dir); err != nil {
 		return fmt.Errorf("the updates folder: %w", err)
 	}
-	final := filepath.Join(u.Dir, "prism-agent-"+o.Version+packageExt)
+	ext := extFor(u.Format)
+	if ext == "" {
+		return fmt.Errorf("this computer's package format (%q) has no installer", u.Format)
+	}
+	final := filepath.Join(u.Dir, "prism-agent-"+o.Version+ext)
 	partial := final + ".partial"
 	_ = os.Remove(partial)
 	_ = os.Remove(final)

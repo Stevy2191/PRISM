@@ -48,7 +48,7 @@ func newRig(t *testing.T) *rig {
 	r := &rig{t: t, key: key, srv: &served{}}
 	r.u = &Updater{
 		PRISM: r.srv, Dir: t.TempDir(), PublicKey: base64.StdEncoding.EncodeToString(key.Public().(ed25519.PublicKey)),
-		Platform: "windows", Arch: "amd64", Current: "0.6.0",
+		Platform: "windows", Arch: "amd64", Current: "0.6.0", Format: "deb",
 		Install: func(path, version string) error {
 			b, _ := os.ReadFile(path)
 			r.installed = append(r.installed, version+":"+string(b))

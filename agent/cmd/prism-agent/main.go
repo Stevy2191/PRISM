@@ -161,7 +161,7 @@ func work(ctx context.Context, logf func(string, ...any)) {
 func jobs(cfg *config.Config, c *client.Client, logf func(string, ...any)) []schedule.Job {
 	updater := &update.Updater{
 		PRISM: c, Dir: filepath.Join(config.Dir(), "updates"), PublicKey: cfg.UpdatePublicKey,
-		Platform: enroll.Platform(), Arch: runtime.GOARCH, Current: version.Version,
+		Platform: enroll.Platform(), Arch: runtime.GOARCH, Current: version.Version, Format: enroll.PackageFormat(),
 		Install: update.PlatformInstall, Logf: logf,
 	}
 	// PRISM's Scan now: the heartbeat's answer asks for an inventory, which
