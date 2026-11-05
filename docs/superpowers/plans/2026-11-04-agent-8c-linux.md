@@ -17,7 +17,7 @@
 **Tech Stack:**
 - **Agent:** Go 1.24 as before; `fyne.io/systray` (Linux: D-Bus StatusNotifierItem, no cgo), `github.com/webview/webview_go` (WebKitGTK 4.1, cgo), `golang.org/x/sys/unix` (`SO_PEERCRED`, `statfs`). Tools the distributions ship: `loginctl`, `realm`, `lsblk`, `dpkg-query`/`apt-mark`, `rpm`/`dnf`, `pacman`, and optionally `flatpak` and `snap`.
 - **Packaging:** nfpm (one `nfpm.yaml`, three packagers), on `ubuntu-22.04` (x86_64) and `ubuntu-22.04-arm` (arm64) runners.
-- **Backend and frontend:** migration 076 (`Devices.packageFormat`), nothing else new.
+- **Backend and frontend:** migration 078 (`Devices.packageFormat`), nothing else new (076 and 077 went to checkout forms and Scan now, 2026-11-04).
 
 **Spec:** `docs/superpowers/specs/2026-11-03-agent-inventory-tray-design.md` (the Per platform table, Linux distributions, Updates)
 **Plans 8a and 8b:** `docs/superpowers/plans/2026-11-03-agent-8a-server-windows.md`, `docs/superpowers/plans/2026-11-04-agent-8b-macos.md`
@@ -127,7 +127,7 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 ### Task 5: Package formats on the server
 
 **Files:**
-- Create: `backend/migrations/20260101000076-agent-package-format.js` (`Devices.packageFormat` ENUM `msi`, `pkg`, `deb`, `rpm`, `pacman`, null)
+- Create: `backend/migrations/20260101000078-agent-package-format.js` (`Devices.packageFormat` ENUM `msi`, `pkg`, `deb`, `rpm`, `pacman`, null)
 - Modify: `backend/src/services/agent/enrollment.js` and `routes/agent.js` (the agent sends `packageFormat` at enrolment and on each heartbeat; Windows `msi`, macOS `pkg`), `backend/src/services/agent/updates.js` (manifest entries gain `format`; `latestPackage(platform, arch, format)`; Windows and Mac entries without one keep working), `backend/src/controllers/devicesController.js` (the packages list and download by format)
 - Modify: `agent/internal/enroll/enroll.go` and the heartbeat (send the format: from `/etc/os-release` `ID` and `ID_LIKE` on Linux, together with which package manager exists)
 - Test: `backend/test/integration/agent.update.test.js`, `agent.staff.test.js`, `agent.model.test.js` (the migration's round trip), `agent/internal/enroll/enroll_test.go`
@@ -228,11 +228,11 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 - [ ] **Step 2:** Full backend and smoke suites, and the agent workflow (Windows, macOS, Linux), all green.
 - [ ] **Step 3:** Security review (Review Focus above), fix pass, commit, push to `dev`.
 - [ ] **Step 4:** The owner's hand test on Ubuntu 24.04, Fedora (current) and Arch (with KDE or GNOME): install, enrol, the Asset appears with its software, a ticket from the tray or the launcher, an update installs itself, revoke stops it, removal cleans up. A server install (no desktop) appears Online with no tray.
-- [ ] **Step 5:** With 8a's, 8b's and 8c's hand tests passed: fold `## Unreleased` into `## v0.5.0` in UPGRADING (with "Before upgrading": migrations 074 to 076, nothing else required), merge `dev` into `main`, and tag `v0.5.0` (the owner pushes the tag, as for v0.4.0). The release builds the agent packages from the tag (version 0.5.0), so every enrolled computer updates to the release.
+- [ ] **Step 5:** With 8a's, 8b's and 8c's hand tests passed: fold `## Unreleased` into `## v0.5.0` in UPGRADING (with "Before upgrading": migrations 074 to 078, nothing else required), merge `dev` into `main`, and tag `v0.5.0` (the owner pushes the tag, as for v0.4.0). The release builds the agent packages from the tag (version 0.5.0), so every enrolled computer updates to the release.
 
 ## Notes on the spec
 
 - **Software is what a person installed.** The spec says "dpkg/rpm/pacman". Listing every package would fill the Software tab with libraries (around 2,000 on a default Ubuntu desktop, sometimes past PRISM's 5,000 cap on a busy server). The packages marked as explicitly installed, plus Flatpak and Snap apps, are the applications staff look for. The cut can be revisited if staff want the full list.
 - **Package signing.** The spec says Linux packages are "signed with a GPG key PRISM generates", whose public key apt, dnf and pacman trust. But installing a downloaded file (`apt install ./x.deb`, `dnf install ./x.rpm`, `pacman -U x.pkg.tar.zst`) doesn't check a repository signature by default, and updates are protected by PRISM's own signature as on Windows and macOS. So 8c signs the packages when a CI key exists and publishes its public key, without making signing a requirement. A real repository (`apt`/`dnf` sources pointing at PRISM) would need the key and is left for later.
-- **A package format per device.** The spec's manifest is platform and architecture. Linux needs the format too, so a Fedora computer is never offered a `.deb`: migration 076 and Task 5.
+- **A package format per device.** The spec's manifest is platform and architecture. Linux needs the format too, so a Fedora computer is never offered a `.deb`: migration 078 and Task 5.
 - **One tray build for all three distributions,** linked against WebKitGTK 4.1 and GTK 3. These are on Ubuntu 22.04 and later, current Fedora and Arch, the spec's versions. The libraries are weak dependencies (Task 8), so a server without a desktop installs the service alone.
