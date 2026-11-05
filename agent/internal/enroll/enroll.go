@@ -74,7 +74,7 @@ func Run(ctx context.Context, rawURL, enrollKey string, hw Hardware) (*config.Co
 	resp, err := c.Enroll(ctx, client.EnrollRequest{
 		EnrollKey: strings.TrimSpace(enrollKey), PublicKey: client.PublicKeyB64(key),
 		Platform: Platform(), Arch: runtime.GOARCH, AgentVersion: version.Version, Hostname: host,
-		SerialNumber: hw.SerialNumber, Make: hw.Make, Model: hw.Model,
+		SerialNumber: hw.SerialNumber, Make: hw.Make, Model: hw.Model, PackageFormat: PackageFormat(),
 	})
 	if err != nil {
 		return nil, err

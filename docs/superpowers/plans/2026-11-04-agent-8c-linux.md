@@ -146,9 +146,12 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 - Modify: `agent/internal/enroll/enroll.go` and the heartbeat (send the format: from `/etc/os-release` `ID` and `ID_LIKE` on Linux, together with which package manager exists)
 - Test: `backend/test/integration/agent.update.test.js`, `agent.staff.test.js`, `agent.model.test.js` (the migration's round trip), `agent/internal/enroll/enroll_test.go`
 
-- [ ] **Step 1: Failing tests:** a `deb` device is offered the newest `.deb` and never an `.rpm` of a higher version; a device that hasn't said its format (enrolled with 8a's agent) on Linux is offered nothing; Windows and Mac offers are unchanged; the signed text stays `platform|arch|version|sha256` (the sha256 already pins the file); the packages list has one Linux entry per format and architecture; the migration rolls back and forward.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): package formats for Linux updates`
+- [x] **Step 1: Failing tests:** a `deb` device is offered the newest `.deb` and never an `.rpm` of a higher version; a device that hasn't said its format (enrolled with 8a's agent) on Linux is offered nothing; Windows and Mac offers are unchanged; the signed text stays `platform|arch|version|sha256` (the sha256 already pins the file); the packages list has one Linux entry per format and architecture; the migration rolls back and forward.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): package formats for Linux updates`
+
+**As built (2026-11-05):** `Devices.packageFormat` is a STRING(10) (not an ENUM: the allowed values live in `updates.FORMATS`, per platform), migration 079. A format that isn't the device's platform's is ignored at enrollment and on heartbeat, never stored. `latestPackage(platform, arch, format)` defaults to the platform's one format for Windows (msi) and macOS (pkg); Linux has no default, so an agent that hasn't said is offered nothing. Manifest entries without `format` count as msi/pkg. Staff downloads: `/devices/packages/linux/:arch?format=deb|rpm|pacman` (400 without it). The agent decides with `enroll.LinuxPackageFormat` (ID, then ID_LIKE: debian/ubuntu → deb, fedora/rhel/centos → rpm, arch → pacman; else whichever of dpkg-query, pacman, rpm is installed) and sends it at enrollment and on every heartbeat. The two migration round-trip tests re-apply 079 after rebuilding Devices.
+
 
 ### Task 6: Self-update on Linux
 

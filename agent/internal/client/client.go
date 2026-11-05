@@ -279,6 +279,9 @@ type EnrollRequest struct {
 	SerialNumber string `json:"serialNumber,omitempty"`
 	Make         string `json:"make,omitempty"`
 	Model        string `json:"model,omitempty"`
+	// The package format this computer installs (msi, pkg, deb, rpm,
+	// pacman): PRISM offers updates in it only (8c).
+	PackageFormat string `json:"packageFormat,omitempty"`
 }
 
 // EnrollResponse is its answer.

@@ -14,6 +14,7 @@ const {
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { suggestNextAssetTag } = require('../assetTagService');
+const { validFormat } = require('./updates');
 
 const KEY_PREFIX = 'pk_enr_';
 const INTERVALS = { heartbeatSec: 300, inventorySec: 6 * 3600 };
@@ -64,6 +65,9 @@ function parseEnrollment(body) {
     serialNumber: str(b.serialNumber, 150),
     make: str(b.make, 100),
     model: str(b.model, 100),
+    // The package format it installs (8c); one not of its platform is left
+    // unknown rather than trusted.
+    packageFormat: validFormat(b.platform, b.packageFormat) ? b.packageFormat : null,
   };
 }
 
@@ -128,6 +132,7 @@ async function attemptEnrollment(p, key) {
       arch: p.arch,
       agentVersion: p.agentVersion,
       hostname: p.hostname,
+      packageFormat: p.packageFormat,
       revokedAt: null,
       lastSeenAt: new Date(),
     };

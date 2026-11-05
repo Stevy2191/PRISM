@@ -19,8 +19,10 @@ bar. Linux (8c) follows before this is released as v0.5.0.
 **Database:** migrations 074 (devices, enrollment keys, installed software,
 the `agent` ticket source), 075 (the "Unknown tray user" placeholder
 contact), 076 (a checkout's own form, when it was printed, and its signed
-copy), 077 (Scan now) and 078 (the Manage devices permission's description,
-now spelled "enrollment"). They run on start; nothing to do.
+copy), 077 (Scan now), 078 (the Manage devices permission's description,
+now spelled "enrollment") and 079 (each computer's package format, so a
+Linux computer is only offered updates in its own: .deb, .rpm or pacman).
+They run on start; nothing to do.
 
 **Scan now:** an agent-managed Asset's page, and each computer on a
 company's Devices tab, has **Scan now** (for staff who can edit Assets or

@@ -13,7 +13,9 @@ const { applyInventory } = require('../services/agent/inventory');
 const { ApiError } = require('../middleware/error');
 const { enroll, INTERVALS } = require('../services/agent/enrollment');
 const { whoami, raiseTrayTicket } = require('../services/agent/trayTickets');
-const { updateKey, updateFor, latestPackage } = require('../services/agent/updates');
+const {
+  updateKey, updateFor, latestPackage, formatOf, validFormat,
+} = require('../services/agent/updates');
 
 const router = express.Router();
 
@@ -29,16 +31,20 @@ router.post('/v1/enroll', agentEnrollLimiter, asyncHandler(async (req, res) => {
   });
 }));
 
-// POST /agent/v1/heartbeat { agentVersion, signedInUser? } → { update, scan }
+// POST /agent/v1/heartbeat { agentVersion, signedInUser?, packageFormat? } → { update, scan }
 // "I'm here": sets last seen and the running version. `update` says whether
 // a newer signed build is waiting (task 6); `scan`, that staff asked for a
 // fresh inventory (Scan now), which the agent then sends at once.
 router.post('/v1/heartbeat', agentAuthenticate, agentHeartbeatLimiter, asyncHandler(async (req, res) => {
-  const { agentVersion, signedInUser } = req.body || {};
+  const { agentVersion, signedInUser, packageFormat } = req.body || {};
   if (typeof agentVersion !== 'string' || !/^[0-9A-Za-z.+-]{1,50}$/.test(agentVersion)) {
     throw new ApiError(400, 'agentVersion is not valid', 'VALIDATION_ERROR');
   }
   const changes = { lastSeenAt: new Date(), agentVersion };
+  // The package format it installs (8c): kept current, so a computer moved
+  // to another distribution, or an agent updated from before 8c, says so.
+  // One that isn't this platform's is ignored, not trusted.
+  if (validFormat(req.device.platform, packageFormat)) changes.packageFormat = packageFormat;
   const account = signedInUser && typeof signedInUser.account === 'string' ? signedInUser.account.trim().slice(0, 255) : null;
   if (account !== null) changes.inventory = { ...(req.device.inventory || {}), signedInUser: { account } };
   await req.device.update(changes);
@@ -87,7 +93,7 @@ router.get('/v1/update', agentAuthenticate, agentReadLimiter, asyncHandler(async
 // package is public). The agent checks the sha256 and the signature from
 // GET /v1/update before installing.
 router.get('/v1/update/download', agentAuthenticate, agentDownloadLimiter, asyncHandler(async (req, res) => {
-  const pkg = latestPackage(req.device.platform, req.device.arch);
+  const pkg = latestPackage(req.device.platform, req.device.arch, formatOf(req.device));
   if (!pkg) throw new ApiError(404, 'The agent package is not available', 'NOT_FOUND');
   res.set('X-Prism-Version', pkg.version);
   res.set('X-Prism-Sha256', pkg.sha256);

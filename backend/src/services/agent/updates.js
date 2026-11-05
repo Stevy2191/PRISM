@@ -8,8 +8,10 @@
 //
 // The packages come from the CI build, in AGENT_DIST_DIR (default
 // /app/agent-dist) with a manifest.json:
-//   [{ "platform": "windows", "arch": "amd64", "version": "0.6.0",
+//   [{ "platform": "windows", "arch": "amd64", "format": "msi", "version": "0.6.0",
 //      "file": "prism-agent-0.6.0-windows-amd64.msi", "sha256": "…" }]
+// `format` is the package format (msi, pkg, deb, rpm, pacman). Windows and
+// Mac entries may leave it out (each has one format); Linux ones must say.
 // PRISM signs `platform|arch|version|sha256` only after checking the file
 // on disk has that sha256, so a manifest that lies gets nothing signed.
 // Downloads are signed device requests too: no package is public.
@@ -118,11 +120,26 @@ function fileSha256(file) {
   return { sha256, size: st.size };
 }
 
-// The newest package for a platform and arch, checked on disk; null when
-// none is listed. Listed but missing, or not the bytes the manifest says,
-// is a 404: nothing is signed for it.
-function latestPackage(platform, arch) {
+// Each platform's package formats; the first is the one a Windows or Mac
+// device has when its agent hasn't said (before 8c). Linux has no default:
+// a Linux device that hasn't said is offered nothing.
+const FORMATS = { windows: ['msi'], macos: ['pkg'], linux: ['deb', 'rpm', 'pacman'] };
+const defaultFormat = (platform) => (platform === 'linux' ? null : (FORMATS[platform] || [])[0] || null);
+const validFormat = (platform, format) => (FORMATS[platform] || []).includes(format);
+
+// The format a device installs: what it said, or its platform's only one.
+function formatOf(device) {
+  if (device && validFormat(device.platform, device.packageFormat)) return device.packageFormat;
+  return device ? defaultFormat(device.platform) : null;
+}
+
+// The newest package for a platform, arch and format, checked on disk;
+// null when none is listed (or no format is known). Listed but missing, or
+// not the bytes the manifest says, is a 404: nothing is signed for it.
+function latestPackage(platform, arch, format = defaultFormat(platform)) {
+  if (!format || !validFormat(platform, format)) return null;
   const candidates = readManifest().filter((e) => e && e.platform === platform && e.arch === arch
+    && (e.format || defaultFormat(platform)) === format
     && typeof e.file === 'string' && FILE_NAME.test(e.file) && VERSION.test(e.version || '') && SHA256.test(e.sha256 || ''));
   candidates.sort((a, b) => compareVersions(b.version, a.version));
   const best = candidates[0];
@@ -137,7 +154,7 @@ function latestPackage(platform, arch) {
   }
   if (actual.sha256 !== best.sha256) throw unavailable();
   return {
-    platform, arch, version: best.version, sha256: best.sha256, size: actual.size, file,
+    platform, arch, format, version: best.version, sha256: best.sha256, size: actual.size, file,
   };
 }
 
@@ -146,7 +163,7 @@ const signedText = (p) => `${p.platform}|${p.arch}|${p.version}|${p.sha256}`;
 // The update offer for a device, or null when it is up to date (or there is
 // nothing to offer): { version, sha256, size, signature }.
 async function updateFor(device) {
-  const pkg = latestPackage(device.platform, device.arch);
+  const pkg = latestPackage(device.platform, device.arch, formatOf(device));
   if (!pkg || compareVersions(pkg.version, device.agentVersion) <= 0) return null;
   const key = await updateKey();
   return {
@@ -155,5 +172,5 @@ async function updateFor(device) {
 }
 
 module.exports = {
-  updateKey, updateFor, latestPackage, compareVersions, signedText, KEY_SETTING,
+  updateKey, updateFor, latestPackage, compareVersions, signedText, KEY_SETTING, FORMATS, formatOf, validFormat,
 };

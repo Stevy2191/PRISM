@@ -27,6 +27,9 @@ module.exports = (sequelize) => {
       // Scan now: set by staff, answered by the next heartbeat, cleared by
       // the inventory that follows.
       scanRequestedAt: { type: DataTypes.DATE, allowNull: true },
+      // The package format this computer installs (msi, pkg, deb, rpm,
+      // pacman); null from an agent before 8c. Updates are offered in it only.
+      packageFormat: { type: DataTypes.STRING(10), allowNull: true },
       revokedAt: { type: DataTypes.DATE, allowNull: true },
       inventory: { type: DataTypes.JSON, allowNull: true },
     },

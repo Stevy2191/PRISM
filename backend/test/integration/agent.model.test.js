@@ -6,7 +6,10 @@ const { makeWorld, makeTicket, makeCompany } = require('./fixtures');
 const migration = require('../../migrations/20260101000074-agent');
 // Later migrations that add to the tables 074 makes: re-applied after its
 // round trip, which recreates those tables without them.
-const later = [require('../../migrations/20260101000077-device-scan-request')];
+const later = [
+  require('../../migrations/20260101000077-device-scan-request'),
+  require('../../migrations/20260101000079-agent-package-format'),
+];
 
 // Sub-project 8a, task 1: devices, enrollment keys, software, nonces, the
 // agent ticket source and the devices.manage permission.

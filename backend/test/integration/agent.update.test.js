@@ -26,12 +26,15 @@ const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 function publish(entries) {
   fs.writeFileSync(path.join(dist, 'manifest.json'), JSON.stringify(entries));
 }
-function pkg(version, { platform = 'windows', arch = 'amd64', bytes } = {}) {
-  const file = `prism-agent-${version}-${platform}-${arch}.msi`;
-  const data = bytes || Buffer.from(`MSI ${version} ${platform} ${arch}`);
+function pkg(version, {
+  platform = 'windows', arch = 'amd64', bytes, format,
+} = {}) {
+  const ext = format || 'msi';
+  const file = `prism-agent-${version}-${platform}-${arch}.${ext}`;
+  const data = bytes || Buffer.from(`${ext} ${version} ${platform} ${arch}`);
   fs.writeFileSync(path.join(dist, file), data);
   return {
-    platform, arch, version, file, sha256: sha(data),
+    platform, arch, version, file, sha256: sha(data), ...(format ? { format } : {}),
   };
 }
 const verifies = (publicKeyB64, text, sigB64) => crypto.verify(
@@ -150,6 +153,45 @@ it('the download streams the package only to a signed device request', async () 
   // A revoked device gets nothing.
   await models.Device.update({ revokedAt: new Date() }, { where: { id: client.deviceId } });
   expect((await client.get(DOWNLOAD)).status).toBe(401);
+});
+
+it('Linux: a computer is offered its own package format only, and nothing until it says which', async () => {
+  publish([
+    pkg('0.6.0', { platform: 'linux', format: 'deb' }), pkg('0.5.5', { platform: 'linux', format: 'deb' }),
+    pkg('0.9.0', { platform: 'linux', format: 'rpm' }), pkg('0.8.0', { platform: 'linux', format: 'pacman' }),
+  ]);
+  // Enrolled saying deb: the newest .deb, never the higher .rpm.
+  const { client: ubuntu, updatePublicKey } = await enroll({ platform: 'linux', packageFormat: 'deb' });
+  const offer = (await ubuntu.get(UPDATE)).body;
+  expect(offer.version).toBe('0.6.0');
+  expect(verifies(updatePublicKey, `linux|amd64|0.6.0|${offer.sha256}`, offer.signature)).toBe(true);
+  const dl = await ubuntu.get('/api/v1/agent/v1/update/download');
+  expect(dl.headers['x-prism-version']).toBe('0.6.0');
+  expect(dl.headers['content-disposition']).toMatch(/\.deb"$/);
+
+  // Enrolled by an agent from before 8c (no format): offered nothing.
+  const { client: old } = await enroll({ platform: 'linux' });
+  expect((await old.get(UPDATE)).status).toBe(204);
+  expect((await old.post(HB, { agentVersion: '0.5.0' })).body.update).toBeNull();
+  // Once its heartbeat says rpm, the newest .rpm.
+  resetRateLimits();
+  const hb = await old.post(HB, { agentVersion: '0.5.0', packageFormat: 'rpm' });
+  expect(hb.body.update.version).toBe('0.9.0');
+
+  // A format that isn't Linux's is ignored, not stored.
+  resetRateLimits();
+  await old.post(HB, { agentVersion: '0.5.0', packageFormat: 'msi' });
+  expect((await models.Device.findByPk(old.deviceId)).packageFormat).toBe('rpm');
+  const { client: odd } = await enroll({ platform: 'linux', packageFormat: 'exe' });
+  expect((await models.Device.findByPk(odd.deviceId)).packageFormat).toBeNull();
+});
+
+it('Windows and Mac are offered their one format, said or not', async () => {
+  publish([pkg('0.6.0'), pkg('0.7.0', { platform: 'macos', arch: 'arm64', format: 'pkg' })]);
+  const { client: win } = await enroll({ packageFormat: 'msi' });
+  expect((await win.get(UPDATE)).body.version).toBe('0.6.0');
+  const { client: mac } = await enroll({ platform: 'macos', arch: 'arm64' });
+  expect((await mac.get(UPDATE)).body.version).toBe('0.7.0');
 });
 
 it('versions compare by number, with a pre-release before its release', () => {

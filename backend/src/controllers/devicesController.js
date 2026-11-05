@@ -13,7 +13,9 @@ const { parseRecordId, canAccessCompany } = require('../services/permissionServi
 const { parsePagination, paginated } = require('../utils/pagination');
 const { escapeLike } = require('../utils/escapeLike');
 const { loadAccessibleCompany } = require('./companiesController');
-const { latestPackage, compareVersions } = require('../services/agent/updates');
+const {
+  latestPackage, compareVersions, formatOf, FORMATS, validFormat,
+} = require('../services/agent/updates');
 const { logAssetActivity } = require('../services/assetActivity');
 
 // Online: checked in within 10 minutes (two missed heartbeats). Stale: not
@@ -49,10 +51,10 @@ const osLabel = (inv) => {
   return [os.edition || os.name, os.version].filter(Boolean).join(' ') || null;
 };
 
-// A newer package for this device's platform and arch is waiting.
+// A newer package for this device's platform, arch and format is waiting.
 function updatePending(d) {
   try {
-    const pkg = latestPackage(d.platform, d.arch);
+    const pkg = latestPackage(d.platform, d.arch, formatOf(d));
     return !!pkg && compareVersions(pkg.version, d.agentVersion) > 0;
   } catch (err) {
     return false;
@@ -211,24 +213,27 @@ const requestScan = asyncHandler(async (req, res) => {
 });
 
 // GET /devices/packages → the installers this PRISM can hand out, one entry
-// per file: { platform, arch, arches, universal, version, size, file }. The
-// Mac's universal .pkg covers amd64 and arm64 and is listed once.
+// per file: { platform, arch, arches, universal, format, version, size, file }.
+// The Mac's universal .pkg covers amd64 and arm64 and is listed once; Linux
+// has one entry per format (deb, rpm, pacman) and architecture.
 const listPackages = asyncHandler(async (req, res) => {
   const packages = [];
   for (const platform of PLATFORMS) {
-    for (const arch of ARCHES) {
-      let pkg = null;
-      try { pkg = latestPackage(platform, arch); } catch (err) { pkg = null; }
-      if (pkg) {
-        const file = path.basename(pkg.file);
-        const same = packages.find((p) => p.platform === platform && p.file === file);
-        if (same) {
-          same.arches.push(arch);
-          same.universal = true;
-        } else {
-          packages.push({
-            platform, arch, arches: [arch], universal: false, version: pkg.version, size: pkg.size, file,
-          });
+    for (const format of FORMATS[platform]) {
+      for (const arch of ARCHES) {
+        let pkg = null;
+        try { pkg = latestPackage(platform, arch, format); } catch (err) { pkg = null; }
+        if (pkg) {
+          const file = path.basename(pkg.file);
+          const same = packages.find((p) => p.platform === platform && p.format === format && p.file === file);
+          if (same) {
+            same.arches.push(arch);
+            same.universal = true;
+          } else {
+            packages.push({
+              platform, arch, arches: [arch], universal: false, format, version: pkg.version, size: pkg.size, file,
+            });
+          }
         }
       }
     }
@@ -236,14 +241,20 @@ const listPackages = asyncHandler(async (req, res) => {
   res.json({ packages });
 });
 
-// GET /devices/packages/:platform/:arch → the installer itself (staff only;
-// never published anywhere else — owner, 2026-11-03).
+// GET /devices/packages/:platform/:arch?format= → the installer itself
+// (staff only; never published anywhere else — owner, 2026-11-03). Linux
+// needs the format (deb, rpm or pacman); Windows and Mac have one each.
 const downloadPackage = asyncHandler(async (req, res) => {
   const { platform, arch } = req.params;
   if (!PLATFORMS.includes(platform) || !ARCHES.includes(arch)) throw new ApiError(404, 'No such installer', 'NOT_FOUND');
-  const pkg = latestPackage(platform, arch);
+  const format = req.query.format === undefined ? FORMATS[platform][0] : req.query.format;
+  if (!validFormat(platform, format)) throw new ApiError(404, 'No such installer', 'NOT_FOUND');
+  if (platform === 'linux' && req.query.format === undefined) throw new ApiError(400, 'Say which package: format=deb, rpm or pacman', 'VALIDATION_ERROR');
+  const pkg = latestPackage(platform, arch, format);
   if (!pkg) throw new ApiError(404, 'No installer for that platform yet', 'NOT_FOUND');
-  await writeAudit(req, 'agent.installer_downloaded', 'Device', null, { platform, arch, version: pkg.version });
+  await writeAudit(req, 'agent.installer_downloaded', 'Device', null, {
+    platform, arch, format, version: pkg.version,
+  });
   res.set('X-Prism-Sha256', pkg.sha256);
   await new Promise((resolve, reject) => {
     res.download(pkg.file, path.basename(pkg.file), { dotfiles: 'deny' }, (err) => (err && !res.headersSent ? reject(err) : resolve()));

@@ -167,6 +167,9 @@ func jobs(cfg *config.Config, c *client.Client, logf func(string, ...any)) []sch
 	// PRISM's Scan now: the heartbeat's answer asks for an inventory, which
 	// then runs at once rather than at its next turn.
 	scanNow := make(chan struct{}, 1)
+	// Sent on every heartbeat, so PRISM learns it from an agent enrolled
+	// before 8c, and offers updates in this format only.
+	format := enroll.PackageFormat()
 	return []schedule.Job{
 		{
 			Name: "heartbeat", Interval: cfg.Heartbeat(), RetryBase: 30 * time.Second,
@@ -175,7 +178,7 @@ func jobs(cfg *config.Config, c *client.Client, logf func(string, ...any)) []sch
 					Update *update.Offer `json:"update"`
 					Scan   bool          `json:"scan"`
 				}
-				_, err := c.Do(ctx, "POST", "/api/v1/agent/v1/heartbeat", map[string]any{"agentVersion": version.Version}, &out)
+				_, err := c.Do(ctx, "POST", "/api/v1/agent/v1/heartbeat", map[string]any{"agentVersion": version.Version, "packageFormat": format}, &out)
 				if err == nil && out.Scan {
 					select {
 					case scanNow <- struct{}{}:

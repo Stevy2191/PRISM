@@ -218,7 +218,7 @@ it('installers: listed and downloaded by staff with devices.manage only', async 
   }]));
   const list = await w.admin.agent.get(`${API}/devices/packages`).expect(200);
   expect(list.body.packages).toEqual([{
-    platform: 'windows', arch: 'amd64', arches: ['amd64'], universal: false, version: '0.6.0', size: 2048, file,
+    platform: 'windows', arch: 'amd64', arches: ['amd64'], universal: false, format: 'msi', version: '0.6.0', size: 2048, file,
   }]);
   const dl = await w.admin.agent.get(`${API}/devices/packages/windows/amd64`).buffer(true).parse((r, cb) => {
     const chunks = [];
@@ -238,6 +238,27 @@ it('installers: listed and downloaded by staff with devices.manage only', async 
   expect((await request(getApp()).get(`${API}/devices/packages/windows/amd64`)).status).toBe(401);
 });
 
+it('Linux installers: one per format and architecture, downloaded by format', async () => {
+  const entries = [];
+  for (const [format, arch] of [['deb', 'amd64'], ['deb', 'arm64'], ['rpm', 'amd64'], ['pacman', 'amd64']]) {
+    const bytes = Buffer.from(`${format} ${arch}`);
+    const file = `prism-agent-0.6.0-linux-${arch}.${format === 'pacman' ? 'pkg.tar.zst' : format}`;
+    fs.writeFileSync(path.join(dist, file), bytes);
+    entries.push({
+      platform: 'linux', arch, format, version: '0.6.0', file, sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+    });
+  }
+  fs.writeFileSync(path.join(dist, 'manifest.json'), JSON.stringify(entries));
+  const list = (await w.admin.agent.get(`${API}/devices/packages`).expect(200)).body.packages;
+  expect(list.map((p) => `${p.format}/${p.arch}`)).toEqual(['deb/amd64', 'deb/arm64', 'rpm/amd64', 'pacman/amd64']);
+  const rpm = await w.admin.agent.get(`${API}/devices/packages/linux/amd64?format=rpm`).expect(200);
+  expect(rpm.headers['content-disposition']).toContain('linux-amd64.rpm');
+  // Linux must say which; a wrong or missing one is refused.
+  expect((await w.admin.agent.get(`${API}/devices/packages/linux/amd64`)).status).toBe(400);
+  expect((await w.admin.agent.get(`${API}/devices/packages/linux/amd64?format=msi`)).status).toBe(404);
+  expect((await w.admin.agent.get(`${API}/devices/packages/linux/arm64?format=rpm`)).status).toBe(404);
+});
+
 it('the Mac\'s universal package (8b) is listed once and downloads for either chip', async () => {
   const bytes = crypto.randomBytes(4096);
   const file = 'prism-agent-0.6.0-macos-universal.pkg';
@@ -248,7 +269,7 @@ it('the Mac\'s universal package (8b) is listed once and downloads for either ch
   }))));
   const list = await w.admin.agent.get(`${API}/devices/packages`).expect(200);
   expect(list.body.packages).toEqual([{
-    platform: 'macos', arch: 'amd64', arches: ['amd64', 'arm64'], universal: true, version: '0.6.0', size: 4096, file,
+    platform: 'macos', arch: 'amd64', arches: ['amd64', 'arm64'], universal: true, format: 'pkg', version: '0.6.0', size: 4096, file,
   }]);
   for (const arch of ['amd64', 'arm64']) {
     // eslint-disable-next-line no-await-in-loop
