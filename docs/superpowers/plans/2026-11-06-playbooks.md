@@ -77,7 +77,7 @@
   - `tickets.view_secure_fields` (tickets category): System Administrator and System Technician.
   - `tickets.override_checklist` (tickets category): System Administrator.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - the new asset fields save and default;
   - the two new statuses save;
   - one secret per form item;
@@ -85,8 +85,8 @@
   - one suggestion per ticket and playbook;
   - the three permissions are held by exactly the roles above;
   - the migration's down → up round trip, re-applying later migrations in `afterAll` (see the `later` list in `desktools.migration.test.js`).
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS (apply the migration to the test DB).
-- [ ] **Step 5: Commit** `feat(playbooks): forms, playbooks, ticket forms, MDMs and cellular on devices`
+- [x] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS (apply the migration to the test DB).
+- [x] **Step 5: Commit** `feat(playbooks): forms, playbooks, ticket forms, MDMs and cellular on devices`
 
 ---
 
@@ -115,15 +115,15 @@
 - `evaluate(def, ctx, answers, secretKeys) → { sections: [{ key, shown, items: [{ key, shown, required, done }] }], required, done, finished, actionReady }`
   - `actionReady`: every other required, shown item is done.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - valid and invalid shapes (unknown kind, duplicate key, condition on a later item, action not last, device items on a ticket-usage form, oversize);
   - script stripped from text;
   - visibility by device MDM, type, cellular and agent, by person department, and by an earlier yes/no answer;
   - hidden items are not required and not counted;
   - `finished` and `actionReady`;
   - answers left on items that became hidden are kept but ignored.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(playbooks): form definitions and what shows when`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(playbooks): form definitions and what shows when`
 
 ---
 
@@ -148,7 +148,7 @@
 - A new asset in a category with `cellularByDefault` starts with `hasCellular: true` unless the body says otherwise.
 - New list filters: `managed`, `mdmId`, `hasCellular`, `carrierCompanyId`. Import and export gain the same columns, matching MDM and carrier by name. Global search matches phone number (digits only) and IMEI.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - MDM CRUD and permission;
   - console addresses: `javascript:` refused, `{id}` link URL-encoded;
   - managed without MDM refused;
@@ -159,8 +159,8 @@
   - `on_hold` needs a reason;
   - the category default;
   - filters, import/export round trip, search by phone and IMEI.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(assets): MDMs, managed devices and cellular details`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(assets): MDMs, managed devices and cellular details`
 
 ---
 
@@ -183,7 +183,7 @@
   - `POST /playbooks/export { formIds, playbookIds }` → a JSON file `{ prism: 'playbooks', version: 1, forms, playbooks }`.
   - `POST /playbooks/import` takes a dry run first and returns the MDMs and categories that need mapping. A second call with `{ mapping }` saves everything **inactive**.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - every save creates a version, and an in-progress ticket form keeps its own;
   - permission checks;
   - block validation;
@@ -194,8 +194,8 @@
   - import refuses script, unknown kinds, oversize, and conditions on later items;
   - unmapped MDMs are reported;
   - imported items are inactive.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(playbooks): forms and playbooks in settings, with export and import`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(playbooks): forms and playbooks in settings, with export and import`
 
 ---
 
@@ -215,7 +215,7 @@
 - `assignedByAgent(asset) → bool`: the holder equals the device's `inventory.agentAssignedContactId`, the marker `services/agent/inventory.js` uses.
 - `checkOut` clears `inventory.agentAssignedContactId`, so a checked-out holder counts as hand-set even when it's the same person the agent picked, and a later sign-in by someone else never moves it.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - the asset page's check-out and check-in behave exactly as before;
   - check-in with a status and a hold reason;
   - check-in of an agent-assigned device (no checkout);
@@ -223,8 +223,8 @@
   - after a check-out to the agent's usual user, an inventory reporting a different signed-in user doesn't change the holder;
   - **after check-in with revoke, a new enrollment with the same serial claims the same Asset** (uses `services/agent/enrollment.js`);
   - without revoke it would create a second one, which pins the reason.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `refactor(assets): one check-out and check-in service, with agent revoke`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `refactor(assets): one check-out and check-in service, with agent revoke`
 
 ---
 
@@ -249,7 +249,7 @@
   - Either way, the matching form is added for each applied playbook with a `ticket_devices` block.
   - `DELETE /tickets/:id/devices/:assetId` unlinks the device and removes its unstarted forms. A started form stays.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - apply for a person creates the forms, tasks and links shown in the `ApplyPlaybook` mockup (Mac on Jamf-like MDM A, iPhone on MDM B, unmanaged laptop, uncovered tablet);
   - a person of another company is refused;
   - a playbook not offered for the company is refused;
@@ -259,8 +259,8 @@
   - linking or creating a device of another company is refused;
   - adding a device adds its form; removing it removes the unstarted one;
   - the ticket payload carries `uncovered`.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(playbooks): apply a playbook to a ticket, and devices on the ticket`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(playbooks): apply a playbook to a ticket, and devices on the ticket`
 
 ---
 
@@ -289,7 +289,7 @@
 - Agent items: when `inventory.js` applies an inventory for an asset, each open ticket form for that asset ticks its `agent` items if the device's inventory is newer than the form's `createdAt` (`by: null`, shown as "PRISM agent").
 - `GET /tickets/:id/forms/:formId/pdf` works only when finished or skipped. It lists answers with who and when, and secure items as "recorded, not shown".
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - answers by kind (bad date, unknown choice, a contact of another company);
   - hidden items don't block finishing;
   - finishing closes the task, and the task can't be closed by hand before;
@@ -301,8 +301,8 @@
   - check-in action with status and revoke;
   - agent items tick on a newer inventory and not on an older one;
   - PDF only when finished, without secrets.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(playbooks): fill in ticket forms, secure fields and device actions`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(playbooks): fill in ticket forms, secure fields and device actions`
 
 ---
 
@@ -320,15 +320,15 @@
 - A workflow `set_status` into a closed status is skipped, and the rule log records `FORMS_UNFINISHED`.
 - Merge moves the sources' ticket forms (and everything that hangs off them) to the target before closing the sources, so the sources are never refused.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - refused from the ticket page, bulk close, `PATCH` status and a workflow rule;
   - allowed once every form is finished or skipped;
   - override with and without the permission, and without a reason;
   - uncovered devices warn but don't block;
   - re-saving an already closed ticket isn't refused;
   - merge carries forms and closes the sources.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(playbooks): no closing with unfinished forms, with an override`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(playbooks): no closing with unfinished forms, with an override`
 
 ---
 
@@ -343,7 +343,7 @@
 - The ticket payload's `suggestions` drop any playbook already applied and any suggestion dismissed.
 - Dismissing needs ticket edit rights.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - a rule matching a category suggests the playbook;
   - nothing is applied;
   - a second match doesn't duplicate;
@@ -351,8 +351,8 @@
   - applying hides it;
   - an unknown or inactive playbook id is refused when saving the rule;
   - the dry-run description.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(playbooks): workflow rules suggest a playbook`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(playbooks): workflow rules suggest a playbook`
 
 ---
 
@@ -367,13 +367,13 @@
 - Playbooks: **New account** (New account once; Device check-out per device on the ticket) and **Account termination** (needs a person; Account termination once; Device check-in per device of the person).
 - Phone and tablet steps refer to device conditions, not product names.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - the starters pass `validateDefinition`;
   - they are seeded once and not re-seeded after being deleted;
   - **no starter text names an MDM, carrier, vendor or product** (a word list: Apple, Jamf, ManageEngine, Intune, Kandji, Mosyle, Microsoft, Google, Verizon, AT&T, T-Mobile, Dell, HP, Lenovo);
   - migration round trip.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(playbooks): vendor-neutral starter forms and playbooks`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(playbooks): vendor-neutral starter forms and playbooks`
 
 ---
 
@@ -392,15 +392,15 @@
 - On a phone: checkboxes and touch targets at least 44 px; the action and Not returned buttons pinned at the bottom.
 - The Device card shows the agent's status and **Scan now** (the existing `POST /devices/:id/scan`).
 
-- [ ] **Step 1: Failing smoke tests:**
+- [x] **Step 1: Failing smoke tests:**
   - suggestion banner → Apply dialog with the guessed person and device list → forms on the Tasks tab;
   - fill a form: a branch hides steps, set a secure field and reveal it (and confirm it's absent without the permission), finish → check in with revoke;
   - Add device: create with cellular, and its form appears;
   - Close: blocked dialog, override with reason, the uncovered warning;
   - phone width: the form is usable with no horizontal scroll;
   - dark theme renders.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(playbooks): playbooks, devices and forms on the ticket`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(playbooks): playbooks, devices and forms on the ticket`
 
 ---
 
@@ -424,15 +424,15 @@
 - Saving shows "Save as version N" with the count of open ticket forms on the old version.
 - **Preview** renders the form as the ticket page would, with a device and person picker.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - build a form with a branch on an earlier answer and on device MDM, then save as a new version;
   - a playbook with three blocks, and "Try it on someone" shows the first match and an uncovered device;
   - MDM list: add, retire, the `{id}` link on an asset;
   - asset edit: managed/MDM, cellular with an IMEI warning, on hold needs a reason;
   - a rule with Suggest playbook;
   - export, then import with a mapping step.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(playbooks): forms, playbooks and MDMs in Settings; managed and cellular on assets`
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(playbooks): forms, playbooks and MDMs in Settings; managed and cellular on assets`
 
 ---
 
@@ -446,26 +446,62 @@ Both forms must be expressible **with no code changes**:
 - **Check-out:** "Before you start" and Steps 1–6; MDM-specific steps by device MDM; Mac-only and iPhone/iPad-only steps by device type; the temporary password as a secure field; serial, asset tag, device type, MDM, Managed Apple Account and date issued as fields; the last step **Check out this device**.
 - **Check-in:** Steps 1–8; MDM-specific wipe and clean-up steps; the bypass code and Mac passcode as secure fields; "User is leaving" (yes/no) showing the account clean-up; who approved the wipe; the last step **Check in this device** with ready to issue, in repair, or on hold ("Activation Locked").
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - both fixtures pass validation;
   - for a Mac on MDM A, only A's and Mac steps show, and the counts match the `TicketForm` mockup's structure;
   - for an iPhone on MDM B, only B's and iPhone steps;
   - "leaving = no" hides the account clean-up;
   - the check-in action needs every other required shown step;
   - the forms import into a fresh install via the transfer file.
-- [ ] **Step 2–4:** Run → FAIL; fix whatever the builder can't express (in Tasks 2–12's code, not in the fixtures); run → PASS.
-- [ ] **Step 5: Commit** `test(playbooks): the owner's Apple check-out and check-in forms, as built by the form builder`
+- [x] **Step 2–4:** Run → FAIL; fix whatever the builder can't express (in Tasks 2–12's code, not in the fixtures); run → PASS.
+- [x] **Step 5: Commit** `test(playbooks): the owner's Apple check-out and check-in forms, as built by the form builder`
 
 ---
 
 ### Task 14: Finish
 
-- [ ] **Step 1:**
+- [x] **Step 1:**
   - `UPGRADING.md` under `## Unreleased`: the new screens, the three permissions and who has them, the new asset statuses and fields, the close guard (and how to override), and that the agent is revoked at check-in.
   - `docs/ROADMAP.md`: PB row → **Shipped (to dev)** with this plan linked; "Where things stand".
-- [ ] **Step 2:** Full backend suite and the smoke suite (not at the same time), and `npm test` in `frontend`.
-- [ ] **Step 3:** Render every mockup board with `preview.js` beside the built screens, light and dark, and note any difference the owner should know about.
-- [ ] **Step 4: Commit** `docs(playbooks): release notes and roadmap` and push to `dev`.
+- [x] **Step 2:** Full backend suite and the smoke suite (not at the same time), and `npm test` in `frontend`.
+- [x] **Step 3:** Render every mockup board with `preview.js` beside the built screens, light and dark, and note any difference the owner should know about.
+- [x] **Step 4: Commit** `docs(playbooks): release notes and roadmap` and push to `dev`.
+
+## As built (2026-11-06)
+
+All 14 tasks are built on branch `claude/loving-keller-icsgxx`, with `dev`
+merged in. Migrations are 080 (playbooks) and 081 (starters). Differences
+from the tasks above:
+
+- **Task 1:** a secure value's ciphertext is read with
+  `TicketFormSecret.unscoped()`; a second "withCiphertext" scope selected the
+  column twice. The round trips for 050 (`laterMigrations.js`) and 048
+  (`companies.migration.test.js`) roll 080 back around them, since ticket
+  forms point at Tasks and carriers at Companies.
+- **Task 3:** global search doesn't cover assets at all, so phone number and
+  IMEI are searched by the Assets list's own search. Assets have no CSV
+  import or export, so there was nothing to extend there.
+- **Task 5:** `logAssetActivity` takes an optional transaction; an activity
+  row written outside the check-out's transaction waited on the asset row it
+  had locked.
+- **Task 6:** the ticket's playbooks, forms, devices, uncovered devices and
+  suggestions come from their own endpoint, `GET /tickets/:id/playbooks`,
+  rather than the ticket payload. A playbook's forms are in block order. The
+  response to applying returns the new one as `added`.
+- **Task 8:** `GET /tickets/:id/close-check` lets the Close dialog show what
+  is left (and the uncovered-device warning) before trying.
+- **Task 11:** the Devices panel is on the Tasks tab, with the playbook's
+  forms; the sidebar's existing linked-assets card stays, and now links and
+  unlinks through `/tickets/:id/devices`, so forms follow. A ticked step
+  shows at once and the server's answer then redraws the form.
+- **Task 12:** items and sections are reordered with up/down buttons, which
+  also work by keyboard, instead of drag. The form builder has no Preview;
+  the playbook editor's "Try it on someone" shows which forms a person gets.
+  The builder offers is / is not / is empty / is not empty; "is one of" is
+  kept when a form arrives by import.
+- **Task 13:** the owner's two forms were expressed without code changes.
+- **Tests at the end:** full backend suite and the whole smoke suite run
+  once more before the push (see the final commit).
 
 ## Notes on the spec
 
