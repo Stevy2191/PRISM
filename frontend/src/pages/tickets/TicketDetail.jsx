@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import CompanyTag from '../../components/companies/CompanyTag';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { IconArrowMerge, IconLink, IconFileText } from '@tabler/icons-react';
+import { IconArrowMerge, IconLink, IconFileText, IconChecklist } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
 import { assignableContactDepartments } from '../../utils/contactDepartments';
@@ -44,6 +44,10 @@ import { useFullPageHeight } from '../../hooks/useFullPageHeight';
 import Breadcrumbs from '../../components/ui/Breadcrumbs';
 import Button from '../../components/ui/Button';
 import { orgToday, addDays } from '../../utils/orgDate';
+import PlaybookPanel, { SuggestionBanner } from './playbooks/PlaybookPanel';
+import ApplyPlaybookDialog from './playbooks/ApplyPlaybookDialog';
+import AddDeviceDialog from './playbooks/AddDeviceDialog';
+import CloseBlockedDialog from './playbooks/CloseBlockedDialog';
 
 // How many rows the growing detail lists (comments, activity) load at a time.
 // Matches the API's own default page size for these endpoints.
@@ -118,6 +122,12 @@ export default function TicketDetail() {
   const [departments, setDepartments] = useState([]);
   const [contactDeptAssign, setContactDeptAssign] = useState({ deptId: '', saving: false });
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
+  // Playbooks (PB): the ticket's applied playbooks, forms, devices and
+  // suggestions; the Apply and Add device dialogs; the close check.
+  const [pbView, setPbView] = useState(null);
+  const [applyOpen, setApplyOpen] = useState(null);
+  const [addDeviceOpen, setAddDeviceOpen] = useState(false);
+  const [closeCheck, setCloseCheck] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -187,6 +197,8 @@ export default function TicketDetail() {
       setWatchers(w.data.watchers);
       setTasks(tk.data.tasks);
       setTaskStatuses(ts.data.statuses);
+      // Playbooks (PB): loaded alongside; the page works without them.
+      api.get(`/tickets/${id}/playbooks`).then(({ data }) => setPbView(data)).catch(() => setPbView(null));
       setActivity(act.data.activity);
       setActivityTotal(act.data.total);
     } catch (err) {
@@ -256,12 +268,26 @@ export default function TicketDetail() {
     reloadActivity();
   };
 
+  const reloadPlaybooks = () => api.get(`/tickets/${id}/playbooks`).then(({ data }) => setPbView(data)).catch(() => {});
+
+  // Closing first asks the server what's left (PB): unfinished forms block
+  // (with an override for those allowed), devices no form covers warn.
   const patchTicket = async (changes) => {
+    const { closeChecked, ...body } = changes;
+    const closing = body.status && body.status !== ticket.status && closedStatusNames.includes(body.status);
+    if (closing && !closeChecked && !body.closeOverride) {
+      try {
+        const { data } = await api.get(`/tickets/${id}/close-check`);
+        if (data.blocking.length || data.warnings.length) { setCloseCheck({ ...data, changes: body }); return; }
+      } catch { /* the PATCH below still enforces it */ }
+    }
     try {
-      const { data } = await api.patch(`/tickets/${id}`, changes);
+      const { data } = await api.patch(`/tickets/${id}`, body);
       setTicket(data.ticket);
       reloadActivity();
     } catch (err) {
+      const res = err.response?.data;
+      if (res?.code === 'FORMS_UNFINISHED') { setCloseCheck({ blocking: res.blocking || [], warnings: res.warnings || [], changes: body }); return; }
       alert(errMessage(err));
     }
   };
@@ -317,7 +343,10 @@ export default function TicketDetail() {
     }
   };
 
-  const reloadTasks = () => api.get(`/tickets/${id}/tasks`).then(({ data }) => setTasks(data.tasks)).catch(() => {});
+  const reloadTasks = () => Promise.all([
+    api.get(`/tickets/${id}/tasks`).then(({ data }) => setTasks(data.tasks)).catch(() => {}),
+    reloadPlaybooks(),
+  ]);
   // After time changes: the total, the Time Entries list, each task's time, activity.
   const afterTimeChange = () => Promise.all([
     api.get(`/tickets/${id}/time`, { params: { limit: 1 } }).then(({ data }) => setTimeTotal(data.totalSeconds)).catch(() => {}),
@@ -397,20 +426,45 @@ export default function TicketDetail() {
   // /assets/:assetId/tickets, not a ticket-side endpoint) — see
   // assetsController.js. A lightweight re-fetch (not the full load()) keeps
   // the rest of the page from flashing a loading spinner for this.
+  // Devices go through the ticket (PB), so an applied playbook adds or
+  // removes the forms they need.
+  const afterDevices = async (data) => {
+    if (data) setPbView(data);
+    const [{ data: t }] = await Promise.all([api.get(`/tickets/${id}`), reloadTasks()]);
+    setTicket(t.ticket);
+  };
   const linkAsset = async (assetId) => {
     try {
-      await api.post(`/assets/${assetId}/tickets`, { ticketId: id });
-      const { data } = await api.get(`/tickets/${id}`);
-      setTicket(data.ticket);
+      const { data } = await api.post(`/tickets/${id}/devices`, { assetId });
+      await afterDevices(data);
     } catch (err) {
       alert(errMessage(err));
     }
   };
   const unlinkAsset = async (assetId) => {
     try {
-      await api.delete(`/assets/${assetId}/tickets/${id}`);
-      const { data } = await api.get(`/tickets/${id}`);
-      setTicket(data.ticket);
+      const { data } = await api.delete(`/tickets/${id}/devices/${assetId}`);
+      await afterDevices(data);
+      if (data.keptForms) alert(`Work had started on ${data.keptForms === 1 ? 'its form' : `${data.keptForms} of its forms`}, so ${data.keptForms === 1 ? 'it stays' : 'they stay'} on the ticket to finish or skip.`);
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+  const dismissSuggestion = async (suggestionId) => {
+    try {
+      const { data } = await api.post(`/tickets/${id}/playbook-suggestions/${suggestionId}/dismiss`);
+      setPbView(data);
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+  const removePlaybook = async (tp) => {
+    if (!window.confirm(`Remove the ${tp.name} playbook and its forms from this ticket?`)) return;
+    try {
+      const { data } = await api.delete(`/tickets/${id}/playbooks/${tp.id}`);
+      setPbView(data);
+      reloadTasks();
+      reloadActivity();
     } catch (err) {
       alert(errMessage(err));
     }
@@ -423,11 +477,14 @@ export default function TicketDetail() {
   const parentRelation = relations.find((r) => r.relationType === 'parent' && r.direction === 'outgoing') || null;
 
   const statusColor = findStatus(ticketStatuses, ticket.status)?.color || MUTED;
+  // Form tasks show under their playbook, not again in the task list.
+  const formTaskIds = new Set((pbView ? [...pbView.applied.flatMap((a) => a.forms), ...(pbView.otherForms || [])] : []).map((f) => f.task?.id).filter(Boolean));
   const canEditTicket = isStaff && !!ticket.access?.edit;
   // Header actions: buttons from md up, the "More actions" menu below.
   const headerActions = [
     canEditTicket && { label: 'Link ticket', icon: IconLink, onSelect: () => setHeaderLinkModalOpen(true) },
     canEditTicket && !ticket.mergedInto && { label: 'Merge…', icon: IconArrowMerge, onSelect: () => setMergeOpen(true) },
+    canEditTicket && { label: 'Apply playbook', icon: IconChecklist, onSelect: () => setApplyOpen({ playbookId: null }) },
     isStaff && { label: 'Generate report', icon: IconFileText, onSelect: () => setReportModalOpen(true) },
   ].filter(Boolean);
 
@@ -549,6 +606,38 @@ export default function TicketDetail() {
           . New replies go there.
         </div>
       )}
+      {pbView?.suggestions?.length > 0 && (
+        <div className="flex-shrink-0 px-4 sm:px-6 lg:px-12">
+          <SuggestionBanner suggestions={pbView.suggestions} canEdit={canEditTicket} onApply={(playbookId) => setApplyOpen({ playbookId })} onDismiss={dismissSuggestion} />
+        </div>
+      )}
+      {applyOpen && (
+        <ApplyPlaybookDialog
+          ticket={ticket}
+          initialPlaybookId={applyOpen.playbookId}
+          onClose={() => setApplyOpen(null)}
+          onApplied={(data) => { setApplyOpen(null); setPbView(data); setActiveTab('tasks'); afterDevices(data); reloadActivity(); }}
+        />
+      )}
+      {addDeviceOpen && (
+        <AddDeviceDialog
+          ticket={ticket}
+          onClose={() => setAddDeviceOpen(false)}
+          onAdded={(data, opts) => { afterDevices(data); if (!opts?.keepOpen) setAddDeviceOpen(false); }}
+        />
+      )}
+      {closeCheck && (
+        <CloseBlockedDialog
+          ticketId={ticket.id}
+          check={closeCheck}
+          onClose={() => setCloseCheck(null)}
+          onCloseAnyway={(override) => {
+            const { changes } = closeCheck;
+            setCloseCheck(null);
+            patchTicket(override ? { ...changes, closeOverride: override } : { ...changes, closeChecked: true });
+          }}
+        />
+      )}
       {mergeOpen && (
         <MergeDialog ticket={ticket} onClose={() => setMergeOpen(false)} onMerged={load} />
       )}
@@ -610,10 +699,21 @@ export default function TicketDetail() {
               />
             )}
             {activeTab === 'tasks' && (
+              <PlaybookPanel
+                ticketId={ticket.id}
+                view={pbView}
+                canEdit={canEditTicket}
+                onApply={() => setApplyOpen({ playbookId: null })}
+                onAddDevice={() => setAddDeviceOpen(true)}
+                onUnlinkDevice={(d) => unlinkAsset(d.id)}
+                onRemovePlaybook={removePlaybook}
+              />
+            )}
+            {activeTab === 'tasks' && (
               <TaskList
                 kind="ticket"
                 parentId={ticket.id}
-                tasks={tasks}
+                tasks={tasks.filter((t) => !formTaskIds.has(t.id))}
                 statuses={taskStatuses}
                 assignableUsers={assignableUsers}
                 canEdit={!!ticket.access?.edit}

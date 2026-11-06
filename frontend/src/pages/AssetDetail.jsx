@@ -310,6 +310,17 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
           <Field label="IP address" mono>{asset.ipAddress}</Field>
           <Field label="MAC address" mono>{asset.macAddress}</Field>
         </FieldGroup>
+        <FieldGroup title="Management">
+          <Field label="Managed">{asset.isManaged ? `Yes · ${asset.mdm?.name || ''}` : 'No'}</Field>
+          {asset.isManaged && <Field label="MDM device ID" mono>{asset.mdmLink ? <a href={asset.mdmLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>{asset.mdmDeviceId} ↗</a> : asset.mdmDeviceId}</Field>}
+        </FieldGroup>
+        {asset.hasCellular && (
+          <FieldGroup title="Cellular">
+            <Field label="IMEI" mono>{asset.imei}</Field>
+            <Field label="Phone number" mono>{asset.phoneNumber ? asset.phoneNumber.replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3') : ''}</Field>
+            <Field label="Carrier">{asset.carrier?.name}</Field>
+          </FieldGroup>
+        )}
         {deviceValues.length > 0 && (
           <FieldGroup title="More details">
             {deviceValues.map((fv) => (
@@ -367,14 +378,22 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
             className="input h-9 w-full text-sm"
             style={fieldStyle}
             value={asset.status}
-            onChange={(e) => onPatch({ status: e.target.value })}
+            onChange={(e) => {
+              const status = e.target.value;
+              if (status !== 'on_hold') { onPatch({ status }); return; }
+              const holdReason = window.prompt('Why is the device on hold?');
+              if (holdReason && holdReason.trim()) onPatch({ status, holdReason: holdReason.trim() });
+            }}
           >
             <option value="active">Active</option>
             <option value="in_repair">In repair</option>
             <option value="retired">Retired</option>
             <option value="in_storage">In storage</option>
+            <option value="ready_to_issue">Ready to issue</option>
+            <option value="on_hold">On hold</option>
             <option value="lost">Lost</option>
           </select>
+          {asset.status === 'on_hold' && asset.holdReason && <p className="mt-1 text-xs" style={{ color: 'var(--color-warning)' }}>On hold: {asset.holdReason}</p>}
         </div>
       </div>
 

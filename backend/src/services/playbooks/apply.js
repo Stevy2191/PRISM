@@ -8,7 +8,7 @@
 const { Op } = require('sequelize');
 const {
   sequelize, Playbook, Form, FormVersion, TicketPlaybook, TicketForm, TicketFormSecret, Task, Asset, AssetTicket,
-  Device, Contact, User, TicketPlaybookSuggestion,
+  Device, Contact, User, TicketPlaybookSuggestion, Mdm,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { logActivity } = require('../ticketActivity');
@@ -21,13 +21,14 @@ const { resolvePlaybook, offeredFor, deviceContext } = require('./resolve');
 const { evaluate } = require('./formDefinition');
 
 const deviceInclude = { model: Device, as: 'device', required: false, attributes: ['id', 'revokedAt', 'lastSeenAt', 'lastInventoryAt'] };
+const assetIncludes = [deviceInclude, { model: Mdm, as: 'mdm', required: false, attributes: ['id', 'name'] }];
 const IN_USE = { [Op.notIn]: ['retired', 'lost'] };
 
 // The devices assigned to a person, in their own company.
 async function personDevices(contact) {
   return Asset.findAll({
     where: { assignedToContactId: contact.id, companyId: contact.companyId, status: IN_USE },
-    include: [deviceInclude],
+    include: assetIncludes,
     order: [['assetTag', 'ASC']],
   });
 }
@@ -37,7 +38,7 @@ async function ticketDevices(ticket, { transaction } = {}) {
   if (!links.length) return [];
   return Asset.findAll({
     where: { id: links.map((l) => l.assetId), companyId: ticket.companyId },
-    include: [deviceInclude],
+    include: assetIncludes,
     order: [['assetTag', 'ASC']],
     transaction,
   });
@@ -232,6 +233,7 @@ const assetJson = (a) => (a ? {
   status: a.status,
   isManaged: a.isManaged,
   mdmId: a.mdmId,
+  mdmName: a.mdm ? a.mdm.name : null,
   hasCellular: a.hasCellular,
   assignedToContactId: a.assignedToContactId,
   hasAgent: !!(a.device && !a.device.revokedAt),
@@ -262,7 +264,7 @@ async function ticketPlaybooksView(ticket) {
     where: { ticketId: ticket.id },
     include: [
       { model: FormVersion, as: 'formVersion', include: [{ model: Form, as: 'form', attributes: ['id', 'name'] }] },
-      { model: Asset, as: 'asset', include: [deviceInclude] },
+      { model: Asset, as: 'asset', include: assetIncludes },
       { model: Task, as: 'task', attributes: ['id', 'code', 'title', 'assigneeId', 'statusId'] },
     ],
     order: [['id', 'ASC']],
@@ -326,5 +328,6 @@ module.exports = {
   assetJson,
   personContext,
   deviceInclude,
+  assetIncludes,
   started,
 };

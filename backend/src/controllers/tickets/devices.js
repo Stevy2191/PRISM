@@ -10,7 +10,7 @@ const { ticketFor } = require('./playbooks');
 
 async function linkAndAddForms(req, ticket, asset) {
   await apply.linkDevice(req, ticket, asset);
-  await apply.addFormsForDevice(req, ticket, await Asset.findByPk(asset.id, { include: [apply.deviceInclude] }));
+  await apply.addFormsForDevice(req, ticket, await Asset.findByPk(asset.id, { include: apply.assetIncludes }));
 }
 
 // POST /tickets/:id/devices { assetId }

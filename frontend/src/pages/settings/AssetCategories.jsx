@@ -150,6 +150,7 @@ function CategoryEditorModal({ category, onClose, onSaved }) {
   const [name, setName] = useState(category?.name || '');
   const [icon, setIcon] = useState(category?.icon || ICON_OPTIONS[0].value);
   const [color, setColor] = useState(category?.color || '#64748b');
+  const [cellularByDefault, setCellularByDefault] = useState(!!category?.cellularByDefault);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -175,7 +176,7 @@ function CategoryEditorModal({ category, onClose, onSaved }) {
     setError('');
     setSaving(true);
     try {
-      const payload = { name: name.trim(), icon, color };
+      const payload = { name: name.trim(), icon, color, cellularByDefault };
       const { data } = savedCategory
         ? await api.patch(`/assets/categories/${savedCategory.id}`, payload)
         : await api.post('/assets/categories', payload);
@@ -267,6 +268,12 @@ function CategoryEditorModal({ category, onClose, onSaved }) {
             className="h-9 w-16 cursor-pointer rounded border border-navy-200"
           />
         </div>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={cellularByDefault} onChange={(e) => setCellularByDefault(e.target.checked)} />
+          New devices in this category have cellular service
+          <span className="text-navy-400">(can still be changed per device)</span>
+        </label>
 
         <div className="flex justify-end gap-2 border-t pt-3">
           <button type="button" onClick={onClose} className="btn-secondary">{savedCategory ? 'Close' : 'Cancel'}</button>
