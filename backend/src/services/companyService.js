@@ -174,18 +174,18 @@ async function linkVendorText(user, body, record, textColumn) {
 // a shared vendor-only company, or one they can reach. A company that is
 // also a client the viewer can't reach is left out (plan 2b review F8).
 // Works on Sequelize instances (single or array) carrying `vendorCompany`.
-async function hideUnreachableVendors(user, rows) {
+async function hideUnreachableVendors(user, rows, as = 'vendorCompany') {
   const { getUserCompanyIds } = require('./permissionService'); // eslint-disable-line global-require
   const list = (Array.isArray(rows) ? rows : [rows]).filter(Boolean);
   const reachable = await getUserCompanyIds(user);
   if (reachable === null) return rows;
-  const ids = [...new Set(list.map((r) => r.vendorCompany && r.vendorCompany.id).filter(Boolean))];
+  const ids = [...new Set(list.map((r) => r[as] && r[as].id).filter(Boolean))];
   if (!ids.length) return rows;
   const shared = new Set((await Company.findAll({ where: { id: ids }, attributes: ['id', 'isVendor', 'isClient', 'isInternal'] }))
     .filter(isSharedVendor).map((c) => c.id));
   list.forEach((r) => {
-    const v = r.vendorCompany;
-    if (v && !shared.has(v.id) && !reachable.includes(v.id)) r.setDataValue('vendorCompany', null);
+    const v = r[as];
+    if (v && !shared.has(v.id) && !reachable.includes(v.id)) r.setDataValue(as, null);
   });
   return rows;
 }

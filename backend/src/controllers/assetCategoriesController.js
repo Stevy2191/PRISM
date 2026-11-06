@@ -36,7 +36,7 @@ const list = asyncHandler(async (req, res) => {
   });
   res.json({
     categories: categories.map((c) => ({
-      id: c.id, name: c.name, icon: c.icon, color: c.color, isBuiltIn: c.isBuiltIn,
+      id: c.id, name: c.name, icon: c.icon, color: c.color, isBuiltIn: c.isBuiltIn, cellularByDefault: c.cellularByDefault,
       fieldCount: c.fields.length,
     })),
   });
@@ -53,12 +53,16 @@ const get = asyncHandler(async (req, res) => {
 });
 
 const create = asyncHandler(async (req, res) => {
-  const { name, icon, color } = req.body || {};
+  const {
+    name, icon, color, cellularByDefault,
+  } = req.body || {};
   if (!name || !name.trim()) throw new ApiError(400, 'Category name is required', 'VALIDATION_ERROR');
   const existing = await AssetCategory.findOne({ where: { name: name.trim() } });
   if (existing) throw new ApiError(409, 'A category with this name already exists', 'DUPLICATE_NAME');
 
-  const category = await AssetCategory.create({ name: name.trim(), icon: icon || null, color: color || null, isBuiltIn: false });
+  const category = await AssetCategory.create({
+    name: name.trim(), icon: icon || null, color: color || null, isBuiltIn: false, cellularByDefault: cellularByDefault === true,
+  });
   await writeAudit(req, 'assetCategory.create', 'AssetCategory', category.id, { name: category.name });
   res.status(201).json({ category: { ...category.toJSON(), fields: [] } });
 });
@@ -80,6 +84,7 @@ const update = asyncHandler(async (req, res) => {
   }
   if (req.body.icon !== undefined) changes.icon = req.body.icon || null;
   if (req.body.color !== undefined) changes.color = req.body.color || null;
+  if (req.body.cellularByDefault !== undefined) changes.cellularByDefault = req.body.cellularByDefault === true;
 
   await category.update(changes);
   await writeAudit(req, 'assetCategory.update', 'AssetCategory', category.id, changes);

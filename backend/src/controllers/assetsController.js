@@ -4,8 +4,11 @@ const { Op, col } = require('sequelize');
 const {
   Asset, AssetCategory, AssetTicket, AssetActivity, AssetCategoryField, AssetFieldValue,
   AssetCheckout, AssetAttachment, License, Contract,
-  Ticket, Contact, User, Department, Company, Site, Device, AssetSoftware,
+  Ticket, Contact, User, Department, Company, Site, Device, AssetSoftware, Mdm,
 } = require('../models');
+const {
+  mdmLink, resolveManagement, resolveCellular, resolveHold, duplicateWarnings,
+} = require('../services/assets/management');
 const { statusWhere, deviceSummary } = require('./devicesController');
 const { AGENT_FIELDS } = require('../services/agent/inventory');
 const { ApiError, asyncHandler } = require('../middleware/error');
@@ -61,7 +64,31 @@ const assetInclude = [
   { model: Company, as: 'company', attributes: ['id', 'name'] },
   { model: Company, as: 'vendorCompany', attributes: ['id', 'name'] },
   { model: Site, as: 'site', attributes: ['id', 'name'] },
+  // Playbooks (PB): the MDM managing the device, and its line's carrier.
+  { model: Mdm, as: 'mdm', attributes: ['id', 'name', 'consoleUrl', 'isActive'] },
+  { model: Company, as: 'carrier', attributes: ['id', 'name'] },
 ];
+
+// Fenced vendors and carriers are hidden from viewers who can't reach them,
+// and each record carries its MDM console link.
+async function present(user, rows) {
+  await hideUnreachableVendors(user, rows);
+  await hideUnreachableVendors(user, rows, 'carrier');
+  (Array.isArray(rows) ? rows : [rows]).filter(Boolean).forEach((r) => {
+    r.setDataValue('mdmLink', mdmLink(r.mdm, r.mdmDeviceId));
+  });
+  return rows;
+}
+
+// The PB device fields from a create/update body (management, cellular,
+// hold reason), checked; null record on create.
+async function deviceFields(user, body, record, category) {
+  return {
+    ...(await resolveManagement(body, record)),
+    ...(await resolveCellular(user, body, record, category)),
+    ...resolveHold(body, record),
+  };
+}
 
 // Company-bound fields, checked by resolvePlacement against the asset's
 // company rather than copied from the body.
@@ -139,6 +166,11 @@ const list = asyncHandler(async (req, res) => {
   if (categoryId) where.categoryId = categoryId;
   if (departmentId) where.departmentId = departmentId;
   if (status) where.status = status;
+  // Playbooks (PB): managed, MDM, cellular and carrier filters.
+  if (req.query.managed === 'true' || req.query.managed === 'false') where.isManaged = req.query.managed === 'true';
+  if (req.query.mdmId) where.mdmId = parseRecordId(req.query.mdmId) || -1;
+  if (req.query.hasCellular === 'true' || req.query.hasCellular === 'false') where.hasCellular = req.query.hasCellular === 'true';
+  if (req.query.carrierCompanyId) where.carrierCompanyId = parseRecordId(req.query.carrierCompanyId) || -1;
 
   const andConditions = [];
   if (assignedTo === 'assigned') {
@@ -155,6 +187,9 @@ const list = asyncHandler(async (req, res) => {
         { serialNumber: { [Op.like]: `%${term}%` } },
         { make: { [Op.like]: `%${term}%` } },
         { model: { [Op.like]: `%${term}%` } },
+        { imei: { [Op.like]: `%${term.replace(/[\s-]/g, '')}%` } },
+        // A phone number is stored as digits; match whatever was typed.
+        ...(term.replace(/\D/g, '').length >= 4 ? [{ phoneNumber: { [Op.like]: `%${term.replace(/\D/g, '')}%` } }] : []),
       ],
     });
   }
@@ -195,7 +230,7 @@ const list = asyncHandler(async (req, res) => {
     offset,
     distinct: true,
   });
-  await hideUnreachableVendors(req.user, rows);
+  await present(req.user, rows);
   const out = rows.map((a) => ({ ...a.toJSON(), device: deviceSummary(a.device) }));
   res.json(paginated('assets', { rows: out, count }, { page, limit }));
 });
@@ -317,7 +352,7 @@ const get = asyncHandler(async (req, res) => {
     AssetTicket.count({ where: { assetId: asset.id }, include: [{ model: Ticket, as: 'ticket', where: { status: { [Op.in]: buckets.open } }, attributes: [] }] }),
   ]);
 
-  await hideUnreachableVendors(req.user, asset);
+  await present(req.user, asset);
   const device = await Device.findOne({ where: { assetId: asset.id }, attributes: ['id', 'lastSeenAt', 'lastInventoryAt', 'scanRequestedAt', 'revokedAt', 'agentVersion', 'platform'] });
   const softwareCount = device ? await AssetSoftware.count({ where: { assetId: asset.id } }) : 0;
   res.json({
@@ -362,6 +397,7 @@ const create = asyncHandler(async (req, res) => {
   });
   Object.assign(values, await resolvePlacement(req.user, body, null, PLACEMENT_FIELDS));
   Object.assign(values, await resolveVendorFields(req.user, body, null, 'vendorName'));
+  Object.assign(values, await deviceFields(req.user, body, null, category));
   values.createdBy = req.user.id;
 
   const asset = await Asset.create(values);
@@ -370,8 +406,8 @@ const create = asyncHandler(async (req, res) => {
   await writeAudit(req, 'asset.create', 'Asset', asset.id, { assetTag: asset.assetTag });
 
   const fresh = await Asset.findByPk(asset.id, { include: assetInclude });
-  await hideUnreachableVendors(req.user, fresh);
-  res.status(201).json({ asset: fresh });
+  await present(req.user, fresh);
+  res.status(201).json({ asset: fresh, warnings: await duplicateWarnings(fresh) });
 });
 
 // PATCH /assets/:id
@@ -386,6 +422,7 @@ const update = asyncHandler(async (req, res) => {
   });
   Object.assign(changes, await resolvePlacement(req.user, body, asset, PLACEMENT_FIELDS));
   Object.assign(changes, await resolveVendorFields(req.user, body, asset, 'vendorName'));
+  Object.assign(changes, await deviceFields(req.user, body, asset, null));
 
   if (changes.assetTag !== undefined && changes.assetTag !== asset.assetTag) {
     if (!changes.assetTag.trim()) throw new ApiError(400, 'Asset tag cannot be blank', 'VALIDATION_ERROR');
@@ -421,8 +458,8 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const fresh = await Asset.findByPk(asset.id, { include: assetInclude });
-  await hideUnreachableVendors(req.user, fresh);
-  res.json({ asset: fresh });
+  await present(req.user, fresh);
+  res.json({ asset: fresh, warnings: await duplicateWarnings(fresh) });
 });
 
 // DELETE /assets/:id — warns (via a 409 the client can re-confirm past,
