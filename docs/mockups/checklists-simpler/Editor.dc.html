@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Checklist editor</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ck.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.tb{display:flex;gap:4px;align-items:center;margin-left:auto}
+.tb button{height:28px;padding:0 9px;border-radius:6px;border:1px solid var(--bd);background:var(--surf);font:inherit;font-size:12.5px;color:var(--tx2);display:inline-flex;align-items:center;gap:5px}
+.tb button.on{border-color:var(--acc);color:var(--acc-ink);background:var(--acc-soft)}
+.lock{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px dashed var(--acc);border-radius:10px;background:var(--acc-soft);margin:10px 10px 4px}
+.addline{color:var(--tx3);padding:8px 10px 8px 38px;font-size:13.5px}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Assets</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page" style="max-width:1280px">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><a href="#">Checklists</a></nav>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:8px">
+      <div>
+        <h1>Apple device check-in</h1>
+        <p class="sub">For each device · when finished, <b style="color:var(--tx2)">checks the device in</b> · <a href="#">Change</a></p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center"><span class="hint">Saved 2 min ago · tickets in progress keep their copy</span><button class="btn primary" type="button">Save</button></div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:24px;margin-top:18px;align-items:flex-start">
+      <div class="card" style="flex:999 1 640px;min-width:0;padding:8px 10px 14px">
+        <div class="sectitle">Before you start</div>
+        <div class="row"><span class="box"></span>You have the device, its charger, and the serial number.</div>
+        <div class="row"><span class="box"></span>You know which MDM manages it: ManageEngine or Jamf Pro.</div>
+        <div class="row"><span class="box"></span><span class="muted">Ideally, the user is present for Step 2.</span><span class="hint">optional</span></div>
+
+        <div class="sectitle">Step 1: Receive the device and find its records</div>
+        <div class="row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16z"></path></svg><span>Write down: <b>Serial number</b></span></div>
+        <div class="row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16z"></path></svg><span>Pick one: <b>Condition</b> <span class="hint">Good · Damaged · Missing charger</span></span></div>
+        <div class="row"><span class="box"></span>Find it in Device Mgmt › Groups &amp; Devices › Devices.<span class="chip">Only for ManageEngine</span></div>
+        <div class="row sel" aria-label="Selected line">
+          <span class="box"></span>
+          <span>Find it in Computers or Devices › Search Inventory.</span>
+          <span class="chip">Only for Jamf Pro</span>
+          <div class="tb" role="toolbar" aria-label="Line options">
+            <button type="button" class="on" aria-pressed="true">Required</button>
+            <button type="button">Only for…</button>
+            <button type="button">Turn into ▾</button>
+            <button type="button" aria-label="Delete line"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg></button>
+          </div>
+        </div>
+        <div class="addline">Type to add a step. Enter for the next line, Tab to put it under a question.</div>
+
+        <div class="sectitle">Step 3: Back up data that must be kept</div>
+        <div class="row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01"></path></svg><span>Ask: <b>Is the data under a retention requirement or legal hold?</b></span><span class="q" aria-hidden="true"><span>Yes</span><span>No</span></span></div>
+        <div class="nest">
+          <div class="hint" style="padding:2px 10px">If yes:</div>
+          <div class="row"><span class="box"></span>Don't wipe until records or legal staff approve.</div>
+        </div>
+        <div class="row"><span class="box"></span>Copy anything that must be kept to SharePoint or the supervisor's OneDrive.</div>
+        <div class="row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16z"></path></svg><span>Write down: <b>Who approved the wipe</b> <span class="hint">staff member</span></span></div>
+
+        <div class="sectitle">Step 5: Wipe the device from the MDM</div>
+        <div class="row"><span class="box"></span>Choose <b>Complete Wipe</b>. Not Corporate Wipe.<span class="chip">Only for ManageEngine</span></div>
+        <div class="row"><span class="box"></span>Management › Management Commands › <b>Wipe Computer</b>.<span class="chip">Only for Jamf Pro · Mac</span></div>
+        <div class="row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><span><b>6-digit passcode</b> <span class="hint">hidden password/code</span></span><span class="chip">Only for Mac</span></div>
+
+        <div class="lock">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc-ink)" stroke-width="2" aria-hidden="true"><path d="M3 12h13M12 7l5 5-5 5"></path><path d="M21 4v16"></path></svg>
+          <div style="flex:1"><b>Check the device in</b><div class="hint">Always the last step. Ready to issue · In repair · On hold</div></div>
+          <a href="#" style="font-size:13px">Statuses</a>
+        </div>
+        <button class="btn quiet sm" type="button" style="margin:8px 0 0 10px;color:var(--acc)">+ Add section</button>
+      </div>
+
+      <aside style="flex:1 1 300px;max-width:340px;display:flex;flex-direction:column;gap:12px">
+        <div class="card" style="padding:16px">
+          <h3>How to build it</h3>
+          <ul style="margin:10px 0 0;padding-left:18px;color:var(--tx2);display:flex;flex-direction:column;gap:8px;font-size:13.5px">
+            <li>Type a line: it's a step to tick.</li>
+            <li><b>Turn into</b> a question (yes/no or pick one), something to write down, or a hidden password/code.</li>
+            <li><b>Only for</b> hides a line, or a whole section, unless the device is on that MDM or of that type.</li>
+            <li>Under a yes/no question, indent lines (Tab) to show them only for that answer.</li>
+          </ul>
+        </div>
+        <div class="card" style="padding:16px">
+          <h3>Try it</h3>
+          <p class="hint" style="margin:6px 0 10px">See the checklist as a technician would for one device.</p>
+          <div class="seg" style="flex-wrap:wrap"><span class="on">Mac · Jamf Pro</span><span>iPhone · ManageEngine</span></div>
+          <p class="hint" style="margin:10px 0 0">27 steps would show; 11 are hidden by Only for.</p>
+        </div>
+        <a href="#" class="hint">Advanced: show-when rules on answers and the person…</a>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>

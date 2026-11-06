@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A bundle</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ck.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surf)}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Assets</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page" style="max-width:1280px">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><a href="#">Checklists</a><span>/</span><span>Bundles</span></nav>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:8px">
+      <div><h1>Termination</h1><p class="sub">Adds several checklists to a ticket in one click.</p></div>
+      <button class="btn primary" type="button">Save</button>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:24px;margin-top:20px;align-items:flex-start">
+      <div class="card" style="flex:999 1 640px;min-width:0;padding:22px 24px;display:flex;flex-direction:column;gap:12px">
+        <p class="sentence" style="margin:0">It's for <span class="slot">a person ▾</span> and adds:</p>
+        <div class="line"><span class="slot">Account termination ▾</span><span>for the ticket</span><button class="btn quiet sm" type="button" style="margin-left:auto" aria-label="Remove">×</button></div>
+        <div class="line"><span class="slot">Apple device check-in ▾</span><span>for each of their</span><span class="slot">Mac, iPhone, iPad ▾</span><span>devices</span><button class="btn quiet sm" type="button" style="margin-left:auto" aria-label="Remove">×</button></div>
+        <div class="line"><span class="slot">Device check-in ▾</span><span>for each of their</span><span class="slot">other ▾</span><span>devices</span><button class="btn quiet sm" type="button" style="margin-left:auto" aria-label="Remove">×</button></div>
+        <button class="btn quiet sm" type="button" style="align-self:flex-start;color:var(--acc)">+ Add another checklist</button>
+        <div style="border-top:1px solid var(--line);padding-top:14px" class="sentence">Suggest it on new tickets in <span class="slot">Accounts › Termination ▾</span> <span class="hint">(optional)</span></div>
+        <p class="hint" style="margin:0">A device gets the first line it fits. Devices that fit none are listed on the ticket so nobody misses them.</p>
+      </div>
+      <aside style="flex:1 1 300px;max-width:340px" class="card">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--line)"><h3>Try it on someone</h3></div>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;font-size:13.5px">
+          <div class="input" style="height:36px">Jordan Reyes</div>
+          <div>Account termination <span class="muted">· for the ticket</span></div>
+          <div>Apple device check-in <span class="muted">· MacBook Pro, iPhone 15</span></div>
+          <div>Device check-in <span class="muted">· Dell Latitude 5440</span></div>
+          <div style="color:var(--warn-ink);font-weight:500">Not covered · iPad (10th gen), no MDM set</div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>

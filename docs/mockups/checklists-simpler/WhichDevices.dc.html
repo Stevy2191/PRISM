@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Who it's for and which devices</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ck.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.dv{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--bd);border-radius:10px}
+.dv.off{border-color:var(--warn-bd);background:var(--warn-bg)}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:900px;position:relative;overflow:hidden">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#" class="on">Tickets</a><a href="#">Contacts</a><a href="#">Assets</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs"><a href="#">Tickets</a><span>/</span><span>#01633</span></nav>
+    <h1 style="margin-top:8px">Termination: Jordan Reyes, last day Nov 14</h1>
+  </main>
+  <div class="scrim"></div>
+  <div style="position:absolute;inset:40px 0;display:flex;justify-content:center;align-items:flex-start">
+    <section class="dlg" role="dialog" aria-modal="true" aria-labelledby="wd-t" style="width:620px">
+      <div class="dlg-h"><p class="hint" style="margin:0 0 2px">Termination</p><h2 id="wd-t">Who is it for?</h2></div>
+      <div class="dlg-b" style="gap:14px">
+        <div class="input" style="height:48px;gap:10px"><b>Jordan Reyes</b><span class="hint">Parks &amp; Recreation · from the ticket's subject</span><button class="btn quiet sm" type="button" style="margin-left:auto">Change</button></div>
+
+        <div>
+          <div class="label" style="margin-bottom:8px">Their devices</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label class="dv"><input type="checkbox" checked="" style="width:18px;height:18px;margin-top:2px"><span><b>MacBook Pro 14"</b> <span class="hint">WC-1043</span><span class="hint" style="display:block">Gets <b style="color:var(--tx2)">Apple device check-in</b>, the Jamf Pro steps</span></span></label>
+            <label class="dv"><input type="checkbox" checked="" style="width:18px;height:18px;margin-top:2px"><span><b>iPhone 15</b> <span class="hint">WC-1187</span><span class="hint" style="display:block">Gets <b style="color:var(--tx2)">Apple device check-in</b>, the ManageEngine steps</span></span></label>
+            <label class="dv"><input type="checkbox" checked="" style="width:18px;height:18px;margin-top:2px"><span><b>Dell Latitude 5440</b> <span class="hint">WC-0877</span><span class="hint" style="display:block">Gets <b style="color:var(--tx2)">Device check-in</b></span></span></label>
+            <label class="dv off"><input type="checkbox" checked="" style="width:18px;height:18px;margin-top:2px"><span><b>iPad (10th gen)</b> <span class="hint">WC-1210</span><span class="hint" style="display:block;color:var(--warn-ink)">No checklist fits it: it has no MDM set. It will be listed on the ticket so it isn't missed. <a href="#">Set its MDM</a></span></span></label>
+          </div>
+          <button class="btn quiet sm" type="button" style="margin-top:6px;color:var(--acc)">+ Another device</button>
+        </div>
+        <div class="callout"><span>Adds <b>Account termination</b> and <b>3 device check-ins</b> to the ticket's Tasks. Nothing changes in other systems.</span></div>
+      </div>
+      <div class="dlg-f">
+        <button class="btn quiet" type="button" style="margin-right:auto">Back</button>
+        <button class="btn" type="button">Cancel</button>
+        <button class="btn primary" type="button">Add 4 checklists</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>

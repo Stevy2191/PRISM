@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Paste a document into a checklist</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ck.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pastebox{white-space:pre-wrap;font-size:13px;line-height:1.55;color:var(--tx2);background:var(--surf2);border:1px solid var(--bd2);border-radius:10px;padding:14px;height:560px;overflow:hidden;font-family:inherit}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:900px;position:relative;overflow:hidden">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Assets</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page" style="max-width:1320px">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><a href="#">Checklists</a><span>/</span><span>New</span></nav>
+    <h1 style="margin-top:8px">Apple device check-in</h1>
+    <p class="sub">Paste your document. Each line becomes a step; you can change anything on the next page.</p>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-top:18px">
+      <div class="field">
+        <label class="label" for="paste">Your document</label>
+        <div id="paste" class="pastebox" role="textbox" aria-multiline="true">Before you start
+You have the device, its charger, and the serial number.
+You know which MDM manages it: ManageEngine or Jamf Pro.
+Ideally, the user is present for Step 2.
+
+Step 1: Receive the device and find its records
+Serial number:
+Asset tag:
+Condition:
+If ManageEngine: Device Mgmt &gt; Groups &amp; Devices &gt; Devices.
+If Jamf Pro: Computers or Devices &gt; Search Inventory.
+Confirm it's still managed.
+
+Step 2: Check Activation Lock and sign out of Apple Accounts
+Activation Lock bypass code:
+Mac: System Settings &gt; [name]
+iPhone/iPad: Settings &gt; [name]
+Personal Apple Account signed in: have the user sign out themselves.
+
+Step 5: Wipe the device from the MDM
+If ManageEngine: choose Complete Wipe. Not Corporate Wipe.
+If Jamf Pro (Mac): Management &gt; Management Commands &gt; Wipe Computer.
+…</div>
+      </div>
+
+      <div class="field">
+        <span class="label">What PRISM made of it</span>
+        <div class="callout">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc-ink)" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3 8-8"></path></svg>
+          <div><b>9 sections, 31 steps, 5 things to write down, 1 password/code.</b><br>Lines starting “If ManageEngine:”, “If Jamf Pro:”, “Mac:” and “iPhone/iPad:” are set to <b>Only for</b> that MDM or device type. Check them on the next page.</div>
+        </div>
+        <div class="card" style="padding:6px 8px;height:470px;overflow:hidden">
+          <div class="sectitle">Before you start</div>
+          <div class="row"><span class="box"></span>You have the device, its charger, and the serial number.</div>
+          <div class="row"><span class="box"></span>You know which MDM manages it: ManageEngine or Jamf Pro.</div>
+          <div class="row"><span class="box"></span>Ideally, the user is present for Step 2. <span class="chip add">Optional?</span></div>
+          <div class="sectitle">Step 1: Receive the device and find its records</div>
+          <div class="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16z"></path></svg>Write down: <b>Serial number</b>, <b>Asset tag</b>, <b>Condition</b></div>
+          <div class="row"><span class="box"></span>Device Mgmt &gt; Groups &amp; Devices &gt; Devices. <span class="chip">Only for ManageEngine</span></div>
+          <div class="row"><span class="box"></span>Computers or Devices &gt; Search Inventory. <span class="chip">Only for Jamf Pro</span></div>
+          <div class="row"><span class="box"></span>Confirm it's still managed.</div>
+          <div class="sectitle">Step 2: Check Activation Lock…</div>
+          <div class="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><b>Activation Lock bypass code</b> <span class="hint">hidden password/code</span></div>
+          <div class="row"><span class="box"></span>System Settings &gt; [name] <span class="chip">Only for Mac</span></div>
+          <div class="row"><span class="box"></span>Settings &gt; [name] <span class="chip">Only for iPhone, iPad</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button class="btn" type="button">Back</button>
+      <button class="btn primary" type="button">Create checklist</button>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>

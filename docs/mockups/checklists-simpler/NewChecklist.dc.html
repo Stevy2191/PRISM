@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New checklist</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ck.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:900px;position:relative;overflow:hidden">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Assets</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page"><h1>Checklists</h1></main>
+  <div class="scrim"></div>
+  <div style="position:absolute;inset:48px 0;display:flex;justify-content:center;align-items:flex-start">
+    <section class="dlg" role="dialog" aria-modal="true" aria-labelledby="nc-t" style="width:680px">
+      <div class="dlg-h"><h2 id="nc-t">New checklist</h2></div>
+      <div class="dlg-b">
+        <div class="field"><label class="label" for="nc-name">Name</label><input id="nc-name" class="input" value="Apple device check-in"></div>
+
+        <fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:8px">
+          <legend class="label" style="margin-bottom:8px">What is it for?</legend>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+            <button type="button" class="choice" aria-pressed="false">
+              <span class="ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg></span>
+              <span><b>The ticket</b><span class="hint">Added once. For work like setting up or closing an account.</span></span>
+            </button>
+            <button type="button" class="choice on" aria-pressed="true">
+              <span class="ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="11" rx="1.5"></rect><path d="M2 19h20"></path></svg></span>
+              <span><b>A device</b><span class="hint">Added once for each device on the ticket. Steps can be only for some MDMs or device types.</span></span>
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:8px">
+          <legend class="label" style="margin-bottom:8px">When it's finished</legend>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+            <button type="button" class="choice" aria-pressed="false"><span><b>Nothing else</b><span class="hint">Just a list of steps.</span></span></button>
+            <button type="button" class="choice" aria-pressed="false"><span><b>Check the device out</b><span class="hint">To the person the ticket is for.</span></span></button>
+            <button type="button" class="choice on" aria-pressed="true"><span><b>Check the device in</b><span class="hint">And mark it ready, in repair or on hold.</span></span></button>
+          </div>
+          <p class="hint" style="margin:0">PRISM adds this as the last step, and does it when that step is ticked.</p>
+        </fieldset>
+
+        <fieldset style="border:0;padding:0;margin:0">
+          <legend class="label" style="margin-bottom:8px">Start with</legend>
+          <div class="seg" role="radiogroup" aria-label="Start with"><span class="on">Paste from a document</span><span>A blank checklist</span></div>
+        </fieldset>
+      </div>
+      <div class="dlg-f">
+        <button class="btn" type="button">Cancel</button>
+        <button class="btn primary" type="button">Next</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>

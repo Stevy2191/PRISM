@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Checklists in Settings</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ck.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Assets</a><a href="#">Projects</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><span>Service desk</span></nav>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:8px">
+      <div>
+        <h1>Checklists</h1>
+        <p class="sub">Steps your team follows, added to tickets. Write one once; use it on any ticket.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>Paste from a document</button>
+        <button class="btn primary" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New checklist</button>
+      </div>
+    </div>
+
+    <section class="card" style="margin-top:20px" aria-labelledby="ck-h">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)"><h2 id="ck-h" style="font-size:15px">Checklists <span class="muted" style="font-weight:500">6</span></h2><input class="input" style="max-width:240px;height:34px" placeholder="Search checklists" aria-label="Search checklists"></div>
+      <div class="lst">
+        <div class="lrow">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="11" rx="1.5"></rect><path d="M2 19h20"></path></svg></span>
+          <div><a href="#" style="font-weight:600;color:var(--tx)">Apple device check-out</a><div class="hint">For each device · finishing it <b style="color:var(--tx2)">checks the device out</b> · 31 steps</div></div>
+          <span class="tag">On 2 open tickets</span>
+        </div>
+        <div class="lrow">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="11" rx="1.5"></rect><path d="M2 19h20"></path></svg></span>
+          <div><a href="#" style="font-weight:600;color:var(--tx)">Apple device check-in</a><div class="hint">For each device · finishing it <b style="color:var(--tx2)">checks the device in</b> · 38 steps</div></div>
+          <span class="tag">On 3 open tickets</span>
+        </div>
+        <div class="lrow">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="11" rx="1.5"></rect><path d="M2 19h20"></path></svg></span>
+          <div><a href="#" style="font-weight:600;color:var(--tx)">Device check-in</a><div class="hint">For each device · finishing it checks the device in · 12 steps</div></div>
+          <span></span>
+        </div>
+        <div class="lrow">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg></span>
+          <div><a href="#" style="font-weight:600;color:var(--tx)">New account</a><div class="hint">For the ticket · 9 steps</div></div>
+          <span class="tag">On 1 open ticket</span>
+        </div>
+        <div class="lrow">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg></span>
+          <div><a href="#" style="font-weight:600;color:var(--tx)">Account termination</a><div class="hint">For the ticket · 10 steps</div></div>
+          <span class="tag">On 3 open tickets</span>
+        </div>
+        <div class="lrow">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg></span>
+          <div><a href="#" style="font-weight:600;color:var(--tx3)">Printer setup</a><div class="hint">For the ticket · 6 steps · switched off</div></div>
+          <span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:16px" aria-labelledby="bd-h">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)">
+        <div><h2 id="bd-h" style="font-size:15px">Bundles <span class="muted" style="font-weight:500">2</span></h2><p class="hint" style="margin:2px 0 0">Optional. Adds several checklists in one click.</p></div>
+        <button class="btn sm" type="button">New bundle</button>
+      </div>
+      <div class="lst">
+        <div class="lrow">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="5" rx="1"></rect><rect x="3" y="11" width="18" height="5" rx="1"></rect><path d="M7 20h10"></path></svg></span>
+          <div><a href="#" style="font-weight:600;color:var(--tx)">Termination</a><div class="hint">Account termination, plus Apple device check-in for each of their Apple devices and Device check-in for the rest</div></div>
+          <span class="tag">Suggested for Accounts › Termination</span>
+        </div>
+        <div class="lrow">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="5" rx="1"></rect><rect x="3" y="11" width="18" height="5" rx="1"></rect><path d="M7 20h10"></path></svg></span>
+          <div><a href="#" style="font-weight:600;color:var(--tx)">New hire</a><div class="hint">New account, plus Apple device check-out for each device added to the ticket</div></div>
+          <span class="tag">Suggested for Accounts › New account</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>

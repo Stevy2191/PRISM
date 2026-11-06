@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add a checklist to a ticket</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ck.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pick{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 12px;border-radius:10px;border:1.5px solid transparent;width:100%;text-align:left;background:transparent;font:inherit;color:var(--tx)}
+.pick:hover{background:var(--hover)}
+.pick.on{border-color:var(--acc);background:var(--acc-soft)}
+.grp{font-size:12px;font-weight:600;color:var(--tx3);letter-spacing:.02em;padding:12px 12px 4px}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:900px;position:relative;overflow:hidden">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#" class="on">Tickets</a><a href="#">Contacts</a><a href="#">Assets</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs"><a href="#">Tickets</a><span>/</span><span>#01633</span></nav>
+    <h1 style="margin-top:8px">Termination: Jordan Reyes, last day Nov 14</h1>
+  </main>
+  <div class="scrim"></div>
+  <div style="position:absolute;inset:40px 0;display:flex;justify-content:center;align-items:flex-start">
+    <section class="dlg" role="dialog" aria-modal="true" aria-labelledby="ac-t" style="width:620px">
+      <div class="dlg-h"><h2 id="ac-t">Add a checklist</h2></div>
+      <div class="dlg-b" style="gap:6px">
+        <input class="input" placeholder="Search checklists" aria-label="Search checklists">
+        <div class="grp">SUGGESTED FOR THIS TICKET</div>
+        <button type="button" class="pick on" aria-pressed="true">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="5" rx="1"></rect><rect x="3" y="11" width="18" height="5" rx="1"></rect><path d="M7 20h10"></path></svg></span>
+          <span><b>Termination</b><span class="hint" style="display:block">Account termination, and a check-in for each of the person's devices</span></span>
+          <span class="tag">Bundle</span>
+        </button>
+        <div class="grp">FOR THE TICKET</div>
+        <button type="button" class="pick"><span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg></span><span><b>Account termination</b><span class="hint" style="display:block">10 steps</span></span><span></span></button>
+        <button type="button" class="pick"><span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg></span><span><b>New account</b><span class="hint" style="display:block">9 steps</span></span><span></span></button>
+        <div class="grp">FOR DEVICES</div>
+        <button type="button" class="pick"><span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="11" rx="1.5"></rect><path d="M2 19h20"></path></svg></span><span><b>Apple device check-in</b><span class="hint" style="display:block">Checks the device in when finished</span></span><span class="hint">Choose devices next</span></button>
+        <button type="button" class="pick"><span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="11" rx="1.5"></rect><path d="M2 19h20"></path></svg></span><span><b>Apple device check-out</b><span class="hint" style="display:block">Checks the device out when finished</span></span><span class="hint">Choose devices next</span></button>
+      </div>
+      <div class="dlg-f">
+        <button class="btn" type="button">Cancel</button>
+        <button class="btn primary" type="button">Next: who it's for</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Only for picker</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ck.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:900px;position:relative;overflow:hidden">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Assets</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page" style="max-width:1280px">
+    <h1>Apple device check-in</h1>
+    <div class="card" style="margin-top:18px;padding:8px 10px 14px;max-width:860px">
+      <div class="sectitle">Step 5: Wipe the device from the MDM</div>
+      <div class="row"><span class="box"></span>Choose <b>Complete Wipe</b>. Not Corporate Wipe.<span class="chip">Only for ManageEngine</span></div>
+      <div class="row sel"><span class="box"></span>Management › Management Commands › <b>Wipe Computer</b>.<span class="chip">Only for Jamf Pro · Mac</span></div>
+      <div class="row"><span class="box"></span>Management › <b>Wipe Device</b>.<span class="chip add">Only for…</span></div>
+    </div>
+  </main>
+
+  <section class="pop" role="dialog" aria-labelledby="of-t" style="left:420px;top:300px;width:420px">
+    <div style="padding:16px 18px 6px"><h3 id="of-t">Only for</h3><p class="hint" style="margin:4px 0 0">Show this step only for these devices. Leave a group empty for any.</p></div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:10px 12px">
+      <fieldset style="border:0;margin:0;padding:0">
+        <legend class="label" style="padding:0 6px 6px">MDM</legend>
+        <label class="tick on"><span class="cbx on" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M5 12l5 5 9-10"></path></svg></span>Jamf Pro<input type="checkbox" checked="" style="position:absolute;opacity:0" aria-label="Jamf Pro"></label>
+        <label class="tick"><span class="cbx" aria-hidden="true"></span>ManageEngine<input type="checkbox" style="position:absolute;opacity:0" aria-label="ManageEngine"></label>
+        <label class="tick"><span class="cbx" aria-hidden="true"></span>Not managed<input type="checkbox" style="position:absolute;opacity:0" aria-label="Not managed"></label>
+      </fieldset>
+      <fieldset style="border:0;margin:0;padding:0">
+        <legend class="label" style="padding:0 6px 6px">Device type</legend>
+        <label class="tick on"><span class="cbx on" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M5 12l5 5 9-10"></path></svg></span>Mac<input type="checkbox" checked="" style="position:absolute;opacity:0" aria-label="Mac"></label>
+        <label class="tick"><span class="cbx" aria-hidden="true"></span>iPhone<input type="checkbox" style="position:absolute;opacity:0" aria-label="iPhone"></label>
+        <label class="tick"><span class="cbx" aria-hidden="true"></span>iPad<input type="checkbox" style="position:absolute;opacity:0" aria-label="iPad"></label>
+        <label class="tick"><span class="cbx" aria-hidden="true"></span>Windows laptop<input type="checkbox" style="position:absolute;opacity:0" aria-label="Windows laptop"></label>
+      </fieldset>
+    </div>
+    <div style="padding:0 18px 12px"><div class="callout"><span>Shows for <b>Macs on Jamf Pro</b>. Hidden for every other device.</span></div></div>
+    <div style="display:flex;justify-content:space-between;padding:10px 18px;border-top:1px solid var(--line)">
+      <button class="btn quiet sm" type="button">Show for every device</button>
+      <button class="btn primary sm" type="button">Done</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>
