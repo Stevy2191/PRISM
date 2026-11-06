@@ -70,6 +70,8 @@ function resolvePlaybook(playbook, { personDevices = [], ticketDevices = [] } = 
     if (blockIndex === -1) uncovered.push(asset);
     else forms.push({ blockIndex, formId: blocks[blockIndex].formId, assetId: asset.id });
   }
+  // In the playbook's order; within a block, in the order the devices came.
+  forms.sort((a, b) => a.blockIndex - b.blockIndex);
   return { forms, uncovered };
 }
 

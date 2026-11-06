@@ -364,9 +364,9 @@ async function assertUniqueTag(assetTag, excludeId) {
   if (existing) throw new ApiError(409, `Asset tag "${assetTag}" is already in use`, 'DUPLICATE_ASSET_TAG');
 }
 
-// POST /assets
-const create = asyncHandler(async (req, res) => {
-  const body = req.body || {};
+// Creates an asset with every check POST /assets makes (also used to create
+// a device from a ticket, PB). → { asset, warnings }
+async function createAsset(req, body) {
   if (!body.name || !body.name.trim()) throw new ApiError(400, 'Name is required', 'VALIDATION_ERROR');
   if (!body.categoryId) throw new ApiError(400, 'Category is required', 'VALIDATION_ERROR');
 
@@ -394,7 +394,12 @@ const create = asyncHandler(async (req, res) => {
 
   const fresh = await Asset.findByPk(asset.id, { include: assetInclude });
   await present(req.user, fresh);
-  res.status(201).json({ asset: fresh, warnings: await duplicateWarnings(fresh) });
+  return { asset: fresh, warnings: await duplicateWarnings(fresh) };
+}
+
+// POST /assets
+const create = asyncHandler(async (req, res) => {
+  res.status(201).json(await createAsset(req, req.body || {}));
 });
 
 // PATCH /assets/:id
@@ -922,5 +927,5 @@ module.exports = {
   listTickets, linkTicket, unlinkTicket, listActivity,
   listCheckouts, createCheckout, checkInCheckout, sendCheckoutForm, updateCheckout,
   listAttachments, createAttachment, downloadAttachment, removeAttachment,
-  assetInclude,
+  assetInclude, createAsset, present,
 };

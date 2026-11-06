@@ -73,7 +73,7 @@ it('limits on cellular and the agent', () => {
     ],
   };
   const { forms, uncovered } = resolvePlaybook(p, { personDevices: [mac, iphone, laptop] });
-  expect(forms.map((f) => [f.assetId, f.formId])).toEqual([[1, 2], [2, 1]]);
+  expect(forms.map((f) => [f.assetId, f.formId])).toEqual([[2, 1], [1, 2]]); // in block order
   expect(uncovered.map((a) => a.id)).toEqual([3]);
 });
 

@@ -14,6 +14,9 @@ const manageWatchers = requirePermission('tickets.manage_watchers');
 // time.manage_others or leading their team (services/time).
 const logTime = requirePermission('time.log');
 
+const playbooks = require('../controllers/tickets/playbooks');
+const devices = require('../controllers/tickets/devices');
+
 // Tickets
 router.get('/', viewMin, ctrl.list);
 router.post('/', requirePermission('tickets.create'), ctrl.create);
@@ -84,6 +87,16 @@ router.patch('/:id/custom-field-values', editMin, ctrl.updateCustomFieldValues);
 
 // Activity (per-ticket timeline)
 router.get('/:id/activity', ctrl.listActivity);
+
+// Playbooks and devices (PB)
+router.get('/:id/playbooks', viewMin, playbooks.view);
+router.get('/:id/playbooks/options', editMin, playbooks.options);
+router.post('/:id/playbooks', editMin, playbooks.create);
+router.delete('/:id/playbooks/:tpId', editMin, playbooks.remove);
+router.post('/:id/playbook-suggestions/:suggestionId/dismiss', editMin, playbooks.dismissSuggestion);
+router.post('/:id/devices/new', editMin, devices.createDevice);
+router.post('/:id/devices', editMin, devices.link);
+router.delete('/:id/devices/:assetId', editMin, devices.unlink);
 
 // PDF report
 router.get('/:id/report', viewMin, ctrl.generateReport);

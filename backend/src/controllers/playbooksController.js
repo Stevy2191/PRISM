@@ -1,9 +1,6 @@
 // Playbooks in Settings (Playbooks, PB, task 4): forms applied to a ticket
 // together, a preview for a person, and export / import.
-const { Op } = require('sequelize');
-const {
-  Playbook, Form, Asset, Device, Contact,
-} = require('../models');
+const { Playbook, Form } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { parseRecordId, findAccessibleContact } = require('../services/permissionService');
@@ -55,14 +52,7 @@ const setActive = asyncHandler(async (req, res) => {
   res.json({ playbook: (await presentPlaybooks([playbook]))[0] });
 });
 
-// The devices assigned to a person, in their own company, with the agent.
-async function personDevices(contact) {
-  return Asset.findAll({
-    where: { assignedToContactId: contact.id, companyId: contact.companyId, status: { [Op.notIn]: ['retired', 'lost'] } },
-    include: [{ model: Device, as: 'device', required: false, attributes: ['id', 'revokedAt', 'lastSeenAt'] }],
-    order: [['assetTag', 'ASC']],
-  });
-}
+const { personDevices } = require('../services/playbooks/apply');
 
 const assetSummary = (a) => ({
   id: a.id, assetTag: a.assetTag, name: a.name, categoryId: a.categoryId, isManaged: a.isManaged, mdmId: a.mdmId, hasCellular: a.hasCellular,
