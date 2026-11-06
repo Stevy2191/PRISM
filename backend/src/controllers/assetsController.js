@@ -17,7 +17,7 @@ const { writeAudit } = require('../middleware/audit');
 const { logAssetActivity } = require('../services/assetActivity');
 const { suggestNextAssetTag } = require('../services/assetTagService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
-const { generateCheckoutFormPdf } = require('../services/assetCheckoutPdf');
+const checkouts = require('../services/assets/checkouts');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 const { sendMail } = require('../services/emailSender');
 const { getAllSettings } = require('./settingsController');
@@ -28,7 +28,7 @@ const {
 const { andWhere } = require('../services/recordScope');
 const { resolvePlacement, resolveVendorFields, hideUnreachableVendors } = require('../services/companyService');
 const {
-  orgToday, orgTimeZone, dateInZone, addDays,
+  orgToday, addDays,
 } = require('../utils/orgTime');
 
 const userAttrs = ['id', 'displayName', 'username'];
@@ -142,20 +142,7 @@ function daysUntil(dateStr) {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
-// Checkout/check-in dates may be backdated arbitrarily (entering existing
-// deployed equipment, correcting historical records) but never postdated —
-// compared against end-of-today so "today" itself is always valid regardless
-// of what time of day the request arrives.
-function assertNotFutureDate(value, label) {
-  if (!value) return;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) throw new ApiError(400, `${label} is not a valid date`, 'VALIDATION_ERROR');
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
-  if (d.getTime() > endOfToday.getTime()) {
-    throw new ApiError(400, `${label} cannot be in the future`, 'FUTURE_DATE_NOT_ALLOWED');
-  }
-}
+const { assertNotFutureDate } = checkouts;
 
 // GET /assets?search=&categoryId=&departmentId=&status=&assignedTo=&quickFilter=
 const list = asyncHandler(async (req, res) => {
@@ -635,53 +622,13 @@ const createCheckout = asyncHandler(async (req, res) => {
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
 
   if (!req.body.contactId) throw new ApiError(400, 'contactId is required', 'VALIDATION_ERROR');
-  const contactId = (await assertCheckoutContact(req.user, req.body.contactId, asset)).id;
-  const contact = await Contact.findByPk(contactId, { include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] });
-
-  assertNotFutureDate(req.body.checkedOutAt, 'Checkout date');
-  const checkedOutAt = req.body.checkedOutAt ? new Date(req.body.checkedOutAt) : new Date();
-  const checkout = await AssetCheckout.create({
-    assetId: asset.id,
-    contactId,
-    checkedOutBy: req.user.id,
-    checkedOutAt,
-    notes: req.body.notes || null,
-  });
-
-  if (asset.assignedToContactId !== contactId || asset.assignedToUserId) {
-    // The asset takes the person's department with them, when they have one.
-    const dept = contact.departmentId && contact.departmentId !== asset.departmentId ? { departmentId: contact.departmentId } : {};
-    await asset.update({ assignedToContactId: contactId, assignedToUserId: null, ...dept });
-    await logAssetActivity(asset.id, req.user.id, 'assignment_changed', { assignedToContactId: contactId, assignedToUserId: null, ...dept });
-  }
-  await logAssetActivity(asset.id, req.user.id, 'checked_out', { contactId, contactName: contact.displayName, checkedOutAt });
-
-  const attachment = req.body.generateForm ? await makeCheckoutForm(asset, contact, checkout, req.user) : null;
+  const contact = await assertCheckoutContact(req.user, req.body.contactId, asset);
+  const { checkout } = await checkouts.checkOut(req, asset, contact, { checkedOutAt: req.body.checkedOutAt, notes: req.body.notes });
+  const attachment = req.body.generateForm ? await checkouts.makeCheckoutForm(asset, contact.id, checkout, req.user) : null;
 
   const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
   res.status(201).json({ checkout: fresh, attachment });
 });
-
-// The checkout's agreement as a PDF on the asset's attachments, linked to
-// the checkout as its form (a new one replaces the link, not the file).
-async function makeCheckoutForm(asset, contact, checkout, user) {
-  const { filename, size } = await generateCheckoutFormPdf({
-    asset,
-    contact,
-    checkoutDate: dateInZone(checkout.checkedOutAt, await orgTimeZone()),
-  });
-  const attachment = await AssetAttachment.create({
-    assetId: asset.id,
-    filename,
-    originalName: `Checkout Form - ${asset.assetTag}.pdf`,
-    mimeType: 'application/pdf',
-    size,
-    uploadedById: user.id,
-  });
-  await checkout.update({ formAttachmentId: attachment.id });
-  await logAssetActivity(asset.id, user.id, 'checkout_form_generated', { checkoutId: checkout.id, attachmentId: attachment.id });
-  return attachment;
-}
 
 async function findCheckout(req, include) {
   const asset = await Asset.findByPk(req.params.id, include ? { include: assetInclude } : undefined);
@@ -696,8 +643,7 @@ async function findCheckout(req, include) {
 // deleted), or a fresh one.
 const createCheckoutForm = asyncHandler(async (req, res) => {
   const { asset, checkout } = await findCheckout(req, true);
-  const contact = await Contact.findByPk(checkout.contactId, { include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] });
-  const attachment = await makeCheckoutForm(asset, contact, checkout, req.user);
+  const attachment = await checkouts.makeCheckoutForm(asset, checkout.contactId, checkout, req.user);
   const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
   res.status(201).json({ checkout: fresh, attachment });
 });
@@ -748,24 +694,16 @@ const uploadSignedCheckoutForm = asyncHandler(async (req, res) => {
 const checkInCheckout = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
-  const checkout = await AssetCheckout.findOne({ where: { id: req.params.checkoutId, assetId: asset.id } });
-  if (!checkout) throw new ApiError(404, 'Checkout not found', 'NOT_FOUND');
-  if (checkout.checkedInAt) throw new ApiError(400, 'This checkout has already been checked in', 'ALREADY_CHECKED_IN');
-
-  assertNotFutureDate(req.body.checkedInAt, 'Check-in date');
-  const checkedInAt = req.body.checkedInAt ? new Date(req.body.checkedInAt) : new Date();
-  if (checkedInAt.getTime() < new Date(checkout.checkedOutAt).getTime()) {
-    throw new ApiError(400, 'Check-in date cannot be before the checkout date', 'VALIDATION_ERROR');
-  }
-
-  await checkout.update({ checkedInAt, checkedInBy: req.user.id });
-
-  if (asset.assignedToContactId === checkout.contactId) {
-    await asset.update({ assignedToContactId: null });
-    await logAssetActivity(asset.id, req.user.id, 'assignment_changed', { assignedToContactId: null, assignedToUserId: asset.assignedToUserId });
-  }
-  await logAssetActivity(asset.id, req.user.id, 'checked_in', { contactId: checkout.contactId });
-
+  const body = req.body || {};
+  // status, holdReason and revokeAgent are optional here (the ticket form's
+  // check-in sends them; the asset page may).
+  const { checkout } = await checkouts.checkIn(req, asset, {
+    checkoutId: parseRecordId(req.params.checkoutId) || -1,
+    checkedInAt: body.checkedInAt,
+    status: body.status,
+    holdReason: body.holdReason,
+    revokeAgent: body.revokeAgent === true,
+  });
   const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
   res.json({ checkout: fresh });
 });
