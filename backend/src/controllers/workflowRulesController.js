@@ -1,5 +1,5 @@
 const {
-  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog, Ticket, User, SlaPolicy, sequelize,
+  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog, Ticket, User, SlaPolicy, Playbook, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -30,6 +30,9 @@ const ACTION_TYPES = [
   'assign_to_user', 'assign_to_team', 'assign_round_robin', 'set_status', 'set_priority',
   'add_tag', 'remove_tag', 'set_due_date', 'send_notification', 'add_private_comment', 'escalate_to_user',
   'set_sla_policy',
+  // Playbooks (PB): shows "Suggested: <playbook> [Apply]" on the ticket;
+  // never applies it.
+  'suggest_playbook',
 ];
 
 const detailInclude = [
@@ -86,6 +89,13 @@ async function validateActions(actions) {
         throw new ApiError(400, `Action ${idx + 1}: SLA policy not found`, 'VALIDATION_ERROR');
       }
       actionValue = { slaPolicyId: id };
+    }
+    if (a.actionType === 'suggest_playbook') {
+      const id = parseRecordId(actionValue && actionValue.playbookId);
+      // eslint-disable-next-line no-await-in-loop
+      const playbook = id ? await Playbook.findByPk(id) : null;
+      if (!playbook || !playbook.isActive) throw new ApiError(400, `Action ${idx + 1}: playbook not found or switched off`, 'VALIDATION_ERROR');
+      actionValue = { playbookId: id };
     }
     out.push({ actionType: a.actionType, actionValue, position: idx + 1 });
   }
