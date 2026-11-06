@@ -3,7 +3,7 @@
 // ticket and project controllers only find the parent and check access.
 const { Op } = require('sequelize');
 const {
-  Task, TaskAssignee, TaskStatus, ProjectPhase, TimeEntry, ActiveTimer, ProjectExpense, ProjectMaterial, ProjectFile, User, Ticket, sequelize,
+  Task, TaskAssignee, TaskStatus, ProjectPhase, TimeEntry, ActiveTimer, ProjectExpense, ProjectMaterial, ProjectFile, User, Ticket, TicketForm, sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -389,6 +389,11 @@ async function updateTask(req, parent, task, body = {}) {
     if (status.id !== task.statusId) { // Q7, Q15: the same status is no change
       const wasClosed = (await taskStatusBehaviorMap()).get(task.statusId) === 'closed';
       const willClose = status.behaviorType === 'closed';
+      // A ticket form's task (PB) closes itself when its form is finished or
+      // skipped, and can't be closed by hand before.
+      if (willClose && !wasClosed && await TicketForm.count({ where: { taskId: task.id, state: 'open' } })) {
+        throw new ApiError(409, 'Finish or skip its form to close this task', 'FORM_OPEN');
+      }
       changes.statusId = status.id;
       changes.completedAt = willClose ? (wasClosed ? task.completedAt : new Date()) : null;
       if (willClose !== wasClosed) statusEvent = willClose ? 'closed' : 'reopened';
@@ -429,6 +434,9 @@ async function updateTask(req, parent, task, body = {}) {
 // The task and its subtasks go; their time, expenses, materials, files and
 // running timers stay, on no task (the work happened).
 async function deleteTask(req, parent, task) {
+  if (await TicketForm.count({ where: { taskId: task.id } })) {
+    throw new ApiError(409, "This task is a form. Remove its device or playbook instead", 'FORM_TASK');
+  }
   // Lazy: projects/helpers loads this module.
   const projectHelpers = parent.kind === 'project' ? require('../projects/helpers') : null; // eslint-disable-line global-require
   const dropped = await sequelize.transaction(async (transaction) => {

@@ -20,8 +20,8 @@ module.exports = (sequelize) => {
       modelName: 'TicketFormSecret',
       tableName: 'TicketFormSecrets',
       timestamps: false,
+      // Read the ciphertext with TicketFormSecret.unscoped() (reveal only).
       defaultScope: { attributes: { exclude: ['ciphertext'] } },
-      scopes: { withCiphertext: { attributes: { include: ['ciphertext'] } } },
     }
   );
 
