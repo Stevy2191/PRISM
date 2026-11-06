@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A ticket form for one device</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pb.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#" class="on" aria-current="page">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a><a href="#">Projects</a><a href="#">Workload</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Tickets</a><span>/</span><a href="#" class="num">#01633</a><span>/</span><span>Tasks</span></nav>
+    <section class="head" style="margin-top:10px">
+      <div style="min-width:0;flex:1 1 560px">
+        <div class="chips"><span class="status">In progress</span><span class="tag">Account termination · for Jordan Reyes</span></div>
+        <h1 style="margin-top:8px">Apple device check-in: MacBook Pro 14"</h1>
+        <p class="sub">Complete these steps when a Mac, iPad or iPhone comes back, so it's erased and ready for the next person. Do them in order.</p>
+      </div>
+      <div style="width:260px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;font-size:13px"><span class="muted">Required steps</span><b class="num">13 of 26</b></div><div class="meter"><i style="width:50%"></i></div></div>
+    </section>
+
+    <div class="tk-grid">
+      <div class="tk-main" style="display:flex;flex-direction:column;gap:12px">
+
+        <section class="sec" aria-labelledby="s0">
+          <div class="sec-h"><h3 id="s0">Before you start</h3><span class="good-t" style="font-size:13px">4 of 4</span></div>
+          <div class="sec-b">
+            <div class="step done"><input class="cb" type="checkbox" checked="" aria-label="Device, charger and serial"><div class="sl"><p>You have the device, its charger, and the serial number.</p><div class="by">Sean Stevens · Nov 6, 10:20 AM</div></div></div>
+            <div class="step done"><input class="cb" type="checkbox" checked="" aria-label="Know the MDM"><div class="sl"><p>You know which MDM manages it (from the check-out ticket).</p><div class="by">Sean Stevens · Nov 6, 10:20 AM</div></div></div>
+            <div class="hint" style="padding:6px 0">2 more done · <a href="#">Show</a></div>
+          </div>
+        </section>
+
+        <section class="sec" aria-labelledby="s1">
+          <div class="sec-h"><h3 id="s1">Step 1: Receive the device and find its records</h3><span class="good-t" style="font-size:13px">5 of 5</span></div>
+          <div class="sec-b" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding-top:14px">
+            <div class="field"><label for="f-sn">Serial number<span class="req">*</span></label><div class="input"><input id="f-sn" value="C02FK3QXMD6M"></div></div>
+            <div class="field"><label for="f-tag">Asset tag<span class="req">*</span></label><div class="input"><input id="f-tag" value="WC-1043"></div></div>
+            <div class="field"><label for="f-cond">Condition<span class="req">*</span></label><div class="input" id="f-cond">Good, charger missing<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+          </div>
+          <div class="sec-b" style="padding-top:0"><div class="hint">Serial and asset tag were filled in from the device. 3 steps done · <a href="#">Show</a></div></div>
+        </section>
+
+        <section class="sec" aria-labelledby="s2">
+          <div class="sec-h"><h3 id="s2">Step 2: Check Activation Lock and sign out of Apple Accounts</h3><span class="muted" style="font-size:13px">2 of 4</span></div>
+          <div class="sec-b">
+            <div class="info">If someone signed in with a personal Apple Account and turned on Find My, the device may be Activation Locked, which survives a wipe.</div>
+            <div class="step done"><input class="cb" type="checkbox" checked="" aria-label="Check Activation Lock in Jamf"><div class="sl"><p>In the device's record, check <b>Activation Lock</b> status (<b>Inventory › Security</b>). <span class="branch">Jamf Pro</span></p><div class="by">Sean Stevens · Nov 6, 10:31 AM</div></div></div>
+            <div class="step"><div style="width:18px"></div><div class="sl">
+              <div class="field"><label for="f-bp">Activation Lock bypass code <span class="muted" style="font-weight:400">· secure</span></label>
+                <div class="secure"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><span class="dots" id="f-bp">••••••••••••</span><button class="btn sm" type="button">Reveal</button><button class="btn sm quiet" type="button">Replace</button></div>
+                <span class="hint">Recorded by Sean Stevens, Nov 6. Each reveal is logged on the ticket.</span></div>
+            </div></div>
+            <div class="step"><input class="cb" type="checkbox" aria-label="Check for signed-in Apple Account"><div class="sl"><p>On the device, check for a signed-in Apple Account: <b>System Settings › [name]</b>.<span class="req">*</span> <span class="branch">Mac</span></p></div></div>
+            <div class="step"><input class="cb" type="checkbox" aria-label="Personal account signed out"><div class="sl"><p><b>Personal Apple Account signed in:</b> have the user sign out themselves. Never ask for their password.<span class="req">*</span></p></div></div>
+          </div>
+        </section>
+
+        <section class="sec" aria-labelledby="s3">
+          <div class="sec-h"><h3 id="s3">Step 3: Back up data that must be kept</h3><span class="muted" style="font-size:13px">1 of 4</span></div>
+          <div class="sec-b" style="display:flex;flex-direction:column;gap:12px;padding-top:14px">
+            <div class="field"><span class="flabel">Is the data under a retention requirement or legal hold?<span class="req">*</span></span><div class="seg-ctl" role="group" aria-label="Retention or legal hold"><button type="button">Yes</button><button type="button" class="on">No</button></div></div>
+            <div class="field" style="max-width:420px"><label for="f-appr">Who approved the wipe<span class="req">*</span></label><div class="input" id="f-appr"><span class="ph">Choose a staff member or contact…</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+          </div>
+        </section>
+
+        <section class="sec" aria-labelledby="s5">
+          <div class="sec-h"><h3 id="s5">Step 5: Wipe the device from the MDM</h3><span class="muted" style="font-size:13px">0 of 3</span></div>
+          <div class="sec-b">
+            <div class="info warn">Wipe while the device is still enrolled. Don't remove or delete it from the MDM first.</div>
+            <div class="step"><input class="cb" type="checkbox" aria-label="Wipe Computer"><div class="sl"><p>Open the record, go to <b>Management › Management Commands</b>, and click <b>Wipe Computer</b>.<span class="req">*</span> <span class="branch">Jamf Pro</span> <span class="branch">Mac</span></p></div></div>
+            <div class="step"><div style="width:18px"></div><div class="sl"><div class="field"><label for="f-pc">6-digit passcode (older Intel Macs) <span class="muted" style="font-weight:400">· secure, optional</span></label><div class="secure"><span class="dots" id="f-pc" style="letter-spacing:0;color:var(--tx3)">Not recorded</span><button class="btn sm" type="button">Record</button></div></div></div></div>
+            <div class="step"><input class="cb" type="checkbox" aria-label="Wait for Hello screen"><div class="sl"><p>Wait for the device to restart to the setup (Hello) screen.<span class="req">*</span></p></div></div>
+            <div class="hint" style="padding:8px 0 2px">3 steps hidden: they're for ManageEngine or for iPhone/iPad, and this is a Mac on Jamf Pro. <a href="#">Show anyway</a></div>
+          </div>
+        </section>
+
+        <section class="sec" aria-labelledby="s7">
+          <div class="sec-h"><h3 id="s7">Step 7: Clean up accounts and records</h3><span class="muted" style="font-size:13px">0 of 3</span></div>
+          <div class="sec-b" style="display:flex;flex-direction:column;gap:4px;padding-top:14px">
+            <div class="field"><span class="flabel">Is the user leaving the organization?<span class="req">*</span></span><div class="seg-ctl" role="group" aria-label="User leaving"><button type="button" class="on">Yes</button><button type="button">No</button></div></div>
+            <div class="step"><input class="cb" type="checkbox" aria-label="Deactivate Managed Apple Account"><div class="sl"><p>In <b>ABM › Users</b>, deactivate their Managed Apple Account, unless directory sync removes it.<span class="req">*</span> <span class="branch">Shown because: leaving = Yes</span></p></div></div>
+            <div class="step"><input class="cb" type="checkbox" aria-label="Clear User and Location"><div class="sl"><p>Don't delete the record. Clear the <b>User and Location</b> tab and remove it from static groups.<span class="req">*</span> <span class="branch">Jamf Pro</span></p></div></div>
+          </div>
+        </section>
+
+        <section class="sec" aria-labelledby="s8">
+          <div class="sec-h"><h3 id="s8">Step 8: Mark the device ready</h3><span class="muted" style="font-size:13px">0 of 3</span></div>
+          <div class="sec-b" style="display:flex;flex-direction:column;gap:12px;padding-top:12px">
+            <div class="step" style="padding-top:0"><input class="cb" type="checkbox" aria-label="Hello screen, no lock"><div class="sl"><p>Confirm the device is on the setup (Hello) screen with no Activation Lock prompt.<span class="req">*</span></p></div></div>
+            <div class="action">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--acc-ink)" stroke-width="2" aria-hidden="true"><path d="M3 12h13M12 7l5 5-5 5"></path><path d="M21 4v16"></path></svg>
+              <div class="t"><b>Check in this device</b><span class="req">*</span><div class="hint">Checks WC-1043 in from Jordan Reyes in PRISM and sets its status. Available once the required steps above are done.</div><label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input class="cb" type="checkbox" checked="">Revoke its PRISM agent, so the next install claims this asset instead of making a new one</label></div>
+              <div class="field" style="min-width:220px"><label for="f-st" class="hint">Status after check-in</label><div class="input" id="f-st" style="height:36px">Ready to issue<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+              <button class="btn primary" type="button" disabled="" style="opacity:.55">Check in</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="tk-side" aria-label="Form details">
+        <div class="card">
+          <div class="sh"><h3>Device</h3><a href="#" style="font-size:13px">Open asset</a></div>
+          <div class="sb"><dl class="kv" style="margin:0;grid-template-columns:96px minmax(0,1fr)">
+            <dt>Device</dt><dd>MacBook Pro 14" (M3)</dd>
+            <dt>Asset tag</dt><dd class="num">WC-1043</dd>
+            <dt>Type</dt><dd>Mac</dd>
+            <dt>Managed</dt><dd>Yes · <span class="mdm">Jamf Pro</span></dd>
+            <dt>MDM ID</dt><dd><a href="#">1487 ↗</a></dd>
+            <dt>Holder</dt><dd>Jordan Reyes</dd>
+            <dt>PRISM agent</dt><dd><span class="good-t" style="font-weight:500">Online</span> · seen 4 min ago</dd>
+          </dl><button class="btn sm" type="button" style="margin-top:10px">Scan now</button></div>
+        </div>
+        <div class="card">
+          <div class="sh"><h3>This form</h3></div>
+          <div class="sb" style="display:flex;flex-direction:column;gap:10px">
+            <dl class="kv" style="margin:0;grid-template-columns:96px minmax(0,1fr)">
+              <dt>Assignee</dt><dd><span class="who"><span class="av d">SS</span>Sean Stevens</span></dd>
+              <dt>Playbook</dt><dd>Account termination</dd>
+              <dt>Form</dt><dd>Apple device check-in · version 3</dd>
+            </dl>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+              <button class="btn sm" type="button">Not returned…</button>
+              <button class="btn sm" type="button">Skip with reason…</button>
+              <button class="btn sm" type="button" disabled="" style="opacity:.55">Download PDF</button>
+            </div>
+            <span class="hint">The PDF is ready once the form is finished. Secure values are never in it.</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

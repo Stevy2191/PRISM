@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Playbook editor</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pb.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a><a href="#">Projects</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><a href="#">Service desk</a><span>/</span><a href="#">Playbooks</a><span>/</span><span>Account termination</span></nav>
+    <section class="head" style="margin-top:10px">
+      <div style="min-width:0;flex:1 1 520px"><h1>Account termination</h1><p class="sub">Applied 12 times · last on #01633</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button">Export</button><button class="btn primary" type="button">Save</button></div>
+    </section>
+
+    <div class="bld">
+      <div class="bld-main">
+        <div class="card" style="padding:16px 18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px">
+          <div class="field"><label for="pb-n">Name</label><div class="input"><input id="pb-n" value="Account termination"></div></div>
+          <div class="field"><label for="pb-co">Offered for</label><div class="input" id="pb-co">All companies<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+          <div class="field" style="grid-column:1 / -1"><label for="pb-d">Description</label><textarea class="input" id="pb-d" rows="2">Someone is leaving: account clean-up, then every device they hold checked back in.</textarea></div>
+          <label style="display:flex;align-items:center;gap:10px;grid-column:1 / -1"><span class="sw" aria-hidden="true"></span><span><b>Needs a person</b> <span class="muted">· asked when applied, guessed from the ticket's subject</span></span></label>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><h2>Forms</h2><span class="hint">A device gets the first per-device form it matches.</span></div>
+
+        <div class="blk">
+          <span class="grip" aria-hidden="true">⋮⋮</span>
+          <div><div class="bt">Account termination</div><div class="bs"><span class="branch">Once for the ticket</span></div></div>
+          <div style="display:flex;gap:6px"><button class="btn sm" type="button">Edit</button><button class="ib" type="button" aria-label="Remove" style="width:32px;height:32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+        </div>
+        <div class="blk" style="border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)">
+          <span class="grip" aria-hidden="true">⋮⋮</span>
+          <div style="min-width:0">
+            <div class="bt">Apple device check-in</div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px">
+              <div class="field"><label for="b2-ap">Applies</label><div class="input" id="b2-ap" style="height:36px">Per device: the person's devices<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+              <div class="field"><span class="flabel">Only devices that are</span><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="tag" style="padding:4px 10px">Type: Mac, iPhone, iPad ×</span><span class="tag" style="padding:4px 10px">Managed ×</span><button class="btn sm quiet" type="button" style="color:var(--acc);height:28px">+ Limit</button></div></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px"><button class="btn sm" type="button">Done</button></div>
+        </div>
+        <div class="blk">
+          <span class="grip" aria-hidden="true">⋮⋮</span>
+          <div><div class="bt">Device check-in</div><div class="bs"><span class="branch">Per device: the person's devices</span><span class="branch">Any device not matched above</span></div></div>
+          <div style="display:flex;gap:6px"><button class="btn sm" type="button">Edit</button><button class="ib" type="button" aria-label="Remove" style="width:32px;height:32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+        </div>
+        <button class="btn" type="button" style="align-self:flex-start">+ Add a form</button>
+      </div>
+
+      <aside class="bld-side">
+        <div class="card">
+          <div class="sh"><h3>Try it on someone</h3></div>
+          <div class="sb" style="display:flex;flex-direction:column;gap:10px">
+            <div class="input" style="height:36px"><span class="av m">JR</span>Jordan Reyes<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:13.5px">
+              <div>Account termination <span class="muted">· once</span></div>
+              <div>Apple device check-in <span class="muted">· MacBook Pro, iPhone 15</span></div>
+              <div>Device check-in <span class="muted">· Dell Latitude 5440</span></div>
+              <div class="warn-t" style="font-weight:500">Not covered · iPad (10th gen), no MDM set</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sh"><h3>Suggested by</h3><a href="#" style="font-size:13px">Workflow rules</a></div>
+          <div class="sb" style="display:flex;flex-direction:column;gap:4px"><b>Termination requests</b><span class="hint">When a ticket is created and category is Accounts › Termination</span></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

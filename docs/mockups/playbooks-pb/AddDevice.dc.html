@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add a device to a ticket</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pb.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:1040px;position:relative;overflow:hidden">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#" class="on" aria-current="page">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Tickets</a><span>/</span><span class="num">#01640</span></nav>
+    <div class="chips" style="margin-top:10px"><span class="idl">#01640</span><span class="status">In progress</span><span class="tag">Accounts › New account</span></div>
+    <h1 style="margin-top:8px">New account: Taylor Brooks, starts Nov 17</h1>
+  </main>
+
+  <div class="scrim"></div>
+  <div style="position:absolute;inset:28px 0;display:flex;justify-content:center;align-items:flex-start">
+    <section class="dlg" role="dialog" aria-modal="true" aria-labelledby="ad-t" style="width:760px">
+      <div class="dlg-h">
+        <div><h2 id="ad-t">Add a device</h2><p class="sub" style="margin-top:4px">Pick one in stock, or create it here. A created device is saved as an asset of Washington County.</p></div>
+        <button class="ib" type="button" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+      </div>
+      <div class="dlg-b">
+        <div class="seg-ctl" role="tablist" aria-label="Pick or create" style="align-self:flex-start"><button type="button" role="tab" aria-selected="false">Pick an existing device <span class="muted">· 6 ready to issue</span></button><button type="button" role="tab" aria-selected="true" class="on">Create a new device</button></div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+          <div class="field"><label for="d-type">Type<span class="req">*</span></label><div class="input" id="d-type">iPhone<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+          <div class="field"><label for="d-name">Name<span class="req">*</span></label><div class="input"><input id="d-name" value="iPhone 16"></div></div>
+          <div class="field"><label for="d-make">Make</label><div class="input"><input id="d-make" value="Apple"></div></div>
+          <div class="field"><label for="d-model">Model</label><div class="input"><input id="d-model" value="iPhone 16, 128 GB"></div></div>
+          <div class="field"><label for="d-sn">Serial number</label><div class="input"><input id="d-sn" value="G6TZK2LMN7"></div></div>
+          <div class="field"><label for="d-tag">Asset tag</label><div class="input"><input id="d-tag" value="WC-1244"></div></div>
+        </div>
+        <div style="border-top:1px solid var(--line);padding-top:14px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start">
+          <div class="field"><span class="flabel">Managed by an MDM?</span><div class="seg-ctl" role="group" aria-label="Managed"><button type="button" class="on">Yes</button><button type="button">No</button></div></div>
+          <div class="field"><label for="d-mdm">MDM<span class="req">*</span></label><div class="input" id="d-mdm">ManageEngine<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+          <div class="field"><label for="d-mid">MDM device ID <span class="muted" style="font-weight:400">· optional</span></label><div class="input"><input id="d-mid" placeholder="After enrollment"></div></div>
+        </div>
+        <div style="border-top:1px solid var(--line);padding-top:14px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start">
+          <div class="field" style="grid-column:1 / -1"><span class="flabel">Has cellular service?</span><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div class="seg-ctl" role="group" aria-label="Cellular"><button type="button" class="on">Yes</button><button type="button">No</button></div><span class="hint">On by default for iPhones. Any device can have it, laptops included.</span></div></div>
+          <div class="field"><label for="d-imei">IMEI<span class="req">*</span></label><div class="input"><input id="d-imei" class="num" value="35 467210 093318 4"></div><span class="hint">Settings › General › About.</span></div>
+          <div class="field"><label for="d-ph">Phone number</label><div class="input"><input id="d-ph" class="num" placeholder="Empty for data-only"></div></div>
+          <div class="field"><label for="d-car">Carrier</label><div class="input" id="d-car">Verizon Wireless<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+        </div>
+        <div class="notice info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc-ink)" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg>
+          <div style="flex:1 1 360px;min-width:0">Adding it also adds <b>Apple device check-out</b> (ManageEngine steps) to this ticket, from the <b>New account</b> playbook. Its last step checks the device out to Taylor Brooks.</div>
+        </div>
+      </div>
+      <div class="dlg-f">
+        <button class="btn" type="button">Cancel</button>
+        <button class="btn primary" type="button">Create and add</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

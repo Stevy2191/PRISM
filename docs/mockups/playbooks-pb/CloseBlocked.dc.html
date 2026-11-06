@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Closing with unfinished forms</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pb.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:900px;position:relative;overflow:hidden">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#" class="on" aria-current="page">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Tickets</a><span>/</span><span class="num">#01633</span></nav>
+    <div class="chips" style="margin-top:10px"><span class="idl">#01633</span><span class="status">In progress</span><span class="tag">Accounts › Termination</span></div>
+    <h1 style="margin-top:8px">Termination: Jordan Reyes, last day Nov 14</h1>
+  </main>
+
+  <div class="scrim"></div>
+  <div style="position:absolute;inset:60px 0;display:flex;justify-content:center;align-items:flex-start">
+    <section class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="cb-t" style="width:620px">
+      <div class="dlg-h">
+        <div><h2 id="cb-t">This ticket can't be closed yet</h2><p class="sub" style="margin-top:4px">2 forms still have required steps. Finish them, skip them with a reason, or close anyway.</p></div>
+        <button class="ib" type="button" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+      </div>
+      <div class="dlg-b">
+        <div class="card">
+          <div class="dev" style="padding:12px 14px;grid-template-columns:minmax(0,1fr) auto"><div style="min-width:0"><a href="#" class="dn">Apple device check-in: iPhone 15</a><div class="ds">WC-1187 · 21 required steps left · Sean Stevens</div></div><a href="#" class="btn sm">Open</a></div>
+          <div class="dev" style="padding:12px 14px;grid-template-columns:minmax(0,1fr) auto"><div style="min-width:0"><a href="#" class="dn">Account termination</a><div class="ds">3 required steps left · Alex Kim</div></div><a href="#" class="btn sm">Open</a></div>
+        </div>
+        <div class="notice"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warn-ink)" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01"></path><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><div style="flex:1 1 300px;min-width:0"><b>Warning, won't stop closing:</b> iPad (10th gen) · WC-1210 isn't covered by any form and is still checked out to Jordan Reyes.</div><a href="#" class="btn sm">Fix</a></div>
+        <div style="border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:10px">
+          <div><b>Close anyway</b> <span class="muted">· you can override this</span></div>
+          <div class="field"><label for="cb-r">Reason<span class="req">*</span></label><textarea class="input" id="cb-r" rows="3" placeholder="Why is it OK to close with these steps unfinished?"></textarea><span class="hint">The override and your reason are recorded on the ticket.</span></div>
+        </div>
+      </div>
+      <div class="dlg-f">
+        <button class="btn" type="button">Keep it open</button>
+        <button class="btn danger" type="button">Close anyway</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>
