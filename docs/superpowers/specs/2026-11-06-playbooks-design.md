@@ -304,6 +304,10 @@ The existing linked-assets area becomes a **Devices** panel:
 - **Close anyway**: someone with `tickets.override_checklist` can close it
   with a required reason; the override and reason go on the ticket's
   activity.
+- A device that no form covers (e.g. no MDM set) **warns but doesn't block**:
+  the close dialog lists it, and the ticket can close without an override.
+  If nothing else is unfinished, the warning is shown and closing goes ahead
+  on confirmation.
 - A workflow rule that tries to close such a ticket is refused and the rule
   log records why.
 - Merging: the source ticket's ticket forms move to the target ticket.
@@ -430,6 +434,7 @@ Technician gets `tickets.view_secure_fields`; others none.
   its agent; steps can be confirmed by the agent.
 - A device gets the first per-device form it matches; a form's device action
   waits until its other required steps are done (settled with the mockups).
+- A device no form covers warns when closing; it doesn't block (2026-11-06).
 
 ## Acceptance test: the owner's two forms
 
@@ -461,11 +466,6 @@ Built in the owner's install with the form builder, without code changes:
 - **MDM connectors**: read device details (serial, IMEI, phone number,
   managed state) from an install's MDM, for phones and tablets the agent
   can't run on.
-
-## Open question
-
-- Does a device that no form covers (e.g. no MDM set) block closing, or only
-  warn? The mockups show it as a warning in the close dialog.
 
 ## Left to the builder
 
