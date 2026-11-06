@@ -404,6 +404,10 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
         }
       }
     }
+    // Playbooks (PB): no closing with unfinished forms, unless overridden
+    // with a reason (body.closeOverride). Lazy: the guard loads the
+    // playbooks services, which load this file's callers.
+    await require('../playbooks/closeGuard').assertCanClose(ticket, changes.status, { actor: req.user, override: body.closeOverride }); // eslint-disable-line global-require
   }
   return { changes, before };
 }

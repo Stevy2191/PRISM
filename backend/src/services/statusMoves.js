@@ -21,6 +21,13 @@ async function moveToSystemStatus(ticket, systemKey, actorId, { from = null } = 
     if (!source || ticket.status !== source.name) return false;
   }
   const previous = ticket.status;
+  // Never into a closed status past unfinished forms (PB).
+  try {
+    await require('./playbooks/closeGuard').assertCanClose(ticket, target.name); // eslint-disable-line global-require
+  } catch (err) {
+    if (err.code === 'FORMS_UNFINISHED') return false;
+    throw err;
+  }
   await ticket.update({ status: target.name });
   await logActivity(ticket.id, actorId, 'status', previous, target.name);
   await evaluateRules(ticket.id, 'ticket_updated', ['status']);

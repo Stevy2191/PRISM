@@ -92,6 +92,7 @@ router.get('/:id/activity', ctrl.listActivity);
 
 // Playbooks and devices (PB)
 router.get('/:id/playbooks', viewMin, playbooks.view);
+router.get('/:id/close-check', viewMin, playbooks.closeCheck);
 router.get('/:id/playbooks/options', editMin, playbooks.options);
 router.post('/:id/playbooks', editMin, playbooks.create);
 router.delete('/:id/playbooks/:tpId', editMin, playbooks.remove);

@@ -92,6 +92,15 @@ const dismissSuggestion = asyncHandler(async (req, res) => {
   res.json(await apply.ticketPlaybooksView(ticket));
 });
 
+// GET /tickets/:id/close-check → { blocking, warnings }: what closing would
+// be refused for (unfinished forms), and devices no form covers (a warning
+// only), so the Close dialog can say so before trying.
+const closeCheck = asyncHandler(async (req, res) => {
+  const ticket = await ticketFor(req, { edit: false });
+  const { checkClose } = require('../../services/playbooks/closeGuard'); // eslint-disable-line global-require
+  res.json(await checkClose(ticket));
+});
+
 module.exports = {
-  view, options, create, remove, dismissSuggestion, ticketFor,
+  view, options, create, remove, dismissSuggestion, ticketFor, closeCheck,
 };

@@ -199,6 +199,9 @@ async function executeAction(ticket, action, rule) {
     }
     case 'set_status': {
       const wasStatus = ticket.status;
+      // A rule never closes a ticket with unfinished forms (PB); the refusal
+      // is recorded in the rule log like any failed action.
+      await require('./playbooks/closeGuard').assertCanClose(ticket, v.status); // eslint-disable-line global-require
       await ticket.update({ status: v.status });
       // Logged like a manual change (no user: shown as the workflow rule),
       // so the timeline and the waiting-on-customer figure see it.
