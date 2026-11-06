@@ -150,6 +150,15 @@ username and password shown at the end of the script. Go to **Admin → Users** 
 promote your AD account to Admin or create additional local accounts. You can delete
 the bootstrap account once other admins exist.
 
+**Sign-in goes straight back to the login page?** The browser isn't keeping the
+session cookie. With `COOKIE_SECURE=true` the cookie is only issued when PRISM
+sees the request as HTTPS: open PRISM at its `https://` address, and when it
+sits behind a proxy make sure `TRUST_PROXY` is set (the default
+`docker-compose.yml` sets it to 1; `docker-compose.dev.yml` doesn't, so use
+`COOKIE_SECURE=false` with the dev stack over plain HTTP). A reverse proxy that
+terminates TLS and forwards plain HTTP needs `COOKIE_SECURE=false`. Sign-in now
+says this instead of looping, and the backend log names the setting.
+
 ### Changing the host port
 
 `APP_PORT` in `.env` controls which port on your host the app listens on.

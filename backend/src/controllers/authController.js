@@ -5,6 +5,7 @@ const { User, TeamMember, Role, sequelize } = require('../models');
 const { authenticate: ldapAuthenticate, isConfigured: isLdapConfigured } = require('../config/ldap');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const { secureCookieBlocked, SESSION_COOKIE_BLOCKED_MESSAGE } = require('../middleware/sessionCookie');
 const { resolveUserPermissions, hasPermission } = require('../services/permissionService');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
@@ -94,6 +95,8 @@ const login = asyncHandler(async (req, res) => {
   }
 
   const { user, method } = await loginUnified(username, password);
+  // Checked after the password, so it tells nothing to someone guessing.
+  if (secureCookieBlocked(req)) throw new ApiError(500, SESSION_COOKIE_BLOCKED_MESSAGE, 'SESSION_COOKIE_BLOCKED');
 
   await regenerateSession(req);
   req.session.userId = user.id;

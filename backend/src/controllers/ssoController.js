@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { SsoProvider } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
+const { secureCookieBlocked, SESSION_COOKIE_BLOCKED_MESSAGE } = require('../middleware/sessionCookie');
 const ssoService = require('../services/sso/ssoService');
 const oidc = require('../services/sso/oidc');
 const saml = require('../services/sso/saml');
@@ -111,6 +112,7 @@ const oidcCallback = asyncHandler(async (req, res) => {
     throw err;
   }
 
+  if (secureCookieBlocked(req)) return failRedirect(res, SESSION_COOKIE_BLOCKED_MESSAGE);
   await establishSession(req, user, provider, 'oidc');
   return res.redirect(302, `${publicBaseUrl()}${request.returnTo || DEFAULT_RETURN_TO}`);
 });
@@ -135,6 +137,7 @@ const samlAcs = asyncHandler(async (req, res) => {
     throw err;
   }
 
+  if (secureCookieBlocked(req)) return failRedirect(res, SESSION_COOKIE_BLOCKED_MESSAGE);
   await establishSession(req, user, provider, 'saml');
   return res.redirect(302, `${publicBaseUrl()}${request.returnTo || DEFAULT_RETURN_TO}`);
 });
