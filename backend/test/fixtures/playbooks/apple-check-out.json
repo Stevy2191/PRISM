@@ -1,0 +1,530 @@
+{
+ "format": "prism-playbooks",
+ "version": 1,
+ "exportedAt": "2026-11-06T00:00:00Z",
+ "forms": [
+  {
+   "ref": "apple-check-out",
+   "name": "Apple Device Check-Out: Enroll and Assign",
+   "description": null,
+   "usage": "device",
+   "definition": {
+    "sections": [
+     {
+      "key": "before",
+      "title": "Before you start",
+      "items": [
+       {
+        "key": "have_serial",
+        "kind": "step",
+        "body": "<p>You have the device's <b>serial number</b> (on the box, or in Settings / About This Mac).</p>",
+        "required": true
+       },
+       {
+        "key": "know_mdm",
+        "kind": "step",
+        "body": "<p>You know which MDM will manage it: <b>ManageEngine</b> or <b>Jamf Pro</b>.</p>",
+        "required": true
+       },
+       {
+        "key": "abm_access",
+        "kind": "step",
+        "body": "<p>You have <b>Apple Business Manager (ABM)</b> access with permission to manage devices and users.</p>",
+        "required": true
+       },
+       {
+        "key": "user_details",
+        "kind": "step",
+        "body": "<p>You have the user's name, work email, and department from the ticket.</p>",
+        "required": true
+       },
+       {
+        "key": "charged",
+        "kind": "step",
+        "body": "<p>The device is charged, and you have Wi-Fi available (a network that doesn't need a browser login page).</p>",
+        "required": true
+       }
+      ]
+     },
+     {
+      "key": "abm",
+      "title": "Step 1: Confirm the device is in Apple Business Manager",
+      "items": [
+       {
+        "key": "abm_why",
+        "kind": "text",
+        "body": "<p>Devices bought through Apple or an authorized reseller using the county's ABM account show up in ABM automatically. Being in ABM is what makes the device enroll itself and lets IT clear Activation Lock later.</p>"
+       },
+       {
+        "key": "abm_search",
+        "kind": "step",
+        "body": "<p>In <b>Apple Business Manager</b>, go to <b>Devices</b> and search for the serial number.</p>",
+        "required": true
+       },
+       {
+        "key": "in_abm",
+        "kind": "field",
+        "fieldType": "yesno",
+        "label": "Is it listed in ABM?",
+        "required": true
+       },
+       {
+        "key": "add_configurator",
+        "kind": "step",
+        "body": "<p>Contact the vendor to have it added to the county's ABM account, or add it yourself with <b>Apple Configurator</b>. Devices added with Apple Configurator have a 30-day period during which the user could remove them from management, so finish the remaining steps before handing them over.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "in_abm",
+          "op": "is",
+          "value": false
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "key": "mdm",
+      "title": "Step 2: Assign the device to the right MDM",
+      "items": [
+       {
+        "key": "abm_mdm_server",
+        "kind": "step",
+        "body": "<p>In <b>ABM</b>, open the device and check <b>MDM Server</b>. If it's not the right one, click <b>Edit MDM Server</b> and choose the right one.</p>",
+        "required": true
+       },
+       {
+        "key": "me_sync",
+        "kind": "step",
+        "body": "<p>In ManageEngine, go to <b>Enrollment &gt; Apple Business Manager</b> and sync.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "ManageEngine"
+          }
+         }
+        ]
+       },
+       {
+        "key": "me_profile",
+        "kind": "step",
+        "body": "<p>Confirm the serial number appears and has an <b>enrollment profile</b> assigned.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "ManageEngine"
+          }
+         }
+        ]
+       },
+       {
+        "key": "jamf_prestage",
+        "kind": "step",
+        "body": "<p>In Jamf Pro, go to <b>Computers &gt; PreStage Enrollments</b> (Mac) or <b>Devices &gt; PreStage Enrollments</b> (iPhone/iPad).</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         }
+        ]
+       },
+       {
+        "key": "jamf_scope",
+        "kind": "step",
+        "body": "<p>Open your standard PreStage, go to <b>Scope</b>, and confirm the serial number is checked. If it's missing, sync under <b>Settings &gt; Global &gt; Automated Device Enrollment</b> first.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         }
+        ]
+       },
+       {
+        "key": "dont_power",
+        "kind": "text",
+        "body": "<p>Don't power on the device until this step is done. If it reaches the setup screens before it's assigned, it may skip enrollment and need to be erased and started again.</p>"
+       }
+      ]
+     },
+     {
+      "key": "maa",
+      "title": "Step 3: Create the user's Managed Apple Account",
+      "items": [
+       {
+        "key": "abm_users",
+        "kind": "step",
+        "body": "<p>In <b>ABM</b>, go to <b>Users</b> and search for the user.</p>",
+        "required": true
+       },
+       {
+        "key": "has_maa",
+        "kind": "field",
+        "fieldType": "yesno",
+        "label": "Do they already have a Managed Apple Account?",
+        "required": true
+       },
+       {
+        "key": "federated",
+        "kind": "field",
+        "fieldType": "yesno",
+        "label": "Has the county federated ABM with Microsoft Entra?",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "has_maa",
+          "op": "is",
+          "value": false
+         }
+        ]
+       },
+       {
+        "key": "confirm_entra",
+        "kind": "step",
+        "body": "<p>Confirm the user appears in ABM with their work email. If they don't, check that their account is enabled in AD and has synced to Entra.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "federated",
+          "op": "is",
+          "value": true
+         }
+        ]
+       },
+       {
+        "key": "add_user",
+        "kind": "step",
+        "body": "<p>Click <b>Add (+)</b> under Users and enter the user's first name, last name, Managed Apple Account, location, and work email.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "federated",
+          "op": "is",
+          "value": false
+         }
+        ]
+       },
+       {
+        "key": "role_staff",
+        "kind": "step",
+        "body": "<p>Set the <b>role</b> to <b>Staff</b>.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "federated",
+          "op": "is",
+          "value": false
+         }
+        ]
+       },
+       {
+        "key": "create_signin",
+        "kind": "step",
+        "body": "<p>Save, then create their sign-in details.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "federated",
+          "op": "is",
+          "value": false
+         }
+        ]
+       },
+       {
+        "key": "temp_password",
+        "kind": "secure",
+        "label": "Temporary password",
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "federated",
+          "op": "is",
+          "value": false
+         }
+        ]
+       },
+       {
+        "key": "name_in_use",
+        "kind": "step",
+        "body": "<p>If ABM says the account name is <b>already in use</b>, ask the user to change that personal account's email, or use a different Managed Apple Account name.</p>",
+        "required": false,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "federated",
+          "op": "is",
+          "value": false
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "key": "setup",
+      "title": "Step 4: Set up and enroll the device",
+      "items": [
+       {
+        "key": "power_on",
+        "kind": "step",
+        "body": "<p>Power on the device, pick the language and region, and connect to Wi-Fi.</p>",
+        "required": true
+       },
+       {
+        "key": "remote_mgmt",
+        "kind": "step",
+        "body": "<p>A <b>Remote Management</b> screen appears. Click <b>Continue</b> (or <b>Enroll</b>). If it doesn't appear, stop: go back to Step 2, then erase the device and start again.</p>",
+        "required": true
+       },
+       {
+        "key": "setup_screens",
+        "kind": "step",
+        "body": "<p>Follow the rest of the setup screens. Skip signing in with an Apple Account during setup.</p>",
+        "required": true
+       },
+       {
+        "key": "mac_local",
+        "kind": "step",
+        "body": "<p>Create the local account using your standard naming. If the Mac uses Jamf Connect or Platform SSO, follow those prompts instead.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "categoryId",
+          "op": "is",
+          "value": {
+           "$ref": "category",
+           "name": "Mac"
+          }
+         }
+        ]
+       },
+       {
+        "key": "wait",
+        "kind": "step",
+        "body": "<p>Wait at the desktop or Home Screen for 10 to 15 minutes while the MDM installs apps and settings.</p>",
+        "required": true
+       }
+      ]
+     },
+     {
+      "key": "verify",
+      "title": "Step 5: Verify in the MDM and assign to the user",
+      "items": [
+       {
+        "key": "me_managed",
+        "kind": "step",
+        "body": "<p>In <b>Device Mgmt &gt; Groups &amp; Devices &gt; Devices</b>, find the serial number and confirm it shows as managed and supervised.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "ManageEngine"
+          }
+         }
+        ]
+       },
+       {
+        "key": "me_assign",
+        "kind": "step",
+        "body": "<p>Assign the device to the user and add it to the right groups for their department.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "ManageEngine"
+          }
+         }
+        ]
+       },
+       {
+        "key": "jamf_managed",
+        "kind": "step",
+        "body": "<p>Search Computers or Devices for the serial number and confirm the record shows managed and supervised.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         }
+        ]
+       },
+       {
+        "key": "jamf_location",
+        "kind": "step",
+        "body": "<p>On the <b>User and Location</b> tab, enter the user's name and email, and add the device to any static groups their department uses.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         }
+        ]
+       },
+       {
+        "key": "apps",
+        "kind": "step",
+        "body": "<p>Confirm required apps and profiles have installed (Wi-Fi, email, department apps).</p>",
+        "required": true
+       },
+       {
+        "key": "al_blocked",
+        "kind": "step",
+        "body": "<p>Confirm <b>user-linked Activation Lock is blocked</b> for the device.</p>",
+        "required": true
+       },
+       {
+        "key": "ios_signin",
+        "kind": "step",
+        "body": "<p>On the device, go to <b>Settings &gt; Sign in</b> and sign in with the user's Managed Apple Account if they'll need iCloud features.</p>",
+        "required": false,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "categoryId",
+          "op": "in",
+          "value": [
+           {
+            "$ref": "category",
+            "name": "iPhone"
+           },
+           {
+            "$ref": "category",
+            "name": "iPad"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "key": "handoff",
+      "title": "Step 6: Hand off to the user and record it",
+      "items": [
+       {
+        "key": "passcode",
+        "kind": "step",
+        "body": "<p>Have the user sign in and set their own passcode or password.</p>",
+        "required": true
+       },
+       {
+        "key": "give_signin",
+        "kind": "step",
+        "body": "<p>Give them their Managed Apple Account sign-in and temporary password, if one was created.</p>",
+        "required": false
+       },
+       {
+        "key": "no_personal",
+        "kind": "step",
+        "body": "<p>Tell them: don't sign in with a personal Apple Account on this device, and don't turn on Find My with one.</p>",
+        "required": true
+       },
+       {
+        "key": "serial",
+        "kind": "field",
+        "fieldType": "text",
+        "label": "Serial number",
+        "required": true
+       },
+       {
+        "key": "asset_tag",
+        "kind": "field",
+        "fieldType": "text",
+        "label": "Asset tag",
+        "required": true
+       },
+       {
+        "key": "device_type",
+        "kind": "field",
+        "fieldType": "choice",
+        "label": "Device type",
+        "required": true,
+        "options": [
+         "Mac",
+         "iPad",
+         "iPhone"
+        ]
+       },
+       {
+        "key": "mdm_name",
+        "kind": "field",
+        "fieldType": "choice",
+        "label": "MDM",
+        "required": true,
+        "options": [
+         "ManageEngine",
+         "Jamf Pro"
+        ]
+       },
+       {
+        "key": "maa",
+        "kind": "field",
+        "fieldType": "text",
+        "label": "Managed Apple Account",
+        "required": true
+       },
+       {
+        "key": "date_issued",
+        "kind": "field",
+        "fieldType": "date",
+        "label": "Date issued",
+        "required": true
+       },
+       {
+        "key": "check_out",
+        "kind": "action",
+        "action": "check_out"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "playbooks": []
+}

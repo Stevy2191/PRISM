@@ -1,0 +1,658 @@
+{
+ "format": "prism-playbooks",
+ "version": 1,
+ "exportedAt": "2026-11-06T00:00:00Z",
+ "forms": [
+  {
+   "ref": "apple-check-in",
+   "name": "Apple Device Check-In: Deprovision for Reuse",
+   "description": null,
+   "usage": "device",
+   "definition": {
+    "sections": [
+     {
+      "key": "before",
+      "title": "Before you start",
+      "items": [
+       {
+        "key": "have",
+        "kind": "step",
+        "body": "<p>You have the device, its charger, and the <b>serial number</b>.</p>",
+        "required": true
+       },
+       {
+        "key": "know_mdm",
+        "kind": "step",
+        "body": "<p>You know which MDM manages it (check the check-out ticket).</p>",
+        "required": true
+       },
+       {
+        "key": "access",
+        "kind": "step",
+        "body": "<p>You have ABM, MDM, and Microsoft Entra admin access.</p>",
+        "required": true
+       },
+       {
+        "key": "user_present",
+        "kind": "step",
+        "body": "<p>Ideally, the user is present for Step 2.</p>",
+        "required": false
+       }
+      ]
+     },
+     {
+      "key": "receive",
+      "title": "Step 1: Receive the device and find its records",
+      "items": [
+       {
+        "key": "serial",
+        "kind": "field",
+        "fieldType": "text",
+        "label": "Serial number",
+        "required": true
+       },
+       {
+        "key": "asset_tag",
+        "kind": "field",
+        "fieldType": "text",
+        "label": "Asset tag",
+        "required": true
+       },
+       {
+        "key": "condition",
+        "kind": "field",
+        "fieldType": "choice",
+        "label": "Condition",
+        "required": true,
+        "options": [
+         "Good",
+         "Damaged",
+         "Missing charger"
+        ]
+       },
+       {
+        "key": "find_me",
+        "kind": "step",
+        "body": "<p>Find the device in <b>Device Mgmt &gt; Groups &amp; Devices &gt; Devices</b>.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "ManageEngine"
+          }
+         }
+        ]
+       },
+       {
+        "key": "find_jamf",
+        "kind": "step",
+        "body": "<p>Find the device in <b>Computers</b> or <b>Devices &gt; Search Inventory</b>.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         }
+        ]
+       },
+       {
+        "key": "still_managed",
+        "kind": "step",
+        "body": "<p>Confirm it's still <b>managed</b> and note which user and groups it's assigned to.</p>",
+        "required": true
+       },
+       {
+        "key": "abm_server",
+        "kind": "step",
+        "body": "<p>In <b>ABM</b>, search for the serial number and note its MDM Server.</p>",
+        "required": true
+       },
+       {
+        "key": "keep_on",
+        "kind": "step",
+        "body": "<p>Keep the device powered and on Wi-Fi from here on.</p>",
+        "required": true
+       }
+      ]
+     },
+     {
+      "key": "lock",
+      "title": "Step 2: Check Activation Lock and sign out of Apple Accounts",
+      "items": [
+       {
+        "key": "why",
+        "kind": "text",
+        "body": "<p>If someone signed in with a personal Apple Account and turned on Find My, the device may be Activation Locked, which survives a wipe.</p>"
+       },
+       {
+        "key": "lock_me",
+        "kind": "step",
+        "body": "<p>In the device's record, check Activation Lock status (device details).</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "ManageEngine"
+          }
+         }
+        ]
+       },
+       {
+        "key": "lock_jamf",
+        "kind": "step",
+        "body": "<p>In the device's record, check Activation Lock status (<b>Inventory &gt; Security</b>).</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         }
+        ]
+       },
+       {
+        "key": "bypass_code",
+        "kind": "secure",
+        "label": "Activation Lock bypass code"
+       },
+       {
+        "key": "signed_in_mac",
+        "kind": "step",
+        "body": "<p>On the device, check for a signed-in Apple Account: <b>System Settings &gt; [name]</b>.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "categoryId",
+          "op": "is",
+          "value": {
+           "$ref": "category",
+           "name": "Mac"
+          }
+         }
+        ]
+       },
+       {
+        "key": "signed_in_ios",
+        "kind": "step",
+        "body": "<p>On the device, check for a signed-in Apple Account: <b>Settings &gt; [name]</b>.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "categoryId",
+          "op": "in",
+          "value": [
+           {
+            "$ref": "category",
+            "name": "iPhone"
+           },
+           {
+            "$ref": "category",
+            "name": "iPad"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "key": "personal_out",
+        "kind": "step",
+        "body": "<p><b>Personal Apple Account signed in:</b> have the user sign out themselves. Never ask for their password.</p>",
+        "required": true
+       },
+       {
+        "key": "managed_out",
+        "kind": "step",
+        "body": "<p><b>Managed Apple Account signed in:</b> sign out, or leave it; the wipe removes it either way.</p>",
+        "required": false
+       }
+      ]
+     },
+     {
+      "key": "keep",
+      "title": "Step 3: Back up data that must be kept",
+      "items": [
+       {
+        "key": "ask_files",
+        "kind": "step",
+        "body": "<p>Ask the user or their supervisor whether any work files are stored only on the device.</p>",
+        "required": true
+       },
+       {
+        "key": "legal_hold",
+        "kind": "field",
+        "fieldType": "yesno",
+        "label": "Is the data under a retention requirement or legal hold?",
+        "required": true
+       },
+       {
+        "key": "hold_approval",
+        "kind": "step",
+        "body": "<p>Don't wipe until records or legal staff approve.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "legal_hold",
+          "op": "is",
+          "value": true
+         }
+        ]
+       },
+       {
+        "key": "copy",
+        "kind": "step",
+        "body": "<p>Copy anything that must be kept to SharePoint, a network share, or the supervisor's OneDrive.</p>",
+        "required": true
+       },
+       {
+        "key": "approved_by",
+        "kind": "field",
+        "fieldType": "staff",
+        "label": "Who approved the wipe",
+        "required": true
+       }
+      ]
+     },
+     {
+      "key": "abm",
+      "title": "Step 4: Confirm the ABM assignment",
+      "items": [
+       {
+        "key": "abm_next",
+        "kind": "step",
+        "body": "<p>In <b>ABM</b>, confirm the device's MDM Server is the one it should use next.</p>",
+        "required": true
+       },
+       {
+        "key": "me_profile",
+        "kind": "step",
+        "body": "<p>Confirm the device still has an <b>enrollment profile</b> under <b>Enrollment &gt; Apple Business Manager</b>.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "ManageEngine"
+          }
+         }
+        ]
+       },
+       {
+        "key": "jamf_scope",
+        "kind": "step",
+        "body": "<p>Confirm the serial number is checked in your standard <b>PreStage Enrollment &gt; Scope</b>.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         }
+        ]
+       },
+       {
+        "key": "not_in_abm",
+        "kind": "step",
+        "body": "<p><b>Not in ABM:</b> note it in the ticket. It will need to be enrolled by hand after the wipe.</p>",
+        "required": false
+       }
+      ]
+     },
+     {
+      "key": "wipe",
+      "title": "Step 5: Wipe the device from the MDM",
+      "items": [
+       {
+        "key": "wipe_warn",
+        "kind": "text",
+        "body": "<p>Wipe while the device is still enrolled. Don't remove or delete it from the MDM first.</p>"
+       },
+       {
+        "key": "me_wipe",
+        "kind": "step",
+        "body": "<p>Select the device and choose <b>Complete Wipe</b>. Not Corporate Wipe.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "ManageEngine"
+          }
+         }
+        ]
+       },
+       {
+        "key": "jamf_wipe_mac",
+        "kind": "step",
+        "body": "<p>Open the record, go to <b>Management &gt; Management Commands</b>, and click <b>Wipe Computer</b>.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         },
+         {
+          "on": "device",
+          "field": "categoryId",
+          "op": "is",
+          "value": {
+           "$ref": "category",
+           "name": "Mac"
+          }
+         }
+        ]
+       },
+       {
+        "key": "jamf_wipe_ios",
+        "kind": "step",
+        "body": "<p>Open the record, go to <b>Management</b>, and click <b>Wipe Device</b>.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         },
+         {
+          "on": "device",
+          "field": "categoryId",
+          "op": "in",
+          "value": [
+           {
+            "$ref": "category",
+            "name": "iPhone"
+           },
+           {
+            "$ref": "category",
+            "name": "iPad"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "key": "mac_passcode",
+        "kind": "secure",
+        "label": "6-digit passcode (older Intel Macs)",
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "categoryId",
+          "op": "is",
+          "value": {
+           "$ref": "category",
+           "name": "Mac"
+          }
+         }
+        ]
+       },
+       {
+        "key": "hello",
+        "kind": "step",
+        "body": "<p>Wait for the device to restart to the setup (Hello) screen.</p>",
+        "required": true
+       },
+       {
+        "key": "offline_erase",
+        "kind": "step",
+        "body": "<p><b>If the wipe doesn't arrive:</b> erase directly on the device under Erase All Content and Settings.</p>",
+        "required": false
+       }
+      ]
+     },
+     {
+      "key": "clear_lock",
+      "title": "Step 6: Clear Activation Lock (only if it appears)",
+      "items": [
+       {
+        "key": "lock_appeared",
+        "kind": "field",
+        "fieldType": "yesno",
+        "label": "Does the setup screen ask for a previous user's Apple Account?",
+        "required": true
+       },
+       {
+        "key": "abm_off",
+        "kind": "step",
+        "body": "<p><b>Turn it off in ABM</b>: use Turn off Activation Lock.</p>",
+        "required": false,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "lock_appeared",
+          "op": "is",
+          "value": true
+         }
+        ]
+       },
+       {
+        "key": "use_bypass",
+        "kind": "step",
+        "body": "<p><b>Use the bypass code</b> from Step 2.</p>",
+        "required": false,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "lock_appeared",
+          "op": "is",
+          "value": true
+         }
+        ]
+       },
+       {
+        "key": "contact_former",
+        "kind": "step",
+        "body": "<p><b>Contact the former user</b> to remove the device at icloud.com/find.</p>",
+        "required": false,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "lock_appeared",
+          "op": "is",
+          "value": true
+         }
+        ]
+       },
+       {
+        "key": "apple_request",
+        "kind": "step",
+        "body": "<p><b>Last resort:</b> submit an Activation Lock request to Apple with proof of purchase.</p>",
+        "required": false,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "lock_appeared",
+          "op": "is",
+          "value": true
+         }
+        ]
+       },
+       {
+        "key": "locked_note",
+        "kind": "text",
+        "body": "<p>Until Activation Lock is cleared, the device can't be checked out. Label it and keep it with IT.</p>",
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "lock_appeared",
+          "op": "is",
+          "value": true
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "key": "cleanup",
+      "title": "Step 7: Clean up accounts and records",
+      "items": [
+       {
+        "key": "leaving",
+        "kind": "field",
+        "fieldType": "yesno",
+        "label": "Is the user leaving the county?",
+        "required": true
+       },
+       {
+        "key": "staying",
+        "kind": "step",
+        "body": "<p>Leave their Managed Apple Account as is.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "leaving",
+          "op": "is",
+          "value": false
+         }
+        ]
+       },
+       {
+        "key": "leaving_maa",
+        "kind": "step",
+        "body": "<p>Deactivate their Managed Apple Account in <b>ABM &gt; Users</b>, unless directory sync removes it.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "answer",
+          "field": "leaving",
+          "op": "is",
+          "value": true
+         }
+        ]
+       },
+       {
+        "key": "entra",
+        "kind": "step",
+        "body": "<p>In <b>Entra admin center &gt; Devices &gt; All devices</b>, delete the device's record.</p>",
+        "required": true
+       },
+       {
+        "key": "me_cleanup",
+        "kind": "step",
+        "body": "<p>Remove the former user's assignment and department groups. If the device appears twice after re-enrollment, delete the old entry.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "ManageEngine"
+          }
+         }
+        ]
+       },
+       {
+        "key": "jamf_cleanup",
+        "kind": "step",
+        "body": "<p>Don't delete the record. Clear the <b>User and Location</b> tab and remove it from any static groups.</p>",
+        "required": true,
+        "showWhen": [
+         {
+          "on": "device",
+          "field": "mdmId",
+          "op": "is",
+          "value": {
+           "$ref": "mdm",
+           "name": "Jamf Pro"
+          }
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "key": "ready",
+      "title": "Step 8: Mark the device ready",
+      "items": [
+       {
+        "key": "hello_ok",
+        "kind": "step",
+        "body": "<p>Confirm the device is on the setup (Hello) screen with no Activation Lock prompt.</p>",
+        "required": true
+       },
+       {
+        "key": "clean",
+        "kind": "step",
+        "body": "<p>Clean the device, charge it, and store it with its charger.</p>",
+        "required": true
+       },
+       {
+        "key": "date_wiped",
+        "kind": "field",
+        "fieldType": "date",
+        "label": "Date wiped",
+        "required": true
+       },
+       {
+        "key": "wiped_by",
+        "kind": "field",
+        "fieldType": "staff",
+        "label": "Who wiped it",
+        "required": true
+       },
+       {
+        "key": "former_user",
+        "kind": "field",
+        "fieldType": "contact",
+        "label": "Former user",
+        "required": true
+       },
+       {
+        "key": "check_in",
+        "kind": "action",
+        "action": "check_in",
+        "statuses": [
+         "ready_to_issue",
+         "in_repair",
+         "on_hold"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "playbooks": []
+}

@@ -214,7 +214,12 @@ export default function TicketFormPage() {
     setSaving(true);
     try { const { data } = await fn(); if (data.form) setForm(data.form); return data; } catch (err) { alert(errMessage(err)); return null; } finally { setSaving(false); }
   };
-  const save = (key, value) => call(() => api.patch(`/tickets/${id}/forms/${formId}`, { answers: { [key]: value } }));
+  // Shows the change at once; the server's answer then redraws the form (and
+  // undoes it, with a message, if it was refused).
+  const save = (key, value) => {
+    setForm((f) => (f ? { ...f, answers: { ...f.answers, [key]: value === true ? { done: true, at: new Date().toISOString() } : value } } : f));
+    return call(() => api.patch(`/tickets/${id}/forms/${formId}`, { answers: { [key]: value } })).then((data) => { if (!data) load(); return data; });
+  };
   const setSecret = (key, value) => call(() => api.put(`/tickets/${id}/forms/${formId}/secrets/${key}`, { value }));
   const reveal = async (key) => (await api.post(`/tickets/${id}/forms/${formId}/secrets/${key}/reveal`)).data.value;
   const runAction = (body) => call(() => api.post(`/tickets/${id}/forms/${formId}/action`, body));

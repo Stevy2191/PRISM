@@ -114,7 +114,8 @@ it('the device form: the MDM branch shows, a secure value is set and revealed, t
   expect(await page.getByText('Wipe it on the device.').count()).toBe(0);
   await page.getByText(/1 step hidden/).waitFor();
 
-  await page.getByRole('checkbox', { name: /You have the device/ }).check();
+  await page.getByRole('checkbox', { name: /You have the device/ }).click();
+  await page.waitForFunction(() => document.querySelector('input[type=checkbox]').checked);
   await page.getByLabel('Condition').selectOption('Good');
   await page.getByRole('button', { name: 'Record' }).click();
   await page.getByLabel('Bypass code').fill('BYPASS-SMOKE-1');
@@ -123,7 +124,7 @@ it('the device form: the MDM branch shows, a secure value is set and revealed, t
   await page.getByTestId('secure-code').getByText('BYPASS-SMOKE-1').waitFor();
 
   expect(await page.getByTestId('form-action').isDisabled()).toBe(true);
-  await page.getByRole('checkbox', { name: /Wipe it in MDM A/ }).check();
+  await page.getByRole('checkbox', { name: /Wipe it in MDM A/ }).click();
   await page.waitForFunction(() => !document.querySelector('[data-testid="form-action"]').disabled);
   await page.getByTestId('form-action').click();
   await page.getByText('Finished', { exact: true }).waitFor();

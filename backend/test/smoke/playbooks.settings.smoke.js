@@ -27,10 +27,10 @@ it('MDMs: add one, and retire it', async () => {
   await page.getByLabel('New MDM console address').fill('https://a.example/devices/{id}');
   await page.getByRole('button', { name: 'Add MDM' }).click();
   await page.getByLabel('MDM A active').waitFor();
-  await page.getByLabel('MDM A active').uncheck();
-  await page.getByText('Retired').waitFor();
+  await page.getByLabel('MDM A active').click();
+  await page.getByRole('cell').getByText('Retired', { exact: true }).waitFor();
+  for (let i = 0; i < 20 && (await models.Mdm.findOne({ where: { name: 'MDM A' } })).isActive; i += 1) await page.waitForTimeout(100); // eslint-disable-line no-await-in-loop
   expect((await models.Mdm.findOne({ where: { name: 'MDM A' } })).isActive).toBe(false);
-  await models.Mdm.update({ isActive: true }, { where: { name: 'MDM A' } });
 });
 
 it('Form builder: a yes/no question, a step that shows only on yes; saved as version 1, then 2', async () => {
@@ -54,6 +54,8 @@ it('Form builder: a yes/no question, a step that shows only on yes; saved as ver
 });
 
 it('Playbook editor: a per-device form for managed devices; try it on someone', async () => {
+  const [mdm] = await models.Mdm.findOrCreate({ where: { name: 'MDM A' }, defaults: { name: 'MDM A' } });
+  await mdm.update({ isActive: true });
   const company = await makeCompany(w.admin, { name: 'County' });
   const jordan = await makeContact(w.admin, { companyId: company.id, firstName: 'Jordan', lastName: 'Reyes' });
   const category = await models.AssetCategory.findOne({ where: { name: 'Computers' } });
@@ -83,6 +85,8 @@ it('Playbook editor: a per-device form for managed devices; try it on someone', 
 });
 
 it('the asset form: managed by an MDM, and a phone line', async () => {
+  const [mdm] = await models.Mdm.findOrCreate({ where: { name: 'MDM A' }, defaults: { name: 'MDM A' } });
+  await mdm.update({ isActive: true });
   const category = await models.AssetCategory.findOne({ where: { name: 'Computers' } });
   const asset = await models.Asset.create({ assetTag: 'SM-A1', name: 'Field laptop', categoryId: category.id, companyId: (await models.Company.findOne({ where: { isInternal: true } })).id });
   await page.goto(`/assets/${asset.id}`);

@@ -19,6 +19,7 @@ export default function Mdms() {
   useEffect(() => { load(); }, []);
 
   const patch = async (m, changes) => {
+    setMdms((list) => list.map((x) => (x.id === m.id ? { ...x, ...changes } : x)));
     try {
       const { data } = await api.patch(`/mdms/${m.id}`, changes);
       setMdms((list) => list.map((x) => (x.id === m.id ? data.mdm : x)));
