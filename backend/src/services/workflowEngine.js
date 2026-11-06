@@ -6,7 +6,7 @@
 const { Op } = require('sequelize');
 const {
   Ticket, Contact, Department, User, Role, TeamMember, Comment, CustomField, TicketFieldValue,
-  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog, SlaPolicy,
+  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog, SlaPolicy, Playbook, TicketPlaybookSuggestion,
 } = require('../models');
 const { parseRecordId } = require('./permissionService');
 const { createNotification, notifyAssigned } = require('./notifications');
@@ -199,6 +199,9 @@ async function executeAction(ticket, action, rule) {
     }
     case 'set_status': {
       const wasStatus = ticket.status;
+      // A rule never closes a ticket with unfinished forms (PB); the refusal
+      // is recorded in the rule log like any failed action.
+      await require('./playbooks/closeGuard').assertCanClose(ticket, v.status); // eslint-disable-line global-require
       await ticket.update({ status: v.status });
       // Logged like a manual change (no user: shown as the workflow rule),
       // so the timeline and the waiting-on-customer figure see it.
@@ -286,6 +289,20 @@ async function executeAction(ticket, action, rule) {
       // Lazy: services/sla/ticketSla requires the models this file does.
       await require('./sla/ticketSla').recalcTicketSla(ticket.id, { policyId: policy.id }); // eslint-disable-line global-require
       return `SLA policy set to ${policy.name}`;
+    }
+    case 'suggest_playbook': {
+      // Playbooks (PB): a suggestion on the ticket, once per playbook; a
+      // person applies it (or dismisses it) from the ticket.
+      const playbook = await Playbook.findByPk(parseRecordId(v.playbookId) || 0);
+      if (!playbook || !playbook.isActive) throw new Error('Playbook not found or switched off');
+      if (Array.isArray(playbook.companyIds) && !playbook.companyIds.includes(ticket.companyId)) {
+        return `playbook "${playbook.name}" isn't offered for this ticket's company`;
+      }
+      const [, created] = await TicketPlaybookSuggestion.findOrCreate({
+        where: { ticketId: ticket.id, playbookId: playbook.id },
+        defaults: { ticketId: ticket.id, playbookId: playbook.id, ruleId: rule ? rule.id : null },
+      });
+      return created ? `suggested playbook "${playbook.name}"` : `playbook "${playbook.name}" already suggested`;
     }
     default:
       throw new Error(`Unknown action type "${action.actionType}"`);
@@ -417,6 +434,7 @@ function describeAction(action, ticket) {
     case 'send_notification': return { actionType: action.actionType, description: `Notify ${v.recipient}: "${renderTemplate(v.message, ticket) || '(default message)'}"` };
     case 'add_private_comment': return { actionType: action.actionType, description: `Add private comment: "${renderTemplate(v.text, ticket) || ''}"` };
     case 'escalate_to_user': return { actionType: action.actionType, description: `Escalate to user #${v.userId} (priority: critical)` };
+    case 'suggest_playbook': return { actionType: action.actionType, description: `Suggest playbook #${v.playbookId}` };
     default: return { actionType: action.actionType, description: 'Unknown action' };
   }
 }

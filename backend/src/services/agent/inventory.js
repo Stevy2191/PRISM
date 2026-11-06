@@ -190,6 +190,9 @@ async function applyInventory(device, body) {
   if (result.changedFields.length) {
     await logAssetActivity(result.assetId, null, 'agent_inventory', { changed: result.changedFields });
   }
+  // Ticket forms waiting on this computer's agent tick those steps (PB).
+  // Lazy: the playbooks services load much of the app.
+  await require('../playbooks/ticketForms').markAgentItems(result.assetId, new Date()); // eslint-disable-line global-require
   return { changedFields: result.changedFields, software: result.software };
 }
 

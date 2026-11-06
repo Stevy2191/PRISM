@@ -14,6 +14,11 @@ const manageWatchers = requirePermission('tickets.manage_watchers');
 // time.manage_others or leading their team (services/time).
 const logTime = requirePermission('time.log');
 
+const playbooks = require('../controllers/tickets/playbooks');
+const devices = require('../controllers/tickets/devices');
+const ticketForms = require('../controllers/tickets/forms');
+const { secretRevealLimiter } = require('../middleware/rateLimit');
+
 // Tickets
 router.get('/', viewMin, ctrl.list);
 router.post('/', requirePermission('tickets.create'), ctrl.create);
@@ -84,6 +89,24 @@ router.patch('/:id/custom-field-values', editMin, ctrl.updateCustomFieldValues);
 
 // Activity (per-ticket timeline)
 router.get('/:id/activity', ctrl.listActivity);
+
+// Playbooks and devices (PB)
+router.get('/:id/playbooks', viewMin, playbooks.view);
+router.get('/:id/close-check', viewMin, playbooks.closeCheck);
+router.get('/:id/playbooks/options', editMin, playbooks.options);
+router.post('/:id/playbooks', editMin, playbooks.create);
+router.delete('/:id/playbooks/:tpId', editMin, playbooks.remove);
+router.post('/:id/playbook-suggestions/:suggestionId/dismiss', editMin, playbooks.dismissSuggestion);
+router.post('/:id/devices/new', editMin, devices.createDevice);
+router.post('/:id/devices', editMin, devices.link);
+router.delete('/:id/devices/:assetId', editMin, devices.unlink);
+router.get('/:id/forms/:formId', viewMin, ticketForms.get);
+router.patch('/:id/forms/:formId', editMin, ticketForms.answer);
+router.put('/:id/forms/:formId/secrets/:key', editMin, ticketForms.setSecret);
+router.post('/:id/forms/:formId/secrets/:key/reveal', requirePermission('tickets.view_secure_fields'), secretRevealLimiter, ticketForms.reveal);
+router.post('/:id/forms/:formId/skip', editMin, ticketForms.skip);
+router.post('/:id/forms/:formId/action', editMin, ticketForms.action);
+router.get('/:id/forms/:formId/pdf', viewMin, ticketForms.pdf);
 
 // PDF report
 router.get('/:id/report', viewMin, ctrl.generateReport);

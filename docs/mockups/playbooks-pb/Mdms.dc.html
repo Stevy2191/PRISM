@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MDMs</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pb.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a><a href="#">Projects</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><a href="#">Assets</a><span>/</span><span>MDMs</span></nav>
+    <section class="head" style="margin-top:10px">
+      <div style="min-width:0;flex:1 1 520px"><h1>MDMs</h1><p class="sub">The device management tools your organization uses. Devices pick from this list, and forms can show steps for one MDM only.</p></div>
+      <button class="btn primary" type="button">+ Add MDM</button>
+    </section>
+
+    <div class="bld">
+      <div class="bld-main">
+        <div class="card" style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th scope="col">Name</th><th scope="col">Console address</th><th scope="col">Devices</th><th scope="col">Active</th><th scope="col"><span style="position:absolute;left:-9999px">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>Jamf Pro</b></td><td class="muted">https://county.jamfcloud.com/computers.html?id={id}</td><td class="num">142</td><td><span class="sw" aria-label="Active"></span></td><td style="text-align:right"><button class="btn sm" type="button">Edit</button></td></tr>
+              <tr><td><b>ManageEngine</b></td><td class="muted">https://mdm.manageengine.com/…/device/{id}</td><td class="num">96</td><td><span class="sw" aria-label="Active"></span></td><td style="text-align:right"><button class="btn sm" type="button">Edit</button></td></tr>
+              <tr><td><b style="color:var(--tx2)">Meraki Systems Manager</b> <span class="tag">Retired</span></td><td class="muted">—</td><td class="num">3</td><td><span class="sw off" aria-label="Inactive"></span></td><td style="text-align:right"><button class="btn sm" type="button">Edit</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint" style="margin:0">A retired MDM stays on the devices that have it but can't be picked for new ones. <code>{id}</code> in the console address is replaced with the device's MDM ID to make a link.</p>
+      </div>
+
+      <aside class="bld-side" aria-label="On a device">
+        <div class="eyebrow">ON EACH DEVICE · ASSET EDIT</div>
+        <div class="card">
+          <div class="sh"><h3>Management</h3></div>
+          <div class="sb" style="display:flex;flex-direction:column;gap:14px">
+            <div class="field"><span class="flabel">Managed by an MDM?</span><div class="seg-ctl" role="group" aria-label="Managed"><button type="button" class="on">Yes</button><button type="button">No</button></div></div>
+            <div class="field"><label for="m-mdm">MDM<span class="req">*</span></label><div class="input" id="m-mdm">Jamf Pro<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+            <div class="field"><label for="m-id">MDM device ID</label><div class="input"><input id="m-id" value="1487"></div><span class="hint"><a href="#">Open in Jamf Pro ↗</a></span></div>
+            <div class="field"><label for="m-st">Status</label><div class="input" id="m-st">On hold<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+            <div class="field"><label for="m-hr">On hold because<span class="req">*</span></label><div class="input"><input id="m-hr" value="Activation Locked, waiting on ABM"></div><span class="hint">Statuses: Active, Ready to issue, In repair, On hold, In storage, Retired, Lost.</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sh"><h3>Cellular</h3></div>
+          <div class="sb" style="display:flex;flex-direction:column;gap:14px">
+            <div class="field"><span class="flabel">Has cellular service?</span><div class="seg-ctl" role="group" aria-label="Cellular"><button type="button" class="on">Yes</button><button type="button">No</button></div><span class="hint">Any device type: phones, tablets, laptops with a SIM or eSIM.</span></div>
+            <div class="field"><label for="m-imei">IMEI<span class="req">*</span></label><div class="input"><input id="m-imei" class="num" value="35 391811 482611 7"></div></div>
+            <div class="field"><label for="m-ph">Phone number</label><div class="input"><input id="m-ph" class="num" value="(979) 555-0142"></div><span class="hint">Leave empty for a data-only line.</span></div>
+            <div class="field"><label for="m-car">Carrier</label><div class="input" id="m-car">Verizon Wireless<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div><span class="hint">Carriers are your vendor companies.</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sh"><h3>PRISM agent</h3></div>
+          <div class="sb" style="display:flex;flex-direction:column;gap:6px"><span class="muted">Not installed yet.</span><span class="hint">Install it with Washington County's enrollment key: it claims this asset by its serial number and fills in name, hardware, OS, network and software. Phones and tablets don't run the agent.</span></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

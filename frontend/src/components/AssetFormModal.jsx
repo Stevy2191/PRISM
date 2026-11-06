@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import DeviceFields, { deviceFieldsBody, useMdms } from './assets/DeviceFields';
 import { contactLabel } from '../utils/contactLabel';
 import { useCompanySummary } from '../context/CompanyContext';
 import CompanyPicker from './companies/CompanyPicker';
@@ -191,7 +192,7 @@ const DEFAULT_FORM = {
   ipAddress: '', macAddress: '', firmwareVersion: '', deployedDate: '',
   departmentId: '', companyId: '', siteId: '', locationBuilding: '', locationFloor: '', locationRoom: '',
   purchaseDate: '', purchasePrice: '', vendorName: '', warrantyExpiryDate: '', replacementPlanDate: '',
-  notes: '',
+  notes: '', holdReason: '',
 };
 
 // Labels for the fields the PRISM agent owns on an agent-managed Asset (8a).
@@ -223,6 +224,14 @@ export default function AssetFormModal({
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // Management and cellular (PB).
+  const mdms = useMdms();
+  const [device, setDevice] = useState(() => ({
+    isManaged: !!asset?.isManaged, mdmId: asset?.mdmId || null, mdmDeviceId: asset?.mdmDeviceId || '',
+    hasCellular: !!asset?.hasCellular, imei: asset?.imei || '', phoneNumber: asset?.phoneNumber || '',
+    carrierCompanyId: asset?.carrierCompanyId || null, carrier: asset?.carrier || null,
+  }));
+  const [warnings, setWarnings] = useState([]);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   // Assigning someone fills in the department with theirs (when it's one this
@@ -244,6 +253,8 @@ export default function AssetFormModal({
     if (tagTouched || !form.categoryId) return;
     const cat = categories.find((c) => String(c.id) === String(form.categoryId));
     if (cat?.nextTagSuggestion) setForm((f) => ({ ...f, assetTag: cat.nextTagSuggestion }));
+    // A new device in a "cellular by default" category starts with a line (PB).
+    if (!isEdit) setDevice((d) => ({ ...d, hasCellular: !!cat?.cellularByDefault }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.categoryId, categories]);
 
@@ -269,10 +280,17 @@ export default function AssetFormModal({
       payload.assignedToUserId = user?.id || null;
       payload.fieldValues = fieldValues;
       if (multiCompany) payload.vendorCompanyId = vendor ? vendor.id : null;
+      Object.assign(payload, deviceFieldsBody(device));
+      if (payload.status !== 'on_hold') payload.holdReason = null;
 
       const { data } = isEdit
         ? await api.patch(`/assets/${asset.id}`, payload)
         : await api.post('/assets', payload);
+      if (data.warnings?.length && !warnings.length) {
+        // Saved; say so once before closing.
+        setWarnings(data.warnings);
+        alert(data.warnings.map((w) => (w === 'IMEI_IN_USE' ? 'Another device in use has this IMEI.' : 'Another device in use has this phone number.')).join(' '));
+      }
       onSaved(data.asset);
     } catch (err) {
       setError(errMessage(err));
@@ -323,10 +341,15 @@ export default function AssetFormModal({
                 <option value="in_repair">In repair</option>
                 <option value="retired">Retired</option>
                 <option value="in_storage">In storage</option>
+                <option value="ready_to_issue">Ready to issue</option>
+                <option value="on_hold">On hold</option>
                 <option value="lost">Lost</option>
               </select>
             </div>
           </div>
+          {form.status === 'on_hold' && (
+            <div><Label required>On hold because</Label><input className="input" style={fieldStyle} value={form.holdReason || ''} onChange={set('holdReason')} placeholder="e.g. Activation Locked, waiting on a part" /></div>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div><Label>Make</Label><input className="input" style={fieldStyle} value={form.make} onChange={set('make')} /></div>
             <div><Label>Model</Label><input className="input" style={fieldStyle} value={form.model} onChange={set('model')} /></div>
@@ -436,6 +459,10 @@ export default function AssetFormModal({
             <div><Label>Warranty expiry date</Label><input type="date" className="input" style={fieldStyle} value={form.warrantyExpiryDate || ''} onChange={set('warrantyExpiryDate')} /></div>
             <div><Label>Replacement plan date</Label><input type="date" className="input" style={fieldStyle} value={form.replacementPlanDate || ''} onChange={set('replacementPlanDate')} /></div>
           </div>
+        </Section>
+
+        <Section title="Management and cellular">
+          <DeviceFields value={device} onChange={(patch) => setDevice((d) => ({ ...d, ...patch }))} mdms={mdms} columns={3} />
         </Section>
 
         <Section title="Notes">

@@ -14,6 +14,9 @@ const { sequelize } = require('./helpers');
 const later = [
   require('../../migrations/20260101000069-project-structure'),
   require('../../migrations/20260101000070-project-templates'),
+  // Playbooks (PB): ticket forms point at Tasks, so 050's round trip needs it
+  // rolled back first. Its Assets columns go with it for that moment.
+  require('../../migrations/20260101000080-playbooks'),
 ];
 
 const qi = () => sequelize.getQueryInterface();

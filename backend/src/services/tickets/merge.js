@@ -8,7 +8,7 @@
 // that doesn't exist. Nothing is written until every check passes.
 const { Op } = require('sequelize');
 const {
-  Ticket, Comment, Attachment, TimeEntry, Task, ActiveTimer, TicketWatcher, TicketCc, AssetTicket, TicketRelation, Contact, sequelize,
+  Ticket, Comment, Attachment, TimeEntry, Task, ActiveTimer, TicketWatcher, TicketCc, AssetTicket, TicketRelation, Contact, TicketPlaybook, TicketForm, TicketPlaybookSuggestion, sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -135,6 +135,20 @@ async function moveTasks(sources, target, transaction) {
   }
 }
 
+// Playbooks (PB): the sources' applied playbooks and their forms go with
+// their tasks, so closing a source is never refused for them; suggestions
+// the target already has are dropped.
+async function moveForms(sourceIds, targetId, transaction) {
+  await TicketPlaybook.update({ ticketId: targetId }, { where: { ticketId: { [Op.in]: sourceIds } }, transaction });
+  await TicketForm.update({ ticketId: targetId }, { where: { ticketId: { [Op.in]: sourceIds } }, transaction });
+  const have = new Set((await TicketPlaybookSuggestion.findAll({ where: { ticketId: targetId }, attributes: ['playbookId'], transaction })).map((s) => s.playbookId));
+  const moving = await TicketPlaybookSuggestion.findAll({ where: { ticketId: { [Op.in]: sourceIds } }, transaction });
+  for (const s of moving) {
+    if (have.has(s.playbookId)) await s.destroy({ transaction }); // eslint-disable-line no-await-in-loop
+    else { have.add(s.playbookId); await s.update({ ticketId: targetId }, { transaction }); } // eslint-disable-line no-await-in-loop
+  }
+}
+
 // Relations: re-pointed at the target. Links among the merged tickets, a
 // ticket linked to itself, and repeats of a link the target already has
 // (either direction, any type: two tickets are linked once) are dropped.
@@ -199,6 +213,7 @@ async function mergeTickets(req, targetRaw, sourceRaws) {
       await TimeEntry.update({ ticketId: target.id }, { where: { ticketId: { [Op.in]: sourceIds } }, transaction });
       await moveTimers(sourceIds, target.id, transaction);
       await moveTasks(sources, target, transaction);
+      await moveForms(sourceIds, target.id, transaction);
       await moveUnique(TicketWatcher, (r) => (r.userId != null ? `user:${r.userId}` : `contact:${r.contactId}`), sourceIds, target.id, transaction);
       await moveUnique(TicketCc, 'email', sourceIds, target.id, transaction);
       await moveUnique(AssetTicket, 'assetId', sourceIds, target.id, transaction);

@@ -1,0 +1,29 @@
+{
+ "v": 3,
+ "createdOnFiles": {"v": 1, "at": "2026-11-06T15:00:00Z"},
+ "title": "PRISM playbooks (PB)",
+ "launch": {"view": "canvas", "page": "ticket"},
+ "pages": [
+  {"id": "ticket", "name": "On the ticket"},
+  {"id": "settings", "name": "Settings"},
+  {"id": "phone", "name": "Phone"}
+ ],
+ "boards": {
+  "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1180, "title": "Ticket · suggestion, forms as tasks, devices", "page": "ticket", "expand": "fill"},
+  "ApplyPlaybook.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "Apply playbook · who it's for, their devices", "page": "ticket"},
+  "TicketForm.dc.html": {"x": 0, "y": 1300, "w": 1440, "h": 1500, "title": "A ticket form · check-in for one device", "page": "ticket", "expand": "fill"},
+  "AddDevice.dc.html": {"x": 1520, "y": 1020, "w": 1440, "h": 1040, "title": "Add device · pick or create, with cellular", "page": "ticket"},
+  "CloseBlocked.dc.html": {"x": 1520, "y": 2180, "w": 1440, "h": 900, "title": "Closing with unfinished forms", "page": "ticket"},
+  "FormBuilder.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1240, "title": "Settings · Forms · builder", "page": "settings", "expand": "fill"},
+  "PlaybookEditor.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 1000, "title": "Settings · Playbooks · editor", "page": "settings", "expand": "fill"},
+  "Mdms.dc.html": {"x": 1520, "y": 1120, "w": 1440, "h": 1240, "title": "Settings · MDMs, and a device's managed / MDM / cellular / agent fields", "page": "settings", "expand": "fill"},
+  "PhoneForm.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "Ticket form on a phone", "page": "phone"}
+ },
+ "order": ["Main.dc.html", "ApplyPlaybook.dc.html", "TicketForm.dc.html", "AddDevice.dc.html", "CloseBlocked.dc.html", "FormBuilder.dc.html", "PlaybookEditor.dc.html", "Mdms.dc.html", "PhoneForm.dc.html"],
+ "notes": {
+  "ticketTitle": {"x": 0, "y": -300, "text": "On the ticket", "kind": "title1", "maxW": 2960, "page": "ticket"},
+  "settingsTitle": {"x": 0, "y": -300, "text": "Settings", "kind": "title1", "maxW": 2960, "page": "settings"},
+  "phoneTitle": {"x": 0, "y": -300, "text": "Phone", "kind": "title1", "maxW": 1200, "page": "phone"}
+ },
+ "designSystems": []
+}

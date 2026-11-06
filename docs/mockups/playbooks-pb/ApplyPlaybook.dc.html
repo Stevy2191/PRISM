@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Apply a playbook</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pb.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:900px;position:relative;overflow:hidden">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#" class="on" aria-current="page">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a><a href="#">Projects</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Tickets</a><span>/</span><span class="num">#01633</span></nav>
+    <div class="chips" style="margin-top:10px"><span class="idl">#01633</span><span class="status plan">New</span><span class="tag">Accounts › Termination</span></div>
+    <h1 style="margin-top:8px">Termination: Jordan Reyes, last day Nov 14</h1>
+    <div class="suggest" style="margin-top:18px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc-ink)" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path></svg>
+      <div class="t">Suggested by the rule <i>Termination requests</i>: <b>Account termination</b> playbook</div>
+      <button class="btn sm primary" type="button">Apply…</button>
+      <button class="btn sm quiet" type="button">Dismiss</button>
+    </div>
+  </main>
+
+  <div class="scrim"></div>
+  <div style="position:absolute;inset:40px 0;display:flex;justify-content:center;align-items:flex-start">
+    <section class="dlg" role="dialog" aria-modal="true" aria-labelledby="apl-t" style="width:680px">
+      <div class="dlg-h">
+        <div><h2 id="apl-t">Apply a playbook</h2><p class="sub" style="margin-top:4px">Its forms are added to this ticket as tasks. Nothing changes in other systems.</p></div>
+        <button class="ib" type="button" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+      </div>
+      <div class="dlg-b">
+        <div class="field">
+          <label for="apl-pb">Playbook</label>
+          <div class="input" id="apl-pb">Account termination<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div>
+        </div>
+        <div class="field">
+          <label for="apl-who">Who is it for?</label>
+          <div class="input" id="apl-who"><span class="av m">JR</span><b>Jordan Reyes</b><span class="muted">· Parks &amp; Recreation · jreyes@…</span><button class="btn sm quiet" type="button" style="margin-left:auto">Change</button></div>
+          <span class="hint">Guessed from the subject. Pick someone else if it's wrong.</span>
+        </div>
+        <div>
+          <div class="flabel" style="margin-bottom:8px">Forms to add</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="opt on"><input class="cb" type="checkbox" checked="" disabled="" aria-label="Account termination, once"><div style="flex:1;min-width:0"><b>Account termination</b><div class="hint">Once for the ticket</div></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="flabel" style="margin-bottom:8px">Jordan's devices <span class="muted" style="font-weight:400">· one check-in form each</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label class="opt on"><input class="cb" type="checkbox" checked=""><div style="flex:1;min-width:0"><b>MacBook Pro 14"</b> <span class="muted">WC-1043</span><div class="hint">Apple device check-in · <span class="mdm">Jamf Pro</span> steps</div></div></label>
+            <label class="opt on"><input class="cb" type="checkbox" checked=""><div style="flex:1;min-width:0"><b>iPhone 15</b> <span class="muted">WC-1187</span><div class="hint">Apple device check-in · <span class="mdm">ManageEngine</span> steps</div></div></label>
+            <label class="opt on"><input class="cb" type="checkbox" checked=""><div style="flex:1;min-width:0"><b>Dell Latitude 5440</b> <span class="muted">WC-0877</span><div class="hint">Device check-in · not managed</div></div></label>
+            <label class="opt" style="border-color:var(--warn-bd);background:var(--warn-bg)"><input class="cb" type="checkbox" checked=""><div style="flex:1;min-width:0"><b>iPad (10th gen)</b> <span class="muted">WC-1210</span><div class="hint" style="color:var(--warn-ink)">No form matches: this device has no MDM set. It will be listed on the ticket as not covered.</div></div></label>
+          </div>
+        </div>
+      </div>
+      <div class="dlg-f">
+        <span class="hint" style="margin-right:auto">4 forms · 58 required steps</span>
+        <button class="btn" type="button">Cancel</button>
+        <button class="btn primary" type="button">Apply playbook</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

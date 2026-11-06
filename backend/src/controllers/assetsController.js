@@ -4,8 +4,11 @@ const { Op, col } = require('sequelize');
 const {
   Asset, AssetCategory, AssetTicket, AssetActivity, AssetCategoryField, AssetFieldValue,
   AssetCheckout, AssetAttachment, License, Contract,
-  Ticket, Contact, User, Department, Company, Site, Device, AssetSoftware,
+  Ticket, Contact, User, Department, Company, Site, Device, AssetSoftware, Mdm,
 } = require('../models');
+const {
+  mdmLink, resolveManagement, resolveCellular, resolveHold, duplicateWarnings,
+} = require('../services/assets/management');
 const { statusWhere, deviceSummary } = require('./devicesController');
 const { AGENT_FIELDS } = require('../services/agent/inventory');
 const { ApiError, asyncHandler } = require('../middleware/error');
@@ -14,7 +17,7 @@ const { writeAudit } = require('../middleware/audit');
 const { logAssetActivity } = require('../services/assetActivity');
 const { suggestNextAssetTag } = require('../services/assetTagService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
-const { generateCheckoutFormPdf } = require('../services/assetCheckoutPdf');
+const checkouts = require('../services/assets/checkouts');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 const { sendMail } = require('../services/emailSender');
 const { getAllSettings } = require('./settingsController');
@@ -25,7 +28,7 @@ const {
 const { andWhere } = require('../services/recordScope');
 const { resolvePlacement, resolveVendorFields, hideUnreachableVendors } = require('../services/companyService');
 const {
-  orgToday, orgTimeZone, dateInZone, addDays,
+  orgToday, addDays,
 } = require('../utils/orgTime');
 
 const userAttrs = ['id', 'displayName', 'username'];
@@ -61,7 +64,31 @@ const assetInclude = [
   { model: Company, as: 'company', attributes: ['id', 'name'] },
   { model: Company, as: 'vendorCompany', attributes: ['id', 'name'] },
   { model: Site, as: 'site', attributes: ['id', 'name'] },
+  // Playbooks (PB): the MDM managing the device, and its line's carrier.
+  { model: Mdm, as: 'mdm', attributes: ['id', 'name', 'consoleUrl', 'isActive'] },
+  { model: Company, as: 'carrier', attributes: ['id', 'name'] },
 ];
+
+// Fenced vendors and carriers are hidden from viewers who can't reach them,
+// and each record carries its MDM console link.
+async function present(user, rows) {
+  await hideUnreachableVendors(user, rows);
+  await hideUnreachableVendors(user, rows, 'carrier');
+  (Array.isArray(rows) ? rows : [rows]).filter(Boolean).forEach((r) => {
+    r.setDataValue('mdmLink', mdmLink(r.mdm, r.mdmDeviceId));
+  });
+  return rows;
+}
+
+// The PB device fields from a create/update body (management, cellular,
+// hold reason), checked; null record on create.
+async function deviceFields(user, body, record, category) {
+  return {
+    ...(await resolveManagement(body, record)),
+    ...(await resolveCellular(user, body, record, category)),
+    ...resolveHold(body, record),
+  };
+}
 
 // Company-bound fields, checked by resolvePlacement against the asset's
 // company rather than copied from the body.
@@ -115,20 +142,7 @@ function daysUntil(dateStr) {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
-// Checkout/check-in dates may be backdated arbitrarily (entering existing
-// deployed equipment, correcting historical records) but never postdated —
-// compared against end-of-today so "today" itself is always valid regardless
-// of what time of day the request arrives.
-function assertNotFutureDate(value, label) {
-  if (!value) return;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) throw new ApiError(400, `${label} is not a valid date`, 'VALIDATION_ERROR');
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
-  if (d.getTime() > endOfToday.getTime()) {
-    throw new ApiError(400, `${label} cannot be in the future`, 'FUTURE_DATE_NOT_ALLOWED');
-  }
-}
+const { assertNotFutureDate } = checkouts;
 
 // GET /assets?search=&categoryId=&departmentId=&status=&assignedTo=&quickFilter=
 const list = asyncHandler(async (req, res) => {
@@ -139,6 +153,11 @@ const list = asyncHandler(async (req, res) => {
   if (categoryId) where.categoryId = categoryId;
   if (departmentId) where.departmentId = departmentId;
   if (status) where.status = status;
+  // Playbooks (PB): managed, MDM, cellular and carrier filters.
+  if (req.query.managed === 'true' || req.query.managed === 'false') where.isManaged = req.query.managed === 'true';
+  if (req.query.mdmId) where.mdmId = parseRecordId(req.query.mdmId) || -1;
+  if (req.query.hasCellular === 'true' || req.query.hasCellular === 'false') where.hasCellular = req.query.hasCellular === 'true';
+  if (req.query.carrierCompanyId) where.carrierCompanyId = parseRecordId(req.query.carrierCompanyId) || -1;
 
   const andConditions = [];
   if (assignedTo === 'assigned') {
@@ -155,6 +174,9 @@ const list = asyncHandler(async (req, res) => {
         { serialNumber: { [Op.like]: `%${term}%` } },
         { make: { [Op.like]: `%${term}%` } },
         { model: { [Op.like]: `%${term}%` } },
+        { imei: { [Op.like]: `%${term.replace(/[\s-]/g, '')}%` } },
+        // A phone number is stored as digits; match whatever was typed.
+        ...(term.replace(/\D/g, '').length >= 4 ? [{ phoneNumber: { [Op.like]: `%${term.replace(/\D/g, '')}%` } }] : []),
       ],
     });
   }
@@ -195,7 +217,7 @@ const list = asyncHandler(async (req, res) => {
     offset,
     distinct: true,
   });
-  await hideUnreachableVendors(req.user, rows);
+  await present(req.user, rows);
   const out = rows.map((a) => ({ ...a.toJSON(), device: deviceSummary(a.device) }));
   res.json(paginated('assets', { rows: out, count }, { page, limit }));
 });
@@ -317,7 +339,7 @@ const get = asyncHandler(async (req, res) => {
     AssetTicket.count({ where: { assetId: asset.id }, include: [{ model: Ticket, as: 'ticket', where: { status: { [Op.in]: buckets.open } }, attributes: [] }] }),
   ]);
 
-  await hideUnreachableVendors(req.user, asset);
+  await present(req.user, asset);
   const device = await Device.findOne({ where: { assetId: asset.id }, attributes: ['id', 'lastSeenAt', 'lastInventoryAt', 'scanRequestedAt', 'revokedAt', 'agentVersion', 'platform'] });
   const softwareCount = device ? await AssetSoftware.count({ where: { assetId: asset.id } }) : 0;
   res.json({
@@ -342,9 +364,9 @@ async function assertUniqueTag(assetTag, excludeId) {
   if (existing) throw new ApiError(409, `Asset tag "${assetTag}" is already in use`, 'DUPLICATE_ASSET_TAG');
 }
 
-// POST /assets
-const create = asyncHandler(async (req, res) => {
-  const body = req.body || {};
+// Creates an asset with every check POST /assets makes (also used to create
+// a device from a ticket, PB). → { asset, warnings }
+async function createAsset(req, body) {
   if (!body.name || !body.name.trim()) throw new ApiError(400, 'Name is required', 'VALIDATION_ERROR');
   if (!body.categoryId) throw new ApiError(400, 'Category is required', 'VALIDATION_ERROR');
 
@@ -362,6 +384,7 @@ const create = asyncHandler(async (req, res) => {
   });
   Object.assign(values, await resolvePlacement(req.user, body, null, PLACEMENT_FIELDS));
   Object.assign(values, await resolveVendorFields(req.user, body, null, 'vendorName'));
+  Object.assign(values, await deviceFields(req.user, body, null, category));
   values.createdBy = req.user.id;
 
   const asset = await Asset.create(values);
@@ -370,8 +393,13 @@ const create = asyncHandler(async (req, res) => {
   await writeAudit(req, 'asset.create', 'Asset', asset.id, { assetTag: asset.assetTag });
 
   const fresh = await Asset.findByPk(asset.id, { include: assetInclude });
-  await hideUnreachableVendors(req.user, fresh);
-  res.status(201).json({ asset: fresh });
+  await present(req.user, fresh);
+  return { asset: fresh, warnings: await duplicateWarnings(fresh) };
+}
+
+// POST /assets
+const create = asyncHandler(async (req, res) => {
+  res.status(201).json(await createAsset(req, req.body || {}));
 });
 
 // PATCH /assets/:id
@@ -386,6 +414,7 @@ const update = asyncHandler(async (req, res) => {
   });
   Object.assign(changes, await resolvePlacement(req.user, body, asset, PLACEMENT_FIELDS));
   Object.assign(changes, await resolveVendorFields(req.user, body, asset, 'vendorName'));
+  Object.assign(changes, await deviceFields(req.user, body, asset, null));
 
   if (changes.assetTag !== undefined && changes.assetTag !== asset.assetTag) {
     if (!changes.assetTag.trim()) throw new ApiError(400, 'Asset tag cannot be blank', 'VALIDATION_ERROR');
@@ -421,8 +450,8 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const fresh = await Asset.findByPk(asset.id, { include: assetInclude });
-  await hideUnreachableVendors(req.user, fresh);
-  res.json({ asset: fresh });
+  await present(req.user, fresh);
+  res.json({ asset: fresh, warnings: await duplicateWarnings(fresh) });
 });
 
 // DELETE /assets/:id — warns (via a 409 the client can re-confirm past,
@@ -598,53 +627,13 @@ const createCheckout = asyncHandler(async (req, res) => {
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
 
   if (!req.body.contactId) throw new ApiError(400, 'contactId is required', 'VALIDATION_ERROR');
-  const contactId = (await assertCheckoutContact(req.user, req.body.contactId, asset)).id;
-  const contact = await Contact.findByPk(contactId, { include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] });
-
-  assertNotFutureDate(req.body.checkedOutAt, 'Checkout date');
-  const checkedOutAt = req.body.checkedOutAt ? new Date(req.body.checkedOutAt) : new Date();
-  const checkout = await AssetCheckout.create({
-    assetId: asset.id,
-    contactId,
-    checkedOutBy: req.user.id,
-    checkedOutAt,
-    notes: req.body.notes || null,
-  });
-
-  if (asset.assignedToContactId !== contactId || asset.assignedToUserId) {
-    // The asset takes the person's department with them, when they have one.
-    const dept = contact.departmentId && contact.departmentId !== asset.departmentId ? { departmentId: contact.departmentId } : {};
-    await asset.update({ assignedToContactId: contactId, assignedToUserId: null, ...dept });
-    await logAssetActivity(asset.id, req.user.id, 'assignment_changed', { assignedToContactId: contactId, assignedToUserId: null, ...dept });
-  }
-  await logAssetActivity(asset.id, req.user.id, 'checked_out', { contactId, contactName: contact.displayName, checkedOutAt });
-
-  const attachment = req.body.generateForm ? await makeCheckoutForm(asset, contact, checkout, req.user) : null;
+  const contact = await assertCheckoutContact(req.user, req.body.contactId, asset);
+  const { checkout } = await checkouts.checkOut(req, asset, contact, { checkedOutAt: req.body.checkedOutAt, notes: req.body.notes });
+  const attachment = req.body.generateForm ? await checkouts.makeCheckoutForm(asset, contact.id, checkout, req.user) : null;
 
   const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
   res.status(201).json({ checkout: fresh, attachment });
 });
-
-// The checkout's agreement as a PDF on the asset's attachments, linked to
-// the checkout as its form (a new one replaces the link, not the file).
-async function makeCheckoutForm(asset, contact, checkout, user) {
-  const { filename, size } = await generateCheckoutFormPdf({
-    asset,
-    contact,
-    checkoutDate: dateInZone(checkout.checkedOutAt, await orgTimeZone()),
-  });
-  const attachment = await AssetAttachment.create({
-    assetId: asset.id,
-    filename,
-    originalName: `Checkout Form - ${asset.assetTag}.pdf`,
-    mimeType: 'application/pdf',
-    size,
-    uploadedById: user.id,
-  });
-  await checkout.update({ formAttachmentId: attachment.id });
-  await logAssetActivity(asset.id, user.id, 'checkout_form_generated', { checkoutId: checkout.id, attachmentId: attachment.id });
-  return attachment;
-}
 
 async function findCheckout(req, include) {
   const asset = await Asset.findByPk(req.params.id, include ? { include: assetInclude } : undefined);
@@ -659,8 +648,7 @@ async function findCheckout(req, include) {
 // deleted), or a fresh one.
 const createCheckoutForm = asyncHandler(async (req, res) => {
   const { asset, checkout } = await findCheckout(req, true);
-  const contact = await Contact.findByPk(checkout.contactId, { include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] });
-  const attachment = await makeCheckoutForm(asset, contact, checkout, req.user);
+  const attachment = await checkouts.makeCheckoutForm(asset, checkout.contactId, checkout, req.user);
   const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
   res.status(201).json({ checkout: fresh, attachment });
 });
@@ -711,24 +699,16 @@ const uploadSignedCheckoutForm = asyncHandler(async (req, res) => {
 const checkInCheckout = asyncHandler(async (req, res) => {
   const asset = await Asset.findByPk(req.params.id);
   if (!asset) throw new ApiError(404, 'Asset not found', 'NOT_FOUND');
-  const checkout = await AssetCheckout.findOne({ where: { id: req.params.checkoutId, assetId: asset.id } });
-  if (!checkout) throw new ApiError(404, 'Checkout not found', 'NOT_FOUND');
-  if (checkout.checkedInAt) throw new ApiError(400, 'This checkout has already been checked in', 'ALREADY_CHECKED_IN');
-
-  assertNotFutureDate(req.body.checkedInAt, 'Check-in date');
-  const checkedInAt = req.body.checkedInAt ? new Date(req.body.checkedInAt) : new Date();
-  if (checkedInAt.getTime() < new Date(checkout.checkedOutAt).getTime()) {
-    throw new ApiError(400, 'Check-in date cannot be before the checkout date', 'VALIDATION_ERROR');
-  }
-
-  await checkout.update({ checkedInAt, checkedInBy: req.user.id });
-
-  if (asset.assignedToContactId === checkout.contactId) {
-    await asset.update({ assignedToContactId: null });
-    await logAssetActivity(asset.id, req.user.id, 'assignment_changed', { assignedToContactId: null, assignedToUserId: asset.assignedToUserId });
-  }
-  await logAssetActivity(asset.id, req.user.id, 'checked_in', { contactId: checkout.contactId });
-
+  const body = req.body || {};
+  // status, holdReason and revokeAgent are optional here (the ticket form's
+  // check-in sends them; the asset page may).
+  const { checkout } = await checkouts.checkIn(req, asset, {
+    checkoutId: parseRecordId(req.params.checkoutId) || -1,
+    checkedInAt: body.checkedInAt,
+    status: body.status,
+    holdReason: body.holdReason,
+    revokeAgent: body.revokeAgent === true,
+  });
   const fresh = await AssetCheckout.findByPk(checkout.id, { include: checkoutInclude });
   res.json({ checkout: fresh });
 });
@@ -947,5 +927,5 @@ module.exports = {
   listTickets, linkTicket, unlinkTicket, listActivity,
   listCheckouts, createCheckout, checkInCheckout, sendCheckoutForm, updateCheckout,
   listAttachments, createAttachment, downloadAttachment, removeAttachment,
-  assetInclude,
+  assetInclude, createAsset, present,
 };

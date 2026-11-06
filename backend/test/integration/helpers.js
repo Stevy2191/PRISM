@@ -135,6 +135,7 @@ async function resetData() {
     'Comments', 'Attachments', 'TicketWatchers', 'PortalTokens', 'CompanyPortalAdmins', 'DepartmentPortalAdmins', 'KbArticleAudiences', 'TicketCcs', 'EmailTemplates', 'EmailProcessingLogs', 'TaskDependencies', 'TaskAssignees', 'Tasks', 'TicketActivities',
     'TicketRelations', 'TicketFieldValues', 'TimeEntries', 'ActiveTimers',
     'CannedResponses', 'RecurringTickets',
+    'TicketFormSecrets', 'TicketForms', 'TicketPlaybookSuggestions', 'TicketPlaybooks',
     'CsatSurveys', 'CsatResponses', 'AssetTickets', 'Notifications', 'TicketSlas', 'TicketDueDateChanges', 'Tickets', 'Contacts',
     // Project child tables truncate with Projects: TRUNCATE resets
     // AUTO_INCREMENT, so a project created by the next test reuses id 1 and
@@ -165,6 +166,8 @@ async function resetData() {
     'LicenseAssets', 'LicenseContacts', 'LicenseAttachments', 'LicenseActivity', 'LicenseTickets', 'Licenses',
     'ContractAssets', 'ContractAttachments', 'ContractActivity', 'ContractTickets', 'Contracts',
     'TaskIdMap', 'TimeEntryIdMap',
+    // Playbooks (PB): settings-side rows; MDMs after Assets, which point at them.
+    'Playbooks', 'FormVersions', 'Forms', 'Mdms',
     'legacy_TimeEntries', 'legacy_ProjectTimeEntries', 'legacy_TicketTasks', 'legacy_ProjectTasks', 'legacy_ProjectSubtasks',
   ];
   for (const table of deleted) {

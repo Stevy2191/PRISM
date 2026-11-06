@@ -33,6 +33,8 @@ export const STATUS_META = {
   in_repair: { label: 'In repair', color: 'var(--color-warning)', tone: 'waiting' },
   retired: { label: 'Retired', color: 'var(--color-text-muted)', tone: 'neutral' },
   in_storage: { label: 'In storage', color: 'var(--color-accent)', tone: 'neutral' },
+  ready_to_issue: { label: 'Ready to issue', color: 'var(--color-success)', tone: 'neutral' },
+  on_hold: { label: 'On hold', color: 'var(--color-warning)', tone: 'waiting' },
   lost: { label: 'Lost', color: 'var(--color-danger)', tone: 'bad' },
 };
 
@@ -89,6 +91,9 @@ export default function Assets() {
   const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [assignedTo, setAssignedTo] = useState('');
+  // Playbooks (PB): managed / cellular filters.
+  const [managed, setManaged] = useState('');
+  const [hasCellular, setHasCellular] = useState('');
   // The PRISM agent (8a): '' | managed | online | stale, and the pill counts.
   const [agent, setAgent] = useState(() => searchParams.get('agent') || '');
   const [agentCounts, setAgentCounts] = useState(null);
@@ -102,7 +107,7 @@ export default function Assets() {
   // fetch returns one page instead of every asset.
   const quickFilter = searchParams.get('filter');
 
-  const filterKey = JSON.stringify([search, categoryId, departmentId, companyId, status, assignedTo, quickFilter, agent]);
+  const filterKey = JSON.stringify([search, categoryId, departmentId, companyId, status, assignedTo, quickFilter, agent, managed, hasCellular]);
   const pager = usePagination({ filterKey, storageKey: 'prism.assets.pageSize' });
 
   const [showForm, setShowForm] = useState(false);
@@ -121,6 +126,8 @@ export default function Assets() {
     if (assignedTo) params.assignedTo = assignedTo;
     if (quickFilter) params.quickFilter = quickFilter;
     if (agent) params.agent = agent;
+    if (managed) params.managed = managed;
+    if (hasCellular) params.hasCellular = hasCellular;
     api.get('/assets', { params: { ...params, ...pager.params } })
       .then(({ data }) => { setAssets(data.assets); pager.applyMeta(data); })
       .catch((err) => setError(errMessage(err)))
@@ -136,7 +143,7 @@ export default function Assets() {
     const t = setTimeout(load, search ? 300 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, categoryId, departmentId, companyId, status, assignedTo, quickFilter, agent, pager.page, pager.limit]);
+  }, [search, categoryId, departmentId, companyId, status, assignedTo, quickFilter, agent, managed, hasCellular, pager.page, pager.limit]);
 
   useEffect(() => {
     api.get('/assets/agent-summary', { params: companyId ? { companyId } : {} })
@@ -175,7 +182,7 @@ export default function Assets() {
   const filteredAssets = assets;
 
   const activeFilterCount = [categoryId, departmentId, status, assignedTo, companyId].filter(Boolean).length;
-  // The four filter selects, as inline chips (desktop) or labelled fields in
+  // The filter selects, as inline chips (desktop) or labelled fields in
   // the phone Filters sheet. Each is named the same either way.
   const filterSelects = (as) => {
     const filters = [
@@ -183,6 +190,8 @@ export default function Assets() {
       ['Department', departmentId, setDepartmentId, [['', 'All departments'], ...departments.map((d) => [String(d.id), d.name])]],
       ['Status', status, setStatus, [['', 'All statuses'], ...Object.entries(STATUS_META).map(([k, m]) => [k, m.label])]],
       ['Assigned to', assignedTo, setAssignedTo, [['', 'All'], ['assigned', 'Assigned'], ['unassigned', 'Unassigned']]],
+      ['Managed', managed, setManaged, [['', 'All'], ['true', 'Managed'], ['false', 'Not managed']]],
+      ['Cellular', hasCellular, setHasCellular, [['', 'All'], ['true', 'Has cellular'], ['false', 'No cellular']]],
     ];
     return filters.map(([label, value, set, options]) => {
       const opts = options.map(([v, l]) => <option key={v} value={v}>{l}</option>);

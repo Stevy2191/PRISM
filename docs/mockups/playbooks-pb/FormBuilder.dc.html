@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Form builder</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pb.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a><a href="#">Projects</a></nav>
+    <div class="bar-right"><button class="ib" type="button" aria-label="Settings" style="background:var(--acc-soft);color:var(--acc-ink)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><a href="#">Service desk</a><span>/</span><a href="#">Forms</a><span>/</span><span>Apple device check-in</span></nav>
+    <section class="head" style="margin-top:10px">
+      <div style="min-width:0;flex:1 1 520px">
+        <h1>Apple device check-in</h1>
+        <p class="sub">Version 3 · in use on 3 open tickets, which keep the version they started with.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" type="button">Preview</button>
+        <button class="btn" type="button">Export</button>
+        <button class="btn primary" type="button">Save as version 4</button>
+      </div>
+    </section>
+
+    <div class="bld">
+      <div class="bld-main">
+        <div class="card" style="padding:14px 18px;display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start">
+          <div class="field"><label for="fb-desc">Description</label><textarea class="input" id="fb-desc" rows="2">Complete these steps when a Mac, iPad or iPhone comes back, so it's erased and ready for the next person.</textarea></div>
+          <div class="field"><span class="flabel">Used</span><div class="seg-ctl" role="group" aria-label="Used"><button type="button">Once per ticket</button><button type="button" class="on">Per device</button></div><span class="hint">Per-device forms can use device conditions and device actions.</span></div>
+        </div>
+
+        <section class="sec" aria-label="Section: Before you start">
+          <div class="sec-h"><span class="grip" aria-hidden="true">⋮⋮</span><h3>Before you start</h3><span class="muted" style="font-size:13px">4 steps</span><button class="ib" type="button" aria-label="Expand section" style="width:32px;height:32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+        </section>
+        <section class="sec" aria-label="Section: Step 1">
+          <div class="sec-h"><span class="grip" aria-hidden="true">⋮⋮</span><h3>Step 1: Receive the device and find its records</h3><span class="muted" style="font-size:13px">3 fields · 2 steps</span><button class="ib" type="button" aria-label="Expand section" style="width:32px;height:32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+        </section>
+
+        <section class="sec" aria-label="Section: Step 2">
+          <div class="sec-h"><span class="grip" aria-hidden="true">⋮⋮</span><h3>Step 2: Check Activation Lock and sign out of Apple Accounts</h3><button class="ib" type="button" aria-label="Collapse section" style="width:32px;height:32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 15l-6-6-6 6"></path></svg></button></div>
+          <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px">
+            <div class="item"><span class="grip" aria-hidden="true">⋮⋮</span><span class="kind" title="Text" aria-label="Text"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"></path></svg></span><span class="it">If someone signed in with a personal Apple Account and turned on Find My…</span><span class="im"><span class="hint">Text</span></span></div>
+            <div class="item sel"><span class="grip" aria-hidden="true">⋮⋮</span><span class="kind" aria-label="Step"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 12l3 3 5-6"></path></svg></span><span class="it">In the device's record, check Activation Lock status (Inventory › Security).</span><span class="im"><span class="branch">MDM is Jamf Pro</span><span class="req" aria-label="Required">*</span></span></div>
+            <div class="item"><span class="grip" aria-hidden="true">⋮⋮</span><span class="kind" aria-label="Step"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 12l3 3 5-6"></path></svg></span><span class="it">In the device's record, check Activation Lock status (device details).</span><span class="im"><span class="branch">MDM is ManageEngine</span><span class="req" aria-label="Required">*</span></span></div>
+            <div class="item"><span class="grip" aria-hidden="true">⋮⋮</span><span class="kind" aria-label="Secure field"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span><span class="it">Activation Lock bypass code</span><span class="im"><span class="hint">Secure field</span></span></div>
+            <div class="item"><span class="grip" aria-hidden="true">⋮⋮</span><span class="kind" aria-label="Step"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 12l3 3 5-6"></path></svg></span><span class="it">On the device, check for a signed-in Apple Account: System Settings › [name].</span><span class="im"><span class="branch">Type is Mac</span><span class="req" aria-label="Required">*</span></span></div>
+            <div class="item"><span class="grip" aria-hidden="true">⋮⋮</span><span class="kind" aria-label="Step"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 12l3 3 5-6"></path></svg></span><span class="it">On the device, check for a signed-in Apple Account: Settings › [name].</span><span class="im"><span class="branch">Type is iPhone or iPad</span><span class="req" aria-label="Required">*</span></span></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:6px">
+              <span class="hint" style="align-self:center;margin-right:4px">Add</span>
+              <button class="btn sm" type="button">Text</button><button class="btn sm" type="button">Step</button><button class="btn sm" type="button">Field</button><button class="btn sm" type="button">Secure field</button><button class="btn sm" type="button">Device action</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="sec" aria-label="Section: Step 3">
+          <div class="sec-h"><span class="grip" aria-hidden="true">⋮⋮</span><h3>Step 3: Back up data that must be kept</h3><span class="muted" style="font-size:13px">2 fields · 3 steps</span><button class="ib" type="button" aria-label="Expand section" style="width:32px;height:32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+        </section>
+        <section class="sec" aria-label="Section: Step 8">
+          <div class="sec-h"><span class="grip" aria-hidden="true">⋮⋮</span><h3>Step 8: Mark the device ready</h3><span class="muted" style="font-size:13px">3 steps · 1 device action</span><button class="ib" type="button" aria-label="Expand section" style="width:32px;height:32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+        </section>
+        <button class="btn" type="button" style="align-self:flex-start">+ Add section</button>
+      </div>
+
+      <aside class="bld-side" aria-label="Selected item">
+        <div class="card">
+          <div class="sh"><h3>Step</h3><button class="btn sm quiet danger" type="button">Delete</button></div>
+          <div class="sb" style="display:flex;flex-direction:column;gap:14px">
+            <div class="field"><label for="it-txt">Text</label><textarea class="input" id="it-txt" rows="3">In the device's record, check **Activation Lock** status (**Inventory › Security**).</textarea></div>
+            <label style="display:flex;align-items:center;gap:10px"><span class="sw" aria-hidden="true"></span><span>Required</span></label>
+            <label style="display:flex;align-items:center;gap:10px"><span class="sw off" aria-hidden="true"></span><span>Ask for a note when ticked</span></label>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sh"><h3>Show when</h3><span class="hint">All must match</span></div>
+          <div class="sb" style="display:flex;flex-direction:column;gap:8px">
+            <div class="cond">
+              <div class="input" style="height:36px;font-size:13px">Device MDM<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div>
+              <div class="input" style="height:36px;font-size:13px">is<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div>
+              <div class="input" style="height:36px;font-size:13px">Jamf Pro<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div>
+              <button class="ib" type="button" aria-label="Remove condition" style="width:32px;height:32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+            </div>
+            <button class="btn sm quiet" type="button" style="align-self:flex-start;color:var(--acc)">+ Add condition</button>
+            <div class="hint">Conditions can use the device (type, managed, MDM, company), the person (company, department), or an earlier answer in this form.</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

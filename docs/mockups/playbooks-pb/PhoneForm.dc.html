@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ticket form on a phone</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pb.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <div class="phone">
+    <header class="pbar">
+      <a href="#" class="ib" aria-label="Back to ticket #01633"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a>
+      <div style="min-width:0;flex:1"><div style="font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Check-in: iPhone 15</div><div class="hint">#01633 · WC-1187 · <span class="mdm">ManageEngine</span></div></div>
+    </header>
+    <div class="pbody">
+      <div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;font-size:13px"><span class="muted">Required steps</span><b class="num">7 of 21</b></div><div class="meter"><i style="width:33%"></i></div></div>
+
+      <section class="sec" aria-labelledby="ps5">
+        <div class="sec-h" style="padding:12px 14px"><h3 id="ps5">Step 5: Wipe the device from the MDM</h3></div>
+        <div class="sec-b" style="padding:4px 14px 10px">
+          <div class="info warn">Wipe while the device is still enrolled.</div>
+          <label class="step" style="min-height:44px"><input class="cb" type="checkbox" style="width:22px;height:22px"><div class="sl"><p>Select the device and choose <b>Complete Wipe</b>. Not Corporate Wipe.<span class="req">*</span></p><div style="margin-top:4px"><span class="branch">ManageEngine</span></div></div></label>
+          <label class="step" style="min-height:44px"><input class="cb" type="checkbox" checked="" style="width:22px;height:22px"><div class="sl"><p>Wait for the device to restart to the setup (Hello) screen.<span class="req">*</span></p><div class="by">You · 11:42 AM</div></div></label>
+          <label class="step" style="min-height:44px"><input class="cb" type="checkbox" style="width:22px;height:22px"><div class="sl"><p><b>If the wipe doesn't arrive:</b> erase on the device under Settings › General › Transfer or Reset.</p></div></label>
+        </div>
+      </section>
+
+      <section class="sec" aria-labelledby="ps8">
+        <div class="sec-h" style="padding:12px 14px"><h3 id="ps8">Step 8: Mark the device ready</h3></div>
+        <div class="sec-b" style="padding:10px 14px 12px;display:flex;flex-direction:column;gap:10px">
+          <div class="field"><label for="pp-st">Status after check-in</label><div class="input" id="pp-st" style="height:44px">Ready to issue<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+          <span class="hint">Check-in is available once the required steps above are done.</span>
+        </div>
+      </section>
+    </div>
+    <div class="dock">
+      <button class="btn" type="button">Not returned…</button>
+      <button class="btn primary" type="button" disabled="" style="opacity:.55">Check in</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

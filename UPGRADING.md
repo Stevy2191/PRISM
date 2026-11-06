@@ -108,6 +108,62 @@ its own key, which the agents learned at enrollment.
 **Updates:** a new PRISM image brings a new agent; enrolled computers are
 offered it at their next heartbeat (every 5 minutes) and update themselves.
 
+### Playbooks: forms and checklists on tickets (sub-project PB)
+
+Build your own **forms** (sections of steps, fields and secure values, with
+steps that show only for the right device or answer) and group them into
+**playbooks**. On a ticket, **Apply playbook** adds the forms as tasks: once
+for the ticket, and once per device of the person it's for, or per device
+added to the ticket. A form's last step can **check a device out or in** for
+real. Settings: **Service desk › Forms** and **Playbooks**, and
+**Assets › MDMs**.
+
+**Database:** migrations 080 (MDMs; managed, MDM, cellular, IMEI, phone
+number, carrier and hold reason on assets; the Ready to issue and On hold
+statuses; forms, playbooks and ticket forms; three permissions) and 081
+(starter forms and playbooks). They run on start; nothing to do.
+
+**Starter forms and playbooks:** an install with no forms gets Device
+check-out, Device check-in, New account and Account termination forms, and
+New account and Account termination playbooks. They name no product or
+vendor; copy and edit them for your own process.
+
+**New permissions** (Settings › Roles):
+- **Manage forms, playbooks and MDMs** (`settings.manage_playbooks`):
+  System Administrator.
+- **Reveal secure form values** (`tickets.view_secure_fields`): System
+  Administrator and System Technician. Every reveal is logged on the ticket
+  and in the audit log, and limited to 20 an hour per person.
+- **Close tickets with unfinished forms** (`tickets.override_checklist`):
+  System Administrator.
+Give them to other roles as you need.
+
+**Closing tickets:** a ticket with an unfinished form (not finished and not
+skipped) can no longer be closed, from the ticket page, bulk actions, the
+API or a workflow rule. Someone with *Close tickets with unfinished forms*
+can close it anyway with a reason, which is logged. A device no form covers
+only warns. A workflow rule that tries to close such a ticket records why in
+its log. Merging moves the forms to the target ticket.
+
+**Devices:** each asset now says whether it's **managed** and by **which
+MDM** (your own list, Settings › Assets › MDMs; an MDM's console address may
+contain `{id}` to link to a device), and whether it has **cellular service**
+(IMEI with its check digit, phone number, carrier from your vendor
+companies). Asset categories can start new devices with cellular on. Two new
+statuses: **Ready to issue**, and **On hold**, which needs a reason. The
+Assets list filters by managed and cellular, and its search finds a phone
+number or IMEI.
+
+**The PRISM agent:** checking a computer in through a form can **revoke its
+agent** (needs Manage devices), so installing the agent again for the next
+person claims the same Asset rather than making a second one. A check-out
+makes the holder hand-set, so the agent's usual-user matching no longer moves
+a checked-out device to whoever signs in next. Forms can have steps the agent
+ticks itself when the computer reports in.
+
+**Workflow rules:** a new action, **Suggest a playbook**, shows "Suggested:
+<playbook> [Apply]" on the ticket. It never applies anything by itself.
+
 ## v0.4.0
 
 Phase 1, the foundation: client companies, one work model for tickets and

@@ -26,6 +26,11 @@ read that before designing any sub-project.
   network, software and usual user, and its tray app's **Submit a ticket**
   raises tickets. Monitoring, scripting, patching and remote access stay
   later.
+- **Playbooks (PB), a Phase 1 addition:** built 2026-11-06 on branch
+  `claude/loving-keller-icsgxx` (forms and checklists on tickets, playbooks,
+  MDMs and cellular on devices, device check-out/in through forms, revoking
+  the agent at check-in). Release notes under `## Unreleased` in
+  `UPGRADING.md`; to merge into `dev`.
 - **Open items carried forward:**
   - Split ticket (5b) now carries the source ticket's category (decided
     2026-10-24).
@@ -134,6 +139,7 @@ consistent between tickets and projects, and covered by tests.
 | 6 | Project management, full feature — phases and milestones, dependencies, timeline view, templates, hour budgets, workload view (one screen over tickets and project tasks; absorbs the dispatch board moved from 5). Also lays the look A foundation and builds every project and workload screen in it ([mockups](https://claude.ai/artifact/NXd5ZYb4P98kk8VjxHwx3H)) | Shipped (to dev, 2026-10-26) | [spec](superpowers/specs/2026-10-25-project-management-design.md) | [plan](superpowers/plans/2026-10-25-project-management.md) |
 | 6b | Restyle the rest of PRISM in look A — tickets, dashboard, assets, contacts, companies, knowledge, reports, settings and login, on the foundation 6 builds ([mockups](https://claude.ai/artifact/8New39PfVsHf1Hsjdnk6oM); copies in `docs/mockups/look-a-6b/`). Added 2026-10-25 | Shipped (to dev, 2026-10-26) | [spec](superpowers/specs/2026-10-26-look-a-restyle-design.md) | [plan](superpowers/plans/2026-10-26-look-a-restyle.md) |
 | 7 | Client portal (desk) — contact logins (Microsoft 365 sign-in, invite links), submit and track tickets, department/company admins and contact watchers, portal-only KB with per-company/department audiences, Microsoft 365 directory sync for every company | Shipped (to dev, 2026-11-03) — 7a (portal core) 2026-10-27; 7b (Microsoft 365) 2026-11-03 | [spec](superpowers/specs/2026-10-27-client-portal-design.md) | [plan 7a](superpowers/plans/2026-10-27-client-portal-7a-core.md) (portal core); [plan 7b](superpowers/plans/2026-10-27-client-portal-7b-microsoft365.md) (Microsoft 365) |
+| PB | Playbooks — forms and checklists on tickets (sections, steps, fields, secure fields, steps shown only when they apply), playbooks applied with a button (rules suggest), per-device forms by device type and MDM, devices created inside the ticket, form steps that check devices out and in, no closing with unfinished forms, MDM list and managed/MDM on devices, export/import. Added 2026-11-06 as a Phase 1 addition; builds on the agent (8), so it ships with the release that carries 8 (`v0.5.0`) | Shipped (to this branch, 2026-11-06; merge to dev pending) | [spec](superpowers/specs/2026-11-06-playbooks-design.md); [mockups](mockups/playbooks-pb/) (approved 2026-11-06) | [plan](superpowers/plans/2026-11-06-playbooks.md) |
 
 **Testing feedback (Phase 1):**
 - Accounts (2026-10-11): choose the role and permission overrides when creating an account; usernames can be changed.

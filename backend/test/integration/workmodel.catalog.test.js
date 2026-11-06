@@ -55,7 +55,7 @@ it('the new models load with their associations', () => {
   expect(Object.keys(Task.associations).sort()).toEqual(
     [
       'assignee', 'creator', 'helperLinks', 'helpers', 'linkedTicket', 'parentTask', 'phase', 'predecessorLinks',
-      'project', 'status', 'subtasks', 'successorLinks', 'ticket',
+      'project', 'status', 'subtasks', 'successorLinks', 'ticket', 'ticketForm',
     ]
   );
   expect(Object.keys(TimeEntry.associations).sort()).toEqual(['loggedBy', 'project', 'task', 'ticket', 'user', 'workType']);

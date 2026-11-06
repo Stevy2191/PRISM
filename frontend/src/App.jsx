@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import Tickets from './pages/tickets/Tickets';
 import TicketNew from './pages/tickets/TicketNew';
 import TicketDetail from './pages/tickets/TicketDetail';
+import TicketFormPage from './pages/tickets/form/TicketFormPage';
 import Projects from './pages/Projects';
 import ProjectNew from './pages/ProjectNew';
 import ProjectDetail from './pages/projects/ProjectDetail';
@@ -69,6 +70,11 @@ import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
 import DirectorySync from './pages/settings/DirectorySync';
 import CalendarIntegration from './pages/settings/CalendarIntegration';
 import CustomerHappiness from './pages/settings/CustomerHappiness';
+import SettingsForms from './pages/settings/playbooks/Forms';
+import FormBuilder from './pages/settings/playbooks/FormBuilder';
+import SettingsPlaybooks from './pages/settings/playbooks/Playbooks';
+import PlaybookEditor from './pages/settings/playbooks/PlaybookEditor';
+import SettingsMdms from './pages/settings/playbooks/Mdms';
 
 // Existing admin pages (reached via the Settings hub)
 import AdminUsers from './pages/AdminUsers';
@@ -121,6 +127,9 @@ const SETTINGS_COMPONENTS = {
   'workflow-rules': WorkflowRules, 'canned-responses': SettingsCannedResponses, 'ticket-categories': SettingsTicketCategories,
   'recurring-tickets': SettingsRecurringTickets, 'recurring-ticket-new': RecurringTicketEditor, 'recurring-ticket-edit': RecurringTicketEditor,
   'workflow-rule-new': WorkflowRuleEditor, 'workflow-rule-edit': WorkflowRuleEditor,
+  forms: SettingsForms, 'form-new': FormBuilder, 'form-edit': FormBuilder,
+  playbooks: SettingsPlaybooks, 'playbook-new': PlaybookEditor, 'playbook-edit': PlaybookEditor,
+  mdms: SettingsMdms,
   'project-templates': SettingsProjectTemplates, 'project-template-new': ProjectTemplateEditor, 'project-template-edit': ProjectTemplateEditor,
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
   slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays, 'work-hours': SettingsWorkHours,
@@ -165,6 +174,7 @@ export default function App() {
         <Route path="/tickets" element={perm(<Tickets />, TICKETS_KEYS)} />
         <Route path="/tickets/new" element={perm(<TicketNew />, TICKETS_KEYS)} />
         <Route path="/tickets/:id" element={perm(<TicketDetail />, TICKETS_KEYS)} />
+        <Route path="/tickets/:id/forms/:formId" element={perm(<TicketFormPage />, TICKETS_KEYS)} />
 
         <Route path="/contacts" element={perm(<Contacts />, CONTACTS_KEYS)} />
         <Route path="/contacts/:id" element={perm(<ContactDetail />, CONTACTS_KEYS)} />
