@@ -10,6 +10,8 @@ module.exports = (sequelize) => {
       icon: { type: DataTypes.STRING(20), allowNull: true },
       color: { type: DataTypes.STRING(20), allowNull: true },
       isBuiltIn: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      // New devices in this category start with cellular on (PB).
+      cellularByDefault: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     },
     {
       sequelize,

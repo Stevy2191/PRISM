@@ -115,6 +115,14 @@ const AgentEnrollmentKey = require('./AgentEnrollmentKey')(sequelize);
 const Device = require('./Device')(sequelize);
 const AssetSoftware = require('./AssetSoftware')(sequelize);
 const AgentNonce = require('./AgentNonce')(sequelize);
+const Mdm = require('./Mdm')(sequelize);
+const Form = require('./Form')(sequelize);
+const FormVersion = require('./FormVersion')(sequelize);
+const Playbook = require('./Playbook')(sequelize);
+const TicketPlaybook = require('./TicketPlaybook')(sequelize);
+const TicketForm = require('./TicketForm')(sequelize);
+const TicketFormSecret = require('./TicketFormSecret')(sequelize);
+const TicketPlaybookSuggestion = require('./TicketPlaybookSuggestion')(sequelize);
 
 const db = {
   sequelize,
@@ -231,6 +239,14 @@ const db = {
   Device,
   AssetSoftware,
   AgentNonce,
+  Mdm,
+  Form,
+  FormVersion,
+  Playbook,
+  TicketPlaybook,
+  TicketForm,
+  TicketFormSecret,
+  TicketPlaybookSuggestion,
 };
 
 // ---- Associations ----
@@ -712,6 +728,36 @@ Device.belongsTo(AgentEnrollmentKey, { foreignKey: 'enrollmentKeyId', as: 'enrol
 Asset.hasMany(AssetSoftware, { foreignKey: 'assetId', as: 'software', onDelete: 'CASCADE' });
 AssetSoftware.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
 Device.hasMany(AgentNonce, { foreignKey: 'deviceId', as: 'nonces', onDelete: 'CASCADE' });
+
+// Playbooks (PB): MDMs and carriers on devices; forms and their versions;
+// playbooks applied to tickets, their forms (each one ticket task), secure
+// values and rule suggestions.
+Mdm.hasMany(Asset, { foreignKey: 'mdmId', as: 'assets' });
+Asset.belongsTo(Mdm, { foreignKey: 'mdmId', as: 'mdm' });
+Asset.belongsTo(Company, { foreignKey: 'carrierCompanyId', as: 'carrier' });
+Form.hasMany(FormVersion, { foreignKey: 'formId', as: 'versions', onDelete: 'CASCADE' });
+FormVersion.belongsTo(Form, { foreignKey: 'formId', as: 'form' });
+Form.belongsTo(FormVersion, { foreignKey: 'currentVersionId', as: 'currentVersion', constraints: false });
+Form.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+Playbook.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+Ticket.hasMany(TicketPlaybook, { foreignKey: 'ticketId', as: 'playbooks', onDelete: 'CASCADE' });
+TicketPlaybook.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+TicketPlaybook.belongsTo(Playbook, { foreignKey: 'playbookId', as: 'playbook' });
+TicketPlaybook.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
+TicketPlaybook.belongsTo(User, { foreignKey: 'appliedBy', as: 'appliedByUser' });
+TicketPlaybook.hasMany(TicketForm, { foreignKey: 'ticketPlaybookId', as: 'forms', onDelete: 'CASCADE' });
+Ticket.hasMany(TicketForm, { foreignKey: 'ticketId', as: 'forms', onDelete: 'CASCADE' });
+TicketForm.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+TicketForm.belongsTo(TicketPlaybook, { foreignKey: 'ticketPlaybookId', as: 'ticketPlaybook' });
+TicketForm.belongsTo(FormVersion, { foreignKey: 'formVersionId', as: 'formVersion' });
+TicketForm.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+TicketForm.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
+Task.hasOne(TicketForm, { foreignKey: 'taskId', as: 'ticketForm' });
+TicketForm.belongsTo(User, { foreignKey: 'finishedBy', as: 'finishedByUser' });
+TicketForm.hasMany(TicketFormSecret, { foreignKey: 'ticketFormId', as: 'secrets', onDelete: 'CASCADE' });
+TicketFormSecret.belongsTo(TicketForm, { foreignKey: 'ticketFormId', as: 'ticketForm' });
+Ticket.hasMany(TicketPlaybookSuggestion, { foreignKey: 'ticketId', as: 'playbookSuggestions', onDelete: 'CASCADE' });
+TicketPlaybookSuggestion.belongsTo(Playbook, { foreignKey: 'playbookId', as: 'playbook' });
 // Portal admin roles follow the person: a department or company change drops
 // the roles that no longer match (services/portal/adminRoles). Lazy require:
 // the service needs this module.
