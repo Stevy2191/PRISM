@@ -151,13 +151,12 @@ promote your AD account to Admin or create additional local accounts. You can de
 the bootstrap account once other admins exist.
 
 **Sign-in goes straight back to the login page?** The browser isn't keeping the
-session cookie. With `COOKIE_SECURE=true` the cookie is only issued when PRISM
-sees the request as HTTPS: open PRISM at its `https://` address, and when it
-sits behind a proxy make sure `TRUST_PROXY` is set (the default
-`docker-compose.yml` sets it to 1; `docker-compose.dev.yml` doesn't, so use
-`COOKIE_SECURE=false` with the dev stack over plain HTTP). A reverse proxy that
-terminates TLS and forwards plain HTTP needs `COOKIE_SECURE=false`. Sign-in now
-says this instead of looping, and the backend log names the setting.
+session cookie. With `COOKIE_SECURE=true` the cookie is only issued on a request
+PRISM knows was HTTPS: open PRISM at its `https://` address. Behind a proxy that
+handles HTTPS (Nginx Proxy Manager, Caddy, a load balancer), that proxy must send
+`X-Forwarded-Proto: https`; they do by default, and PRISM's nginx passes it on.
+Sign-in says so when the cookie can't be set, and the backend log names the
+setting.
 
 ### Changing the host port
 

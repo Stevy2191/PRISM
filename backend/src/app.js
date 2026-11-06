@@ -79,6 +79,12 @@ function createApp({ sessionStore } = {}) {
     resave: false,
     saveUninitialized: false,
     rolling: true,
+    // Whether the Secure cookie may be issued follows X-Forwarded-Proto,
+    // whatever TRUST_PROXY says: PRISM's nginx passes on what a proxy in front
+    // of it (one that handles HTTPS) reported. TRUST_PROXY still decides alone
+    // whether X-Forwarded-For is believed. A client that sends the header itself
+    // only changes whether its own cookie is marked Secure.
+    proxy: true,
     cookie: {
       httpOnly: true,
       sameSite: 'lax',

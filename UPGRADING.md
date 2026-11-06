@@ -108,13 +108,24 @@ its own key, which the agents learned at enrollment.
 **Updates:** a new PRISM image brings a new agent; enrolled computers are
 offered it at their next heartbeat (every 5 minutes) and update themselves.
 
-### Sign-in no longer loops back to the login page silently
+### Sign-in behind an HTTPS proxy, and no more silent login loop
 
-With `COOKIE_SECURE=true`, a request PRISM sees as plain HTTP gets no session
-cookie, so sign-in used to appear to work and then land on the login page again.
-Sign-in now refuses with a message saying so, and the backend logs which setting
-to check (`COOKIE_SECURE`, `TRUST_PROXY`). Nothing to change if you can sign in
-today. See README › First login.
+With `COOKIE_SECURE=true`, PRISM issues the session cookie only on a request it
+knows was HTTPS. Behind a proxy that handles HTTPS in front of PRISM (Nginx Proxy
+Manager, Caddy, a load balancer), PRISM's own nginx used to replace that proxy's
+`X-Forwarded-Proto: https` with `http`, and the dev stack ignored the header
+anyway, so sign-in appeared to work and then landed on the login page again.
+
+- PRISM's nginx now passes on the `X-Forwarded-Proto` a proxy in front sent (its
+  own scheme when there is none, or when PRISM handles HTTPS itself).
+- The backend decides the session cookie from that header whatever
+  `TRUST_PROXY` says. `TRUST_PROXY` still alone decides whether client IPs in
+  `X-Forwarded-For` are believed.
+- When the cookie still can't be set, sign-in says so (password and SSO), and
+  the backend logs it once.
+
+Rebuild or pull both images (`frontend` and `backend`). Nothing to change in
+`.env`.
 
 ### Playbooks: forms and checklists on tickets (sub-project PB)
 

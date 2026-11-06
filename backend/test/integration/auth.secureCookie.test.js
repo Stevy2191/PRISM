@@ -62,10 +62,26 @@ describe('sign-in with COOKIE_SECURE=true', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('ignores X-Forwarded-Proto when no proxy is trusted', async () => {
-    const res = await request(secureApp()).post('/api/v1/auth/login')
+  // The dev stack behind Nginx Proxy Manager: TRUST_PROXY unset, the HTTPS
+  // proxy's X-Forwarded-Proto passed on by PRISM's nginx.
+  it('signs in behind an HTTPS proxy without TRUST_PROXY', async () => {
+    const app = secureApp();
+    const res = await request(app).post('/api/v1/auth/login')
       .set('X-Forwarded-Proto', 'https')
       .send({ username: 'alice', password: PASSWORD });
-    expect(res.body.code).toBe('SESSION_COOKIE_BLOCKED');
+    expect(res.status).toBe(200);
+    const cookie = res.headers['set-cookie'].find((c) => c.startsWith('prism.sid'));
+    expect(cookie).toMatch(/Secure/);
+    // Sent back as the browser would over HTTPS (supertest's own jar keeps a
+    // Secure cookie off its plain-HTTP connection).
+    const me = await request(app).get('/api/v1/auth/me')
+      .set('X-Forwarded-Proto', 'https')
+      .set('Cookie', cookie.split(';')[0]);
+    expect(me.status).toBe(200);
+    expect(me.body.user.username).toBe('alice');
+  });
+
+  it('keeps believing X-Forwarded-For only with TRUST_PROXY', () => {
+    expect(secureApp().get('trust proxy')).toBe(false);
   });
 });
