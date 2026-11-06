@@ -54,12 +54,12 @@ it('devices default to not managed and no cellular; managed, MDM, cellular, carr
 
   const carrier = await makeCompany(w.admin, { name: 'Carrier Co', isVendor: true });
   const phone = await asset({
-    isManaged: true, mdmId: mdm.id, mdmDeviceId: '1487', hasCellular: true, imei: '353918114826117', phoneNumber: '(979) 555-0142', carrierCompanyId: carrier.id,
+    isManaged: true, mdmId: mdm.id, mdmDeviceId: '1487', hasCellular: true, imei: '353918114826114', phoneNumber: '(979) 555-0142', carrierCompanyId: carrier.id,
   });
   const fresh = await models.Asset.findByPk(phone.id, { include: [{ model: models.Mdm, as: 'mdm' }, { model: models.Company, as: 'carrier' }] });
   expect(fresh.mdm.name).toBe('MDM A');
   expect(fresh.carrier.name).toBe('Carrier Co');
-  expect(fresh.imei).toBe('353918114826117');
+  expect(fresh.imei).toBe('353918114826114');
 });
 
 it('the two new statuses save; categories can default to cellular', async () => {

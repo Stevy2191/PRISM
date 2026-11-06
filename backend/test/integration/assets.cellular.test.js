@@ -6,7 +6,7 @@ const {
 // Sub-project PB, task 3: cellular on devices (IMEI, phone number, carrier)
 // and the category default.
 
-const IMEI = '353918114826117'; // valid check digit
+const IMEI = '353918114826114'; // valid check digit
 const IMEI2 = '490154203237518';
 
 let w;
@@ -27,14 +27,14 @@ const cell = (extra = {}) => ({
 });
 
 it('saves IMEI, phone number and carrier; the phone is stored as digits', async () => {
-  const { asset, warnings } = expectOk(await newAsset(w.admin.agent, cell({ imei: '35 391811 482611 7' })), 201);
+  const { asset, warnings } = expectOk(await newAsset(w.admin.agent, cell({ imei: '35 391811 482611 4' })), 201);
   expect(asset).toMatchObject({ hasCellular: true, imei: IMEI, phoneNumber: '9795550142' });
   expect(asset.carrier).toMatchObject({ id: carrier.id, name: 'Wireless Co' });
   expect(warnings).toEqual([]);
 });
 
 it('checks the IMEI check digit and length', async () => {
-  expect((await newAsset(w.admin.agent, cell({ imei: '353918114826118' }))).status).toBe(400);
+  expect((await newAsset(w.admin.agent, cell({ imei: '353918114826117' }))).status).toBe(400);
   expect((await newAsset(w.admin.agent, cell({ imei: '12345' }))).status).toBe(400);
   // IMEI is required with cellular; a data-only line has no phone number.
   expect((await newAsset(w.admin.agent, cell({ imei: '' }))).status).toBe(400);
