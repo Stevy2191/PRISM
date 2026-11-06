@@ -11,6 +11,11 @@ import Breadcrumbs from '../components/ui/Breadcrumbs';
 import Button from '../components/ui/Button';
 import Notice from '../components/ui/Notice';
 import AssetFormModal from '../components/AssetFormModal';
+import AssetDevice from '../components/assets/AssetDevice';
+import AssetSoftware from '../components/assets/AssetSoftware';
+import { AgentStatus, AgentBadge } from '../components/agent/agentFormat';
+import ScanNow from '../components/agent/ScanNow';
+import { scanPollMs } from '../components/agent/scanState';
 import { StatusBadge, CategoryBadge, dateUrgencyColor } from './Assets';
 import { formatTicketId } from '../utils/ticketId';
 import { orgToday } from '../utils/orgDate';
@@ -49,12 +54,26 @@ function daysLabel(days) {
   return `${days}d`;
 }
 
-function Field({ label, children }) {
+// A label over its value: the value in a stronger weight than the label, so
+// each pair reads as one item. mono for identifiers (serial, MAC address).
+function Field({ label, mono = false, children }) {
   return (
-    <div>
-      <p className="text-xs font-medium" style={{ color: MUTED }}>{label}</p>
-      <div className="mt-0.5 text-sm [overflow-wrap:anywhere]" style={{ color: TEXT }}>{children ?? <span style={{ color: MUTED }}>—</span>}</div>
+    <div className="min-w-0">
+      <p className="text-xs" style={{ color: MUTED }}>{label}</p>
+      <div className={`mt-0.5 font-medium [overflow-wrap:anywhere] ${mono ? 'text-[13px]' : 'text-sm'}`} style={{ color: TEXT, fontFamily: mono ? 'var(--font-mono)' : undefined }}>
+        {children ?? <span className="font-normal" style={{ color: MUTED }}>—</span>}
+      </div>
     </div>
+  );
+}
+
+// A titled group of fields in the Device info card, set off by a line.
+function FieldGroup({ title, children }) {
+  return (
+    <section aria-label={title} className="border-t pt-4" style={{ borderColor: BORDER }}>
+      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>{title}</h3>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4">{children}</div>
+    </section>
   );
 }
 
@@ -83,9 +102,13 @@ export default function AssetDetail() {
   const canEdit = usePermission('assets.edit');
   const canDelete = usePermission('assets.delete');
   const canLinkTickets = usePermission('assets.link_tickets');
+  const canManageDevices = usePermission('devices.manage');
 
   const [asset, setAsset] = useState(null);
   const [stats, setStats] = useState(null);
+  // The PRISM agent (8a): its status, and which fields it owns.
+  const [device, setDevice] = useState(null);
+  const [agentFields, setAgentFields] = useState([]);
   const [categories, setCategories] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -98,11 +121,19 @@ export default function AssetDetail() {
 
   const load = () => {
     api.get(`/assets/${id}`)
-      .then(({ data }) => { setAsset(data.asset); setStats(data.stats); })
+      .then(({ data }) => { setAsset(data.asset); setStats(data.stats); setDevice(data.device || null); setAgentFields(data.agentFields || []); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
   };
   useEffect(load, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // While a Scan now is pending, look again every so often so the fresh
+  // details appear without a refresh.
+  const pollMs = scanPollMs(device);
+  useEffect(() => {
+    if (!pollMs) return undefined;
+    const t = setInterval(load, pollMs);
+    return () => clearInterval(t);
+  }, [pollMs, id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     api.get('/assets/categories').then(({ data }) => setCategories(data.categories)).catch(() => {});
@@ -149,10 +180,13 @@ export default function AssetDetail() {
               <span className="num text-sm font-semibold" style={{ color: MUTED }}>{asset.assetTag}</span>
               <CategoryBadge category={asset.category} />
               <StatusBadge status={asset.status} />
+              {device && <AgentStatus device={device} />}
+              {device && device.status !== 'revoked' && <AgentBadge />}
             </div>
             <h1 className="page-title mt-1 break-words">{asset.name}</h1>
           </div>
           <div className="flex flex-shrink-0 gap-2">
+            {(canEdit || canManageDevices) && <ScanNow device={device} size="md" onRequested={(d) => setDevice((prev) => ({ ...prev, ...d }))} />}
             {canEdit && <Button onClick={() => setShowEditForm(true)}>Edit</Button>}
             {canDelete && <button type="button" onClick={() => { setShowDeleteConfirm(true); setDeleteWarning(null); }} className="btn-danger">Delete</button>}
           </div>
@@ -176,7 +210,10 @@ export default function AssetDetail() {
 
       <div className="flex gap-1 overflow-x-auto border-b border-navy-100">
         {[
-          ['overview', 'Overview'], ['tickets', 'Tickets'], ['activity', 'Activity'],
+          ['overview', 'Overview'],
+          // Agent-managed computers: the Device tab, and Software on its own.
+          ...(device ? [['device', 'Device'], ['software', `Software${device.softwareCount ? ` ${device.softwareCount}` : ''}`]] : []),
+          ['tickets', 'Tickets'], ['activity', 'Activity'],
           ['attachments', 'Attachments'], ['checkouts', 'Checkout History'],
         ].map(([key, label]) => (
           <button
@@ -193,6 +230,8 @@ export default function AssetDetail() {
       </div>
 
       {tab === 'overview' && <OverviewTab asset={asset} departments={departments} onPatch={patchAsset} onCheckedOut={load} />}
+      {tab === 'device' && device && <AssetDevice assetId={id} asset={asset} />}
+      {tab === 'software' && device && <AssetSoftware assetId={id} lastInventoryAt={device.lastInventoryAt} />}
       {tab === 'tickets' && <TicketsTab assetId={id} asset={asset} canLinkTickets={canLinkTickets} navigate={navigate} />}
       {tab === 'activity' && <ActivityTab assetId={id} />}
       {tab === 'attachments' && <AttachmentsTab assetId={id} />}
@@ -203,6 +242,7 @@ export default function AssetDetail() {
           asset={asset}
           categories={categories}
           departments={departments}
+          agentFields={agentFields}
           onClose={() => setShowEditForm(false)}
           onSaved={(updated) => { setAsset(updated); setShowEditForm(false); }}
         />
@@ -252,34 +292,32 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <div className="space-y-4 rounded-xl border p-5 border-navy-100 bg-surface">
         <h2 className="font-semibold" style={{ color: TEXT }}>Device info</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <FieldGroup title="Hardware">
           <Field label="Make">{asset.make}</Field>
           <Field label="Model">{asset.model}</Field>
-        </div>
-        <Field label="Serial number">{asset.serialNumber}</Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Operating system">{asset.operatingSystem}</Field>
-          <Field label="OS version">{asset.osVersion}</Field>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
+          <Field label="Serial number" mono>{asset.serialNumber}</Field>
+          <Field label="Firmware version">{asset.firmwareVersion}</Field>
           <Field label="Processor">{asset.processor}</Field>
           <Field label="RAM">{asset.ram}</Field>
           <Field label="Storage">{asset.storage}</Field>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="IP address">{asset.ipAddress}</Field>
-          <Field label="MAC address">{asset.macAddress}</Field>
-        </div>
-        <Field label="Firmware version">{asset.firmwareVersion}</Field>
-        {asset.deployedDate && <Field label="Deployed date">{asset.deployedDate}</Field>}
+          {asset.deployedDate && <Field label="Deployed date">{asset.deployedDate}</Field>}
+        </FieldGroup>
+        <FieldGroup title="Operating system">
+          <Field label="Operating system">{asset.operatingSystem}</Field>
+          <Field label="Version">{asset.osVersion}</Field>
+        </FieldGroup>
+        <FieldGroup title="Network">
+          <Field label="IP address" mono>{asset.ipAddress}</Field>
+          <Field label="MAC address" mono>{asset.macAddress}</Field>
+        </FieldGroup>
         {deviceValues.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 border-t pt-4" style={{ borderColor: BORDER }}>
+          <FieldGroup title="More details">
             {deviceValues.map((fv) => (
               <Field key={fv.id} label={fv.field?.label}>{formatFieldValue(fv.field, fv.value)}</Field>
             ))}
-          </div>
+          </FieldGroup>
         )}
-        <div>
+        <div className="border-t pt-4" style={{ borderColor: BORDER }}>
           <p className="text-xs font-medium" style={{ color: MUTED }}>Notes</p>
           <textarea
             className="input mt-1 resize-y text-sm"
@@ -381,12 +419,20 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
   );
 }
 
-// Checkout creation, followed by an inline "send the generated form now?"
-// step when a PDF was generated — matches the spec's flow of "Send checkout
-// form" appearing right after generation, without a second trip back to
-// this asset's Checkout History tab.
+const CHECKOUT_EMAIL_BODY = 'Please find attached your equipment checkout form. Please print it, sign it and return it to the IT department.';
+
+// The checkout form in the browser's PDF viewer, to print and sign there and
+// then. Opened in the click itself (so it isn't blocked as a pop-up), then
+// recorded as printed.
+function printCheckoutForm(assetId, checkout) {
+  window.open(`/api/v1/assets/${assetId}/attachments/${checkout.formAttachmentId}/download?inline=1`, '_blank', 'noopener');
+  return api.post(`/assets/${assetId}/checkouts/${checkout.id}/printed`).catch(() => {});
+}
+
+// Checkout, then (when a form was generated) a choice: print it to sign now,
+// with the person here, or email it for them to print, sign and return.
 function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
-  const [step, setStep] = useState('form'); // 'form' | 'sent-prompt'
+  const [step, setStep] = useState('form'); // 'form' | 'ready' | 'email' | 'printed'
   const [checkedOutAt, setCheckedOutAt] = useState(orgToday());
   const [notes, setNotes] = useState('');
   const [generateForm, setGenerateForm] = useState(true);
@@ -397,7 +443,7 @@ function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
   const [attachment, setAttachment] = useState(null);
   const [emailTo, setEmailTo] = useState(contact?.email || '');
   const [emailSubject, setEmailSubject] = useState('');
-  const [emailBody, setEmailBody] = useState('Please find attached your equipment checkout form. Please sign and return to the IT department.');
+  const [emailBody, setEmailBody] = useState(CHECKOUT_EMAIL_BODY);
   const [sending, setSending] = useState(false);
 
   const submitCheckout = async (e) => {
@@ -412,7 +458,7 @@ function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
         setCheckout(data.checkout);
         setAttachment(data.attachment);
         setEmailSubject(`Equipment Checkout Form — ${data.checkout.asset?.assetTag || ''} ${data.checkout.asset?.name || ''}`.trim());
-        setStep('sent-prompt');
+        setStep('ready');
       } else {
         onCheckedOut();
       }
@@ -428,7 +474,7 @@ function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
     setError('');
     try {
       await api.post(`/assets/${assetId}/checkouts/${checkout.id}/send-form`, {
-        attachmentId: attachment.id, to: emailTo, subject: emailSubject, body: emailBody,
+        to: emailTo, subject: emailSubject, body: emailBody,
       });
       onCheckedOut();
     } catch (err) {
@@ -467,25 +513,48 @@ function CheckoutModal({ assetId, contact, onClose, onCheckedOut }) {
               <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Checking out…' : 'Check out'}</button>
             </div>
           </form>
-        ) : (
+        ) : step === 'email' ? (
           <div className="space-y-3">
-            <h2 className="text-base font-semibold" style={{ color: TEXT }}>Send checkout form?</h2>
-            <p className="text-sm" style={{ color: MUTED }}>The checkout form PDF was generated and saved to this asset&apos;s attachments.</p>
+            <h2 className="text-base font-semibold" style={{ color: TEXT }}>Email checkout form</h2>
+            <p className="text-sm" style={{ color: MUTED }}>{contact?.displayName} gets the form as a PDF to print, sign and return.</p>
             <div>
-              <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>To</label>
-              <input className="input" style={fieldStyle} value={emailTo} onChange={(e) => setEmailTo(e.target.value)} />
+              <label htmlFor="checkout-email-to" className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>To</label>
+              <input id="checkout-email-to" className="input" style={fieldStyle} value={emailTo} onChange={(e) => setEmailTo(e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Subject</label>
-              <input className="input" style={fieldStyle} value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
+              <label htmlFor="checkout-email-subject" className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Subject</label>
+              <input id="checkout-email-subject" className="input" style={fieldStyle} value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Body</label>
-              <textarea className="input resize-y" style={{ ...fieldStyle, minHeight: '80px' }} value={emailBody} onChange={(e) => setEmailBody(e.target.value)} />
+              <label htmlFor="checkout-email-message" className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Message</label>
+              <textarea id="checkout-email-message" className="input resize-y" style={{ ...fieldStyle, minHeight: '80px' }} value={emailBody} onChange={(e) => setEmailBody(e.target.value)} />
             </div>
             <div className="flex justify-end gap-2 border-t pt-3" style={{ borderColor: BORDER }}>
-              <button type="button" onClick={onCheckedOut} className="btn-secondary">Skip</button>
+              <button type="button" onClick={() => setStep('ready')} className="btn-secondary">Back</button>
               <button type="button" onClick={sendForm} disabled={sending || !emailTo} className="btn-primary">{sending ? 'Sending…' : 'Send'}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold" style={{ color: TEXT }}>Checkout form ready</h2>
+            {step === 'printed' ? (
+              <Notice tone="info">
+                The form opened in a new tab: print it there for {contact?.displayName} to sign. When it&apos;s signed,
+                use <b>Upload signed copy</b> in Checkout History (a scan or a photo).
+              </Notice>
+            ) : (
+              <p className="text-sm" style={{ color: MUTED }}>
+                Saved to this asset&apos;s attachments. Print it if {contact?.displayName} is here to sign now, or email it for them to print, sign and return.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" className="btn-primary" onClick={() => { printCheckoutForm(assetId, checkout); setStep('printed'); }}>
+                {step === 'printed' ? 'Print again' : 'Print'}
+              </button>
+              <button type="button" className="btn-secondary" onClick={() => setStep('email')} disabled={!attachment}>Email…</button>
+            </div>
+            <div className="flex justify-end border-t pt-3" style={{ borderColor: BORDER }}>
+              <button type="button" onClick={onCheckedOut} className="btn-secondary">Done</button>
             </div>
           </div>
         )}
@@ -664,6 +733,8 @@ const ACTIVITY_LABEL = {
   attachment_added: 'Attachment added',
   attachment_removed: 'Attachment removed',
   subscription_alert_ticket_created: 'Subscription renewal alert created',
+  agent_inventory: 'Updated by the PRISM agent',
+  agent_revoked: 'Agent revoked',
 };
 
 function activityDescription(a) {
@@ -676,6 +747,8 @@ function activityDescription(a) {
   if (a.action === 'checked_out') return `Checked out to ${d.contactName || 'a contact'}`;
   if (a.action === 'checkout_form_sent') return `Sent to ${d.to || ''}`;
   if (a.action === 'attachment_added' || a.action === 'attachment_removed') return d.originalName || '';
+  if (a.action === 'agent_inventory') return `Changed: ${(d.changed || []).join(', ')}`;
+  if (a.action === 'agent_revoked') return `${d.hostname || 'This computer'} can no longer report to PRISM`;
   if (a.action === 'subscription_alert_ticket_created') return `Ticket #${d.ticketNumber} created — renews ${d.renewalDate}`;
   return a.action;
 }
@@ -786,10 +859,12 @@ function AttachmentsTab({ assetId }) {
 
 function CheckoutsTab({ assetId, asset, onChanged }) {
   const [checkouts, setCheckouts] = useState([]);
-  const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
-  const [sendPrompt, setSendPrompt] = useState(null); // { checkout, attachment }
+  const [error, setError] = useState('');
+  const [sendPrompt, setSendPrompt] = useState(null); // the checkout whose form to email
+  const uploadFor = useRef(null); // the checkout a signed copy is being chosen for
+  const fileInput = useRef(null);
   const [checkInTarget, setCheckInTarget] = useState(null); // checkout being checked in
   const [editTarget, setEditTarget] = useState(null); // checkout being edited
 
@@ -798,33 +873,46 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
 
   const load = () => {
     setLoading(true);
-    Promise.all([
-      api.get(`/assets/${assetId}/checkouts`, { params: { limit: checkoutLimit } }),
-      api.get(`/assets/${assetId}/attachments`, { params: { limit: 'all' } }),
-    ]).then(([c, a]) => {
-      setCheckouts(c.data.checkouts);
-      setCheckoutTotal(c.data.total);
-      setAttachments(a.data.attachments);
+    api.get(`/assets/${assetId}/checkouts`, { params: { limit: checkoutLimit } }).then(({ data }) => {
+      setCheckouts(data.checkouts);
+      setCheckoutTotal(data.total);
     }).finally(() => setLoading(false));
   };
   useEffect(load, [assetId, checkoutLimit]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const markReceived = async (checkoutId) => {
+  const act = async (checkoutId, fn) => {
     setBusyId(checkoutId);
+    setError('');
     try {
-      await api.patch(`/assets/${assetId}/checkouts/${checkoutId}`, { formReceived: true });
+      await fn();
       load();
     } catch (err) {
-      alert(errMessage(err));
+      setError(errMessage(err));
     } finally {
       setBusyId(null);
     }
   };
+  const markReceived = (checkoutId) => act(checkoutId, () => api.patch(`/assets/${assetId}/checkouts/${checkoutId}`, { formReceived: true }));
+  const createForm = (checkoutId) => act(checkoutId, () => api.post(`/assets/${assetId}/checkouts/${checkoutId}/form`));
+  const print = (c) => act(c.id, () => printCheckoutForm(assetId, c));
+  const chooseSigned = (c) => { uploadFor.current = c; fileInput.current?.click(); };
+  const uploadSigned = (e) => {
+    const file = e.target.files?.[0];
+    const c = uploadFor.current;
+    e.target.value = '';
+    if (!file || !c) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    act(c.id, () => api.post(`/assets/${assetId}/checkouts/${c.id}/signed`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }));
+  };
+  const fileUrl = (a) => `/api/v1/assets/${assetId}/attachments/${a.id}/download`;
 
   if (loading) return <Spinner />;
 
   return (
     <div className="space-y-3">
+      {error && <Notice tone="bad">{error}</Notice>}
+      <input ref={fileInput} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" aria-label="Signed checkout form file" onChange={uploadSigned} />
       {checkouts.length === 0 ? (
         <div className="rounded-xl border border-navy-100 bg-surface p-8 text-center text-sm" style={{ color: MUTED }}>
           No checkout history yet.
@@ -850,13 +938,7 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
                       {' · '}{durationDays}d
                     </p>
                     {c.notes && <p className="mt-1 text-xs" style={{ color: MUTED }}>{c.notes}</p>}
-                    <p className="mt-1 text-xs" style={{ color: MUTED }}>
-                      {c.checkoutFormReturnedAt
-                        ? `Checkout form: Received ${new Date(c.checkoutFormReturnedAt).toLocaleDateString()}`
-                        : c.checkoutFormSentAt
-                        ? `Checkout form sent ${new Date(c.checkoutFormSentAt).toLocaleDateString()} — awaiting return`
-                        : null}
-                    </p>
+                    <CheckoutFormStatus checkout={c} fileUrl={fileUrl} />
                   </div>
                   <div className="flex flex-shrink-0 flex-wrap gap-2">
                     {active && (
@@ -864,16 +946,18 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
                         Check in
                       </button>
                     )}
-                    {!c.checkoutFormSentAt && attachments.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setSendPrompt({ checkout: c, attachment: attachments[0] })}
-                        className="btn-secondary text-xs"
-                      >
-                        Send checkout form
-                      </button>
+                    {c.formAttachmentId ? (
+                      <>
+                        <button type="button" onClick={() => print(c)} disabled={busyId === c.id} className="btn-secondary text-xs">Print form</button>
+                        <button type="button" onClick={() => setSendPrompt(c)} disabled={busyId === c.id} className="btn-secondary text-xs">Email form</button>
+                      </>
+                    ) : !c.signedAttachmentId && (
+                      <button type="button" onClick={() => createForm(c.id)} disabled={busyId === c.id} className="btn-secondary text-xs">Create form</button>
                     )}
-                    {c.checkoutFormSentAt && !c.checkoutFormReturnedAt && (
+                    {!c.signedAttachmentId && (
+                      <button type="button" onClick={() => chooseSigned(c)} disabled={busyId === c.id} className="btn-secondary text-xs">Upload signed copy</button>
+                    )}
+                    {(c.formAttachmentId || c.checkoutFormSentAt || c.checkoutFormPrintedAt) && !c.checkoutFormReturnedAt && (
                       <button type="button" onClick={() => markReceived(c.id)} disabled={busyId === c.id} className="btn-secondary text-xs">
                         Mark form received
                       </button>
@@ -894,8 +978,7 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
         <SendCheckoutFormModal
           assetId={assetId}
           asset={asset}
-          checkout={sendPrompt.checkout}
-          attachment={sendPrompt.attachment}
+          checkout={sendPrompt}
           onClose={() => setSendPrompt(null)}
           onSent={() => { setSendPrompt(null); load(); }}
         />
@@ -919,6 +1002,27 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
         />
       )}
     </div>
+  );
+}
+
+// Where a checkout's form is: signed and back (with the signed copy),
+// printed or emailed and waiting, or made and not yet given out.
+function CheckoutFormStatus({ checkout: c, fileUrl }) {
+  const day = (d) => new Date(d).toLocaleDateString();
+  let text = null;
+  if (c.checkoutFormReturnedAt) text = `Checkout form: signed copy received ${day(c.checkoutFormReturnedAt)}`;
+  else if (c.checkoutFormSentAt && c.checkoutFormPrintedAt) text = `Checkout form printed ${day(c.checkoutFormPrintedAt)} and emailed ${day(c.checkoutFormSentAt)}, waiting for the signed copy`;
+  else if (c.checkoutFormSentAt) text = `Checkout form emailed ${day(c.checkoutFormSentAt)}, waiting for the signed copy`;
+  else if (c.checkoutFormPrintedAt) text = `Checkout form printed ${day(c.checkoutFormPrintedAt)}, waiting for the signed copy`;
+  else if (c.formAttachmentId) text = 'Checkout form not printed or emailed yet';
+  if (!text && !c.signedAttachment) return null;
+  return (
+    <p className="mt-1 text-xs" style={{ color: MUTED }}>
+      {text}
+      {c.signedAttachment && (
+        <>{text ? ' · ' : ''}<a className="text-prism hover:underline" href={fileUrl(c.signedAttachment)}>Signed copy</a></>
+      )}
+    </p>
   );
 }
 
@@ -1096,10 +1200,10 @@ function EditCheckoutModal({ assetId, checkout, onClose, onSaved }) {
   );
 }
 
-function SendCheckoutFormModal({ assetId, asset, checkout, attachment, onClose, onSent }) {
+function SendCheckoutFormModal({ assetId, asset, checkout, onClose, onSent }) {
   const [to, setTo] = useState(checkout.contact?.email || '');
   const [subject, setSubject] = useState(`Equipment Checkout Form — ${asset.assetTag} ${asset.name}`);
-  const [body, setBody] = useState('Please find attached your equipment checkout form. Please sign and return to the IT department.');
+  const [body, setBody] = useState(CHECKOUT_EMAIL_BODY);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
 
@@ -1107,7 +1211,7 @@ function SendCheckoutFormModal({ assetId, asset, checkout, attachment, onClose, 
     setSending(true);
     setError('');
     try {
-      await api.post(`/assets/${assetId}/checkouts/${checkout.id}/send-form`, { attachmentId: attachment.id, to, subject, body });
+      await api.post(`/assets/${assetId}/checkouts/${checkout.id}/send-form`, { to, subject, body });
       onSent();
     } catch (err) {
       setError(errMessage(err));
@@ -1119,7 +1223,7 @@ function SendCheckoutFormModal({ assetId, asset, checkout, attachment, onClose, 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div className="max-h-[100dvh] w-full overflow-y-auto rounded-none p-5 sm:max-h-[90vh] sm:max-w-md sm:rounded-lg" style={{ backgroundColor: CARD_BG }} onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-3 text-base font-semibold" style={{ color: TEXT }}>Send checkout form</h2>
+        <h2 className="mb-3 text-base font-semibold" style={{ color: TEXT }}>Email checkout form</h2>
         {error && <Notice tone="bad" className="mb-3">{error}</Notice>}
         <div className="space-y-3">
           <div>
@@ -1131,7 +1235,7 @@ function SendCheckoutFormModal({ assetId, asset, checkout, attachment, onClose, 
             <input className="input" style={fieldStyle} value={subject} onChange={(e) => setSubject(e.target.value)} />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Body</label>
+            <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Message</label>
             <textarea className="input resize-y" style={{ ...fieldStyle, minHeight: '80px' }} value={body} onChange={(e) => setBody(e.target.value)} />
           </div>
         </div>

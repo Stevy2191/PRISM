@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  PRISM Agent.app (the menu-bar app, plan 8b Task 7). The package build
+  (Task 8) replaces __VERSION__ and __BUILD__. LSUIElement: a menu-bar app
+  with no Dock icon and no app menu, for the menu bar and the ticket window.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>PRISM Agent</string>
+	<key>CFBundleDisplayName</key>
+	<string>PRISM Agent</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.prism.tray</string>
+	<key>CFBundleExecutable</key>
+	<string>prism-tray</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__BUILD__</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>PRISM</string>
+</dict>
+</plist>

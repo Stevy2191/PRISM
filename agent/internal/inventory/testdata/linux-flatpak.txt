@@ -1,0 +1,2 @@
+Slack	com.slack.Slack	4.41.97	flathub
+GIMP	org.gimp.GIMP	2.10.38	flathub

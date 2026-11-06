@@ -152,3 +152,10 @@ vite.config.ts.timestamp-*
 
 # Stray downloads / packages
 *.deb
+
+# Agent packages built by CI (8a), served by the backend image
+backend/agent-dist/
+
+# The test certificate setup.sh makes (docker-compose.tls.yml)
+certs/
+.prism-test-ca/

@@ -3,6 +3,7 @@ const {
   CsatResponse,
   CsatSurvey,
   Asset,
+  Device,
   Team,
   CustomField,
   TicketFieldValue,
@@ -61,9 +62,11 @@ const ticketInclude = [
     model: Asset,
     as: 'linkedAssets',
     through: { attributes: [] },
-    attributes: ['id', 'assetTag', 'name'],
+    attributes: ['id', 'assetTag', 'name', 'make', 'model'],
     where: { companyId: { [Op.eq]: col('Ticket.companyId') } },
     required: false,
+    // An agent-managed computer's last check-in, for its Online chip (8a).
+    include: [{ model: Device, as: 'device', attributes: ['id', 'lastSeenAt', 'revokedAt'], required: false }],
   },
   {
     model: TicketFieldValue,

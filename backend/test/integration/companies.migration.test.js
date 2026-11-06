@@ -4,20 +4,29 @@ const { sequelize, closeDb, models, resetData } = require('./helpers');
 const base = require('../../migrations/20260101000048-client-companies');
 const portal = require('../../migrations/20260101000072-client-portal');
 const m365 = require('../../migrations/20260101000073-microsoft365');
+const agent = require('../../migrations/20260101000074-agent');
+// Adds to 074's Devices table, which 074's round trip recreates without it.
+const scan = require('../../migrations/20260101000077-device-scan-request');
+const packageFormat = require('../../migrations/20260101000079-agent-package-format');
 
 // down() drops Companies, which 072's portal-admin and KB-audience tables and
-// 073's Microsoft 365 columns and detected departments point at, so those are
-// rolled back around it (and re-applied if down refuses).
+// 073's Microsoft 365 columns and detected departments, and 074's agent
+// tables point at, so those are rolled back around it (and re-applied if
+// down refuses).
 const migration = {
   down: async (...args) => {
+    await agent.down(...args);
     await m365.down(...args);
     await portal.down(...args);
-    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); throw e; }
+    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); throw e; }
   },
   up: async (...args) => {
     await base.up(...args);
     await portal.up(...args);
     await m365.up(...args);
+    await agent.up(...args);
+    await scan.up(...args);
+    await packageFormat.up(...args);
   },
 };
 

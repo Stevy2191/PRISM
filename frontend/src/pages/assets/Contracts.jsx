@@ -15,6 +15,7 @@ import Notice from '../../components/ui/Notice';
 import Button from '../../components/ui/Button';
 import ContractFormModal from '../../components/ContractFormModal';
 import { orgToday, addDays } from '../../utils/orgDate';
+import DepartmentOptions from '../../components/companies/DepartmentOptions';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -158,7 +159,7 @@ export default function Contracts() {
           </SelectChip>
           <SelectChip label="Department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
             <option value="">All departments</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <DepartmentOptions departments={departments} />
           </SelectChip>
           <CompanyFilter value={companyId} onChange={setCompanyId} className="sel" />
           <SelectChip label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>

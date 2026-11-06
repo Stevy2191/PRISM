@@ -43,6 +43,7 @@ const schedulesRoutes = require('./schedules');
 const surveyRoutes = require('./survey');
 const csatRoutes = require('./csat');
 const assetsRoutes = require('./assets');
+const devicesRoutes = require('./devices');
 const licensesRoutes = require('./licenses');
 const contractsRoutes = require('./contracts');
 const knowledgeRoutes = require('./knowledge');
@@ -53,6 +54,7 @@ const ticketCategoriesRoutes = require('./ticketCategories');
 const recurringTicketsRoutes = require('./recurringTickets');
 const workloadRoutes = require('./workload');
 const portalRoutes = require('./portal');
+const agentRoutes = require('./agent');
 
 const { getVersionInfo } = require('../utils/version');
 
@@ -73,6 +75,10 @@ router.use('/sso', ssoRoutes);
 // The client portal: contacts, never staff. Runs on its own session (app.js)
 // and its own guard (routes/portal), so it sits outside the staff `guard`.
 router.use('/portal', portalRoutes);
+
+// The PRISM agent (8a): computers, not people. No session; enrollment keys and
+// per-device request signatures authenticate it (routes/agent).
+router.use('/agent', agentRoutes);
 
 // Settings has its own public (login branding) + admin endpoints inside it.
 router.use('/settings', settingsRoutes);
@@ -133,6 +139,7 @@ router.use('/sla-policies', guard, slaPoliciesRoutes);
 router.use('/schedules', guard, schedulesRoutes);
 router.use('/csat', guard, csatRoutes);
 router.use('/assets', guard, assetsRoutes);
+router.use('/devices', guard, devicesRoutes);
 router.use('/licenses', guard, licensesRoutes);
 router.use('/contracts', guard, contractsRoutes);
 router.use('/knowledge', guard, knowledgeRoutes);

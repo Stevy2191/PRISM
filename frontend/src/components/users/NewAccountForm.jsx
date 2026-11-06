@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
+import DepartmentOptions from '../companies/DepartmentOptions';
 
 const EMPTY = {
   firstName: '', lastName: '', username: '', email: '', password: '', departmentId: '', roleId: '',
@@ -105,7 +106,7 @@ export default function NewAccountForm({ departments, onCreated, onCancel }) {
             <label className="label" htmlFor="na-dept">Department</label>
             <select id="na-dept" className="input" value={form.departmentId} onChange={set('departmentId')}>
               <option value="">None</option>
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              <DepartmentOptions departments={departments} />
             </select>
           </div>
         </div>

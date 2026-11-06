@@ -1,0 +1,75 @@
+# The PRISM Agent's Linux packages (8c, Task 8): .deb, .rpm and Arch's
+# .pkg.tar.zst from this one file, by build.sh, which fills in @VERSION@,
+# @ARCH@ (amd64 or arm64) and @BIN@ (the folder with prism-agent and
+# prism-tray for that architecture).
+name: prism-agent
+arch: "@ARCH@"
+platform: linux
+version: "@VERSION@"
+version_schema: semver
+maintainer: "PRISM <noreply@prism.invalid>"
+description: |
+  PRISM Agent: reports this computer's hardware, software and status to
+  your PRISM help desk, and lets the person at it raise a ticket from the
+  tray or the "Submit a ticket" app.
+vendor: PRISM
+homepage: https://github.com/Stevy2191/PRISM
+license: Proprietary
+
+# The service needs only systemd. The tray's libraries are weak
+# dependencies: a normal install pulls them in, a server can leave them
+# out (the service works without them).
+depends:
+  - systemd
+
+contents:
+  - src: "@BIN@/prism-agent"
+    dst: /usr/bin/prism-agent
+    file_info: { mode: 0755 }
+  - src: "@BIN@/prism-tray"
+    dst: /usr/bin/prism-tray
+    file_info: { mode: 0755 }
+  - src: prism-agent.service
+    dst: /usr/lib/systemd/system/prism-agent.service
+    file_info: { mode: 0644 }
+  - src: prism-tray.desktop
+    dst: /etc/xdg/autostart/prism-tray.desktop
+    file_info: { mode: 0644 }
+  - src: prism-submit-ticket.desktop
+    dst: /usr/share/applications/prism-submit-ticket.desktop
+    file_info: { mode: 0644 }
+  - src: prism-agent.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/prism-agent.svg
+    file_info: { mode: 0644 }
+  - dst: /var/lib/prism-agent
+    type: dir
+    file_info: { mode: 0700, owner: root, group: root }
+
+scripts:
+  postinstall: scripts/postinstall
+  preremove: scripts/preremove
+  postremove: scripts/postremove
+
+overrides:
+  deb:
+    recommends:
+      - libgtk-3-0t64 | libgtk-3-0
+      - libwebkit2gtk-4.1-0
+      - libayatana-appindicator3-1 | libappindicator3-1
+  rpm:
+    recommends:
+      - gtk3
+      - webkit2gtk4.1
+  # nfpm can't write Arch's optdepends, so on Arch the tray's libraries
+  # are plain dependencies (an Arch server pulls in GTK; Arch desktops
+  # nearly always have it already).
+  archlinux:
+    depends:
+      - systemd
+      - gtk3
+      - webkit2gtk-4.1
+
+archlinux:
+  packager: "PRISM <noreply@prism.invalid>"
+  scripts:
+    postupgrade: scripts/postupgrade

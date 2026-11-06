@@ -54,8 +54,10 @@ built-in content.
 10. Devices record whether they have **cellular service** and, if so, the
     **IMEI**, **phone number** and **carrier**. Forms and playbooks can use
     "has cellular" (e.g. "cancel or move the line" only for devices with one).
-11. A device created in a ticket is ready for the **PRISM agent** (Phase 2) to
-    find and fill in, not duplicate.
+11. Works with the **PRISM agent** (sub-project 8): a device created in a
+    ticket is the Asset the agent claims; steps can be confirmed by the
+    agent; checking a computer in revokes its agent so it can be reissued
+    cleanly.
 
 ## Non-goals (this sub-project)
 
@@ -152,6 +154,7 @@ ordered **items**.
 | Step | A checkbox. Optional note when ticked. |
 | Field | Something to record: short text, long text, number, date, yes/no, choice (single), choices (multiple), staff member, contact. |
 | Secure field | A value kept secret: encrypted, hidden until revealed, every reveal logged. |
+| Confirmed by the agent | A step that ticks itself when the device's PRISM agent reports in after the form was created. Only on forms used per device. |
 | Device action | **Check out this device** or **Check in this device** (see "Device actions"). Only on forms used per device. |
 
 Every step, field and device action can be **required**. A form is finished
@@ -164,7 +167,7 @@ Any section or item can have **show when** conditions, all of which must
 hold:
 
 - about the **device** the form is for: type (asset category), managed,
-  MDM, has cellular, carrier, company;
+  MDM, has cellular, carrier, has the PRISM agent, company;
 - about the **person** the playbook was applied for: company, department;
 - about an **earlier answer** in the same form ("MDM choice is X", "User is
   leaving: yes").
@@ -252,7 +255,7 @@ The existing linked-assets area becomes a **Devices** panel:
   make, model, serial, asset tag, managed, MDM, cellular and, when on, IMEI,
   phone number and carrier). Creating needs `assets.create`; the new asset
   belongs to the ticket's company. A blank serial number gets a warning,
-  because the agent matches devices by it (see "The PRISM agent").
+  because the agent claims devices by it (see "The PRISM agent").
 - Adding a device to a ticket with an applied playbook that has a "devices on
   the ticket" block adds the matching form for it.
 - Removing a device removes its forms that haven't been started. A started
@@ -278,13 +281,15 @@ The existing linked-assets area becomes a **Devices** panel:
 ### Device actions
 
 - **Check out this device** carries out PRISM's normal check-out (the same
-  service the asset page uses, with its history, activity and optional
-  agreement PDF) to the applied playbook's person, or asks for one if there
+  service the asset page uses, with its history and activity, and the
+  agreement form generated, printed or emailed, and its signed copy uploaded
+  later, as on the asset page) to the applied playbook's person, or asks for one if there
   is none. It fails with a clear message if the device is already checked
   out to someone else.
 - **Check in this device** carries out the normal check-in and sets the
   status chosen in the step: `ready_to_issue`, `in_repair`, `on_hold` (with
-  reason) or `retired`.
+  reason) or `retired`, and revokes the device's PRISM agent when ticked
+  (see "The PRISM agent").
 - The action becomes available once every other required item showing on the
   form is done, so it is always the last thing that happens.
 - Ticking the step is what carries the action out. It is done once; un-ticking
@@ -303,29 +308,55 @@ The existing linked-assets area becomes a **Devices** panel:
   log records why.
 - Merging: the source ticket's ticket forms move to the target ticket.
 
-## The PRISM agent (Phase 2)
+## The PRISM agent (sub-project 8, on dev)
 
-The agent (sub-projects 8, 9 and 19) doesn't exist yet. This sub-project
-doesn't wait for it, but sets things up so it fits:
+The agent exists (sub-project 8: Windows, macOS and Linux, with the tray
+app). What it already does that this sub-project relies on:
 
-- **A device created in a ticket is a real asset from the start**, with the
-  details typed in. When the agent is later installed on that computer and
-  enrolls, it **matches the existing asset** of the same company by serial
-  number (then MAC address) and fills in what it detects (processor, memory,
-  disks, OS and version, IP and MAC). It never makes a second asset for a
-  device PRISM already has. This matching is a requirement on sub-project 9,
-  recorded in its roadmap row.
-- What the agent detects replaces what was typed for those fields, and the
-  asset shows which fields come from the agent. Fields the agent doesn't
-  report (asset tag, MDM, cellular, carrier, holder) stay as entered.
-- The vendor-neutral **Device check-out** starter form includes a plain step
-  "Install the PRISM agent". Once the agent exists, a follow-up makes that a
-  step **confirmed by the agent**: it ticks itself when the device first
-  reports in (like the sync-confirmed steps in "Later").
-- **Phones and tablets don't run the agent** (iOS and iPadOS don't allow it).
-  Their details are entered by hand, or later read from the MDM by a
-  connector (see "Later"). The agent comes to Windows first; Macs follow with
-  the macOS agent (sub-project 19).
+- **Enrollment claims an existing Asset.** An agent enrolls with its
+  company's enrollment key and claims an Asset of that company with the same
+  serial number that has no live agent (none, revoked, or never reported);
+  only if there is none does it create a new Asset in Computers.
+- **The agent owns the hardware fields** and overwrites them at every
+  inventory: name (the hostname), make, model, serial, processor, RAM,
+  storage, OS and version, firmware, IP and MAC. Everything else stays
+  staff-owned.
+- **The usual user**: the signed-in account is matched to a contact of the
+  Asset's company and set as the assigned contact, but only while nobody has
+  set it by hand.
+
+What this sub-project does with it:
+
+- **Devices created in a ticket are claimed, not duplicated.** A computer
+  created in a ticket with its serial number is the Asset the agent claims
+  when it is installed with that company's key. A blank serial on a created
+  device gets a warning for this reason. The name typed in is replaced by the
+  hostname at the first inventory; that is expected.
+- **A check-out sets the holder by hand**, so the agent's usual-user
+  matching never overrides a device checked out through a form.
+- **New condition, "has the PRISM agent"** (a live, not revoked agent), for
+  show-when rules and per-device playbook limits.
+- **New item kind, "confirmed by the agent"**: a step that ticks itself when
+  the device's agent sends an inventory after the ticket form was created
+  (e.g. "PRISM agent installed and reporting"). It can still be ticked by
+  hand. The vendor-neutral **Device check-out** starter form includes it.
+  The form's Device card shows the agent's last seen time and **Scan now**.
+- **Checking a computer in revokes its agent.** A wiped computer's old agent
+  stays live in PRISM with its last inventory, so when the agent is
+  installed again for the next person, enrollment would not claim the Asset
+  and would create a duplicate. The **Check in this device** action therefore
+  offers **Revoke its PRISM agent** (ticked by default when the device has a
+  live agent). Revoking needs the agent's **Manage devices** permission;
+  without it the action says who to ask and the form shows a required step
+  "Agent revoked" instead. The **Device check-in** starter form includes it.
+- **The person's devices** (termination) are the devices assigned to them,
+  whether by a check-out or by the agent's usual-user matching. The Apply
+  dialog marks the second kind ("assigned by the agent, no check-out").
+  Checking in such a device clears the assignment and sets the status; there
+  is no check-out record to close.
+- **Phones and tablets don't run the agent** (iOS and iPadOS don't allow
+  it). Their details are entered by hand, or later read from the MDM by a
+  connector (see "Later").
 
 ## Export and import
 
@@ -343,6 +374,7 @@ doesn't wait for it, but sets things up so it fits:
 | Apply or remove a playbook, fill in and skip forms | edit permission on the ticket |
 | Create a device from a ticket | `assets.create` |
 | Device actions (check out / in) | `assets.edit` |
+| Revoke the agent during check-in | `devices.manage` (from sub-project 8) |
 | Reveal a secure value | new `tickets.view_secure_fields`, and able to view the ticket |
 | Close with unfinished forms | new `tickets.override_checklist` |
 
@@ -368,8 +400,9 @@ Technician gets `tickets.view_secure_fields`; others none.
 ## Constraints
 
 - Builds on existing pieces: ticket tasks (the work model), workflow rules,
-  asset check-out and check-in, asset-ticket links, the audit log and
-  credential encryption. No new external services, no new npm dependency
+  asset check-out and check-in (including dev's checkout forms: print, email,
+  signed copy), asset-ticket links, the PRISM agent's devices (sub-project
+  8), the audit log and credential encryption. No new external services, no new npm dependency
   expected.
 - Every new screen in look A. Mockups approved per screen before the plan.
 - Works on a phone width: ticking steps and filling fields on a ticket form
@@ -392,8 +425,9 @@ Technician gets `tickets.view_secure_fields`; others none.
 - Devices can be created from inside the ticket and become assets.
 - Devices record cellular (yes/no) with IMEI, phone number and carrier; any
   device type can have it (laptops too). Carriers are vendor companies.
-- A device created in a ticket is matched and filled in by the agent later,
-  never duplicated.
+- The agent exists on dev (sub-project 8). A device created in a ticket is
+  the Asset the agent claims by serial number; checking a computer in revokes
+  its agent; steps can be confirmed by the agent.
 - A device gets the first per-device form it matches; a form's device action
   waits until its other required steps are done (settled with the mockups).
 
@@ -422,10 +456,8 @@ Built in the owner's install with the form builder, without code changes:
   on).
 - **User profile**: one view of a person: details, devices and checkout
   history, licenses, tickets, AD and Microsoft 365 details, home and mapped
-  drives (from group-to-drive mappings now; from the agent in Phase 2).
+  drives (from group-to-drive mappings, or reported by the agent once its inventory includes the signed-in user's mapped drives).
 - Forms on project tasks.
-- **Agent-confirmed steps**: "PRISM agent installed" ticks itself when the
-  device first reports in (needs sub-project 9).
 - **MDM connectors**: read device details (serial, IMEI, phone number,
   managed state) from an install's MDM, for phones and tablets the agent
   can't run on.

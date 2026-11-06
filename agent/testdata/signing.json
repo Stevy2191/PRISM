@@ -1,0 +1,12 @@
+{
+ "comment": "PRISM agent request signing (8a). Ed25519 is deterministic: Go (agent/internal/client) and Node (backend/src/middleware/agentAuth) must both produce exactly this canonical string and signature from this seed.",
+ "seedHex": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+ "publicKeyB64": "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=",
+ "method": "POST",
+ "pathQuery": "/api/v1/agent/v1/heartbeat",
+ "timestamp": "1793700000",
+ "nonce": "n0nceN0nceN0nce1",
+ "body": "{\"agentVersion\":\"0.5.0\",\"signedInUser\":{\"account\":\"RIVERSIDE\\\\mchen\"}}",
+ "canonical": "POST\n/api/v1/agent/v1/heartbeat\n1793700000\nn0nceN0nceN0nce1\n8477837110ad3532e207f009a048c82eff2a9eb6fd19ca882442bccec3fac514",
+ "signatureB64": "9y7Ra6wQEWBL+ODdT9Y2SMczSVgjTtSzBLTI/jhIz2H61oi3Uft6CNYwWz+WbpiYmA1GtU7At9acOPUzCH2MBQ=="
+}

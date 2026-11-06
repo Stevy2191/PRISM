@@ -60,7 +60,12 @@ function createApp({ sessionStore } = {}) {
       credentials: true,
     })
   );
-  app.use(express.json({ limit: '1mb' }));
+  // Agent requests (8a) are signed over their exact bytes, so their raw body
+  // is kept for middleware/agentAuth; nothing else keeps it.
+  app.use(express.json({
+    limit: '1mb',
+    verify: (req, res, buf) => { if (req.originalUrl.startsWith('/api/v1/agent/')) req.rawBody = buf; },
+  }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   // SESSION_SECRET has no fallback on purpose. It signs session cookies and

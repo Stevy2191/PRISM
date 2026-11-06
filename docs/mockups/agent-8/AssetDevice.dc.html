@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Asset: Device tab</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/415a6fd9e753b77c959a764dfd417e32">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.ctabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-top:18px;overflow-x:auto}
+.app .ctabs a{padding:10px 14px;color:var(--tx2);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.app .ctabs a.on{color:var(--tx);font-weight:600;border-bottom-color:var(--acc)}
+.cph{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.cph h2{font-size:15px;margin:0}
+.cph p{margin:2px 0 0;font-size:12.5px;color:var(--tx3)}
+.mut{color:var(--tx3);font-size:12.5px}
+.okp,.ntp,.accp{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.okp{color:var(--succ-ink);background:var(--succ-bg)}
+.ntp{color:var(--neutral-ink);background:var(--neutral-bg)}
+.accp{color:var(--acc-ink);background:var(--acc-soft)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.kv{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px 16px;font-size:13.5px;margin:0;padding:16px 20px}
+.kv dt{color:var(--tx3)}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{text-align:left;font-size:12.5px;font-weight:600;color:var(--tx3);padding:10px 20px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px 20px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:20px;align-items:start}
+.disk{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.disk:last-child{border-bottom:0}
+.note{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border:1px solid var(--bd);background:var(--surf2);border-radius:10px;margin-top:20px;font-size:13px;color:var(--tx2)}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#" class="on" aria-current="page">Assets</a><a href="#">Projects</a><a href="#">Workload</a><a href="#">Reports</a><a href="#">Knowledge</a><a href="#">Calendar</a></nav>
+    <div class="bar-right">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input placeholder="Search  ⌘K" aria-label="Search"></label>
+      <span class="me" aria-label="Dana Ortiz">DO</span>
+    </div>
+  </header>
+  <main class="page" style="max-width:1232px">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Assets</a><span>/</span><a href="#">Computers</a><span>/</span><span aria-current="page">RFC-0117</span></nav>
+    <div class="head" style="margin-top:6px">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1>RFC-FD-01</h1><span class="okp"><span class="dot"></span>Online</span><span class="accp">Agent-managed</span></div>
+        <div class="meta"><span>Riverside Family Clinic · Front desk</span><span>Usually used by <b>Maria Chen</b></span><span>Asset tag <b>RFC-0117</b></span></div>
+      </div>
+      <div class="toolbar"><button class="btn sm" type="button">New ticket for this computer</button><button class="btn sm quiet" type="button" aria-label="More actions">•••</button></div>
+    </div>
+    <nav class="ctabs" aria-label="Asset sections"><a href="#">Details</a><a href="#" class="on" aria-current="page">Device</a><a href="#">Software <span class="mut">182</span></a><a href="#">Tickets <span class="mut">3</span></a><a href="#">Licenses</a><a href="#">Contracts</a><a href="#">Activity</a></nav>
+
+    <div class="note" role="note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v5h1"></path></svg><span>Hardware, operating system and network come from the PRISM agent and are replaced at each inventory. Location, purchase, warranty and notes stay yours. Last inventory <b>2 hours ago</b> · last check-in <b>1 minute ago</b>.</span></div>
+
+    <div class="grid2">
+      <section class="card" aria-labelledby="hw">
+        <div class="cph"><div><h2 id="hw">Hardware and OS</h2></div></div>
+        <dl class="kv">
+          <dt>Make and model</dt><dd>Dell OptiPlex 7010</dd>
+          <dt>Serial number</dt><dd class="mono">7XK4Q93</dd>
+          <dt>Processor</dt><dd>13th Gen Intel Core i5-13500 · 14 cores</dd>
+          <dt>Memory</dt><dd>16 GB</dd>
+          <dt>Firmware</dt><dd>Dell 1.18.0 (Aug 2026)</dd>
+          <dt>Operating system</dt><dd>Windows 11 Pro 24H2 · build 26100.2314</dd>
+          <dt>Joined to</dt><dd>RIVERSIDE (Active Directory domain)</dd>
+          <dt>Last boot</dt><dd>Nov 2, 7:41 AM · up 22 hours</dd>
+          <dt>Signed in now</dt><dd>RIVERSIDE\mchen → <a href="#">Maria Chen</a></dd>
+          <dt>Agent</dt><dd>0.5.0 · enrolled Nov 3 with “Clinic rollout”</dd>
+        </dl>
+      </section>
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <section class="card" aria-labelledby="dk">
+          <div class="cph"><div><h2 id="dk">Disks</h2></div><span class="mut">476 GB total · 212 GB free</span></div>
+          <div class="disk">
+            <div style="display:flex;justify-content:space-between;gap:12px"><span><b>C:</b> <span class="mut">NVMe · Windows</span></span><span class="num">264 GB used of 476 GB</span></div>
+            <div class="meter" role="img" aria-label="C: 55% used"><i style="width:55%"></i></div>
+          </div>
+          <div class="disk">
+            <div style="display:flex;justify-content:space-between;gap:12px"><span><b>D:</b> <span class="mut">USB · Backup</span></span><span class="num">881 GB used of 932 GB</span></div>
+            <div class="meter" role="img" aria-label="D: 95% used"><i style="width:95%;background:var(--warn)"></i></div>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="nw">
+          <div class="cph"><div><h2 id="nw">Network</h2></div></div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th scope="col">Adapter</th><th scope="col">IPv4</th><th scope="col">MAC address</th></tr></thead>
+              <tbody>
+                <tr><td>Ethernet <span class="accp" style="padding:0 8px">Primary</span></td><td class="mono">10.20.1.45</td><td class="mono">B0:7B:25:3E:91:0C</td></tr>
+                <tr><td>Wi-Fi <span class="mut">· not connected</span></td><td class="mut">—</td><td class="mono">5C:E4:2A:10:7F:A3</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

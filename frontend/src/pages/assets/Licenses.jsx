@@ -16,6 +16,7 @@ import Button from '../../components/ui/Button';
 import Meter from '../../components/ui/Meter';
 import LicenseFormModal from '../../components/LicenseFormModal';
 import { orgToday, addDays } from '../../utils/orgDate';
+import DepartmentOptions from '../../components/companies/DepartmentOptions';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -152,7 +153,7 @@ export default function Licenses() {
           </SelectChip>
           <SelectChip label="Department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
             <option value="">All departments</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <DepartmentOptions departments={departments} />
           </SelectChip>
           <CompanyFilter value={companyId} onChange={setCompanyId} className="sel" />
           <SelectChip label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>

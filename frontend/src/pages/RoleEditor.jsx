@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner';
 import Switch from '../components/Switch';
 import Collapsible from '../components/Collapsible';
 import SettingsPage from '../components/settings/SettingsPage';
+import DepartmentOptions from '../components/companies/DepartmentOptions';
 
 // Every permission category the server defines; a category missing here is
 // a set of permissions no one can see or grant.
@@ -223,7 +224,7 @@ export default function RoleEditor() {
                 disabled={isSystemRole}
               >
                 <option value="">Any department (chosen per assignment)</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                <DepartmentOptions departments={departments} />
               </select>
               <p className="mt-1 text-xs text-navy-400">
                 Leave as "Any department" to make this a reusable template, like the built-in Department Manager/Staff roles.

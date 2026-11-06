@@ -1,5 +1,7 @@
 const { fn, col, Op } = require('sequelize');
-const { Department, User, Role, Company } = require('../models');
+const {
+  Department, User, Role, Company, Contact, Asset, License, Contract, sequelize,
+} = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const {
@@ -12,7 +14,7 @@ const { isTopRole } = require('../services/ownership');
 
 const departmentInclude = [
   { model: Role, as: 'defaultRole', attributes: ['id', 'name'] },
-  { model: Company, as: 'company', attributes: ['id', 'name'] },
+  { model: Company, as: 'company', attributes: ['id', 'name', 'isInternal'] },
 ];
 
 // Departments belong to a company (client companies, sub-project 2). The
@@ -206,7 +208,16 @@ const remove = asyncHandler(async (req, res) => {
   const department = await loadAccessibleDepartment(req);
   await assertCanManageDepartmentsOf(req.user, await Company.findByPk(department.companyId));
 
-  await department.destroy();
+  // Contacts, assets, licenses and contracts keep their department as a
+  // plain id (no foreign key), so clear it with the department rather than
+  // leave them pointing at one that's gone.
+  await sequelize.transaction(async (transaction) => {
+    for (const M of [Contact, Asset, License, Contract]) {
+      // eslint-disable-next-line no-await-in-loop
+      await M.update({ departmentId: null }, { where: { departmentId: department.id }, transaction, hooks: false });
+    }
+    await department.destroy({ transaction });
+  });
   await writeAudit(req, 'department.delete', 'Department', department.id, { name: department.name });
   res.json({ ok: true });
 });

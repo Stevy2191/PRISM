@@ -90,7 +90,7 @@ async function createTicket(actor, input, {
   if (!contactId) {
     throw new ApiError(400, 'A contact is required', 'VALIDATION_ERROR');
   }
-  // 'portal' and 'recurring' are system-set only (the future customer portal
+  // 'portal', 'recurring' and 'agent' are system-set only (the future customer portal
   // and the recurring scheduler, which pass `systemSource`); a person logging
   // a ticket by hand picks manual, phone or email (user decision 2026-10-15).
   const resolvedSource = systemSource || (['manual', 'phone', 'email'].includes(source) ? source : 'manual');
@@ -138,8 +138,12 @@ async function createTicket(actor, input, {
   // response carries the contact's email/phone and the project's name.
   // Missing and out-of-scope get the same answer, and the checked record's
   // own id is what gets stored.
+  // The portal and the tray (agent) pass a contact they have already checked
+  // (the signed-in contact; the device's company's matched contact or
+  // placeholder), so it isn't looked up through the system actor's scope.
   const portalRequest = systemSource === 'portal' && portal;
-  const contact = portalRequest ? portal.contact : await findAccessibleContact(actor, contactId);
+  const trustedContact = (systemSource === 'portal' || systemSource === 'agent') && portal ? portal.contact : null;
+  const contact = trustedContact || await findAccessibleContact(actor, contactId);
   if (!contact) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
   const resolvedTeamId = await assertTeamExists(teamId);
   const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { required: requireCategory });

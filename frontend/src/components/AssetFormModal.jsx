@@ -194,7 +194,16 @@ const DEFAULT_FORM = {
   notes: '',
 };
 
-export default function AssetFormModal({ asset, categories, departments, onClose, onSaved }) {
+// Labels for the fields the PRISM agent owns on an agent-managed Asset (8a).
+const AGENT_FIELD_LABELS = {
+  name: 'name', make: 'make', model: 'model', serialNumber: 'serial number', processor: 'processor', ram: 'RAM',
+  storage: 'storage', operatingSystem: 'operating system', osVersion: 'OS version', firmwareVersion: 'firmware',
+  ipAddress: 'IP address', macAddress: 'MAC address',
+};
+
+export default function AssetFormModal({
+  asset, categories, departments, onClose, onSaved, agentFields = [],
+}) {
   const isEdit = !!asset;
   const [form, setForm] = useState(() => {
     if (!asset) return DEFAULT_FORM;
@@ -216,6 +225,17 @@ export default function AssetFormModal({ asset, categories, departments, onClose
   const [saving, setSaving] = useState(false);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  // Assigning someone fills in the department with theirs (when it's one this
+  // asset can have); it can still be changed by hand afterwards.
+  const followDepartment = (person) => {
+    const id = person && person.departmentId;
+    if (!id) return;
+    const dept = departments.find((d) => String(d.id) === String(id));
+    if (!dept || (multiCompany && form.companyId && String(dept.companyId) !== String(form.companyId))) return;
+    setForm((f) => ({ ...f, departmentId: String(id) }));
+  };
+  const assignContact = (c) => { setContact(c); followDepartment(c); };
+  const assignUser = (u) => { setUser(u); followDepartment(u); };
   const setFieldValue = (fieldId) => (value) => setFieldValues((v) => ({ ...v, [fieldId]: value }));
 
   // Auto-fill the suggested tag whenever category changes, unless the admin
@@ -265,6 +285,11 @@ export default function AssetFormModal({ asset, categories, departments, onClose
     <Modal title={isEdit ? 'Edit asset' : 'New asset'} onClose={onClose} wide>
       <form onSubmit={submit} className="space-y-4">
         {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {agentFields.length > 0 && (
+          <p className="rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
+            This computer reports itself through the PRISM agent: its {agentFields.map((f) => AGENT_FIELD_LABELS[f] || f).join(', ')} are replaced at the next inventory. Location, purchase, warranty and notes stay as you set them.
+          </p>
+        )}
 
         <Section title="Basic info">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -372,7 +397,7 @@ export default function AssetFormModal({ asset, categories, departments, onClose
               if (String(v) !== String(form.companyId || '')) setContact(null);
             }}
           />
-          <AssignedToPicker contact={contact} user={user} onChangeContact={setContact} onChangeUser={setUser} companyId={form.companyId} />
+          <AssignedToPicker contact={contact} user={user} onChangeContact={assignContact} onChangeUser={assignUser} companyId={form.companyId} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Label>Department</Label>

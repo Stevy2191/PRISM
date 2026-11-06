@@ -1,0 +1,10 @@
+riverside.local
+  type: kerberos
+  realm-name: RIVERSIDE.LOCAL
+  domain-name: riverside.local
+  configured: kerberos-member
+  server-software: active-directory
+  client-software: sssd
+  required-package: sssd-tools
+  login-formats: %U@riverside.local
+  login-policy: allow-realm-logins

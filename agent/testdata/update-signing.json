@@ -1,0 +1,12 @@
+{
+ "comment": "PRISM agent update signing (8a). The server (backend/src/services/agent/updates.js) signs platform|arch|version|sha256 with the install update key; the agent (agent/internal/update) verifies it. Both suites check this vector.",
+ "seedHex": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+ "publicKeyB64": "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=",
+ "platform": "windows",
+ "arch": "amd64",
+ "version": "0.7.0",
+ "packageText": "PRISM agent 0.7.0 test package",
+ "sha256": "302b3f470aaad840fd5273de4da2659c5160a642224907841ce17bb73861b495",
+ "signedText": "windows|amd64|0.7.0|302b3f470aaad840fd5273de4da2659c5160a642224907841ce17bb73861b495",
+ "signatureB64": "99NKRicf5qLWHALJ6PcK3KkGFQuGcLbz3voWgmURb8yvImxNO4rxaCSgnei1ZlAARwyYrDvQZpxD3l+o5dTRBA=="
+}

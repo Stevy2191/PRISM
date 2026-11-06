@@ -1,0 +1,18 @@
+#!/bin/sh
+# prism-agent package: before removal. Called as
+#   .deb: prerm remove|upgrade|...
+#   .rpm: %preun <count>      (0 removal, 1+ upgrade)
+#   Arch: pre_remove          (removal only)
+# On a real removal: stop and disable the service, and close the menu bar
+# apps. Nothing on an upgrade.
+set -e
+case "$1" in
+  upgrade|failed-upgrade) exit 0 ;;
+  ''|*[!0-9]*) ;;
+  *) [ "$1" -ge 1 ] && exit 0 ;;
+esac
+if [ -d /run/systemd/system ]; then
+  systemctl disable --now prism-agent.service || true
+fi
+pkill -x prism-tray 2>/dev/null || true
+exit 0

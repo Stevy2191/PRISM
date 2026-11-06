@@ -1,0 +1,7 @@
+bash	5.2.32-1.fc41	Fedora Project	1730100000
+firefox	132.0.1-1.fc41	Fedora Project	1730900000
+gnome-shell	47.1-1.fc41	Fedora Project	1730100500
+libreoffice-calc	24.8.2.1-2.fc41	Fedora Project	1730200000
+NetworkManager	1.50.0-1.fc41	Fedora Project	1730100400
+code	1.95.3-1731513157.el8	Microsoft Corporation	1731600000
+gpg-pubkey	e99d6ad1-64d2612c	(none)	1730100000

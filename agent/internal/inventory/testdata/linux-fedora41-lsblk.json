@@ -1,0 +1,16 @@
+{
+   "blockdevices": [
+      {"name": "sdb", "tran": "sata", "rm": "0", "hotplug": "1", "label": null, "mountpoints": [null],
+         "children": [{"name": "sdb1", "tran": null, "rm": "0", "hotplug": "1", "label": "Projects", "mountpoints": ["/run/media/alex/Projects"]}]
+      },
+      {"name": "nvme0n1", "tran": "nvme", "rm": "0", "hotplug": "0", "label": null, "mountpoints": [null],
+         "children": [
+            {"name": "nvme0n1p1", "tran": "nvme", "rm": "0", "hotplug": "0", "label": null, "mountpoints": ["/boot/efi"]},
+            {"name": "nvme0n1p2", "tran": "nvme", "rm": "0", "hotplug": "0", "label": null, "mountpoints": ["/boot"]},
+            {"name": "nvme0n1p3", "tran": "nvme", "rm": "0", "hotplug": "0", "label": null, "mountpoints": [null],
+               "children": [{"name": "luks-1a2b", "tran": null, "rm": "0", "hotplug": "0", "label": "fedora", "mountpoints": ["/home", "/"]}]
+            }
+         ]
+      }
+   ]
+}

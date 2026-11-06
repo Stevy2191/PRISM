@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # PRISM interactive setup — checks prerequisites, collects the minimum required
 # input, writes .env, pulls images, starts containers, and confirms the app is up.
+#
+# Which images a new .env runs: latest (released code) unless you say otherwise,
+#   IMAGE_TAG=dev ./setup.sh      # the dev branch, for a test instance
 
 set -euo pipefail
 
@@ -44,18 +47,18 @@ port_in_use() {
 }
 
 # Prompts for a host port, re-prompting until the entered value is a valid,
-# free TCP port. Sets the global APP_PORT. $1 is the default/current port
-# shown in the prompt.
-choose_app_port() {
-  local default_port="$1"
-  local prompt="  Host port to serve PRISM on [${default_port}]: "
+# free TCP port. $1 is the variable to set, $2 the default shown in the
+# prompt, $3 what the port is for.
+choose_port() {
+  local var="$1" default_port="$2" what="$3"
+  local prompt="  ${what} [${default_port}]: "
   local input port
   while true; do
     read -r -p "$prompt" input
     port="${input:-$default_port}"
     if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
       warn "\"${port}\" is not a valid port number (1-65535)."
-      prompt="  Host port to serve PRISM on: "
+      prompt="  ${what}: "
       continue
     fi
     if port_in_use "$port"; then
@@ -63,9 +66,229 @@ choose_app_port() {
       prompt="  Enter a different host port to use: "
       continue
     fi
-    APP_PORT="$port"
+    printf -v "$var" '%s' "$port"
     break
   done
+}
+
+choose_app_port() { choose_port APP_PORT "$1" "Host port to serve PRISM on"; }
+
+# Reads KEY from .env (the last value, quotes and spaces trimmed).
+env_get() {
+  grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'" || true
+}
+
+# Sets KEY=VALUE in .env, replacing the line if it's there, appending if not.
+env_set() {
+  local tmp
+  tmp="$(mktemp)"
+  awk -v k="$1" -v v="$2" 'BEGIN{done=0} $0 ~ "^"k"=" {print k"="v; done=1; next} {print} END{if(!done) print k"="v}' \
+    "$ENV_FILE" > "$tmp"
+  cat "$tmp" > "$ENV_FILE" && rm -f "$tmp"
+}
+
+# This machine's address on the local network, best guess (may be empty).
+lan_ip() {
+  local ip=""
+  if command -v ip &>/dev/null; then
+    ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="src"){print $(i+1); exit}}')"
+  fi
+  if [[ -z "$ip" ]] && command -v hostname &>/dev/null; then
+    ip="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
+  fi
+  if [[ -z "$ip" ]] && command -v ipconfig &>/dev/null; then
+    ip="$(ipconfig getifaddr en0 2>/dev/null)" || true
+  fi
+  echo "$ip"
+}
+
+# ---------------------------------------------------------------------------
+# Test certificate (HTTPS for testing). setup.sh makes a small certificate
+# authority of its own and signs PRISM's certificate with it, so each test
+# computer trusts one file (certs/prism-test-ca.crt) once, and keeps trusting
+# it when the server certificate is renewed. The authority may only sign
+# PRISM's own names (a name constraint), so a computer that trusts it doesn't
+# trust it for any other site. Its private key stays in .prism-test-ca/ on
+# this host and never goes into a container.
+# ---------------------------------------------------------------------------
+CERT_DIR="certs"
+CA_DIR=".prism-test-ca"
+
+# "192.168.1.50,prism.lan" -> "IP:192.168.1.50,DNS:prism.lan", plus localhost.
+san_list() {
+  local out="DNS:localhost,IP:127.0.0.1" name
+  local IFS=','
+  for name in $1; do
+    [[ "$name" == "localhost" || "$name" == "127.0.0.1" ]] && continue
+    if [[ "$name" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then out="IP:${name},${out}"; else out="DNS:${name},${out}"; fi
+  done
+  echo "$out"
+}
+
+# The same names as a name constraint: IP:a.b.c.d/255.255.255.255 for IPs.
+permitted_list() {
+  local out="" entry
+  local IFS=','
+  for entry in $(san_list "$1"); do
+    if [[ "$entry" == IP:* ]]; then entry="${entry}/255.255.255.255"; fi
+    out="${out:+${out},}permitted;${entry}"
+  done
+  echo "$out"
+}
+
+# Makes the authority if there isn't one for exactly these names. Prints
+# "first" when it made the first one, "new" when it replaced one (computers
+# that trusted the old one must trust it again), "kept" otherwise.
+ensure_test_ca() {
+  local names="$1" conf
+  if [[ -f "${CA_DIR}/ca.key" && -f "${CA_DIR}/ca.crt" && "$(cat "${CA_DIR}/names" 2>/dev/null)" == "$names" ]] \
+     && openssl x509 -checkend 2592000 -noout -in "${CA_DIR}/ca.crt" &>/dev/null; then
+    echo kept; return
+  fi
+  local made=first
+  [[ -f "${CA_DIR}/ca.crt" ]] && made=new
+  mkdir -p "$CA_DIR" && chmod 700 "$CA_DIR"
+  conf="$(mktemp)"
+  cat > "$conf" <<CONFEOF
+[req]
+distinguished_name = dn
+prompt = no
+[dn]
+CN = PRISM test CA ($(hostname 2>/dev/null || echo prism)) $(date -u +%Y-%m-%d)
+O = PRISM (testing only)
+[ext]
+basicConstraints = critical,CA:TRUE,pathlen:0
+keyUsage = critical,keyCertSign,cRLSign
+subjectKeyIdentifier = hash
+nameConstraints = critical,$(permitted_list "$names")
+CONFEOF
+  (umask 077 && openssl ecparam -name prime256v1 -genkey -noout -out "${CA_DIR}/ca.key") >/dev/null 2>&1
+  openssl req -x509 -new -key "${CA_DIR}/ca.key" -sha256 -days 3650 -config "$conf" -extensions ext \
+    -out "${CA_DIR}/ca.crt" >/dev/null 2>&1
+  rm -f "$conf"
+  echo "$names" > "${CA_DIR}/names"
+  echo "$made"
+}
+
+# Signs a server certificate for the names (825 days, the most Apple allows)
+# and puts it, its key and the authority's certificate in certs/.
+issue_server_cert() {
+  local names="$1" first="${1%%,*}" conf csr
+  mkdir -p "$CERT_DIR"
+  conf="$(mktemp)"; csr="$(mktemp)"
+  cat > "$conf" <<CONFEOF
+[req]
+distinguished_name = dn
+prompt = no
+[dn]
+CN = ${first}
+O = PRISM (testing only)
+[ext]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature
+extendedKeyUsage = serverAuth
+subjectAltName = $(san_list "$names")
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid
+CONFEOF
+  (umask 077 && openssl ecparam -name prime256v1 -genkey -noout -out "${CERT_DIR}/server.key") >/dev/null 2>&1
+  openssl req -new -key "${CERT_DIR}/server.key" -config "$conf" -out "$csr" >/dev/null 2>&1
+  openssl x509 -req -in "$csr" -CA "${CA_DIR}/ca.crt" -CAkey "${CA_DIR}/ca.key" \
+    -set_serial "0x$(openssl rand -hex 16)" -days 825 -sha256 -extfile "$conf" -extensions ext \
+    -out "${CERT_DIR}/server.crt" >/dev/null 2>&1
+  rm -f "$conf" "$csr"
+  cp "${CA_DIR}/ca.crt" "${CERT_DIR}/prism-test-ca.crt"
+  chmod 644 "${CERT_DIR}/server.crt" "${CERT_DIR}/prism-test-ca.crt"
+  openssl verify -CAfile "${CA_DIR}/ca.crt" "${CERT_DIR}/server.crt" >/dev/null 2>&1 \
+    || die "The test certificate didn't verify. Check that openssl works, then re-run setup.sh."
+}
+
+# Makes or renews what's needed. Prints what happened to the authority.
+ensure_test_cert() {
+  local names="$1" ca
+  ca="$(ensure_test_ca "$names")"
+  if [[ "$ca" != kept ]] || [[ ! -f "${CERT_DIR}/server.crt" ]] \
+     || ! openssl x509 -checkend 2592000 -noout -in "${CERT_DIR}/server.crt" &>/dev/null \
+     || ! openssl verify -CAfile "${CA_DIR}/ca.crt" "${CERT_DIR}/server.crt" &>/dev/null; then
+    issue_server_cert "$names"
+  fi
+  echo "$ca"
+}
+
+# Asks whether to turn HTTPS on, and for the port and names. Sets TLS_NAMES
+# and HTTPS_PORT, and returns 1 if the answer is no.
+# How people will reach PRISM: sets ACCESS_MODE to proxy (their own HTTPS
+# reverse proxy), test (HTTPS with a test certificate from this script) or
+# http (plain HTTP on this network). PUBLIC_APP_URL — the address in emailed
+# links, single sign-on and the agent's portal link — follows from it.
+ask_access_mode() {
+  local answer
+  echo ""
+  echo "  How will people reach PRISM?"
+  echo "    1) Through my own reverse proxy that serves it over HTTPS"
+  echo "       (e.g. https://helpdesk.example.com). Recommended."
+  echo "    2) HTTPS with a test certificate made by this setup. For testing:"
+  echo "       each computer must trust the test certificate, and Microsoft 365"
+  echo "       sign-in still needs a real one."
+  echo "    3) Plain HTTP on this network. For a quick look only: the PRISM agent"
+  echo "       and secure sign-in need HTTPS."
+  while true; do
+    read -r -p "  Choose 1, 2 or 3 [1]: " answer
+    case "${answer:-1}" in
+      1) ACCESS_MODE=proxy; return ;;
+      2) ACCESS_MODE=test; return ;;
+      3) ACCESS_MODE=http; return ;;
+      *) warn "Enter 1, 2 or 3." ;;
+    esac
+  done
+}
+
+# The proxy's address, https:// with an optional port and no path.
+ask_proxy_url() {
+  local input
+  echo "  The address people type to reach PRISM through your proxy. Point the"
+  echo "  proxy at http://<this machine>:${APP_PORT}."
+  while true; do
+    read -r -p "  Address (https://…): " input
+    input="${input%/}"
+    if [[ "$input" =~ ^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?$ ]]; then
+      PUBLIC_URL="$input"
+      return
+    fi
+    warn "That isn't an https:// address (like https://helpdesk.example.com, with no path)."
+  done
+}
+
+# The test certificate's port and addresses. Sets HTTPS_PORT and TLS_NAMES.
+ask_test_https() {
+  local guess input name
+  command -v openssl &>/dev/null || die "openssl is needed to make the test certificate. Install it and re-run setup.sh."
+  choose_port HTTPS_PORT "8443" "Host port for HTTPS"
+  guess="$(lan_ip)"
+  local host_name
+  host_name="$(hostname 2>/dev/null || true)"
+  [[ "$host_name" =~ ^[A-Za-z0-9.-]+$ ]] && guess="${guess:+${guess} }${host_name}"
+  echo "  Other computers will reach PRISM at which address(es)? Give IPs and/or"
+  echo "  names, separated by spaces. The first is the one PRISM uses in links."
+  while true; do
+    read -r -p "  Addresses [${guess}]: " input
+    input="${input:-$guess}"
+    TLS_NAMES=""
+    for name in $input; do
+      if ! [[ "$name" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]]; then
+        warn "\"${name}\" isn't an IP address or host name."
+        TLS_NAMES=""; break
+      fi
+      TLS_NAMES="${TLS_NAMES:+${TLS_NAMES},}${name}"
+    done
+    [[ -n "$TLS_NAMES" ]] && break
+    [[ -z "$input" ]] && warn "Enter at least one address."
+  done
+  return 0
+}
+
+https_url() { # first name, port
+  if [[ "$2" == "443" ]]; then echo "https://$1"; else echo "https://$1:$2"; fi
 }
 
 # ---------------------------------------------------------------------------
@@ -103,6 +326,8 @@ echo ""
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/.env"
+# docker compose finds .env and the compose files in the current folder.
+cd "$SCRIPT_DIR"
 
 SKIP_CONFIG=false
 if [[ -f "$ENV_FILE" ]]; then
@@ -182,7 +407,7 @@ if [[ "$SKIP_CONFIG" == false ]]; then
 # Which published image build to run. latest tracks released code; set a
 # version (e.g. 0.2.0) to pin or roll back, or dev for a test instance.
 # See RELEASING.md.
-IMAGE_TAG=latest
+IMAGE_TAG=${IMAGE_TAG:-latest}
 
 DB_HOST=mariadb
 DB_PORT=3306
@@ -240,6 +465,64 @@ if [[ "$SKIP_CONFIG" == true ]]; then
   fi
 fi
 
+# ---------------------------------------------------------------------------
+# How people reach PRISM: their own HTTPS proxy, a test certificate, or HTTP
+# ---------------------------------------------------------------------------
+TLS_ON=false
+TLS_NAMES=""
+HTTPS_PORT=""
+CA_STATE=""
+ACCESS_MODE=""
+PUBLIC_URL=""
+if [[ "$(env_get COMPOSE_FILE)" == *docker-compose.tls.yml* ]]; then
+  TLS_ON=true
+  TLS_NAMES="$(env_get TEST_CERT_NAMES)"
+  HTTPS_PORT="$(env_get HTTPS_PORT)"
+  HTTPS_PORT="${HTTPS_PORT:-8443}"
+  [[ -n "$TLS_NAMES" ]] || die ".env serves HTTPS but has no TEST_CERT_NAMES. Add TEST_CERT_NAMES=<address> to .env, or remove the COMPOSE_FILE line to go back to HTTP."
+  command -v openssl &>/dev/null || die "openssl is needed to check the test certificate. Install it and re-run setup.sh."
+elif [[ -n "$(env_get PUBLIC_APP_URL)" ]]; then
+  # Already set (an earlier run, or by hand): keep it.
+  PUBLIC_URL="$(env_get PUBLIC_APP_URL)"
+  [[ "$PUBLIC_URL" == https://* ]] && ACCESS_MODE=proxy || ACCESS_MODE=http
+else
+  ask_access_mode
+  case "$ACCESS_MODE" in
+    proxy)
+      ask_proxy_url
+      env_set PUBLIC_APP_URL "$PUBLIC_URL"
+      env_set COOKIE_SECURE "true"
+      success ".env updated: PRISM is at ${PUBLIC_URL}."
+      ;;
+    test)
+      ask_test_https
+      TLS_ON=true
+      env_set COMPOSE_FILE "docker-compose.yml:docker-compose.tls.yml"
+      env_set HTTPS_PORT "$HTTPS_PORT"
+      env_set TEST_CERT_NAMES "$TLS_NAMES"
+      env_set COOKIE_SECURE "true"
+      env_set PUBLIC_APP_URL "$(https_url "${TLS_NAMES%%,*}" "$HTTPS_PORT")"
+      success ".env updated for HTTPS."
+      ;;
+    http)
+      local_ip="$(lan_ip)"
+      PUBLIC_URL="http://${local_ip:-localhost}:${APP_PORT}"
+      env_set PUBLIC_APP_URL "$PUBLIC_URL"
+      env_set COOKIE_SECURE "false"
+      warn "Plain HTTP: the PRISM agent won't enroll and sign-in cookies aren't secure. Re-run setup.sh to switch to HTTPS later."
+      ;;
+  esac
+fi
+
+if [[ "$TLS_ON" == true ]]; then
+  info "Checking the test certificate..."
+  CA_STATE="$(ensure_test_cert "$TLS_NAMES")"
+  success "Test certificate ready for: ${TLS_NAMES//,/, } (expires $(openssl x509 -enddate -noout -in "${CERT_DIR}/server.crt" | cut -d= -f2))."
+  if [[ "$CA_STATE" == new ]]; then
+    warn "This is a NEW test certificate authority: computers that trusted an earlier one must trust ${CERT_DIR}/prism-test-ca.crt again."
+  fi
+fi
+
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -269,8 +552,14 @@ echo ""
 # ---------------------------------------------------------------------------
 info "Waiting for PRISM to be ready (up to 120 seconds)..."
 READY=false
+if [[ "$TLS_ON" == true ]]; then
+  # Over HTTPS, trusting only the test authority: this checks the certificate too.
+  HEALTH=(curl -sf --cacert "${CERT_DIR}/prism-test-ca.crt" "https://localhost:${HTTPS_PORT}/api/v1/health")
+else
+  HEALTH=(curl -sf "http://localhost:${APP_PORT}/api/v1/health")
+fi
 for i in $(seq 1 24); do
-  if curl -sf "http://localhost:${APP_PORT}/api/v1/health" >/dev/null 2>&1; then
+  if "${HEALTH[@]}" >/dev/null 2>&1; then
     READY=true
     break
   fi
@@ -286,7 +575,7 @@ if [[ "$READY" == false ]]; then
   $COMPOSE logs --tail=20
   echo ""
   echo -e "  Continue watching: ${CYAN}${COMPOSE} logs -f${RESET}"
-  echo -e "  Health endpoint:   ${CYAN}curl http://localhost:${APP_PORT}/api/v1/health${RESET}"
+  echo -e "  Health endpoint:   ${CYAN}${HEALTH[*]}${RESET}"
   exit 1
 fi
 
@@ -307,7 +596,13 @@ echo -e "${GREEN}${BOLD}╔═════════════════�
 echo -e "${GREEN}${BOLD}║        PRISM is ready!               ║${RESET}"
 echo -e "${GREEN}${BOLD}╚══════════════════════════════════════╝${RESET}"
 echo ""
-echo -e "  ${BOLD}URL:${RESET}       http://localhost:${APP_PORT}"
+if [[ "$TLS_ON" == true ]]; then
+  echo -e "  ${BOLD}URL:${RESET}       $(https_url "${TLS_NAMES%%,*}" "$HTTPS_PORT")  (http://…:${APP_PORT} redirects here)"
+elif [[ "$ACCESS_MODE" == proxy ]]; then
+  echo -e "  ${BOLD}URL:${RESET}       ${PUBLIC_URL}  (through your proxy; on this machine: http://localhost:${APP_PORT})"
+else
+  echo -e "  ${BOLD}URL:${RESET}       ${PUBLIC_URL:-http://localhost:${APP_PORT}}"
+fi
 echo -e "  ${BOLD}Login tab:${RESET} Local Account"
 
 if [[ "$SKIP_CONFIG" == false ]]; then
@@ -324,6 +619,26 @@ if [[ "$SKIP_CONFIG" == false ]]; then
     echo -e "  To enable AD later, edit .env and fill in the LDAP_* variables, then restart:"
     echo -e "  ${CYAN}${COMPOSE} up -d${RESET}"
   fi
+fi
+
+if [[ "$TLS_ON" == true ]]; then
+  echo ""
+  echo -e "  ${YELLOW}${BOLD}Test certificate — for testing only.${RESET} Trust it once on each test computer"
+  echo -e "  (download it from $(https_url "${TLS_NAMES%%,*}" "$HTTPS_PORT")/prism-test-ca.crt, or copy ${CERT_DIR}/prism-test-ca.crt):"
+  echo -e "    Mac:      ${CYAN}sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain prism-test-ca.crt${RESET}"
+  echo -e "    Windows:  ${CYAN}certutil -addstore -f Root prism-test-ca.crt${RESET}   (as administrator)"
+  echo -e "    Ubuntu:   ${CYAN}sudo cp prism-test-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates${RESET}"
+  echo -e "    Fedora/Arch: ${CYAN}sudo trust anchor --store prism-test-ca.crt${RESET}"
+  echo -e "  Keep ${CA_DIR}/ private: it can sign certificates for these addresses."
+  echo -e "  Back to plain HTTP: delete the COMPOSE_FILE line in .env, set COOKIE_SECURE=false,"
+  echo -e "  remove PUBLIC_APP_URL, then ${CYAN}${COMPOSE} up -d${RESET}"
+fi
+
+if [[ "$ACCESS_MODE" == proxy ]]; then
+  echo ""
+  echo -e "  ${BOLD}Your proxy:${RESET} forward ${PUBLIC_URL} to http://<this machine>:${APP_PORT}, and allow"
+  echo -e "  uploads up to 30 MB (nginx: ${CYAN}client_max_body_size 30m;${RESET}; Nginx Proxy Manager: the"
+  echo -e "  host's Advanced tab). Agent inventories and ticket attachments need it."
 fi
 
 echo ""

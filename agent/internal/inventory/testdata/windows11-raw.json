@@ -1,0 +1,42 @@
+{
+ "Hostname": "RFC-FD-01",
+ "Manufacturer": "Dell Inc.",
+ "Model": "OptiPlex 7010 ",
+ "BIOSSerial": "7XK4Q93",
+ "BIOSVersion": "1.18.0",
+ "Domain": "RIVERSIDE",
+ "MemoryModules": [8589934592, 8589934592],
+ "TotalVisible": 17007534080,
+ "CPUs": [{ "Name": "13th Gen Intel(R) Core(TM) i5-13500   ", "Cores": 14 }],
+ "OSCaption": "Microsoft Windows 11 Pro",
+ "OSDisplayVersion": "24H2",
+ "OSBuild": "26100",
+ "OSUBR": "2314",
+ "LastBoot": "2026-11-02T08:41:00-05:00",
+ "Disks": [
+  { "Name": "C:", "Label": "Windows", "DriveType": 3, "Interface": "SCSI", "Size": 511101108224, "Free": 227633270784 },
+  { "Name": "D:", "Label": "Backup", "DriveType": 3, "Interface": "USB", "Size": 1000202039296, "Free": 54760833024 },
+  { "Name": "E:", "Label": "", "DriveType": 2, "Interface": "", "Size": 31914983424, "Free": 30000000000 },
+  { "Name": "Z:", "Label": "Shared", "DriveType": 4, "Interface": "", "Size": 4000000000000, "Free": 1000000000000 }
+ ],
+ "Adapters": [
+  { "Name": "Ethernet", "MAC": "b0:7b:25:3e:91:0c", "Addrs": ["fe80::1c2d:3e4f:5a6b:7c8d/64", "10.20.1.45/24"], "Up": true },
+  { "Name": "Wi-Fi", "MAC": "5c:e4:2a:10:7f:a3", "Addrs": ["169.254.12.3/16"], "Up": true },
+  { "Name": "Bluetooth Network Connection", "MAC": "5c:e4:2a:10:7f:a4", "Addrs": [], "Up": false },
+  { "Name": "Loopback Pseudo-Interface 1", "MAC": "", "Addrs": ["127.0.0.1/8"], "Up": true, "Loopback": true },
+  { "Name": "Teredo Tunneling Pseudo-Interface", "MAC": "00:00:00:00:00:00", "Addrs": ["2001:0:1::1/64"], "Up": true }
+ ],
+ "PrimaryIP": "10.20.1.45",
+ "Software": [
+  { "Name": "Google Chrome", "Version": "130.0.6723.92", "Publisher": "Google LLC", "InstallDate": "20261031" },
+  { "Name": "Microsoft 365 Apps for business - en-us", "Version": "16.0.18129.20158", "Publisher": "Microsoft Corporation", "InstallDate": "20261014" },
+  { "Name": "Microsoft Visual C++ 2022 X64 Minimum Runtime - 14.40.33810", "Version": "14.40.33810", "Publisher": "Microsoft Corporation", "SystemComponent": true },
+  { "Name": "Security Update for Microsoft Office 2016 (KB5002623) 64-Bit Edition", "Version": "", "Publisher": "Microsoft Corporation", "IsUpdate": true },
+  { "Name": "Update for Windows 10 for x64-based Systems (KB5001716)", "Version": "8.94.0.0", "Publisher": "Microsoft Corporation" },
+  { "Name": "Adobe Acrobat Reader (64-bit)", "Version": "24.003.20180", "Publisher": "Adobe", "InstallDate": "2026-09-09" },
+  { "Name": "Google Chrome", "Version": "130.0.6723.92", "Publisher": "Google LLC", "InstallDate": "20261031" },
+  { "Name": "7-Zip 24.08 (x64)", "Version": "24.08", "Publisher": "Igor Pavlov", "InstallDate": "not a date" },
+  { "Name": "", "Version": "1.0", "Publisher": "Nobody" }
+ ],
+ "User": { "Account": "RIVERSIDE\\mchen", "UPN": "maria.chen@riversideclinic.org" }
+}

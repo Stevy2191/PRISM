@@ -3,6 +3,8 @@ const ctrl = require('../controllers/companiesController');
 const sites = require('../controllers/sitesController');
 const portalAdmins = require('../controllers/portal/adminsController');
 const m365 = require('../controllers/companyM365Controller');
+const agentKeys = require('../controllers/agentKeysController');
+const devices = require('../controllers/devicesController');
 const { requirePermission } = require('../middleware/requirePermission');
 
 const router = express.Router();
@@ -33,6 +35,13 @@ router.post('/:id/m365/sync', canManagePortal, m365.sync);
 router.get('/:id/m365/detected-departments', canManagePortal, m365.listDetected);
 router.post('/:id/m365/detected-departments/:detectedId/map', canManagePortal, m365.mapDetected);
 router.post('/:id/m365/detected-departments/:detectedId/create', canManagePortal, m365.createFromDetected);
+// The PRISM agent (8a): the company's enrollment keys.
+const canManageDevices = requirePermission('devices.manage');
+router.get('/:id/agent-keys', canManageDevices, agentKeys.list);
+router.post('/:id/agent-keys', canManageDevices, agentKeys.create);
+router.post('/:id/agent-keys/:keyId/revoke', canManageDevices, agentKeys.revoke);
+// Its devices: viewing follows Assets' view permission (and company access).
+router.get('/:id/devices', requirePermission('assets.view'), devices.listForCompany);
 router.get('/:id/sites', canView, sites.list);
 router.post('/:id/sites', canManage, sites.create);
 router.patch('/:id/sites/:siteId', canManage, sites.update);

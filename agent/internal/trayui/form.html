@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<title>Submit a ticket</title>
+<style>
+:root{--bg:#F3F5F7;--surf:#FFFFFF;--surf2:#F8F9FB;--bd:#DFE3E8;--bd2:#CBD2DA;--acc:#2448C9;--acc-h:#16328F;--on-acc:#FFFFFF;--tx:#16202B;--tx3:#5B6875;--succ-ink:#14603A;--succ-bg:#E5F5EC;--warn-ink:#8A4B00;--warn-bg:#FFF3DF;--dang:#B42318;--dang-bg:#FDECEA;--focus:rgba(36,72,201,.35);color-scheme:light}
+@media (prefers-color-scheme: dark){:root{--bg:#0F141A;--surf:#171E26;--surf2:#1B232D;--bd:#26303B;--bd2:#36424F;--acc:#7C93F5;--acc-h:#9AADF8;--on-acc:#0B1220;--tx:#F2F5F8;--tx3:#93A0AE;--succ-ink:#7FDDAE;--succ-bg:#123022;--warn-ink:#F0B561;--warn-bg:#2E2310;--dang:#F26B5B;--dang-bg:#3A1A17;--focus:rgba(124,147,245,.45);color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--surf);color:var(--tx);font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.45}
+h2{margin:0;font-size:20px;letter-spacing:-0.01em;font-weight:650}
+.head{padding:18px 20px 0;display:flex;align-items:center;gap:10px}
+.logo{width:22px;height:22px;border-radius:6px;background:var(--acc);flex:none}
+.mut{color:var(--tx3);font-size:13px}
+.pane{padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px}
+#form{flex:1}
+.wrap{height:100%;display:flex;flex-direction:column}
+.who{display:grid;grid-template-columns:86px minmax(0,1fr);gap:6px 12px;font-size:13px;margin:0;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surf2)}
+.who dt{color:var(--tx3)}
+.who dd{margin:0;font-weight:500;overflow-wrap:anywhere}
+.fl{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
+.fi,.ft{width:100%;border:1px solid var(--bd2);border-radius:8px;background:var(--surf);font:inherit;color:var(--tx)}
+.fi{height:40px;padding:0 12px}
+.ft{min-height:120px;padding:10px 12px;resize:none;flex:1}
+.fi:focus,.ft:focus,.btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus);border-color:var(--acc)}
+.hint{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--tx3);margin:0}
+.err{margin:0;padding:8px 12px;border-radius:8px;background:var(--dang-bg);color:var(--dang);font-size:13px}
+.row{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.btn{height:40px;padding:0 16px;border-radius:8px;font:inherit;font-weight:600;border:1px solid var(--bd);background:var(--surf);color:var(--tx);display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+.btn:disabled{opacity:.6;cursor:default}
+.ic{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.status{display:flex;gap:14px;align-items:center}
+.contact{display:grid;grid-template-columns:70px minmax(0,1fr);gap:6px 12px;margin:0;font-size:14px}
+.contact dd{margin:0;overflow-wrap:anywhere}
+[hidden]{display:none!important}
+</style>
+</head>
+<body data-portal="{{.PortalURL}}">
+<div class="wrap">
+  <div class="head">
+    <span class="logo" aria-hidden="true"></span>
+    <div style="min-width:0"><div style="font-weight:700">{{.HelpdeskName}}</div><div class="mut" style="font-size:12.5px">Powered by PRISM</div></div>
+  </div>
+
+  <form id="form" class="pane" aria-labelledby="t-form" autocomplete="off">
+    <h2 id="t-form">Submit a ticket</h2>
+    <dl class="who">
+      <dt>Name</dt><dd>{{.Name}}</dd>
+      {{if .Company}}<dt>Company</dt><dd>{{.Company}}</dd>{{end}}
+      <dt>Computer</dt><dd>{{.Computer}}</dd>
+    </dl>
+    <div><label class="fl" for="subj">Subject</label><input id="subj" class="fi" maxlength="255" required value="{{.Subject}}"></div>
+    <div style="flex:1;display:flex;flex-direction:column;min-height:146px"><label class="fl" for="desc">What's happening?</label><textarea id="desc" class="ft" style="flex:1" maxlength="20000">{{.Description}}</textarea></div>
+    <p class="err" id="err" role="alert" hidden></p>
+    <p class="hint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v5h1"></path></svg><span>Details about this computer (system, disk space, uptime) are sent with it, to help the help desk.</span></p>
+    <div class="row">
+      <button class="btn" type="button" id="cancel">Cancel</button>
+      <button class="btn primary" type="submit" id="send">Submit</button>
+    </div>
+  </form>
+
+  <section id="sent" class="pane" aria-labelledby="t-sent" hidden>
+    <div class="status">
+      <span class="ic" style="background:var(--succ-bg);color:var(--succ-ink)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span>
+      <div><h2 id="t-sent"></h2><p class="mut" id="sent-sub" style="margin:2px 0 0"></p></div>
+    </div>
+    <p style="margin:0" id="sent-portal" hidden>You can follow it, and reply, in the support portal.</p>
+    <div class="row"><button class="btn" type="button" id="open" hidden>Open in the portal</button><button class="btn primary" type="button" id="done">Done</button></div>
+  </section>
+
+  <section id="offline" class="pane" aria-labelledby="t-off" hidden>
+    <div class="status">
+      <span class="ic" style="background:var(--warn-bg);color:var(--warn-ink)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 9-2.7M8.5 15.5a5 5 0 0 1 4.6-1.3M12 19h.01M3 3l18 18"></path></svg></span>
+      <div><h2 id="t-off">Can't reach the help desk</h2><p class="mut" id="off-sub" style="margin:2px 0 0">This computer isn't connected to the internet right now, so the ticket can't be sent.</p></div>
+    </div>
+    <p style="margin:0" id="off-kept">Your message is kept. Try again once you're back online{{if or .HelpdeskEmail .PortalURL}}, or contact the help desk another way:{{else}}.{{end}}</p>
+    {{if or .HelpdeskEmail .PortalURL}}<dl class="contact">
+      {{if .HelpdeskEmail}}<dt class="mut">Email</dt><dd>{{.HelpdeskEmail}}</dd>{{end}}
+      {{if .PortalURL}}<dt class="mut">Portal</dt><dd>{{.PortalDisplay}}</dd>{{end}}
+    </dl>{{end}}
+    <div class="row"><button class="btn" type="button" id="close">Close</button><button class="btn primary" type="button" id="retry">Try again</button></div>
+  </section>
+</div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var ticketId = null;
+  function show(id) { ['form', 'sent', 'offline'].forEach(function (p) { $(p).hidden = p !== id; }); }
+  function setBusy(b) { $('send').disabled = b; $('retry').disabled = b; $('send').textContent = b ? 'Sending…' : 'Submit'; }
+  function fail(msg) { show('form'); $('err').textContent = msg; $('err').hidden = false; }
+  async function submit() {
+    var subject = $('subj').value.trim();
+    if (!subject) { fail('Add a subject.'); $('subj').focus(); return; }
+    $('err').hidden = true;
+    setBusy(true);
+    var a;
+    try {
+      // The window's Go side sends in the background (a send can take a
+      // while) and answers through window.prismDone.
+      a = await new Promise(function (resolve) { window.prismDone = resolve; window.prismSubmitStart(subject, $('desc').value); });
+    } catch (e) { a = { error: 'offline' }; }
+    setBusy(false);
+    if (a && a.number) {
+      ticketId = a.ticketId;
+      $('t-sent').textContent = 'Ticket #' + String(a.number).replace(/^0+(?=\d)/, '') + ' sent';
+      $('sent-sub').textContent = a.replyTo ? 'The help desk will reply by email to ' + a.replyTo + '.' : 'The help desk has it and will be in touch.';
+      var portal = document.body.dataset.portal;
+      $('open').hidden = !portal; $('sent-portal').hidden = !portal;
+      show('sent'); $('done').focus();
+    } else if (a && a.error === 'offline') {
+      show('offline'); $('retry').focus();
+    } else {
+      fail((a && a.message) || 'The ticket could not be sent.');
+    }
+  }
+  $('form').addEventListener('submit', function (e) { e.preventDefault(); submit(); });
+  $('retry').addEventListener('click', submit);
+  $('cancel').addEventListener('click', function () { window.prismClose(); });
+  $('close').addEventListener('click', function () { window.prismClose(); });
+  $('done').addEventListener('click', function () { window.prismClose(); });
+  $('open').addEventListener('click', function () { window.prismOpenTicket(ticketId); window.prismClose(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window.prismClose(); });
+  $('subj').focus();
+})();
+</script>
+</body>
+</html>

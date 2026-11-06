@@ -1,6 +1,7 @@
 const express = require('express');
 const ctrl = require('../controllers/assetsController');
 const categoriesCtrl = require('../controllers/assetCategoriesController');
+const devices = require('../controllers/devicesController');
 const { requirePermission } = require('../middleware/requirePermission');
 const { fenceParam } = require('../middleware/companyFence');
 const { Asset } = require('../models');
@@ -36,6 +37,8 @@ router.delete('/categories/:categoryId', canManageCategories, categoriesCtrl.rem
 
 router.get('/categories', ctrl.listCategories);
 router.get('/stats', ctrl.stats);
+// Counts for the Assets list's agent pills (8a).
+router.get('/agent-summary', ctrl.agentSummary);
 router.get('/expiry-summary', ctrl.expirySummary);
 
 router.get('/', ctrl.list);
@@ -43,6 +46,10 @@ router.post('/', canCreate, ctrl.create);
 router.get('/:id', ctrl.get);
 router.patch('/:id', canEdit, ctrl.update);
 router.delete('/:id', canDelete, ctrl.remove);
+
+// The PRISM agent (8a): the computer's device detail and installed software.
+router.get('/:id/device', devices.getForAsset);
+router.get('/:id/software', devices.listSoftware);
 
 router.get('/:id/tickets', ctrl.listTickets);
 router.post('/:id/tickets', canLinkTickets, ctrl.linkTicket);
@@ -55,6 +62,9 @@ router.post('/:id/checkouts', canEdit, ctrl.createCheckout);
 router.patch('/:id/checkouts/:checkoutId', canEdit, ctrl.updateCheckout);
 router.post('/:id/checkouts/:checkoutId/check-in', canEdit, ctrl.checkInCheckout);
 router.post('/:id/checkouts/:checkoutId/send-form', canEdit, ctrl.sendCheckoutForm);
+router.post('/:id/checkouts/:checkoutId/form', canEdit, ctrl.createCheckoutForm);
+router.post('/:id/checkouts/:checkoutId/printed', canEdit, ctrl.markCheckoutFormPrinted);
+router.post('/:id/checkouts/:checkoutId/signed', canEdit, assetUpload.single('file'), verifyFileSignature, scanUpload('Asset'), ctrl.uploadSignedCheckoutForm);
 
 router.get('/:id/attachments', ctrl.listAttachments);
 router.post('/:id/attachments', canEdit, assetUpload.single('file'), verifyFileSignature, scanUpload('Asset'), ctrl.createAttachment);

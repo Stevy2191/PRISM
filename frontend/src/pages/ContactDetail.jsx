@@ -13,6 +13,7 @@ import Spinner from '../components/Spinner';
 import Notice from '../components/ui/Notice';
 import { useFullPageHeight } from '../hooks/useFullPageHeight';
 import { formatTicketId } from '../utils/ticketId';
+import DepartmentOptions from '../components/companies/DepartmentOptions';
 
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
@@ -208,7 +209,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
             style={{ backgroundColor: contact.department ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : BORDER, color: contact.department ? BLUE : MUTED }}
           >
             <option value="">No department</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <DepartmentOptions departments={departments} companyId={contact.companyId} />
           </select>
         </div>
         <ContactCompanyFields contact={contact} canEdit={canEdit} onSave={onSave} />

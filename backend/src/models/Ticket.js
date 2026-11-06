@@ -49,7 +49,8 @@ module.exports = (sequelize) => {
       // only ever set by the system (future customer portal / the recurring
       // scheduler); staff may pick manual, phone or email by hand.
       source: {
-        type: DataTypes.ENUM('manual', 'email', 'phone', 'portal', 'recurring'),
+        // 'agent': raised from the PRISM agent's tray (8a).
+        type: DataTypes.ENUM('manual', 'email', 'phone', 'portal', 'recurring', 'agent'),
         allowNull: false,
         defaultValue: 'manual',
       },

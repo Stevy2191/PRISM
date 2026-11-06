@@ -1,0 +1,9 @@
+Name                       Version          Rev    Tracking         Publisher          Notes
+bare                       1.0              5      latest/stable    canonical✓         base
+core22                     20241001         1663   latest/stable    canonical✓         base
+firefox                    132.0.2-1        5187   latest/stable/…  mozilla✓           -
+gnome-42-2204              0+git.510a601    176    latest/stable/…  canonical✓         -
+gtk-common-themes          0.1-81-g442e511  1535   latest/stable/…  canonical✓         -
+snapd                      2.65.3           23258  latest/stable    canonical✓         snapd
+spotify                    1.2.48.405       80     latest/stable    spotify✓           -
+zoom-client                6.2.5.2440       236    latest/stable    zoom**             -

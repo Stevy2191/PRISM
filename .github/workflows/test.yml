@@ -89,3 +89,48 @@ jobs:
       - name: Build
         working-directory: ./frontend
         run: npm run build
+
+  agent:
+    # The PRISM agent (Go, sub-project 8). Windows runs the parts only it
+    # has (the DPAPI key store, its SYSTEM-only ACL, the named pipe). macOS
+    # runs the same steps in agent.yml's package job, before it builds the
+    # package: hosted Macs are scarce, and asking for two per push left runs
+    # cancelled waiting for one.
+    name: Agent tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ./agent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      # The Linux tray's ticket window is WebKitGTK 4.1 (cgo); the shim in
+      # packaging/linux/pkgconfig lets the web view library find it (8c).
+      - name: GTK and WebKitGTK (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libgtk-3-dev libwebkit2gtk-4.1-dev
+          echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/agent/packaging/linux/pkgconfig" >> "$GITHUB_ENV"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race ./...
+
+      # Both programs, as each platform builds them: with cgo on Linux
+      # (WebKitGTK for the ticket window) and macOS (Cocoa, WKWebView).
+      - name: Build
+        run: go build ./cmd/...

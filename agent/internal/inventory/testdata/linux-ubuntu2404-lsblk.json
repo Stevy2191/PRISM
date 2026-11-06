@@ -1,0 +1,21 @@
+{
+   "blockdevices": [
+      {"name": "loop0", "tran": null, "rm": false, "hotplug": false, "label": null, "mountpoints": ["/snap/firefox/5187"]},
+      {"name": "sda", "tran": "usb", "rm": true, "hotplug": true, "label": null, "mountpoints": [null],
+         "children": [
+            {"name": "sda1", "tran": null, "rm": true, "hotplug": true, "label": "BACKUP DRIVE", "mountpoints": ["/media/sam/BACKUP DRIVE"]}
+         ]
+      },
+      {"name": "mmcblk0", "tran": null, "rm": true, "hotplug": false, "label": null, "mountpoints": [null],
+         "children": [
+            {"name": "mmcblk0p1", "tran": null, "rm": true, "hotplug": false, "label": null, "mountpoints": ["/media/sam/3061-3135"]}
+         ]
+      },
+      {"name": "nvme0n1", "tran": "nvme", "rm": false, "hotplug": false, "label": null, "mountpoints": [null],
+         "children": [
+            {"name": "nvme0n1p1", "tran": "nvme", "rm": false, "hotplug": false, "label": null, "mountpoints": ["/boot/efi"]},
+            {"name": "nvme0n1p2", "tran": "nvme", "rm": false, "hotplug": false, "label": null, "mountpoints": ["/"]}
+         ]
+      }
+   ]
+}

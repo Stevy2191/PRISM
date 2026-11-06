@@ -3,6 +3,7 @@ import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
 import SettingsPage from '../../components/settings/SettingsPage';
+import DepartmentOptions from '../../components/companies/DepartmentOptions';
 
 const SCHEDULE_OPTIONS = [
   { value: 1, label: 'Every hour' },
@@ -267,7 +268,7 @@ export default function DirectorySync() {
             <label className="label">Department</label>
             <select className="input" value={newGroupDept} onChange={(e) => setNewGroupDept(e.target.value)}>
               <option value="">Select department…</option>
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              <DepartmentOptions departments={departments} />
             </select>
           </div>
           <button type="button" onClick={addMapping} disabled={!newGroupName.trim() || !newGroupDept || addingMapping} className="btn-primary">

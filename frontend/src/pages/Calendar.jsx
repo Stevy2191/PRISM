@@ -9,6 +9,7 @@ import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import { orgToday } from '../utils/orgDate';
+import DepartmentOptions from '../components/companies/DepartmentOptions';
 
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
@@ -603,7 +604,7 @@ function FilterBar({
       {canFilterDept && (
         <select className="input h-8 max-w-[10rem] flex-shrink-0 text-xs" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT }} value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
           <option value="">All departments</option>
-          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          <DepartmentOptions departments={departments} />
         </select>
       )}
 

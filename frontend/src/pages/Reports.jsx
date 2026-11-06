@@ -33,6 +33,7 @@ import Pill from '../components/ui/Pill';
 import SelectChip from '../components/ui/SelectChip';
 import FiltersSheet from '../components/ui/FiltersSheet';
 import Button from '../components/ui/Button';
+import DepartmentOptions from '../components/companies/DepartmentOptions';
 
 const CATEGORIES = [
   {
@@ -412,7 +413,7 @@ export default function Reports() {
             {canViewAll && (
               <SelectChip label="Department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="max-lg:hidden">
                 <option value="">All departments</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                <DepartmentOptions departments={departments} />
               </SelectChip>
             )}
             {multiCompany && (
@@ -462,7 +463,7 @@ export default function Reports() {
               <label className="label" htmlFor="report-sheet-department">Department</label>
               <select id="report-sheet-department" className="input h-11 text-sm" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
                 <option value="">All departments</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                <DepartmentOptions departments={departments} />
               </select>
             </div>
           )}

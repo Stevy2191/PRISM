@@ -1,0 +1,641 @@
+name: Agent packages
+
+# Builds the Windows agent (amd64 and arm64) as MSIs, the Mac agent as one
+# universal .pkg and the Linux agent as .deb, .rpm and .pkg.tar.zst (amd64
+# and arm64), install-tests each on a real runner (Linux also on Ubuntu,
+# Fedora and Arch containers, and under systemd), and hands the
+# packages and their manifest.json to the backend image (docker-publish.yml),
+# which serves them to enrolled agents as signed updates and to staff as
+# the Download installer button. Packages are never published anywhere else.
+#
+# Version: a v1.2.3 tag gives 1.2.3 (MSI 1.2.3); a branch build gives
+# 0.0.0-dev.<run number> (MSI 0.0.<run number>), so each dev build is newer
+# than the last for both PRISM and Windows Installer.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths: ['agent/**', '.github/workflows/agent.yml']
+
+jobs:
+  windows:
+    name: Windows MSI (build, sign, install test)
+    runs-on: windows-latest
+    env:
+      WIX_VERSION: 4.0.5
+      HAS_PFX: ${{ secrets.AGENT_SIGNING_PFX != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      - name: Version
+        id: v
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            v="${GITHUB_REF#refs/tags/v}"; msi="${v%%-*}"
+          else
+            v="0.0.0-dev.${GITHUB_RUN_NUMBER}"; msi="0.0.$((GITHUB_RUN_NUMBER % 65536))"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "msi=$msi" >> "$GITHUB_OUTPUT"
+          echo "Agent $v (MSI $msi)"
+
+      - name: Build
+        shell: bash
+        working-directory: agent
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          ld="-s -w -X github.com/stevy2191/prism/agent/internal/version.Version=${VERSION}"
+          for arch in amd64 arm64; do
+            GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$ld" -o dist/windows-$arch/prism-agent.exe ./cmd/prism-agent
+            GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$ld -H windowsgui" -o dist/windows-$arch/prism-tray.exe ./cmd/prism-tray
+          done
+          ls -la dist/*
+
+      # PRISM's own code-signing certificate (owner decision 2026-10-03), when
+      # the AGENT_SIGNING_PFX secret (base64 .pfx) and AGENT_SIGNING_PASSWORD
+      # exist. Without them the packages are unsigned: PRISM's update
+      # signature still protects self-updates.
+      - name: Sign programs
+        if: env.HAS_PFX == 'true'
+        env:
+          PFX_B64: ${{ secrets.AGENT_SIGNING_PFX }}
+          PFX_PASSWORD: ${{ secrets.AGENT_SIGNING_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+          Get-ChildItem agent\dist -Recurse -Filter *.exe | ForEach-Object {
+            & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:PFX_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signing $($_.Name) failed" }
+          }
+          Remove-Item $pfx
+
+      - name: Install WiX
+        run: |
+          dotnet tool install --global wix --version $env:WIX_VERSION
+          wix extension add -g "WixToolset.Util.wixext/$env:WIX_VERSION"
+
+      - name: Package
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          MSI_VERSION: ${{ steps.v.outputs.msi }}
+        run: |
+          New-Item -ItemType Directory -Force agent-dist | Out-Null
+          foreach ($pair in @(@('x64','amd64'), @('arm64','arm64'))) {
+            $wixArch, $goArch = $pair
+            $out = "agent-dist\prism-agent-$env:VERSION-windows-$goArch.msi"
+            wix build -arch $wixArch -ext WixToolset.Util.wixext `
+              -d "MsiVersion=$env:MSI_VERSION" -d "BinDir=agent\dist\windows-$goArch" `
+              -o $out agent\packaging\windows\prism-agent.wxs
+            if ($LASTEXITCODE -ne 0) { throw "wix build ($wixArch) failed" }
+          }
+          Get-ChildItem agent-dist
+
+      - name: Sign installers
+        if: env.HAS_PFX == 'true'
+        env:
+          PFX_B64: ${{ secrets.AGENT_SIGNING_PFX }}
+          PFX_PASSWORD: ${{ secrets.AGENT_SIGNING_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+          Get-ChildItem agent-dist -Filter *.msi | ForEach-Object {
+            & $signtool.FullName sign /fd SHA256 /f $pfx /p $env:PFX_PASSWORD /tr http://timestamp.digicert.com /td SHA256 /d "PRISM Agent" $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signing $($_.Name) failed" }
+          }
+          Remove-Item $pfx
+
+      # Install the amd64 MSI silently against a stub PRISM (agent/tools/
+      # stubprism, which checks request signatures), the way GPO or Intune
+      # would, and check everything the installer promises.
+      - name: Install test
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $t = $env:RUNNER_TEMP
+          $msi = (Resolve-Path "agent-dist\prism-agent-$env:VERSION-windows-amd64.msi").Path
+          $exe = "$env:ProgramFiles\PRISM\Agent\prism-agent.exe"
+          function Msi([string[]]$a, [string]$log) {
+            $p = Start-Process msiexec.exe -ArgumentList ($a + @('/qn', '/l*v', $log)) -Wait -PassThru
+            return $p.ExitCode
+          }
+          function Ok($code) { return ($code -eq 0 -or $code -eq 3010) }
+
+          Push-Location agent; go build -o "$t\stubprism.exe" ./tools/stubprism; Pop-Location
+          Start-Process "$t\stubprism.exe" -ArgumentList '-addr', '127.0.0.1:8765', '-key', 'pk_enr_ci_9f8e7d', '-out', "$t\stub" -WindowStyle Hidden
+          Start-Sleep 2
+
+          Write-Host '--- A wrong key fails the install and leaves nothing'
+          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_wrong_1a2b3c') "$t\bad.log"
+          if (Ok $c) { throw "the install with a wrong key succeeded ($c)" }
+          if (Get-Service PRISMAgent -ErrorAction SilentlyContinue) { throw 'the service was left after a failed install' }
+          if (Test-Path $exe) { throw 'files were left after a failed install' }
+          if (Select-String -Path "$t\bad.log" -Pattern 'pk_enr_wrong_1a2b3c' -SimpleMatch -Quiet) { throw 'the key is in the failed install log' }
+
+          Write-Host '--- Silent install with enrollment'
+          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\install.log"
+          if (-not (Ok $c)) { Get-Content "$t\install.log" -Tail 150; throw "install failed ($c)" }
+          if (Select-String -Path "$t\install.log" -Pattern 'pk_enr_ci_9f8e7d' -SimpleMatch -Quiet) { throw 'the enrollment key is in the install log' }
+
+          Write-Host '--- The service runs as LocalSystem and reports a signed heartbeat'
+          $svc = Get-Service PRISMAgent
+          $svc.WaitForStatus('Running', '00:01:30')
+          $cfg = Get-CimInstance Win32_Service -Filter "Name='PRISMAgent'"
+          if ($cfg.StartName -ne 'LocalSystem' -or $cfg.StartMode -ne 'Auto') { throw "service runs as $($cfg.StartName), start $($cfg.StartMode)" }
+          $deadline = (Get-Date).AddSeconds(90)
+          while (-not (Test-Path "$t\stub\heartbeat.ok") -and (Get-Date) -lt $deadline) { Start-Sleep 2 }
+          Get-Content "$t\stub\stub.log"
+          if (-not (Test-Path "$t\stub\heartbeat.ok")) { throw 'no signed heartbeat reached the stub' }
+
+          Write-Host '--- status reports the enrollment'
+          $status = & $exe status | Out-String
+          Write-Host $status
+          if ($status -notmatch 'Device:\s+1' -or $status -notmatch 'PRISM:\s+http://127\.0\.0\.1:8765') { throw 'status does not report the enrollment' }
+          if ($status -notmatch ('Version:\s+' + [regex]::Escape($env:VERSION) + ' ')) { throw 'status does not report the stamped version' }
+
+          Write-Host '--- An ordinary user reaches the service the way the tray does'
+          # The tray runs as a signed-in user without admin rights; this
+          # runner is an administrator, so ask as a new standard user
+          # (owner, 2026-11-05: every real tray was refused the pipe).
+          $pw = ConvertTo-SecureString ('Ci-' + [guid]::NewGuid().ToString('N') + '!a1') -AsPlainText -Force
+          New-LocalUser -Name prismci -Password $pw -AccountNeverExpires | Out-Null
+          $cred = New-Object System.Management.Automation.PSCredential ("$env:COMPUTERNAME\prismci", $pw)
+          $out = "$env:PUBLIC\whoami-ci.out"; $err = "$env:PUBLIC\whoami-ci.err"
+          $p = Start-Process $exe -ArgumentList 'whoami' -Credential $cred -WorkingDirectory "$env:SystemRoot\Temp" `
+            -RedirectStandardOutput $out -RedirectStandardError $err -Wait -PassThru -LoadUserProfile
+          $who = (Get-Content $out -Raw) + (Get-Content $err -Raw)
+          Write-Host $who
+          if ($p.ExitCode -ne 0 -or $who -notmatch 'You:\s+\S*prismci') { throw "a standard user couldn't reach the service: $who" }
+          Remove-LocalUser -Name prismci
+
+          Write-Host '--- The device key is SYSTEM-only; the tray starts at sign-in; the Start menu has Submit a ticket'
+          try { [IO.File]::ReadAllBytes("$env:ProgramData\PRISM\device.key") | Out-Null; throw 'the device key is readable by an administrator' } catch [UnauthorizedAccessException] { }
+          $run = (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run').PRISM
+          if ($run -notlike '*prism-tray.exe*') { throw "Run key: $run" }
+          if (-not (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Submit a ticket.lnk")) { throw 'no Start menu shortcut' }
+
+          Write-Host '--- Installing again with the key keeps the same enrollment'
+          $before = Get-Content "$env:ProgramData\PRISM\agent.json" -Raw
+          $c = Msi @('/fa', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\repair.log"
+          if (-not (Ok $c)) { Get-Content "$t\repair.log" -Tail 80; throw "repair failed ($c)" }
+          if ((Get-Content "$env:ProgramData\PRISM\agent.json" -Raw) -ne $before) { throw 'a reinstall with the key enrolled again' }
+
+          Write-Host '--- Uninstall keeps the enrollment'
+          $c = Msi @('/x', $msi) "$t\uninstall.log"
+          if (-not (Ok $c)) { Get-Content "$t\uninstall.log" -Tail 80; throw "uninstall failed ($c)" }
+          if (Get-Service PRISMAgent -ErrorAction SilentlyContinue) { throw 'the service is still there' }
+          if (Test-Path $exe) { throw 'the program is still there' }
+          if (-not (Test-Path "$env:ProgramData\PRISM\agent.json")) { throw 'uninstall removed the enrollment' }
+
+          Write-Host '--- Reinstall (already enrolled), then uninstall with REMOVE_DATA=1'
+          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\install2.log"
+          if (-not (Ok $c)) { Get-Content "$t\install2.log" -Tail 80; throw "reinstall failed ($c)" }
+          (Get-Service PRISMAgent).WaitForStatus('Running', '00:01:30')
+          $c = Msi @('/x', $msi, 'REMOVE_DATA=1') "$t\uninstall2.log"
+          if (-not (Ok $c)) { Get-Content "$t\uninstall2.log" -Tail 80; throw "uninstall failed ($c)" }
+          if (Test-Path "$env:ProgramData\PRISM") { throw 'REMOVE_DATA=1 left ProgramData\PRISM' }
+          Write-Host 'Install test passed.'
+
+      - name: Install logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-install-logs
+          path: ${{ runner.temp }}/*.log
+          retention-days: 7
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist-windows
+          path: agent-dist/*.msi
+          retention-days: 7
+
+  macos:
+    # Also the agent's macOS tests (test.yml runs them on Linux and
+    # Windows): one Mac per push rather than two, since hosted Macs are
+    # scarce and a job left waiting for one gets cancelled.
+    name: macOS tests and package (build, sign, install test)
+    runs-on: macos-latest
+    env:
+      HAS_APPLE_ID: ${{ secrets.APPLE_DEVELOPER_ID_APP != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      - name: Vet
+        working-directory: ./agent
+        run: go vet ./...
+
+      - name: Test
+        working-directory: ./agent
+        run: go test -race ./...
+
+      # Both programs with cgo (Cocoa for the menu bar, WKWebView for the
+      # ticket window), as test.yml builds them elsewhere.
+      - name: Build
+        working-directory: ./agent
+        run: go build ./cmd/...
+
+      - name: Version
+        id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF#refs/tags/v}"; else v="0.0.0-dev.${GITHUB_RUN_NUMBER}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Agent $v"
+
+      # A Developer ID (owner decision 7: none for now). When the secrets
+      # exist: a temporary keychain with the certificates, then build.sh
+      # signs with them and notarises.
+      - name: Signing identity
+        if: env.HAS_APPLE_ID == 'true'
+        env:
+          P12_B64: ${{ secrets.APPLE_DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.APPLE_NOTARY_ISSUER }}
+          NOTARY_KEY_B64: ${{ secrets.APPLE_NOTARY_KEY }}
+        run: |
+          kc="$RUNNER_TEMP/signing.keychain-db"; pw="$(uuidgen)"
+          security create-keychain -p "$pw" "$kc"
+          security set-keychain-settings -lut 3600 "$kc"
+          security unlock-keychain -p "$pw" "$kc"
+          echo "$P12_B64" | base64 --decode > "$RUNNER_TEMP/id.p12"
+          security import "$RUNNER_TEMP/id.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple: -k "$pw" "$kc"
+          security list-keychains -d user -s "$kc" login.keychain-db
+          rm "$RUNNER_TEMP/id.p12"
+          echo "$NOTARY_KEY_B64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool store-credentials prism-notary --key "$RUNNER_TEMP/notary.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" --keychain "$kc"
+          echo "APPLE_NOTARY_PROFILE=prism-notary" >> "$GITHUB_ENV"
+
+      - name: Build the package
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          APPLE_DEVELOPER_ID_APP: ${{ secrets.APPLE_DEVELOPER_ID_APP }}
+          APPLE_DEVELOPER_ID_INSTALLER: ${{ secrets.APPLE_DEVELOPER_ID_INSTALLER }}
+        run: agent/packaging/macos/build.sh agent-dist
+
+      # Install the package the way a person would (installer as root), enroll
+      # against a stub PRISM that checks request signatures, and check what
+      # the package promises.
+      - name: Install test
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -euo pipefail
+          t="$RUNNER_TEMP"
+          pkg="$PWD/agent-dist/prism-agent-$VERSION-macos-universal.pkg"
+          data="/Library/Application Support/PRISM"
+          (cd agent && go build -o "$t/stubprism" ./tools/stubprism)
+          "$t/stubprism" -addr 127.0.0.1:8765 -key pk_enr_ci_9f8e7d -out "$t/stub" > "$t/stub-out.log" 2>&1 &
+          sleep 2
+
+          echo "--- The package installs and the service starts"
+          sudo installer -pkg "$pkg" -target /
+          sudo launchctl print system/com.prism.agent | grep -E "state = running"
+          test -x /usr/local/bin/prism-agent
+          test -d "/Applications/Utilities/PRISM Agent.app"
+          lipo -info "$data/bin/prism-agent" | grep -q arm64
+          lipo -info "$data/bin/prism-agent" | grep -q x86_64
+          /usr/local/bin/prism-agent version | grep -qx "$VERSION"
+
+          echo "--- A wrong key is refused and leaves no key"
+          if sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_wrong_1a2b3c; then echo "enrolled with a wrong key"; exit 1; fi
+          sudo test ! -e "$data/device.key"
+
+          echo "--- Enrollment, then a signed heartbeat from the service"
+          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
+          sudo launchctl kickstart -k system/com.prism.agent
+          for i in $(seq 1 45); do [ -f "$t/stub/heartbeat.ok" ] && break; sleep 2; done
+          cat "$t/stub/stub.log"
+          test -f "$t/stub/heartbeat.ok"
+
+          echo "--- The key is root's alone; the socket is root's; status works for a user"
+          # Root's, and no one else's: mode 600 (the group, inherited from
+          # the folder as macOS does, has no access).
+          [ "$(sudo stat -f '%Su %Lp' "$data/device.key")" = "root 600" ]
+          if cat "$data/device.key" 2>/dev/null; then echo "the key is readable"; exit 1; fi
+          [ "$(stat -f %u /var/run/prism-agent.sock)" = "0" ]
+          prism-agent status | tee "$t/status.txt"
+          grep -q "Device: *1" "$t/status.txt"
+
+          echo "--- The tray's socket knows who is asking (from macOS, not the message)"
+          answer=$(printf '%s\n' '{"op":"whoami","account":"EVIL\\boss"}' | nc -U /var/run/prism-agent.sock)
+          echo "$answer"
+          echo "$answer" | grep -q "\"name\":\"$(id -un)\""
+          echo "--- The tray's own way in (its socket checks included) works for a normal user"
+          prism-agent whoami | tee "$t/whoami.txt"
+          grep -q "You: *$(id -un)" "$t/whoami.txt"
+
+          echo "--- Enrolling again with the same PRISM changes nothing"
+          before=$(sudo cat "$data/agent.json")
+          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d | grep -q "Already enrolled"
+          [ "$(sudo cat "$data/agent.json")" = "$before" ]
+
+          echo "--- Installing over itself leaves one menu bar app (owner, 2026-11-05: two after an update)"
+          if [ "$(stat -f %u /dev/console)" = "$(id -u)" ]; then
+            # A copy started by hand, outside launchd, as an old one was.
+            "/Applications/Utilities/PRISM Agent.app/Contents/MacOS/prism-tray" > /dev/null 2>&1 &
+            extra=$!
+            sleep 3
+            sudo installer -pkg "$pkg" -target /
+            sleep 3
+            if kill -0 "$extra" 2> /dev/null; then echo "the copy started by hand is still running"; exit 1; fi
+            n=$(pgrep -U "$(id -u)" -x prism-tray | wc -l | tr -d ' ')
+            echo "menu bar apps running: $n"
+            [ "$n" -le 1 ]
+          else
+            echo "(no one signed in at the screen here: skipped)"
+          fi
+
+          echo "--- Uninstall keeps the enrollment; --remove-data removes it"
+          sudo prism-agent uninstall
+          if sudo launchctl print system/com.prism.agent >/dev/null 2>&1; then echo "the service is still loaded"; exit 1; fi
+          test ! -e /usr/local/bin/prism-agent
+          test ! -e "/Applications/Utilities/PRISM Agent.app"
+          sudo test -f "$data/agent.json"
+          sudo installer -pkg "$pkg" -target /
+          sudo "$data/bin/prism-agent" uninstall --remove-data
+          test ! -e "$data"
+          echo "Install test passed."
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist-macos
+          path: agent-dist/*.pkg
+          retention-days: 7
+
+  # The Linux agent (8c): .deb, .rpm and Arch's .pkg.tar.zst for x86_64 and
+  # arm64, built on Ubuntu 22.04 (the oldest glibc of the three families,
+  # so the tray runs on the newer ones), then install-tested on each
+  # distribution and once with systemd for real.
+  linux:
+    name: Linux packages (${{ matrix.arch }})
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      - name: Version
+        id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF#refs/tags/v}"; else v="0.0.0-dev.${GITHUB_RUN_NUMBER}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Agent $v"
+
+      - name: GTK, WebKitGTK and nfpm
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libgtk-3-dev libwebkit2gtk-4.1-dev
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        working-directory: agent
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          PKG_CONFIG_PATH: ${{ github.workspace }}/agent/packaging/linux/pkgconfig
+        run: |
+          ld="-s -w -X github.com/stevy2191/prism/agent/internal/version.Version=${VERSION}"
+          bin="dist/linux-${{ matrix.arch }}"
+          CGO_ENABLED=0 go build -trimpath -ldflags "$ld" -o "$bin/prism-agent" ./cmd/prism-agent
+          CGO_ENABLED=1 go build -trimpath -ldflags "$ld" -o "$bin/prism-tray" ./cmd/prism-tray
+          file "$bin"/*
+          ldd "$bin/prism-tray" | grep -q 'libwebkit2gtk-4.1'
+          # The install tests' stand-in for PRISM (static, any distribution).
+          if [ "${{ matrix.arch }}" = amd64 ]; then CGO_ENABLED=0 go build -o dist/stubprism ./tools/stubprism; fi
+
+      - name: Package
+        working-directory: agent
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          VERSION="$VERSION" ARCH=${{ matrix.arch }} BIN=dist/linux-${{ matrix.arch }} OUT=../agent-dist sh packaging/linux/build.sh
+          dpkg-deb -I ../agent-dist/*.deb
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist-linux-${{ matrix.arch }}
+          path: agent-dist/*
+          retention-days: 7
+
+      - name: Upload the test stub
+        if: matrix.arch == 'amd64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stubprism-linux
+          path: agent/dist/stubprism
+          retention-days: 1
+
+  linux-test:
+    name: Linux install test (${{ matrix.distro }})
+    needs: linux
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: ['ubuntu:22.04', 'ubuntu:24.04', 'fedora:latest', 'archlinux:latest']
+    container: ${{ matrix.distro }}
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-dist-linux-amd64
+          path: dist
+
+      - name: Download the test stub
+        uses: actions/download-artifact@v4
+        with:
+          name: stubprism-linux
+          path: stub
+
+      - name: Install test
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x stub/stubprism
+          data=/var/lib/prism-agent
+          echo "--- The package installs with its dependencies"
+          if command -v apt-get > /dev/null; then
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -q && apt-get install -y -q ./dist/*.deb
+          elif command -v dnf > /dev/null; then
+            dnf install -y -q ./dist/*.rpm util-linux procps-ng
+          else
+            pacman -Syu --noconfirm --needed util-linux procps-ng
+            pacman -U --noconfirm dist/*.pkg.tar.zst
+          fi
+          prism-agent version
+          test -x /usr/bin/prism-tray
+          [ "$(stat -c '%a %U' "$data")" = "700 root" ]
+          test -f /usr/lib/systemd/system/prism-agent.service
+          test -f /etc/xdg/autostart/prism-tray.desktop
+          test -f /usr/share/applications/prism-submit-ticket.desktop
+          # The tray's libraries are there (the dynamic loader finds them all).
+          ! ldd /usr/bin/prism-tray | grep -q 'not found'
+
+          ./stub/stubprism -addr 127.0.0.1:8765 -key pk_enr_ci_9f8e7d -out /tmp/stub > /tmp/stub-out.log 2>&1 &
+          sleep 2
+
+          echo "--- A wrong key is refused and leaves no key"
+          if prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_wrong_1a2b3c; then echo "enrolled with a wrong key"; exit 1; fi
+          test ! -e "$data/device.key"
+
+          echo "--- Enrollment, then a signed heartbeat (run started directly: no systemd here)"
+          prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
+          [ "$(stat -c '%a %U' "$data/device.key")" = "600 root" ]
+          prism-agent run > /tmp/agent.log 2>&1 &
+          for i in $(seq 1 45); do [ -f /tmp/stub/heartbeat.ok ] && break; sleep 2; done
+          cat /tmp/stub/stub.log
+          test -f /tmp/stub/heartbeat.ok
+
+          echo "--- The tray's socket knows who is asking (SO_PEERCRED), for an ordinary user"
+          useradd -m -u 1500 prismci
+          for i in $(seq 1 15); do [ -S /run/prism-agent.sock ] && break; sleep 1; done
+          runuser -u prismci -- prism-agent whoami | tee /tmp/whoami.txt
+          grep -q "You: *prismci" /tmp/whoami.txt
+
+          echo "--- Enrolling again with the same PRISM changes nothing"
+          before=$(cat "$data/agent.json")
+          prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d | grep -q "Already enrolled"
+          [ "$(cat "$data/agent.json")" = "$before" ]
+
+          echo "--- uninstall says how; the package removes cleanly"
+          if prism-agent uninstall 2> /tmp/uninstall.txt; then echo "uninstall didn't refuse a packaged install"; exit 1; fi
+          cat /tmp/uninstall.txt
+          pkill -x prism-agent || true
+          if command -v apt-get > /dev/null; then
+            grep -q "apt remove" /tmp/uninstall.txt
+            apt-get remove -y -q prism-agent
+            test -f "$data/agent.json"
+            apt-get purge -y -q prism-agent
+            test ! -e "$data"
+          elif command -v dnf > /dev/null; then
+            grep -q "dnf remove" /tmp/uninstall.txt
+            dnf remove -y -q prism-agent
+          else
+            grep -q "pacman -R" /tmp/uninstall.txt
+            pacman -R --noconfirm prism-agent
+          fi
+          test ! -e /usr/bin/prism-agent
+          echo "Install test passed."
+
+  linux-systemd:
+    name: Linux service under systemd (Ubuntu 22.04)
+    needs: linux
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-dist-linux-amd64
+          path: dist
+
+      - name: Download the test stub
+        uses: actions/download-artifact@v4
+        with:
+          name: stubprism-linux
+          path: stub
+
+      - name: systemd test
+        run: |
+          set -euo pipefail
+          chmod +x stub/stubprism
+          ./stub/stubprism -addr 127.0.0.1:8765 -key pk_enr_ci_9f8e7d -out /tmp/stub > /tmp/stub-out.log 2>&1 &
+          sleep 2
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q ./dist/*.deb
+          echo "--- The package enabled and started the service"
+          systemctl is-enabled prism-agent
+          systemctl is-active prism-agent
+          echo "--- Enroll, restart: a signed heartbeat"
+          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
+          sudo systemctl restart prism-agent
+          for i in $(seq 1 45); do [ -f /tmp/stub/heartbeat.ok ] && break; sleep 2; done
+          cat /tmp/stub/stub.log
+          test -f /tmp/stub/heartbeat.ok
+          echo "--- The unit's limits don't stop it: the socket, and whoami as this user"
+          prism-agent whoami | tee /tmp/whoami.txt
+          grep -q "You: *$(id -un)" /tmp/whoami.txt
+          sudo journalctl -u prism-agent --no-pager | tail -20
+          echo "--- Removal stops and disables it"
+          sudo apt-get remove -y -q prism-agent
+          if systemctl is-active prism-agent; then echo "still running"; exit 1; fi
+          echo "systemd test passed."
+
+  # One set of packages and one manifest for the backend image: the Windows
+  # MSIs and the Mac's universal .pkg (listed for both amd64 and arm64).
+  manifest:
+    name: Agent packages and manifest
+    needs: [windows, macos, linux, linux-test, linux-systemd]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: agent-dist-*
+          merge-multiple: true
+          path: agent-dist
+
+      - name: Manifest
+        run: |
+          cd agent-dist
+          python3 - <<'PY'
+          import glob, hashlib, json, re
+          entries = []
+          formats = {"msi": "msi", "pkg": "pkg", "deb": "deb", "rpm": "rpm", "pkg.tar.zst": "pacman"}
+          for f in sorted(glob.glob("prism-agent-*")):
+              m = re.match(r"prism-agent-(.+)-(windows|macos|linux)-(amd64|arm64|universal)\.(msi|pkg\.tar\.zst|pkg|deb|rpm)$", f)
+              if not m:
+                  raise SystemExit(f"unexpected file {f}")
+              version, platform, arch, ext = m.groups()
+              sha = hashlib.sha256(open(f, "rb").read()).hexdigest()
+              for a in (["amd64", "arm64"] if arch == "universal" else [arch]):
+                  entries.append({"platform": platform, "arch": a, "format": formats[ext], "version": version, "file": f, "sha256": sha})
+          json.dump(entries, open("manifest.json", "w"))
+          print(json.dumps(entries, indent=1))
+          PY
+          # 2 MSIs, the Mac .pkg (listed for both chips), 6 Linux packages.
+          test "$(python3 -c 'import json;print(len(json.load(open("manifest.json"))))')" = 10
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist
+          path: agent-dist/
+          retention-days: 7

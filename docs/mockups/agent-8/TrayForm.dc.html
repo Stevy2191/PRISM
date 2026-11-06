@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Submit a ticket window</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/415a6fd9e753b77c959a764dfd417e32">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.who{display:grid;grid-template-columns:86px minmax(0,1fr);gap:6px 12px;font-size:13px;margin:0;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surf2)}
+.who dt{color:var(--tx3)}
+.who dd{margin:0;font-weight:500;overflow-wrap:anywhere}
+.fl{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
+.fi{width:100%;height:40px;border:1px solid var(--bd2);border-radius:8px;background:var(--surf);font:inherit;color:var(--tx);padding:0 12px}
+.ft{width:100%;min-height:120px;border:1px solid var(--bd2);border-radius:8px;background:var(--surf);font:inherit;color:var(--tx);padding:10px 12px;resize:vertical}
+.hint{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--tx3)}
+</style>
+</helmet>
+<div class="{{cls}}" style="height:100%;min-height:600px;display:flex;flex-direction:column;background:var(--surf)">
+  <div style="padding:18px 20px 0;display:flex;align-items:center;gap:10px">
+    <span class="logo" aria-hidden="true"></span>
+    <div style="min-width:0"><div style="font-weight:700">Riverside IT help desk</div><div style="font-size:12.5px;color:var(--tx3)">Powered by PRISM</div></div>
+  </div>
+  <form style="padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px;flex:1" aria-labelledby="sat">
+    <h2 id="sat" style="font-size:20px">Submit a ticket</h2>
+    <dl class="who">
+      <dt>Name</dt><dd>Maria Chen</dd>
+      <dt>Company</dt><dd>Riverside Family Clinic · Front desk</dd>
+      <dt>Computer</dt><dd>RFC-FD-01</dd>
+    </dl>
+    <div><label class="fl" for="subj">Subject</label><input id="subj" class="fi" value="Scanner won't show up in the practice software"></div>
+    <div style="flex:1;display:flex;flex-direction:column"><label class="fl" for="desc">What's happening?</label><textarea id="desc" class="ft" style="flex:1">Since this morning the front-desk scanner doesn't appear when I click Scan in the practice software. It still shows in Windows. I restarted once already.</textarea></div>
+    <p class="hint" style="margin:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v5h1"></path></svg><span>Details about this computer (system, disk space, uptime) are sent with it, to help the help desk.</span></p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" type="button">Cancel</button>
+      <button class="btn primary" type="submit">Submit</button>
+    </div>
+  </form>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":460,"height":600}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = this.props.theme ?? 'light';
+    return { cls: 'app t-' + t };
+  }
+}
+</script>
+</body>
+</html>

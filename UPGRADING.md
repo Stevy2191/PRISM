@@ -10,7 +10,103 @@ backend start.
 
 ## Unreleased
 
-Nothing yet.
+The PRISM agent for Windows (sub-project 8a) and macOS (8b). Every computer
+it's installed on becomes an Asset of its company and keeps its hardware,
+OS, disks, network, installed software and usual user current; people at
+the computer get **Submit a ticket** in the notification area or the menu
+bar. Linux (8c) follows before this is released as v0.5.0.
+
+**Database:** migrations 074 (devices, enrollment keys, installed software,
+the `agent` ticket source), 075 (the "Unknown tray user" placeholder
+contact), 076 (a checkout's own form, when it was printed, and its signed
+copy), 077 (Scan now), 078 (the Manage devices permission's description,
+now spelled "enrollment") and 079 (each computer's package format, so a
+Linux computer is only offered updates in its own: .deb, .rpm or pacman).
+They run on start; nothing to do.
+
+**Scan now:** an agent-managed Asset's page, and each computer on a
+company's Devices tab, has **Scan now** (for staff who can edit Assets or
+manage devices). The computer sends a fresh inventory at its next check-in,
+within 5 minutes. Agents from before this change ignore it until they update
+themselves.
+
+**Checkout forms:** after checking equipment out, **Print** the form for the
+person to sign there and then, or **Email** it for them to print, sign and
+return. In Checkout History, **Upload signed copy** saves the scan or photo to
+the checkout and marks the form received; **Create form** makes one for a
+checkout that has none. Emailing now always sends the checkout's own form
+(before, it sent the asset's first attachment).
+
+**Department follows the assignee:** assigning someone in Edit asset fills in
+their department; checking out to a contact, or the agent finding a new
+usual user, sets the Asset's department to theirs when they have one.
+
+**Permission:** a new **Manage devices** permission (`devices.manage`), given
+to System Administrator only. It lets staff create and revoke enrollment keys,
+download the installer and revoke computers. Seeing a company's devices
+follows the Assets view permission and company access, as before.
+
+**Installing the agent:**
+
+1. Open a company → **Devices** → **New enrollment key**. Copy the install
+   command straight away: the full key is shown once.
+2. **Download for Windows (MSI)** on the same tab. The installer is served by
+   your PRISM only (staff sign-in) and is never published anywhere else.
+3. Install silently:
+
+       msiexec /i prism-agent-<version>-windows-amd64.msi /qn PRISM_URL=https://prism.example.com ENROLL_KEY=pk_enr_...
+
+   - **Group Policy:** a computer startup script running that command
+     (Software Installation could only pass the two properties through a
+     transform).
+   - **Intune:** a Windows app (Win32) wrapping the MSI with that command
+     line; detection by the MSI's product code, or the `PRISMAgent` service.
+
+   A wrong or revoked key fails the install. Running the installer again on
+   a computer already enrolled with the same PRISM changes nothing. Uninstall
+   keeps the enrollment unless `REMOVE_DATA=1` is passed.
+
+**Installing the agent on a Mac** (macOS 13 or later, Apple silicon or
+Intel; sub-project 8b):
+
+1. Company → **Devices** → **New enrollment key**, then the **macOS** tab:
+   **Download for Mac** gives one `.pkg` for every Mac.
+2. Open the package. The first time on each Mac, macOS stops it because it
+   isn't signed with an Apple Developer ID (PRISM has none yet): open
+   **System Settings → Privacy & Security**, click **Open Anyway**, then
+   open the package again and install it with an administrator's password.
+3. In Terminal, run the command the tab shows (copy it when the key is
+   created):
+
+       sudo prism-agent enroll --url https://prism.example.com --key pk_enr_...
+
+   (`prism-agent` is a link to
+   `/Library/Application Support/PRISM/bin/prism-agent`; use the full path
+   if `/usr/local/bin` isn't trusted on that Mac.)
+
+The Mac appears in Assets with its hardware, macOS version, disks,
+network, apps and usual user; people get **Submit a ticket…** in the menu
+bar. Updates install themselves without asking. Macs are installed by
+hand, not by MDM, until there is a Developer ID (an unsigned package can't
+be deployed by most MDMs). To remove the agent:
+`sudo prism-agent uninstall` (keeps the enrollment, so reinstalling brings
+the same device back) or `sudo prism-agent uninstall --remove-data`.
+
+**Network:** agents only make outgoing HTTPS requests to `PUBLIC_APP_URL`
+(the same address staff use). Nothing connects to the computers; no ports
+need opening on them. `PUBLIC_APP_URL` must be reachable from the client
+networks, with a certificate those computers trust.
+
+**Code signing:** the installer is unsigned unless the `AGENT_SIGNING_PFX`
+(base64 .pfx) and `AGENT_SIGNING_PASSWORD` secrets are set on the repository.
+With your own (self-signed) certificate, push it to the computers' **Trusted
+Publishers** and **Trusted Root Certification Authorities** stores by Group
+Policy or Intune first, so SmartScreen and application control accept it.
+Self-updates don't depend on this: each PRISM signs its agent updates with
+its own key, which the agents learned at enrollment.
+
+**Updates:** a new PRISM image brings a new agent; enrolled computers are
+offered it at their next heartbeat (every 5 minutes) and update themselves.
 
 ## v0.4.0
 

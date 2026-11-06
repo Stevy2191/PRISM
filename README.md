@@ -76,6 +76,9 @@ cd PRISM
 ./setup.sh
 ```
 
+(For a test instance on the dev branch's images: `git clone -b dev …` and
+`IMAGE_TAG=dev ./setup.sh`.)
+
 `setup.sh` handles everything:
 
 1. Checks that Docker and Docker Compose are installed.
@@ -84,10 +87,16 @@ cd PRISM
 4. Asks whether you use Active Directory / LDAP — completely optional, safe to skip.
 5. Generates secure random values for all database credentials and the session secret.
 6. Writes the `.env` file automatically.
-7. Pulls the latest images from GitHub Container Registry.
-8. Starts all containers (`docker compose up -d`).
-9. Waits for the app to pass its health check.
-10. Prints a summary: URL, login tab, username, and password.
+7. Asks how people will reach PRISM: through **your own HTTPS reverse proxy**
+   (you give its address, e.g. `https://helpdesk.example.com`), **HTTPS with a
+   test certificate** (see below), or **plain HTTP** on your network (a quick
+   look only: the agent needs HTTPS). This sets `PUBLIC_APP_URL`, the address
+   used in emailed links, single sign-on and the agent's portal link, and
+   `COOKIE_SECURE`. A re-run asks again only if `.env` has no address yet.
+8. Pulls the latest images from GitHub Container Registry.
+9. Starts all containers (`docker compose up -d`).
+10. Waits for the app to pass its health check.
+11. Prints a summary: URL, login tab, username, and password.
 
 The app is served on **`http://localhost:<APP_PORT>`** (default `http://localhost:8080`).
 On first start the backend waits for MariaDB and applies all migrations automatically.
@@ -95,6 +104,44 @@ On first start the backend waits for MariaDB and applies all migrations automati
 > **GHCR access:** images are published to `ghcr.io/stevy2191/prism-backend` and
 > `…/prism-frontend`. If they're private, run `docker login ghcr.io` first (Personal
 > Access Token with `read:packages` scope), or mark the packages public in GitHub.
+
+### HTTPS with a test certificate (testing only)
+
+The PRISM agent only connects over HTTPS (or plain HTTP on the PRISM machine
+itself), and secure cookies need it too. To try them on a local network without
+a real certificate, choose **HTTPS with a test certificate** when `setup.sh`
+asks how people will reach PRISM. It asks for an HTTPS port (default **8443**) and the address(es)
+other computers will use, such as `192.168.1.50` or `prism.lan`, then:
+
+- makes a small certificate authority of its own in `.prism-test-ca/` (keep it
+  private; it never goes into a container), limited to signing those addresses
+  only, and a server certificate for them in `certs/` (renewed by re-running
+  `setup.sh` when it nears expiry; it lasts 825 days);
+- sets `COMPOSE_FILE=docker-compose.yml:docker-compose.tls.yml`, `HTTPS_PORT`,
+  `TEST_CERT_NAMES`, `COOKIE_SECURE=true` and `PUBLIC_APP_URL` in `.env`. Plain
+  HTTP on `APP_PORT` then redirects to HTTPS.
+
+Each test computer must trust the test authority once. Download it from
+`https://<address>:<port>/prism-test-ca.crt` (the Devices tab links to it and
+shows the command), or copy `certs/prism-test-ca.crt`:
+
+```bash
+# macOS
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain prism-test-ca.crt
+# Windows (as administrator)
+certutil -addstore -f Root prism-test-ca.crt
+# Ubuntu
+sudo cp prism-test-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates
+# Fedora, Arch
+sudo trust anchor --store prism-test-ca.crt
+```
+
+Changing the addresses makes a new authority, which computers must trust again.
+Microsoft 365 sign-in still needs a real certificate. For production, put PRISM
+behind a reverse proxy with a real certificate instead (see
+[Image publishing & production notes](#image-publishing--production-notes)). To
+go back to plain HTTP, delete the `COMPOSE_FILE` line from `.env`, set
+`COOKIE_SECURE=false`, remove `PUBLIC_APP_URL`, and run `docker compose up -d`.
 
 ### First login
 

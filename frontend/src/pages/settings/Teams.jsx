@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
+import DepartmentOptions from '../../components/companies/DepartmentOptions';
 
 const EMPTY = { name: '', description: '', departmentId: '', members: [] };
 
@@ -85,7 +86,7 @@ export default function Teams() {
               <label className="label">Department</label>
               <select className="input" value={form.departmentId} onChange={(e) => setForm((f) => ({ ...f, departmentId: e.target.value }))}>
                 <option value="">None</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                <DepartmentOptions departments={departments} />
               </select>
             </div>
           </div>

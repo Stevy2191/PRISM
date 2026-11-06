@@ -1,0 +1,19 @@
+{
+ "hostname": "RFC-BILL-03",
+ "make": "LENOVO",
+ "model": "11JNS0ER00",
+ "serialNumber": "MJ0F2K1B",
+ "firmware": "M3CKT3AA",
+ "domain": "WORKGROUP",
+ "memoryBytes": 8589934592,
+ "cpu": { "model": "Intel(R) Core(TM) i3-10100T CPU @ 3.00GHz", "cores": 4 },
+ "os": { "name": "Microsoft Windows 10 Pro", "edition": "Windows 10 Pro", "version": "22H2", "build": "19045.5011" },
+ "lastBootAt": "2026-10-30T08:12:00Z",
+ "disks": [ { "name": "C:", "label": "", "kind": "ssd", "sizeBytes": 255230791680, "freeBytes": 40802189312 } ],
+ "adapters": [ { "name": "Ethernet 2", "ipv4": ["192.168.10.23", "169.254.1.9"], "mac": "8C-16-45-AA-01-7E" } ],
+ "software": [
+  { "name": "Mozilla Firefox (x64 en-US)", "version": "132.0", "publisher": "Mozilla", "installDate": null },
+  { "name": "Mozilla Firefox (x64 en-US)", "version": "132.0", "publisher": "Mozilla", "installDate": null }
+ ],
+ "signedInUser": { "account": "RFC-BILL-03\\billing" }
+}

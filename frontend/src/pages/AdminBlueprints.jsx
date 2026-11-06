@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api, { errMessage } from '../api/api';
 import Spinner from '../components/Spinner';
 import SettingsPage from '../components/settings/SettingsPage';
+import DepartmentOptions from '../components/companies/DepartmentOptions';
 
 const PRIORITIES = ['', 'low', 'medium', 'high', 'critical'];
 const TYPES = ['', 'incident', 'request', 'problem', 'task', 'change'];
@@ -154,7 +155,7 @@ export default function AdminBlueprints() {
                 <label className="label">Default department</label>
                 <select className="input" value={form.defaultDepartmentId} onChange={set('defaultDepartmentId')}>
                   <option value="">None</option>
-                  {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  <DepartmentOptions departments={departments} />
                 </select>
               </div>
               <div>

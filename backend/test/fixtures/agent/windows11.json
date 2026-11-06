@@ -1,0 +1,27 @@
+{
+ "hostname": "RFC-FD-01",
+ "make": "Dell Inc.",
+ "model": "OptiPlex 7010",
+ "serialNumber": "7XK4Q93",
+ "firmware": "1.18.0",
+ "domain": "RIVERSIDE",
+ "memoryBytes": 17179869184,
+ "cpu": { "model": "13th Gen Intel(R) Core(TM) i5-13500", "cores": 14 },
+ "os": { "name": "Microsoft Windows 11 Pro", "edition": "Windows 11 Pro", "version": "24H2", "build": "26100.2314" },
+ "lastBootAt": "2026-11-02T13:41:00Z",
+ "disks": [
+  { "name": "C:", "label": "Windows", "kind": "nvme", "sizeBytes": 511101108224, "freeBytes": 227633270784 },
+  { "name": "D:", "label": "Backup", "kind": "usb", "sizeBytes": 1000202039296, "freeBytes": 54760833024 }
+ ],
+ "adapters": [
+  { "name": "Ethernet", "ipv4": ["10.20.1.45"], "mac": "B0-7B-25-3E-91-0C", "primary": true },
+  { "name": "Wi-Fi", "ipv4": [], "mac": "5C:E4:2A:10:7F:A3", "primary": false }
+ ],
+ "software": [
+  { "name": "Microsoft 365 Apps for business - en-us", "version": "16.0.18129.20158", "publisher": "Microsoft Corporation", "installDate": "20261014" },
+  { "name": "Google Chrome", "version": "130.0.6723.92", "publisher": "Google LLC", "installDate": "20261031" },
+  { "name": "Adobe Acrobat Reader (64-bit)", "version": "24.003.20180", "publisher": "Adobe", "installDate": "2026-09-09" },
+  { "name": "PRISM Agent", "version": "0.5.0", "publisher": "PRISM", "installDate": "20261103" }
+ ],
+ "signedInUser": { "account": "RIVERSIDE\\mchen", "upn": "maria.chen@riversideclinic.org" }
+}

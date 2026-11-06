@@ -1,0 +1,6 @@
+apt
+code
+curl
+git
+google-chrome-stable
+libreoffice-writer

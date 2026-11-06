@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
+import DepartmentOptions from '../../components/companies/DepartmentOptions';
 
 export default function Holidays() {
   const [lists, setLists] = useState([]);
@@ -70,7 +71,7 @@ export default function Holidays() {
           <label className="label">Applies to</label>
           <select className="input" value={newList.departmentId} onChange={(e) => setNewList((f) => ({ ...f, departmentId: e.target.value }))}>
             <option value="">Global</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <DepartmentOptions departments={departments} />
           </select>
         </div>
         <button type="submit" className="btn-primary">Add list</button>

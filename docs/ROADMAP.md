@@ -16,10 +16,16 @@ read that before designing any sub-project.
   (including 5d, attachment virus scanning, 6, project management, 6b, the
   look A restyle, and 7, the client portal). Release notes: `## v0.4.0` in
   `UPGRADING.md`.
-- **Next up: test Phase 1 by hand.** Bugs, additions and changes go in the
-  Phase 1 **Testing feedback** list below and ship as `v0.4.1`, `v0.4.2`, …
-  Phase 2 (RMM core, starting with sub-project 8) waits until Phase 1 is
-  signed off.
+- **Now: test Phase 1 by hand, and design the agent alongside it** (owner's
+  decision, 2026-11-03). Phase 1 bugs, additions and changes go in its
+  **Testing feedback** list below and ship as `v0.4.1`, `v0.4.2`, …
+- **Next up: sub-project 8, the PRISM agent: inventory and the tray app**
+  ([spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md)), on
+  Windows, macOS and Linux. Design and mockups approved 2026-11-03; plan 8a
+  (server side and Windows) is next to build. The agent puts every computer into Assets with its hardware, OS,
+  network, software and usual user, and its tray app's **Submit a ticket**
+  raises tickets. Monitoring, scripting, patching and remote access stay
+  later.
 - **Open items carried forward:**
   - Split ticket (5b) now carries the source ticket's category (decided
     2026-10-24).
@@ -138,13 +144,17 @@ consistent between tickets and projects, and covered by tests.
 - Settings (2026-10-12): one menu with search, regrouped pages, one page layout ([spec](superpowers/specs/2026-10-12-settings-redesign-design.md), [plan](superpowers/plans/2026-10-12-settings-redesign.md)).
 - Settings cleanup (2026-10-12): unused settings removed, one organization name, assignment rules folded into workflow rules, Modules & tabs removed.
 
-### Phase 2 — RMM core (`v0.5.0`)
+### Phase 2 — The PRISM agent (`v0.5.0`)
+
+Reshaped 2026-11-03 (owner): the agent, inventory and tray app on Windows,
+macOS and Linux, without the rest of RMM. Built as 8a (server and Windows),
+8b (macOS), 8c (Linux); released when all three are done.
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
-| 8 | Agent gateway and Windows agent — enrollment, mutual TLS, signed updates, Windows service, internet-facing gateway service | Not started | — | — |
-| 9 | Inventory and monitoring — automatic hardware/software inventory into Assets (every computer running the agent becomes an Asset, with total owned time and in-service time), kept current by the agent. At minimum: CPU (model, cores), memory (total), disks (each drive's size and free space), and operating system name and version (Windows edition/version/build; macOS version once the macOS agent exists), filling the Asset's existing processor, RAM, storage, OS and OS version fields. Plus heartbeats, checks, alerts that open tickets. Added 2026-10-27: the inventory field list. Added 2026-11-06: on enrollment the agent matches an existing asset of the same company by serial number, then MAC address, and fills it in rather than creating a duplicate (devices are created ahead of time in tickets; see the Playbooks spec) | Not started | — | — |
-| 9b | Tray app — a per-user system-tray helper installed with the agent. One click opens a short ticket form pre-filled with the user's name, company and department and the computer's name, IP and MAC address; the ticket links the computer's Asset and carries a health snapshot (OS version, uptime, free disk, logged-in domain); an optional screenshot; a "My tickets" list showing the user's open tickets and their status | Not started | — | — |
+| 8 | PRISM agent: inventory and the tray app — for Windows, macOS and Linux (owner, 2026-11-03): a system service and per-user tray app (Go; MSI, .pkg, .deb/.rpm), enrollment per company straight to PRISM over HTTPS (no gateway yet, decided 2026-11-03), signed updates; every computer an Asset with hardware, OS, network, installed software, logged-in user and last seen; tray **Submit a ticket** form with a health snapshot. Absorbs the inventory half of 9, the first version of 9b, and 19 (macOS and Linux) | Building — 8a (server and Windows) and 8b (macOS) shipped to `dev` 2026-11-04, waiting on the owner's hand tests (Windows 11 and 10; a Mac); 8c (Linux) planned 2026-11-04 | [spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md); [mockups](mockups/agent-8/) ([canvas](https://claude.ai/artifact/3yKJ5XAMj7giMFSS2XuxCe)) | [plan 8a](superpowers/plans/2026-11-03-agent-8a-server-windows.md) (server and Windows); [plan 8b](superpowers/plans/2026-11-04-agent-8b-macos.md) (macOS); [plan 8c](superpowers/plans/2026-11-04-agent-8c-linux.md) (Linux) |
+| 9 | Inventory → into 8. Monitoring (heartbeats are in 8; checks and alerts that open tickets) → moved to Phase 4 as 16a (2026-11-03) | Moved | — | — |
+| 9b | Tray app → its first version (Submit a ticket, health snapshot) is in 8; the screenshot button and a "My tickets" list come later (2026-11-03) | Moved into 8 | — | — |
 
 **Testing feedback (Phase 2):** _none yet_
 
@@ -165,11 +175,12 @@ consistent between tickets and projects, and covered by tests.
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
+| 16a | Monitoring and alerts — checks (disk, services, events, uptime) and alerts that open tickets, on the agent from 8. Moved from Phase 2 row 9 (2026-11-03) | Not started | — | — |
 | 16 | Scripting and automation — script library, run on device or group, schedules, results | Not started | — | — |
 | 17 | Patch management — approval policies, maintenance windows, compliance | Not started | — | — |
 | 18a | Remote shell and file transfer — live PowerShell/command prompt and file browse/upload/download from PRISM | Not started | — | — |
 | 18b | Remote desktop — screen and input in the browser over WebRTC, user-session helper, login/UAC screens, multi-monitor, clipboard, consent prompt, relay through the gateway | Not started | — | — |
-| 19 | macOS and Linux agents | Not started | — | — |
+| 19 | macOS and Linux agents → in 8 from the start (owner, 2026-11-03); here only what Phase 4's features need on them | Moved into 8 | — | — |
 
 **Testing feedback (Phase 4):** _none yet_
 
