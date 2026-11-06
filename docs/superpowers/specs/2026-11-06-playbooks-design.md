@@ -51,6 +51,11 @@ built-in content.
    from a list each install keeps.
 9. Forms and playbooks can be **exported and imported** as a file, so
    organizations can share processes without anything being hard-coded.
+10. Devices record whether they have **cellular service** and, if so, the
+    **IMEI**, **phone number** and **carrier**. Forms and playbooks can use
+    "has cellular" (e.g. "cancel or move the line" only for devices with one).
+11. A device created in a ticket is ready for the **PRISM agent** (Phase 2) to
+    find and fill in, not duplicate.
 
 ## Non-goals (this sub-project)
 
@@ -102,9 +107,30 @@ built-in content.
 - **On every asset**:
   - **Managed**: yes or no (default no; existing assets start as no).
   - **MDM**: shown and required when managed is yes; from the active list.
-  - **MDM device ID**: optional text; with a console address, the asset page
-    links to the device in the MDM.
+  - **MDM device ID**: optional text. The MDM's console address may contain
+    `{id}`, which is replaced with the device's MDM ID to make an "Open in
+    <MDM>" link on the asset and on its ticket forms.
 - Asset list filters and the asset import gain managed and MDM.
+
+### Cellular
+
+Phones and tablets usually have a line; some laptops do too, so this is not
+tied to a device type.
+
+- **On every asset**: **Cellular**: yes or no (default no). When yes:
+  - **IMEI**: 15 digits, checked with the standard check digit. A warning (not
+    a refusal) if another active asset already has it.
+  - **Phone number**: optional (data-only lines have none), shown and stored
+    with the existing phone formatting. A warning if another active asset
+    already has it.
+  - **Carrier**: a **vendor company** (vendors are already companies in
+    PRISM), so each install keeps its own carriers, with their contacts and
+    contracts, and nothing is hard-coded.
+- Asset categories gain **"Cellular by default"**, so a new phone or tablet
+  starts with cellular on; it can still be switched either way per device.
+- Asset list filters, the asset import and export, and global search
+  (phone number, IMEI) include these fields.
+- Not secret: shown to anyone who can view the asset.
 - **Asset statuses**: today `active`, `in_repair`, `retired`, `in_storage`,
   `lost`. Add:
   - `ready_to_issue` (in stock, checked in, ready for the next person), and
@@ -138,7 +164,7 @@ Any section or item can have **show when** conditions, all of which must
 hold:
 
 - about the **device** the form is for: type (asset category), managed,
-  MDM, company;
+  MDM, has cellular, carrier, company;
 - about the **person** the playbook was applied for: company, department;
 - about an **earlier answer** in the same form ("MDM choice is X", "User is
   leaving: yes").
@@ -178,10 +204,12 @@ plus how it applies:
 | Per device: the person's devices | One copy per device assigned to the chosen person when applied. Needs a person. |
 | Per device: devices on the ticket | One copy per device linked to the ticket, now and when more are added later. |
 
-A per-device block can be limited by device type, managed, and MDM. A device
-that matches none of a playbook's per-device blocks is listed on the ticket as
-**not covered** so it isn't silently missed (e.g. a device with no MDM set
-yet).
+A per-device block can be limited by device type, managed, MDM and has
+cellular. **A device gets the first per-device block it matches**, in the
+playbook's order, so "Apple check-in for Apple devices, then Device check-in
+for everything else" gives each device one form. A device that matches none
+of a playbook's per-device blocks is listed on the ticket as **not covered**
+so it isn't silently missed (e.g. a device with no MDM set yet).
 
 Example (the owner's setup, built by them, not shipped):
 *Account termination*: "Account termination" form once; "Apple check-in"
@@ -221,8 +249,10 @@ The existing linked-assets area becomes a **Devices** panel:
 
 - **Add device**: pick an existing device of the ticket's company (devices
   `ready_to_issue` first), or **create one** in a short form (type, name,
-  make, model, serial, asset tag, managed, MDM). Creating needs
-  `assets.create`; the new asset belongs to the ticket's company.
+  make, model, serial, asset tag, managed, MDM, cellular and, when on, IMEI,
+  phone number and carrier). Creating needs `assets.create`; the new asset
+  belongs to the ticket's company. A blank serial number gets a warning,
+  because the agent matches devices by it (see "The PRISM agent").
 - Adding a device to a ticket with an applied playbook that has a "devices on
   the ticket" block adds the matching form for it.
 - Removing a device removes its forms that haven't been started. A started
@@ -255,6 +285,8 @@ The existing linked-assets area becomes a **Devices** panel:
 - **Check in this device** carries out the normal check-in and sets the
   status chosen in the step: `ready_to_issue`, `in_repair`, `on_hold` (with
   reason) or `retired`.
+- The action becomes available once every other required item showing on the
+  form is done, so it is always the last thing that happens.
 - Ticking the step is what carries the action out. It is done once; un-ticking
   doesn't reverse it (the asset page does that).
 
@@ -270,6 +302,30 @@ The existing linked-assets area becomes a **Devices** panel:
 - A workflow rule that tries to close such a ticket is refused and the rule
   log records why.
 - Merging: the source ticket's ticket forms move to the target ticket.
+
+## The PRISM agent (Phase 2)
+
+The agent (sub-projects 8, 9 and 19) doesn't exist yet. This sub-project
+doesn't wait for it, but sets things up so it fits:
+
+- **A device created in a ticket is a real asset from the start**, with the
+  details typed in. When the agent is later installed on that computer and
+  enrolls, it **matches the existing asset** of the same company by serial
+  number (then MAC address) and fills in what it detects (processor, memory,
+  disks, OS and version, IP and MAC). It never makes a second asset for a
+  device PRISM already has. This matching is a requirement on sub-project 9,
+  recorded in its roadmap row.
+- What the agent detects replaces what was typed for those fields, and the
+  asset shows which fields come from the agent. Fields the agent doesn't
+  report (asset tag, MDM, cellular, carrier, holder) stay as entered.
+- The vendor-neutral **Device check-out** starter form includes a plain step
+  "Install the PRISM agent". Once the agent exists, a follow-up makes that a
+  step **confirmed by the agent**: it ticks itself when the device first
+  reports in (like the sync-confirmed steps in "Later").
+- **Phones and tablets don't run the agent** (iOS and iPadOS don't allow it).
+  Their details are entered by hand, or later read from the MDM by a
+  connector (see "Later"). The agent comes to Windows first; Macs follow with
+  the macOS agent (sub-project 19).
 
 ## Export and import
 
@@ -334,6 +390,12 @@ Technician gets `tickets.view_secure_fields`; others none.
   their own install as the acceptance test.
 - Required steps must be done before the ticket closes.
 - Devices can be created from inside the ticket and become assets.
+- Devices record cellular (yes/no) with IMEI, phone number and carrier; any
+  device type can have it (laptops too). Carriers are vendor companies.
+- A device created in a ticket is matched and filled in by the agent later,
+  never duplicated.
+- A device gets the first per-device form it matches; a form's device action
+  waits until its other required steps are done (settled with the mockups).
 
 ## Acceptance test: the owner's two forms
 
@@ -362,6 +424,16 @@ Built in the owner's install with the form builder, without code changes:
   history, licenses, tickets, AD and Microsoft 365 details, home and mapped
   drives (from group-to-drive mappings now; from the agent in Phase 2).
 - Forms on project tasks.
+- **Agent-confirmed steps**: "PRISM agent installed" ticks itself when the
+  device first reports in (needs sub-project 9).
+- **MDM connectors**: read device details (serial, IMEI, phone number,
+  managed state) from an install's MDM, for phones and tablets the agent
+  can't run on.
+
+## Open question
+
+- Does a device that no form covers (e.g. no MDM set) block closing, or only
+  warn? The mockups show it as a warning in the close dialog.
 
 ## Left to the builder
 
