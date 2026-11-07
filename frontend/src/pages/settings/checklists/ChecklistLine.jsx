@@ -1,6 +1,7 @@
 // One line of a checklist (PB2): typed into directly. Enter adds the next
 // line, Tab puts it under the question above, Shift+Tab takes it out,
 // Alt+↑/↓ moves it, Backspace on an empty line removes it.
+import { useLayoutEffect, useRef } from 'react';
 import { IconSquare, IconHelpCircle, IconPencil, IconLock, IconInfoCircle, IconCpu, IconListCheck } from '@tabler/icons-react';
 import LineToolbar from './LineToolbar';
 import { bodyToText, textToBody, describeOnlyFor } from './editorModel';
@@ -31,10 +32,18 @@ export default function ChecklistLine({
 }) {
   const { item } = line;
   const Icon = iconFor(item);
+  // The line's text box grows with its words, so long steps wrap, not hide.
+  const box = useRef(null);
+  const setBox = (el) => { box.current = el; if (typeof inputRef === 'function') inputRef(el); };
   const labelled = item.kind === 'field' || item.kind === 'secure';
   const text = labelled ? item.label : bodyToText(item.body);
   const word = item.kind === 'field' ? FIELD_WORD[item.fieldType] : (KIND[item.kind] || {}).word;
   const placeholder = labelled ? 'What to write down' : item.kind === 'text' ? 'A note for the technician' : 'Type a step';
+
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (el && el.tagName === 'TEXTAREA') { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }
+  });
 
   const setText = (value) => {
     if (labelled) onChange({ label: value });
@@ -51,18 +60,20 @@ export default function ChecklistLine({
         <div className="min-w-0 flex-1">
           {word && <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-navy-400">{word}{item.kind === 'field' && FIELD_HINT[item.fieldType] ? ` · ${FIELD_HINT[item.fieldType]}` : ''}</span>}
           {text === null ? (
-            <button type="button" ref={inputRef} onKeyDown={onKeyDown} onClick={onRich}
+            <button type="button" ref={setBox} onKeyDown={onKeyDown} onClick={onRich}
               className="block w-full rounded px-1 py-1 text-left text-sm text-navy-800 hover:bg-surface"
               // Rich text (lists, links): edited in the rich text editor.
               dangerouslySetInnerHTML={{ __html: item.body }} />
           ) : (
-            <input
-              ref={inputRef}
-              className={`w-full rounded border-0 bg-transparent px-1 py-1 text-sm focus:bg-surface focus:outline-none focus:ring-1 focus:ring-navy-200 ${item.kind === 'text' ? 'text-navy-500' : 'text-navy-900'} ${labelled ? 'font-semibold' : ''}`}
+            <textarea
+              ref={setBox}
+              rows={1}
+              className={`block w-full resize-none overflow-hidden rounded border-0 bg-transparent px-1 py-1 text-sm leading-snug focus:bg-surface focus:outline-none focus:ring-1 focus:ring-navy-200 ${item.kind === 'text' ? 'text-navy-500' : 'text-navy-900'} ${labelled ? 'font-semibold' : ''}`}
               value={text}
               placeholder={placeholder}
               aria-label={word ? `${word}: ${text || 'empty'}` : `Step: ${text || 'empty'}`}
-              onChange={(e) => setText(e.target.value)}
+              // One line of text: a pasted line break becomes a space.
+              onChange={(e) => setText(e.target.value.replace(/\s*\n\s*/g, ' '))}
               onKeyDown={onKeyDown}
             />
           )}

@@ -40,7 +40,7 @@ export default function TryIt({
     <div className="card p-4">
       <h3 className="text-sm font-semibold">Try it</h3>
       <p className="mt-1 text-xs text-navy-400">See the checklist as a technician would for one device.</p>
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-3 grid gap-2">
         <select className={selectClass} aria-label="Device type" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
           <option value="">Any type</option>
           {lookups.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

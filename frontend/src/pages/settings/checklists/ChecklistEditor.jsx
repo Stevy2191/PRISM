@@ -142,7 +142,7 @@ export default function ChecklistEditor() {
   const lineKeys = (s, i) => model.sections[s].lines[i]?.item.key;
   const onKeyDown = (s, i) => (e) => {
     const line = model.sections[s].lines[i];
-    if (e.key === 'Enter' && !e.shiftKey && e.target.tagName === 'INPUT') {
+    if (e.key === 'Enter' && !e.shiftKey && e.target.tagName === 'TEXTAREA') {
       e.preventDefault();
       const item = newStep();
       edit((m) => insertLine(m, s, i + 1, item));
@@ -161,7 +161,7 @@ export default function ChecklistEditor() {
       edit((m) => moveLine(m, s, i, by));
       setSelected({ s, i: i + by });
       setFocusKey(line.item.key);
-    } else if (e.key === 'Backspace' && e.target.tagName === 'INPUT' && e.target.value === '' && model.sections[s].lines.length > 1) {
+    } else if (e.key === 'Backspace' && e.target.tagName === 'TEXTAREA' && e.target.value === '' && model.sections[s].lines.length > 1) {
       e.preventDefault();
       const prev = lineKeys(s, i - 1) || lineKeys(s, i + 1);
       edit((m) => removeLine(m, s, i));
@@ -243,7 +243,7 @@ export default function ChecklistEditor() {
       {error && <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</div>}
 
       <div className="flex flex-wrap items-start gap-6">
-        <div className="card min-w-0 flex-[999_1_640px] px-2 py-3 sm:px-3">
+        <div className="card min-w-0 flex-[999_1_520px] px-2 py-3 sm:px-3">
           {model.sections.map((section, s) => (
             <section key={section.key} className="mb-4" aria-label={section.title}>
               <div className="flex flex-wrap items-center gap-2 px-2 pt-2">
@@ -332,7 +332,7 @@ export default function ChecklistEditor() {
           <Button size="sm" variant="quiet" className="ml-2 mt-3" style={{ color: 'var(--color-accent)' }} onClick={addSection}><IconPlus size={14} />Add section</Button>
         </div>
 
-        <aside className="flex max-w-full flex-[1_1_300px] flex-col gap-3 sm:max-w-[340px]">
+        <aside className="flex max-w-full flex-[1_1_260px] flex-col gap-3 sm:max-w-[320px]">
           <div className="card p-4">
             <h3 className="text-sm font-semibold">How to build it</h3>
             <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-navy-600">

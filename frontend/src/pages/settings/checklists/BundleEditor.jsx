@@ -128,7 +128,7 @@ export default function BundleEditor() {
       {error && <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</div>}
 
       <div className="flex flex-wrap items-start gap-6">
-        <div className="card flex min-w-0 flex-[999_1_640px] flex-col gap-3 px-4 py-5 sm:px-6">
+        <div className="card flex min-w-0 flex-[999_1_520px] flex-col gap-3 px-4 py-5 sm:px-6">
           <p className="flex flex-wrap items-center gap-2 text-[15px]">
             It's for
             <select className={slot} aria-label="It's for" value={pb.needsPerson ? 'person' : 'ticket'} onChange={(e) => setNeedsPerson(e.target.value === 'person')}>
@@ -188,7 +188,7 @@ export default function BundleEditor() {
           </p>
           <p className="text-sm text-navy-400">A device gets the first line it fits. Devices that fit none are listed on the ticket so nobody misses them.</p>
         </div>
-        <aside className="max-w-full flex-[1_1_300px] sm:max-w-[340px]">
+        <aside className="max-w-full flex-[1_1_260px] sm:max-w-[320px]">
           {!isNew ? <TryOnSomeone playbookId={id} /> : <div className="card p-4 text-sm text-navy-400">Save the bundle to try it on someone.</div>}
         </aside>
       </div>
