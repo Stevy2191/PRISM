@@ -1,6 +1,7 @@
-// Playbooks on the ticket's Tasks tab (PB): the rule's suggestion, each
-// applied playbook with its forms (one task each) and their progress, the
-// ticket's devices, and the devices no form covers.
+// Checklists on the ticket's Tasks tab (PB, words from PB2): the suggested
+// bundles, each bundle added with its checklists (one task each) and their
+// progress, checklists added on their own, the ticket's devices, and the
+// devices no checklist covers.
 import { Link } from 'react-router-dom';
 import {
   IconChecklist, IconAlertTriangle, IconDeviceLaptop, IconCheck, IconMinus, IconPlus, IconX,
@@ -49,6 +50,7 @@ function FormRow({ ticketId, form }) {
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12.5px] text-navy-500">
           {form.asset && <span className="num">{form.asset.assetTag}</span>}
           {form.asset && <MdmChip asset={form.asset} />}
+          {form.contact && <span>for {form.contact.displayName}</span>}
           {form.state === 'skipped' && form.skipReason && <span>· Skipped: <b className="font-medium">{form.skipReason}</b></span>}
         </div>
       </div>
@@ -62,26 +64,39 @@ export function SuggestionBanner({ suggestions, canEdit, onApply, onDismiss }) {
   return suggestions.map((s) => (
     <Notice tone="info" key={s.id} className="mb-3">
       <IconChecklist size={18} aria-hidden="true" />
-      <span className="min-w-0 flex-1">Suggested: <b>{s.playbook.name}</b> playbook</span>
-      <Button size="sm" variant="primary" onClick={() => onApply(s.playbook.id)}>Apply…</Button>
+      <span className="min-w-0 flex-1">Suggested: <b>{s.playbook.name}</b></span>
+      <Button size="sm" variant="primary" onClick={() => onApply(s.playbook.id)}>Add</Button>
       <Button size="sm" variant="quiet" onClick={() => onDismiss(s.id)}>Dismiss</Button>
     </Notice>
   ));
 }
 
+function Totals({ forms }) {
+  const required = forms.reduce((n, f) => n + (f.state === 'skipped' ? 0 : f.progress.required), 0);
+  const done = forms.reduce((n, f) => n + (f.state === 'skipped' ? 0 : f.progress.done), 0);
+  return (
+    <div className="w-48">
+      <div className="flex justify-between text-[12.5px]"><span className="text-navy-500">Required steps</span><b className="num">{done} of {required}</b></div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-navy-100"><i className="block h-full rounded-full" style={{ width: `${required ? Math.round((done / required) * 100) : 100}%`, backgroundColor: 'var(--color-accent)' }} /></div>
+    </div>
+  );
+}
+
+const untouchedForm = (f) => f.state === 'open' && f.progress.done === 0;
+
 export default function PlaybookPanel({
-  ticketId, view, canEdit, onApply, onAddDevice, onUnlinkDevice, onRemovePlaybook,
+  ticketId, view, canEdit, onApply, onAddDevice, onUnlinkDevice, onRemovePlaybook, onRemoveChecklist,
 }) {
   if (!view) return null;
-  const { applied = [], uncovered = [], devices = [] } = view;
+  const {
+    applied = [], uncovered = [], devices = [], otherForms = [],
+  } = view;
   return (
     <div className="mb-4 flex flex-col gap-3" data-testid="playbook-panel">
       {applied.map((tp) => {
-        const required = tp.forms.reduce((n, f) => n + (f.state === 'skipped' ? 0 : f.progress.required), 0);
-        const done = tp.forms.reduce((n, f) => n + (f.state === 'skipped' ? 0 : f.progress.done), 0);
-        const untouched = tp.forms.every((f) => f.state === 'open' && f.progress.done === 0);
+        const untouched = tp.forms.every(untouchedForm);
         return (
-          <section key={tp.id} className="rounded-xl border border-navy-100 bg-surface" aria-label={`Playbook ${tp.name}`}>
+          <section key={tp.id} className="rounded-xl border border-navy-100 bg-surface" aria-label={`Bundle ${tp.name}`}>
             <div className="flex flex-wrap items-center gap-3 border-b border-navy-100 px-4 py-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -89,15 +104,12 @@ export default function PlaybookPanel({
                   {tp.contact && <span className="text-navy-500">for <Link to={`/contacts/${tp.contact.id}`} className="font-semibold" style={{ color: 'var(--color-accent)' }}>{tp.contact.displayName}</Link></span>}
                 </div>
                 <p className="mt-0.5 text-[12.5px] text-navy-400">
-                  Applied{tp.appliedBy ? ` by ${tp.appliedBy.displayName}` : ''} · {new Date(tp.appliedAt).toLocaleString()} · {tp.forms.length} form{tp.forms.length === 1 ? '' : 's'}
+                  Added{tp.appliedBy ? ` by ${tp.appliedBy.displayName}` : ''} · {new Date(tp.appliedAt).toLocaleString()} · {tp.forms.length} checklist{tp.forms.length === 1 ? '' : 's'}
                 </p>
               </div>
-              <div className="w-48">
-                <div className="flex justify-between text-[12.5px]"><span className="text-navy-500">Required steps</span><b className="num">{done} of {required}</b></div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-navy-100"><i className="block h-full rounded-full" style={{ width: `${required ? Math.round((done / required) * 100) : 100}%`, backgroundColor: 'var(--color-accent)' }} /></div>
-              </div>
+              <Totals forms={tp.forms} />
               {canEdit && untouched && (
-                <Button size="sm" variant="quiet" onClick={() => onRemovePlaybook(tp)} aria-label={`Remove playbook ${tp.name}`}><IconX size={14} /></Button>
+                <Button size="sm" variant="quiet" onClick={() => onRemovePlaybook(tp)} aria-label={`Remove bundle ${tp.name}`}><IconX size={14} /></Button>
               )}
             </div>
             {tp.forms.map((f) => <FormRow key={f.id} ticketId={ticketId} form={f} />)}
@@ -105,12 +117,29 @@ export default function PlaybookPanel({
         );
       })}
 
+      {otherForms.length > 0 && (
+        <section className="rounded-xl border border-navy-100 bg-surface" aria-label="Checklists">
+          <div className="flex flex-wrap items-center gap-3 border-b border-navy-100 px-4 py-3">
+            <h3 className="min-w-0 flex-1 text-[15px] font-semibold text-navy-900">Checklists</h3>
+            <Totals forms={otherForms} />
+          </div>
+          {otherForms.map((f) => (
+            <div key={f.id} className="flex items-center">
+              <div className="min-w-0 flex-1"><FormRow ticketId={ticketId} form={f} /></div>
+              {canEdit && untouchedForm(f) && onRemoveChecklist && (
+                <Button size="sm" variant="quiet" className="mr-2" onClick={() => onRemoveChecklist(f)} aria-label={`Remove checklist ${f.formName}${f.asset ? ` for ${f.asset.name}` : ''}`}><IconX size={14} /></Button>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+
       {uncovered.length > 0 && (
         <Notice tone="warn">
           <IconAlertTriangle size={18} aria-hidden="true" />
           <span className="min-w-0 flex-1">
             <b>{uncovered.length === 1 ? '1 device isn\'t covered.' : `${uncovered.length} devices aren't covered.`}</b>{' '}
-            {uncovered.map((d) => `${d.name} · ${d.assetTag}`).join(', ')}: no form matched {uncovered.length === 1 ? 'it' : 'them'}. This won&apos;t stop the ticket closing.
+            {uncovered.map((d) => `${d.name} · ${d.assetTag}`).join(', ')}: no checklist fits {uncovered.length === 1 ? 'it' : 'them'}. This won&apos;t stop the ticket closing.
           </span>
           {uncovered.length === 1 && <Link to={`/assets/${uncovered[0].id}`} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>Open device</Link>}
         </Notice>
@@ -120,7 +149,7 @@ export default function PlaybookPanel({
         <div className="flex items-center justify-between gap-2 border-b border-navy-100 px-4 py-3">
           <h3 className="text-[14px] font-semibold text-navy-900">Devices <span className="font-medium text-navy-400">{devices.length}</span></h3>
           <div className="flex gap-1">
-            {canEdit && <Button size="sm" variant="quiet" onClick={onApply}><IconChecklist size={15} />Apply playbook</Button>}
+            {canEdit && <Button size="sm" variant="quiet" onClick={onApply}><IconChecklist size={15} />Add checklist</Button>}
             {canEdit && <Button size="sm" variant="quiet" onClick={onAddDevice} data-testid="add-device"><IconPlus size={15} />Add device</Button>}
           </div>
         </div>

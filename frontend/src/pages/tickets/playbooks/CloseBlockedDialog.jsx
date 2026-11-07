@@ -20,7 +20,7 @@ export default function CloseBlockedDialog({ ticketId, check, onClose, onCloseAn
     <Modal title={blocked ? "This ticket can't be closed yet" : 'Before you close this ticket'} onClose={onClose} wide>
       {blocked && (
         <>
-          <p className="-mt-2 mb-3 text-sm text-navy-500">{blocking.length} form{blocking.length === 1 ? ' still has' : 's still have'} required steps. Finish {blocking.length === 1 ? 'it' : 'them'}, skip with a reason, or close anyway.</p>
+          <p className="-mt-2 mb-3 text-sm text-navy-500">{blocking.length} checklist{blocking.length === 1 ? ' still has' : 's still have'} required steps. Finish {blocking.length === 1 ? 'it' : 'them'}, skip with a reason, or close anyway.</p>
           <div className="mb-3 rounded-xl border border-navy-100">
             {blocking.map((f) => (
               <div key={f.id} className="flex items-center justify-between gap-3 border-b border-navy-100 px-3.5 py-3 last:border-b-0">
@@ -37,7 +37,7 @@ export default function CloseBlockedDialog({ ticketId, check, onClose, onCloseAn
       {warnings.length > 0 && (
         <Notice tone="warn" className="mb-3">
           <IconAlertTriangle size={18} aria-hidden="true" />
-          <span className="min-w-0 flex-1"><b>Warning, won&apos;t stop closing:</b> {warnings.map((d) => `${d.name} · ${d.assetTag}`).join(', ')} {warnings.length === 1 ? "isn't" : "aren't"} covered by any form.</span>
+          <span className="min-w-0 flex-1"><b>Warning, won&apos;t stop closing:</b> {warnings.map((d) => `${d.name} · ${d.assetTag}`).join(', ')} {warnings.length === 1 ? "isn't" : "aren't"} covered by any checklist.</span>
         </Notice>
       )}
       {blocked && canOverride && (

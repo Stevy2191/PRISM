@@ -62,7 +62,7 @@ it('lists active checklists with what they are for and do', async () => {
 it("with a device checklist, lists the person's devices and how many steps show on each", async () => {
   const opts = expectOk(await w.admin.agent.get(`${API}/tickets/${ticket.id}/playbooks/options?formId=${checklists.checkIn.id}&contactId=${jordan.id}`));
   const byName = Object.fromEntries(opts.personDevices.map((d) => [d.asset.name, d.steps]));
-  expect(byName).toEqual({ MacBook: { shown: 3, hidden: 0 }, iPhone: { shown: 2, hidden: 1 } });
+  expect(byName).toEqual({ MacBook: { shown: 2, hidden: 0 }, iPhone: { shown: 1, hidden: 1 } }); // the check-in action isn't a step
 });
 
 it('adds a ticket checklist at once', async () => {

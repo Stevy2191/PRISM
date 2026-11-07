@@ -73,15 +73,15 @@ beforeEach(resetRateLimits);
 
 let ticket;
 
-it('the rule suggests the playbook; Apply guesses the person and lists their device', async () => {
+it('the rule suggests the bundle; Add guesses the person and lists their device', async () => {
   ticket = await makeTicket(w.admin.agent, { title: 'Termination: Jordan Reyes, last day Nov 14', contactId: jordan.id, categoryId: termination.id });
   await page.goto(`/tickets/${ticket.id}`);
   await page.getByText('Suggested:').waitFor();
-  await page.getByRole('button', { name: 'Apply…' }).click();
-  await page.getByRole('dialog', { name: 'Apply a playbook' }).waitFor();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Who is it for?' }).waitFor();
   await page.getByText('Jordan Reyes', { exact: true }).first().waitFor();
   await page.getByText('MacBook Pro').waitFor();
-  await page.getByTestId('apply-playbook').click();
+  await page.getByTestId('add-checklists').click();
   await page.getByTestId('playbook-panel').waitFor();
   await page.getByRole('link', { name: 'Device check-in: MacBook Pro' }).waitFor();
   expect(await page.getByText('Suggested:').count()).toBe(0);

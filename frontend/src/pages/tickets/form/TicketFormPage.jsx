@@ -104,7 +104,7 @@ function SecureItem({ item, secret, disabled, onSet, onReveal }) {
   const reveal = async () => { try { setShown(await onReveal(item.key)); } catch (err) { alert(errMessage(err)); } };
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[13px] font-medium text-navy-500">{item.label} <span className="font-normal text-navy-400">· secure</span></span>
+      <span className="text-[13px] font-medium text-navy-500">{item.label} <span className="font-normal text-navy-400">· hidden</span></span>
       {editing ? (
         <div className="flex gap-2">
           <input type="password" autoComplete="off" className={inputClass} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={item.label} />
@@ -180,13 +180,13 @@ function SkipDialog({ notReturned, onClose, onSkip }) {
   const [reason, setReason] = useState('');
   const [markLost, setMarkLost] = useState(true);
   return (
-    <Modal title={notReturned ? 'Device not returned' : 'Skip this form'} onClose={onClose}>
+    <Modal title={notReturned ? 'Device not returned' : 'Skip this checklist'} onClose={onClose}>
       <label htmlFor="skip-reason" className="text-[13px] font-medium text-navy-500">{notReturned ? 'Anything to add' : 'Reason'}</label>
       <textarea id="skip-reason" rows={3} className="mt-1 w-full rounded-md border border-navy-200 bg-surface px-3 py-2 text-sm" value={reason} onChange={(e) => setReason(e.target.value)} />
       {notReturned && <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={markLost} onChange={(e) => setMarkLost(e.target.checked)} /> Set the device to Lost</label>}
       <div className="mt-4 flex justify-end gap-2">
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={!notReturned && !reason.trim()} onClick={() => onSkip({ reason, notReturned, markLost: notReturned && markLost })}>{notReturned ? 'Mark not returned' : 'Skip form'}</Button>
+        <Button variant="primary" disabled={!notReturned && !reason.trim()} onClick={() => onSkip({ reason, notReturned, markLost: notReturned && markLost })}>{notReturned ? 'Mark not returned' : 'Skip checklist'}</Button>
       </div>
     </Modal>
   );
@@ -313,7 +313,7 @@ export default function TicketFormPage() {
           })}
         </div>
 
-        <aside className="flex flex-[1_1_320px] flex-col gap-3 md:max-w-[380px]" aria-label="Form details">
+        <aside className="flex flex-[1_1_320px] flex-col gap-3 md:max-w-[380px]" aria-label="Checklist details">
           {form.device && (
             <div className="rounded-xl border border-navy-100 bg-surface">
               <div className="flex items-center justify-between border-b border-navy-100 px-4 py-3"><h3 className="text-sm font-semibold">Device</h3><Link to={`/assets/${form.device.id}`} className="text-[13px]" style={{ color: 'var(--color-accent)' }}>Open asset</Link></div>
@@ -331,7 +331,7 @@ export default function TicketFormPage() {
             </div>
           )}
           <div className="rounded-xl border border-navy-100 bg-surface">
-            <div className="border-b border-navy-100 px-4 py-3"><h3 className="text-sm font-semibold">This form</h3></div>
+            <div className="border-b border-navy-100 px-4 py-3"><h3 className="text-sm font-semibold">This checklist</h3></div>
             <div className="flex flex-col gap-2.5 px-4 py-3 text-[13.5px]">
               {form.playbook && <div><span className="text-navy-400">Playbook</span> · {form.playbook.name}</div>}
               <div><span className="text-navy-400">Form</span> · {form.form?.name} · version {form.version}</div>
@@ -340,7 +340,7 @@ export default function TicketFormPage() {
                 {canEdit && <Button size="sm" onClick={() => setSkipping('skip')}>Skip with reason…</Button>}
                 <Button size="sm" disabled={form.state === 'open'} onClick={() => window.open(`/api/v1/tickets/${id}/forms/${formId}/pdf`, '_blank', 'noopener')}>Download PDF</Button>
               </div>
-              <p className="text-xs text-navy-400">The PDF is ready once the form is finished or skipped. Secure values are never in it.</p>
+              <p className="text-xs text-navy-400">The PDF is ready once the checklist is finished or skipped. Hidden passwords and codes are never in it.</p>
             </div>
           </div>
           <Link to={`/tickets/${id}`} className="text-sm" style={{ color: 'var(--color-accent)' }}>← Back to {formatTicketId(ticket)}</Link>

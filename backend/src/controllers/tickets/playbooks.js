@@ -73,8 +73,17 @@ const options = asyncHandler(async (req, res) => {
       id: p.id, name: p.name, description: p.description, needsPerson: p.needsPerson,
     }));
   const guesses = (await guessPerson(ticket)).map(contactJson);
+  // Bundles a rule or the ticket's category suggested, still open (PB2).
+  const suggestedIds = new Set((await TicketPlaybookSuggestion.findAll({ where: { ticketId: ticket.id, dismissedAt: null }, attributes: ['playbookId'] })).map((s) => s.playbookId));
   const out = {
-    playbooks, checklists: await checklistOptions(), guesses, personDevices: [], uncovered: [], onceForms: [],
+    playbooks,
+    checklists: await checklistOptions(),
+    suggestions: playbooks.filter((p) => suggestedIds.has(p.id)),
+    suggestedPlaybookIds: playbooks.filter((p) => suggestedIds.has(p.id)).map((p) => p.id),
+    guesses,
+    personDevices: [],
+    uncovered: [],
+    onceForms: [],
   };
   if (req.query.formId) {
     const form = await apply.findChecklist(req.query.formId);
@@ -89,7 +98,8 @@ const options = asyncHandler(async (req, res) => {
         return {
           asset: apply.assetJson(d),
           form: { id: form.id, name: form.name },
-          steps: { shown: items.filter((i) => i.shown && i.kind !== 'text').length, hidden: items.filter((i) => !i.shown).length },
+          // Steps to work through: not notes, not the finish action.
+          steps: { shown: items.filter((i) => i.shown && i.kind !== 'text' && i.kind !== 'action').length, hidden: items.filter((i) => !i.shown).length },
           assignedByAgent: await assignedByAgent(d),
         };
       }));

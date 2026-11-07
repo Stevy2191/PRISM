@@ -45,7 +45,7 @@ import Breadcrumbs from '../../components/ui/Breadcrumbs';
 import Button from '../../components/ui/Button';
 import { orgToday, addDays } from '../../utils/orgDate';
 import PlaybookPanel, { SuggestionBanner } from './playbooks/PlaybookPanel';
-import ApplyPlaybookDialog from './playbooks/ApplyPlaybookDialog';
+import AddChecklistDialog from './playbooks/AddChecklistDialog';
 import AddDeviceDialog from './playbooks/AddDeviceDialog';
 import CloseBlockedDialog from './playbooks/CloseBlockedDialog';
 
@@ -459,9 +459,21 @@ export default function TicketDetail() {
     }
   };
   const removePlaybook = async (tp) => {
-    if (!window.confirm(`Remove the ${tp.name} playbook and its forms from this ticket?`)) return;
+    if (!window.confirm(`Remove the ${tp.name} bundle and its checklists from this ticket?`)) return;
     try {
       const { data } = await api.delete(`/tickets/${id}/playbooks/${tp.id}`);
+      setPbView(data);
+      reloadTasks();
+      reloadActivity();
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
+
+  const removeChecklist = async (f) => {
+    if (!window.confirm(`Remove the ${f.formName} checklist${f.asset ? ` for ${f.asset.name}` : ''} from this ticket?`)) return;
+    try {
+      const { data } = await api.delete(`/tickets/${id}/checklists/${f.id}`);
       setPbView(data);
       reloadTasks();
       reloadActivity();
@@ -484,7 +496,7 @@ export default function TicketDetail() {
   const headerActions = [
     canEditTicket && { label: 'Link ticket', icon: IconLink, onSelect: () => setHeaderLinkModalOpen(true) },
     canEditTicket && !ticket.mergedInto && { label: 'Merge…', icon: IconArrowMerge, onSelect: () => setMergeOpen(true) },
-    canEditTicket && { label: 'Apply playbook', icon: IconChecklist, onSelect: () => setApplyOpen({ playbookId: null }) },
+    canEditTicket && { label: 'Add checklist', icon: IconChecklist, onSelect: () => setApplyOpen({ playbookId: null }) },
     isStaff && { label: 'Generate report', icon: IconFileText, onSelect: () => setReportModalOpen(true) },
   ].filter(Boolean);
 
@@ -612,11 +624,11 @@ export default function TicketDetail() {
         </div>
       )}
       {applyOpen && (
-        <ApplyPlaybookDialog
+        <AddChecklistDialog
           ticket={ticket}
           initialPlaybookId={applyOpen.playbookId}
           onClose={() => setApplyOpen(null)}
-          onApplied={(data) => { setApplyOpen(null); setPbView(data); setActiveTab('tasks'); afterDevices(data); reloadActivity(); }}
+          onAdded={(data) => { setApplyOpen(null); setPbView(data); setActiveTab('tasks'); afterDevices(data); reloadActivity(); }}
         />
       )}
       {addDeviceOpen && (
@@ -707,6 +719,7 @@ export default function TicketDetail() {
                 onAddDevice={() => setAddDeviceOpen(true)}
                 onUnlinkDevice={(d) => unlinkAsset(d.id)}
                 onRemovePlaybook={removePlaybook}
+                onRemoveChecklist={removeChecklist}
               />
             )}
             {activeTab === 'tasks' && (
