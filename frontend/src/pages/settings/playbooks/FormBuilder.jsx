@@ -38,7 +38,7 @@ function blankItem(kind) {
   return { key, kind, body: '<p>New step</p>', required: kind === 'step' };
 }
 
-function ConditionEditor({ conditions = [], options, onChange }) {
+export function ConditionEditor({ conditions = [], options, onChange }) {
   const set = (i, patch) => onChange(conditions.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   const fieldsOf = (on) => options.fields.filter((f) => f.on === on);
   return (

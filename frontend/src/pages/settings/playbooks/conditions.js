@@ -24,6 +24,8 @@ export function conditionFieldsFor({ sections, at, usage, lookups = {} }) {
   if (usage === 'device') {
     fields.push(
       { on: 'device', field: 'categoryId', label: 'Device type', choices: named(lookups.categories) },
+      // PB2: the MDM, or 'none' when not managed.
+      { on: 'device', field: 'mdm', label: 'MDM (or not managed)', choices: [...named(lookups.mdms), { value: 'none', label: 'Not managed' }] },
       { on: 'device', field: 'isManaged', label: 'Managed', choices: YES_NO },
       { on: 'device', field: 'mdmId', label: 'MDM', choices: named(lookups.mdms) },
       { on: 'device', field: 'hasCellular', label: 'Has cellular', choices: YES_NO },
