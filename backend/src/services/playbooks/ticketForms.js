@@ -40,6 +40,7 @@ async function loadTicketForm(ticket, rawId, { transaction, lock } = {}) {
         ],
       },
       { model: TicketPlaybook, as: 'ticketPlaybook', include: [{ model: Contact, as: 'contact', attributes: ['id', 'displayName', 'companyId', 'departmentId', 'email'] }] },
+      { model: Contact, as: 'contact', attributes: ['id', 'displayName', 'companyId', 'departmentId', 'email'] },
     ],
     transaction,
     ...(lock ? { lock: transaction.LOCK.UPDATE } : {}),
@@ -50,7 +51,8 @@ async function loadTicketForm(ticket, rawId, { transaction, lock } = {}) {
 
 const items = (def) => def.sections.flatMap((s) => s.items);
 const findItem = (def, key) => items(def).find((i) => i.key === key) || null;
-const person = (tf) => (tf.ticketPlaybook ? tf.ticketPlaybook.contact : null);
+// The person: the bundle's, or the one a checklist added on its own was for.
+const person = (tf) => (tf.ticketPlaybook ? tf.ticketPlaybook.contact : tf.contact) || null;
 
 async function secretsOf(tf, transaction) {
   return TicketFormSecret.findAll({ where: { ticketFormId: tf.id }, transaction });

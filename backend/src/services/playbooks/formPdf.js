@@ -30,7 +30,7 @@ async function streamFormPdf(res, ticket, tf) {
   const contactIds = def.sections.flatMap((s) => s.items).filter((i) => i.kind === 'field' && i.fieldType === 'contact').map((i) => answers[i.key]).filter(Boolean);
   const contacts = new Map((await Contact.findAll({ where: { id: contactIds }, attributes: ['id', 'displayName'] })).map((c) => [c.id, c.displayName]));
   const formName = tf.formVersion.form ? tf.formVersion.form.name : 'Form';
-  const p = tf.ticketPlaybook && tf.ticketPlaybook.contact;
+  const p = (tf.ticketPlaybook ? tf.ticketPlaybook.contact : tf.contact) || null;
 
   const fieldText = (item, v) => {
     if (v === undefined || v === null || v === '') return '—';

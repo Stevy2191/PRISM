@@ -80,8 +80,10 @@ async function currentVersions(formIds, transaction) {
   return byId;
 }
 
-// Creates the ticket forms (and their tasks) for resolved entries.
-async function createForms(req, ticket, applied, entries, assetsById, transaction) {
+// Creates the ticket forms (and their tasks) for resolved entries. `applied`
+// is the bundle they come from, or null for a checklist added on its own
+// (PB2), which then remembers its person (contactId).
+async function createForms(req, ticket, applied, entries, assetsById, transaction, { contactId = null } = {}) {
   if (!entries.length) return [];
   const versions = await currentVersions(entries.map((e) => e.formId), transaction);
   const status = await defaultTaskStatus('ticket');
@@ -109,7 +111,8 @@ async function createForms(req, ticket, applied, entries, assetsById, transactio
     // eslint-disable-next-line no-await-in-loop
     created.push(await TicketForm.create({
       ticketId: ticket.id,
-      ticketPlaybookId: applied.id,
+      ticketPlaybookId: applied ? applied.id : null,
+      contactId: applied ? null : contactId,
       formVersionId: version.id,
       assetId: asset ? asset.id : null,
       taskId: task.id,
@@ -161,6 +164,51 @@ async function applyPlaybook(req, ticket, { playbookId, contactId, assetIds } = 
   return applied;
 }
 
+// ---- One checklist on its own (PB2) ---------------------------------------------
+
+// A checklist that can be added: switched on and with a version.
+async function findChecklist(rawId) {
+  const form = await Form.findByPk(Number(rawId) || 0);
+  if (!form || !form.isActive || !form.currentVersionId) throw new ApiError(404, 'Checklist not found', 'NOT_FOUND');
+  return form;
+}
+
+// The devices a device checklist is added for: the person's ticked ones
+// (assetIds narrows them), plus any other assetIds of the ticket's company.
+async function chosenDevices(ticket, contact, assetIds) {
+  const wanted = Array.isArray(assetIds) ? [...new Set(assetIds.map(Number).filter(Number.isInteger))] : null;
+  const own = contact ? await personDevices(contact) : [];
+  if (!wanted) return own;
+  const picked = own.filter((a) => wanted.includes(a.id));
+  const others = wanted.filter((id) => !picked.some((a) => a.id === id));
+  if (others.length) {
+    const extra = await Asset.findAll({ where: { id: others, companyId: ticket.companyId }, include: assetIncludes, order: [['assetTag', 'ASC']] });
+    if (extra.length !== others.length) throw new ApiError(400, "Choose devices of the ticket's company", 'VALIDATION_ERROR');
+    picked.push(...extra);
+  }
+  return picked;
+}
+
+// POST /tickets/:id/checklists { formId, contactId?, assetIds? }
+// A ticket checklist adds one form; a device checklist one per chosen
+// device, each device linked to the ticket. → the ticket forms added.
+async function addChecklist(req, ticket, { formId, contactId, assetIds } = {}) {
+  const form = await findChecklist(formId);
+  const contact = contactId !== undefined && contactId !== null ? await resolvePerson(req.user, ticket, contactId) : null;
+  const devices = form.usage === 'device' ? await chosenDevices(ticket, contact, assetIds) : [];
+  if (form.usage === 'device' && !devices.length) throw new ApiError(400, 'Choose at least one device', 'VALIDATION_ERROR');
+  const entries = form.usage === 'device'
+    ? devices.map((a) => ({ formId: form.id, assetId: a.id }))
+    : [{ formId: form.id, assetId: null }];
+  const added = await sequelize.transaction(async (transaction) => {
+    for (const asset of devices) await linkDevice(req, ticket, asset, transaction); // eslint-disable-line no-await-in-loop
+    return createForms(req, ticket, null, entries, new Map(devices.map((a) => [a.id, a])), transaction, { contactId: contact ? contact.id : null });
+  });
+  const what = devices.length ? `${form.name} for ${devices.map((d) => d.name).join(', ')}` : form.name;
+  await logActivity(ticket.id, req.user.id, 'checklist_added', null, contact ? `${what} (for ${contact.displayName})` : what);
+  return added;
+}
+
 const started = (tf, secretCount) => tf.state !== 'open' || !!tf.actionDoneAt || secretCount > 0
   || Object.values(tf.answers || {}).some((v) => v !== null && v !== '' && !(Array.isArray(v) && !v.length));
 
@@ -192,6 +240,20 @@ async function removeApplied(req, ticket, rawId) {
     await tp.destroy({ transaction });
   });
   await logActivity(ticket.id, req.user.id, 'playbook_removed', tp.snapshot.name, null);
+}
+
+// DELETE /tickets/:id/checklists/:formId: a checklist added on its own, only
+// while nothing on it is started (as a bundle).
+async function removeChecklist(req, ticket, rawId) {
+  const tf = await TicketForm.findOne({
+    where: { id: Number(rawId) || 0, ticketId: ticket.id, ticketPlaybookId: null },
+    include: [{ model: FormVersion, as: 'formVersion', include: [{ model: Form, as: 'form', attributes: ['name'] }] }],
+  });
+  if (!tf) throw new ApiError(404, 'Checklist not found on this ticket', 'NOT_FOUND');
+  const secrets = await secretCounts([tf.id]);
+  if (started(tf, secrets.get(tf.id) || 0)) throw new ApiError(409, 'Work has started on it, so it can no longer be removed', 'CHECKLIST_STARTED');
+  await sequelize.transaction((transaction) => destroyForms([tf], transaction));
+  await logActivity(ticket.id, req.user.id, 'checklist_removed', tf.formVersion.form ? tf.formVersion.form.name : null, null);
 }
 
 // A device was linked to the ticket: each applied playbook with a "devices
@@ -266,6 +328,7 @@ async function ticketPlaybooksView(ticket) {
       { model: FormVersion, as: 'formVersion', include: [{ model: Form, as: 'form', attributes: ['id', 'name'] }] },
       { model: Asset, as: 'asset', include: assetIncludes },
       { model: Task, as: 'task', attributes: ['id', 'code', 'title', 'assigneeId', 'statusId'] },
+      { model: Contact, as: 'contact', attributes: ['id', 'displayName', 'companyId', 'departmentId'] },
     ],
     order: [['id', 'ASC']],
   });
@@ -276,7 +339,7 @@ async function ticketPlaybooksView(ticket) {
 
   const formJson = (tf) => {
     const state = evaluate(tf.formVersion.definition, {
-      device: deviceContext(tf.asset), person: personContext(contactsByTp.get(tf.ticketPlaybookId)),
+      device: deviceContext(tf.asset), person: personContext(contactsByTp.get(tf.ticketPlaybookId) || tf.contact),
     }, tf.answers, secretKeys.get(tf.id) || []);
     return {
       id: tf.id,
@@ -288,6 +351,7 @@ async function ticketPlaybooksView(ticket) {
       skipReason: tf.skipReason,
       finishedAt: tf.finishedAt,
       asset: assetJson(tf.asset),
+      contact: tf.contact ? { id: tf.contact.id, displayName: tf.contact.displayName } : null,
       task: tf.task ? { id: tf.task.id, code: tf.task.code, title: tf.task.title, assigneeId: tf.task.assigneeId } : null,
       progress: { required: state.required, done: state.done },
     };
@@ -320,6 +384,9 @@ module.exports = {
   ticketDevices,
   linkDevice,
   applyPlaybook,
+  addChecklist,
+  removeChecklist,
+  findChecklist,
   removeApplied,
   addFormsForDevice,
   removeUnstartedFormsFor,

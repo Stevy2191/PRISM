@@ -1,6 +1,10 @@
 // Playbooks on a ticket (Playbooks, PB, task 6): what the Apply dialog
 // offers, applying and removing, and the Tasks tab's view.
-const { Playbook, Form, TicketPlaybookSuggestion } = require('../../models');
+const {
+  Playbook, Form, FormVersion, TicketPlaybookSuggestion,
+} = require('../../models');
+const { evaluate } = require('../../services/playbooks/formDefinition');
+const { deviceContext } = require('../../services/playbooks/resolve');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { canAccessTicket } = require('../../services/permissionService');
 const { assertCanEditTicket } = require('./shared');
@@ -27,10 +31,40 @@ const view = asyncHandler(async (req, res) => {
   res.json(await apply.ticketPlaybooksView(await ticketFor(req, { edit: false })));
 });
 
-// GET /tickets/:id/playbooks/options?playbookId=&contactId=
-// The playbooks offered for the ticket's company, the people the ticket
-// seems to be about, and, for a chosen playbook and person, the person's
-// devices with the form each would get.
+async function contactFor(req, ticket) {
+  if (!req.query.contactId) return null;
+  const { findAccessibleContact } = require('../../services/permissionService'); // eslint-disable-line global-require
+  const c = await findAccessibleContact(req.user, req.query.contactId);
+  if (!c || c.companyId !== ticket.companyId) throw new ApiError(400, "Choose a person from the ticket's company", 'VALIDATION_ERROR');
+  return c;
+}
+
+// The definition's last item, when it checks the device out or in.
+const finishAction = (def) => {
+  const last = (def.sections || []).flatMap((s) => s.items).slice(-1)[0];
+  return last && last.kind === 'action' ? last.action : null;
+};
+const stepCount = (def) => (def.sections || []).flatMap((s) => s.items).filter((i) => i.kind !== 'text' && i.kind !== 'action').length;
+
+// The active checklists (PB2), each with what it's for, its steps and what
+// it does when finished.
+async function checklistOptions() {
+  const forms = await Form.findAll({ where: { isActive: true }, order: [['name', 'ASC']] });
+  const versions = new Map((await FormVersion.findAll({ where: { id: forms.map((f) => f.currentVersionId).filter(Boolean) } })).map((v) => [v.id, v]));
+  return forms.filter((f) => versions.has(f.currentVersionId)).map((f) => {
+    const def = versions.get(f.currentVersionId).definition;
+    return {
+      id: f.id, name: f.name, description: f.description, usage: f.usage, steps: stepCount(def), finish: finishAction(def),
+    };
+  });
+}
+
+// GET /tickets/:id/playbooks/options?playbookId=&contactId= (or formId=)
+// The bundles offered for the ticket's company, the active checklists, the
+// people the ticket seems to be about, and, for a chosen bundle and person,
+// the person's devices with the checklist each would get. With formId (a
+// device checklist), the person's devices with how many of its steps show
+// for each.
 const options = asyncHandler(async (req, res) => {
   const ticket = await ticketFor(req);
   const playbooks = (await Playbook.findAll({ where: { isActive: true }, order: [['position', 'ASC'], ['name', 'ASC']] }))
@@ -40,16 +74,29 @@ const options = asyncHandler(async (req, res) => {
     }));
   const guesses = (await guessPerson(ticket)).map(contactJson);
   const out = {
-    playbooks, guesses, personDevices: [], uncovered: [], onceForms: [],
+    playbooks, checklists: await checklistOptions(), guesses, personDevices: [], uncovered: [], onceForms: [],
   };
-  if (req.query.playbookId) {
+  if (req.query.formId) {
+    const form = await apply.findChecklist(req.query.formId);
+    const contact = await contactFor(req, ticket);
+    if (form.usage === 'device') {
+      const { definition } = await FormVersion.findByPk(form.currentVersionId);
+      const { assignedByAgent } = require('../../services/assets/checkouts'); // eslint-disable-line global-require
+      const devices = contact ? await apply.personDevices(contact) : [];
+      out.personDevices = await Promise.all(devices.map(async (d) => {
+        const state = evaluate(definition, { device: deviceContext(d), person: apply.personContext(contact) });
+        const items = state.sections.flatMap((s) => (s.shown ? s.items : []));
+        return {
+          asset: apply.assetJson(d),
+          form: { id: form.id, name: form.name },
+          steps: { shown: items.filter((i) => i.shown && i.kind !== 'text').length, hidden: items.filter((i) => !i.shown).length },
+          assignedByAgent: await assignedByAgent(d),
+        };
+      }));
+    }
+  } else if (req.query.playbookId) {
     const playbook = await apply.findOffered(ticket, req.query.playbookId);
-    const contact = req.query.contactId ? await (async () => {
-      const { findAccessibleContact } = require('../../services/permissionService'); // eslint-disable-line global-require
-      const c = await findAccessibleContact(req.user, req.query.contactId);
-      if (!c || c.companyId !== ticket.companyId) throw new ApiError(400, "Choose a person from the ticket's company", 'VALIDATION_ERROR');
-      return c;
-    })() : null;
+    const contact = await contactFor(req, ticket);
     const devices = contact ? await apply.personDevices(contact) : [];
     const { forms, uncovered } = resolvePlaybook(playbook, { personDevices: devices, ticketDevices: await apply.ticketDevices(ticket) });
     const names = new Map((await Form.findAll({ where: { id: forms.map((f) => f.formId) }, attributes: ['id', 'name'] })).map((f) => [f.id, f.name]));
@@ -74,6 +121,22 @@ const create = asyncHandler(async (req, res) => {
   const applied = await apply.applyPlaybook(req, ticket, req.body || {});
   const viewNow = await apply.ticketPlaybooksView(ticket);
   res.status(201).json({ ...viewNow, added: viewNow.applied.find((a) => a.id === applied.id) });
+});
+
+// POST /tickets/:id/checklists { formId, contactId?, assetIds? } (PB2)
+const addChecklist = asyncHandler(async (req, res) => {
+  const ticket = await ticketFor(req);
+  const added = await apply.addChecklist(req, ticket, req.body || {});
+  const viewNow = await apply.ticketPlaybooksView(ticket);
+  const ids = new Set(added.map((f) => f.id));
+  res.status(201).json({ ...viewNow, added: viewNow.otherForms.filter((f) => ids.has(f.id)) });
+});
+
+// DELETE /tickets/:id/checklists/:formId (PB2)
+const removeChecklist = asyncHandler(async (req, res) => {
+  const ticket = await ticketFor(req);
+  await apply.removeChecklist(req, ticket, req.params.formId);
+  res.json(await apply.ticketPlaybooksView(ticket));
 });
 
 // DELETE /tickets/:id/playbooks/:tpId
@@ -102,5 +165,5 @@ const closeCheck = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  view, options, create, remove, dismissSuggestion, ticketFor, closeCheck,
+  view, options, create, addChecklist, removeChecklist, remove, dismissSuggestion, ticketFor, closeCheck,
 };

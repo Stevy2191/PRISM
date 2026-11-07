@@ -95,6 +95,8 @@ router.get('/:id/playbooks', viewMin, playbooks.view);
 router.get('/:id/close-check', viewMin, playbooks.closeCheck);
 router.get('/:id/playbooks/options', editMin, playbooks.options);
 router.post('/:id/playbooks', editMin, playbooks.create);
+router.post('/:id/checklists', editMin, playbooks.addChecklist);
+router.delete('/:id/checklists/:formId', editMin, playbooks.removeChecklist);
 router.delete('/:id/playbooks/:tpId', editMin, playbooks.remove);
 router.post('/:id/playbook-suggestions/:suggestionId/dismiss', editMin, playbooks.dismissSuggestion);
 router.post('/:id/devices/new', editMin, devices.createDevice);
