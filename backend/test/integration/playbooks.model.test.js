@@ -3,7 +3,14 @@ const {
   resetData, closeDb, sequelize, models,
 } = require('./helpers');
 const { makeWorld, makeTicket, makeCompany } = require('./fixtures');
-const migration = require('../../migrations/20260101000080-playbooks');
+const playbooksMigration = require('../../migrations/20260101000080-playbooks');
+// 082 (PB2) adds columns to 080's tables, so it goes down first and back up after.
+const checklistsMigration = require('../../migrations/20260101000082-checklists-simpler');
+
+const migration = {
+  down: async (...args) => { await checklistsMigration.down(...args); await playbooksMigration.down(...args); },
+  up: async (...args) => { await playbooksMigration.up(...args); await checklistsMigration.up(...args); },
+};
 
 // Sub-project PB, task 1: MDMs, managed and cellular devices, the two new
 // asset statuses, forms and their versions, playbooks, ticket forms, secure

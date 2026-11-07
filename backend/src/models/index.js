@@ -751,6 +751,7 @@ TicketForm.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 TicketForm.belongsTo(TicketPlaybook, { foreignKey: 'ticketPlaybookId', as: 'ticketPlaybook' });
 TicketForm.belongsTo(FormVersion, { foreignKey: 'formVersionId', as: 'formVersion' });
 TicketForm.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+TicketForm.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 TicketForm.belongsTo(Task, { foreignKey: 'taskId', as: 'task' });
 Task.hasOne(TicketForm, { foreignKey: 'taskId', as: 'ticketForm' });
 TicketForm.belongsTo(User, { foreignKey: 'finishedBy', as: 'finishedByUser' });

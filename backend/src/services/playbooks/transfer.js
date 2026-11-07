@@ -25,7 +25,7 @@ const bad = (message, details) => new ApiError(400, message, 'IMPORT_INVALID', d
 
 // Which condition fields hold an id of what.
 function refKind(cond) {
-  if (cond.on === 'device') return { mdmId: 'mdm', categoryId: 'category', carrierCompanyId: 'company', companyId: 'company' }[cond.field] || null;
+  if (cond.on === 'device') return { mdm: 'mdm', mdmId: 'mdm', categoryId: 'category', carrierCompanyId: 'company', companyId: 'company' }[cond.field] || null;
   if (cond.on === 'person') return { companyId: 'company', departmentId: 'department' }[cond.field] || null;
   return null;
 }
@@ -80,7 +80,9 @@ async function exportFile({ formIds = [], playbookIds = [] }) {
   const exportCondition = (c) => {
     const kind = refKind(c);
     if (!kind || c.value === undefined || c.value === null) return c;
-    return { ...c, value: Array.isArray(c.value) ? c.value.map((v) => named(kind, v)) : named(kind, c.value) };
+    // 'none' (not managed) is the same in every install.
+    const one = (v) => (v === 'none' ? v : named(kind, v));
+    return { ...c, value: Array.isArray(c.value) ? c.value.map(one) : one(c.value) };
   };
   const outForms = [];
   for (const form of forms) {

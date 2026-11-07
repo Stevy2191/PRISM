@@ -15,6 +15,9 @@ module.exports = (sequelize) => {
       ticketPlaybookId: { type: DataTypes.INTEGER, allowNull: true },
       formVersionId: { type: DataTypes.INTEGER, allowNull: false },
       assetId: { type: DataTypes.INTEGER, allowNull: true },
+      // The person a checklist added on its own is for (PB2); a bundle's
+      // checklists take theirs from the bundle (TicketPlaybook.contactId).
+      contactId: { type: DataTypes.INTEGER, allowNull: true },
       taskId: { type: DataTypes.INTEGER, allowNull: false, unique: true },
       answers: { type: DataTypes.JSON, allowNull: false, defaultValue: {} },
       state: { type: DataTypes.ENUM('open', 'finished', 'skipped'), allowNull: false, defaultValue: 'open' },

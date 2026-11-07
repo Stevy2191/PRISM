@@ -20,6 +20,7 @@ function deviceContext(asset) {
   const device = asset.device || null;
   return {
     categoryId: asset.categoryId,
+    mdm: asset.isManaged && asset.mdmId ? asset.mdmId : 'none',
     isManaged: !!asset.isManaged,
     mdmId: asset.mdmId || null,
     hasCellular: !!asset.hasCellular,

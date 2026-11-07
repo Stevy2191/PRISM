@@ -16,6 +16,8 @@ module.exports = (sequelize) => {
       needsPerson: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       companyIds: { type: DataTypes.JSON, allowNull: true },
       blocks: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
+      // Ticket categories whose new tickets get this bundle suggested (PB2).
+      suggestCategoryIds: { type: DataTypes.JSON, allowNull: true },
       isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       position: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       createdBy: { type: DataTypes.INTEGER, allowNull: true },

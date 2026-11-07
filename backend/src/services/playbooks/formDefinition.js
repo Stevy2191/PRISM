@@ -36,7 +36,9 @@ const FIELD_TYPES = ['text', 'longtext', 'number', 'date', 'yesno', 'choice', 'c
 const ACTIONS = ['check_out', 'check_in'];
 const CHECK_IN_STATUSES = ['ready_to_issue', 'in_repair', 'on_hold', 'retired'];
 const OPS = ['is', 'is_not', 'in', 'is_empty', 'is_not_empty'];
-const DEVICE_FIELDS = ['categoryId', 'isManaged', 'mdmId', 'hasCellular', 'carrierCompanyId', 'hasAgent', 'companyId'];
+// mdm: the MDM id when managed, else 'none' (PB2: "Jamf Pro or not managed"
+// is one condition).
+const DEVICE_FIELDS = ['categoryId', 'mdm', 'isManaged', 'mdmId', 'hasCellular', 'carrierCompanyId', 'hasAgent', 'companyId'];
 const PERSON_FIELDS = ['companyId', 'departmentId'];
 const KEY_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,59}$/;
 
@@ -229,7 +231,7 @@ function isDone(item, answer, secrets) {
   }
 }
 
-// ctx: { device: { categoryId, isManaged, mdmId, ... } | null, person: { companyId, departmentId } | null }
+// ctx: { device: { categoryId, mdm, isManaged, mdmId, ... } | null, person: { companyId, departmentId } | null }
 // answers: { itemKey: value }; secretKeys: the keys that have a secure value.
 // → { sections: [{ key, shown, items: [{ key, kind, shown, required, done }] }],
 //     required, done, finished, actionReady, ignored }

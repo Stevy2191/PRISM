@@ -17,6 +17,9 @@ const later = [
   // Playbooks (PB): ticket forms point at Tasks, so 050's round trip needs it
   // rolled back first. Its Assets columns go with it for that moment.
   require('../../migrations/20260101000080-playbooks'),
+  // Checklists (PB2): columns on 080's tables, which 080's round trip
+  // recreates without them.
+  require('../../migrations/20260101000082-checklists-simpler'),
 ];
 
 const qi = () => sequelize.getQueryInterface();
