@@ -52,7 +52,7 @@ async function presentForm(form, { withDefinition = true } = {}) {
 async function createForm({
   name, description, usage, definition, isActive = true,
 }, userId, { transaction } = {}) {
-  if (!['ticket', 'device'].includes(usage)) throw bad('A form is used once per ticket or per device');
+  if (!['ticket', 'device'].includes(usage)) throw bad('A checklist is used once per ticket or per device');
   const clean = validateDefinition(definition, { usage });
   const run = async (t) => {
     const form = await Form.create({
@@ -88,12 +88,12 @@ async function cleanLimits(raw) {
   const out = {};
   const categoryIds = idList(l.categoryIds);
   if (categoryIds.length) {
-    if ((await AssetCategory.count({ where: { id: categoryIds } })) !== categoryIds.length) throw bad('A playbook limit names an unknown device type');
+    if ((await AssetCategory.count({ where: { id: categoryIds } })) !== categoryIds.length) throw bad('A bundle limit names an unknown device type');
     out.categoryIds = categoryIds;
   }
   const mdmIds = idList(l.mdmIds);
   if (mdmIds.length) {
-    if ((await Mdm.count({ where: { id: mdmIds } })) !== mdmIds.length) throw bad('A playbook limit names an unknown MDM');
+    if ((await Mdm.count({ where: { id: mdmIds } })) !== mdmIds.length) throw bad('A bundle limit names an unknown MDM');
     out.mdmIds = mdmIds;
   }
   for (const key of ['managed', 'hasCellular', 'hasAgent']) {
@@ -106,8 +106,8 @@ async function cleanLimits(raw) {
 // once per ticket and a per-device block one used per device; only a playbook
 // that needs a person can work on the person's devices.
 async function cleanBlocks(raw, { needsPerson }) {
-  if (!Array.isArray(raw)) throw bad('A playbook is a list of forms');
-  if (raw.length > MAX_BLOCKS) throw bad(`A playbook has at most ${MAX_BLOCKS} forms`);
+  if (!Array.isArray(raw)) throw bad('A bundle is a list of checklists');
+  if (raw.length > MAX_BLOCKS) throw bad(`A bundle has at most ${MAX_BLOCKS} checklists`);
   const formIds = idList(raw.map((b) => b && b.formId));
   const forms = new Map((await Form.findAll({ where: { id: formIds } })).map((f) => [f.id, f]));
   const out = [];
@@ -115,7 +115,7 @@ async function cleanBlocks(raw, { needsPerson }) {
     const where = `Form ${i + 1} of the playbook`;
     if (!b || typeof b !== 'object') throw bad(`${where} is not valid`);
     const form = forms.get(Number(b.formId));
-    if (!form) throw bad(`${where} is not a form`);
+    if (!form) throw bad(`${where} is not a checklist`);
     if (!APPLIES.includes(b.applies)) throw bad(`${where} must apply once or per device`);
     if (b.applies === 'once' && form.usage !== 'ticket') throw bad(`${where} is used per device, so it can't apply once`);
     if (b.applies !== 'once' && form.usage !== 'device') throw bad(`${where} is used once per ticket, so it can't apply per device`);
@@ -131,7 +131,7 @@ async function cleanCompanyIds(raw) {
   if (raw === null || raw === undefined) return null;
   const ids = idList(raw);
   if (!ids.length) return null;
-  if ((await Company.count({ where: { id: ids } })) !== ids.length) throw bad('A playbook is offered for an unknown company');
+  if ((await Company.count({ where: { id: ids } })) !== ids.length) throw bad('A bundle is offered for an unknown company');
   return ids;
 }
 

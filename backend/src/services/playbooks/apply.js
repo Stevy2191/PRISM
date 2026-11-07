@@ -71,12 +71,12 @@ async function currentVersions(formIds, transaction) {
   const forms = await Form.findAll({ where: { id: [...new Set(formIds)] }, transaction });
   const byId = new Map();
   for (const form of forms) {
-    if (!form.isActive || !form.currentVersionId) throw new ApiError(400, `The form "${form.name}" is switched off`, 'FORM_INACTIVE');
+    if (!form.isActive || !form.currentVersionId) throw new ApiError(400, `The checklist "${checklist.name}" is switched off`, 'FORM_INACTIVE');
     // eslint-disable-next-line no-await-in-loop
     const version = await FormVersion.findByPk(form.currentVersionId, { transaction });
     byId.set(form.id, { form, version });
   }
-  if (byId.size !== new Set(formIds).size) throw new ApiError(400, 'A form in this playbook no longer exists', 'FORM_MISSING');
+  if (byId.size !== new Set(formIds).size) throw new ApiError(400, 'A checklist in this bundle no longer exists', 'FORM_MISSING');
   return byId;
 }
 
@@ -124,7 +124,7 @@ async function createForms(req, ticket, applied, entries, assetsById, transactio
 
 async function findOffered(ticket, rawId) {
   const playbook = await Playbook.findByPk(Number(rawId) || 0);
-  if (!playbook || !playbook.isActive) throw new ApiError(404, 'Playbook not found', 'NOT_FOUND');
+  if (!playbook || !playbook.isActive) throw new ApiError(404, 'Bundle not found', 'NOT_FOUND');
   if (!offeredFor(playbook, ticket.companyId)) throw new ApiError(400, "This playbook isn't offered for this ticket's company", 'NOT_OFFERED');
   return playbook;
 }
@@ -136,7 +136,7 @@ async function applyPlaybook(req, ticket, { playbookId, contactId, assetIds } = 
   const contact = playbook.needsPerson || (contactId !== undefined && contactId !== null)
     ? await resolvePerson(req.user, ticket, contactId)
     : null;
-  if (playbook.needsPerson && !contact) throw new ApiError(400, 'Choose who this playbook is for', 'VALIDATION_ERROR');
+  if (playbook.needsPerson && !contact) throw new ApiError(400, 'Choose who this bundle is for', 'VALIDATION_ERROR');
 
   let chosen = contact ? await personDevices(contact) : [];
   if (Array.isArray(assetIds)) {
@@ -229,11 +229,11 @@ async function destroyForms(forms, transaction) {
 // DELETE /tickets/:id/playbooks/:tpId: only while none of its forms is started.
 async function removeApplied(req, ticket, rawId) {
   const tp = await TicketPlaybook.findOne({ where: { id: Number(rawId) || 0, ticketId: ticket.id } });
-  if (!tp) throw new ApiError(404, 'Applied playbook not found', 'NOT_FOUND');
+  if (!tp) throw new ApiError(404, 'Applied bundle not found', 'NOT_FOUND');
   const forms = await TicketForm.findAll({ where: { ticketPlaybookId: tp.id } });
   const secrets = await secretCounts(forms.map((f) => f.id));
   if (forms.some((f) => started(f, secrets.get(f.id) || 0))) {
-    throw new ApiError(409, 'Work has started on its forms, so it can no longer be removed', 'PLAYBOOK_STARTED');
+    throw new ApiError(409, 'Work has started on its checklists, so it can no longer be removed', 'PLAYBOOK_STARTED');
   }
   await sequelize.transaction(async (transaction) => {
     await destroyForms(forms, transaction);

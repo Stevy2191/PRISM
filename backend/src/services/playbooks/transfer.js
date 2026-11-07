@@ -120,19 +120,19 @@ function parseFile(file) {
   if (!file || typeof file !== 'object' || file.format !== FORMAT || file.version !== 1) {
     throw bad("This isn't a PRISM forms and playbooks file");
   }
-  if (!Array.isArray(file.forms) || !Array.isArray(file.playbooks)) throw bad('The file has no forms or playbooks list');
-  if (file.forms.length > LIMITS.forms || file.playbooks.length > LIMITS.playbooks) throw bad('The file has too many forms or playbooks');
+  if (!Array.isArray(file.forms) || !Array.isArray(file.playbooks)) throw bad('The file has no checklists or bundles list');
+  if (file.forms.length > LIMITS.forms || file.playbooks.length > LIMITS.playbooks) throw bad('The file has too many checklists or bundles');
   const refs = new Set();
   file.forms.forEach((f, i) => {
-    if (!f || typeof f !== 'object' || typeof f.ref !== 'string') throw bad(`Form ${i + 1} in the file is not valid`);
-    if (refs.has(f.ref)) throw bad(`Two forms in the file share the reference "${f.ref}"`);
+    if (!f || typeof f !== 'object' || typeof f.ref !== 'string') throw bad(`Checklist ${i + 1} in the file is not valid`);
+    if (refs.has(f.ref)) throw bad(`Two checklists in the file share the reference "${f.ref}"`);
     refs.add(f.ref);
   });
   file.playbooks.forEach((p, i) => {
-    if (!p || typeof p !== 'object' || !Array.isArray(p.blocks)) throw bad(`Playbook ${i + 1} in the file is not valid`);
+    if (!p || typeof p !== 'object' || !Array.isArray(p.blocks)) throw bad(`Bundle ${i + 1} in the file is not valid`);
     p.blocks.forEach((b) => {
-      if (!b || !refs.has(b.form)) throw bad(`Playbook ${i + 1} in the file uses a form the file doesn't have`);
-      if (!APPLIES.includes(b.applies)) throw bad(`Playbook ${i + 1} in the file has a form that applies neither once nor per device`);
+      if (!b || !refs.has(b.form)) throw bad(`Bundle ${i + 1} in the file uses a checklist the file doesn't have`);
+      if (!APPLIES.includes(b.applies)) throw bad(`Bundle ${i + 1} in the file has a checklist that applies neither once nor per device`);
     });
   });
   return file;
@@ -232,9 +232,9 @@ async function importFile(user, { file, mapping, dryRun }) {
 
   // Check every form before saving any, so a bad file saves nothing.
   const forms = parsed.forms.map((f, i) => {
-    if (!['ticket', 'device'].includes(f.usage)) throw bad(`Form ${i + 1} in the file is used neither once per ticket nor per device`);
+    if (!['ticket', 'device'].includes(f.usage)) throw bad(`Checklist ${i + 1} in the file is used neither once per ticket nor per device`);
     const raw = f.definition && typeof f.definition === 'object' && Array.isArray(f.definition.sections) ? f.definition : null;
-    if (!raw) throw bad(`Form ${i + 1} in the file has no sections`);
+    if (!raw) throw bad(`Checklist ${i + 1} in the file has no sections`);
     const definition = mapConditions(raw, importCondition);
     validateDefinition(definition, { usage: f.usage });
     return {
@@ -246,8 +246,8 @@ async function importFile(user, { file, mapping, dryRun }) {
     const needsPerson = p.needsPerson === true;
     const blocks = p.blocks.map((b) => {
       const usage = usageByRef.get(b.form);
-      if ((b.applies === 'once') !== (usage === 'ticket')) throw bad(`Playbook ${i + 1} in the file applies a form the wrong way`);
-      if (b.applies === 'person_devices' && !needsPerson) throw bad(`Playbook ${i + 1} in the file uses the person's devices without a person`);
+      if ((b.applies === 'once') !== (usage === 'ticket')) throw bad(`Bundle ${i + 1} in the file applies a checklist the wrong way`);
+      if (b.applies === 'person_devices' && !needsPerson) throw bad(`Bundle ${i + 1} in the file uses the person's devices without a person`);
       const l = b.limits || {};
       const limits = {};
       const categoryIds = (Array.isArray(l.categories) ? l.categories : []).map((n) => ids.get(key('category', n))).filter(Boolean);

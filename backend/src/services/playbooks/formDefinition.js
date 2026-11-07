@@ -75,7 +75,7 @@ function cleanConditions(raw, { where, usage, earlier }) {
     if (!isObject(c)) throw invalid(`${label} is not valid`);
     if (!OPS.includes(c.op)) throw invalid(`${label} has an unknown operator`);
     if (c.on === 'device') {
-      if (usage !== 'device') throw invalid('Only forms used per device can show steps by device');
+      if (usage !== 'device') throw invalid('Only checklists used per device can show steps by device');
       if (!DEVICE_FIELDS.includes(c.field)) throw invalid(`${label} uses an unknown device field`);
     } else if (c.on === 'person') {
       if (!PERSON_FIELDS.includes(c.field)) throw invalid(`${label} uses an unknown person field`);
@@ -104,7 +104,7 @@ function cleanItem(raw, { usage, earlier, isLast }) {
   const where = `item "${key}"`;
   if (!KINDS.includes(kind)) throw invalid(`${where} has an unknown kind`);
   if (DEVICE_ONLY_KINDS.includes(kind) && usage !== 'device') {
-    throw invalid('Agent steps and device actions belong on forms used per device');
+    throw invalid('Agent steps and device actions belong on checklists used per device');
   }
   const item = { key, kind };
   switch (kind) {
@@ -135,7 +135,7 @@ function cleanItem(raw, { usage, earlier, isLast }) {
       break;
     case 'action':
       if (!ACTIONS.includes(raw.action)) throw invalid(`${where} must check the device out or in`);
-      if (!isLast) throw invalid('The device action must be the last item of the form');
+      if (!isLast) throw invalid('The device action must be the last item of the checklist');
       item.action = raw.action;
       if (raw.action === 'check_in') {
         const statuses = raw.statuses === undefined ? CHECK_IN_STATUSES : raw.statuses;
@@ -159,14 +159,14 @@ function cleanItem(raw, { usage, earlier, isLast }) {
 // → the definition as it will be stored. Throws ApiError 400 FORM_INVALID
 // with the first problem, or 413 when it's too large to look at.
 function validateDefinition(def, { usage } = {}) {
-  if (!['ticket', 'device'].includes(usage)) throw invalid('A form is used once per ticket or per device');
+  if (!['ticket', 'device'].includes(usage)) throw invalid('A checklist is used once per ticket or per device');
   let bytes;
-  try { bytes = Buffer.byteLength(JSON.stringify(def)); } catch { throw invalid('The form is not valid'); }
-  if (bytes > LIMITS.bytes) throw new ApiError(413, 'This form is too large', 'FORM_TOO_LARGE');
-  if (!isObject(def) || !Array.isArray(def.sections)) throw invalid('A form is a list of sections');
-  if (def.sections.length > LIMITS.sections) throw invalid(`A form has at most ${LIMITS.sections} sections`);
+  try { bytes = Buffer.byteLength(JSON.stringify(def)); } catch { throw invalid('The checklist is not valid'); }
+  if (bytes > LIMITS.bytes) throw new ApiError(413, 'This checklist is too large', 'FORM_TOO_LARGE');
+  if (!isObject(def) || !Array.isArray(def.sections)) throw invalid('A checklist is a list of sections');
+  if (def.sections.length > LIMITS.sections) throw invalid(`A checklist has at most ${LIMITS.sections} sections`);
   const total = def.sections.reduce((n, s) => n + (isObject(s) && Array.isArray(s.items) ? s.items.length : 0), 0);
-  if (total > LIMITS.items) throw invalid(`A form has at most ${LIMITS.items} items`);
+  if (total > LIMITS.items) throw invalid(`A checklist has at most ${LIMITS.items} items`);
 
   const sectionKeys = new Set();
   const earlier = new Map();
@@ -193,7 +193,7 @@ function validateDefinition(def, { usage } = {}) {
     });
     return section;
   });
-  if (actions > 1) throw invalid('A form has at most one device action');
+  if (actions > 1) throw invalid('A checklist has at most one device action');
   return { sections };
 }
 

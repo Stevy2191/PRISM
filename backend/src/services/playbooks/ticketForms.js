@@ -45,7 +45,7 @@ async function loadTicketForm(ticket, rawId, { transaction, lock } = {}) {
     transaction,
     ...(lock ? { lock: transaction.LOCK.UPDATE } : {}),
   });
-  if (!tf) throw new ApiError(404, 'Form not found on this ticket', 'NOT_FOUND');
+  if (!tf) throw new ApiError(404, 'Checklist not found on this ticket', 'NOT_FOUND');
   return tf;
 }
 
@@ -203,7 +203,7 @@ async function saveAnswers(req, ticket, rawId, patch) {
     const answers = { ...(tf.answers || {}) };
     for (const [key, value] of Object.entries(patch)) {
       const item = findItem(def, key);
-      if (!item) throw bad(`This form has no item "${key}"`);
+      if (!item) throw bad(`This checklist has no item "${key}"`);
       if (item.kind === 'action') throw bad('Use the device action to check the device out or in');
       if (item.kind === 'secure') throw bad('Secure values are saved on their own');
       // eslint-disable-next-line no-await-in-loop
@@ -226,7 +226,7 @@ async function setSecret(req, ticket, rawId, key, value) {
     const tf = await loadTicketForm(ticket, rawId, { transaction, lock: true });
     assertOpen(tf);
     const item = findItem(tf.formVersion.definition, key);
-    if (!item || item.kind !== 'secure') throw bad(`This form has no secure item "${key}"`);
+    if (!item || item.kind !== 'secure') throw bad(`This checklist has no secure item "${key}"`);
     label = item.label;
     const existing = await TicketFormSecret.findOne({ where: { ticketFormId: tf.id, itemKey: key }, transaction });
     const fields = { ciphertext: encryptToken(value), setBy: req.user.id, setAt: new Date() };
@@ -244,7 +244,7 @@ async function setSecret(req, ticket, rawId, key, value) {
 // reveal is logged on the ticket and in the audit log.
 async function revealSecret(req, ticket, rawId, key) {
   if (!(await hasPermission(req.user.id, 'tickets.view_secure_fields')) || !(await canAccessTicket(req.user, ticket))) {
-    throw new ApiError(403, 'Revealing secure values needs the Reveal secure form values permission', 'FORBIDDEN');
+    throw new ApiError(403, 'Revealing hidden values needs the Reveal secure checklist values permission', 'FORBIDDEN');
   }
   const tf = await loadTicketForm(ticket, rawId);
   const item = findItem(tf.formVersion.definition, key);
@@ -262,11 +262,11 @@ async function revealSecret(req, ticket, rawId, key) {
 async function skip(req, ticket, rawId, { reason, notReturned = false, markLost = false } = {}) {
   const text = typeof reason === 'string' ? reason.trim() : '';
   const why = notReturned ? `Not returned${text ? `: ${text}` : ''}` : text;
-  if (!why) throw bad('Say why this form is skipped');
+  if (!why) throw bad('Say why this checklist is skipped');
   await sequelize.transaction(async (transaction) => {
     const tf = await loadTicketForm(ticket, rawId, { transaction, lock: true });
     assertOpen(tf);
-    if (notReturned && !tf.assetId) throw bad('Only a form for a device can be marked not returned');
+    if (notReturned && !tf.assetId) throw bad('Only a checklist for a device can be marked not returned');
     await tf.update({
       state: 'skipped', skipReason: why.slice(0, 500), finishedAt: new Date(), finishedBy: req.user.id,
     }, { transaction });
@@ -291,8 +291,8 @@ async function runAction(req, ticket, rawId, body = {}) {
     if (tf.actionDoneAt) throw new ApiError(409, 'The device action was already done', 'ACTION_DONE');
     const def = tf.formVersion.definition;
     const action = items(def).find((i) => i.kind === 'action');
-    if (!action) throw bad('This form has no device action');
-    if (!tf.asset) throw bad('This form is not for a device');
+    if (!action) throw bad('This checklist has no device action');
+    if (!tf.asset) throw bad('This checklist is not for a device');
     const state = stateOf(tf, await secretsOf(tf, transaction));
     const shown = state.sections.flatMap((s) => s.items).find((i) => i.key === action.key);
     if (!shown || !shown.shown) throw bad("The device action doesn't apply to this device");
@@ -310,7 +310,7 @@ async function runAction(req, ticket, rawId, body = {}) {
       if (body.generateForm === true) checkoutForForm = { asset, contactId: full.id, checkout };
     } else {
       const status = body.status || action.statuses[0];
-      if (!action.statuses.includes(status)) throw bad('Choose a status this form allows');
+      if (!action.statuses.includes(status)) throw bad('Choose a status this checklist allows');
       await checkouts.checkIn(req, asset, { status, holdReason: body.holdReason, revokeAgent: body.revokeAgent === true }, { transaction });
     }
     const at = new Date();

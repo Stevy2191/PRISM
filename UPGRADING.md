@@ -108,6 +108,57 @@ its own key, which the agents learned at enrollment.
 **Updates:** a new PRISM image brings a new agent; enrolled computers are
 offered it at their next heartbeat (every 5 minutes) and update themselves.
 
+### Checklists and bundles: playbooks, simpler (sub-project PB2)
+
+Playbooks keep working exactly as before; they are now much easier to set
+up and use, in plainer words. A **form** is now a **checklist** and a
+**playbook** a **bundle** on every screen. Nothing stored is converted, and
+tickets in progress are not affected.
+
+- **One place:** Settings › Forms and Settings › Playbooks are now one page,
+  **Settings › Checklists** (checklists, then bundles below). The old
+  addresses redirect, keeping ids, so bookmarks still work.
+- **New checklist** asks two plain questions: what it's for (the ticket or a
+  device) and, for a device, what happens when it's finished (nothing, check
+  the device out, or check it in). PRISM adds the check-out or check-in as
+  the last step.
+- **Paste to build:** paste a document and each line becomes a step. Headings
+  become sections, "Serial number:" something to write down, "Bypass code:"
+  a hidden password/code, a line ending with "?" a yes/no question, and
+  lines that start with an MDM or device type ("Jamf Pro: …", "If
+  ManageEngine:", "Mac only: …", "iPhone/iPad: …") are set to **Only for**
+  them. The preview shows what was made before anything is saved.
+- **The editor is the checklist:** type a line for a step, Enter for the
+  next. Each line has a toolbar: Required, Only for…, Turn into (yes/no
+  question, pick one, write down, password/code, note, agent step), indent
+  under a yes/no question (Tab), move, delete. **Only for** replaces "Show
+  when" for MDMs and device types, with a sentence that confirms it ("Shows
+  for Macs on Jamf Pro"). Other rules stay available as **Advanced rules**.
+  **Try it** shows how many steps a device type on an MDM would see.
+- **On a ticket, Add checklist** replaces Apply playbook. A checklist can be
+  added on its own: a ticket checklist in one click; a device checklist asks
+  who it's for and which devices (with "+ Another device"). Checklists added
+  on their own appear under **Checklists** in the Tasks tab, and can be
+  removed while nothing on them is done.
+- **Bundles** are optional and written as a sentence ("It's for a person and
+  adds Account termination for the ticket, Apple device check-in for each
+  of their Mac, iPhone, iPad devices…"). A bundle can **suggest itself on new
+  tickets in a category** (or under it, or moved into it); the "Suggest a
+  bundle" workflow action still works for anything more involved.
+- **Permissions** keep their keys; their names change to "Manage checklists,
+  bundles and MDMs", "Reveal hidden passwords and codes on checklists" and
+  "Close tickets with unfinished checklists".
+
+**Database:** migration 082 (the person a checklist added on its own is for,
+the categories a bundle suggests itself on, and the permissions' new names).
+Checklist conditions gain one device field, `mdm` (the MDM, or `none` when
+not managed); export and import carry it by name.
+
+**API:** `POST /tickets/:id/checklists` and `DELETE
+/tickets/:id/checklists/:formId`; `POST /forms/try`; the ticket's
+`/playbooks/options` also lists checklists and suggested bundles; bundles
+take `suggestCategoryIds`. Existing routes are unchanged.
+
 ### Sign-in behind an HTTPS proxy, and no more silent login loop
 
 With `COOKIE_SECURE=true`, PRISM issues the session cookie only on a request it

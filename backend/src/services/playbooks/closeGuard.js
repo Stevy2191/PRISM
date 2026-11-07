@@ -52,13 +52,13 @@ async function assertCanClose(ticket, toStatus, { actor = null, override = null 
   const reason = override && typeof override.reason === 'string' ? override.reason.trim() : '';
   if (actor && reason) {
     if (!(await hasPermission(actor.id, 'tickets.override_checklist'))) {
-      throw new ApiError(403, 'Closing a ticket with unfinished forms needs the Close tickets with unfinished forms permission', 'FORBIDDEN');
+      throw new ApiError(403, 'Closing a ticket with unfinished checklists needs the Close tickets with unfinished checklists permission', 'FORBIDDEN');
     }
     await logActivity(ticket.id, actor.id, 'close_override', null, reason.slice(0, 255));
     return;
   }
   const details = await checkClose(ticket);
-  throw new ApiError(409, `This ticket has ${details.blocking.length} unfinished form${details.blocking.length === 1 ? '' : 's'}`, 'FORMS_UNFINISHED', details);
+  throw new ApiError(409, `This ticket has ${details.blocking.length} unfinished checklist${details.blocking.length === 1 ? '' : 's'}`, 'FORMS_UNFINISHED', details);
 }
 
 module.exports = { checkClose, assertCanClose, isClosingMove };

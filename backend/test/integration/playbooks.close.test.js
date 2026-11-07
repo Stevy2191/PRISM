@@ -53,7 +53,7 @@ it('bulk close is refused for that ticket too', async () => {
   await applyChecklist();
   const res = await w.admin.agent.post(`${API}/tickets/bulk`).send({ ids: [ticket.id], action: 'close' });
   expect((await models.Ticket.findByPk(ticket.id)).status).not.toBe(closed);
-  expect(JSON.stringify(res.body)).toMatch(/unfinished form/);
+  expect(JSON.stringify(res.body)).toMatch(/unfinished checklist/);
 });
 
 it('a workflow rule cannot close it either; the rule log says why', async () => {
@@ -64,7 +64,7 @@ it('a workflow rule cannot close it either; the rule log says why', async () => 
   await setStatus(w.admin.agent, ticket, { priority: 'high' });
   expect((await models.Ticket.findByPk(ticket.id)).status).not.toBe(closed);
   const log = await models.WorkflowRuleLog.findOne({ order: [['id', 'DESC']] });
-  expect(JSON.stringify(log)).toMatch(/unfinished form/);
+  expect(JSON.stringify(log)).toMatch(/unfinished checklist/);
 });
 
 it('close anyway: needs the permission and a reason, and is logged', async () => {

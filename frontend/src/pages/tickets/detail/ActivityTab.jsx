@@ -51,6 +51,16 @@ function activityDescription(a) {
   if (a.action === 'task_deleted' || a.action === 'subtask_deleted') return `${actor} deleted task ${a.toValue}`;
   if (a.action === 'task_renumbered' || a.action === 'subtask_renumbered') return `${actor} renumbered task ${a.fromValue} to ${a.toValue}`;
   if (a.action === 'tasks_reordered') return `${actor} reordered the tasks`;
+  // Checklists and bundles (PB, words from PB2); stored action names unchanged.
+  if (a.action === 'playbook_applied') return `${actor} added the bundle ${a.toValue}`;
+  if (a.action === 'playbook_removed') return `${actor} removed the bundle ${a.fromValue}`;
+  if (a.action === 'checklist_added') return `${actor} added the checklist ${a.toValue}`;
+  if (a.action === 'checklist_removed') return `${actor} removed the checklist ${a.fromValue}`;
+  if (a.action === 'form_finished') return `${actor || 'PRISM'} finished the checklist ${a.toValue}`;
+  if (a.action === 'form_skipped') return `${actor} skipped a checklist: ${a.toValue}`;
+  if (a.action === 'form_secret_set') return `${actor} recorded a hidden value (${a.toValue})`;
+  if (a.action === 'form_secret_revealed') return `${actor} revealed a hidden value (${a.toValue})`;
+  if (a.action === 'form_device_action') return `${actor} did a checklist's device step (${a.toValue})`;
   if (ACTIVITY_FIELD_LABEL[a.action]) {
     return `${actor} changed ${ACTIVITY_FIELD_LABEL[a.action]} from ${a.fromValue || 'none'} to ${a.toValue || 'none'}`;
   }

@@ -13,7 +13,7 @@ const { ApiError } = require('../../middleware/error');
 const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
 
 async function streamFormPdf(res, ticket, tf) {
-  if (tf.state === 'open') throw new ApiError(409, 'The PDF is ready once the form is finished or skipped', 'FORM_OPEN');
+  if (tf.state === 'open') throw new ApiError(409, 'The PDF is ready once the checklist is finished or skipped', 'FORM_OPEN');
   const def = tf.formVersion.definition;
   const secrets = await secretsOf(tf);
   const secretKeys = new Set(secrets.map((s) => s.itemKey));

@@ -12,7 +12,7 @@ const ORDER = [['position', 'ASC'], ['name', 'ASC'], ['id', 'ASC']];
 
 async function findPlaybook(req) {
   const playbook = await Playbook.findByPk(parseRecordId(req.params.id) || 0);
-  if (!playbook) throw new ApiError(404, 'Playbook not found', 'NOT_FOUND');
+  if (!playbook) throw new ApiError(404, 'Bundle not found', 'NOT_FOUND');
   return playbook;
 }
 

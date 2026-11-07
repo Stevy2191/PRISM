@@ -333,8 +333,9 @@ export default function TicketFormPage() {
           <div className="rounded-xl border border-navy-100 bg-surface">
             <div className="border-b border-navy-100 px-4 py-3"><h3 className="text-sm font-semibold">This checklist</h3></div>
             <div className="flex flex-col gap-2.5 px-4 py-3 text-[13.5px]">
-              {form.playbook && <div><span className="text-navy-400">Playbook</span> · {form.playbook.name}</div>}
-              <div><span className="text-navy-400">Form</span> · {form.form?.name} · version {form.version}</div>
+              {form.playbook && <div><span className="text-navy-400">Bundle</span> · {form.playbook.name}</div>}
+              {form.person && <div><span className="text-navy-400">For</span> · {form.person.displayName}</div>}
+              <div><span className="text-navy-400">Checklist</span> · {form.form?.name} · version {form.version}</div>
               <div className="mt-1 flex flex-wrap gap-2">
                 {canEdit && form.device && <Button size="sm" onClick={() => setSkipping('notReturned')}>Not returned…</Button>}
                 {canEdit && <Button size="sm" onClick={() => setSkipping('skip')}>Skip with reason…</Button>}

@@ -9,7 +9,7 @@ const { validateDefinition, evaluate } = require('../services/playbooks/formDefi
 
 async function findForm(req) {
   const form = await Form.findByPk(parseRecordId(req.params.id) || 0);
-  if (!form) throw new ApiError(404, 'Form not found', 'NOT_FOUND');
+  if (!form) throw new ApiError(404, 'Checklist not found', 'NOT_FOUND');
   return form;
 }
 
