@@ -1,0 +1,74 @@
+Apple Device Check-In: Deprovision for Reuse
+
+Complete these steps when a Mac, iPad, or iPhone is checked back in, so it's erased and ready for the next user. Do them in order: checking Activation Lock and Apple Business Manager before the wipe prevents a locked or unmanaged device afterward.
+If the user is leaving the county, their account must also be disabled in Active Directory as part of their offboarding (handled separately from this checklist).
+
+Before you start
+- You have the device, its charger, and the **serial number**.
+- You know which MDM manages it: ManageEngine or Jamf Pro (check the check-out ticket).
+- You have Apple Business Manager (ABM), MDM, and Microsoft Entra admin access.
+- Ideally, the user is present for Step 2.
+
+Step 1: Receive the device and find its records
+- Note the serial number, asset tag, and condition (damage, missing charger) in the ticket.
+- Find the device in the MDM: ManageEngine: Device Mgmt > Groups & Devices > Devices. Jamf Pro: Computers or Devices > Search Inventory.
+- Confirm it's still managed and note which user and groups it's assigned to.
+- In ABM, search for the serial number and note its MDM Server.
+- Keep the device powered and on Wi-Fi from here on, so it can receive MDM commands.
+
+Step 2: Check Activation Lock and sign out of Apple Accounts
+If someone signed in with a personal Apple Account and turned on Find My, the device may be Activation Locked, which survives a wipe. A Managed Apple Account can't cause this.
+- In the device's MDM record, check Activation Lock status (Jamf Pro: Inventory > Security; ManageEngine: device details).
+- If it's on, copy the Activation Lock bypass code from the MDM record, if it has one, into the ticket's secure field.
+- On the device, check for a signed-in Apple Account: Mac: System Settings > [name]; iPhone/iPad: Settings > [name].
+- Personal Apple Account signed in: have the user sign out themselves (Sign Out, then enter their password). Never ask for their password. If they're unavailable, ask them to remove the device at icloud.com/find.
+- Managed Apple Account signed in: sign out, or leave it; the wipe removes it either way.
+
+Step 3: Back up data that must be kept
+- Ask the user or their supervisor whether any work files are stored only on the device (Desktop, Documents, photos, texts). Microsoft 365 data (email, OneDrive, Teams) is in the cloud and isn't affected.
+- Check with records or legal staff whether the data is under a retention requirement or legal hold. If it is, don't wipe until they approve.
+- Copy anything that must be kept to SharePoint, a network share, or the supervisor's OneDrive.
+- Record in the ticket who approved the wipe.
+
+Step 4: Confirm the ABM assignment
+After the wipe, the device enrolls itself into whichever MDM ABM assigns it to. Check this first.
+- In ABM, confirm the device's MDM Server is the one it should use next (ManageEngine or Jamf Pro). Change it with Edit MDM Server if needed.
+- ManageEngine: confirm the device still has an enrollment profile under Enrollment > Apple Business Manager.
+- Jamf Pro: confirm the serial number is checked in your standard PreStage Enrollment > Scope.
+- Not in ABM: note it in the ticket. It will need to be enrolled by hand after the wipe.
+
+Step 5: Wipe the device from the MDM
+Wipe while the device is still enrolled. Don't remove or delete it from the MDM first.
+If ManageEngine:
+- Select the device and choose Complete Wipe. Not Corporate Wipe: that only unenrolls the device and doesn't erase it.
+If Jamf Pro:
+- Mac: open the record, go to Management > Management Commands, and click Wipe Computer.
+- iPhone/iPad: open the record, go to Management, and click Wipe Device. If Clear Activation Lock is offered, select it.
+Both:
+- Older Intel Macs ask for a 6-digit passcode. Record it in the ticket's secure field; you'll need it to unlock the Mac afterward.
+- Wait for the device to restart to the setup (Hello) screen. Macs typically take 5 to 15 minutes.
+- If the wipe doesn't arrive (device offline or already unenrolled): erase directly on the device under Settings / System Settings > General > Transfer or Reset > Erase All Content and Settings.
+
+Step 6: Clear Activation Lock (only if it appears)
+If the setup screen asks for a previous user's Apple Account and password, try these in order:
+- Turn it off in ABM: open the device in Apple Business Manager and use Turn off Activation Lock (needs the Manage Devices privilege). This works for devices that were in ABM before they were locked.
+- Use the bypass code from Step 2: leave the Apple Account field empty and enter the code in the password field.
+- Contact the former user to remove the device at icloud.com/find, then restart the device.
+- Last resort: submit an Activation Lock request to Apple with proof of purchase (takes several days).
+Until Activation Lock is cleared, the device can't be checked out. Label it and keep it with IT.
+
+Step 7: Clean up accounts and records
+Managed Apple Account:
+- User is staying with the county (device swap or return): leave their Managed Apple Account as is.
+- User is leaving the county: if ABM is federated with Entra and directory sync is on, the account is removed once their AD account is disabled and synced. Otherwise, in ABM > Users, select the user and deactivate their account, then delete it per your retention policy.
+Entra:
+- In Entra admin center > Devices > All devices, search for the device and delete its record, especially for Macs set up with Jamf Connect or Platform SSO.
+MDM:
+- ManageEngine: remove the former user's assignment and department groups. If the device appears twice after re-enrollment, delete the old entry.
+- Jamf Pro: don't delete the record (it's reused by serial number). Clear the User and Location tab and remove it from any static groups.
+
+Step 8: Mark the device ready
+- Confirm the device is on the setup (Hello) screen with no Activation Lock prompt. Don't continue past setup; the next check-out will do that.
+- Clean the device, charge it, and store it with its charger.
+- Record in the ticket: date wiped, who wiped it, former user, and condition.
+- Check the device in and set its status to ready for reissue (or needs repair / Activation Locked if not).

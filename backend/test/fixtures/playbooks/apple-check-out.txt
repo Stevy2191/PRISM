@@ -1,0 +1,63 @@
+Apple Device Check-Out: Enroll and Assign
+
+Complete these steps before assigning a Mac, iPad, or iPhone to a user. Each step is a checklist item for the check-out ticket. When the device comes back, follow Apple Device Check-In: Deprovision for Reuse to deprovision it.
+
+Before you start
+- You have the device's serial number (on the box, or in Settings / About This Mac).
+- You know which MDM will manage it: ManageEngine or Jamf Pro.
+- You have Apple Business Manager (ABM) access with permission to manage devices and users.
+- You have the user's name, work email, and department from the ticket.
+- The device is charged, and you have Wi-Fi available (a network that doesn't need a browser login page).
+
+Step 1: Confirm the device is in Apple Business Manager
+Devices bought through Apple or an authorized reseller using the county's ABM account show up in ABM automatically. Being in ABM is what makes the device enroll itself and lets IT clear Activation Lock later.
+- In Apple Business Manager, go to Devices and search for the serial number.
+- If it's listed: go to Step 2.
+- If it's not listed: contact the vendor to have it added to the county's ABM account, or add it yourself with Apple Configurator (the Apple Configurator for iPhone app for a Mac; Apple Configurator on a Mac for an iPhone or iPad). Devices added with Apple Configurator have a 30-day period during which the user could remove them from management, so finish the remaining steps before handing them over.
+
+Step 2: Assign the device to the right MDM
+- In ABM, open the device and check MDM Server. If it's not the right one, click Edit MDM Server and choose ManageEngine or Jamf Pro.
+If ManageEngine:
+- In ManageEngine, go to Enrollment > Apple Business Manager and sync.
+- Confirm the serial number appears and has an enrollment profile assigned.
+If Jamf Pro:
+- In Jamf Pro, go to Computers > PreStage Enrollments (Mac) or Devices > PreStage Enrollments (iPhone/iPad).
+- Open your standard PreStage, go to Scope, and confirm the serial number is checked. If it's missing, sync under Settings > Global > Automated Device Enrollment first.
+Don't power on the device until this step is done. If it reaches the setup screens before it's assigned, it may skip enrollment and need to be erased and started again.
+
+Step 3: Create the user's Managed Apple Account
+A Managed Apple Account is a work Apple Account owned by the county. It can't turn on Find My, so it never Activation Locks the device, and IT can reset or remove it.
+- In ABM, go to Users and search for the user. If they already have a Managed Apple Account, skip to Step 4.
+If the county has federated ABM with Microsoft Entra: accounts are created automatically from Entra.
+- Confirm the user appears in ABM with their work email (e.g. jsmith@washingtoncountytx.gov). If they don't, check that their account is enabled in AD and has synced to Entra.
+If not federated (accounts created by hand):
+- Click Add (+) under Users and enter the user's first name, last name, Managed Apple Account (use the county's naming format on the verified domain), location, and work email.
+- Set the role to Staff.
+- Save, then create their sign-in details. ABM gives a temporary password, either downloaded or emailed to the user. Store it in the ticket's secure field, not in plain notes.
+- If ABM says the account name is already in use, the user has a personal Apple Account with their work email. Ask them to change that personal account's email to a personal address, or use a different Managed Apple Account name.
+
+Step 4: Set up and enroll the device
+- Power on the device, pick the language and region, and connect to Wi-Fi.
+- A Remote Management screen appears saying the county will manage the device. Click Continue (or Enroll). If this screen doesn't appear, stop: go back to Step 2, then erase the device and start again.
+- Follow the rest of the setup screens. Skip signing in with an Apple Account during setup.
+- Mac only: create the local account using your standard naming (for example the user's AD username). If the Mac uses Jamf Connect or Platform SSO, follow those prompts instead and sign in with the user's Entra account.
+- Wait at the desktop or Home Screen for 10 to 15 minutes while the MDM installs apps and settings. Keep it on Wi-Fi and power.
+
+Step 5: Verify in the MDM and assign to the user
+If ManageEngine:
+- In Device Mgmt > Groups & Devices > Devices, find the serial number and confirm it shows as managed and supervised.
+- Assign the device to the user and add it to the right groups for their department.
+If Jamf Pro:
+- Search Computers or Devices for the serial number and confirm the record shows managed and supervised.
+- On the User and Location tab, enter the user's name and email, and add the device to any static groups their department uses.
+Both:
+- Confirm required apps and profiles have installed (Wi-Fi, email, department apps).
+- Confirm user-linked Activation Lock is blocked for the device (set in the MDM's restrictions or PreStage/enrollment settings). This stops a personal Apple Account from locking it.
+- iPhone/iPad: on the device, go to Settings > Sign in and sign in with the user's Managed Apple Account if they'll need iCloud features. On a Mac, do this only if your department requires it.
+
+Step 6: Hand off to the user and record it
+- Have the user sign in and set their own passcode or password (and Touch ID or Face ID).
+- Give them their Managed Apple Account sign-in and temporary password, if one was created. They'll set a new password at first sign-in.
+- Tell them: don't sign in with a personal Apple Account on this device, and don't turn on Find My with one.
+- Record in the ticket: serial number, asset tag, device type, MDM (ManageEngine or Jamf Pro), user, Managed Apple Account, and date issued.
+- Check out the device to the user in the ticketing system.
