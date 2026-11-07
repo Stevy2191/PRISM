@@ -13,7 +13,7 @@ import Modal from '../../../components/Modal';
 import RichTextEditor from '../../../components/RichTextEditor';
 import Breadcrumbs from '../../../components/ui/Breadcrumbs';
 import Button from '../../../components/ui/Button';
-import { ConditionEditor } from '../playbooks/FormBuilder';
+import ConditionEditor from './ConditionEditor';
 import { conditionFieldsFor, newKey } from '../playbooks/conditions';
 import ChecklistLine from './ChecklistLine';
 import OnlyForPicker from './OnlyForPicker';
@@ -250,8 +250,9 @@ export default function ChecklistEditor() {
                 <input className="min-w-0 flex-1 rounded border-0 bg-transparent px-1 py-1 text-[15px] font-semibold text-navy-900 focus:bg-surface focus:outline-none focus:ring-1 focus:ring-navy-200"
                   aria-label="Section title" value={section.title} onChange={(e) => setTitle(s, e.target.value)} />
                 {meta.usage === 'device' && !section.advanced && (
-                  <button type="button" className="rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-700" onClick={() => setPicker({ s, i: null })}>
-                    {section.onlyFor ? describeOnlyFor(section.onlyFor, lookups) : 'Only for…'}
+                  <button type="button" className="rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-700" onClick={() => setPicker({ s, i: null })}
+                    aria-label={`Only for, whole section: ${section.onlyFor ? describeOnlyFor(section.onlyFor, lookups) : 'every device'}`}>
+                    {section.onlyFor ? describeOnlyFor(section.onlyFor, lookups) : 'Section: only for…'}
                   </button>
                 )}
                 {section.advanced && <button type="button" className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800" onClick={() => setAdvancedAt({ s, i: null })}>Advanced rules</button>}

@@ -47,8 +47,8 @@ export const PAGES = [
   { id: 'ticket-categories', group: 'Service desk', name: 'Ticket categories', desc: 'The category tree tickets are filed under', keywords: ['category', 'categories', 'classification', 'tree', 'sub-category'], path: '/settings/ticket-categories', access: { permission: ['tickets.categories.manage'] }, width: 'wide' },
   { id: 'canned-responses', group: 'Service desk', name: 'Canned responses', desc: 'Reusable replies for the reply box', keywords: ['canned', 'macro', 'snippet', 'template', 'reply'], path: '/settings/canned-responses', access: {}, width: 'narrow' },
   { id: 'recurring-tickets', group: 'Service desk', name: 'Recurring tickets', desc: 'Tickets opened on a schedule', keywords: ['recurring', 'schedule', 'repeat', 'maintenance', 'routine'], path: '/settings/recurring-tickets', access: { permission: ['tickets.recurring.manage'] }, width: 'narrow', sub: [{ id: 'recurring-ticket-new', path: '/settings/recurring-tickets/new' }, { id: 'recurring-ticket-edit', path: '/settings/recurring-tickets/:id' }] },
-  { id: 'forms', group: 'Service desk', name: 'Forms', desc: 'Checklists of steps and fields for tickets', keywords: ['form', 'checklist', 'steps', 'onboarding', 'offboarding', 'check-in', 'check-out'], path: '/settings/forms', access: { permission: ['settings.manage_playbooks'] }, width: 'wide', sub: [{ id: 'form-new', path: '/settings/forms/new' }, { id: 'form-edit', path: '/settings/forms/:id' }] },
-  { id: 'playbooks', group: 'Service desk', name: 'Playbooks', desc: 'Forms applied to a ticket together', keywords: ['playbook', 'new account', 'termination', 'onboarding', 'offboarding', 'device'], path: '/settings/playbooks', access: { permission: ['settings.manage_playbooks'] }, width: 'wide', sub: [{ id: 'playbook-new', path: '/settings/playbooks/new' }, { id: 'playbook-edit', path: '/settings/playbooks/:id' }] },
+  // PB2: checklists and bundles on one page (were Forms and Playbooks).
+  { id: 'checklists', group: 'Service desk', name: 'Checklists', desc: 'Steps for tickets, and bundles that add several at once', keywords: ['checklist', 'form', 'playbook', 'bundle', 'steps', 'onboarding', 'offboarding', 'termination', 'new account', 'check-in', 'check-out', 'device'], path: '/settings/checklists', access: { permission: ['settings.manage_playbooks'] }, width: 'wide', sub: [{ id: 'checklist-new', path: '/settings/checklists/new' }, { id: 'bundle-new', path: '/settings/checklists/bundles/new' }, { id: 'bundle-edit', path: '/settings/checklists/bundles/:id' }, { id: 'checklist-edit', path: '/settings/checklists/:id' }] },
   { id: 'workflow-rules', group: 'Service desk', name: 'Workflow rules', desc: 'Automatic actions on tickets', keywords: ['automation', 'trigger', 'action'], path: '/settings/workflow-rules', access: SYSTEM, width: 'wide', sub: [{ id: 'workflow-rule-new', path: '/settings/workflow-rules/new' }, { id: 'workflow-rule-edit', path: '/settings/workflow-rules/:id' }] },
   { id: 'notifications', group: 'Service desk', name: 'Notifications', desc: 'Which events notify people', keywords: ['bell', 'alert', 'notify'], path: '/settings/notifications', access: SYSTEM, width: 'narrow' },
   { id: 'client-portal', group: 'Service desk', name: 'Client portal', desc: 'Where contacts raise and follow tickets', keywords: ['portal', 'customer portal', 'self service', 'contact sign in', 'help center'], path: '/settings/client-portal', access: SYSTEM, width: 'narrow' },
@@ -95,7 +95,19 @@ export const REDIRECTS = [
   // Removed in the Settings cleanup (user decision 2026-10-12).
   ['/settings/assignment-rules', '/settings/workflow-rules'],
   ['/settings/modules', '/settings'],
+  // PB2: Forms and Playbooks became Checklists (ids are kept).
+  ['/settings/forms', '/settings/checklists'],
+  ['/settings/forms/new', '/settings/checklists'],
+  ['/settings/forms/:id', '/settings/checklists/:id'],
+  ['/settings/playbooks', '/settings/checklists'],
+  ['/settings/playbooks/new', '/settings/checklists/bundles/new'],
+  ['/settings/playbooks/:id', '/settings/checklists/bundles/:id'],
 ];
+
+// A redirect's target with the route's params filled in ("/x/:id" → "/x/12").
+export function redirectTarget(to, params = {}) {
+  return to.replace(/:(\w+)/g, (m, k) => (params[k] !== undefined ? encodeURIComponent(params[k]) : m));
+}
 
 export function canOpen(access, auth) {
   const a = access || {};

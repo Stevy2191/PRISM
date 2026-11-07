@@ -4,7 +4,7 @@ import {
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import SettingsShell from './components/settings/SettingsShell';
-import { allRoutes, REDIRECTS } from './pages/settings/registry';
+import { allRoutes, REDIRECTS, redirectTarget } from './pages/settings/registry';
 
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
@@ -70,10 +70,9 @@ import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
 import DirectorySync from './pages/settings/DirectorySync';
 import CalendarIntegration from './pages/settings/CalendarIntegration';
 import CustomerHappiness from './pages/settings/CustomerHappiness';
-import SettingsForms from './pages/settings/playbooks/Forms';
-import FormBuilder from './pages/settings/playbooks/FormBuilder';
-import SettingsPlaybooks from './pages/settings/playbooks/Playbooks';
-import PlaybookEditor from './pages/settings/playbooks/PlaybookEditor';
+import SettingsChecklists from './pages/settings/checklists/Checklists';
+import ChecklistEditor from './pages/settings/checklists/ChecklistEditor';
+import BundleEditor from './pages/settings/checklists/BundleEditor';
 import SettingsMdms from './pages/settings/playbooks/Mdms';
 
 // Existing admin pages (reached via the Settings hub)
@@ -118,6 +117,11 @@ const COMPANIES_KEYS = ['companies.view'];
 // Which component each registry page (and sub-page) renders. The registry
 // holds its access; settingsElement turns that into the same guards as
 // before the redesign (spec: Settings redesign, "One source of truth").
+// Redirects keep the old address's params (/settings/forms/12 → /settings/checklists/12).
+function ParamRedirect({ to }) {
+  return <Navigate to={redirectTarget(to, useParams())} replace />;
+}
+
 const SETTINGS_COMPONENTS = {
   preferences: SettingsPreferences, about: SettingsAbout, company: CompanyProfile, 'client-portal': ClientPortalSettings,
   companies: () => <CompaniesList inSettings />,
@@ -127,8 +131,7 @@ const SETTINGS_COMPONENTS = {
   'workflow-rules': WorkflowRules, 'canned-responses': SettingsCannedResponses, 'ticket-categories': SettingsTicketCategories,
   'recurring-tickets': SettingsRecurringTickets, 'recurring-ticket-new': RecurringTicketEditor, 'recurring-ticket-edit': RecurringTicketEditor,
   'workflow-rule-new': WorkflowRuleEditor, 'workflow-rule-edit': WorkflowRuleEditor,
-  forms: SettingsForms, 'form-new': FormBuilder, 'form-edit': FormBuilder,
-  playbooks: SettingsPlaybooks, 'playbook-new': PlaybookEditor, 'playbook-edit': PlaybookEditor,
+  checklists: SettingsChecklists, 'checklist-new': ChecklistEditor, 'checklist-edit': ChecklistEditor, 'bundle-new': BundleEditor, 'bundle-edit': BundleEditor,
   mdms: SettingsMdms,
   'project-templates': SettingsProjectTemplates, 'project-template-new': ProjectTemplateEditor, 'project-template-edit': ProjectTemplateEditor,
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
@@ -207,7 +210,7 @@ export default function App() {
         <Route element={<SettingsShell />}>
           <Route path="/settings" element={<SettingsHome />} />
           {allRoutes().map((r) => <Route key={r.path} path={r.path} element={settingsElement(r.id, r.access)} />)}
-          {REDIRECTS.map(([from, to]) => <Route key={from} path={from} element={<Navigate to={to} replace />} />)}
+          {REDIRECTS.map(([from, to]) => <Route key={from} path={from} element={<ParamRedirect to={to} />} />)}
         </Route>
       </Route>
 

@@ -115,3 +115,15 @@ test('every section has a unique slug, an icon and a description, and every grou
   }
   assert.equal(sectionBySlug('nope'), null);
 });
+
+test('PB2: Forms and Playbooks moved to Checklists, keeping ids', async () => {
+  const { redirectTarget } = await import('./registry.js');
+  const paths = allRoutes().map((r) => r.path);
+  for (const gone of ['/settings/forms', '/settings/forms/:id', '/settings/playbooks', '/settings/playbooks/:id']) assert.ok(!paths.includes(gone), gone);
+  for (const added of ['/settings/checklists', '/settings/checklists/new', '/settings/checklists/:id', '/settings/checklists/bundles/new', '/settings/checklists/bundles/:id']) assert.ok(paths.includes(added), added);
+  const to = Object.fromEntries(REDIRECTS);
+  assert.equal(redirectTarget(to['/settings/forms/:id'], { id: '12' }), '/settings/checklists/12');
+  assert.equal(redirectTarget(to['/settings/playbooks/:id'], { id: '3' }), '/settings/checklists/bundles/3');
+  assert.equal(redirectTarget(to['/settings/forms'], {}), '/settings/checklists');
+  assert.equal(findPage('/settings/checklists/bundles/3').id, 'checklists');
+});

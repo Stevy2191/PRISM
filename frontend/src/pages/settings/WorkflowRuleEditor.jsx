@@ -81,7 +81,7 @@ const ACTION_OPTIONS = [
   { value: 'add_private_comment', label: 'Add private comment' },
   { value: 'escalate_to_user', label: 'Escalate to user' },
   { value: 'set_sla_policy', label: 'Set SLA policy' },
-  { value: 'suggest_playbook', label: 'Suggest a playbook' },
+  { value: 'suggest_playbook', label: 'Suggest a bundle' },
 ];
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'critical'];
 
@@ -283,8 +283,8 @@ function ActionRow({ action, dragging, onDragStart, onDragOver, onDrop, onDragEn
       )}
 
       {action.actionType === 'suggest_playbook' && (
-        <select className="input h-9 text-sm" value={v.playbookId || ''} onChange={(e) => setValue({ playbookId: Number(e.target.value) })} aria-label="Playbook to suggest">
-          <option value="">Select playbook…</option>
+        <select className="input h-9 text-sm" value={v.playbookId || ''} onChange={(e) => setValue({ playbookId: Number(e.target.value) })} aria-label="Bundle to suggest">
+          <option value="">Select bundle…</option>
           {playbooks.filter((p) => p.isActive).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       )}

@@ -39,6 +39,11 @@ async function presentForm(form, { withDefinition = true } = {}) {
     version: current ? current.version : null,
     versionId: current ? current.id : null,
     inUse,
+    // What it does when finished (PB2): the last item, when it's the device action.
+    finish: (() => {
+      const last = current ? current.definition.sections.flatMap((s) => s.items).slice(-1)[0] : null;
+      return last && last.kind === 'action' ? last.action : null;
+    })(),
     updatedAt: form.updatedAt,
     ...(withDefinition ? { definition: current ? current.definition : { sections: [] } } : {}),
   };
