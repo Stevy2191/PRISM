@@ -9,6 +9,8 @@ const canManage = requirePermission('settings.manage_playbooks');
 const canRead = requirePermission('settings.manage_playbooks', 'tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all');
 
 router.get('/', canRead, ctrl.list);
+// Before /:id. Try it (PB2) is part of building checklists.
+router.post('/try', canManage, ctrl.tryIt);
 router.get('/:id', canRead, ctrl.get);
 router.post('/', canManage, ctrl.create);
 router.put('/:id', canManage, ctrl.save);

@@ -5,6 +5,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { parseRecordId } = require('../services/permissionService');
 const { presentForm, createForm, saveFormVersion } = require('../services/playbooks/admin');
+const { validateDefinition, evaluate } = require('../services/playbooks/formDefinition');
 
 async function findForm(req) {
   const form = await Form.findByPk(parseRecordId(req.params.id) || 0);
@@ -50,6 +51,34 @@ const setActive = asyncHandler(async (req, res) => {
   res.json({ form: await presentForm(form) });
 });
 
+// POST /forms/try { usage, definition, device: { categoryId, mdm } } (PB2)
+// The editor's Try it: which lines show for that device. Nothing is saved.
+const tryIt = asyncHandler(async (req, res) => {
+  const body = req.body || {};
+  const def = validateDefinition(body.definition, { usage: body.usage });
+  const d = body.device && typeof body.device === 'object' ? body.device : {};
+  const mdm = d.mdm === 'none' || d.mdm === null || d.mdm === undefined ? 'none' : parseRecordId(d.mdm);
+  if (mdm === null) throw new ApiError(400, 'Choose an MDM, or not managed', 'VALIDATION_ERROR');
+  const device = body.usage === 'device' ? {
+    categoryId: parseRecordId(d.categoryId),
+    mdm,
+    isManaged: mdm !== 'none',
+    mdmId: mdm === 'none' ? null : mdm,
+    hasCellular: d.hasCellular === true,
+    carrierCompanyId: null,
+    hasAgent: d.hasAgent === true,
+    companyId: null,
+  } : null;
+  const state = evaluate(def, { device, person: null });
+  const all = state.sections.flatMap((s) => s.items.map((i) => ({ ...i, shown: s.shown && i.shown })));
+  const lines = all.filter((i) => i.kind !== 'action');
+  res.json({
+    evaluation: state,
+    shown: lines.filter((i) => i.shown && i.kind !== 'text').length,
+    hidden: lines.filter((i) => !i.shown).length,
+  });
+});
+
 module.exports = {
-  list, get, create, save, setActive,
+  list, get, create, save, setActive, tryIt,
 };

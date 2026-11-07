@@ -759,6 +759,14 @@ TicketForm.hasMany(TicketFormSecret, { foreignKey: 'ticketFormId', as: 'secrets'
 TicketFormSecret.belongsTo(TicketForm, { foreignKey: 'ticketFormId', as: 'ticketForm' });
 Ticket.hasMany(TicketPlaybookSuggestion, { foreignKey: 'ticketId', as: 'playbookSuggestions', onDelete: 'CASCADE' });
 TicketPlaybookSuggestion.belongsTo(Playbook, { foreignKey: 'playbookId', as: 'playbook' });
+// PB2: bundles suggest themselves on tickets created in, or moved into, one
+// of their categories, whatever created the ticket. Lazy require: the
+// service needs this module.
+Ticket.addHook('afterCreate', 'suggestBundlesByCategory', (ticket, options) => require('../services/playbooks/suggest').afterWrite(ticket, options)); // eslint-disable-line global-require
+Ticket.addHook('afterUpdate', 'suggestBundlesByCategory', (ticket, options) => {
+  if (!ticket.changed('categoryId')) return undefined;
+  return require('../services/playbooks/suggest').afterWrite(ticket, options); // eslint-disable-line global-require
+});
 // Portal admin roles follow the person: a department or company change drops
 // the roles that no longer match (services/portal/adminRoles). Lazy require:
 // the service needs this module.

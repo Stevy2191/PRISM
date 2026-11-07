@@ -2,7 +2,7 @@
 // endpoints and the import, so an imported file goes through exactly the
 // checks a form saved in Settings does.
 const {
-  sequelize, Form, FormVersion, Playbook, Mdm, AssetCategory, Company, TicketForm,
+  sequelize, Form, FormVersion, Playbook, Mdm, AssetCategory, Company, TicketForm, TicketCategory,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { validateDefinition } = require('./formDefinition');
@@ -130,6 +130,15 @@ async function cleanCompanyIds(raw) {
   return ids;
 }
 
+// The ticket categories a bundle suggests itself on (PB2).
+async function cleanSuggestCategoryIds(raw) {
+  if (raw === null || raw === undefined) return null;
+  const ids = idList(raw);
+  if (!ids.length) return null;
+  if ((await TicketCategory.count({ where: { id: ids } })) !== ids.length) throw bad('A bundle suggests itself on an unknown ticket category');
+  return ids;
+}
+
 async function cleanPlaybook(body, current = null) {
   const b = body || {};
   const needsPerson = b.needsPerson !== undefined ? b.needsPerson === true : !!(current && current.needsPerson);
@@ -139,6 +148,7 @@ async function cleanPlaybook(body, current = null) {
     needsPerson,
     companyIds: b.companyIds !== undefined ? await cleanCompanyIds(b.companyIds) : (current ? current.companyIds : null),
     blocks: await cleanBlocks(b.blocks !== undefined ? b.blocks : (current ? current.blocks : []), { needsPerson }),
+    suggestCategoryIds: b.suggestCategoryIds !== undefined ? await cleanSuggestCategoryIds(b.suggestCategoryIds) : (current ? current.suggestCategoryIds : null),
     ...(b.isActive !== undefined ? { isActive: b.isActive === true } : {}),
   };
 }
