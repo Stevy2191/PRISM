@@ -58,6 +58,7 @@ const recurringTicketsRoutes = require('./recurringTickets');
 const workloadRoutes = require('./workload');
 const portalRoutes = require('./portal');
 const agentRoutes = require('./agent');
+const installRoutes = require('./install');
 
 const { getVersionInfo } = require('../utils/version');
 
@@ -82,6 +83,8 @@ router.use('/portal', portalRoutes);
 // The PRISM agent (8a): computers, not people. No session; enrollment keys and
 // per-device request signatures authenticate it (routes/agent).
 router.use('/agent', agentRoutes);
+// Install links (8d): public; the install key in the path is the credential.
+router.use('/install', installRoutes);
 
 // Settings has its own public (login branding) + admin endpoints inside it.
 router.use('/settings', settingsRoutes);

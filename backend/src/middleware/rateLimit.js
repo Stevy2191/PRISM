@@ -157,6 +157,20 @@ const agentEnrollLimiter = rateLimit({
   message: { error: true, message: 'Too many enrollment attempts, please try again later', code: 'RATE_LIMITED' },
 });
 
+// GET /install/:key/... (8d) — install links and push scripts, public (the
+// key is the credential). Per IP and as generous as enrollment: a PDQ or
+// Group Policy rollout downloads from hundreds of computers behind one
+// office address at once.
+const installStore = new MemoryStore();
+const installLimiter = rateLimit({
+  store: installStore,
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: true, message: 'Too many downloads, please try again later', code: 'RATE_LIMITED' },
+});
+
 // Signed agent routes, per device (req.device, set by agentAuthenticate). The
 // agent sends a heartbeat every 5 minutes; 2 a minute leaves room for one
 // retry after a network blip.
@@ -239,12 +253,12 @@ const secretRevealLimiter = rateLimit({
 // login attempts don't rate-limit the next; never called at runtime.
 function resetRateLimits() {
   [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
-    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore, secretRevealStore]
+    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore, secretRevealStore, installStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
-  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, secretRevealLimiter,
+  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, secretRevealLimiter, installLimiter,
 };
