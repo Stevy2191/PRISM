@@ -35,32 +35,48 @@ function Card({ title, hint, action, children }) {
 
 const mb = (bytes) => `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
 
+// Expiry choices for a new install key (8d): a link sent around for one-offs
+// is best short-lived; a key behind Group Policy or PDQ can be Never.
+const EXPIRY = [['', 'Never'], ['14', 'In 14 days'], ['30', 'In 30 days'], ['date', 'On a date…']];
+
 function NewKey({ company, onCreated, onCancel }) {
   const [name, setName] = useState('');
-  const [expiresAt, setExpiresAt] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [date, setDate] = useState('');
+  const [limit, setLimit] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const create = async (e) => {
     e.preventDefault();
     setBusy(true); setError('');
+    let expiresAt = null;
+    if (expiry === 'date' && date) expiresAt = new Date(`${date}T23:59:59`).toISOString();
+    else if (expiry && expiry !== 'date') expiresAt = new Date(Date.now() + Number(expiry) * 86400000).toISOString();
     try {
       const { data } = await api.post(`/companies/${company.id}/agent-keys`, {
-        name: name.trim(), expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : null,
+        name: name.trim(), expiresAt, maxUses: limit ? Number(limit) : null,
       });
       onCreated(data.key, data.secret);
     } catch (err) { setError(errMessage(err)); } finally { setBusy(false); }
   };
   return (
-    <form onSubmit={create} aria-label="New enrollment key" className="space-y-3 border-b px-5 py-4" style={BORDER}>
+    <form onSubmit={create} aria-label="New install key" className="space-y-3 border-b px-5 py-4" style={BORDER}>
       {error && <Notice tone="bad">{error}</Notice>}
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+      <div>
+        <label className="label" htmlFor="agent-key-name">Name</label>
+        <input id="agent-key-name" className="input h-9 text-sm" maxLength={100} required placeholder="Office rollout, or One-off installs" value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="label" htmlFor="agent-key-name">Name</label>
-          <input id="agent-key-name" className="input h-9 text-sm" maxLength={100} required placeholder="Clinic rollout" value={name} onChange={(e) => setName(e.target.value)} />
+          <label className="label" htmlFor="agent-key-expiry">Expires</label>
+          <select id="agent-key-expiry" className="input h-9 text-sm" value={expiry} onChange={(e) => setExpiry(e.target.value)}>
+            {EXPIRY.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+          </select>
+          {expiry === 'date' && <input aria-label="Expiry date" type="date" className="input mt-2 h-9 text-sm" required value={date} onChange={(e) => setDate(e.target.value)} />}
         </div>
         <div>
-          <label className="label" htmlFor="agent-key-expiry">Expires (optional)</label>
-          <input id="agent-key-expiry" type="date" className="input h-9 text-sm" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+          <label className="label" htmlFor="agent-key-limit">Computers it can add (optional)</label>
+          <input id="agent-key-limit" type="number" min="1" max="100000" className="input h-9 text-sm" placeholder="No limit" value={limit} onChange={(e) => setLimit(e.target.value)} />
         </div>
       </div>
       <div className="flex justify-end gap-2">
@@ -71,42 +87,68 @@ function NewKey({ company, onCreated, onCancel }) {
   );
 }
 
-function Keys({ company, keys, onChanged, onCreated }) {
+const used = (k) => (k.maxUses ? `${k.enrolledCount} of ${k.maxUses}` : `${k.enrolledCount} computer${k.enrolledCount === 1 ? '' : 's'}`);
+
+function keyState(k) {
+  if (k.revokedAt) return <StatusChip tone="neutral">Revoked</StatusChip>;
+  if (k.usedUp) return <StatusChip tone="neutral">Used up</StatusChip>;
+  if (!k.usable) return <StatusChip tone="neutral">Expired</StatusChip>;
+  return k.expiresAt ? `Until ${shortDate(k.expiresAt)}` : 'No expiry';
+}
+
+function Keys({
+  company, keys, selectedId, onSelect, onChanged, onCreated, onRotated,
+}) {
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
   const revoke = async (k) => {
-    if (!window.confirm(`Revoke “${k.name}”? Computers already enrolled with it keep working; new installs with it are refused.`)) return;
+    if (!window.confirm(`Revoke “${k.name}”? Computers already enrolled with it keep working; its install link and new installs with it stop working.`)) return;
     setError('');
     try { await api.post(`/companies/${company.id}/agent-keys/${k.id}/revoke`); onChanged(); } catch (err) { setError(errMessage(err)); }
   };
+  const rotate = async (k) => {
+    if (!window.confirm(`Rotate “${k.name}”? It gets a new key: the old key, its install link and push scripts stop working. Computers already enrolled keep working.`)) return;
+    setError('');
+    try {
+      const { data } = await api.post(`/companies/${company.id}/agent-keys/${k.id}/rotate`);
+      onRotated(data.key, data.secret);
+    } catch (err) { setError(errMessage(err)); }
+  };
   return (
     <Card
-      title="Install the agent"
-      hint="Every computer it's installed on becomes an Asset of this company and keeps its details current."
-      action={!adding && company.status === 'active' && <button type="button" className="btn-primary h-9 px-3 text-sm" onClick={() => setAdding(true)}>New enrollment key</button>}
+      title="Install keys"
+      hint="A key adds computers to this company. One key can install as many computers as you like; copy it again any time."
+      action={!adding && company.status === 'active' && <button type="button" className="btn-primary h-9 px-3 text-sm" onClick={() => setAdding(true)}>New install key</button>}
     >
       {adding && <NewKey company={company} onCancel={() => setAdding(false)} onCreated={(k, secret) => { setAdding(false); onCreated(k, secret); }} />}
       {error && <div className="px-5 pt-3"><Notice tone="bad">{error}</Notice></div>}
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead><tr><th className="table-th">Enrollment key</th><th className="table-th">Used</th><th className="table-th">Expires</th><th className="table-th"><span className="sr-only">Actions</span></th></tr></thead>
+          <thead><tr><th className="table-th">Install key</th><th className="table-th">Used</th><th className="table-th">Status</th><th className="table-th"><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {keys.map((k) => (
-              <tr key={k.id} className="border-t" style={BORDER}>
+              <tr key={k.id} className="border-t" style={{ ...BORDER, ...(k.id === selectedId ? { backgroundColor: 'var(--color-accent-soft)' } : {}) }}>
                 <td className="table-td">
                   <span className="font-semibold text-navy-900">{k.name}</span>
                   <span className="block text-[12.5px]" style={MUTED}>
                     {k.revokedAt ? `Revoked ${shortDate(k.revokedAt)}` : `Created ${shortDate(k.createdAt)}${k.createdBy ? ` by ${k.createdBy.displayName}` : ''}`}
+                    {k.lastUsedAt && !k.revokedAt ? ` · last used ${shortDate(k.lastUsedAt)}` : ''}
                   </span>
                 </td>
-                <td className="table-td whitespace-nowrap">{k.enrolledCount} computer{k.enrolledCount === 1 ? '' : 's'}</td>
-                <td className="table-td whitespace-nowrap">{k.revokedAt ? <StatusChip tone="neutral">Revoked</StatusChip> : (k.expiresAt ? shortDate(k.expiresAt) : 'Never')}</td>
-                <td className="table-td text-right">
-                  {!k.revokedAt && <button type="button" className="btn-secondary h-8 px-3 text-sm" onClick={() => revoke(k)}>Revoke</button>}
+                <td className="table-td whitespace-nowrap">{used(k)}</td>
+                <td className="table-td whitespace-nowrap">{keyState(k)}</td>
+                <td className="table-td whitespace-nowrap text-right">
+                  {!k.revokedAt && (
+                    <span className="inline-flex items-center justify-end gap-2">
+                      {k.usable && <button type="button" className="btn-secondary h-8 px-3 text-sm" aria-pressed={k.id === selectedId} onClick={() => onSelect(k)} aria-label={`Install with ${k.name}`}>Install</button>}
+                      <button type="button" className="btn-secondary h-8 px-3 text-sm" onClick={() => rotate(k)} aria-label={`Rotate ${k.name}`}>Rotate</button>
+                      <button type="button" className="btn-secondary h-8 px-3 text-sm" onClick={() => revoke(k)} aria-label={`Revoke ${k.name}`}>Revoke</button>
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
-            {!keys.length && <tr><td className="table-td" colSpan={4}>No enrollment keys yet. Create one to install the agent.</td></tr>}
+            {!keys.length && <tr><td className="table-td" colSpan={4}>No install keys yet. Create one to install the agent.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -211,43 +253,101 @@ function LinuxInstall({
   );
 }
 
-function InstallCommand({ fresh, keys, packages }) {
+// How to push the agent with the tools clients use (8d). All of them run
+// the same PowerShell script, as SYSTEM.
+const PUSH_TOOLS = [
+  ['PDQ Deploy', 'New package → PowerShell step: paste the script (or the one-line command). Run as Deploy User with “Run as Local System”, then deploy to a collection.'],
+  ['Group Policy', 'Computer Configuration → Policies → Windows Settings → Scripts → Startup → PowerShell Scripts: add the script (saved as a .ps1 in the GPO’s folder). Computers install it at their next restart.'],
+  ['Intune', 'Devices → Scripts and remediations → Platform scripts → Add (Windows): upload the .ps1; run with the logged-on credentials: No; run in 64-bit PowerShell: Yes.'],
+  ['An RMM', 'NinjaOne, Datto, N-able, Atera and the like: a PowerShell script run as SYSTEM, against the computers you choose.'],
+];
+
+function CodeBox({ label, children }) {
+  return (
+    <pre aria-label={label} className="m-0 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg border p-3 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{children}</pre>
+  );
+}
+
+function InstallKey({
+  company, selected, packages, onRevealed, onRotated,
+}) {
   const testCertificate = useTestCertificate();
-  const [platform, setPlatform] = useState('windows');
+  const [platform, setPlatform] = useState('link');
   const [copied, setCopied] = useState(false);
-  const usable = keys.filter((k) => k.usable);
-  const keyName = fresh ? fresh.key.name : (usable[0] && usable[0].name);
-  const secret = fresh ? fresh.secret : 'pk_enr_…';
+  const [script, setScript] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const key = selected && selected.key;
+  const real = selected && selected.secret;
+  const secret = real || 'pk_enr_…';
+  const origin = window.location.origin;
+  const api1 = `${origin}/api/v1/install/${secret}`;
+  const link = `${origin}/install/${secret}`;
+  useEffect(() => {
+    setScript('');
+    if (!real) return;
+    api.get(`/install/${real}/windows.ps1`, { responseType: 'text', transformResponse: (d) => d })
+      .then(({ data }) => setScript(data)).catch(() => setScript(''));
+  }, [real]);
   const has = (plat, arch, format) => packages.find((p) => p.platform === plat && (p.arches || [p.arch]).includes(arch) && (!format || p.format === format));
   const win = has('windows', 'amd64');
   const winArm = has('windows', 'arm64');
   const winArmOwn = winArm && (!win || winArm.file !== win.file) ? winArm : null;
   const mac = has('macos', 'arm64') || has('macos', 'amd64');
-  const origin = window.location.origin;
-  // Windows: one silent command (GPO, Intune). Mac: the package can't take
-  // settings, so enrollment is a command after installing (spec, decision 7).
   const command = platform === 'macos' || platform === 'linux'
     ? `sudo prism-agent enroll --url ${origin} --key ${secret}`
     : `msiexec /i ${win ? win.file : 'prism-agent.msi'} /qn PRISM_URL=${origin} ENROLL_KEY=${secret}`;
-  // An MSI installed by double-clicking isn't enrolled: enroll it afterwards.
   const winEnroll = `& "C:\\Program Files\\PRISM\\Agent\\prism-agent.exe" enroll --url ${origin} --key ${secret}`;
+  const oneLine = `powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (irm '${api1}/windows.ps1')"`;
   const copyText = async (text) => {
     try { await navigator.clipboard.writeText(text); setCopied(text); setTimeout(() => setCopied(false), 1500); } catch { /* no clipboard */ }
   };
-  const copy = () => copyText(command);
-  const commandBox = (
-    <>
-      {fresh && <Notice tone="info">This is the only time the full key is shown. Copy the command now; PRISM keeps only a fingerprint of the key.</Notice>}
-      <pre aria-label="Command" className="m-0 whitespace-pre-wrap break-all rounded-lg border p-3 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{command}</pre>
-    </>
+  const copyBtn = (text, label = 'Copy') => (
+    <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => copyText(text)} disabled={!real}>{copied === text ? 'Copied' : label}</button>
   );
-  const copyButton = <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={copy} disabled={!fresh}>{copied === command ? 'Copied' : 'Copy'}</button>;
-  const keyNote = fresh ? '' : 'The key is shown in full once, when it\'s created: create a new one to copy a complete command.';
+  const reveal = async () => {
+    setBusy(true); setError('');
+    try {
+      const { data } = await api.post(`/companies/${company.id}/agent-keys/${key.id}/reveal`);
+      onRevealed(key, data.secret);
+    } catch (err) { setError(errMessage(err)); } finally { setBusy(false); }
+  };
+  const rotate = async () => {
+    setBusy(true); setError('');
+    try {
+      const { data } = await api.post(`/companies/${company.id}/agent-keys/${key.id}/rotate`);
+      onRotated(data.key, data.secret);
+    } catch (err) { setError(errMessage(err)); } finally { setBusy(false); }
+  };
+  if (!key) {
+    return (
+      <Card title="Install the agent" hint="Create an install key first">
+        <p className="m-0 px-5 py-4 text-sm" style={MUTED}>Create an install key, then come here for its install link, push scripts and install commands.</p>
+      </Card>
+    );
+  }
+  const commandBox = <CodeBox label="Command">{command}</CodeBox>;
+  const copyButton = copyBtn(command);
+  const keyNote = '';
+  const TABS = [['link', 'Install link'], ['push', 'Push'], ['windows', 'Windows'], ['macos', 'macOS'], ['linux', 'Linux']];
   return (
-    <Card title="Install command" hint={keyName ? `With the key “${keyName}”` : 'Create an enrollment key first'}>
+    <Card title="Install the agent" hint={`With the key “${key.name}”`}>
       <div className="space-y-3 px-5 py-4">
-        <div role="tablist" aria-label="Platform" className="inline-flex overflow-hidden rounded-md border" style={BORDER}>
-          {['windows', 'macos', 'linux'].map((p) => (
+        {error && <Notice tone="bad">{error}</Notice>}
+        {!real && (key.copyable ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border px-3.5 py-2.5" style={BORDER}>
+            <span className="text-sm text-navy-900">The key is hidden. Show it to fill in and copy the link, scripts and commands.</span>
+            <button type="button" className="btn-primary h-8 px-3 text-sm" onClick={reveal} disabled={busy}>{busy ? 'Showing…' : 'Show key'}</button>
+          </div>
+        ) : (
+          <Notice tone="info">
+            This key was made before keys could be copied again, so PRISM can&apos;t show it. <b>Rotate</b> it to get one you can copy
+            (the old key stops working; computers already enrolled keep working).
+            {' '}<button type="button" className="btn-secondary ml-1 h-8 px-3 text-sm" onClick={rotate} disabled={busy}>Rotate</button>
+          </Notice>
+        ))}
+        <div role="tablist" aria-label="How to install" className="inline-flex flex-wrap overflow-hidden rounded-md border" style={BORDER}>
+          {TABS.map(([p, label]) => (
             <button
               key={p}
               type="button"
@@ -257,11 +357,55 @@ function InstallCommand({ fresh, keys, packages }) {
               className={`h-8 px-3 text-sm ${platform === p ? 'font-semibold' : 'font-medium text-navy-500 hover:bg-[var(--color-hover)]'}`}
               style={platform === p ? { backgroundColor: 'var(--color-accent-soft)', color: 'var(--color-accent)' } : undefined}
             >
-              {PLATFORM[p]}
+              {label}
             </button>
           ))}
         </div>
-        {platform !== 'linux' && <AddressNotice testCertificate={testCertificate} platform={platform} />}
+        {platform !== 'linux' && <AddressNotice testCertificate={testCertificate} platform={platform === 'macos' ? 'macos' : 'windows'} />}
+        {platform === 'link' && (
+          <>
+            <p className="m-0 text-sm text-navy-900">
+              Send this link, or open it on the computer. It offers the right download for Windows, Mac or Linux; the
+              installer adds the computer to {company.name} by itself.
+            </p>
+            <CodeBox label="Install link">{link}</CodeBox>
+            <div className="flex flex-wrap items-center gap-2">
+              {copyBtn(link, 'Copy link')}
+              {real && <a className="text-sm text-prism hover:underline" href={link} target="_blank" rel="noreferrer">Open it</a>}
+            </div>
+            <p className="m-0 text-[12.5px]" style={MUTED}>
+              Installing needs an administrator: on a standard user&apos;s computer, Windows or macOS asks for an administrator&apos;s
+              name and password (type yours there, or over remote support). For many computers at once, use <b>Push</b>.
+              Anyone with the link can add a computer to this company until the key expires, is used up, rotated or revoked.
+            </p>
+          </>
+        )}
+        {platform === 'push' && (
+          <>
+            <p className="m-0 text-sm text-navy-900">
+              <b>Windows:</b> one PowerShell script for PDQ Deploy, Group Policy, Intune or an RMM. It runs as SYSTEM, installs
+              silently and enrolls; computers that already have the agent are left as they are. Users see nothing.
+            </p>
+            <CodeBox label="PowerShell script">{real ? (script || 'Loading…') : '(Show the key to see the script.)'}</CodeBox>
+            <div className="flex flex-wrap items-center gap-2">
+              {copyBtn(script || '', 'Copy script')}
+              {real && <a className="btn-secondary inline-flex h-9 items-center px-3 text-sm" href={`/api/v1/install/${real}/windows.ps1`} download="Install-PrismAgent.ps1">Download .ps1</a>}
+            </div>
+            <p className="m-0 text-[12.5px]" style={MUTED}>Or as one command (where a tool takes a command line rather than a script):</p>
+            <CodeBox label="One-line command">{oneLine}</CodeBox>
+            <div className="flex flex-wrap items-center gap-2">{copyBtn(oneLine)}</div>
+            <ul aria-label="Push tools" className="m-0 list-disc space-y-1 pl-5 text-[13px] text-navy-900">
+              {PUSH_TOOLS.map(([tool, how]) => <li key={tool}><b>{tool}:</b> {how}</li>)}
+            </ul>
+            <p className="m-0 pt-1 text-sm text-navy-900">
+              <b>Mac and Linux:</b> a shell command, run as root by an RMM, a Mac MDM (Jamf, Kandji, Mosyle) or over SSH:
+            </p>
+            <CodeBox label="Mac command">{`curl -fsSL ${api1}/mac.sh | sudo sh`}</CodeBox>
+            <div className="flex flex-wrap items-center gap-2">{copyBtn(`curl -fsSL ${api1}/mac.sh | sudo sh`)}</div>
+            <CodeBox label="Linux command">{`curl -fsSL ${api1}/linux.sh | sudo sh`}</CodeBox>
+            <div className="flex flex-wrap items-center gap-2">{copyBtn(`curl -fsSL ${api1}/linux.sh | sudo sh`)}</div>
+          </>
+        )}
         {platform === 'windows' && (
           <>
             {commandBox}
@@ -274,18 +418,16 @@ function InstallCommand({ fresh, keys, packages }) {
               ) : <span className="text-sm" style={MUTED}>No Windows installer in this PRISM build yet.</span>}
               {winArmOwn && <a className="text-sm text-prism hover:underline" href="/api/v1/devices/packages/windows/arm64" download>ARM version</a>}
             </div>
-            <p className="m-0 text-[12.5px]" style={MUTED}>Works from Group Policy, Intune or by hand. {keyNote}</p>
+            <p className="m-0 text-[12.5px]" style={MUTED}>Run it as administrator in the MSI&apos;s folder. For a one-off, the <b>Install link</b> is simpler.</p>
             <details className="text-sm text-navy-900">
-              <summary className="cursor-pointer text-[13px] font-medium">Installed it by double-clicking the MSI?</summary>
+              <summary className="cursor-pointer text-[13px] font-medium">Installed this MSI by double-clicking it?</summary>
               <div className="mt-2 space-y-2">
                 <p className="m-0 text-[12.5px]" style={MUTED}>
-                  Opening the MSI installs the agent but can&apos;t enroll it (the key goes on the command line), so the computer
-                  doesn&apos;t appear here. Enroll it from PowerShell run as administrator:
+                  The MSI downloaded here doesn&apos;t carry the key (the install link&apos;s does), so the computer
+                  doesn&apos;t appear until it&apos;s enrolled. Enroll it from PowerShell run as administrator:
                 </p>
-                <pre aria-label="Enroll command" className="m-0 whitespace-pre-wrap break-all rounded-lg border p-3 font-mono text-[12.5px] text-navy-900" style={{ ...BORDER, backgroundColor: 'var(--color-hover)' }}>{winEnroll}</pre>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => copyText(winEnroll)} disabled={!fresh}>{copied === winEnroll ? 'Copied' : 'Copy'}</button>
-                </div>
+                <CodeBox label="Enroll command">{winEnroll}</CodeBox>
+                <div className="flex flex-wrap items-center gap-2">{copyBtn(winEnroll)}</div>
               </div>
             </details>
           </>
@@ -306,13 +448,11 @@ function InstallCommand({ fresh, keys, packages }) {
                 {' '}<b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>, then open it again.
               </li>
               <li>Install it (it asks for an administrator&apos;s password).</li>
-              <li>In Terminal, enroll the Mac with this company&apos;s key:</li>
+              <li>In Terminal, enroll the Mac with this company&apos;s key (not needed with the install link&apos;s package):</li>
             </ol>
             {commandBox}
             <div className="flex flex-wrap items-center gap-2">{copyButton}</div>
-            <p className="m-0 text-[12.5px]" style={MUTED}>
-              Macs are installed by hand for now (no Apple Developer ID); updates install themselves without asking. {keyNote}
-            </p>
+            <p className="m-0 text-[12.5px]" style={MUTED}>Updates install themselves without asking.</p>
           </>
         )}
         {platform === 'linux' && <LinuxInstall has={has} commandBox={commandBox} copyButton={copyButton} keyNote={keyNote} />}
@@ -410,21 +550,40 @@ export default function CompanyDevices({ company }) {
   const canEditAssets = usePermission('assets.edit');
   const [keys, setKeys] = useState(null);
   const [packages, setPackages] = useState([]);
-  const [fresh, setFresh] = useState(null);
+  // The key the install card shows, and its secret once shown (created,
+  // rotated or revealed in this visit; never kept anywhere else).
+  const [selected, setSelected] = useState(null);
   const [error, setError] = useState('');
   const loadKeys = useCallback(() => {
     if (!canManage) return;
-    api.get(`/companies/${company.id}/agent-keys`).then(({ data }) => setKeys(data.keys)).catch((err) => setError(errMessage(err)));
+    api.get(`/companies/${company.id}/agent-keys`).then(({ data }) => {
+      setKeys(data.keys);
+      setSelected((cur) => {
+        const still = cur && data.keys.find((k) => k.id === cur.key.id && k.usable);
+        if (still) return { key: still, secret: cur.secret };
+        const first = data.keys.find((k) => k.usable);
+        return first ? { key: first, secret: null } : null;
+      });
+    }).catch((err) => setError(errMessage(err)));
     api.get('/devices/packages').then(({ data }) => setPackages(data.packages)).catch(() => setPackages([]));
   }, [company.id, canManage]);
   useEffect(loadKeys, [loadKeys]);
+  const show = (key, secret) => { setSelected({ key, secret }); loadKeys(); };
   return (
     <div className="space-y-5">
       {error && <Notice tone="bad">{error}</Notice>}
       {canManage && (keys ? (
         <div className="grid items-start gap-5 lg:grid-cols-2">
-          <Keys company={company} keys={keys} onChanged={loadKeys} onCreated={(key, secret) => { setFresh({ key, secret }); loadKeys(); }} />
-          <InstallCommand fresh={fresh} keys={keys} packages={packages} />
+          <Keys
+            company={company}
+            keys={keys}
+            selectedId={selected && selected.key.id}
+            onSelect={(k) => setSelected((cur) => (cur && cur.key.id === k.id ? cur : { key: k, secret: null }))}
+            onChanged={loadKeys}
+            onCreated={show}
+            onRotated={show}
+          />
+          <InstallKey company={company} selected={selected} packages={packages} onRevealed={show} onRotated={show} />
         </div>
       ) : <Spinner />)}
       <Devices company={company} canManage={canManage} canScan={canManage || canEditAssets} />

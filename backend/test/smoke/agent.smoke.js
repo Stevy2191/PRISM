@@ -26,32 +26,60 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   const category = await models.AssetCategory.findOne();
   await models.Asset.create({ assetTag: 'PRN-1', name: 'Front desk printer', categoryId: category.id, companyId: company.id });
 
-  // A key from the Devices tab; its install command carries the secret once.
+  // An install key from the Devices tab (8d): the install card opens on its
+  // install link, filled in with the new key.
   const page = await smoke.pageAs('admin');
+  page.on('dialog', (d) => d.accept());
   await page.goto(`/companies/${company.id}`);
   await page.getByRole('button', { name: 'Devices' }).click();
-  await page.getByRole('button', { name: 'New enrollment key' }).click();
+  await page.getByRole('button', { name: 'New install key' }).click();
   await page.getByLabel('Name').fill('Clinic rollout');
+  await page.getByLabel('Computers it can add (optional)').fill('25');
   await page.getByRole('button', { name: 'Create key' }).click();
+  const linkBox = page.getByLabel('Install link', { exact: true });
+  await linkBox.getByText(/\/install\/pk_enr_[A-Za-z0-9_-]{43}$/).waitFor();
+  const firstSecret = (await linkBox.textContent()).match(/(pk_enr_[A-Za-z0-9_-]{43})$/)[1];
+  expect(await linkBox.textContent()).toBe(`${smoke.base}/install/${firstSecret}`);
+  await page.getByRole('row').filter({ hasText: 'Clinic rollout' }).getByText('0 of 25').waitFor();
+
+  // Push: the PowerShell script carries the address and the key; Mac and Linux one-liners.
+  await page.getByRole('tab', { name: 'Push' }).click();
+  await page.getByLabel('PowerShell script').getByText(`$Key = '${firstSecret}'`).waitFor();
+  expect(await page.getByLabel('Linux command').textContent()).toBe(`curl -fsSL ${smoke.base}/api/v1/install/${firstSecret}/linux.sh | sudo sh`);
+  await page.getByRole('list', { name: 'Push tools' }).getByText('PDQ Deploy:').waitFor();
+
+  // Leaving and coming back: the key is hidden until Show key (audited).
+  await page.reload();
+  await page.getByRole('button', { name: 'Devices' }).click();
+  await page.getByRole('button', { name: 'Show key' }).click();
+  await linkBox.getByText(firstSecret).waitFor();
+  expect(await models.AuditLog.count({ where: { action: 'agent.key_revealed' } })).toBe(1);
+
+  // Rotate: a new key in the link; the old one stops working.
+  await page.getByRole('button', { name: 'Rotate Clinic rollout' }).click();
+  await page.waitForFunction((old) => {
+    const el = document.querySelector('[aria-label="Install link"]');
+    return el && /pk_enr_/.test(el.textContent) && !el.textContent.includes(old);
+  }, firstSecret);
+  const text0 = await linkBox.textContent();
+  const rotatedSecret = text0.match(/(pk_enr_[A-Za-z0-9_-]{43})$/)[1];
+
+  await page.getByRole('tab', { name: 'Windows' }).click();
   const command = page.getByLabel('Command', { exact: true });
-  await command.getByText(/ENROLL_KEY=pk_enr_[A-Za-z0-9_-]{20,}/).waitFor();
   const text = await command.textContent();
-  expect(text).toContain('msiexec /i ');
-  expect(text).toContain(`PRISM_URL=${smoke.base}`);
-  await page.getByRole('cell', { name: /Clinic rollout/ }).waitFor();
-  // An MSI opened by double-clicking isn't enrolled: the enroll command for after.
-  await page.getByText('Installed it by double-clicking the MSI?').click();
-  const enrollSecret = text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1];
+  expect(text).toBe(`msiexec /i prism-agent.msi /qn PRISM_URL=${smoke.base} ENROLL_KEY=${rotatedSecret}`);
+  await page.getByText('Installed this MSI by double-clicking it?').click();
+  const enrollSecret = rotatedSecret;
   expect(await page.getByLabel('Enroll command').textContent())
     .toBe(`& "C:\\Program Files\\PRISM\\Agent\\prism-agent.exe" enroll --url ${smoke.base} --key ${enrollSecret}`);
   // The macOS tab (8b): the package, Open Anyway once, then the enroll
-  // command with the same new key.
+  // command with the same key.
   await page.getByRole('tab', { name: 'macOS' }).click();
   await page.getByRole('list', { name: 'Installing on a Mac' }).getByText('Open Anyway').waitFor();
   const macCommand = await page.getByLabel('Command', { exact: true }).textContent();
-  expect(macCommand).toBe(`sudo prism-agent enroll --url ${smoke.base} --key ${text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1]}`);
+  expect(macCommand).toBe(`sudo prism-agent enroll --url ${smoke.base} --key ${rotatedSecret}`);
   // The Linux tab (8c): a package per distribution family, its install
-  // command, then the same enroll command with the new key.
+  // command, then the same enroll command.
   await page.getByRole('tab', { name: 'Linux' }).click();
   await page.getByRole('list', { name: 'Installing on Linux' }).waitFor();
   expect(await page.getByLabel('Install package command').textContent()).toMatch(/^sudo apt install \.\//);
@@ -61,10 +89,22 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   expect(await page.getByLabel('Install package command').textContent()).toMatch(/^sudo pacman -U /);
   expect(await page.getByLabel('Command', { exact: true }).textContent()).toBe(macCommand);
   await page.getByText('the AppIndicator', { exact: false }).waitFor();
-  await page.getByRole('tab', { name: 'Windows' }).click();
+
+  // The install link's page, for someone who isn't signed in: the company,
+  // a download for their system; the old key's link no longer works.
+  const visitor = await (await smoke.browser.newContext({ baseURL: smoke.base })).newPage();
+  await visitor.goto(`/install/${rotatedSecret}`);
+  await visitor.getByRole('heading', { name: /Install the .* agent/ }).waitFor();
+  await visitor.getByText('Riverside').waitFor();
+  await visitor.getByRole('tab', { name: 'Linux' }).click();
+  expect(await visitor.getByLabel('Install command').textContent()).toBe(`curl -fsSL ${smoke.base}/api/v1/install/${rotatedSecret}/linux.sh | sudo sh`);
+  await visitor.goto(`/install/${firstSecret}`);
+  await visitor.getByRole('heading', { name: 'Link not working' }).waitFor();
+  await visitor.getByText('Ask your IT team for a new one.').waitFor();
+  await visitor.context().close();
 
   // A computer enrolls with that key and reports in.
-  const secret = text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1];
+  const secret = rotatedSecret;
   const device = await enrollDevice(getApp(), secret);
   await device.post('/api/v1/agent/v1/inventory', inventory()).expect(200);
   await page.reload();
@@ -116,12 +156,13 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
 it('the install card shows the trust step only when PRISM serves a test certificate', async () => {
   const admin = await makeAdmin();
   const company = await makeCompany(admin, { name: 'Riverside' });
+  await admin.agent.post(`/api/v1/companies/${company.id}/agent-keys`).send({ name: 'Rollout' }).expect(201);
   const page = await smoke.pageAs('admin');
 
   // No test certificate (here the address falls through to the app page).
   await page.goto(`/companies/${company.id}`);
   await page.getByRole('button', { name: 'Devices' }).click();
-  await page.getByRole('region', { name: 'Install command' }).waitFor();
+  await page.getByRole('region', { name: 'Install the agent' }).getByRole('tablist').waitFor();
   await page.waitForLoadState('networkidle');
   expect(await page.getByRole('region', { name: 'Test certificate' }).count()).toBe(0);
   // 127.0.0.1 over HTTP is fine for the agent: no HTTPS warning.

@@ -9,6 +9,7 @@ import { allRoutes, REDIRECTS, redirectTarget } from './pages/settings/registry'
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
 import SurveyPage from './pages/SurveyPage';
+import InstallPage from './pages/InstallPage';
 import Dashboard from './pages/Dashboard';
 import Tickets from './pages/tickets/Tickets';
 import TicketNew from './pages/tickets/TicketNew';
@@ -164,6 +165,8 @@ export default function App() {
       <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
       {/* Fully public — a contact reaches this via an emailed CSAT survey link, no PRISM login. */}
       <Route path="/survey/:token" element={<SurveyPage />} />
+      {/* An install link (8d): public; the install key is the credential. */}
+      <Route path="/install/:key" element={<InstallPage />} />
       {/* The client portal (contacts sign in there; its own session and frame). */}
       <Route path="/portal/*" element={<PortalApp />} />
       {/* The old public Help Center lives in the portal now, behind sign-in. */}
