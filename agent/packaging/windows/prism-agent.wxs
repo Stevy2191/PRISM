@@ -26,9 +26,9 @@
     (running enroll with its force option re-enrolls), and self-updates
     pass no key.
   - Without them, an installer downloaded from an install link (8d) is
-    named PRISM-Agent-Setup_<host>_<key>.msi: "prism-agent enroll
-    --from-installer" reads its name (OriginalDatabase) the same way, as
-    SYSTEM, hidden from the log. Any other name skips this.
+    named PRISM-Agent-Setup_<host>_<key>.msi: "prism-agent enroll" with
+    its from-installer option reads that name (OriginalDatabase) and enrolls
+    the same way, as SYSTEM, hidden from the log. Any other name skips this.
   - C:\ProgramData\PRISM: SYSTEM and Administrators full control, users
     read. Uninstall keeps it (the enrollment) unless REMOVE_DATA=1.
 -->
