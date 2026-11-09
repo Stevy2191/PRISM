@@ -40,6 +40,7 @@ import (
 const usage = `prism-agent %s
 
   prism-agent enroll --url <PRISM address> --key <enrollment key>
+  prism-agent enroll --from-installer <path>  (an install link's installer: enroll from its name)
   prism-agent run
   prism-agent collect --json
   prism-agent status
@@ -87,8 +88,24 @@ func cmdEnroll(args []string) error {
 	url := fs.String("url", "", "PRISM's address, https://…")
 	key := fs.String("key", "", "the enrollment key from the company's Agent page (pk_enr_…)")
 	force := fs.Bool("force", false, "enroll again even if already enrolled with this PRISM (a new device identity)")
+	fromInstaller := fs.String("from-installer", "", "the installer's own path: enroll from an install link's file name (8d)")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if *fromInstaller != "" {
+		if *url != "" || *key != "" {
+			return errors.New("use --from-installer or --url and --key, not both")
+		}
+		base, k, err := enroll.FromInstallerName(*fromInstaller)
+		if errors.Is(err, enroll.ErrNoEnrollmentInName) {
+			// Downloaded by staff, or renamed: installed, not enrolled.
+			fmt.Println("The installer's name carries no enrollment; run prism-agent enroll --url … --key … to enroll.")
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		*url, *key = base, k
 	}
 	if *url == "" || *key == "" {
 		return errors.New("enroll needs --url and --key")

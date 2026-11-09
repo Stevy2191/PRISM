@@ -134,7 +134,7 @@ jobs:
           function Ok($code) { return ($code -eq 0 -or $code -eq 3010) }
 
           Push-Location agent; go build -o "$t\stubprism.exe" ./tools/stubprism; Pop-Location
-          Start-Process "$t\stubprism.exe" -ArgumentList '-addr', '127.0.0.1:8765', '-key', 'pk_enr_ci_9f8e7d', '-out', "$t\stub" -WindowStyle Hidden
+          Start-Process "$t\stubprism.exe" -ArgumentList '-addr', '127.0.0.1:8765', '-key', 'pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy', '-out', "$t\stub" -WindowStyle Hidden
           Start-Sleep 2
 
           Write-Host '--- A wrong key fails the install and leaves nothing'
@@ -145,9 +145,9 @@ jobs:
           if (Select-String -Path "$t\bad.log" -Pattern 'pk_enr_wrong_1a2b3c' -SimpleMatch -Quiet) { throw 'the key is in the failed install log' }
 
           Write-Host '--- Silent install with enrollment'
-          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\install.log"
+          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy') "$t\install.log"
           if (-not (Ok $c)) { Get-Content "$t\install.log" -Tail 150; throw "install failed ($c)" }
-          if (Select-String -Path "$t\install.log" -Pattern 'pk_enr_ci_9f8e7d' -SimpleMatch -Quiet) { throw 'the enrollment key is in the install log' }
+          if (Select-String -Path "$t\install.log" -Pattern 'pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy' -SimpleMatch -Quiet) { throw 'the enrollment key is in the install log' }
 
           Write-Host '--- The service runs as LocalSystem and reports a signed heartbeat'
           $svc = Get-Service PRISMAgent
@@ -188,7 +188,7 @@ jobs:
 
           Write-Host '--- Installing again with the key keeps the same enrollment'
           $before = Get-Content "$env:ProgramData\PRISM\agent.json" -Raw
-          $c = Msi @('/fa', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\repair.log"
+          $c = Msi @('/fa', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy') "$t\repair.log"
           if (-not (Ok $c)) { Get-Content "$t\repair.log" -Tail 80; throw "repair failed ($c)" }
           if ((Get-Content "$env:ProgramData\PRISM\agent.json" -Raw) -ne $before) { throw 'a reinstall with the key enrolled again' }
 
@@ -200,12 +200,28 @@ jobs:
           if (-not (Test-Path "$env:ProgramData\PRISM\agent.json")) { throw 'uninstall removed the enrollment' }
 
           Write-Host '--- Reinstall (already enrolled), then uninstall with REMOVE_DATA=1'
-          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci_9f8e7d') "$t\install2.log"
+          $c = Msi @('/i', $msi, 'PRISM_URL=http://127.0.0.1:8765', 'ENROLL_KEY=pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy') "$t\install2.log"
           if (-not (Ok $c)) { Get-Content "$t\install2.log" -Tail 80; throw "reinstall failed ($c)" }
           (Get-Service PRISMAgent).WaitForStatus('Running', '00:01:30')
           $c = Msi @('/x', $msi, 'REMOVE_DATA=1') "$t\uninstall2.log"
           if (-not (Ok $c)) { Get-Content "$t\uninstall2.log" -Tail 80; throw "uninstall failed ($c)" }
           if (Test-Path "$env:ProgramData\PRISM") { throw 'REMOVE_DATA=1 left ProgramData\PRISM' }
+
+          Write-Host '--- An installer from an install link (8d) enrolls from its own name'
+          $named = Join-Path $t 'PRISM-Agent-Setup_127.0.0.1+8765_pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy (1).msi'
+          Copy-Item $msi $named
+          $c = Msi @('/i', ('"' + $named + '"')) "$t\named.log"
+          if (-not (Ok $c)) { Get-Content "$t\named.log" -Tail 150; throw "the named install failed ($c)" }
+          $cfg = Get-Content "$env:ProgramData\PRISM\agent.json" -Raw | ConvertFrom-Json
+          if ($cfg.url -ne 'http://127.0.0.1:8765' -or $cfg.deviceId -ne 1) { throw "not enrolled from the name: $($cfg | ConvertTo-Json)" }
+          $c = Msi @('/x', ('"' + $named + '"'), 'REMOVE_DATA=1') "$t\uninstall3.log"
+          if (-not (Ok $c)) { throw "uninstall failed ($c)" }
+
+          Write-Host '--- Any other name installs without enrolling'
+          $c = Msi @('/i', $msi) "$t\plain.log"
+          if (-not (Ok $c)) { Get-Content "$t\plain.log" -Tail 80; throw "the plain install failed ($c)" }
+          if (Test-Path "$env:ProgramData\PRISM\agent.json") { throw 'a plain install enrolled' }
+          $c = Msi @('/x', $msi, 'REMOVE_DATA=1') "$t\uninstall4.log"
           Write-Host 'Install test passed.'
 
       - name: Install logs
@@ -306,7 +322,7 @@ jobs:
           pkg="$PWD/agent-dist/prism-agent-$VERSION-macos-universal.pkg"
           data="/Library/Application Support/PRISM"
           (cd agent && go build -o "$t/stubprism" ./tools/stubprism)
-          "$t/stubprism" -addr 127.0.0.1:8765 -key pk_enr_ci_9f8e7d -out "$t/stub" > "$t/stub-out.log" 2>&1 &
+          "$t/stubprism" -addr 127.0.0.1:8765 -key pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy -out "$t/stub" > "$t/stub-out.log" 2>&1 &
           sleep 2
 
           echo "--- The package installs and the service starts"
@@ -323,7 +339,7 @@ jobs:
           sudo test ! -e "$data/device.key"
 
           echo "--- Enrollment, then a signed heartbeat from the service"
-          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
+          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy
           sudo launchctl kickstart -k system/com.prism.agent
           for i in $(seq 1 45); do [ -f "$t/stub/heartbeat.ok" ] && break; sleep 2; done
           cat "$t/stub/stub.log"
@@ -348,7 +364,7 @@ jobs:
 
           echo "--- Enrolling again with the same PRISM changes nothing"
           before=$(sudo cat "$data/agent.json")
-          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d | grep -q "Already enrolled"
+          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy | grep -q "Already enrolled"
           [ "$(sudo cat "$data/agent.json")" = "$before" ]
 
           echo "--- Installing over itself leaves one menu bar app (owner, 2026-11-05: two after an update)"
@@ -376,6 +392,19 @@ jobs:
           sudo installer -pkg "$pkg" -target /
           sudo "$data/bin/prism-agent" uninstall --remove-data
           test ! -e "$data"
+
+          echo "--- A package from an install link (8d) enrolls from its own name"
+          named="$t/PRISM-Agent-Setup_127.0.0.1+8765_pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy.pkg"
+          cp "$pkg" "$named"
+          sudo installer -pkg "$named" -target /
+          sudo cat "$data/agent.json" | tee "$t/named.json"
+          grep -q '"url": "http://127.0.0.1:8765"' "$t/named.json"
+          sudo "$data/bin/prism-agent" uninstall --remove-data
+
+          echo "--- Any other name installs without enrolling"
+          sudo installer -pkg "$pkg" -target /
+          sudo test ! -e "$data/agent.json"
+          sudo "$data/bin/prism-agent" uninstall --remove-data
           echo "Install test passed."
 
       - name: Upload the package
@@ -509,7 +538,7 @@ jobs:
           # The tray's libraries are there (the dynamic loader finds them all).
           ! ldd /usr/bin/prism-tray | grep -q 'not found'
 
-          ./stub/stubprism -addr 127.0.0.1:8765 -key pk_enr_ci_9f8e7d -out /tmp/stub > /tmp/stub-out.log 2>&1 &
+          ./stub/stubprism -addr 127.0.0.1:8765 -key pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy -out /tmp/stub > /tmp/stub-out.log 2>&1 &
           sleep 2
 
           echo "--- A wrong key is refused and leaves no key"
@@ -517,7 +546,7 @@ jobs:
           test ! -e "$data/device.key"
 
           echo "--- Enrollment, then a signed heartbeat (run started directly: no systemd here)"
-          prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
+          prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy
           [ "$(stat -c '%a %U' "$data/device.key")" = "600 root" ]
           prism-agent run > /tmp/agent.log 2>&1 &
           for i in $(seq 1 45); do [ -f /tmp/stub/heartbeat.ok ] && break; sleep 2; done
@@ -532,7 +561,7 @@ jobs:
 
           echo "--- Enrolling again with the same PRISM changes nothing"
           before=$(cat "$data/agent.json")
-          prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d | grep -q "Already enrolled"
+          prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy | grep -q "Already enrolled"
           [ "$(cat "$data/agent.json")" = "$before" ]
 
           echo "--- uninstall says how; the package removes cleanly"
@@ -576,7 +605,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x stub/stubprism
-          ./stub/stubprism -addr 127.0.0.1:8765 -key pk_enr_ci_9f8e7d -out /tmp/stub > /tmp/stub-out.log 2>&1 &
+          ./stub/stubprism -addr 127.0.0.1:8765 -key pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy -out /tmp/stub > /tmp/stub-out.log 2>&1 &
           sleep 2
           sudo apt-get update -q
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q ./dist/*.deb
@@ -584,7 +613,7 @@ jobs:
           systemctl is-enabled prism-agent
           systemctl is-active prism-agent
           echo "--- Enroll, restart: a signed heartbeat"
-          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci_9f8e7d
+          sudo prism-agent enroll --url http://127.0.0.1:8765 --key pk_enr_ci9f8e7d0123456789abcdefghijklmnopqrstuvwxy
           sudo systemctl restart prism-agent
           for i in $(seq 1 45); do [ -f /tmp/stub/heartbeat.ok ] && break; sleep 2; done
           cat /tmp/stub/stub.log

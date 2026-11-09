@@ -25,6 +25,10 @@
     disk. A computer already enrolled with that PRISM is left as it is
     (running enroll with its force option re-enrolls), and self-updates
     pass no key.
+  - Without them, an installer downloaded from an install link (8d) is
+    named PRISM-Agent-Setup_<host>_<key>.msi: "prism-agent enroll
+    --from-installer" reads its name (OriginalDatabase) the same way, as
+    SYSTEM, hidden from the log. Any other name skips this.
   - C:\ProgramData\PRISM: SYSTEM and Administrators full control, users
     read. Uninstall keeps it (the enrollment) unless REMOVE_DATA=1.
 -->
@@ -107,6 +111,13 @@
     <CustomAction Id="EnrollAgent" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
                   Execute="deferred" Return="check" Impersonate="no" HideTarget="yes" />
 
+    <!-- Or from an install link's file name (8d), when no key was passed. -->
+    <SetProperty Id="EnrollFromName" Sequence="execute" Before="EnrollFromName"
+                 Value="&quot;[#AgentExe]&quot; enroll --from-installer &quot;[OriginalDatabase]&quot;"
+                 Condition="NOT (PRISM_URL AND ENROLL_KEY) AND OriginalDatabase &gt;&lt; &quot;PRISM-Agent-Setup_&quot; AND NOT REMOVE" />
+    <CustomAction Id="EnrollFromName" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
+                  Execute="deferred" Return="check" Impersonate="no" HideTarget="yes" />
+
     <!-- Uninstall with REMOVE_DATA=1 also forgets the enrollment. -->
     <SetProperty Id="RemoveData" Sequence="execute" Before="RemoveData"
                  Value="&quot;[System64Folder]cmd.exe&quot; /c rmdir /s /q &quot;[DATADIR]&quot;"
@@ -122,6 +133,8 @@
       <Custom Action="StartTray" After="InstallFinalize" Condition="UILevel &gt; 2 AND NOT REMOVE" />
       <Custom Action="EnrollAgent" After="InstallFiles"
               Condition="PRISM_URL AND ENROLL_KEY AND NOT REMOVE" />
+      <Custom Action="EnrollFromName" After="EnrollAgent"
+              Condition="NOT (PRISM_URL AND ENROLL_KEY) AND OriginalDatabase &gt;&lt; &quot;PRISM-Agent-Setup_&quot; AND NOT REMOVE" />
       <Custom Action="RemoveData" After="RemoveFiles"
               Condition="REMOVE~=&quot;ALL&quot; AND REMOVE_DATA=&quot;1&quot; AND NOT UPGRADINGPRODUCTCODE" />
     </InstallExecuteSequence>

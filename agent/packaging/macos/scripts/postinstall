@@ -11,6 +11,16 @@ chown root:wheel "$DATA"
 mkdir -p /usr/local/bin /Library/Logs/PRISM
 ln -sfn "$DATA/bin/prism-agent" /usr/local/bin/prism-agent
 
+# An install link's package (8d) is named PRISM-Agent-Setup_<host>_<key>.pkg:
+# enroll from its name before the service starts. Any other name changes
+# nothing; a refused key fails the install so the person knows to ask IT.
+# (installer passes the package's path as $1; PACKAGE_PATH is the same.)
+pkg="${1:-${PACKAGE_PATH:-}}"
+case "$(/usr/bin/basename "$pkg")" in
+  PRISM-Agent-Setup_*)
+    "$DATA/bin/prism-agent" enroll --from-installer "$pkg" || exit 1 ;;
+esac
+
 /bin/launchctl bootout system/com.prism.agent 2>/dev/null || true
 /bin/launchctl bootstrap system /Library/LaunchDaemons/com.prism.agent.plist
 
