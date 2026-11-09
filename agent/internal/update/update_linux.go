@@ -1,7 +1,10 @@
 package update
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -47,12 +50,50 @@ func installCommand(path, version string) ([]string, error) {
 		"--setenv=DEBIAN_FRONTEND=noninteractive", "--"}, manager...), nil
 }
 
+// What each format's file starts with: a .deb is an ar archive, an .rpm
+// has the RPM lead, an Arch package is Zstandard.
+var linuxMagic = map[string][]byte{
+	".deb":         []byte("!<arch>\ndebian-binary"),
+	".rpm":         {0xed, 0xab, 0xee, 0xdb},
+	".pkg.tar.zst": {0x28, 0xb5, 0x2f, 0xfd},
+}
+
+// checkFormat: the file really is a package of the format its name says.
+// The update's signature covers platform, arch, version and hash but not
+// the format (the signed text is shared with Windows and macOS agents), so
+// a genuine package of another format is refused here rather than handed
+// to the wrong package manager.
+func checkFormat(path string) error {
+	var magic []byte
+	for ext, m := range linuxMagic {
+		if strings.HasSuffix(path, ext) {
+			magic = m
+		}
+	}
+	if magic == nil {
+		return fmt.Errorf("not a package this computer installs: %s", filepath.Base(path))
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	head := make([]byte, len(magic))
+	if _, err := io.ReadFull(f, head); err != nil || !bytes.Equal(head, magic) {
+		return fmt.Errorf("%s isn't a package of this computer's format", filepath.Base(path))
+	}
+	return nil
+}
+
 // InstallPackage starts the install and returns once systemd has it; the
 // package's scripts restart the service. Its output is in the journal
 // (journalctl -u prism-agent-update-<version>).
 func InstallPackage(path, version string) error {
 	args, err := installCommand(path, version)
 	if err != nil {
+		return err
+	}
+	if err := checkFormat(path); err != nil {
 		return err
 	}
 	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()

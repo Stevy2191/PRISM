@@ -14,7 +14,7 @@ The PRISM agent for Windows (sub-project 8a) and macOS (8b). Every computer
 it's installed on becomes an Asset of its company and keeps its hardware,
 OS, disks, network, installed software and usual user current; people at
 the computer get **Submit a ticket** in the notification area or the menu
-bar. Linux (8c) follows before this is released as v0.5.0.
+bar, or in the applications list on Linux (8c).
 
 **Database:** migrations 074 (devices, enrollment keys, installed software,
 the `agent` ticket source), 075 (the "Unknown tray user" placeholder
@@ -91,6 +91,37 @@ hand, not by MDM, until there is a Developer ID (an unsigned package can't
 be deployed by most MDMs). To remove the agent:
 `sudo prism-agent uninstall` (keeps the enrollment, so reinstalling brings
 the same device back) or `sudo prism-agent uninstall --remove-data`.
+
+**Installing the agent on Linux** (x86_64 or ARM; Ubuntu 22.04 or later
+and Debian, current Fedora and RHEL, Arch; sub-project 8c):
+
+1. Company → **Devices** → **New enrollment key**, then the **Linux** tab.
+   Pick the distribution and download its package (`.deb`, `.rpm` or
+   `.pkg.tar.zst`).
+2. Install it with the command the tab shows:
+
+       sudo apt install ./prism-agent_<version>_amd64.deb        # Ubuntu, Debian
+       sudo dnf install ./prism-agent-<version>.x86_64.rpm       # Fedora, RHEL
+       sudo pacman -U prism-agent-<version>-x86_64.pkg.tar.zst   # Arch
+
+3. Enroll it (copy the command when the key is created):
+
+       sudo prism-agent enroll --url https://prism.example.com --key pk_enr_...
+
+The agent runs as the systemd service `prism-agent`. The computer appears in
+Assets with its hardware, distribution, disks, network, the software someone
+installed (packages marked as explicitly installed, plus Flatpak and Snap
+apps) and its usual user; a computer joined with realmd shows its realm.
+People get **Submit a ticket** in the applications list, and a tray icon
+where the desktop shows one (GNOME needs the AppIndicator extension; Ubuntu
+has it). A server without a desktop installs the service alone on Debian and
+Ubuntu with `--no-install-recommends`; the Arch package always needs GTK and
+WebKitGTK. Updates install themselves through the computer's own package
+manager, in its own format. To remove the agent: `sudo apt remove
+prism-agent`, `sudo dnf remove prism-agent` or `sudo pacman -R prism-agent`
+(keeps the enrollment in `/var/lib/prism-agent`, so reinstalling brings the
+same device back); `sudo apt purge prism-agent`, or `sudo rm -rf
+/var/lib/prism-agent` after removing it on Fedora or Arch, forgets it too.
 
 **Network:** agents only make outgoing HTTPS requests to `PUBLIC_APP_URL`
 (the same address staff use). Nothing connects to the computers; no ports

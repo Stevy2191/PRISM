@@ -267,9 +267,11 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 
 ### Task 11: Finish, and v0.5.0
 
-- [ ] **Step 1:** ROADMAP row 8 → 8c on `dev`; UPGRADING `## Unreleased` gains installing on Linux (the three distributions, the enroll command, GNOME's AppIndicator note, removing).
-- [ ] **Step 2:** Full backend and smoke suites, and the agent workflow (Windows, macOS, Linux), all green.
-- [ ] **Step 3:** Security review (Review Focus above), fix pass, commit, push to `dev`.
+- [x] **Step 1:** ROADMAP row 8 → 8c on `dev`; UPGRADING `## Unreleased` gains installing on Linux (the three distributions, the enroll command, GNOME's AppIndicator note, removing).
+- [x] **Step 2:** Full backend and smoke suites, and the agent workflow (Windows, macOS, Linux), all green.
+- [x] **Step 3:** Security review (Review Focus above), fix pass, commit, push to `dev`.
+*As built (Steps 2–3, 2026-11-09):* backend 2,143 tests and smoke 320 green on `dev` with playbooks and checklists merged in; the agent workflow green on Windows, macOS and Linux (run 259). Review: tray identity (SO_PEERCRED, root and system accounts refused), socket trust (root's socket in root's `/run`, no symlink), key storage, package scripts (nothing read from the data folder) and the server's format allow-list all held. One fix: the update signature covers platform, arch, version and hash but not the format (that text is shared with Windows and Mac agents, so it stays), so the Linux updater now checks the file's own header (ar/`debian-binary`, the RPM lead, Zstandard) against its format before the package manager sees it.
+
 - [ ] **Step 4:** The owner's hand test on Ubuntu 24.04, Fedora (current) and Arch (with KDE or GNOME): install, enroll, the Asset appears with its software, a ticket from the tray or the launcher, an update installs itself, revoke stops it, removal cleans up. A server install (no desktop) appears Online with no tray.
 - [ ] **Step 5:** With 8a's, 8b's and 8c's hand tests passed: fold `## Unreleased` into `## v0.5.0` in UPGRADING (with "Before upgrading": migrations 074 to 079, nothing else required), merge `dev` into `main`, and tag `v0.5.0` (the owner pushes the tag, as for v0.4.0). The release builds the agent packages from the tag (version 0.5.0), so every enrolled computer updates to the release.
 

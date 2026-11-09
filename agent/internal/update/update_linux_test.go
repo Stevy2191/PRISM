@@ -1,6 +1,8 @@
 package update
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -42,6 +44,32 @@ func TestFormatsNameTheirFiles(t *testing.T) {
 	for f, ext := range map[string]string{"deb": ".deb", "rpm": ".rpm", "pacman": ".pkg.tar.zst", "msi": "", "": ""} {
 		if extFor(f) != ext {
 			t.Errorf("%q: %q", f, extFor(f))
+		}
+	}
+}
+
+func TestPackageOfAnotherFormatIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	deb := []byte("!<arch>\ndebian-binary   1700000000  0     0     100644  4         `\n2.0\n")
+	rpm := []byte{0xed, 0xab, 0xee, 0xdb, 3, 0}
+	zst := []byte{0x28, 0xb5, 0x2f, 0xfd, 0}
+	write := func(name string, b []byte) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, b, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	for name, b := range map[string][]byte{"a.deb": deb, "a.rpm": rpm, "a.pkg.tar.zst": zst} {
+		if err := checkFormat(write(name, b)); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	// A genuine .rpm or Arch package saved under a .deb computer's name,
+	// and the other ways round, never reach the package manager.
+	for name, b := range map[string][]byte{"b.deb": rpm, "c.deb": zst, "b.rpm": deb, "b.pkg.tar.zst": rpm, "short.deb": []byte("!<a"), "d.msi": deb} {
+		if err := checkFormat(write(name, b)); err == nil {
+			t.Errorf("%s was accepted", name)
 		}
 	}
 }
