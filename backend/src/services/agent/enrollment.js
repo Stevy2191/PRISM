@@ -169,7 +169,7 @@ async function attemptEnrollment(p, key) {
     if (!asset) {
       const category = await computersCategory(transaction);
       asset = await Asset.create({
-        assetTag: await suggestNextAssetTag(category),
+        assetTag: await suggestNextAssetTag(category, { transaction }),
         name: p.hostname,
         categoryId: category.id,
         companyId: key.companyId,
@@ -209,7 +209,13 @@ async function attemptEnrollment(p, key) {
 // Computers enrolling at the same moment (a Group Policy rollout) can pick the
 // same next asset tag, or claim the same Asset; the unique indexes refuse one,
 // which tries again.
-const isClash = (err) => err && err.name === 'SequelizeUniqueConstraintError';
+// The same goes for the database's own lock conflicts (a deadlock or a
+// lock wait timeout) between those enrollments, e.g. on the install key's
+// row when it has a limit (8d): MariaDB rolls one back, and it tries again.
+const LOCK_ERRNOS = new Set([1213, 1205]);
+const isClash = (err) => !!err && (err.name === 'SequelizeUniqueConstraintError'
+  || LOCK_ERRNOS.has(err.parent && err.parent.errno) || LOCK_ERRNOS.has(err.original && err.original.errno));
+const pause = (attempt) => new Promise((r) => { setTimeout(r, 20 + Math.floor(Math.random() * 40 * (attempt + 1))); });
 
 // → { device, asset, created: bool, claimed: bool }
 async function enroll(body, req) {
@@ -227,7 +233,8 @@ async function enroll(body, req) {
       result = await attemptEnrollment(p, key); // eslint-disable-line no-await-in-loop
       break;
     } catch (err) {
-      if (!isClash(err) || attempt >= 4) throw err;
+      if (!isClash(err) || attempt >= 7) throw err;
+      await pause(attempt); // eslint-disable-line no-await-in-loop
     }
   }
 

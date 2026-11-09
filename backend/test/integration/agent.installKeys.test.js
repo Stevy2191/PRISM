@@ -111,9 +111,9 @@ it('a limit refuses the next computer, not a retry of one it already enrolled', 
 
 it('computers enrolling at once never go past the limit', async () => {
   const { secret } = await newKey({ name: 'Three', maxUses: 3 });
-  const results = await Promise.all([1, 2, 3, 4, 5, 6].map((n) => enrollAs(payload(secret, { hostname: `PC-${n}`, serialNumber: `SER-${n}` }))));
-  expect(results.filter((r) => r.status === 201)).toHaveLength(3);
-  expect(results.filter((r) => r.status === 403)).toHaveLength(3);
+  const results = await Promise.all([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => enrollAs(payload(secret, { hostname: `PC-${n}`, serialNumber: `SER-${n}` }))));
+  // Database lock conflicts between them are retried, never a 500.
+  expect(results.map((r) => r.status).sort()).toEqual([201, 201, 201, 403, 403, 403, 403, 403, 403, 403]);
   expect(await models.Device.count({ where: { companyId: company.id } })).toBe(3);
 });
 
@@ -127,6 +127,13 @@ it('a key made before 8d keeps enrolling, can\'t be revealed, and can be after r
   expect((await enrollAs(payload(secret))).status).toBe(201);
   const rotated = await w.admin.agent.post(`${keysUrl()}/${key.id}/rotate`);
   expect((await w.admin.agent.post(`${keysUrl()}/${key.id}/reveal`)).body.secret).toBe(rotated.body.secret);
+});
+
+it('many computers enrolling at once with an unlimited key all get in', async () => {
+  const { secret, key } = await newKey({ name: 'Rollout' });
+  const results = await Promise.all(Array.from({ length: 12 }, (_, n) => enrollAs(payload(secret, { hostname: `PC-${n}`, serialNumber: `SER-${n}` }))));
+  expect(results.map((r) => r.status)).toEqual(Array(12).fill(201));
+  expect((await models.AgentEnrollmentKey.findByPk(key.id)).enrolledCount).toBe(12);
 });
 
 it('migration 083 round trip', async () => {

@@ -26,12 +26,16 @@ function prefixForCategory(category) {
   return CATEGORY_PREFIX[category.name] || category.name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'AST';
 }
 
-async function suggestNextAssetTag(category) {
+// Inside a transaction, pass it: a query outside would need a second
+// connection while the transaction holds one, and enough of those at once
+// (computers enrolling together) use up the pool and wait forever.
+async function suggestNextAssetTag(category, { transaction } = {}) {
   const prefix = prefixForCategory(category);
   const existing = await Asset.findAll({
     where: { assetTag: { [Op.like]: `${prefix}-%` } },
     attributes: ['assetTag'],
     raw: true,
+    transaction,
   });
   let maxSeq = 0;
   const re = new RegExp(`^${prefix}-(\\d+)$`);
