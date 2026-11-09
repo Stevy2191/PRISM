@@ -130,6 +130,14 @@ const usedUp = () => new ApiError(403, 'This install key has been used up', 'ENR
 // One enrollment attempt, in one transaction. → { device, asset, claimed, created }
 async function attemptEnrollment(p, key) {
   return sequelize.transaction(async (transaction) => {
+    // 0. The key's row first, locked: enrollments with one key (a rollout)
+    // take turns here, so each sees the current count and nothing it reads
+    // later was changed under it. (MariaDB 11.6+ refuses to update a row
+    // changed since a transaction's first read: innodb_snapshot_isolation.)
+    const current = await AgentEnrollmentKey.findByPk(key.id, {
+      attributes: ['id', 'enrolledCount', 'maxUses'], transaction, lock: transaction.LOCK.UPDATE,
+    });
+
     // 1. Claim an Asset of this company with the same serial and no live device.
     let asset = null;
     let device = null;
@@ -156,14 +164,8 @@ async function attemptEnrollment(p, key) {
     // The same computer trying again after a failed try (its device never
     // reported) doesn't use the key again (8d's limit).
     const retry = !!(device && !device.revokedAt && !device.lastInventoryAt && device.enrollmentKeyId === key.id);
-    if (!retry && key.maxUses !== null && key.maxUses !== undefined) {
-      // Taken atomically, so a rollout can't go past the limit.
-      const [taken] = await AgentEnrollmentKey.update(
-        { enrolledCount: sequelize.literal('enrolledCount + 1') },
-        { where: { id: key.id, enrolledCount: { [Op.lt]: key.maxUses } }, transaction }
-      );
-      if (!taken) throw usedUp();
-    }
+    // The limit, checked under the key's lock, so a rollout can't go past it.
+    if (!retry && current.maxUses !== null && current.maxUses !== undefined && current.enrolledCount >= current.maxUses) throw usedUp();
 
     // 2. Otherwise a new Asset in Computers.
     if (!asset) {
@@ -198,10 +200,10 @@ async function attemptEnrollment(p, key) {
     // (Devices.assetId is unique, so two computers can't claim one Asset.)
     if (device) await device.update(fields, { transaction });
     else device = await Device.create(fields, { transaction });
-    if (!retry && (key.maxUses === null || key.maxUses === undefined)) {
-      await AgentEnrollmentKey.increment('enrolledCount', { where: { id: key.id }, transaction });
-    }
-    await AgentEnrollmentKey.update({ lastUsedAt: new Date() }, { where: { id: key.id }, transaction });
+    await AgentEnrollmentKey.update(
+      { enrolledCount: current.enrolledCount + (retry ? 0 : 1), lastUsedAt: new Date() },
+      { where: { id: key.id }, transaction }
+    );
     return { device, asset, claimed, created: !claimed };
   });
 }
@@ -212,7 +214,7 @@ async function attemptEnrollment(p, key) {
 // The same goes for the database's own lock conflicts (a deadlock or a
 // lock wait timeout) between those enrollments, e.g. on the install key's
 // row when it has a limit (8d): MariaDB rolls one back, and it tries again.
-const LOCK_ERRNOS = new Set([1213, 1205]);
+const LOCK_ERRNOS = new Set([1213, 1205, 1020]); // deadlock, lock wait timeout, "record has changed"
 const isClash = (err) => !!err && (err.name === 'SequelizeUniqueConstraintError'
   || LOCK_ERRNOS.has(err.parent && err.parent.errno) || LOCK_ERRNOS.has(err.original && err.original.errno));
 const pause = (attempt) => new Promise((r) => { setTimeout(r, 20 + Math.floor(Math.random() * 40 * (attempt + 1))); });
