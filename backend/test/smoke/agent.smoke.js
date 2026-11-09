@@ -50,6 +50,17 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   await page.getByRole('list', { name: 'Installing on a Mac' }).getByText('Open Anyway').waitFor();
   const macCommand = await page.getByLabel('Command', { exact: true }).textContent();
   expect(macCommand).toBe(`sudo prism-agent enroll --url ${smoke.base} --key ${text.match(/ENROLL_KEY=(pk_enr_[A-Za-z0-9_-]+)/)[1]}`);
+  // The Linux tab (8c): a package per distribution family, its install
+  // command, then the same enroll command with the new key.
+  await page.getByRole('tab', { name: 'Linux' }).click();
+  await page.getByRole('list', { name: 'Installing on Linux' }).waitFor();
+  expect(await page.getByLabel('Install package command').textContent()).toMatch(/^sudo apt install \.\//);
+  await page.getByRole('radio', { name: 'Fedora, RHEL' }).check();
+  expect(await page.getByLabel('Install package command').textContent()).toMatch(/^sudo dnf install \.\//);
+  await page.getByRole('radio', { name: 'Arch' }).check();
+  expect(await page.getByLabel('Install package command').textContent()).toMatch(/^sudo pacman -U /);
+  expect(await page.getByLabel('Command', { exact: true }).textContent()).toBe(macCommand);
+  await page.getByText('the AppIndicator', { exact: false }).waitFor();
   await page.getByRole('tab', { name: 'Windows' }).click();
 
   // A computer enrolls with that key and reports in.

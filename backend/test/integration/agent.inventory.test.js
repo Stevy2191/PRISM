@@ -186,3 +186,24 @@ it('a Mac inventory (8b): Apple, the model with its chip, macOS and its build, t
   });
   expect(await models.AssetSoftware.count({ where: { assetId: macAsset } })).toBe(3);
 });
+
+it('a Linux inventory (8c): the distribution with its codename, the root file system only, the realm', async () => {
+  const { client: lab, assetId: labAsset } = await enrolled(company, {
+    platform: 'linux', arch: 'amd64', hostname: 'rfc-lab-03', packageFormat: 'deb',
+  });
+  await lab.post(INV, fixture('ubuntu2404')).expect(200);
+  expect(await models.Asset.findByPk(labAsset)).toMatchObject({
+    make: 'LENOVO',
+    model: 'ThinkPad T14 Gen 4',
+    serialNumber: 'PF4ABCDE',
+    // The USB drive isn't the computer's own storage; the kernel isn't the OS version.
+    storage: '476 GB (200 GB free)',
+    operatingSystem: 'Ubuntu',
+    osVersion: '24.04 (noble)',
+    ipAddress: '10.20.1.52',
+  });
+  expect(await models.AssetSoftware.count({ where: { assetId: labAsset } })).toBe(4);
+  const d = (await w.admin.agent.get(`/api/v1/assets/${labAsset}/device`).expect(200)).body.device;
+  expect(d.domain).toBe('riverside.local');
+  expect(d.os).toMatchObject({ edition: 'Ubuntu', version: '24.04 (noble)', build: '6.8.0-48-generic' });
+});

@@ -1,0 +1,27 @@
+{
+ "hostname": "rfc-lab-03",
+ "make": "LENOVO",
+ "model": "ThinkPad T14 Gen 4",
+ "serialNumber": "PF4ABCDE",
+ "firmware": "R2FET45W (1.25 )",
+ "domain": "riverside.local",
+ "memoryBytes": 16651689984,
+ "cpu": { "model": "13th Gen Intel(R) Core(TM) i7-1365U", "cores": 10 },
+ "os": { "name": "Ubuntu", "edition": "Ubuntu", "version": "24.04 (noble)", "build": "6.8.0-48-generic" },
+ "lastBootAt": "2026-11-04T08:12:00Z",
+ "disks": [
+  { "name": "/", "kind": "fixed", "sizeBytes": 510770802688, "freeBytes": 214748364800 },
+  { "name": "/media/mchen/BACKUP DRIVE", "label": "BACKUP DRIVE", "kind": "usb", "sizeBytes": 64023257088, "freeBytes": 10737418240 }
+ ],
+ "adapters": [
+  { "name": "wlp0s20f3", "ipv4": ["10.20.1.52"], "mac": "8C:17:59:3E:21:0A", "primary": true },
+  { "name": "enp0s31f6", "ipv4": [], "mac": "8C:16:45:A1:22:9F", "primary": false }
+ ],
+ "software": [
+  { "name": "code", "version": "1.95.3-1731513102", "publisher": "Microsoft Corporation", "installDate": "2026-11-01" },
+  { "name": "google-chrome-stable", "version": "131.0.6778.69-1", "publisher": "Chrome Linux Team", "installDate": "2026-10-28" },
+  { "name": "libreoffice-writer", "version": "4:24.2.7-0ubuntu0.24.04.1", "publisher": "Ubuntu Developers" },
+  { "name": "firefox", "version": "132.0.2-1", "publisher": "mozilla" }
+ ],
+ "signedInUser": { "account": "RIVERSIDE\\mchen", "upn": "mchen@riverside.local" }
+}

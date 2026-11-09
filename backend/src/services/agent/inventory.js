@@ -98,7 +98,9 @@ function parseInventory(body) {
 
 // The Asset's own fields, from a parsed inventory. Missing values leave the
 // field as it is (an agent that can't read the serial doesn't blank it).
-function assetFields(p) {
+// platform: on Linux os.build is the kernel, which stays in the device's
+// detail rather than the Asset's OS version ("24.04 (noble)").
+function assetFields(p, platform) {
   const fields = {};
   if (p.hostname) fields.name = p.hostname;
   if (p.make) fields.make = p.make;
@@ -119,7 +121,8 @@ function assetFields(p) {
   if (p.firmware) fields.firmwareVersion = p.firmware;
   const osName = p.os.edition || p.os.name;
   if (osName) fields.operatingSystem = osName;
-  if (p.os.version || p.os.build) fields.osVersion = [p.os.version, p.os.build && `(${p.os.build})`].filter(Boolean).join(' ').slice(0, 50);
+  const build = platform === 'linux' ? null : p.os.build;
+  if (p.os.version || build) fields.osVersion = [p.os.version, build && `(${build})`].filter(Boolean).join(' ').slice(0, 50);
   const primary = p.adapters.find((a) => a.primary && a.ipv4.length) || p.adapters.find((a) => a.ipv4.length);
   if (primary) {
     fields.ipAddress = primary.ipv4[0];
@@ -144,7 +147,7 @@ async function applyInventory(device, body) {
   const result = await sequelize.transaction(async (transaction) => {
     const asset = await Asset.findByPk(device.assetId, { transaction, lock: transaction.LOCK.UPDATE });
     if (!asset) throw new ApiError(404, 'This device has no Asset', 'NOT_FOUND');
-    const fields = assetFields(p);
+    const fields = assetFields(p, device.platform);
     const inventory = { ...(device.inventory || {}) };
 
     // The usual user.

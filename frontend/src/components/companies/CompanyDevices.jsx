@@ -161,6 +161,56 @@ function AddressNotice({ testCertificate, platform }) {
   );
 }
 
+// The Linux packages, one per distribution family (8c).
+const DISTROS = [
+  { format: 'deb', label: 'Ubuntu, Debian', install: (f) => `sudo apt install ./${f}` },
+  { format: 'rpm', label: 'Fedora, RHEL', install: (f) => `sudo dnf install ./${f}` },
+  { format: 'pacman', label: 'Arch', install: (f) => `sudo pacman -U ${f}` },
+];
+
+function LinuxInstall({
+  has, commandBox, copyButton, keyNote,
+}) {
+  const [format, setFormat] = useState('deb');
+  const distro = DISTROS.find((d) => d.format === format);
+  const amd = has('linux', 'amd64', format);
+  const arm = has('linux', 'arm64', format);
+  return (
+    <>
+      <div role="radiogroup" aria-label="Distribution" className="flex flex-wrap gap-2">
+        {DISTROS.map((d) => (
+          <label key={d.format} className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-navy-900">
+            <input type="radio" name="linux-distro" value={d.format} checked={format === d.format} onChange={() => setFormat(d.format)} />
+            {d.label}
+          </label>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {amd ? (
+          <a className="btn-primary inline-flex h-9 items-center px-3 text-sm" href={`/api/v1/devices/packages/linux/amd64?format=${format}`} download>
+            Download for {distro.label} (x86_64, {mb(amd.size)})
+          </a>
+        ) : <span className="text-sm" style={MUTED}>No {distro.label} package in this PRISM build yet.</span>}
+        {arm && <a className="text-sm text-prism hover:underline" href={`/api/v1/devices/packages/linux/arm64?format=${format}`} download>ARM version</a>}
+      </div>
+      <ol aria-label="Installing on Linux" className="m-0 list-decimal space-y-1.5 pl-5 text-sm text-navy-900">
+        <li>
+          Install the package from the folder it&apos;s in:{' '}
+          <code aria-label="Install package command" className="font-mono text-[12.5px]">{distro.install((amd || arm || { file: '<package>' }).file)}</code>
+        </li>
+        <li>Enroll the computer with this company&apos;s key:</li>
+      </ol>
+      {commandBox}
+      <div className="flex flex-wrap items-center gap-2">{copyButton}</div>
+      <p className="m-0 text-[12.5px]" style={MUTED}>
+        <b>Submit a ticket</b> is in the applications list everywhere. On GNOME the tray icon needs the AppIndicator
+        extension (Ubuntu has it). Servers can install with <code className="font-mono">--no-install-recommends</code> (apt) to skip the tray&apos;s
+        libraries. {keyNote}
+      </p>
+    </>
+  );
+}
+
 function InstallCommand({ fresh, keys, packages }) {
   const testCertificate = useTestCertificate();
   const [platform, setPlatform] = useState('windows');
@@ -168,7 +218,7 @@ function InstallCommand({ fresh, keys, packages }) {
   const usable = keys.filter((k) => k.usable);
   const keyName = fresh ? fresh.key.name : (usable[0] && usable[0].name);
   const secret = fresh ? fresh.secret : 'pk_enr_…';
-  const has = (plat, arch) => packages.find((p) => p.platform === plat && (p.arches || [p.arch]).includes(arch));
+  const has = (plat, arch, format) => packages.find((p) => p.platform === plat && (p.arches || [p.arch]).includes(arch) && (!format || p.format === format));
   const win = has('windows', 'amd64');
   const winArm = has('windows', 'arm64');
   const winArmOwn = winArm && (!win || winArm.file !== win.file) ? winArm : null;
@@ -176,7 +226,7 @@ function InstallCommand({ fresh, keys, packages }) {
   const origin = window.location.origin;
   // Windows: one silent command (GPO, Intune). Mac: the package can't take
   // settings, so enrollment is a command after installing (spec, decision 7).
-  const command = platform === 'macos'
+  const command = platform === 'macos' || platform === 'linux'
     ? `sudo prism-agent enroll --url ${origin} --key ${secret}`
     : `msiexec /i ${win ? win.file : 'prism-agent.msi'} /qn PRISM_URL=${origin} ENROLL_KEY=${secret}`;
   // An MSI installed by double-clicking isn't enrolled: enroll it afterwards.
@@ -265,9 +315,7 @@ function InstallCommand({ fresh, keys, packages }) {
             </p>
           </>
         )}
-        {platform === 'linux' && (
-          <p className="m-0 text-sm" style={MUTED}>The Linux agent (Ubuntu, Fedora and Arch) is coming in 8c.</p>
-        )}
+        {platform === 'linux' && <LinuxInstall has={has} commandBox={commandBox} copyButton={copyButton} keyNote={keyNote} />}
       </div>
     </Card>
   );

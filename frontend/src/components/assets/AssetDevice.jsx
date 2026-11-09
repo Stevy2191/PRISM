@@ -87,9 +87,11 @@ export default function AssetDevice({ assetId, asset }) {
             ['Memory', device.memoryBytes ? `${Math.round(device.memoryBytes / 1024 ** 3)} GB` : null],
             ['Firmware', asset && asset.firmwareVersion ? asset.firmwareVersion : null],
             ['Operating system', osText || PLATFORM[device.platform]],
-            device.platform === 'macos'
-              ? ['Directory', device.domain ? `${device.domain} (Active Directory, bound)` : 'Not bound to a directory']
-              : ['Joined to', device.domain ? `${device.domain} (Active Directory domain)` : 'Not joined to a domain'],
+            {
+              macos: ['Directory', device.domain ? `${device.domain} (Active Directory, bound)` : 'Not bound to a directory'],
+              linux: ['Realm', device.domain ? `${device.domain} (joined with realmd)` : 'Not joined to a realm'],
+            }[device.platform]
+              || ['Joined to', device.domain ? `${device.domain} (Active Directory domain)` : 'Not joined to a domain'],
             ['Last boot', device.lastBootAt ? `${dateTime(device.lastBootAt)} · ${uptime(device.lastBootAt)}` : null],
             ['Signed in now', signedIn ? (
               <span>

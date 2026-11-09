@@ -259,9 +259,11 @@ Everything in 8a's and 8b's Global Constraints holds (read-and-report only, sign
 - A line on GNOME: the tray icon needs the AppIndicator extension (Ubuntu has it); everywhere, **Submit a ticket** is in the applications list.
 - **Asset Device tab:** "Realm" for Linux ("riverside.local (joined with realmd)" or "Not joined to a realm"), and the OS line reads "Ubuntu 24.04 (noble)".
 
-- [ ] **Step 1: Failing tests:** an Ubuntu inventory fixture fills the Asset ("Ubuntu", "24.04 (noble)", the root file system counted once); the smoke test shows the three distributions' commands and the enroll command with the new key.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS (with the `assets.*` and `companies.page` smokes).
-- [ ] **Step 5: Commit** `feat(agent): Linux on the Devices and Asset screens`
+- [x] **Step 1: Failing tests:** an Ubuntu inventory fixture fills the Asset ("Ubuntu", "24.04 (noble)", the root file system counted once); the smoke test shows the three distributions' commands and the enroll command with the new key.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS (with the `assets.*` and `companies.page` smokes).
+- [x] **Step 5: Commit** `feat(agent): Linux on the Devices and Asset screens`
+
+*As built:* the Linux tab is a radio group (Ubuntu/Debian, Fedora/RHEL, Arch), each with its x86_64 download (and an ARM link when that package exists) and install command, then the shared enroll command. The server leaves the kernel version (`os.build`) out of a Linux Asset's OS version, so it reads "24.04 (noble)"; the kernel stays on the Device record. Arch packages are hard-dependent on GTK and WebKitGTK (Task 8), so the "server without a desktop" note applies to `.deb` and `.rpm` (`--no-install-recommends` on Debian/Ubuntu).
 
 ### Task 11: Finish, and v0.5.0
 
