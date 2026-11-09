@@ -6,6 +6,7 @@
 // used-up keys all look the same.
 
 const { findKeyBySecret, KEY_PREFIX } = require('./enrollment');
+const { ApiError } = require('../../middleware/error');
 
 // The address computers reach PRISM at: PUBLIC_APP_URL, else what this
 // request came in on (the proxy's scheme and host).
@@ -13,7 +14,11 @@ function baseUrl(req) {
   const configured = (process.env.PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
   if (/^https?:\/\/[^/\s]+$/i.test(configured)) return configured;
   const proto = String(req.get('x-forwarded-proto') || req.protocol || 'https').split(',')[0].trim() === 'http' ? 'http' : 'https';
-  return `${proto}://${req.get('host')}`;
+  // Only a plain host[:port] goes into a page or script, never anything else
+  // a client put in its Host header.
+  const host = String(req.get('host') || '');
+  if (!/^[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?$/.test(host)) throw new ApiError(400, 'Bad host', 'VALIDATION_ERROR');
+  return `${proto}://${host}`;
 }
 
 // The installer's file name carries the enrollment, so double-clicking it

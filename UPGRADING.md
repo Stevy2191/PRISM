@@ -48,8 +48,9 @@ follows the Assets view permission and company access, as before.
 
 **Installing the agent:**
 
-1. Open a company → **Devices** → **New enrollment key**. Copy the install
-   command straight away: the full key is shown once.
+1. Open a company → **Devices** → **New install key**, then **Show key**
+   on its install card. (For one-off installs, the **Install link** is
+   simpler; see install keys below.)
 2. **Download for Windows (MSI)** on the same tab. The installer is served by
    your PRISM only (staff sign-in) and is never published anywhere else.
 3. Install silently:
@@ -69,7 +70,7 @@ follows the Assets view permission and company access, as before.
 **Installing the agent on a Mac** (macOS 13 or later, Apple silicon or
 Intel; sub-project 8b):
 
-1. Company → **Devices** → **New enrollment key**, then the **macOS** tab:
+1. Company → **Devices** → **New install key** (and **Show key**), then the **macOS** tab:
    **Download for Mac** gives one `.pkg` for every Mac.
 2. Open the package. The first time on each Mac, macOS stops it because it
    isn't signed with an Apple Developer ID (PRISM has none yet): open
@@ -95,7 +96,7 @@ the same device back) or `sudo prism-agent uninstall --remove-data`.
 **Installing the agent on Linux** (x86_64 or ARM; Ubuntu 22.04 or later
 and Debian, current Fedora and RHEL, Arch; sub-project 8c):
 
-1. Company → **Devices** → **New enrollment key**, then the **Linux** tab.
+1. Company → **Devices** → **New install key** (and **Show key**), then the **Linux** tab.
    Pick the distribution and download its package (`.deb`, `.rpm` or
    `.pkg.tar.zst`).
 2. Install it with the command the tab shows:
@@ -122,6 +123,41 @@ prism-agent`, `sudo dnf remove prism-agent` or `sudo pacman -R prism-agent`
 (keeps the enrollment in `/var/lib/prism-agent`, so reinstalling brings the
 same device back); `sudo apt purge prism-agent`, or `sudo rm -rf
 /var/lib/prism-agent` after removing it on Fedora or Arch, forgets it too.
+
+**Install keys, install links and push scripts** (sub-project 8d):
+enrollment keys are now **install keys** you can copy again whenever you
+need one, rather than only once.
+
+- **New install key** asks for a name, an expiry (never, 14 or 30 days, or
+  a date) and optionally how many computers it can add. Each key shows how
+  many it has added and when it was last used, with **Install**, **Rotate**
+  (a new key; the old one, its link and its scripts stop working, and
+  computers already enrolled keep working) and **Revoke**.
+- **Install** shows the key hidden until **Show key** (logged in the audit
+  log), then:
+  - **Install link:** `https://<PRISM>/install/<key>`. Anyone who opens it
+    gets the download for their system, named so it adds the computer to the
+    company by itself: double-click it on Windows, open it on a Mac. On
+    Linux the page gives a one-line command. Installing still needs an
+    administrator, so on a standard user's computer someone types an
+    administrator's name and password when Windows or macOS asks.
+  - **Push:** one PowerShell script for **PDQ Deploy**, a **Group Policy**
+    startup script, **Intune** or any **RMM**, run as SYSTEM. It installs
+    silently and enrolls, and skips computers that already have the agent.
+    It comes as a script, a .ps1 download or one command line. For Mac and
+    Linux there's `curl -fsSL https://<PRISM>/api/v1/install/<key>/mac.sh
+    | sudo sh` (or `linux.sh`) for an RMM, a Mac MDM or SSH.
+- Keys made before this keep working, but PRISM never kept a copy of them:
+  **Rotate** one to get a key you can copy.
+- A link that doesn't work, whether unknown, revoked, expired or used up,
+  shows "This install link no longer works". PRISM's nginx keeps install
+  paths (which contain the key) out of its access log; a proxy in front of
+  PRISM may still log them.
+
+**Database:** migration 083 (each install key's encrypted copy, its limit
+and when it was last used). Keys are encrypted with `ENCRYPTION_KEY` (or
+`SESSION_SECRET`), like other stored secrets; changing it makes keys
+uncopyable until rotated, but they keep enrolling.
 
 **Network:** agents only make outgoing HTTPS requests to `PUBLIC_APP_URL`
 (the same address staff use). Nothing connects to the computers; no ports

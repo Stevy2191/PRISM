@@ -1,6 +1,6 @@
 # PRISM 8d — Install keys you can copy again, install links and push scripts: Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Installing the PRISM agent on a computer that's already in use, or a one-off new one, takes no key juggling:
 - a company's **install key** can be copied again at any time (today it's shown once);
@@ -56,9 +56,9 @@
 - Modify: `backend/src/models/AgentEnrollmentKey.js`, the enrollment-key controller and routes, `services/agent/enroll*.js`
 - Test: `backend/test/integration/agent.enrollmentKeys.test.js`, migration round trip
 
-- [ ] **Step 1: Failing tests:** a new key can be revealed by Manage devices only (403 otherwise), and the reveal is audited; list responses never carry the secret; rotate gives a new secret, the old one stops enrolling, the history stays; `maxUses` refuses the next computer but not a retry of one already enrolled; an old key (no `secretEnc`) still enrolls and says it can't be revealed.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): install keys you can copy again, rotate and limit`
+- [x] **Step 1: Failing tests:** a new key can be revealed by Manage devices only (403 otherwise), and the reveal is audited; list responses never carry the secret; rotate gives a new secret, the old one stops enrolling, the history stays; `maxUses` refuses the next computer but not a retry of one already enrolled; an old key (no `secretEnc`) still enrolls and says it can't be revealed.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): install keys you can copy again, rotate and limit`
 
 ### Task 2: Install links
 
@@ -67,9 +67,9 @@
 - Modify: `backend/src/app.js` (mount `/install` outside `/api`, with the rate limiter), `frontend/nginx.conf` (pass `/install/` to the backend), the request logger (mask the key in `/install/` paths)
 - Test: `backend/test/integration/agent.install.test.js`
 
-- [ ] **Step 1: Failing tests:** a usable key's page names the company and offers the right download for a Windows, Mac and Linux user agent; an unknown, revoked, expired or used-up key gets the same "no longer works" page; `/windows` and `/mac` serve the manifest's file under `PRISM-Agent-Setup_<host>_<key>.<ext>`, `/linux.sh` and `/mac.sh` carry the URL and key and only HTTPS; downloads are logged against the key; the logger masks the key.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(agent): install links`
+- [x] **Step 1: Failing tests:** a usable key's page names the company and offers the right download for a Windows, Mac and Linux user agent; an unknown, revoked, expired or used-up key gets the same "no longer works" page; `/windows` and `/mac` serve the manifest's file under `PRISM-Agent-Setup_<host>_<key>.<ext>`, `/linux.sh` and `/mac.sh` carry the URL and key and only HTTPS; downloads are logged against the key; the logger masks the key.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(agent): install links`
 
 ### Task 3: Installers that enroll from their file name
 
@@ -77,9 +77,9 @@
 - Modify: `agent/cmd/prism-agent/main.go` (`enroll --from-installer <path>`), create `agent/internal/enroll/fromname.go` (+ tests), `agent/packaging/windows/prism-agent.wxs` (the custom action when the properties are empty), `agent/packaging/macos/scripts/postinstall`
 - Test: Go tests for the parser; the Windows and Mac CI jobs install a renamed package against the CI server and see the device enroll
 
-- [ ] **Step 1: Failing tests:** the parser takes `PRISM-Agent-Setup_prism.example.com_pk_enr_abc.msi`, `…_prism.example.com:8443_….pkg` and `… (1).msi`; refuses a missing key, a host with a path, `@`, spaces or a scheme, and anything longer than 255 characters; an installer with no enrollment in its name installs as today.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS (CI on Windows and macOS).
-- [ ] **Step 5: Commit** `feat(agent): installers enroll from an install link's file name`
+- [x] **Step 1: Failing tests:** the parser takes `PRISM-Agent-Setup_prism.example.com_pk_enr_abc.msi`, `…_prism.example.com:8443_….pkg` and `… (1).msi`; refuses a missing key, a host with a path, `@`, spaces or a scheme, and anything longer than 255 characters; an installer with no enrollment in its name installs as today.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS (CI on Windows and macOS).
+- [x] **Step 5: Commit** `feat(agent): installers enroll from an install link's file name`
 
 ### Task 4: The Devices tab: Copy, Rotate, links and push scripts
 
@@ -92,8 +92,12 @@
 - **Deploy** for a key opens tabs: **Install link** (the address and what the person will see), **PDQ Deploy**, **Group Policy**, **Intune**, **RMM** (the same PowerShell with its notes), **Mac**, **Linux** (the one-liner). Each script has its Copy button and is filled in with the URL and key.
 - The existing per-platform tabs stay for downloading an installer by hand.
 
-- [ ] **Step 1–5:** smoke tests (create a key with a limit, copy it again later, rotate it and see the old link stop working, the scripts carry the URL and key), implement, commit `feat(agent): copy, rotate and deploy install keys`
+- [x] **Step 1–5:** smoke tests (create a key with a limit, copy it again later, rotate it and see the old link stop working, the scripts carry the URL and key), implement, commit `feat(agent): copy, rotate and deploy install keys`
+
+*As built (Tasks 1–4, 2026-11-09):* the page is a public route of the web app (`/install/:key`) and its API lives under `/api/v1/install/` (no nginx or proxy change needed); nginx keeps both out of its access log. A port in the file name is written `host+8443` (a colon can't be in a Windows file name). The parser uses `http://` only for `localhost` and `127.0.0.1` (CheckURL's own exception), which is how CI installs renamed MSI and pkg files against the stub; the CI stub's key now has a real key's shape. A refused key fails a named install on Windows (rolled back) and on the Mac (the postinstall exits 1), so the person knows to ask IT. The install card defaults to the newest usable key and shows its secret only after Show key (audited), or right after creating or rotating it.
 
 ### Task 5: Docs and finish
 
-- [ ] UPGRADING `## Unreleased` (migration 083; install keys made before can't be revealed until rotated; install links; the push scripts; standard users need a push or an admin's password), ROADMAP row 8 (8d), full suites, agent workflow green, security review (Review Focus), commit `docs(8d): install keys, install links and push scripts`, push to `dev`. 8d ships with v0.5.0.
+- [x] UPGRADING `## Unreleased` (migration 083; install keys made before can't be revealed until rotated; install links; the push scripts; standard users need a push or an admin's password), ROADMAP row 8 (8d), full suites, agent workflow green, security review (Review Focus), commit `docs(8d): install keys, install links and push scripts`, push to `dev`. 8d ships with v0.5.0.
+
+*As built (Task 5):* backend 2,155 tests and smoke 320 green with 8d. Review: reveal and rotate need Manage devices and the company in reach, every reveal is audited, and no list carries a secret; the public routes answer every link that doesn't work the same way, are rate-limited per IP, serve only the manifest's checked files, and audit downloads without the key; the file-name parser accepts only the exact shape. One fix: without `PUBLIC_APP_URL`, the address in pages and scripts comes from the Host header, now only when it's a plain host[:port] (400 otherwise).

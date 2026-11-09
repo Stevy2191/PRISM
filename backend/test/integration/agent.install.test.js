@@ -152,3 +152,13 @@ it('the scripts carry the address and key and install only over HTTPS', async ()
   expect(ps.text).toContain("'/qn'");
   expect(ps.text).toContain('PRISM\\Agent\\prism-agent.exe');
 });
+
+it('without PUBLIC_APP_URL the address is the request\'s host, and only a plain one', async () => {
+  delete process.env.PUBLIC_APP_URL;
+  const { secret } = await newKey();
+  const ok = await anon().get(`${API}/install/${secret}/linux.sh`).set('Host', 'prism.lan:8080').set('X-Forwarded-Proto', 'https');
+  expect(ok.text).toContain("URL='https://prism.lan:8080'");
+  const bad = await anon().get(`${API}/install/${secret}/linux.sh`).set('Host', "evil';rm -rf /;'");
+  expect(bad.status).toBe(400);
+  expect(bad.text).not.toContain('rm -rf');
+});
