@@ -9,6 +9,7 @@ const migration = require('../../migrations/20260101000074-agent');
 const later = [
   require('../../migrations/20260101000077-device-scan-request'),
   require('../../migrations/20260101000079-agent-package-format'),
+  require('../../migrations/20260101000083-enrollment-key-copy'),
 ];
 
 // Sub-project 8a, task 1: devices, enrollment keys, software, nonces, the

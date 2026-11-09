@@ -40,6 +40,8 @@ const canManageDevices = requirePermission('devices.manage');
 router.get('/:id/agent-keys', canManageDevices, agentKeys.list);
 router.post('/:id/agent-keys', canManageDevices, agentKeys.create);
 router.post('/:id/agent-keys/:keyId/revoke', canManageDevices, agentKeys.revoke);
+router.post('/:id/agent-keys/:keyId/reveal', canManageDevices, agentKeys.reveal);
+router.post('/:id/agent-keys/:keyId/rotate', canManageDevices, agentKeys.rotate);
 // Its devices: viewing follows Assets' view permission (and company access).
 router.get('/:id/devices', requirePermission('assets.view'), devices.listForCompany);
 router.get('/:id/sites', canView, sites.list);

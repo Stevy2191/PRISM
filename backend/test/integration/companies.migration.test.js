@@ -13,6 +13,7 @@ const packageFormat = require('../../migrations/20260101000079-agent-package-for
 const playbooks = require('../../migrations/20260101000080-playbooks');
 // PB2: a column pointing at Contacts, on 080's tables.
 const checklists = require('../../migrations/20260101000082-checklists-simpler');
+const keyCopy = require('../../migrations/20260101000083-enrollment-key-copy');
 
 // down() drops Companies, which 072's portal-admin and KB-audience tables and
 // 073's Microsoft 365 columns and detected departments, and 074's agent
@@ -25,7 +26,7 @@ const migration = {
     await agent.down(...args);
     await m365.down(...args);
     await portal.down(...args);
-    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); throw e; }
+    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); throw e; }
   },
   up: async (...args) => {
     await base.up(...args);
@@ -36,6 +37,7 @@ const migration = {
     await packageFormat.up(...args);
     await playbooks.up(...args);
     await checklists.up(...args);
+    await keyCopy.up(...args);
   },
 };
 

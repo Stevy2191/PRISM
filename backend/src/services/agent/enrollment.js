@@ -15,6 +15,7 @@ const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { suggestNextAssetTag } = require('../assetTagService');
 const { validFormat } = require('./updates');
+const { encryptToken, decryptToken } = require('../../utils/tokenCrypto');
 
 const KEY_PREFIX = 'pk_enr_';
 const INTERVALS = { heartbeatSec: 300, inventorySec: 6 * 3600 };
@@ -22,20 +23,63 @@ const PLATFORMS = ['windows', 'macos', 'linux'];
 
 const hashKey = (secret) => crypto.createHash('sha256').update(String(secret)).digest('hex');
 
-// A new key for a company. → { key, secret }: the secret exists only here.
-async function createEnrollmentKey({ companyId, name, expiresAt = null, userId = null }) {
+const newSecret = () => KEY_PREFIX + crypto.randomBytes(32).toString('base64url');
+
+function parseExpiry(expiresAt) {
+  if (!expiresAt) return null;
+  const expires = new Date(expiresAt);
+  if (Number.isNaN(expires.getTime()) || expires <= new Date()) throw new ApiError(400, 'The expiry must be a date in the future', 'VALIDATION_ERROR');
+  return expires;
+}
+
+// A limit on how many computers a key enrolls: null (none) or 1 to 100,000.
+function parseMaxUses(maxUses) {
+  if (maxUses === null || maxUses === undefined || maxUses === '') return null;
+  const n = Number(maxUses);
+  if (!Number.isInteger(n) || n < 1 || n > 100000) throw new ApiError(400, 'The limit must be a whole number from 1 to 100,000', 'VALIDATION_ERROR');
+  return n;
+}
+
+// A new key for a company. → { key, secret }. The secret is kept encrypted
+// (8d) so staff with Manage devices can copy it again.
+async function createEnrollmentKey({
+  companyId, name, expiresAt = null, maxUses = null, userId = null,
+}) {
   const cleanName = typeof name === 'string' ? name.trim().slice(0, 100) : '';
   if (!cleanName) throw new ApiError(400, 'Give the key a name', 'VALIDATION_ERROR');
-  let expires = null;
-  if (expiresAt) {
-    expires = new Date(expiresAt);
-    if (Number.isNaN(expires.getTime()) || expires <= new Date()) throw new ApiError(400, 'The expiry must be a date in the future', 'VALIDATION_ERROR');
-  }
-  const secret = KEY_PREFIX + crypto.randomBytes(32).toString('base64url');
+  const expires = parseExpiry(expiresAt);
+  const limit = parseMaxUses(maxUses);
+  const secret = newSecret();
   const created = await AgentEnrollmentKey.scope('withHash').create({
-    companyId, name: cleanName, keyHash: hashKey(secret), expiresAt: expires, createdById: userId,
+    companyId, name: cleanName, keyHash: hashKey(secret), secretEnc: encryptToken(secret), expiresAt: expires, maxUses: limit, createdById: userId,
   });
   return { key: await AgentEnrollmentKey.findByPk(created.id), secret };
+}
+
+// A key's secret, for staff to copy again; null for a key made before 8d
+// (or one whose copy can't be read, e.g. ENCRYPTION_KEY changed).
+async function revealSecret(key) {
+  const stored = await AgentEnrollmentKey.scope('withHash').findByPk(key.id, { attributes: ['id', 'secretEnc'] });
+  if (!stored || !stored.secretEnc) return null;
+  try { return decryptToken(stored.secretEnc); } catch { return null; }
+}
+
+// A new secret for the same key (name, limits and history kept); the old one
+// stops enrolling at once. → the new secret.
+async function rotateSecret(key) {
+  const secret = newSecret();
+  await AgentEnrollmentKey.scope('withHash').update(
+    { keyHash: hashKey(secret), secretEnc: encryptToken(secret) },
+    { where: { id: key.id } }
+  );
+  return secret;
+}
+
+// The usable key a secret names, or null. Used by enrollment and the
+// install links (8d).
+async function findKeyBySecret(secret) {
+  if (typeof secret !== 'string' || !secret.startsWith(KEY_PREFIX) || secret.length > 100) return null;
+  return AgentEnrollmentKey.scope('withHash').findOne({ where: { keyHash: hashKey(secret) } });
 }
 
 // --- Enrollment ------------------------------------------------------------------
@@ -81,6 +125,8 @@ async function computersCategory(transaction) {
   return category;
 }
 
+const usedUp = () => new ApiError(403, 'This install key has been used up', 'ENROLL_KEY_USED_UP');
+
 // One enrollment attempt, in one transaction. → { device, asset, claimed, created }
 async function attemptEnrollment(p, key) {
   return sequelize.transaction(async (transaction) => {
@@ -107,6 +153,17 @@ async function attemptEnrollment(p, key) {
       device = asset ? asset.device : null;
     }
     const claimed = !!asset;
+    // The same computer trying again after a failed try (its device never
+    // reported) doesn't use the key again (8d's limit).
+    const retry = !!(device && !device.revokedAt && !device.lastInventoryAt && device.enrollmentKeyId === key.id);
+    if (!retry && key.maxUses !== null && key.maxUses !== undefined) {
+      // Taken atomically, so a rollout can't go past the limit.
+      const [taken] = await AgentEnrollmentKey.update(
+        { enrolledCount: sequelize.literal('enrolledCount + 1') },
+        { where: { id: key.id, enrolledCount: { [Op.lt]: key.maxUses } }, transaction }
+      );
+      if (!taken) throw usedUp();
+    }
 
     // 2. Otherwise a new Asset in Computers.
     if (!asset) {
@@ -141,7 +198,10 @@ async function attemptEnrollment(p, key) {
     // (Devices.assetId is unique, so two computers can't claim one Asset.)
     if (device) await device.update(fields, { transaction });
     else device = await Device.create(fields, { transaction });
-    await AgentEnrollmentKey.increment('enrolledCount', { where: { id: key.id }, transaction });
+    if (!retry && (key.maxUses === null || key.maxUses === undefined)) {
+      await AgentEnrollmentKey.increment('enrolledCount', { where: { id: key.id }, transaction });
+    }
+    await AgentEnrollmentKey.update({ lastUsedAt: new Date() }, { where: { id: key.id }, transaction });
     return { device, asset, claimed, created: !claimed };
   });
 }
@@ -154,8 +214,10 @@ const isClash = (err) => err && err.name === 'SequelizeUniqueConstraintError';
 // → { device, asset, created: bool, claimed: bool }
 async function enroll(body, req) {
   const p = parseEnrollment(body);
-  const key = await AgentEnrollmentKey.scope('withHash').findOne({ where: { keyHash: hashKey(p.secret) } });
-  if (!key || !key.isUsable()) throw new ApiError(401, 'That enrollment key is not valid, has expired or was revoked', 'ENROLL_KEY_INVALID');
+  const key = await findKeyBySecret(p.secret);
+  // A used-up key is checked in the transaction: the computer it already
+  // enrolled may be trying again.
+  if (!key || key.revokedAt || (key.expiresAt && key.expiresAt <= new Date())) throw new ApiError(401, 'That enrollment key is not valid, has expired or was revoked', 'ENROLL_KEY_INVALID');
   const company = await Company.findByPk(key.companyId);
   if (!company || company.status !== 'active') throw new ApiError(401, 'That enrollment key is not valid', 'ENROLL_KEY_INVALID');
 
@@ -176,5 +238,5 @@ async function enroll(body, req) {
 }
 
 module.exports = {
-  createEnrollmentKey, enroll, hashKey, normalizeSerial, INTERVALS, KEY_PREFIX,
+  createEnrollmentKey, revealSecret, rotateSecret, findKeyBySecret, parseExpiry, parseMaxUses, enroll, hashKey, normalizeSerial, INTERVALS, KEY_PREFIX,
 };
