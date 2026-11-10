@@ -202,7 +202,7 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
       )}
       <SettingsPanel
         title="Categories"
-        actions={roots.length > 0 && <button type="button" className="btn-primary" onClick={startAdding}>Add category</button>}
+        actions={<button type="button" className="btn-primary" onClick={startAdding}>Add category</button>}
       >
         {adding?.parentId === null && <div className="px-3">{addForm(null)}</div>}
         {roots.length ? <ul data-testid="category-tree">{roots.map((c) => renderNode(c, 0))}</ul> : (
@@ -211,7 +211,6 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
               {companyName ? `${companyName} has no ticket categories yet.` : 'No categories yet.'} People raising a ticket pick one
               step by step (Network → Wireless), with Other / I&apos;m not sure at every step.
             </p>
-            {adding?.parentId !== null && <button type="button" className="btn-primary" onClick={startAdding}>Add the first category</button>}
           </div>
         )}
       </SettingsPanel>

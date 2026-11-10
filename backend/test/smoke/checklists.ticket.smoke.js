@@ -50,7 +50,7 @@ beforeAll(async () => {
       }],
     },
   }), 201).form;
-  category = expectOk(await w.admin.agent.post(`${API}/ticket-categories`).send({ name: 'Offboarding CK' }), 201).category;
+  category = expectOk(await w.admin.agent.post(`${API}/ticket-categories`).send({ name: 'Offboarding CK', companyId: company.id }), 201).category;
   expectOk(await w.admin.agent.post(`${API}/playbooks`).send({
     name: 'Offboarding', needsPerson: true, blocks: [{ formId: printer.id, applies: 'once' }, { formId: checkIn.id, applies: 'person_devices' }], suggestCategoryIds: [category.id],
   }), 201);

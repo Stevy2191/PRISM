@@ -96,8 +96,10 @@ describe('raising a ticket', () => {
       categoryId: cat.id, portalCreatedByContactId: null, assigneeId: null, createdBy: await getSystemActorUserId(),
     });
     expect(t.status).not.toBe('Closed');
-    // Minimal: category and priority are optional.
-    expect((await me.post(`${P}/tickets`).send({ title: 'Mouse', description: 'Broken' })).status).toBe(201);
+    // Minimal: priority is optional; a company with categories needs one, or
+    // Other / I'm not sure (9).
+    expect((await me.post(`${P}/tickets`).send({ title: 'Mouse', description: 'Broken' })).status).toBe(400);
+    expect((await me.post(`${P}/tickets`).send({ title: 'Mouse', description: 'Broken', categoryUnsure: true })).status).toBe(201);
   });
 
   it('"For": plain contacts can\'t; a department admin can for their department only', async () => {

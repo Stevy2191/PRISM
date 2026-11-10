@@ -22,9 +22,9 @@ beforeEach(async () => {
   await models.TicketCategory.destroy({ where: { name: ['CK Accounts', 'CK Termination', 'CK Printers'] } });
   w = await makeWorld();
   company = await makeCompany(w.admin, { name: 'County' });
-  accounts = await models.TicketCategory.create({ name: 'CK Accounts' });
-  termination = await models.TicketCategory.create({ name: 'CK Termination', parentId: accounts.id });
-  other = await models.TicketCategory.create({ name: 'CK Printers' });
+  accounts = await models.TicketCategory.create({ name: 'CK Accounts', companyId: company.id });
+  termination = await models.TicketCategory.create({ name: 'CK Termination', parentId: accounts.id, companyId: company.id });
+  other = await models.TicketCategory.create({ name: 'CK Printers', companyId: company.id });
   const form = await checklist();
   bundle = expectOk(await w.admin.agent.post(`${API}/playbooks`).send({
     name: 'Termination', blocks: [{ formId: form.id, applies: 'once' }], suggestCategoryIds: [termination.id],

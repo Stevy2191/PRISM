@@ -152,7 +152,11 @@ async function createTicket(actor, input, {
   const unsure = categoryUnsure === true;
   const mustChoose = requireCategory && await companyHasCategories(contact.companyId);
   const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { companyId: contact.companyId, unsure });
-  if (mustChoose && !resolvedCategoryId && !unsure) throw new ApiError(400, "Choose a category, or Other / I'm not sure", 'VALIDATION_ERROR');
+  if (mustChoose && !resolvedCategoryId && !unsure) {
+    // The portal and the agent offer Other / I'm not sure; the staff form doesn't.
+    const offersUnsure = systemSource === 'portal' || systemSource === 'agent';
+    throw new ApiError(400, offersUnsure ? "Choose a category, or Other / I'm not sure" : 'A category is required', 'VALIDATION_ERROR');
+  }
   // Links stay inside one company: the new ticket's is its contact's.
   if (linkedTickets.some((t) => t.companyId !== contact.companyId)) {
     throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');

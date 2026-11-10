@@ -61,7 +61,7 @@ beforeAll(async () => {
   const playbook = expectOk(await w.admin.agent.post(`${API}/playbooks`).send({
     name: 'Account termination', needsPerson: true, blocks: [{ formId: account.id, applies: 'once' }, { formId: checkIn.id, applies: 'person_devices' }],
   }), 201).playbook;
-  termination = expectOk(await w.admin.agent.post(`${API}/ticket-categories`).send({ name: 'Termination' }), 201).category;
+  termination = expectOk(await w.admin.agent.post(`${API}/ticket-categories`).send({ name: 'Termination', companyId: company.id }), 201).category;
   expectOk(await w.admin.agent.post(`${API}/workflow-rules`).send({
     name: 'Termination requests', triggerEvent: 'ticket_created', conditions: [{ field: 'category', operator: 'is', value: String(termination.id) }],
     actions: [{ actionType: 'suggest_playbook', actionValue: { playbookId: playbook.id } }],
