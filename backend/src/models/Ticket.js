@@ -59,6 +59,9 @@ module.exports = (sequelize) => {
       mergedIntoId: { type: DataTypes.INTEGER, allowNull: true },
       // Deepest chosen node of the category tree (5c); null = uncategorized.
       categoryId: { type: DataTypes.INTEGER, allowNull: true },
+      // "Other / I'm not sure" (9): the person raising it went this far (or
+      // nowhere) and wasn't sure; setting a category clears it.
+      categoryUnsure: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       assigneeId: {
         type: DataTypes.INTEGER,
         allowNull: true,

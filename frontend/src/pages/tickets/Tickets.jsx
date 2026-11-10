@@ -79,6 +79,8 @@ export default function Tickets() {
   const [unassigned, setUnassigned] = useState(false);
   const [slaFilter, setSlaFilter] = useState(''); // '' | 'breached' | 'at_risk'
   const [newFromEmail, setNewFromEmail] = useState(false);
+  // "Category not sure" (9): raised with Other / I'm not sure, for triage.
+  const [categoryUnsure, setCategoryUnsure] = useState(false);
   const [searchParams] = useSearchParams();
   const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
   // Queue view (5b): '' = no queue, 'mine' = every team I'm in, or a team id.
@@ -90,7 +92,7 @@ export default function Tickets() {
 
   // Any change to a filter has to send the table back to page 1 — otherwise
   // narrowing the results while on page 5 shows an empty table.
-  const filterKey = JSON.stringify([search, status, priority, category, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, queue, sort]);
+  const filterKey = JSON.stringify([search, status, priority, category, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, categoryUnsure, queue, sort]);
   const pager = usePagination({ filterKey, storageKey: 'prism.tickets.pageSize' });
 
   const [view, setView] = useState('table');
@@ -176,6 +178,7 @@ export default function Tickets() {
     if (myTickets) params.myTickets = 'true';
     if (overdue) params.overdue = 'true';
     if (unassigned) params.unassigned = 'true';
+    if (categoryUnsure) params.categoryUnsure = 'true';
     if (slaFilter) params.sla = slaFilter;
     if (newFromEmail) { params.source = 'email'; params.unassigned = 'true'; }
     if (queue) params.queue = queue;
@@ -188,7 +191,7 @@ export default function Tickets() {
       params.sortDir = sort.dir;
     }
     return params;
-  }, [search, status, priority, category, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, queue, sort]);
+  }, [search, status, priority, category, assignee, companyId, myTickets, overdue, unassigned, slaFilter, newFromEmail, categoryUnsure, queue, sort]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -237,12 +240,13 @@ export default function Tickets() {
     setUnassigned(!!fj.unassigned);
     setSlaFilter(fj.sla || '');
     setNewFromEmail(!!fj.newFromEmail);
+    setCategoryUnsure(!!fj.categoryUnsure);
     if (fj.sortKey) setSort({ key: fj.sortKey, dir: fj.sortDir || 'desc' });
     setActiveSavedFilterId(f.id);
   };
 
   const saveCurrentFilter = async (name) => {
-    const filterJson = { search, status, priority, category, assignee, myTickets, overdue, unassigned, sla: slaFilter, newFromEmail, sortKey: sort.key, sortDir: sort.dir };
+    const filterJson = { search, status, priority, category, assignee, myTickets, overdue, unassigned, sla: slaFilter, newFromEmail, categoryUnsure, sortKey: sort.key, sortDir: sort.dir };
     try {
       const { data } = await api.post('/saved-filters', { name, filterJson });
       setSavedFilters((prev) => [...prev, data.savedFilter]);
@@ -272,6 +276,7 @@ export default function Tickets() {
   const toggleMyTickets = () => { clearActiveSavedFilter(); setMyTickets((v) => !v); };
   const toggleOverdue = () => { clearActiveSavedFilter(); setOverdue((v) => !v); };
   const toggleUnassigned = () => { clearActiveSavedFilter(); setUnassigned((v) => !v); };
+  const toggleCategoryUnsure = () => { clearActiveSavedFilter(); setCategoryUnsure((v) => !v); };
   const toggleSla = (kind) => () => { clearActiveSavedFilter(); setSlaFilter((v) => (v === kind ? '' : kind)); };
   const toggleNewFromEmail = () => { clearActiveSavedFilter(); setNewFromEmail((v) => !v); };
   const pickQueue = (value) => {
@@ -457,6 +462,7 @@ export default function Tickets() {
               <Pill on={myTickets} onClick={toggleMyTickets}>My tickets</Pill>
               <Pill on={overdue} onClick={toggleOverdue}>Overdue</Pill>
               <Pill on={unassigned} onClick={toggleUnassigned}>Unassigned</Pill>
+              <Pill on={categoryUnsure} onClick={toggleCategoryUnsure} title="Raised with Other / I'm not sure: a category still to choose">Category not sure</Pill>
               <Pill on={slaFilter === 'breached'} onClick={toggleSla('breached')}>SLA breached</Pill>
               <Pill on={slaFilter === 'at_risk'} onClick={toggleSla('at_risk')}>SLA at risk</Pill>
               <Pill on={newFromEmail} onClick={toggleNewFromEmail} title="Unassigned tickets created from inbound email" className="inline-flex items-center gap-1.5">

@@ -9,7 +9,7 @@ const { parsePagination, paginated } = require('../../utils/pagination');
 const { andWhere, ticketScopeWhere } = require('../../services/recordScope');
 const { getUserTicketScope, canAccessTicket, parseRecordId } = require('../../services/permissionService');
 const { createTicket, updateTicket, deleteTicket } = require('../../services/tickets/ticketWrite');
-const { loadTree: loadCategoryTree, descendantIds, activeChildren } = require('../../services/tickets/categories');
+const { loadTree: loadCategoryTree, descendantIds } = require('../../services/tickets/categories');
 const { categoryRequired } = require('../ticketCategoriesController');
 const {
   queueListWhere, queueCount, takeTicket, queueRowFor,
@@ -54,6 +54,8 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   if (companyId) where.companyId = parseRecordId(companyId) || -1;
   // A category matches it and everything below it; an unknown or malformed
   // id matches nothing (never every ticket).
+  // "Category not sure" (9): tickets raised with Other / I'm not sure, for triage.
+  if (req.query.categoryUnsure === 'true') where.categoryUnsure = true;
   if (req.query.category) {
     const categoryId = parseRecordId(req.query.category);
     const tree = categoryId ? await loadCategoryTree() : null;
@@ -272,7 +274,9 @@ const create = asyncHandler(async (req, res) => {
   // Settings -> Ticket categories: required on this (staff) form only, and
   // only while there is an active category to pick (otherwise nobody could
   // create a ticket at all).
-  const requireCategory = (await categoryRequired()) && activeChildren(await loadCategoryTree(), null).length > 0;
+  // Required by the setting, and then only when the ticket's company has
+  // categories to choose (createTicket checks the company, 9).
+  const requireCategory = await categoryRequired();
   const ticket = await createTicket(req.user, req.body, { req, requireCategory });
   const fresh = await Ticket.findByPk(ticket.id, { include: ticketInclude });
   res.status(201).json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });

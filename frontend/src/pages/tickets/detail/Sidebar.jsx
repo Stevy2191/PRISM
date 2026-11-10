@@ -396,6 +396,11 @@ export function Sidebar({
                     disabled={!canEdit}
                     id="sidebar-category"
                   />
+                  {ticket.categoryUnsure && categoryDraft === undefined && (
+                    <p className="mt-1 text-xs" style={{ color: MUTED }} data-testid="category-unsure">
+                      {ticket.categoryId ? 'Not sure beyond this: choose the rest to triage it.' : 'Raised as Other / I\'m not sure: choose a category to triage it.'}
+                    </p>
+                  )}
                   {categoryDraft !== undefined && (
                     <div className="mt-1 flex gap-2">
                       <button type="button" className="btn-primary text-xs" onClick={() => saveCategory(categoryDraft)}>Save</button>

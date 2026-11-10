@@ -34,7 +34,8 @@ export default function TicketNew() {
       const { data } = await portalApi.post('/tickets', {
         title: form.title,
         description: form.description,
-        ...(form.categoryId ? { categoryId: Number(form.categoryId) } : {}),
+        // No category picked is "Other / I'm not sure" (9).
+        ...(form.categoryId ? { categoryId: Number(form.categoryId) } : { categoryUnsure: true }),
         ...(form.priority ? { priority: form.priority } : {}),
         ...(form.forContactId ? { forContactId: Number(form.forContactId) } : {}),
       });
@@ -80,7 +81,7 @@ export default function TicketNew() {
             <div>
               <label htmlFor="nt-cat" className="label">Category<Optional /></label>
               <select id="nt-cat" className="input h-11" value={form.categoryId} onChange={set('categoryId')}>
-                <option value="">Not sure</option>
+                <option value="">Other / I&apos;m not sure</option>
                 {meta.categories.map((c) => <option key={c.id} value={c.id}>{c.path.join(' › ')}</option>)}
               </select>
             </div>

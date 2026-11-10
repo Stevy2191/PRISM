@@ -25,7 +25,7 @@ const { maybeCreateCsatSurvey } = require('../csatService');
 const { queueContactEmail } = require('../email/ticketMail');
 const { logAssetActivity } = require('../assetActivity');
 const { syncCustomFieldValues, assertCanEditTicket } = require('../../controllers/tickets/shared');
-const { resolveCategoryForSave, loadTree: loadCategoryTree } = require('./categories');
+const { resolveCategoryForSave, loadTree: loadCategoryTree, companyHasCategories } = require('./categories');
 const { isIsoDate } = require('../workload/capacity');
 
 
@@ -83,7 +83,7 @@ async function createTicket(actor, input, {
   const {
     title, description, priority, type, status, projectId, departmentId, dueDate, dueTime,
     blueprintId, customFields, teamId, tags, watcherIds, parentTicketId, childTicketIds, relatedTicketIds,
-    assigneeId, contactId, source, assetIds, categoryId,
+    assigneeId, contactId, source, assetIds, categoryId, categoryUnsure,
   } = input || {};
   const cleanedTitle = cleanTitle(title);
   const cleanedDescription = cleanDescription(description);
@@ -146,8 +146,13 @@ async function createTicket(actor, input, {
   const contact = trustedContact || await findAccessibleContact(actor, contactId);
   if (!contact) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
   const resolvedTeamId = await assertTeamExists(teamId);
-  // The category must be one of the ticket's company, which is its contact's (9).
-  const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { required: requireCategory, companyId: contact.companyId });
+  // The category must be one of the ticket's company, which is its contact's
+  // (9), and is required only when that company has categories to choose.
+  // "Other / I'm not sure" (categoryUnsure) answers it too.
+  const unsure = categoryUnsure === true;
+  const mustChoose = requireCategory && await companyHasCategories(contact.companyId);
+  const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { companyId: contact.companyId, unsure });
+  if (mustChoose && !resolvedCategoryId && !unsure) throw new ApiError(400, "Choose a category, or Other / I'm not sure", 'VALIDATION_ERROR');
   // Links stay inside one company: the new ticket's is its contact's.
   if (linkedTickets.some((t) => t.companyId !== contact.companyId)) {
     throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
@@ -214,6 +219,7 @@ async function createTicket(actor, input, {
       assigneeId: resolvedAssigneeId,
       teamId: resolvedTeamId,
       categoryId: resolvedCategoryId,
+      categoryUnsure: unsure,
       contactId: contact.id,
       projectId: resolvedProjectId,
       departmentId: resolvedDepartmentId,
@@ -353,6 +359,10 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
     else changes.categoryId = await resolveCategoryForSave(changes.categoryId, { current: keepCurrent, tree: categoryTree, companyId: targetCompanyId });
   } else if (movingCompany && ticket.categoryId) {
     changes.categoryId = null;
+  }
+  // Staff choosing a category (or clearing it) settle the "not sure" (9).
+  if (changes.categoryId !== undefined && changes.categoryId !== ticket.categoryId && ticket.categoryUnsure) {
+    changes.categoryUnsure = false;
   }
   if (changes.assigneeId && Number(changes.assigneeId) !== ticket.assigneeId) {
     changes.assigneeId = await assertCanWorkTicket(changes.assigneeId, targetCompanyId, 'Assignee');

@@ -189,7 +189,7 @@ const requiredText = (value, what) => {
   return value.trim();
 };
 
-// POST /portal/tickets { title, description, categoryId?, priority?, forContactId? }
+// POST /portal/tickets { title, description, categoryId?, categoryUnsure?, priority?, forContactId? }
 const create = asyncHandler(async (req, res) => {
   const body = req.body || {};
   const title = requiredText(body.title, 'A title');
@@ -212,9 +212,12 @@ const create = asyncHandler(async (req, res) => {
     description,
     priority: body.priority || undefined,
     categoryId: body.categoryId === '' ? null : body.categoryId,
+    categoryUnsure: body.categoryUnsure === true,
     contactId: target.id,
   }, {
-    req, createdById: actorId, source: 'portal', portal: { contact: target, raisedBy: me },
+    // A category is required when the company has any (9); Other / I'm not
+    // sure (categoryUnsure) answers it.
+    req, createdById: actorId, source: 'portal', portal: { contact: target, raisedBy: me }, requireCategory: true,
   });
   res.status(201).json({ ticket: { id: ticket.id } });
 });

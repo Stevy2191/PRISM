@@ -22,12 +22,14 @@ const notFound = () => new ApiError(400, 'Category not found', 'VALIDATION_ERROR
 // gained requireChild) after it was set can still be saved. `undefined` =
 // not being changed. `companyId` is the ticket's company (9): a category of
 // any other company is refused like a missing one.
+// `unsure` (9): "Other / I'm not sure" at this level, so a category part way
+// down is fine (requireChild isn't asked), and none at all is fine too.
 async function resolveCategoryForSave(raw, {
-  current = undefined, required = false, tree: given = null, companyId = null,
+  current = undefined, required = false, tree: given = null, companyId = null, unsure = false,
 } = {}) {
   if (raw === undefined) return current;
   if (raw === null || raw === '') {
-    if (required) throw new ApiError(400, 'A category is required', 'VALIDATION_ERROR');
+    if (required && !unsure) throw new ApiError(400, 'A category is required', 'VALIDATION_ERROR');
     return null;
   }
   const id = parseRecordId(raw);
@@ -37,7 +39,7 @@ async function resolveCategoryForSave(raw, {
   if (!tree.isEffectivelyActive(t, id)) throw notFound();
   const node = t.get(id);
   if (companyId != null && node.companyId !== Number(companyId)) throw notFound();
-  if (node.requireChild && tree.activeChildren(t, id).length) {
+  if (!unsure && node.requireChild && tree.activeChildren(t, id).length) {
     throw new ApiError(400, `Choose a sub-category under ${node.name}`, 'VALIDATION_ERROR');
   }
   return id;
@@ -107,6 +109,12 @@ async function lockCategoriesShared(ids, transaction) {
   if (rows.length !== list.length) throw notFound();
 }
 
+// Does this company have a category to choose? (Required only then, 9.)
+async function companyHasCategories(companyId, given = null) {
+  const t = given || await loadTree();
+  return tree.activeChildren(t, null, companyId).length > 0;
+}
+
 module.exports = {
-  ...tree, loadTree, resolveCategoryForSave, isUsableOnRun, idList, fieldAppliesToCategory, withTreeLock, lockCategoriesShared,
+  ...tree, loadTree, companyHasCategories, resolveCategoryForSave, isUsableOnRun, idList, fieldAppliesToCategory, withTreeLock, lockCategoriesShared,
 };

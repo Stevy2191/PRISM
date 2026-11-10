@@ -68,9 +68,11 @@
 - Required (when the company has any active category) for portal and agent tickets; staff screens keep the existing per-install setting.
 - Staff see **Category: Network → Wireless (not sure beyond this)**, and a ticket list filter **Category not sure** for triage. Setting a full category clears the flag.
 
-- [ ] **Step 1: Failing tests:** portal and agent tickets refused without a choice when the company has categories, accepted with none when it has none; "not sure" at the top and part way; `requireChild` skipped only when unsure; staff setting a category clears the flag; the filter.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(categories): a required choice with Other / I'm not sure`
+- [x] **Step 1: Failing tests:** portal and agent tickets refused without a choice when the company has categories, accepted with none when it has none; "not sure" at the top and part way; `requireChild` skipped only when unsure; staff setting a category clears the flag; the filter.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(categories): a required choice with Other / I'm not sure`
+
+*As built (2026-11-10):* migration 085. `createTicket(..., { requireCategory })` now means "required where the ticket's company has categories" for every source; the portal always asks for it (its "Not sure" choice sends `categoryUnsure: true` until Task 6's stepper); the staff form keeps the per-install setting. The sidebar says "Not sure beyond this" or "Raised as Other / I'm not sure"; the ticket list has a **Category not sure** pill (`?categoryUnsure=true`), kept in saved filters.
 
 ### Task 3: The company's software list
 
