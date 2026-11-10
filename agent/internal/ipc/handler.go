@@ -56,6 +56,8 @@ type Category struct {
 	ParentID     *int64 `json:"parentId"`
 	Name         string `json:"name"`
 	RequireChild bool   `json:"requireChild"`
+	// The ticket type it's for: "incident", "request", or empty for both.
+	TicketType string `json:"ticketType,omitempty"`
 }
 
 // Helpdesk is how to reach the help desk, from PRISM (Task 5's whoami).

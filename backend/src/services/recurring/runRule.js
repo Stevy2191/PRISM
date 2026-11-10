@@ -29,7 +29,7 @@ async function runRule(rule, { now = new Date() } = {}) {
   // ticket still gets made and the rule keeps running (the list flags it).
   // So is one of another company (the contact moved company since, 9).
   const owner = rule.categoryId ? await Contact.findByPk(rule.contactId, { attributes: ['companyId'] }) : null;
-  const categoryId = rule.categoryId && owner && isUsableOnRun(await loadTree(), rule.categoryId, owner.companyId) ? rule.categoryId : null;
+  const categoryId = rule.categoryId && owner && isUsableOnRun(await loadTree(), rule.categoryId, owner.companyId, rule.type) ? rule.categoryId : null;
   const ticket = await createTicket(runAs, {
     title: rule.title,
     description: rule.description,

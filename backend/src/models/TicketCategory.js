@@ -11,6 +11,9 @@ module.exports = (sequelize) => {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       companyId: { type: DataTypes.INTEGER, allowNull: false },
       parentId: { type: DataTypes.INTEGER, allowNull: true },
+      // Top level only: 'incident', 'request', or null for both (9); a
+      // sub-category goes with its top-level category.
+      ticketType: { type: DataTypes.STRING(20), allowNull: true },
       name: { type: DataTypes.STRING(100), allowNull: false },
       sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },

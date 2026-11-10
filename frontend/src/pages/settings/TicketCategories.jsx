@@ -147,6 +147,7 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
             {!c.active && <span className="eyebrow">retired</span>}
             {c.active && !effective && <span className="eyebrow">hidden (parent retired)</span>}
             {c.requireChild && <span className="eyebrow">sub-category required</span>}
+            {c.parentId == null && c.forType && <span className="eyebrow">{c.forType === 'incident' ? 'incidents' : 'requests'}</span>}
             {usageText(c.usage) && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{usageText(c.usage)}</span>}
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -158,6 +159,22 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
               </button>
             )}
             <button type="button" className="hover:underline" style={{ color: 'var(--color-accent)' }} onClick={() => setRenaming({ id: c.id, name: c.name })}>rename</button>
+            {c.parentId == null && (
+              <label className="flex items-center gap-1">
+                For
+                <select
+                  className="input w-auto py-0.5 text-xs"
+                  aria-label={`${c.name} is for`}
+                  value={c.ticketType || 'both'}
+                  onChange={(e) => patch(c.id, { ticketType: e.target.value })}
+                  disabled={busy}
+                >
+                  <option value="both">Incidents and requests</option>
+                  <option value="incident">Incidents</option>
+                  <option value="request">Requests</option>
+                </select>
+              </label>
+            )}
             <label className="flex items-center gap-1">
               <input type="checkbox" checked={c.requireChild} onChange={(e) => patch(c.id, { requireChild: e.target.checked })} disabled={busy} />
               must choose a sub-category
@@ -220,7 +237,7 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
 
 export default function TicketCategories() {
   return (
-    <SettingsPage description="Your help desk's own categories (each client company has its own, on its company page). They narrow as you pick them on a ticket, up to 5 levels. Retired categories are hidden from pickers, but tickets keep them.">
+    <SettingsPage description="Your help desk's own categories (each client company has its own, on its company page). They narrow as you pick them on a ticket, up to 5 levels. Each top-level category is for incidents, requests or both; its sub-categories go with it. Retired categories are hidden from pickers, but tickets keep them.">
       <CategoryEditor companyId="internal" showRequired />
     </SettingsPage>
   );

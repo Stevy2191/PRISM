@@ -95,7 +95,7 @@ async function cleanTemplate(user, input, current = null) {
   // The stored value re-sent unchanged isn't re-checked (it may since have
   // been retired: runs then leave it off, see runRule).
   // A category of the contact's company only (9).
-  const categoryId = await categories.resolveCategoryForSave(input.categoryId ?? null, { current: current ? current.categoryId : undefined, companyId: contact.companyId });
+  const categoryId = await categories.resolveCategoryForSave(input.categoryId ?? null, { current: current ? current.categoryId : undefined, companyId: contact.companyId, ticketType: type });
   const list = input.tasks === null || input.tasks === undefined ? [] : input.tasks;
   if (!Array.isArray(list) || list.length > 50
     || !list.every((t) => typeof t === 'string' && t.trim() && t.trim().length <= 255)) {

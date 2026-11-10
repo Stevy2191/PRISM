@@ -17,7 +17,9 @@ const { createTicket } = require('../../services/tickets/ticketWrite');
 const { applyCustomerReply } = require('../../services/tickets/customerReply');
 const { logActivity } = require('../../services/ticketActivity');
 const { getSystemActorUserId } = require('../../services/inboundEmailService');
-const { loadTree, isEffectivelyActive, activeChildren, categoryJson } = require('../../services/tickets/categories');
+const {
+  loadTree, isEffectivelyActive, activeChildren, categoryJson, fitsType,
+} = require('../../services/tickets/categories');
 const {
   portalTicketWhere, canSeeTicket, forContacts, SCOPES,
 } = require('../../services/portal/scope');
@@ -64,7 +66,8 @@ const meta = asyncHandler(async (req, res) => {
   // The contact's company's own categories only (9).
   const tree = await loadTree();
   const categories = [...tree.values()]
-    .filter((n) => n.companyId === req.contact.companyId)
+    // Portal tickets are requests: request categories, and those for both.
+    .filter((n) => n.companyId === req.contact.companyId && fitsType(tree, n.id, 'request'))
     .filter((n) => isEffectivelyActive(tree, n.id) && !(n.requireChild && activeChildren(tree, n.id).length))
     .map((n) => categoryJson(tree, n.id))
     .sort((a, b) => a.path.join(' / ').localeCompare(b.path.join(' / ')));

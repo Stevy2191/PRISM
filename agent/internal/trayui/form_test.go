@@ -98,7 +98,7 @@ func TestFormCarriesTheCategoriesAndADraftsChoices(t *testing.T) {
 		t.Error("a category name escaped the attribute")
 	}
 	for _, want := range []string{`data-cats="[{&#34;id&#34;:1`, `data-type="incident"`, `data-cat="1"`, `data-unsure="true"`,
-		`Something's broken or not working`, "I need something", `"Other / I'm not sure"`} {
+		`Ticket type`, `Incident: something's broken`, "Request: I need something", `"Other / I'm not sure"`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("expected %q in the page", want)
 		}

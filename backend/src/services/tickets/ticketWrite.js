@@ -25,7 +25,9 @@ const { maybeCreateCsatSurvey } = require('../csatService');
 const { queueContactEmail } = require('../email/ticketMail');
 const { logAssetActivity } = require('../assetActivity');
 const { syncCustomFieldValues, assertCanEditTicket } = require('../../controllers/tickets/shared');
-const { resolveCategoryForSave, loadTree: loadCategoryTree, companyHasCategories } = require('./categories');
+const {
+  resolveCategoryForSave, loadTree: loadCategoryTree, companyHasCategories, fitsType,
+} = require('./categories');
 const { isIsoDate } = require('../workload/capacity');
 
 
@@ -149,9 +151,11 @@ async function createTicket(actor, input, {
   // The category must be one of the ticket's company, which is its contact's
   // (9), and is required only when that company has categories to choose.
   // "Other / I'm not sure" (categoryUnsure) answers it too.
+  // ... and, for incidents and requests, one for the ticket's type.
   const unsure = categoryUnsure === true;
-  const mustChoose = requireCategory && await companyHasCategories(contact.companyId);
-  const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { companyId: contact.companyId, unsure });
+  const ticketType = type || 'request';
+  const mustChoose = requireCategory && await companyHasCategories(contact.companyId, null, ticketType);
+  const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { companyId: contact.companyId, unsure, ticketType });
   if (mustChoose && !resolvedCategoryId && !unsure) {
     // The portal and the agent offer Other / I'm not sure; the staff form doesn't.
     const offersUnsure = systemSource === 'portal' || systemSource === 'agent';
@@ -356,12 +360,24 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
   // another company drops a category of the old one (the change is logged
   // like any other); the stored one re-sent unchanged is never re-checked
   // otherwise.
+  // The same for the type (9): an incident's category is for incidents (or
+  // both), a request's for requests; changing the type drops one that
+  // doesn't fit.
   const movingCompany = targetCompanyId !== ticket.companyId;
+  const targetType = changes.type !== undefined ? changes.type : ticket.type;
+  const changingType = targetType !== ticket.type;
+  const tree = categoryTree || ((changes.categoryId !== undefined || changingType) && ticket.categoryId != null ? await loadCategoryTree() : categoryTree);
+  const currentFits = ticket.categoryId == null || !changingType || (tree && fitsType(tree, ticket.categoryId, targetType));
   if (changes.categoryId !== undefined) {
-    const keepCurrent = movingCompany ? undefined : ticket.categoryId;
-    if (movingCompany && parseRecordId(changes.categoryId) === ticket.categoryId) changes.categoryId = null;
-    else changes.categoryId = await resolveCategoryForSave(changes.categoryId, { current: keepCurrent, tree: categoryTree, companyId: targetCompanyId });
-  } else if (movingCompany && ticket.categoryId) {
+    const sameAsStored = parseRecordId(changes.categoryId) === ticket.categoryId;
+    const keepCurrent = movingCompany || !currentFits ? undefined : ticket.categoryId;
+    if (sameAsStored && (movingCompany || !currentFits)) changes.categoryId = null;
+    else {
+      changes.categoryId = await resolveCategoryForSave(changes.categoryId, {
+        current: keepCurrent, tree, companyId: targetCompanyId, ticketType: targetType,
+      });
+    }
+  } else if ((movingCompany || !currentFits) && ticket.categoryId) {
     changes.categoryId = null;
   }
   // Staff choosing a category (or clearing it) settle the "not sure" (9).

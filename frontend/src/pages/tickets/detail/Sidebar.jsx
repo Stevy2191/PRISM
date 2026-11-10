@@ -8,6 +8,7 @@ import { initials } from '../../../utils/userDisplay';
 import { formatPhone } from '../../../utils/formatPhone';
 import TimeDropdownPicker from '../../../components/TimeDropdownPicker';
 import CategoryPicker from '../../../components/CategoryPicker';
+import { forTicketType } from '../../../components/categoryTree';
 import SlaPanel from './SlaPanel';
 import CcPanel from './CcPanel';
 import DueDateModal from './DueDateModal';
@@ -388,7 +389,7 @@ export function Sidebar({
                 <div className="sm:col-span-2" data-testid="sidebar-category">
                   <span className="mb-1 block text-xs" style={{ color: MUTED }}>Category</span>
                   <CategoryPicker
-                    categories={categories}
+                    categories={forTicketType(categories, ticket.type)}
                     value={categoryDraft !== undefined ? categoryDraft : ticket.categoryId}
                     onChange={pickCategory}
                     onChangeRetired={() => setCategoryDraft(null)}

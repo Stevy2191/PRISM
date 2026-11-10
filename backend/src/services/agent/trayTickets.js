@@ -20,7 +20,9 @@ const {
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { createTicket } = require('../tickets/ticketWrite');
-const { loadTree, isEffectivelyActive, companyHasCategories } = require('../tickets/categories');
+const {
+  loadTree, isEffectivelyActive, companyHasCategories, typeOf,
+} = require('../tickets/categories');
 const { getSystemActorUserId } = require('../inboundEmailService');
 const { matchContact } = require('./inventory');
 const { orgTimeZone } = require('../../utils/orgTime');
@@ -82,15 +84,16 @@ async function deviceAsset(device) {
   return asset;
 }
 
-// The company's active categories for the tray's form (9): id, parent, name
-// and whether a sub-category must be chosen; nothing else about them.
+// The company's active categories for the tray's form (9): id, parent, name,
+// whether a sub-category must be chosen, and the ticket type it's for
+// ('incident', 'request', or null for both); nothing else about them.
 async function trayCategories(companyId) {
   const t = await loadTree();
   return [...t.values()]
     .filter((n) => n.companyId === companyId && isEffectivelyActive(t, n.id))
     .sort((x, y) => (x.sortOrder - y.sortOrder) || x.name.localeCompare(y.name))
     .map((n) => ({
-      id: n.id, parentId: n.parentId, name: n.name, requireChild: !!n.requireChild,
+      id: n.id, parentId: n.parentId, name: n.name, requireChild: !!n.requireChild, ticketType: typeOf(t, n.id),
     }));
 }
 
@@ -213,7 +216,7 @@ async function raiseTrayTicket(device, body, req) {
     contactId: contact.id,
     assetIds: [asset.id],
     categoryId: hasCategoryId ? b.categoryId : null,
-    categoryUnsure: categoryUnsure && await companyHasCategories(asset.companyId),
+    categoryUnsure: categoryUnsure && await companyHasCategories(asset.companyId, null, type),
   }, {
     req, createdById: actorId, source: 'agent', portal: { contact }, requireCategory: true,
   });

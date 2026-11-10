@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import CategoryPicker from '../../components/CategoryPicker';
+import { forTicketType } from '../../components/categoryTree';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { assignableContactDepartments } from '../../utils/contactDepartments';
@@ -56,7 +57,13 @@ export default function TicketNew() {
   const [categoryRequired, setCategoryRequired] = useState(false);
   const [categoryId, setCategoryId] = useState(null);
   // Required only while there is an active category to pick (as the server rules).
-  const categoryNeeded = categoryRequired && categories.some((c) => c.parentId == null && c.active);
+  // Only the categories for the ticket's type (9); a category of the other
+  // type is dropped when the type changes.
+  const typeCategories = forTicketType(categories, type);
+  useEffect(() => {
+    setCategoryId((cur) => (cur && !typeCategories.some((c) => c.id === cur) ? null : cur));
+  }, [type]); // eslint-disable-line react-hooks/exhaustive-deps
+  const categoryNeeded = categoryRequired && typeCategories.some((c) => c.parentId == null && c.active);
   const [customFieldValues, setCustomFieldValues] = useState({});
 
   const [error, setError] = useState('');
@@ -308,7 +315,7 @@ export default function TicketNew() {
               {categories.length > 0 && (
                 <div>
                   <Label required={categoryNeeded} htmlFor="ticket-category">Category</Label>
-                  <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} required={categoryNeeded} id="ticket-category" />
+                  <CategoryPicker categories={typeCategories} value={categoryId} onChange={setCategoryId} required={categoryNeeded} id="ticket-category" />
                 </div>
               )}
               <div>

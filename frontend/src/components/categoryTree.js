@@ -31,3 +31,11 @@ export function isEffectivelyActive(index, id) {
 export function pathLabel(index, id) {
   return pathIds(index, id).map((i) => index.get(i).name).join(' › ');
 }
+
+// The categories a ticket of this type may take (9): an incident's are for
+// incidents or both, a request's for requests or both; other types take any.
+// `forType` is the type a category is for (its top-level category's).
+export function forTicketType(categories, type) {
+  if (type !== 'incident' && type !== 'request') return categories;
+  return categories.filter((c) => !c.forType || c.forType === type);
+}

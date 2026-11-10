@@ -62,6 +62,17 @@ function isEffectivelyActive(tree, id) {
 
 const activeChildren = (tree, parentId, companyId = null) => childrenOf(tree, parentId, companyId).filter((n) => n.active);
 
+// The ticket type a category is for (9): its top-level category's
+// ('incident', 'request'), or null for both.
+function typeOf(tree, id) {
+  const path = pathOf(tree, id);
+  return path.length ? (path[0].ticketType || null) : null;
+}
+const TYPED = ['incident', 'request'];
+// May a ticket of this type take this category? Types other than incident
+// and request take any.
+const fitsType = (tree, id, ticketType) => !TYPED.includes(ticketType) || [null, ticketType].includes(typeOf(tree, id));
+
 // One company's nodes only (its whole tree), as a tree of its own.
 const companyTree = (tree, companyId) => new Map([...tree].filter(([, n]) => n.companyId === Number(companyId)));
 
@@ -78,5 +89,5 @@ function categoryJson(tree, id) {
 }
 
 module.exports = {
-  MAX_DEPTH, pathOf, depthOf, childrenOf, descendantIds, subtreeHeight, isEffectivelyActive, activeChildren, wouldCycle, categoryJson, companyTree,
+  MAX_DEPTH, pathOf, depthOf, childrenOf, descendantIds, subtreeHeight, isEffectivelyActive, activeChildren, wouldCycle, categoryJson, companyTree, typeOf, fitsType, TYPED,
 };

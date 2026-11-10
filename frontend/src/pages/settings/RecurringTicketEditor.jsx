@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import CategoryPicker from '../../components/CategoryPicker';
-import { buildIndex, isEffectivelyActive } from '../../components/categoryTree';
+import { buildIndex, isEffectivelyActive, forTicketType } from '../../components/categoryTree';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
@@ -179,7 +179,7 @@ export default function RecurringTicketEditor() {
               <div className="sm:col-span-2">
                 <label className="label" htmlFor="rt-category">Category</label>
                 <CategoryPicker
-                  categories={categories}
+                  categories={forTicketType(categories, form.type)}
                   value={form.categoryId}
                   onChange={(categoryId) => setForm((f) => ({ ...f, categoryId }))}
                   includeRetiredValue

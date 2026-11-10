@@ -7,7 +7,7 @@ const tree = require('./categoryTree');
 
 async function loadTree({ transaction } = {}) {
   const rows = await TicketCategory.findAll({
-    attributes: ['id', 'companyId', 'parentId', 'name', 'sortOrder', 'active', 'requireChild'],
+    attributes: ['id', 'companyId', 'parentId', 'name', 'sortOrder', 'active', 'requireChild', 'ticketType'],
     raw: true,
     transaction,
   });
@@ -25,7 +25,7 @@ const notFound = () => new ApiError(400, 'Category not found', 'VALIDATION_ERROR
 // `unsure` (9): "Other / I'm not sure" at this level, so a category part way
 // down is fine (requireChild isn't asked), and none at all is fine too.
 async function resolveCategoryForSave(raw, {
-  current = undefined, required = false, tree: given = null, companyId = null, unsure = false,
+  current = undefined, required = false, tree: given = null, companyId = null, unsure = false, ticketType = null,
 } = {}) {
   if (raw === undefined) return current;
   if (raw === null || raw === '') {
@@ -39,6 +39,8 @@ async function resolveCategoryForSave(raw, {
   if (!tree.isEffectivelyActive(t, id)) throw notFound();
   const node = t.get(id);
   if (companyId != null && node.companyId !== Number(companyId)) throw notFound();
+  // An incident takes incident (or both) categories, a request request ones.
+  if (ticketType && !tree.fitsType(t, id, ticketType)) throw notFound();
   if (!unsure && node.requireChild && tree.activeChildren(t, id).length) {
     throw new ApiError(400, `Choose a sub-category under ${node.name}`, 'VALIDATION_ERROR');
   }
@@ -49,10 +51,11 @@ async function resolveCategoryForSave(raw, {
 // ticket's company when given, and not a requireChild node that still has
 // active children.) Recurring runs use it
 // to leave a since-retired template category off instead of failing.
-function isUsableOnRun(t, id, companyId = null) {
+function isUsableOnRun(t, id, companyId = null, ticketType = null) {
   if (!tree.isEffectivelyActive(t, id)) return false;
   const node = t.get(Number(id));
   if (companyId != null && node.companyId !== Number(companyId)) return false;
+  if (ticketType && !tree.fitsType(t, id, ticketType)) return false;
   return !(node.requireChild && tree.activeChildren(t, node.id).length);
 }
 
@@ -110,9 +113,10 @@ async function lockCategoriesShared(ids, transaction) {
 }
 
 // Does this company have a category to choose? (Required only then, 9.)
-async function companyHasCategories(companyId, given = null) {
+// (For a ticket type, only categories for that type or both count.)
+async function companyHasCategories(companyId, given = null, ticketType = null) {
   const t = given || await loadTree();
-  return tree.activeChildren(t, null, companyId).length > 0;
+  return tree.activeChildren(t, null, companyId).some((n) => tree.fitsType(t, n.id, ticketType));
 }
 
 module.exports = {

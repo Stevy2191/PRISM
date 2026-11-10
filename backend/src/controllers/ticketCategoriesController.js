@@ -19,7 +19,16 @@ const MANAGE = 'tickets.categories.manage';
 const REQUIRED_KEY = 'tickets.categoryRequired';
 const bad = (message, code = 'VALIDATION_ERROR', status = 400) => new ApiError(status, message, code);
 
-const nodeJson = (tree, n) => ({ ...n, effectiveActive: cat.isEffectivelyActive(tree, n.id) });
+// forType: the ticket type it's for, its top-level category's (9).
+const nodeJson = (tree, n) => ({ ...n, effectiveActive: cat.isEffectivelyActive(tree, n.id), forType: cat.typeOf(tree, n.id) });
+
+// 'incident', 'request', or null (both). undefined = not given.
+function cleanType(raw) {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '' || raw === 'both') return null;
+  if (!cat.TYPED.includes(raw)) throw bad('The ticket type must be incident, request or both');
+  return raw;
+}
 // Same rule as the database collation (accent- and case-insensitive), so the
 // code check and the UNIQUE index agree, at the root as everywhere else.
 const sameName = (a, b) => a.trim().localeCompare(b.trim(), undefined, { sensitivity: 'base' }) === 0;
@@ -153,13 +162,15 @@ const create = asyncHandler(async (req, res) => {
   const body = req.body || {};
   const name = cleanName(body.name);
   const requireChild = cleanBool(body.requireChild, 'Require a sub-category') ?? false;
+  const ticketType = cleanType(body.ticketType);
   const companyId = await companyOf(req, body.companyId);
   const row = await cat.withTreeLock(async (tree, transaction) => {
     const parentId = cleanParent(tree, body.parentId, companyId);
     assertDepth(tree, parentId);
     assertUniqueName(tree, parentId, name, null, companyId);
+    // Only a top-level category says its type; a sub-category goes with it.
     return TicketCategory.create({
-      companyId, name, parentId, requireChild, sortOrder: nextSortOrder(tree, parentId, companyId),
+      companyId, name, parentId, requireChild, ticketType: parentId == null ? (ticketType ?? null) : null, sortOrder: nextSortOrder(tree, parentId, companyId),
     }, { transaction }).catch(uniqueOr409);
   });
   await writeAudit(req, 'ticketCategory.create', 'TicketCategory', row.id, { name, parentId: row.parentId, companyId });
@@ -171,6 +182,7 @@ const update = asyncHandler(async (req, res) => {
   const body = req.body || {};
   const requireChild = cleanBool(body.requireChild, 'Require a sub-category');
   const active = cleanBool(body.active, 'Active');
+  const ticketType = cleanType(body.ticketType);
   const allowed = await getUserCompanyIds(req.user);
   const { id, audits } = await cat.withTreeLock(async (tree, transaction) => {
     const found = nodeIn(tree, req.params.id, allowed);
@@ -193,6 +205,15 @@ const update = asyncHandler(async (req, res) => {
     if (requireChild !== undefined && requireChild !== node.requireChild) changes.requireChild = requireChild;
     if (changes.name !== undefined || changes.requireChild !== undefined) {
       done.push(['ticketCategory.update', { name: changes.name, requireChild: changes.requireChild }]);
+    }
+    // The type is a top-level category's; moving under another clears it.
+    const topLevel = parentId == null;
+    if (ticketType !== undefined && !topLevel) throw bad('Only a top-level category has a ticket type; its sub-categories go with it');
+    if (ticketType !== undefined && ticketType !== (node.ticketType || null)) {
+      changes.ticketType = ticketType;
+      done.push(['ticketCategory.update', { ticketType }]);
+    } else if (!topLevel && node.ticketType) {
+      changes.ticketType = null;
     }
     if (active !== undefined && active !== node.active) {
       changes.active = active;
