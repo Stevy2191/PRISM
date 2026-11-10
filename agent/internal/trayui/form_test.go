@@ -84,3 +84,28 @@ func TestDraftIsKeptUntilSent(t *testing.T) {
 		t.Fatal("the draft outlived the sent ticket")
 	}
 }
+
+func TestFormCarriesTheCategoriesAndADraftsChoices(t *testing.T) {
+	html, err := Render(Page{
+		Name: "Maria", Computer: "RFC-FD-01",
+		CategoriesJSON: `[{"id":1,"parentId":null,"name":"Net\"><script>alert(1)</script>","requireChild":false}]`,
+		Type:           "incident", CategoryID: 1, CategoryUnsure: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(html, `"><script>alert(1)`) {
+		t.Error("a category name escaped the attribute")
+	}
+	for _, want := range []string{`data-cats="[{&#34;id&#34;:1`, `data-type="incident"`, `data-cat="1"`, `data-unsure="true"`,
+		`Something's broken or not working`, "I need something", `"Other / I'm not sure"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("expected %q in the page", want)
+		}
+	}
+	// No categories (offline, an older PRISM): an empty list, so no step.
+	empty, _ := Render(Page{Name: "Maria", Computer: "RFC-FD-01"})
+	if !strings.Contains(empty, `data-cats="[]"`) {
+		t.Error("no empty category list")
+	}
+}

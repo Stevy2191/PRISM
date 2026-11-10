@@ -139,16 +139,21 @@ func runForm() {
 	}
 	draftDir := trayui.DraftDir()
 	draft, _ := trayui.LoadDraft(draftDir)
+	cats, _ := json.Marshal(who.Categories)
+	if who.Categories == nil {
+		cats = []byte("[]")
+	}
 	html, err := trayui.Render(trayui.Page{
 		HelpdeskName: who.Helpdesk.Name, HelpdeskEmail: who.Helpdesk.Email, PortalURL: who.Helpdesk.PortalURL,
 		Name: who.Name, Company: company, Computer: who.Computer,
 		Subject: draft.Subject, Description: draft.Description,
+		CategoriesJSON: string(cats), Type: draft.Type, CategoryID: draft.CategoryID, CategoryUnsure: draft.CategoryUnsure,
 	})
 	if err != nil {
 		return
 	}
 	// The web view's profile goes in the user's own folder.
-	w := newWindow("Submit a ticket", 460, 660, filepath.Join(draftDir, "WebView"))
+	w := newWindow("Submit a ticket", 460, 780, filepath.Join(draftDir, "WebView"))
 	if w == nil {
 		noWebView(who)
 		return
@@ -157,17 +162,24 @@ func runForm() {
 
 	// Bindings run on the UI thread: a send starts in the background and
 	// answers through window.prismDone, so the window never freezes.
-	_ = w.Bind("prismSubmitStart", func(subject, description string) {
+	// The type and category (9) travel with it, and with a kept draft.
+	_ = w.Bind("prismSubmitStart", func(subject, description, kind string, categoryID int64, unsure bool) {
 		go func() {
 			var a ipc.SubmitAnswer
-			if err := ipc.Call(map[string]string{"op": "submit", "subject": subject, "description": description}, &a, 2*time.Minute); err != nil {
+			req := ipc.Request{
+				Op: "submit", Subject: subject, Description: description,
+				Type: kind, CategoryID: categoryID, CategoryUnsure: unsure,
+			}
+			if err := ipc.Call(req, &a, 2*time.Minute); err != nil {
 				a = ipc.SubmitAnswer{Error: "offline"}
 			}
 			switch {
 			case a.Number != "":
 				trayui.ClearDraft(draftDir)
 			case a.Error == "offline":
-				_ = trayui.SaveDraft(draftDir, trayui.Draft{Subject: subject, Description: description})
+				_ = trayui.SaveDraft(draftDir, trayui.Draft{
+					Subject: subject, Description: description, Type: kind, CategoryID: categoryID, CategoryUnsure: unsure,
+				})
 			}
 			b, _ := json.Marshal(a)
 			w.Dispatch(func() { w.Eval("window.prismDone(" + string(b) + ")") })

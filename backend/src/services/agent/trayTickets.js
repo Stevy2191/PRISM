@@ -1,8 +1,9 @@
 // Tickets from the agent's tray app (8a, task 5).
 //
 // The tray's "Submit a ticket" form is filled from whoami (who is signed in,
-// their company and computer) and posts a subject, a description and a
-// health snapshot. The ticket is raised in the device's company, linked to
+// their company and computer, and since 9 the company's categories) and
+// posts a subject, a description, the type (incident or request), the
+// category or "not sure", and a health snapshot. The ticket is raised in the device's company, linked to
 // its Asset, with source 'agent', through the normal new-ticket path (SLA,
 // workflow rules, notifications).
 //
@@ -19,6 +20,7 @@ const {
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { createTicket } = require('../tickets/ticketWrite');
+const { loadTree, isEffectivelyActive, companyHasCategories } = require('../tickets/categories');
 const { getSystemActorUserId } = require('../inboundEmailService');
 const { matchContact } = require('./inventory');
 const { orgTimeZone } = require('../../utils/orgTime');
@@ -80,7 +82,19 @@ async function deviceAsset(device) {
   return asset;
 }
 
-// → { name, company, department, computer, helpdesk }
+// The company's active categories for the tray's form (9): id, parent, name
+// and whether a sub-category must be chosen; nothing else about them.
+async function trayCategories(companyId) {
+  const t = await loadTree();
+  return [...t.values()]
+    .filter((n) => n.companyId === companyId && isEffectivelyActive(t, n.id))
+    .sort((x, y) => (x.sortOrder - y.sortOrder) || x.name.localeCompare(y.name))
+    .map((n) => ({
+      id: n.id, parentId: n.parentId, name: n.name, requireChild: !!n.requireChild,
+    }));
+}
+
+// → { name, company, department, computer, helpdesk, categories }
 async function whoami(device, query) {
   const user = parseUser(query);
   const asset = await deviceAsset(device);
@@ -97,6 +111,7 @@ async function whoami(device, query) {
     department: full && full.department ? full.department.name : null,
     computer: asset.name,
     helpdesk: desk,
+    categories: await trayCategories(asset.companyId),
   };
 }
 
@@ -180,15 +195,27 @@ async function raiseTrayTicket(device, body, req) {
   const raisedBy = `Raised from ${asset.name} by ${user.account || user.upn || 'an unknown user'}`;
   const fullDescription = matched ? (description || raisedBy) : [raisedBy, description].filter(Boolean).join('\n\n');
 
+  // The type, in the form's plain words (9): "Something's broken" is an
+  // incident, "I need something" a request; anything else is a request.
+  const type = b.type === 'incident' ? 'incident' : 'request';
+  // The category, checked against the computer's company like any ticket's.
+  // An agent from before 9 (or a form opened offline) sends none: accepted
+  // and marked not sure, so a computer can always raise a ticket.
+  const hasCategoryId = b.categoryId !== undefined && b.categoryId !== null && b.categoryId !== '';
+  const categoryUnsure = b.categoryUnsure === true || !hasCategoryId;
+
   const actorId = await getSystemActorUserId();
   if (!actorId) throw new ApiError(503, 'The help desk is not ready: no administrator account exists', 'NO_SYSTEM_ACTOR');
   const ticket = await createTicket({ id: actorId }, {
     title: subject,
     description: fullDescription,
+    type,
     contactId: contact.id,
     assetIds: [asset.id],
+    categoryId: hasCategoryId ? b.categoryId : null,
+    categoryUnsure: categoryUnsure && await companyHasCategories(asset.companyId),
   }, {
-    req, createdById: actorId, source: 'agent', portal: { contact },
+    req, createdById: actorId, source: 'agent', portal: { contact }, requireCategory: true,
   });
   await Comment.create({
     body: snapshotNote(b.snapshot, asset.name, await orgTimeZone()), authorId: actorId, ticketId: ticket.id, type: 'comment_private',

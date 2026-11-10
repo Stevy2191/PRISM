@@ -36,9 +36,17 @@ h2{margin:0;font-size:20px;letter-spacing:-0.01em;font-weight:650}
 .contact{display:grid;grid-template-columns:70px minmax(0,1fr);gap:6px 12px;margin:0;font-size:14px}
 .contact dd{margin:0;overflow-wrap:anywhere}
 [hidden]{display:none!important}
+.kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0;padding:0;border:0}
+.kinds legend{font-size:13px;font-weight:600;margin:0 0 6px;padding:0}
+.kind{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border:1px solid var(--bd2);border-radius:8px;cursor:pointer;font-size:13.5px;line-height:1.3}
+.kind input{margin:2px 0 0;accent-color:var(--acc)}
+.kind:has(input:checked){border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.kind:has(input:focus-visible){box-shadow:0 0 0 3px var(--focus)}
+.steps{display:flex;flex-direction:column;gap:8px}
+select.fi{appearance:auto}
 </style>
 </head>
-<body data-portal="{{.PortalURL}}">
+<body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}">
 <div class="wrap">
   <div class="head">
     <span class="logo" aria-hidden="true"></span>
@@ -52,6 +60,12 @@ h2{margin:0;font-size:20px;letter-spacing:-0.01em;font-weight:650}
       {{if .Company}}<dt>Company</dt><dd>{{.Company}}</dd>{{end}}
       <dt>Computer</dt><dd>{{.Computer}}</dd>
     </dl>
+    <fieldset class="kinds" id="kinds">
+      <legend>What do you need?</legend>
+      <label class="kind"><input type="radio" name="kind" value="incident"><span>Something's broken or not working</span></label>
+      <label class="kind"><input type="radio" name="kind" value="request"><span>I need something</span></label>
+    </fieldset>
+    <div class="steps" id="steps" hidden></div>
     <div><label class="fl" for="subj">Subject</label><input id="subj" class="fi" maxlength="255" required value="{{.Subject}}"></div>
     <div style="flex:1;display:flex;flex-direction:column;min-height:146px"><label class="fl" for="desc">What's happening?</label><textarea id="desc" class="ft" style="flex:1" maxlength="20000">{{.Description}}</textarea></div>
     <p class="err" id="err" role="alert" hidden></p>
@@ -91,7 +105,76 @@ h2{margin:0;font-size:20px;letter-spacing:-0.01em;font-weight:650}
   function show(id) { ['form', 'sent', 'offline'].forEach(function (p) { $(p).hidden = p !== id; }); }
   function setBusy(b) { $('send').disabled = b; $('retry').disabled = b; $('send').textContent = b ? 'Sending…' : 'Submit'; }
   function fail(msg) { show('form'); $('err').textContent = msg; $('err').hidden = false; }
+  // The company's categories, one dropdown per level (sub-project 9). Other
+  // / I'm not sure is always the way out; a category that needs a
+  // sub-category ("requireChild") can't be left there.
+  var cats = [];
+  try { cats = JSON.parse(document.body.dataset.cats || '[]') || []; } catch (e) { cats = []; }
+  var byId = {};
+  cats.forEach(function (c) { byId[c.id] = c; });
+  function kids(parent) { return cats.filter(function (c) { return (c.parentId || null) === parent; }); }
+  var path = [];
+  var unsure = document.body.dataset.unsure === 'true';
+  (function fromDraft() {
+    var id = Number(document.body.dataset.cat || 0);
+    var guard = 0;
+    while (id && byId[id] && guard++ < 10) { path.unshift(id); id = byId[id].parentId || 0; }
+    var t = document.body.dataset.type;
+    document.querySelectorAll('input[name=kind]').forEach(function (r) { r.checked = r.value === t; });
+  })();
+  var UNSURE = 'unsure';
+  function renderSteps() {
+    var box = $('steps');
+    box.innerHTML = '';
+    box.hidden = !cats.length;
+    var parent = null;
+    for (var level = 0; level < 6; level++) {
+      var options = kids(parent);
+      if (!options.length) break;
+      var id = 'cat-' + level;
+      var wrap = document.createElement('div');
+      var label = document.createElement('label');
+      label.className = 'fl'; label.htmlFor = id;
+      label.textContent = level === 0 ? "What's it about?" : 'More specifically';
+      var sel = document.createElement('select');
+      sel.className = 'fi'; sel.id = id; sel.dataset.level = String(level);
+      var needed = level === 0 || (byId[parent] && byId[parent].requireChild);
+      var blank = document.createElement('option');
+      blank.value = ''; blank.textContent = needed ? 'Choose…' : 'No more detail';
+      sel.appendChild(blank);
+      options.forEach(function (c) { var o = document.createElement('option'); o.value = String(c.id); o.textContent = c.name; sel.appendChild(o); });
+      var o2 = document.createElement('option'); o2.value = UNSURE; o2.textContent = "Other / I'm not sure"; sel.appendChild(o2);
+      var chosen = path[level];
+      sel.value = chosen ? String(chosen) : (unsure && level === path.length ? UNSURE : '');
+      sel.addEventListener('change', onStep);
+      wrap.appendChild(label); wrap.appendChild(sel); box.appendChild(wrap);
+      if (!chosen) break;
+      parent = chosen;
+    }
+  }
+  function onStep(e) {
+    var level = Number(e.target.dataset.level);
+    var v = e.target.value;
+    path = path.slice(0, level);
+    unsure = v === UNSURE;
+    if (v && v !== UNSURE) path.push(Number(v));
+    renderSteps();
+    var next = $('cat-' + (level + 1));
+    if (next) next.focus(); else { var same = $('cat-' + level); if (same) same.focus(); }
+  }
+  // Complete: no categories, "not sure", or a choice that may stop here.
+  function categoryDone() {
+    if (!cats.length || unsure) return true;
+    if (!path.length) return false;
+    var last = byId[path[path.length - 1]];
+    return !(last.requireChild && kids(last.id).length);
+  }
+  function kind() { var c = document.querySelector('input[name=kind]:checked'); return c ? c.value : ''; }
+  renderSteps();
+
   async function submit() {
+    if (!kind()) { fail("Choose what you need: something's broken, or you need something."); document.querySelector('input[name=kind]').focus(); return; }
+    if (!categoryDone()) { fail("Choose what it's about, or Other / I'm not sure."); var s = $('cat-' + (path.length || 0)) || $('cat-0'); if (s) s.focus(); return; }
     var subject = $('subj').value.trim();
     if (!subject) { fail('Add a subject.'); $('subj').focus(); return; }
     $('err').hidden = true;
@@ -100,7 +183,8 @@ h2{margin:0;font-size:20px;letter-spacing:-0.01em;font-weight:650}
     try {
       // The window's Go side sends in the background (a send can take a
       // while) and answers through window.prismDone.
-      a = await new Promise(function (resolve) { window.prismDone = resolve; window.prismSubmitStart(subject, $('desc').value); });
+      var catId = path.length ? path[path.length - 1] : 0;
+      a = await new Promise(function (resolve) { window.prismDone = resolve; window.prismSubmitStart(subject, $('desc').value, kind(), catId, cats.length ? unsure : false); });
     } catch (e) { a = { error: 'offline' }; }
     setBusy(false);
     if (a && a.number) {
@@ -123,7 +207,8 @@ h2{margin:0;font-size:20px;letter-spacing:-0.01em;font-weight:650}
   $('done').addEventListener('click', function () { window.prismClose(); });
   $('open').addEventListener('click', function () { window.prismOpenTicket(ticketId); window.prismClose(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window.prismClose(); });
-  $('subj').focus();
+  var firstKind = document.querySelector('input[name=kind]');
+  if (!kind() && firstKind) firstKind.focus(); else $('subj').focus();
 })();
 </script>
 </body>

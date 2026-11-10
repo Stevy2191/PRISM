@@ -4,7 +4,8 @@
 // One request per connection, as one JSON line each way:
 //
 //	{"op":"whoami"}                                → WhoamiAnswer
-//	{"op":"submit","subject":…,"description":…}    → SubmitAnswer
+//	{"op":"submit","subject":…,"description":…,     → SubmitAnswer
+//	 "type":"incident|request","categoryId":…,"categoryUnsure":…}
 //
 // Who is asking comes from the operating system (the pipe client's token on
 // Windows), never from the message: a request's own "account", "upn" or
@@ -42,6 +43,19 @@ type Request struct {
 	Op          string `json:"op"`
 	Subject     string `json:"subject"`
 	Description string `json:"description"`
+	// The form's choices (sub-project 9). PRISM checks the category against
+	// this computer's company; nothing here is trusted.
+	Type           string `json:"type"`
+	CategoryID     int64  `json:"categoryId"`
+	CategoryUnsure bool   `json:"categoryUnsure"`
+}
+
+// Category is one of the company's ticket categories, for the form's steps.
+type Category struct {
+	ID           int64  `json:"id"`
+	ParentID     *int64 `json:"parentId"`
+	Name         string `json:"name"`
+	RequireChild bool   `json:"requireChild"`
 }
 
 // Helpdesk is how to reach the help desk, from PRISM (Task 5's whoami).
@@ -59,8 +73,10 @@ type WhoamiAnswer struct {
 	Department string   `json:"department"`
 	Computer   string   `json:"computer"`
 	Helpdesk   Helpdesk `json:"helpdesk"`
-	Offline    bool     `json:"offline"`
-	Error      string   `json:"error,omitempty"`
+	// The company's categories (9); none offline or from an older PRISM.
+	Categories []Category `json:"categories,omitempty"`
+	Offline    bool       `json:"offline"`
+	Error      string     `json:"error,omitempty"`
 }
 
 // SubmitAnswer: Number on success; Error "offline" (try again later) or
@@ -161,6 +177,17 @@ func (s *Server) submit(ctx context.Context, id Identity, req Request) SubmitAns
 	}
 	body := map[string]any{
 		"account": id.Account, "subject": subject, "description": strings.TrimSpace(req.Description), "snapshot": snap,
+	}
+	// Incident or request (9); anything else isn't sent, and PRISM makes it
+	// a request. A category the person chose, or "not sure".
+	if req.Type == "incident" || req.Type == "request" {
+		body["type"] = req.Type
+	}
+	if req.CategoryID > 0 {
+		body["categoryId"] = req.CategoryID
+	}
+	if req.CategoryUnsure {
+		body["categoryUnsure"] = true
 	}
 	if id.UPN != "" {
 		body["upn"] = id.UPN

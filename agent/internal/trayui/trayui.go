@@ -32,6 +32,13 @@ type Page struct {
 	Computer      string
 	Subject       string // from a kept draft
 	Description   string
+	// The company's categories as JSON (9), read by the page's script; "[]"
+	// when there are none (offline, or an older PRISM): no category step.
+	CategoriesJSON string
+	// A kept draft's choices.
+	Type           string
+	CategoryID     int64
+	CategoryUnsure bool
 }
 
 // PortalDisplay is the portal address without its scheme, as the mockup
@@ -47,6 +54,9 @@ func Render(p Page) (string, error) {
 	}
 	if !SafePortalURL(p.PortalURL) {
 		p.PortalURL = ""
+	}
+	if p.CategoriesJSON == "" {
+		p.CategoriesJSON = "[]"
 	}
 	var b bytes.Buffer
 	if err := formTmpl.Execute(&b, p); err != nil {
@@ -72,8 +82,11 @@ func TicketURL(portal string, ticketID int64) string {
 
 // Draft is a message that couldn't be sent yet.
 type Draft struct {
-	Subject     string `json:"subject"`
-	Description string `json:"description"`
+	Subject        string `json:"subject"`
+	Description    string `json:"description"`
+	Type           string `json:"type,omitempty"`
+	CategoryID     int64  `json:"categoryId,omitempty"`
+	CategoryUnsure bool   `json:"categoryUnsure,omitempty"`
 }
 
 // DraftDir is %LOCALAPPDATA%\PRISM (per user), or the user's config folder

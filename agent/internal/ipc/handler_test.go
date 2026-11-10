@@ -155,3 +155,35 @@ func TestWhoamiDoesNotWaitForeverOnPRISM(t *testing.T) {
 		t.Fatal("whoami must answer inside the tray's 30 seconds")
 	}
 }
+
+func TestSubmitCarriesTheTypeAndCategory(t *testing.T) {
+	p := &fakePrism{fn: func(string) (any, error) { return map[string]any{"ticketId": 7, "number": "00007"}, nil }}
+	s := &Server{PRISM: p}
+	s.Handle(context.Background(), maria, []byte(`{"op":"submit","subject":"Wifi","type":"incident","categoryId":42,"categoryUnsure":true}`))
+	body := p.calls[0].body
+	if body["type"] != "incident" || body["categoryId"] != float64(42) || body["categoryUnsure"] != true {
+		t.Fatalf("sent %+v", body)
+	}
+	// An unknown type, no category and sure: none of them is sent.
+	s.Handle(context.Background(), maria, []byte(`{"op":"submit","subject":"Wifi","type":"change","categoryId":0}`))
+	body = p.calls[1].body
+	for _, k := range []string{"type", "categoryId", "categoryUnsure"} {
+		if _, ok := body[k]; ok {
+			t.Errorf("%s was sent: %+v", k, body)
+		}
+	}
+}
+
+func TestWhoamiPassesTheCompanysCategories(t *testing.T) {
+	p := &fakePrism{fn: func(string) (any, error) {
+		return map[string]any{"name": "Maria Chen", "categories": []map[string]any{
+			{"id": 1, "parentId": nil, "name": "Network", "requireChild": true},
+			{"id": 2, "parentId": 1, "name": "Wireless"},
+		}}, nil
+	}}
+	s := &Server{PRISM: p}
+	a := s.Handle(context.Background(), maria, []byte(`{"op":"whoami"}`)).(WhoamiAnswer)
+	if len(a.Categories) != 2 || a.Categories[0].Name != "Network" || !a.Categories[0].RequireChild || a.Categories[1].ParentID == nil || *a.Categories[1].ParentID != 1 {
+		t.Fatalf("categories %+v", a.Categories)
+	}
+}
