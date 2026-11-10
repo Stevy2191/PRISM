@@ -9,6 +9,7 @@ import StatusChip from '../../components/ui/StatusChip';
 import CompanyOverview from '../../components/companies/CompanyOverview';
 import CompanySites from '../../components/companies/CompanySites';
 import CompanyDepartments from '../../components/companies/CompanyDepartments';
+import CompanyCategories from '../../components/companies/CompanyCategories';
 import CompanyRecordList from '../../components/companies/CompanyRecordList';
 import CompanyMicrosoft365 from '../../components/companies/CompanyMicrosoft365';
 import CompanyDevices from '../../components/companies/CompanyDevices';
@@ -40,6 +41,11 @@ export default function CompanyPage() {
   // Then Devices (the PRISM agent, 8a) for staff who can see assets.
   let tabs = [TABS[0], ...(hasPermission('portal.manage') ? [['m365', 'Microsoft 365']] : []),
     ...(hasPermission('assets.view') ? [['devices', 'Devices']] : []), ...TABS.slice(1)];
+  // Each client company's own ticket categories (9), after Departments.
+  if ((company.isClient || company.isInternal) && hasPermission('tickets.categories.manage')) {
+    const at = tabs.findIndex(([k]) => k === 'departments') + 1;
+    tabs = [...tabs.slice(0, at), ['categories', 'Categories'], ...tabs.slice(at)];
+  }
   if (company.isVendor) tabs = [...tabs, ['vendor', 'Vendor']];
   return (
     <div className="mx-auto max-w-[1144px] space-y-5 lg:px-6">
@@ -71,6 +77,7 @@ export default function CompanyPage() {
       {tab === 'devices' && <CompanyDevices company={company} />}
       {tab === 'sites' && <CompanySites company={company} />}
       {tab === 'departments' && <CompanyDepartments company={company} />}
+      {tab === 'categories' && <CompanyCategories company={company} />}
       {['contacts', 'tickets', 'projects', 'assets'].includes(tab) && <CompanyRecordList key={tab} kind={tab} companyId={company.id} />}
       {tab === 'vendor' && (
         <div className="space-y-6">

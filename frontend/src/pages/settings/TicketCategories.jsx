@@ -1,7 +1,9 @@
-// Settings → Ticket categories (5c). The global category tree, up to 5
-// levels: add, rename, reorder (drag or arrows), move, retire/restore,
-// "must choose a sub-category", delete when unused. The server enforces
-// every rule (depth, unique names, in-use); this page shows its messages.
+// Ticket categories (5c): a company's category tree (each company has its
+// own since 9), up to 5 levels: add, rename, reorder (drag or arrows), move,
+// retire/restore, "must choose a sub-category", delete when unused. The
+// server enforces every rule (depth, unique names, in-use); this shows its
+// messages. Settings → Ticket categories is the help desk's own company; a
+// client company's is its page's Categories tab (CategoryEditor).
 import { useEffect, useMemo, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
@@ -29,7 +31,7 @@ function inUseMessage(err) {
   return text ? `${errMessage(err)} (used by ${text})` : errMessage(err);
 }
 
-export default function TicketCategories() {
+export function CategoryEditor({ companyId = 'internal', companyName = '', showRequired = false }) {
   const [categories, setCategories] = useState([]);
   const [required, setRequired] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -42,13 +44,11 @@ export default function TicketCategories() {
 
   const index = useMemo(() => buildIndex(categories), [categories]);
 
-  // The help desk's own company's tree (9); each client company's is on its
-  // company page.
-  const load = () => api.get('/ticket-categories', { params: { usage: '1', companyId: 'internal' } })
+  const load = () => api.get('/ticket-categories', { params: { usage: '1', companyId } })
     .then(({ data }) => { setCategories(data.categories); setRequired(data.categoryRequired); setError(''); })
     .catch((err) => setError(errMessage(err)))
     .finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Every change goes through here: show the server's message, then reload.
   const run = async (fn, format = errMessage) => {
@@ -67,7 +67,7 @@ export default function TicketCategories() {
 
   const add = async (e) => {
     e.preventDefault();
-    const ok = await run(() => api.post('/ticket-categories', { name: newName, parentId: adding.parentId }));
+    const ok = await run(() => api.post('/ticket-categories', { companyId, name: newName, parentId: adding.parentId }));
     if (ok) { setAdding(null); setNewName(''); }
   };
   const rename = async (e) => {
@@ -80,7 +80,7 @@ export default function TicketCategories() {
     if (!confirm(`Delete "${c.name}" and everything under it?`)) return;
     run(() => api.delete(`/ticket-categories/${c.id}`), inUseMessage);
   };
-  const reorder = (parentId, orderedIds) => run(() => api.post('/ticket-categories/reorder', { parentId, orderedIds }));
+  const reorder = (parentId, orderedIds) => run(() => api.post('/ticket-categories/reorder', { companyId, parentId, orderedIds }));
   const shift = (c, by) => {
     const sibs = childrenOf(index, c.parentId, { includeRetired: true }).map((s) => s.id);
     const i = sibs.indexOf(c.id);
@@ -188,23 +188,41 @@ export default function TicketCategories() {
   if (loading) return <Spinner />;
   const roots = childrenOf(index, null, { includeRetired: true });
 
+  const startAdding = () => { setAdding({ parentId: null }); setNewName(''); };
   return (
-    <SettingsPage description="Categories narrow as you pick them on a ticket. Up to 5 levels. Retired categories are hidden from pickers, but tickets keep them.">
+    <>
       {error && <div role="alert" className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
-      <SettingsPanel title="New tickets">
-        <div className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
-          <span>Require a category on new tickets (staff form only; email and recurring tickets may leave it empty)</span>
-          <Switch checked={required} onChange={toggleRequired} disabled={busy} label="Require a category on new tickets" />
-        </div>
-      </SettingsPanel>
+      {showRequired && (
+        <SettingsPanel title="New tickets">
+          <div className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
+            <span>Require a category on new tickets (staff form, where the ticket&apos;s company has categories; the portal and the agent always ask when there are categories)</span>
+            <Switch checked={required} onChange={toggleRequired} disabled={busy} label="Require a category on new tickets" />
+          </div>
+        </SettingsPanel>
+      )}
       <SettingsPanel
         title="Categories"
-        actions={<button type="button" className="btn-primary" onClick={() => { setAdding({ parentId: null }); setNewName(''); }}>Add category</button>}
+        actions={roots.length > 0 && <button type="button" className="btn-primary" onClick={startAdding}>Add category</button>}
       >
         {adding?.parentId === null && <div className="px-3">{addForm(null)}</div>}
-        {roots.length ? <ul data-testid="category-tree">{roots.map((c) => renderNode(c, 0))}</ul>
-          : <p className="p-8 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>No categories yet.</p>}
+        {roots.length ? <ul data-testid="category-tree">{roots.map((c) => renderNode(c, 0))}</ul> : (
+          <div className="space-y-3 p-8 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            <p className="m-0">
+              {companyName ? `${companyName} has no ticket categories yet.` : 'No categories yet.'} People raising a ticket pick one
+              step by step (Network → Wireless), with Other / I&apos;m not sure at every step.
+            </p>
+            {adding?.parentId !== null && <button type="button" className="btn-primary" onClick={startAdding}>Add the first category</button>}
+          </div>
+        )}
       </SettingsPanel>
+    </>
+  );
+}
+
+export default function TicketCategories() {
+  return (
+    <SettingsPage description="Your help desk's own categories (each client company has its own, on its company page). They narrow as you pick them on a ticket, up to 5 levels. Retired categories are hidden from pickers, but tickets keep them.">
+      <CategoryEditor companyId="internal" showRequired />
     </SettingsPage>
   );
 }
