@@ -40,8 +40,8 @@ it('whoami carries only the device\'s company\'s active categories, trimmed', as
   const res = await device.get(WHOAMI);
   expect(res.status).toBe(200);
   expect(res.body.categories).toEqual([
-    { id: net.id, parentId: null, name: 'Network', requireChild: true },
-    { id: expect.any(Number), parentId: net.id, name: 'Wireless', requireChild: false },
+    { id: net.id, parentId: null, name: 'Network', requireChild: true, ticketType: null },
+    { id: expect.any(Number), parentId: net.id, name: 'Wireless', requireChild: false, ticketType: null },
   ]);
 });
 
