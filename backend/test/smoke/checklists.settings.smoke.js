@@ -125,8 +125,8 @@ it('Only for: Jamf Pro and Mac on one line, with the sentence; Try it greys the 
 });
 
 it('A bundle, written as a sentence, that suggests itself on a category', async () => {
-  const category = await models.TicketCategory.create({ name: 'Termination smoke' });
   const company = await makeCompany(w.admin, { name: 'County' });
+  const category = await models.TicketCategory.create({ name: 'Termination smoke', companyId: company.id });
   const jordan = await makeContact(w.admin, { companyId: company.id, firstName: 'Jordan', lastName: 'Reyes' });
   await models.Asset.create({ assetTag: 'CK-S1', name: 'MacBook', categoryId: mac.id, companyId: company.id, assignedToContactId: jordan.id });
   const checkIn = await storedForm('Apple device check-in');
