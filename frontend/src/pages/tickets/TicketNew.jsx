@@ -82,12 +82,16 @@ export default function TicketNew() {
     ? departments.filter((d) => d.companyId === selectedContact.companyId)
     : departments;
 
+  // The contact's company's own categories (9); before a contact is picked,
+  // the help desk's. A category picked for another company is dropped.
+  const categoryCompany = selectedContact ? selectedContact.companyId : 'internal';
   useEffect(() => {
-    api.get('/ticket-categories').then(({ data }) => {
+    api.get('/ticket-categories', { params: { companyId: categoryCompany } }).then(({ data }) => {
       setCategories(data.categories);
       setCategoryRequired(data.categoryRequired);
+      setCategoryId((cur) => (cur && data.categories.some((c) => c.id === cur) ? cur : null));
     }).catch(() => {});
-  }, []);
+  }, [categoryCompany]);
 
   // Additional Details section — active custom fields scoped to the
   // currently-selected ticket type and category. Re-fetched whenever either

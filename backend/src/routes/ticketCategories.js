@@ -2,8 +2,9 @@ const express = require('express');
 const ctrl = require('../controllers/ticketCategoriesController');
 const { requirePermission } = require('../middleware/requirePermission');
 
-// The category tree is global and holds no client data: any staff user may
-// read it. Every change needs tickets.categories.manage.
+// Each company's category tree (9). Reading follows company access (the
+// controller); every change needs tickets.categories.manage and the company
+// in reach.
 const router = express.Router();
 const manage = requirePermission('tickets.categories.manage');
 

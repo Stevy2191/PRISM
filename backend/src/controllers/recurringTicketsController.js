@@ -94,7 +94,8 @@ async function cleanTemplate(user, input, current = null) {
   const assigneeId = input.assigneeId ? await assertCanWorkTicket(input.assigneeId, contact.companyId, 'Assignee') : null;
   // The stored value re-sent unchanged isn't re-checked (it may since have
   // been retired: runs then leave it off, see runRule).
-  const categoryId = await categories.resolveCategoryForSave(input.categoryId ?? null, { current: current ? current.categoryId : undefined });
+  // A category of the contact's company only (9).
+  const categoryId = await categories.resolveCategoryForSave(input.categoryId ?? null, { current: current ? current.categoryId : undefined, companyId: contact.companyId });
   const list = input.tasks === null || input.tasks === undefined ? [] : input.tasks;
   if (!Array.isArray(list) || list.length > 50
     || !list.every((t) => typeof t === 'string' && t.trim() && t.trim().length <= 255)) {

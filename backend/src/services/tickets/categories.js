@@ -7,7 +7,7 @@ const tree = require('./categoryTree');
 
 async function loadTree({ transaction } = {}) {
   const rows = await TicketCategory.findAll({
-    attributes: ['id', 'parentId', 'name', 'sortOrder', 'active', 'requireChild'],
+    attributes: ['id', 'companyId', 'parentId', 'name', 'sortOrder', 'active', 'requireChild'],
     raw: true,
     transaction,
   });
@@ -20,8 +20,11 @@ const notFound = () => new ApiError(400, 'Category not found', 'VALIDATION_ERROR
 // update, bulk, recurring). `current` is the stored value: re-sending it
 // unchanged is never re-checked, so a ticket whose category was retired (or
 // gained requireChild) after it was set can still be saved. `undefined` =
-// not being changed.
-async function resolveCategoryForSave(raw, { current = undefined, required = false, tree: given = null } = {}) {
+// not being changed. `companyId` is the ticket's company (9): a category of
+// any other company is refused like a missing one.
+async function resolveCategoryForSave(raw, {
+  current = undefined, required = false, tree: given = null, companyId = null,
+} = {}) {
   if (raw === undefined) return current;
   if (raw === null || raw === '') {
     if (required) throw new ApiError(400, 'A category is required', 'VALIDATION_ERROR');
@@ -33,18 +36,21 @@ async function resolveCategoryForSave(raw, { current = undefined, required = fal
   const t = given || await loadTree();
   if (!tree.isEffectivelyActive(t, id)) throw notFound();
   const node = t.get(id);
+  if (companyId != null && node.companyId !== Number(companyId)) throw notFound();
   if (node.requireChild && tree.activeChildren(t, id).length) {
     throw new ApiError(400, `Choose a sub-category under ${node.name}`, 'VALIDATION_ERROR');
   }
   return id;
 }
 
-// Would a new save accept this category now? (Effectively active, and not a
-// requireChild node that still has active children.) Recurring runs use it
+// Would a new save accept this category now? (Effectively active, of the
+// ticket's company when given, and not a requireChild node that still has
+// active children.) Recurring runs use it
 // to leave a since-retired template category off instead of failing.
-function isUsableOnRun(t, id) {
+function isUsableOnRun(t, id, companyId = null) {
   if (!tree.isEffectivelyActive(t, id)) return false;
   const node = t.get(Number(id));
+  if (companyId != null && node.companyId !== Number(companyId)) return false;
   return !(node.requireChild && tree.activeChildren(t, node.id).length);
 }
 

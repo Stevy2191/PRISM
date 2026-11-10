@@ -78,8 +78,11 @@ describe('raising a ticket', () => {
   });
 
   it('creates a portal ticket for me, in my department, through the normal create path', async () => {
-    const cat = expectOk(await w.admin.agent.post(`${API}/ticket-categories`).send({ name: 'Printers' }), 201).category;
+    // The contact's company's own category (9); the help desk's isn't theirs.
+    const cat = expectOk(await w.admin.agent.post(`${API}/ticket-categories`).send({ name: 'Printers', companyId: alpha.id }), 201).category;
+    const ours = expectOk(await w.admin.agent.post(`${API}/ticket-categories`).send({ name: 'Internal only' }), 201).category;
     const me = await portalAs(plain);
+    expect((await me.post(`${P}/tickets`).send({ title: 'x', description: 'y', categoryId: ours.id })).status).toBe(400);
     const res = await me.post(`${P}/tickets`).send({
       title: 'Printer jam', description: 'Tray 2 jams', priority: 'high', categoryId: cat.id,
       // Fields a contact may not set are ignored.

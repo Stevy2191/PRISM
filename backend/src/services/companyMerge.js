@@ -5,7 +5,7 @@
 const { Op } = require('sequelize');
 const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory,
 } = require('../models');
 
 const OWNED = {
@@ -56,7 +56,31 @@ async function moveGrants(Model, key, fromId, intoId, transaction) {
   await Model.update({ companyId: intoId }, { where: { companyId: fromId }, transaction });
 }
 
+// Ticket categories (9) move too; only top-level names must differ within a
+// company (children keep their own parent), so B's clashing top-level ones
+// take the suffix.
+async function moveCategories(from, into, transaction) {
+  const top = { parentId: null };
+  const taken = new Set((await TicketCategory.findAll({ where: { companyId: into.id, ...top }, attributes: ['name'], transaction }))
+    .map((r) => r.name.toLowerCase()));
+  const label = from.name.slice(0, 40);
+  const theirs = await TicketCategory.findAll({ where: { companyId: from.id, ...top }, transaction });
+  for (const row of theirs) {
+    if (taken.has(row.name.toLowerCase())) {
+      let name;
+      for (let n = 1; !name || taken.has(name.toLowerCase()); n += 1) {
+        const suffix = n === 1 ? ` (${label})` : ` (${label} ${n})`;
+        name = `${row.name.slice(0, 100 - suffix.length)}${suffix}`;
+      }
+      taken.add(name.toLowerCase());
+      await row.update({ name }, { transaction, hooks: false }); // eslint-disable-line no-await-in-loop
+    }
+  }
+  await TicketCategory.update({ companyId: into.id }, { where: { companyId: from.id }, transaction, hooks: false });
+}
+
 async function mergeCompanies(from, into, transaction) {
+  await moveCategories(from, into, transaction);
   await renameClashes(Department, from, into, 255, transaction);
   await renameClashes(Site, from, into, 150, transaction);
   for (const Model of Object.values(OWNED)) {

@@ -1,14 +1,18 @@
-// Settings -> Ticket categories (5c): the global category tree. Any staff
-// user may read it (no client data); writes need tickets.categories.manage.
-// Every write runs under the tree lock (categories.withTreeLock), so two
-// admins' changes can't combine into a cycle or a duplicate.
+// Ticket categories (5c): since sub-project 9 each company has its own tree,
+// never shared. Reading follows company access; writes need
+// tickets.categories.manage and the company in the caller's reach. Every
+// write runs under the tree lock (categories.withTreeLock), so two admins'
+// changes can't combine into a cycle or a duplicate.
 const { Op } = require('sequelize');
 const {
   TicketCategory, Ticket, CustomField, WorkflowCondition, RecurringTicket, SystemSettings, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
-const { hasPermission, parseRecordId } = require('../services/permissionService');
+const {
+  hasPermission, parseRecordId, canAccessCompany, getUserCompanyIds,
+} = require('../services/permissionService');
+const { getInternalCompanyId } = require('../services/companyService');
 const cat = require('../services/tickets/categories');
 
 const MANAGE = 'tickets.categories.manage';
@@ -33,11 +37,22 @@ function cleanName(raw) {
   return name;
 }
 
-// undefined/null = root; anything else must be an existing node's id.
-function cleanParent(tree, raw) {
+// undefined/null = root; anything else must be an existing node's id, of
+// the same company.
+function cleanParent(tree, raw, companyId) {
   if (raw === undefined || raw === null) return null;
   const id = parseRecordId(raw);
-  if (!id || !tree.has(id)) throw bad('Parent category not found');
+  if (!id || !tree.has(id) || tree.get(id).companyId !== companyId) throw bad('Parent category not found');
+  return id;
+}
+
+// The company a request is about: ?companyId= / body.companyId, or the help
+// desk's own company when none is given or it says "internal" (Settings ->
+// Ticket categories). One
+// the caller can't reach looks like one that doesn't exist.
+async function companyOf(req, raw) {
+  const id = raw === undefined || raw === null || raw === '' || raw === 'internal' ? await getInternalCompanyId() : parseRecordId(raw);
+  if (!id || !(await canAccessCompany(req.user, id))) throw bad('Company not found', 'NOT_FOUND', 404);
   return id;
 }
 
@@ -47,10 +62,10 @@ function cleanBool(raw, label) {
   return raw;
 }
 
-// Siblings' names are unique. The UNIQUE index can't see NULL parents
-// (roots), so this check is the real guard there.
-function assertUniqueName(tree, parentId, name, selfId = null) {
-  if (cat.childrenOf(tree, parentId).some((n) => n.id !== selfId && sameName(n.name, name))) throw duplicate();
+// Siblings' names are unique (top level: within the company). The UNIQUE
+// index can't see NULL parents (roots), so this check is the real guard there.
+function assertUniqueName(tree, parentId, name, selfId = null, companyId = null) {
+  if (cat.childrenOf(tree, parentId, companyId).some((n) => n.id !== selfId && sameName(n.name, name))) throw duplicate();
 }
 
 function assertDepth(tree, parentId, height = 1) {
@@ -59,14 +74,18 @@ function assertDepth(tree, parentId, height = 1) {
   }
 }
 
-const nextSortOrder = (tree, parentId) => {
-  const kids = cat.childrenOf(tree, parentId);
+const nextSortOrder = (tree, parentId, companyId = null) => {
+  const kids = cat.childrenOf(tree, parentId, companyId);
   return kids.length ? Math.max(...kids.map((k) => k.sortOrder)) + 1 : 0;
 };
 
-function nodeIn(tree, rawId) {
+// A node the caller may change: `allowed` is the caller's company ids (null
+// = all); another company's node looks like a missing one.
+function nodeIn(tree, rawId, allowed = null) {
   const id = parseRecordId(rawId);
-  if (!id || !tree.has(id)) throw bad('Category not found', 'NOT_FOUND', 404);
+  if (!id || !tree.has(id) || (allowed !== null && !allowed.includes(tree.get(id).companyId))) {
+    throw bad('Category not found', 'NOT_FOUND', 404);
+  }
   return { id, node: tree.get(id) };
 }
 
@@ -104,9 +123,18 @@ async function categoryRequired() {
   return row?.value === 'true';
 }
 
-// GET /ticket-categories[?usage=1]
+// GET /ticket-categories[?companyId=][&usage=1] — one company's tree; with
+// no companyId, every category of the companies the caller can reach (each
+// carries its companyId), for filters and rules that span companies.
 const list = asyncHandler(async (req, res) => {
-  const tree = await cat.loadTree();
+  const all = await cat.loadTree();
+  let tree;
+  if (req.query.companyId !== undefined && req.query.companyId !== '') {
+    tree = cat.companyTree(all, await companyOf(req, req.query.companyId));
+  } else {
+    const ids = await getUserCompanyIds(req.user);
+    tree = ids === null ? all : new Map([...all].filter(([, n]) => ids.includes(n.companyId)));
+  }
   const showUsage = req.query.usage === '1' && (await hasPermission(req.user.id, MANAGE));
   const usage = showUsage ? await usageByNode() : null;
   const categories = [...tree.values()]
@@ -120,20 +148,21 @@ const fresh = async (id) => {
   return nodeJson(tree, tree.get(id));
 };
 
-// POST /ticket-categories { name, parentId?, requireChild? }
+// POST /ticket-categories { companyId?, name, parentId?, requireChild? }
 const create = asyncHandler(async (req, res) => {
   const body = req.body || {};
   const name = cleanName(body.name);
   const requireChild = cleanBool(body.requireChild, 'Require a sub-category') ?? false;
+  const companyId = await companyOf(req, body.companyId);
   const row = await cat.withTreeLock(async (tree, transaction) => {
-    const parentId = cleanParent(tree, body.parentId);
+    const parentId = cleanParent(tree, body.parentId, companyId);
     assertDepth(tree, parentId);
-    assertUniqueName(tree, parentId, name);
+    assertUniqueName(tree, parentId, name, null, companyId);
     return TicketCategory.create({
-      name, parentId, requireChild, sortOrder: nextSortOrder(tree, parentId),
+      companyId, name, parentId, requireChild, sortOrder: nextSortOrder(tree, parentId, companyId),
     }, { transaction }).catch(uniqueOr409);
   });
-  await writeAudit(req, 'ticketCategory.create', 'TicketCategory', row.id, { name, parentId: row.parentId });
+  await writeAudit(req, 'ticketCategory.create', 'TicketCategory', row.id, { name, parentId: row.parentId, companyId });
   res.status(201).json({ category: await fresh(row.id) });
 });
 
@@ -142,22 +171,24 @@ const update = asyncHandler(async (req, res) => {
   const body = req.body || {};
   const requireChild = cleanBool(body.requireChild, 'Require a sub-category');
   const active = cleanBool(body.active, 'Active');
+  const allowed = await getUserCompanyIds(req.user);
   const { id, audits } = await cat.withTreeLock(async (tree, transaction) => {
-    const found = nodeIn(tree, req.params.id);
+    const found = nodeIn(tree, req.params.id, allowed);
     const { node } = found;
+    const { companyId } = node;
     const changes = {};
     const done = [];
     const moving = Object.hasOwn(body, 'parentId');
-    const parentId = moving ? cleanParent(tree, body.parentId) : node.parentId;
+    const parentId = moving ? cleanParent(tree, body.parentId, companyId) : node.parentId;
     if (moving && parentId !== node.parentId) {
       if (cat.wouldCycle(tree, found.id, parentId)) throw bad("A category can't be moved under itself or one of its sub-categories");
       assertDepth(tree, parentId, cat.subtreeHeight(tree, found.id));
       changes.parentId = parentId;
-      changes.sortOrder = nextSortOrder(tree, parentId);
+      changes.sortOrder = nextSortOrder(tree, parentId, companyId);
       done.push(['ticketCategory.move', { from: node.parentId, to: parentId }]);
     }
     const name = body.name !== undefined ? cleanName(body.name) : node.name;
-    if (body.name !== undefined || changes.parentId !== undefined) assertUniqueName(tree, parentId, name, found.id);
+    if (body.name !== undefined || changes.parentId !== undefined) assertUniqueName(tree, parentId, name, found.id, companyId);
     if (body.name !== undefined && name !== node.name) changes.name = name;
     if (requireChild !== undefined && requireChild !== node.requireChild) changes.requireChild = requireChild;
     if (changes.name !== undefined || changes.requireChild !== undefined) {
@@ -179,14 +210,16 @@ const update = asyncHandler(async (req, res) => {
   res.json({ category: await fresh(id) });
 });
 
-// POST /ticket-categories/reorder { parentId, orderedIds } — exactly the
-// parent's current children, in their new order.
+// POST /ticket-categories/reorder { companyId?, parentId, orderedIds } —
+// exactly the parent's current children (the company's top level when no
+// parent), in their new order.
 const reorder = asyncHandler(async (req, res) => {
   const body = req.body || {};
+  const companyId = await companyOf(req, body.companyId);
   const { parentId, ids } = await cat.withTreeLock(async (tree, transaction) => {
-    const pid = cleanParent(tree, body.parentId);
+    const pid = cleanParent(tree, body.parentId, companyId);
     const list = Array.isArray(body.orderedIds) ? body.orderedIds.map(parseRecordId) : null;
-    const kids = cat.childrenOf(tree, pid).map((n) => n.id);
+    const kids = cat.childrenOf(tree, pid, companyId).map((n) => n.id);
     const ok = list && list.every(Boolean) && new Set(list).size === list.length
       && list.length === kids.length && list.every((i) => kids.includes(i));
     if (!ok) throw bad('orderedIds must list every sub-category of that parent exactly once');
@@ -205,8 +238,9 @@ const reorder = asyncHandler(async (req, res) => {
 // tree lock: a field or rule being saved with this category holds a shared
 // lock, so it is either counted here or finds the category gone.
 const remove = asyncHandler(async (req, res) => {
+  const allowed = await getUserCompanyIds(req.user);
   const { id, node, removed } = await cat.withTreeLock(async (tree, transaction) => {
-    const found = nodeIn(tree, req.params.id);
+    const found = nodeIn(tree, req.params.id, allowed);
     const subtree = cat.descendantIds(tree, found.id);
     const usage = await usageByNode(transaction);
     const total = emptyUsage();

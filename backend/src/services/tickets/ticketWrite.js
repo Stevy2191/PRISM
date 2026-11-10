@@ -146,7 +146,8 @@ async function createTicket(actor, input, {
   const contact = trustedContact || await findAccessibleContact(actor, contactId);
   if (!contact) throw new ApiError(400, 'Contact not found', 'VALIDATION_ERROR');
   const resolvedTeamId = await assertTeamExists(teamId);
-  const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { required: requireCategory });
+  // The category must be one of the ticket's company, which is its contact's (9).
+  const resolvedCategoryId = await resolveCategoryForSave(categoryId ?? null, { required: requireCategory, companyId: contact.companyId });
   // Links stay inside one company: the new ticket's is its contact's.
   if (linkedTickets.some((t) => t.companyId !== contact.companyId)) {
     throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
@@ -315,7 +316,6 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
     if (body[key] !== undefined) changes[key] = body[key];
   }
   if (changes.teamId !== undefined) changes.teamId = await assertTeamExists(changes.teamId);
-  if (changes.categoryId !== undefined) changes.categoryId = await resolveCategoryForSave(changes.categoryId, { current: ticket.categoryId, tree: categoryTree });
   // The planned date is the assignee's own plan (workload); it never touches
   // the SLA due date, so it is allowed on a ticket whose due date is locked.
   if (changes.plannedDate !== undefined) {
@@ -342,6 +342,18 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
   const contactChanged = changes.contactId !== undefined && changes.contactId !== ticket.contactId;
   const companyContact = contactChanged ? await Contact.findByPk(changes.contactId) : null;
   const targetCompanyId = companyContact ? companyContact.companyId : ticket.companyId;
+  // The category belongs to the ticket's company (9). Moving the ticket to
+  // another company drops a category of the old one (the change is logged
+  // like any other); the stored one re-sent unchanged is never re-checked
+  // otherwise.
+  const movingCompany = targetCompanyId !== ticket.companyId;
+  if (changes.categoryId !== undefined) {
+    const keepCurrent = movingCompany ? undefined : ticket.categoryId;
+    if (movingCompany && parseRecordId(changes.categoryId) === ticket.categoryId) changes.categoryId = null;
+    else changes.categoryId = await resolveCategoryForSave(changes.categoryId, { current: keepCurrent, tree: categoryTree, companyId: targetCompanyId });
+  } else if (movingCompany && ticket.categoryId) {
+    changes.categoryId = null;
+  }
   if (changes.assigneeId && Number(changes.assigneeId) !== ticket.assigneeId) {
     changes.assigneeId = await assertCanWorkTicket(changes.assigneeId, targetCompanyId, 'Assignee');
   }

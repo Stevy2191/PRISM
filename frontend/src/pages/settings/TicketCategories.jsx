@@ -42,7 +42,9 @@ export default function TicketCategories() {
 
   const index = useMemo(() => buildIndex(categories), [categories]);
 
-  const load = () => api.get('/ticket-categories', { params: { usage: '1' } })
+  // The help desk's own company's tree (9); each client company's is on its
+  // company page.
+  const load = () => api.get('/ticket-categories', { params: { usage: '1', companyId: 'internal' } })
     .then(({ data }) => { setCategories(data.categories); setRequired(data.categoryRequired); setError(''); })
     .catch((err) => setError(errMessage(err)))
     .finally(() => setLoading(false));

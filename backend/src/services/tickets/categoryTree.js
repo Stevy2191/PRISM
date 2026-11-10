@@ -1,7 +1,10 @@
 // Pure helpers over the ticket category tree (5c). A tree is a
-// Map<id, { id, parentId, name, sortOrder, active, requireChild }>, loaded
-// whole once per request by categories.loadTree() — the table is small and
-// global, so there is no per-node querying anywhere.
+// Map<id, { id, companyId, parentId, name, sortOrder, active, requireChild }>,
+// loaded whole once per request by categories.loadTree() — the table is
+// small, so there is no per-node querying anywhere. Since sub-project 9 every
+// company has its own tree in the same table: a node's children share its
+// company, and the top level is per company (pass companyId with a null
+// parent).
 
 const MAX_DEPTH = 5;
 
@@ -21,10 +24,11 @@ function pathOf(tree, id) {
 
 const depthOf = (tree, id) => pathOf(tree, id).length;
 
-function childrenOf(tree, parentId) {
+function childrenOf(tree, parentId, companyId = null) {
   const p = parentId == null ? null : Number(parentId);
+  const c = p == null && companyId != null ? Number(companyId) : null;
   return [...tree.values()]
-    .filter((n) => (n.parentId == null ? null : n.parentId) === p)
+    .filter((n) => (n.parentId == null ? null : n.parentId) === p && (c == null || n.companyId === c))
     .sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name));
 }
 
@@ -56,7 +60,10 @@ function isEffectivelyActive(tree, id) {
   return path.length > 0 && path.every((n) => n.active);
 }
 
-const activeChildren = (tree, parentId) => childrenOf(tree, parentId).filter((n) => n.active);
+const activeChildren = (tree, parentId, companyId = null) => childrenOf(tree, parentId, companyId).filter((n) => n.active);
+
+// One company's nodes only (its whole tree), as a tree of its own.
+const companyTree = (tree, companyId) => new Map([...tree].filter(([, n]) => n.companyId === Number(companyId)));
 
 // Would putting `id` under `newParentId` make it its own ancestor?
 function wouldCycle(tree, id, newParentId) {
@@ -71,5 +78,5 @@ function categoryJson(tree, id) {
 }
 
 module.exports = {
-  MAX_DEPTH, pathOf, depthOf, childrenOf, descendantIds, subtreeHeight, isEffectivelyActive, activeChildren, wouldCycle, categoryJson,
+  MAX_DEPTH, pathOf, depthOf, childrenOf, descendantIds, subtreeHeight, isEffectivelyActive, activeChildren, wouldCycle, categoryJson, companyTree,
 };

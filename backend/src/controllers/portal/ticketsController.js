@@ -61,8 +61,10 @@ async function loadVisibleTicket(req, res, next) {
 
 // GET /portal/meta
 const meta = asyncHandler(async (req, res) => {
+  // The contact's company's own categories only (9).
   const tree = await loadTree();
   const categories = [...tree.values()]
+    .filter((n) => n.companyId === req.contact.companyId)
     .filter((n) => isEffectivelyActive(tree, n.id) && !(n.requireChild && activeChildren(tree, n.id).length))
     .map((n) => categoryJson(tree, n.id))
     .sort((a, b) => a.path.join(' / ').localeCompare(b.path.join(' / ')));

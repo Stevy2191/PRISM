@@ -178,9 +178,11 @@ export function Sidebar({
     else saveCategory(categoryId);
   };
   const { hasPermission } = useAuth();
+  // The ticket's company's own categories (9).
   useEffect(() => {
-    api.get('/ticket-categories').then(({ data }) => setCategories(data.categories)).catch(() => {});
-  }, []);
+    api.get('/ticket-categories', { params: { companyId: ticket.companyId || 'internal' } })
+      .then(({ data }) => setCategories(data.categories)).catch(() => {});
+  }, [ticket.companyId]);
   // A ticket whose SLA sets its due date: moved only through the dialog.
   const slaDue = ticket.sla?.clocks?.resolution?.dueAt;
   const [watcherQuery, setWatcherQuery] = useState('');

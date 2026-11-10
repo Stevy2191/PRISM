@@ -11,6 +11,8 @@
 2. **Required, with a way out.** When the company has categories, the agent and the portal require a choice, and every level offers **Other / I'm not sure**.
 3. **Software lists start empty.** Staff add apps by hand. The add dialog can also offer the software the agent found on that company's computers, to pick from rather than type.
 4. The Linux agent (8c) comes first.
+5. (2026-11-10) Build order: categories first, then the agent's form: Tasks 1, 2, 5 (the Categories tab; the Software tab with Task 3), 7; then 3, 4, 6, 8, 9.
+6. (2026-11-10) The agent's form also asks the ticket's type in plain words: **Something's broken or not working** (Incident) or **I need something** (Request). Required, nothing chosen at first. Old agents' tickets stay Requests.
 
 **Architecture:**
 - **Categories get a company.** `TicketCategories.companyId` (required). Existing categories move to the help desk's own company (the internal one), so nothing a client sees changes meaning. A category can only be set on a ticket of its own company. The tree helpers (`categoryTree.js`) stay the same and only load one company's tree.
@@ -49,9 +51,11 @@
 - `GET /ticket-categories?companyId=` (company access as departments); create/update/delete check `assertCanManageCategoriesOf(company)`: the internal company needs the existing category permission, a client company needs `companies.manage`.
 - Custom fields scoped to a category, workflow rules and recurring tickets keep pointing at the same rows; the migration moves them with their category (they are now the internal company's).
 
-- [ ] **Step 1: Failing tests:** two companies' trees are separate (list, create with the same names, reorder); a ticket of company A can't take B's category (create, update, bulk, split, recurring); moving a ticket to B clears A's category; existing categories end up in the internal company; the migration's down/up round trip.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(categories): each company has its own ticket categories`
+- [x] **Step 1: Failing tests:** two companies' trees are separate (list, create with the same names, reorder); a ticket of company A can't take B's category (create, update, bulk, split, recurring); moving a ticket to B clears A's category; existing categories end up in the internal company; the migration's down/up round trip.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(categories): each company has its own ticket categories`
+
+*As built (2026-11-10):* migration 084. The tree stays one table loaded whole (it's small); every node carries its company, and `resolveCategoryForSave(raw, { companyId })` refuses another company's category everywhere a ticket's category is saved (staff create and update, bulk, the portal, recurring rules; runs leave off one of another company). `GET /ticket-categories?companyId=` (or `internal`) gives one company's tree; without it, every category of the companies the caller can reach, each with its `companyId` (ticket list filter, rule and layout editors). Changing a category needs `tickets.categories.manage` and the company in reach (simpler than the plan's companies.manage split). A company with categories can't be deleted; merging moves them, suffixing clashing top-level names. Staff pickers ask for the ticket's (or chosen contact's) company; Settings → Ticket categories is the help desk's own company.
 
 ### Task 2: Required, with "Other / I'm not sure"
 

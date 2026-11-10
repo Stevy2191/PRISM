@@ -53,11 +53,16 @@ export default function RecurringTicketEditor() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
 
+  // The contact's company's own categories (9).
+  const categoryCompany = contact?.companyId || 'internal';
+  useEffect(() => {
+    api.get('/ticket-categories', { params: { companyId: categoryCompany } })
+      .then(({ data }) => setCategories(data.categories || [])).catch(() => {});
+  }, [categoryCompany]);
   useEffect(() => {
     api.get('/departments').then(({ data }) => setDepartments(data.departments)).catch(() => {});
     api.get('/teams').then(({ data }) => setTeams(data.teams || [])).catch(() => {});
     api.get('/users/assignable').then(({ data }) => setUsers(data.users)).catch(() => {});
-    api.get('/ticket-categories').then(({ data }) => setCategories(data.categories || [])).catch(() => {});
     if (isNew) {
       api.get('/settings').then(({ data }) => {
         const tz = data?.settings?.['company.timezone'] || data?.['company.timezone'];

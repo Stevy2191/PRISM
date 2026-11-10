@@ -1,7 +1,7 @@
 // Makes one ticket from a recurring rule (service desk 5b). The ticket is
 // checked against the access of the person the rule runs as — whoever last
 // saved it (D17) — as it is right now, and credited to the system actor.
-const { User } = require('../../models');
+const { User, Contact } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { hasPermission } = require('../permissionService');
 const { createTicket } = require('../tickets/ticketWrite');
@@ -27,7 +27,9 @@ async function runRule(rule, { now = new Date() } = {}) {
   const req = { user: actor };
   // A template category retired since the rule was saved is left off: the
   // ticket still gets made and the rule keeps running (the list flags it).
-  const categoryId = rule.categoryId && isUsableOnRun(await loadTree(), rule.categoryId) ? rule.categoryId : null;
+  // So is one of another company (the contact moved company since, 9).
+  const owner = rule.categoryId ? await Contact.findByPk(rule.contactId, { attributes: ['companyId'] }) : null;
+  const categoryId = rule.categoryId && owner && isUsableOnRun(await loadTree(), rule.categoryId, owner.companyId) ? rule.categoryId : null;
   const ticket = await createTicket(runAs, {
     title: rule.title,
     description: rule.description,
