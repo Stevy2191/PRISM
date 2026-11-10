@@ -89,6 +89,12 @@ export default function Assets() {
   const [categoryId, setCategoryId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
+  // A department of another company is dropped when the company changes.
+  useEffect(() => {
+    if (!companyId || !departmentId) return;
+    const d = departments.find((x) => String(x.id) === String(departmentId));
+    if (d && String(d.companyId) !== String(companyId)) setDepartmentId('');
+  }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [assignedTo, setAssignedTo] = useState('');
   // Playbooks (PB): managed / cellular filters.
@@ -182,12 +188,19 @@ export default function Assets() {
   const filteredAssets = assets;
 
   const activeFilterCount = [categoryId, departmentId, status, assignedTo, companyId].filter(Boolean).length;
+  // Departments belong to a company: with a company picked, only its own;
+  // otherwise all, named with their company when there's more than one.
+  const shownDepartments = companyId ? departments.filter((d) => String(d.companyId) === String(companyId)) : departments;
+  const manyCompanies = new Set(departments.map((d) => d.companyId)).size > 1;
+  const departmentOptions = shownDepartments
+    .map((d) => [String(d.id), !companyId && manyCompanies && d.company ? `${d.name} (${d.company.name})` : d.name])
+    .sort((x, y) => x[1].localeCompare(y[1]));
   // The filter selects, as inline chips (desktop) or labelled fields in
   // the phone Filters sheet. Each is named the same either way.
   const filterSelects = (as) => {
     const filters = [
       ['Category', categoryId, setCategoryId, [['', 'All categories'], ...categories.map((c) => [String(c.id), c.name])]],
-      ['Department', departmentId, setDepartmentId, [['', 'All departments'], ...departments.map((d) => [String(d.id), d.name])]],
+      ['Department', departmentId, setDepartmentId, [['', 'All departments'], ...departmentOptions]],
       ['Status', status, setStatus, [['', 'All statuses'], ...Object.entries(STATUS_META).map(([k, m]) => [k, m.label])]],
       ['Assigned to', assignedTo, setAssignedTo, [['', 'All'], ['assigned', 'Assigned'], ['unassigned', 'Unassigned']]],
       ['Managed', managed, setManaged, [['', 'All'], ['true', 'Managed'], ['false', 'Not managed']]],

@@ -49,3 +49,26 @@ it('the asset form only offers the chosen company\'s departments and sites, and 
   expect([asset.companyId, asset.vendorCompany.name]).toEqual([acme.id, 'Dell']);
   expect(asset.siteId).not.toBeNull();
 });
+
+it('the Assets list\'s Department filter follows the Company filter', async () => {
+  const admin = await makeAdmin();
+  await makeDept(admin, 'Service Desk', 'SD');
+  const acme = await makeCompany(admin, { name: 'Acme' });
+  const hr = await models.Department.create({ name: 'Acme HR', companyId: acme.id });
+
+  const page = await smoke.pageAs('admin');
+  await page.goto('/assets');
+  const dept = page.getByRole('combobox', { name: 'Department' }).first();
+  // All companies: every department, named with its company.
+  await dept.locator('option', { hasText: 'Acme HR (Acme)' }).waitFor({ state: 'attached' });
+  await dept.locator('option', { hasText: /^Service Desk/ }).waitFor({ state: 'attached' });
+  await dept.selectOption(String(hr.id));
+  // Another company: its departments only, and Acme HR is dropped.
+  const [internal] = await models.Company.findAll({ where: { isInternal: true } });
+  await page.getByRole('combobox', { name: 'Company' }).first().selectOption(String(internal.id));
+  await page.waitForFunction(() => {
+    const sel = [...document.querySelectorAll('select')].find((s) => [...s.options].some((o) => o.text === 'All departments'));
+    return sel && sel.value === '' && ![...sel.options].some((o) => o.text.startsWith('Acme HR'));
+  });
+  expect(await dept.locator('option').allTextContents()).toEqual(['All departments', 'Service Desk']);
+});
