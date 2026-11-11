@@ -144,6 +144,8 @@ func cmdRun() error {
 // work runs until ctx ends. A computer that isn't enrolled yet (the service
 // can start before the installer enrolls) checks again every minute.
 func work(ctx context.Context, logf func(string, ...any)) {
+	// Just updated itself? Bring the tray back for whoever is signed in.
+	restartTraysAfterUpdate(logf)
 	// The tray's pipe answers from the start (offline until enrolled).
 	tray := &ipc.Server{
 		AgentVersion: version.Version,
