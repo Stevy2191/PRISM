@@ -6,7 +6,7 @@ const path = require('path');
 const express = require('express');
 const { asyncHandler } = require('../middleware/error');
 const {
-  agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, agentTrayFileLimiter,
+  agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, agentTrayFileLimiter, agentTrayFileIpLimiter,
 } = require('../middleware/rateLimit');
 const { verifyFileSignature, enforceMaxAttachmentSize, scanUpload } = require('../middleware/upload');
 const { receiveTrayFile, saveTrayAttachment, MAX_BYTES } = require('../services/agent/trayAttachments');
@@ -87,9 +87,19 @@ router.post('/v1/tray/tickets', agentAuthenticate, agentTrayTicketLimiter, async
 // the same checks as every ticket attachment. The body is the signed bytes.
 const rawFile = express.raw({ type: 'application/octet-stream', limit: MAX_BYTES });
 const keepRaw = (req, res, next) => { if (Buffer.isBuffer(req.body)) req.rawBody = req.body; next(); };
+// Nothing is read from a request that can't be an agent's: the signature
+// headers must be there, and the timestamp fresh (agentAuth checks them all
+// again, and the signature, once the body is in).
+const looksSigned = (req, res, next) => {
+  const ts = Number(req.get('X-Prism-Timestamp'));
+  const ok = /^\d{1,12}$/.test(req.get('X-Prism-Device') || '') && req.get('X-Prism-Signature') && req.get('X-Prism-Nonce')
+    && Number.isFinite(ts) && Math.abs(Date.now() / 1000 - ts) <= 300;
+  if (!ok) return next(new ApiError(401, 'This request is not signed', 'AGENT_UNAUTHORIZED'));
+  return next();
+};
 router.post(
   '/v1/tray/tickets/:id/attachments',
-  rawFile, keepRaw, agentAuth({ maxBody: MAX_BYTES }), agentTrayFileLimiter,
+  agentTrayFileIpLimiter, looksSigned, rawFile, keepRaw, agentAuth({ maxBody: MAX_BYTES }), agentTrayFileLimiter,
   receiveTrayFile, verifyFileSignature, enforceMaxAttachmentSize, scanUpload('Ticket'),
   asyncHandler(async (req, res) => { res.status(201).json(await saveTrayAttachment(req)); }),
 );

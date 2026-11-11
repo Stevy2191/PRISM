@@ -211,6 +211,19 @@ const agentTrayTicketLimiter = rateLimit({
   message: { error: true, message: 'Too many tickets from this computer; try again later', code: 'RATE_LIMITED' },
 });
 
+// The same route per IP, before anything is read: its bodies are large, so
+// nobody can make PRISM buffer them over and over. Generous (one office's
+// computers behind one address).
+const agentTrayFileIpStore = new MemoryStore();
+const agentTrayFileIpLimiter = rateLimit({
+  store: agentTrayFileIpStore,
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: true, message: 'Too many files, please try again later', code: 'RATE_LIMITED' },
+});
+
 // POST /agent/v1/tray/tickets/:id/attachments, per device: up to 5 files a
 // ticket, 10 tickets an hour.
 const agentTrayFileStore = new MemoryStore();
@@ -266,12 +279,12 @@ const secretRevealLimiter = rateLimit({
 // login attempts don't rate-limit the next; never called at runtime.
 function resetRateLimits() {
   [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
-    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore, secretRevealStore, installStore, agentTrayFileStore]
+    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore, secretRevealStore, installStore, agentTrayFileStore, agentTrayFileIpStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
-  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, secretRevealLimiter, installLimiter, agentTrayFileLimiter,
+  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, secretRevealLimiter, installLimiter, agentTrayFileLimiter, agentTrayFileIpLimiter,
 };

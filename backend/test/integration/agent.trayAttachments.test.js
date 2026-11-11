@@ -35,6 +35,9 @@ it('a screenshot reaches the ticket the computer just raised, as an attachment s
   expect(res.body).toMatchObject({ name: 'Screenshot 2026-11-11 at 09.12.png', size: PNG.length });
   const att = await models.Attachment.findByPk(res.body.id);
   expect(att).toMatchObject({ ticketId: id, mimeType: 'image/png', size: PNG.length });
+  // The type is the name's, whatever the agent says.
+  const txt = await device.postBytes(filesUrl(id, 'log.txt', 'text/html'), Buffer.from('<script>1</script>'));
+  expect((await models.Attachment.findByPk(txt.body.id)).mimeType).toBe('text/plain');
   expect(fs.readFileSync(`${process.env.UPLOAD_DIR}/${id}/${att.filename}`).equals(PNG)).toBe(true);
   const list = (await w.admin.agent.get(`${API}/tickets/${id}/attachments`)).body;
   expect(JSON.stringify(list)).toContain('Screenshot 2026-11-11 at 09.12.png');
@@ -86,4 +89,19 @@ it('the bytes are what was signed, and a revoked computer can\'t attach', async 
   expect((await send(PNG, nonce)).status).toBe(201);
   await models.Device.update({ revokedAt: new Date() }, { where: { id: device.deviceId } });
   expect((await device.postBytes(path, PNG)).status).toBe(401);
+});
+
+it('a request without an agent\'s signature headers is refused before its body is read', async () => {
+  const request = require('supertest'); // eslint-disable-line global-require
+  const id = await raise();
+  const res = await request(getApp()).post(filesUrl(id, 'big.png'))
+    .set('Content-Type', 'application/octet-stream').send(Buffer.alloc(2 * 1024 * 1024));
+  expect(res.status).toBe(401);
+  // An old timestamp too.
+  const old = await request(getApp()).post(filesUrl(id, 'big.png'))
+    .set('X-Prism-Device', String(device.deviceId)).set('X-Prism-Timestamp', String(Math.floor(Date.now() / 1000) - 3600))
+    .set('X-Prism-Nonce', 'abcdefghijklmnop').set('X-Prism-Signature', 'x')
+    .set('Content-Type', 'application/octet-stream').send(Buffer.from('x'));
+  expect(old.status).toBe(401);
+  expect(await models.Attachment.count()).toBe(0);
 });

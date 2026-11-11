@@ -151,3 +151,11 @@
 - Category reports and filters take a company (and group by company when "all"). UPGRADING (what moved where, the migration of the existing tree to the internal company), ROADMAP, and the release notes. Full suites, then the owner's hand test.
 
 - [ ] **Commit** `docs(9): per-company categories and software lists`
+
+
+## Security review (2026-11-11): categories, the agent's form and attachments
+
+- **Company fence on categories:** every save of a ticket's category (staff create and update, bulk, portal, recurring create and runs, the agent) checks the ticket's company in `resolveCategoryForSave`; lists without a company show only the companies the caller can reach; changes need the category permission and company access (tests in `categories.company.test.js`).
+- **Type fence:** a category must fit the ticket's type, everywhere a category is saved; changing the type drops one that doesn't (`categories.type.test.js`).
+- **Agent input:** the category id from the tray is checked against the device's company and the chosen type; old agents' tickets are accepted as not sure.
+- **Attachments from the tray:** signed raw bytes; only to the device's own tray ticket, within 30 minutes, at most 5; the usual checks (blocked extensions, content, size, virus scan). Fixes made in review: the stored type comes from the name, not the agent's say; requests without the signature headers are refused before the body is read, and the route has a per-IP limit in front of it, so unauthenticated clients can't make PRISM buffer 25 MB bodies. The tray-to-service request reader grows with what arrives (up to 32 MB) instead of reserving it.

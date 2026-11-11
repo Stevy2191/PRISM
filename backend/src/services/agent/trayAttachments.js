@@ -25,6 +25,18 @@ const MAX_BYTES = 25 * 1024 * 1024;
 
 const notFound = () => new ApiError(404, 'Ticket not found', 'NOT_FOUND');
 
+// The stored type, by extension (downloads are always sent as attachments,
+// typed by their name, so this is only what staff screens show).
+const TYPES = {
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp',
+  '.heic': 'image/heic', '.pdf': 'application/pdf', '.txt': 'text/plain', '.log': 'text/plain', '.csv': 'text/csv',
+  '.json': 'application/json', '.xml': 'application/xml', '.zip': 'application/zip', '.mp4': 'video/mp4', '.mov': 'video/quicktime',
+  '.doc': 'application/msword', '.xls': 'application/vnd.ms-excel',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+};
+
 // A safe display name: the last path part, no control characters, at most
 // 200 characters (the extension kept). Never used as a path on disk.
 function cleanName(raw) {
@@ -68,7 +80,8 @@ async function receiveTrayFile(req, res, next) {
     const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${path.extname(originalname)}`;
     const file = path.join(dir, filename);
     await fs.promises.writeFile(file, body, { flag: 'wx' });
-    const type = typeof req.query.type === 'string' && /^[\w.+-]+\/[\w.+-]+$/.test(req.query.type) ? req.query.type.slice(0, 100) : 'application/octet-stream';
+    // The type comes from the name, not from what the agent says.
+    const type = TYPES[ext] || 'application/octet-stream';
     req.trayTicket = ticket;
     req.file = {
       path: file, filename, originalname, size: body.length, mimetype: type,
