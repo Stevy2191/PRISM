@@ -12,7 +12,9 @@
 3. **Software lists start empty.** Staff add apps by hand. The add dialog can also offer the software the agent found on that company's computers, to pick from rather than type.
 4. The Linux agent (8c) comes first.
 5. (2026-11-10) Build order: categories first, then the agent's form: Tasks 1, 2, 5 (the Categories tab; the Software tab with Task 3), 7; then 3, 4, 6, 8, 9.
-6. (2026-11-10) The agent's form also asks the ticket's type in plain words: **Something's broken or not working** (Incident) or **I need something** (Request). Required, nothing chosen at first. Old agents' tickets stay Requests.
+6. (2026-11-10) The agent's form also asks the ticket's type: **Incident** or **Request** (2026-11-10, revised: two choices with an ⓘ explaining each, rather than plain-words options). Required, nothing chosen at first. Old agents' tickets stay Requests.
+7. (2026-11-10) Incidents and requests have their own categories: a top-level category is for incidents, requests or both (migration 086); a ticket's category must fit its type.
+8. (2026-11-11) The agent's form takes attachments: files, pasted screenshots, dropped files (up to 5, 10 MB each, 20 MB together).
 
 **Architecture:**
 - **Categories get a company.** `TicketCategories.companyId` (required). Existing categories move to the help desk's own company (the internal one), so nothing a client sees changes meaning. A category can only be set on a ticket of its own company. The tree helpers (`categoryTree.js`) stay the same and only load one company's tree.
@@ -110,6 +112,8 @@
 
 - [ ] **Step 1–5:** smoke tests (build a tree, copy one, a client's tree never shows on another company or in Settings; add apps by hand and from found software), implement, commit `feat(companies): Categories and Software tabs`
 
+*As built so far (2026-11-10):* the **Categories** tab (Settings' editor, given a company) with **For** (incidents, requests or both) on each top-level category. Still to do: **Copy from another company**, the **Software** tab (with Task 3).
+
 ### Task 6: Staff and portal ticket forms
 
 **Files:**
@@ -127,7 +131,9 @@
 
 - Agents from before this send no category; their tickets are still accepted (and marked not sure) so an un-updated computer can always raise a ticket.
 
-- [ ] **Step 1–5:** tests (whoami carries only the device's company's tree and list; ids from another company refused; old-agent tickets accepted; the form requires a choice when there are categories; the draft kept offline includes the choice), implement, commit `feat(agent): choose a category when submitting a ticket`
+- [x] **Step 1–5:** tests (whoami carries only the device's company's tree and list; ids from another company refused; old-agent tickets accepted; the form requires a choice when there are categories; the draft kept offline includes the choice), implement, commit `feat(agent): choose a category when submitting a ticket`
+
+*As built (2026-11-10, 11):* whoami carries the company's active categories with their type; the form asks **Ticket type** (Incident / Request, each with an ⓘ) then the categories for that type one level at a time, with Other / I'm not sure; the offline draft keeps the choices. Attachments: up to 5 files sent after the ticket as signed raw bytes (`POST /agent/v1/tray/tickets/:id/attachments`), only to the device's own tray ticket within 30 minutes, through the usual upload checks. The software list in whoami comes with Task 3.
 
 ### Task 8: Company setup checklist
 

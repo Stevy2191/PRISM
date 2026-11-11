@@ -14,7 +14,8 @@ The PRISM agent for Windows (sub-project 8a) and macOS (8b). Every computer
 it's installed on becomes an Asset of its company and keeps its hardware,
 OS, disks, network, installed software and usual user current; people at
 the computer get **Submit a ticket** in the notification area or the menu
-bar, or in the applications list on Linux (8c).
+bar, or in the applications list on Linux (8c), with the ticket type, a
+category and attachments (see Submit a ticket below).
 
 **Database:** migrations 074 (devices, enrollment keys, installed software,
 the `agent` ticket source), 075 (the "Unknown tray user" placeholder
@@ -174,6 +175,79 @@ its own key, which the agents learned at enrollment.
 
 **Updates:** a new PRISM image brings a new agent; enrolled computers are
 offered it at their next heartbeat (every 5 minutes) and update themselves.
+On Windows, the tray comes back by itself after an update, for everyone
+signed in (it used to stay closed until the next sign-in).
+
+**Submit a ticket** (the agent's window) asks:
+
+1. **Ticket type:** **Incident** or **Request**. The ⓘ beside each explains
+   it (an incident: something that worked is broken; a request: nothing is
+   broken, you need something).
+2. **What's it about?** The company's categories for that type, one level
+   at a time, with **Other / I'm not sure** at every level (see below).
+3. Subject and description, as before.
+4. **Attach screenshot or file:** up to 5 files, 10 MB each and 20 MB in
+   all. People can also paste a screenshot (Ctrl+V / ⌘V; it's named
+   "Screenshot <date and time>") or drop files on the window. Files go
+   through the same checks as any ticket attachment (blocked file types,
+   content check, the size limit in Settings, the virus scan). The agent
+   can only attach them to the ticket it just raised itself (within 30
+   minutes, at most 5). If PRISM refuses a file, "Ticket sent" names it.
+   While offline, files are kept until the window closes; the text is kept
+   as a draft as before.
+
+Agents that haven't updated yet still raise tickets (as requests, category
+"not sure").
+
+### Ticket categories per company, for incidents and requests (sub-project 9)
+
+**Each company has its own categories**, never shared:
+
+- The categories you had become your help desk's own company's (Settings →
+  Ticket categories). Each client company's are on its page, **Categories**
+  tab (same editor). A new company has none until you add them.
+- A ticket can only take a category of its own company. Moving a ticket to
+  another company (by changing its contact) drops a category of the old one,
+  and the change shows in its activity.
+- Each top-level category is **For** incidents, requests, or both (the
+  default for the ones you had); its sub-categories go with it. An incident
+  only takes incident (or both) categories, a request request ones; the
+  other types (problem, task, change) take any. Changing a ticket's type
+  drops a category of the other type. Set **For** in Settings or on the
+  company's Categories tab.
+- Company access applies: staff only see and change the categories of the
+  companies they can reach. A company with categories can't be deleted
+  (merge or deactivate it); merging moves them, suffixing top-level names
+  that clash.
+
+**Required, with a way out:**
+
+- The **agent** and the **client portal** ask for a category whenever the
+  ticket's company has categories for that type. **Other / I'm not sure**
+  answers it at any level (Network → not sure beyond this, or not sure at
+  all). The portal's tickets are requests, so it lists request categories
+  (and those for both).
+- The staff form keeps its own setting (Settings → Ticket categories →
+  Require a category on new tickets), now only where the ticket's company
+  has categories.
+- On the ticket, staff see **Not sure beyond this** or **Raised as Other /
+  I'm not sure**; choosing a category settles it. The ticket list's
+  **Category not sure** pill lists what still needs one.
+
+**Assets:** with a company picked in the Company filter, the Department
+filter offers only that company's departments (the Company filter appears
+once you have a client company).
+
+**Database:** migrations 084 (each category's company; the existing ones
+move to your own company), 085 (a ticket's "not sure") and 086 (what a
+top-level category is for). They run on start; nothing to do.
+
+**API:** `GET /ticket-categories?companyId=` (a number, or `internal`) lists
+one company's tree; without it, every category of the companies you can
+reach, each with `companyId` and `forType`. `POST /ticket-categories` takes
+`companyId` and, for a top-level category, `ticketType` (`incident`,
+`request` or `both`). Tickets take `categoryUnsure`, and the list
+`?categoryUnsure=true`.
 
 ### Checklists and bundles: playbooks, simpler (sub-project PB2)
 
