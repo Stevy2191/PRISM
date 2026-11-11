@@ -100,7 +100,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # Ubuntu pinned (2026-11-11): ubuntu-latest moved to 26.04, whose
+        # package mirrors failed mid-install; 24.04 is the agent's own target.
+        os: [ubuntu-24.04, windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -120,8 +122,8 @@ jobs:
       - name: GTK and WebKitGTK (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q libgtk-3-dev libwebkit2gtk-4.1-dev
+          sudo apt-get -o Acquire::Retries=5 update -q
+          sudo apt-get -o Acquire::Retries=5 install -y -q --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev
           echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/agent/packaging/linux/pkgconfig" >> "$GITHUB_ENV"
 
       - name: Vet
