@@ -161,8 +161,8 @@ func serveOne(ctx context.Context, hp windows.Handle, h Handler, logf func(strin
 	// A client that never finishes its line is cut off.
 	timer := time.AfterFunc(30*time.Second, func() { _ = windows.DisconnectNamedPipe(hp) })
 	defer timer.Stop()
-	line, err := bufio.NewReaderSize(f, MaxRequest+1).ReadSlice('\n')
-	if err != nil && !errors.Is(err, bufio.ErrBufferFull) {
+	line, err := ReadRequest(f)
+	if err != nil {
 		return
 	}
 	// The client's identity, from its token: only possible once it has
@@ -176,7 +176,7 @@ func serveOne(ctx context.Context, hp windows.Handle, h Handler, logf func(strin
 		// The handler may wait on PRISM; give the answer its own time, as
 		// the Unix socket does (the 30 seconds were for reading the request,
 		// and cut the tray off while a slow PRISM was still being asked).
-		timer.Reset(3 * time.Minute)
+		timer.Reset(AnswerWait)
 		answer = h(ctx, id, line)
 	}
 	b, _ := json.Marshal(answer)

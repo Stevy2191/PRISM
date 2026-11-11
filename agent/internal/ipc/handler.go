@@ -14,9 +14,12 @@
 package ipc
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -29,8 +32,33 @@ import (
 	"github.com/stevy2191/prism/agent/internal/client"
 )
 
-// MaxRequest is the longest request line the service reads.
-const MaxRequest = 64 << 10
+// MaxRequest is the longest request line the service reads: room for the
+// form's attachments (MaxAttachTotal, base64 in JSON) and the text.
+const MaxRequest = 32 << 20
+
+// Attachments from the form (owner, 2026-11-11): at most MaxAttachFiles,
+// each at most MaxAttachFile bytes and MaxAttachTotal together. PRISM checks
+// each again (type, content, size, virus scan).
+const (
+	MaxAttachFiles = 5
+	MaxAttachFile  = 10 << 20
+	MaxAttachTotal = 20 << 20
+)
+
+// AnswerWait is how long the service gives one request's answer (PRISM may
+// be slow; attachments take a while on a slow link).
+const AnswerWait = 6 * time.Minute
+
+// ReadRequest reads one request line, at most MaxRequest bytes (more is
+// cut there and then refused by Handle). It grows with what arrives rather
+// than reserving MaxRequest for every caller.
+func ReadRequest(r io.Reader) ([]byte, error) {
+	line, err := bufio.NewReader(io.LimitReader(r, MaxRequest+1)).ReadBytes('\n')
+	if len(line) > 0 {
+		return line, nil
+	}
+	return nil, err
+}
 
 // Identity is the pipe client's user, from the OS.
 type Identity struct {
@@ -48,6 +76,16 @@ type Request struct {
 	Type           string `json:"type"`
 	CategoryID     int64  `json:"categoryId"`
 	CategoryUnsure bool   `json:"categoryUnsure"`
+	// Files and screenshots the person added (sent after the ticket).
+	Attachments []Attachment `json:"attachments,omitempty"`
+}
+
+// Attachment is one file from the form: its name, its type as the form
+// saw it, and its bytes (base64 in JSON).
+type Attachment struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+	Data []byte `json:"data"`
 }
 
 // Category is one of the company's ticket categories, for the form's steps.
@@ -84,11 +122,14 @@ type WhoamiAnswer struct {
 // SubmitAnswer: Number on success; Error "offline" (try again later) or
 // "refused" (Message says why), "invalid" (the form's fault).
 type SubmitAnswer struct {
-	Number   string `json:"number,omitempty"`
-	TicketID int64  `json:"ticketId,omitempty"`
-	ReplyTo  string `json:"replyTo,omitempty"`
-	Error    string `json:"error,omitempty"`
-	Message  string `json:"message,omitempty"`
+	// NotAttached: files the ticket was sent without (PRISM refused them,
+	// or the connection dropped), with why, for the "Ticket sent" screen.
+	NotAttached []string `json:"notAttached,omitempty"`
+	Number      string   `json:"number,omitempty"`
+	TicketID    int64    `json:"ticketId,omitempty"`
+	ReplyTo     string   `json:"replyTo,omitempty"`
+	Error       string   `json:"error,omitempty"`
+	Message     string   `json:"message,omitempty"`
 }
 
 // Doer is the signed PRISM client (client.Client); tests fake it.
@@ -169,6 +210,9 @@ func (s *Server) submit(ctx context.Context, id Identity, req Request) SubmitAns
 	if utf8.RuneCountInString(subject) > 255 || len(req.Description) > 20000 {
 		return SubmitAnswer{Error: "invalid", Message: "The subject or description is too long."}
 	}
+	if msg := checkAttachments(req.Attachments); msg != "" {
+		return SubmitAnswer{Error: "invalid", Message: msg}
+	}
 	p := s.prism()
 	if p == nil {
 		return SubmitAnswer{Error: "offline"}
@@ -217,7 +261,77 @@ func (s *Server) submit(ctx context.Context, id Identity, req Request) SubmitAns
 	if out.ReplyTo != nil {
 		a.ReplyTo = *out.ReplyTo
 	}
+	// The files, each its own signed request, once the ticket exists. One
+	// that doesn't make it never undoes the ticket: the form says which.
+	a.NotAttached = s.attach(ctx, p, out.TicketID, req.Attachments)
 	return a
+}
+
+// BytesDoer sends raw bytes signed (client.Client.DoBytes); a PRISM client
+// without it can't attach files.
+type BytesDoer interface {
+	DoBytes(ctx context.Context, path, contentType string, body []byte, out any) (int, error)
+}
+
+func checkAttachments(files []Attachment) string {
+	if len(files) > MaxAttachFiles {
+		return fmt.Sprintf("Attach at most %d files.", MaxAttachFiles)
+	}
+	total := 0
+	for _, f := range files {
+		if len(f.Data) == 0 {
+			return "One of the files is empty."
+		}
+		if len(f.Data) > MaxAttachFile {
+			return fmt.Sprintf("%s is larger than %d MB.", attachName(f.Name), MaxAttachFile>>20)
+		}
+		total += len(f.Data)
+	}
+	if total > MaxAttachTotal {
+		return fmt.Sprintf("The files add up to more than %d MB.", MaxAttachTotal>>20)
+	}
+	return ""
+}
+
+// attachName: the file's own name only, cut to 200 characters.
+func attachName(name string) string {
+	name = strings.TrimSpace(filepath.Base(strings.ReplaceAll(name, "\\", "/")))
+	if name == "" || name == "." || name == "/" {
+		name = "attachment"
+	}
+	if r := []rune(name); len(r) > 200 {
+		name = string(r[:200])
+	}
+	return name
+}
+
+func (s *Server) attach(ctx context.Context, p Doer, ticketID int64, files []Attachment) []string {
+	if len(files) == 0 {
+		return nil
+	}
+	bd, ok := p.(BytesDoer)
+	var failed []string
+	for _, f := range files {
+		name := attachName(f.Name)
+		if !ok || ticketID <= 0 {
+			failed = append(failed, name)
+			continue
+		}
+		q := url.Values{"name": {name}}
+		if f.Type != "" {
+			q.Set("type", f.Type)
+		}
+		path := fmt.Sprintf("/api/v1/agent/v1/tray/tickets/%d/attachments?%s", ticketID, q.Encode())
+		if _, err := bd.DoBytes(ctx, path, "application/octet-stream", f.Data, nil); err != nil {
+			var e *client.Error
+			if errors.As(err, &e) && e.Message != "" {
+				failed = append(failed, name+": "+e.Message)
+			} else {
+				failed = append(failed, name)
+			}
+		}
+	}
+	return failed
 }
 
 func (s *Server) cacheFile() string {

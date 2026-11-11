@@ -187,3 +187,85 @@ func TestWhoamiPassesTheCompanysCategories(t *testing.T) {
 		t.Fatalf("categories %+v", a.Categories)
 	}
 }
+
+// A fake PRISM that also takes raw bytes (client.Client.DoBytes).
+type fakeBytesPrism struct {
+	fakePrism
+	files []call
+	fail  map[string]error
+}
+
+func (f *fakeBytesPrism) DoBytes(_ context.Context, path, contentType string, body []byte, _ any) (int, error) {
+	f.files = append(f.files, call{method: contentType, path: path, body: map[string]any{"len": len(body)}})
+	for name, err := range f.fail {
+		if strings.Contains(path, name) {
+			return 0, err
+		}
+	}
+	return 201, nil
+}
+
+func TestAttachmentsGoAfterTheTicketAndFailuresAreReported(t *testing.T) {
+	p := &fakeBytesPrism{
+		fakePrism: fakePrism{fn: func(string) (any, error) { return map[string]any{"ticketId": 2418, "number": "02418"}, nil }},
+		fail:      map[string]error{"setup": &client.Error{Status: 400, Message: "File type .exe is not allowed"}},
+	}
+	s := &Server{PRISM: p}
+	req := Request{Op: "submit", Subject: "Blue screen", Attachments: []Attachment{
+		{Name: `C:\Users\amy\Pictures\Screenshot 1.png`, Type: "image/png", Data: []byte("\x89PNG....")},
+		{Name: "setup.exe", Data: []byte("MZ")},
+	}}
+	line, _ := json.Marshal(req)
+	a := s.Handle(context.Background(), maria, line).(SubmitAnswer)
+	if a.Number != "02418" {
+		t.Fatalf("answer %+v", a)
+	}
+	if len(p.files) != 2 || p.files[0].method != "application/octet-stream" ||
+		p.files[0].path != "/api/v1/agent/v1/tray/tickets/2418/attachments?name=Screenshot+1.png&type=image%2Fpng" {
+		t.Fatalf("files %+v", p.files)
+	}
+	if len(a.NotAttached) != 1 || a.NotAttached[0] != "setup.exe: File type .exe is not allowed" {
+		t.Fatalf("not attached %+v", a.NotAttached)
+	}
+	// The ticket's own request never carries the files.
+	if _, ok := p.calls[0].body["attachments"]; ok {
+		t.Fatal("files were sent with the ticket")
+	}
+}
+
+func TestAttachmentLimits(t *testing.T) {
+	big := make([]byte, MaxAttachFile+1)
+	six := make([]Attachment, MaxAttachFiles+1)
+	for i := range six {
+		six[i] = Attachment{Name: "a.txt", Data: []byte("x")}
+	}
+	for _, files := range [][]Attachment{
+		six,
+		{{Name: "big.png", Data: big}},
+		{{Name: "empty.txt"}},
+		{{Name: "a", Data: make([]byte, 9<<20)}, {Name: "b", Data: make([]byte, 9<<20)}, {Name: "c", Data: make([]byte, 3<<20)}},
+	} {
+		p := &fakeBytesPrism{fakePrism: fakePrism{fn: func(string) (any, error) { return map[string]any{"ticketId": 1, "number": "00001"}, nil }}}
+		s := &Server{PRISM: p}
+		line, _ := json.Marshal(Request{Op: "submit", Subject: "x", Attachments: files})
+		a := s.Handle(context.Background(), maria, line).(SubmitAnswer)
+		if a.Error != "invalid" || len(p.calls) != 0 {
+			t.Errorf("%d files: %+v after %d calls", len(files), a, len(p.calls))
+		}
+	}
+}
+
+func TestReadRequestGrowsAndStopsAtTheLimit(t *testing.T) {
+	big := strings.Repeat("x", 5<<20) + "\n"
+	line, err := ReadRequest(strings.NewReader(big + "next"))
+	if err != nil || len(line) != len(big) {
+		t.Fatalf("%d bytes, %v", len(line), err)
+	}
+	line, _ = ReadRequest(strings.NewReader(strings.Repeat("y", MaxRequest+50)))
+	if len(line) != MaxRequest+1 {
+		t.Fatalf("read %d of an endless line", len(line))
+	}
+	if _, err := ReadRequest(strings.NewReader("")); err == nil {
+		t.Fatal("nothing read, no error")
+	}
+}

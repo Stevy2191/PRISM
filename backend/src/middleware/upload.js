@@ -330,5 +330,5 @@ const csvUpload = multer({
 
 module.exports = {
   upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload, kbUpload,
-  UPLOAD_ROOT, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature, scanUpload,
+  UPLOAD_ROOT, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature, scanUpload, BLOCKED_EXTENSIONS,
 };

@@ -153,7 +153,7 @@ func runForm() {
 		return
 	}
 	// The web view's profile goes in the user's own folder.
-	w := newWindow("Submit a ticket", 460, 780, filepath.Join(draftDir, "WebView"))
+	w := newWindow("Submit a ticket", 460, 840, filepath.Join(draftDir, "WebView"))
 	if w == nil {
 		noWebView(who)
 		return
@@ -163,14 +163,27 @@ func runForm() {
 	// Bindings run on the UI thread: a send starts in the background and
 	// answers through window.prismDone, so the window never freezes.
 	// The type and category (9) travel with it, and with a kept draft.
-	_ = w.Bind("prismSubmitStart", func(subject, description, kind string, categoryID int64, unsure bool) {
+	// Attachments (owner, 2026-11-11) come as JSON: [{name, type, data
+	// (base64)}]; they go with the request, not into a kept draft.
+	_ = w.Bind("prismSubmitStart", func(subject, description, kind string, categoryID int64, unsure bool, attachments string) {
 		go func() {
 			var a ipc.SubmitAnswer
 			req := ipc.Request{
 				Op: "submit", Subject: subject, Description: description,
 				Type: kind, CategoryID: categoryID, CategoryUnsure: unsure,
 			}
-			if err := ipc.Call(req, &a, 2*time.Minute); err != nil {
+			if attachments != "" && attachments != "[]" {
+				if err := json.Unmarshal([]byte(attachments), &req.Attachments); err != nil {
+					b, _ := json.Marshal(ipc.SubmitAnswer{Error: "invalid", Message: "The attached files couldn't be read."})
+					w.Dispatch(func() { w.Eval("window.prismDone(" + string(b) + ")") })
+					return
+				}
+			}
+			wait := 2 * time.Minute
+			if len(req.Attachments) > 0 {
+				wait = 6 * time.Minute
+			}
+			if err := ipc.Call(req, &a, wait); err != nil {
 				a = ipc.SubmitAnswer{Error: "offline"}
 			}
 			switch {

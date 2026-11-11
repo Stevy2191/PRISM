@@ -14,7 +14,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -200,8 +199,8 @@ func serveConn(ctx context.Context, conn *net.UnixConn, h Handler, logf func(str
 	defer conn.Close()
 	// A client that never finishes its line is cut off.
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
-	line, err := bufio.NewReaderSize(io.LimitReader(conn, MaxRequest+1), MaxRequest+1).ReadSlice('\n')
-	if err != nil && !errors.Is(err, bufio.ErrBufferFull) {
+	line, err := ReadRequest(conn)
+	if err != nil {
 		return
 	}
 	var answer any
@@ -215,7 +214,7 @@ func serveConn(ctx context.Context, conn *net.UnixConn, h Handler, logf func(str
 		answer = SubmitAnswer{Error: "refused", Message: "The computer couldn't say who you are."}
 	} else {
 		// The handler may wait on PRISM; give the answer its own time.
-		_ = conn.SetDeadline(time.Now().Add(3 * time.Minute))
+		_ = conn.SetDeadline(time.Now().Add(AnswerWait))
 		answer = h(ctx, id, line)
 	}
 	b, _ := json.Marshal(answer)

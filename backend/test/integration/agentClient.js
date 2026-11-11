@@ -38,6 +38,16 @@ function agentClient(app, deviceId, keys) {
       return req;
     },
     post(path, payload, opts) { return this.send('POST', path, payload, opts); },
+    // Raw bytes (a file), signed over exactly those bytes.
+    postBytes(path, buf) {
+      const ts = String(Math.floor(Date.now() / 1000));
+      const nonce = crypto.randomBytes(12).toString('base64url');
+      const sig = sign(keys.privateKey, canonical('POST', path, ts, nonce, buf));
+      return request(app).post(path)
+        .set('X-Prism-Device', String(deviceId)).set('X-Prism-Timestamp', ts).set('X-Prism-Nonce', nonce).set('X-Prism-Signature', sig)
+        .set('Content-Type', 'application/octet-stream')
+        .send(buf);
+    },
     get(path, opts) { return this.send('GET', path, undefined, opts); },
   };
 }

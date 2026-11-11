@@ -167,6 +167,23 @@ func (c *Client) Do(ctx context.Context, method, path string, in, out any) (int,
 	return resp.StatusCode, nil
 }
 
+// DoBytes sends raw bytes as a signed POST (the signature covers exactly
+// those bytes), and decodes a JSON answer into out when it is not nil: the
+// tray's attachments.
+func (c *Client) DoBytes(ctx context.Context, path, contentType string, body []byte, out any) (int, error) {
+	resp, err := c.sendAs(ctx, http.MethodPost, path, contentType, body, true)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if out != nil && resp.StatusCode != http.StatusNoContent {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(out); err != nil && !errors.Is(err, io.EOF) {
+			return resp.StatusCode, fmt.Errorf("PRISM's answer could not be read: %w", err)
+		}
+	}
+	return resp.StatusCode, nil
+}
+
 // Stream sends a signed GET and returns the open response for a 2xx (the
 // caller closes it): downloads.
 func (c *Client) Stream(ctx context.Context, path string) (*http.Response, error) {
@@ -202,6 +219,10 @@ func (c *Client) httpClient() *http.Client {
 }
 
 func (c *Client) send(ctx context.Context, method, path string, body []byte, signed bool) (*http.Response, error) {
+	return c.sendAs(ctx, method, path, "application/json", body, signed)
+}
+
+func (c *Client) sendAs(ctx context.Context, method, path, contentType string, body []byte, signed bool) (*http.Response, error) {
 	var last error
 	for n := 0; n < c.attempts(); n++ {
 		if n > 0 {
@@ -219,7 +240,7 @@ func (c *Client) send(ctx context.Context, method, path string, body []byte, sig
 			return nil, err
 		}
 		if body != nil {
-			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", contentType)
 		}
 		req.Header.Set("User-Agent", "prism-agent")
 		if signed {

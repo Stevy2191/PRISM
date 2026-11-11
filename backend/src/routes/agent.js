@@ -6,8 +6,10 @@ const path = require('path');
 const express = require('express');
 const { asyncHandler } = require('../middleware/error');
 const {
-  agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter,
+  agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, agentTrayFileLimiter,
 } = require('../middleware/rateLimit');
+const { verifyFileSignature, enforceMaxAttachmentSize, scanUpload } = require('../middleware/upload');
+const { receiveTrayFile, saveTrayAttachment, MAX_BYTES } = require('../services/agent/trayAttachments');
 const { agentAuth, agentAuthenticate } = require('../middleware/agentAuth');
 const { applyInventory } = require('../services/agent/inventory');
 const { ApiError } = require('../middleware/error');
@@ -78,6 +80,19 @@ router.get('/v1/tray/whoami', agentAuthenticate, agentReadLimiter, asyncHandler(
 router.post('/v1/tray/tickets', agentAuthenticate, agentTrayTicketLimiter, asyncHandler(async (req, res) => {
   res.status(201).json(await raiseTrayTicket(req.device, req.body, req));
 }));
+
+// POST /agent/v1/tray/tickets/:id/attachments?name=&type= (raw bytes,
+// application/octet-stream) → { id, name, size }. A file or screenshot for a
+// ticket this device just raised (services/agent/trayAttachments), through
+// the same checks as every ticket attachment. The body is the signed bytes.
+const rawFile = express.raw({ type: 'application/octet-stream', limit: MAX_BYTES });
+const keepRaw = (req, res, next) => { if (Buffer.isBuffer(req.body)) req.rawBody = req.body; next(); };
+router.post(
+  '/v1/tray/tickets/:id/attachments',
+  rawFile, keepRaw, agentAuth({ maxBody: MAX_BYTES }), agentTrayFileLimiter,
+  receiveTrayFile, verifyFileSignature, enforceMaxAttachmentSize, scanUpload('Ticket'),
+  asyncHandler(async (req, res) => { res.status(201).json(await saveTrayAttachment(req)); }),
+);
 
 // GET /agent/v1/update → { version, sha256, size, signature }, or 204 when
 // this device's agent is up to date. The signature is Ed25519, with the

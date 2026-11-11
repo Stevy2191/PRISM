@@ -47,6 +47,16 @@ select.fi{appearance:auto}
 .info:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}
 .tip{display:none;position:absolute;z-index:5;top:calc(100% + 6px);left:-1px;right:-1px;padding:10px 12px;border-radius:8px;background:var(--tx);color:var(--surf);font-size:12.5px;font-weight:400;line-height:1.4;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .info:hover .tip,.info:focus .tip{display:block}
+.att-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn.small{height:34px;padding:0 12px;font-size:13px}
+.files{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.files li{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf2);font-size:13px}
+.files img{width:36px;height:28px;object-fit:cover;border-radius:4px;flex:none}
+.files .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.files button{border:0;background:none;color:var(--tx3);cursor:pointer;font:inherit;font-size:12.5px;padding:2px 4px}
+.files button:hover{color:var(--dang)}
+.drop{outline:2px dashed var(--acc);outline-offset:-6px}
+.warn{margin:0;padding:8px 12px;border-radius:8px;background:var(--warn-bg);color:var(--warn-ink);font-size:13px}
 </style>
 </head>
 <body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}">
@@ -75,6 +85,14 @@ select.fi{appearance:auto}
     <div class="steps" id="steps" hidden></div>
     <div><label class="fl" for="subj">Subject</label><input id="subj" class="fi" maxlength="255" required value="{{.Subject}}"></div>
     <div style="flex:1;display:flex;flex-direction:column;min-height:146px"><label class="fl" for="desc">What's happening?</label><textarea id="desc" class="ft" style="flex:1" maxlength="20000">{{.Description}}</textarea></div>
+    <div>
+      <div class="att-row">
+        <button class="btn small" type="button" id="attach">Attach screenshot or file</button>
+        <span class="mut" style="font-size:12.5px">or paste a screenshot here</span>
+      </div>
+      <input type="file" id="files" multiple hidden>
+      <ul class="files" id="att-list" aria-label="Attached files"></ul>
+    </div>
     <p class="err" id="err" role="alert" hidden></p>
     <p class="hint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v5h1"></path></svg><span>Details about this computer (system, disk space, uptime) are sent with it, to help the help desk.</span></p>
     <div class="row">
@@ -88,6 +106,7 @@ select.fi{appearance:auto}
       <span class="ic" style="background:var(--succ-bg);color:var(--succ-ink)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span>
       <div><h2 id="t-sent"></h2><p class="mut" id="sent-sub" style="margin:2px 0 0"></p></div>
     </div>
+    <p class="warn" id="sent-missing" hidden></p>
     <p style="margin:0" id="sent-portal" hidden>You can follow it, and reply, in the support portal.</p>
     <div class="row"><button class="btn" type="button" id="open" hidden>Open in the portal</button><button class="btn primary" type="button" id="done">Done</button></div>
   </section>
@@ -97,6 +116,7 @@ select.fi{appearance:auto}
       <span class="ic" style="background:var(--warn-bg);color:var(--warn-ink)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 9-2.7M8.5 15.5a5 5 0 0 1 4.6-1.3M12 19h.01M3 3l18 18"></path></svg></span>
       <div><h2 id="t-off">Can't reach the help desk</h2><p class="mut" id="off-sub" style="margin:2px 0 0">This computer isn't connected to the internet right now, so the ticket can't be sent.</p></div>
     </div>
+    <p class="warn" id="off-files" hidden>Attached files aren't kept when this window closes: attach them again if you close it.</p>
     <p style="margin:0" id="off-kept">Your message is kept. Try again once you're back online{{if or .HelpdeskEmail .PortalURL}}, or contact the help desk another way:{{else}}.{{end}}</p>
     {{if or .HelpdeskEmail .PortalURL}}<dl class="contact">
       {{if .HelpdeskEmail}}<dt class="mut">Email</dt><dd>{{.HelpdeskEmail}}</dd>{{end}}
@@ -180,6 +200,55 @@ select.fi{appearance:auto}
     var last = byId[path[path.length - 1]];
     return !(last.requireChild && kids(last.id).length);
   }
+  // Attachments (owner, 2026-11-11): files chosen, pasted or dropped; up to
+  // 5, 10 MB each, 20 MB together (the service and PRISM check again).
+  var MAX_FILES = 5, MAX_FILE = 10 * 1024 * 1024, MAX_TOTAL = 20 * 1024 * 1024;
+  var files = [];
+  function mb(n) { return n < 1048576 ? Math.max(1, Math.round(n / 1024)) + ' KB' : (n / 1048576).toFixed(1) + ' MB'; }
+  function renderFiles() {
+    var ul = $('att-list');
+    ul.innerHTML = '';
+    files.forEach(function (f, i) {
+      var li = document.createElement('li');
+      if (/^image\//.test(f.type)) { var im = document.createElement('img'); im.alt = ''; im.src = 'data:' + f.type + ';base64,' + f.data; li.appendChild(im); }
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = f.name; nm.title = f.name; li.appendChild(nm);
+      var sz = document.createElement('span'); sz.className = 'mut'; sz.style.fontSize = '12px'; sz.textContent = mb(f.size); li.appendChild(sz);
+      var rm = document.createElement('button'); rm.type = 'button'; rm.textContent = 'Remove'; rm.setAttribute('aria-label', 'Remove ' + f.name);
+      rm.addEventListener('click', function () { files.splice(i, 1); renderFiles(); $('attach').focus(); });
+      li.appendChild(rm);
+      ul.appendChild(li);
+    });
+  }
+  function stamp() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' at ' + p(d.getHours()) + '.' + p(d.getMinutes()) + '.' + p(d.getSeconds()); }
+  function addFile(file, pasted) {
+    if (files.length >= MAX_FILES) { fail('Attach at most ' + MAX_FILES + ' files.'); return; }
+    if (file.size > MAX_FILE) { fail(file.name + ' is larger than 10 MB.'); return; }
+    var total = files.reduce(function (n, f) { return n + f.size; }, 0);
+    if (total + file.size > MAX_TOTAL) { fail('The files add up to more than 20 MB.'); return; }
+    var name = file.name || 'attachment';
+    if (pasted && /^image\//.test(file.type)) name = 'Screenshot ' + stamp() + '.' + (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+    var reader = new FileReader();
+    reader.onload = function () {
+      var s = String(reader.result), comma = s.indexOf(',');
+      files.push({ name: name, type: file.type || '', size: file.size, data: comma >= 0 ? s.slice(comma + 1) : '' });
+      $('err').hidden = true;
+      renderFiles();
+    };
+    reader.readAsDataURL(file);
+  }
+  $('attach').addEventListener('click', function () { $('files').click(); });
+  $('files').addEventListener('change', function () { Array.prototype.forEach.call($('files').files, function (f) { addFile(f, false); }); $('files').value = ''; });
+  document.addEventListener('paste', function (e) {
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    var got = false;
+    Array.prototype.forEach.call(items, function (it) { if (it.kind === 'file') { var f = it.getAsFile(); if (f) { addFile(f, true); got = true; } } });
+    if (got) e.preventDefault();
+  });
+  var form = $('form');
+  form.addEventListener('dragover', function (e) { e.preventDefault(); form.classList.add('drop'); });
+  form.addEventListener('dragleave', function () { form.classList.remove('drop'); });
+  form.addEventListener('drop', function (e) { e.preventDefault(); form.classList.remove('drop'); Array.prototype.forEach.call(e.dataTransfer.files || [], function (f) { addFile(f, false); }); });
+
   function kind() { var c = document.querySelector('input[name=kind]:checked'); return c ? c.value : ''; }
   // A new type starts the category over: the other type's don't apply.
   document.querySelectorAll('input[name=kind]').forEach(function (r) { r.addEventListener('change', function () { path = []; unsure = false; renderSteps(); }); });
@@ -199,7 +268,8 @@ select.fi{appearance:auto}
       // The window's Go side sends in the background (a send can take a
       // while) and answers through window.prismDone.
       var catId = path.length ? path[path.length - 1] : 0;
-      a = await new Promise(function (resolve) { window.prismDone = resolve; window.prismSubmitStart(subject, $('desc').value, kind(), catId, kids(null).length ? unsure : false); });
+      var att = JSON.stringify(files.map(function (f) { return { name: f.name, type: f.type, data: f.data }; }));
+      a = await new Promise(function (resolve) { window.prismDone = resolve; window.prismSubmitStart(subject, $('desc').value, kind(), catId, kids(null).length ? unsure : false, att); });
     } catch (e) { a = { error: 'offline' }; }
     setBusy(false);
     if (a && a.number) {
@@ -208,8 +278,12 @@ select.fi{appearance:auto}
       $('sent-sub').textContent = a.replyTo ? 'The help desk will reply by email to ' + a.replyTo + '.' : 'The help desk has it and will be in touch.';
       var portal = document.body.dataset.portal;
       $('open').hidden = !portal; $('sent-portal').hidden = !portal;
+      var missing = a.notAttached || [];
+      $('sent-missing').hidden = !missing.length;
+      $('sent-missing').textContent = missing.length ? 'Sent without ' + missing.join('; ') + '. You can send it to the help desk another way.' : '';
       show('sent'); $('done').focus();
     } else if (a && a.error === 'offline') {
+      $('off-files').hidden = !files.length;
       show('offline'); $('retry').focus();
     } else {
       fail((a && a.message) || 'The ticket could not be sent.');

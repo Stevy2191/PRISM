@@ -1,12 +1,14 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -216,4 +218,27 @@ type countingTransport struct{ n *atomic.Int32 }
 func (t countingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	t.n.Add(1)
 	return http.DefaultTransport.RoundTrip(r)
+}
+
+func TestDoBytesSignsExactlyTheBytesItSends(t *testing.T) {
+	var c *Client
+	payload := append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 300000)...)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		sig, _ := base64.StdEncoding.DecodeString(r.Header.Get("X-Prism-Signature"))
+		canon := Canonical(r.Method, r.URL.RequestURI(), r.Header.Get("X-Prism-Timestamp"), r.Header.Get("X-Prism-Nonce"), body)
+		if r.Header.Get("Content-Type") != "application/octet-stream" || !bytes.Equal(body, payload) || !ed25519.Verify(c.Key.Public().(ed25519.PublicKey), []byte(canon), sig) {
+			w.WriteHeader(401)
+			return
+		}
+		w.WriteHeader(201)
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": 9})
+	}))
+	defer srv.Close()
+	c, _ = testClient(srv.URL)
+	var out struct{ ID int }
+	status, err := c.DoBytes(context.Background(), "/api/v1/agent/v1/tray/tickets/5/attachments?name=a.png", "application/octet-stream", payload, &out)
+	if err != nil || status != 201 || out.ID != 9 {
+		t.Fatalf("status %d, err %v, out %+v", status, err, out)
+	}
 }
