@@ -1,5 +1,5 @@
 // Constants and helpers for the ticket list: filters, columns, formatting.
-import { IconMail, IconPhone, IconWorld } from '@tabler/icons-react';
+import { IconDeviceDesktop, IconMail, IconPhone, IconWorld } from '@tabler/icons-react';
 import { orgToday } from '../../../utils/orgDate';
 
 // 'closed' is a special client-side aggregate keyword (the backend maps it
@@ -38,6 +38,10 @@ export const SOURCE_META = {
   email: { label: 'Email', color: '#2563eb', icon: IconMail },
   phone: { label: 'Phone', color: '#16a34a', icon: IconPhone },
   portal: { label: 'Portal', color: '#7c3aed', icon: IconWorld },
+  // As on the ticket's own badge (detail/Badges.jsx): the PRISM agent's
+  // tray, and tickets opened on a schedule. They read "Manual" before.
+  agent: { label: 'PRISM tray', color: '#0e7490', icon: IconDeviceDesktop },
+  recurring: { label: 'Recurring', color: '#64748b', icon: null },
 };
 
 export const FIXED_COLUMNS = ['id', 'title'];

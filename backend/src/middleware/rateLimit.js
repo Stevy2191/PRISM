@@ -58,7 +58,10 @@ const globalStore = new MemoryStore();
 const globalLimiter = rateLimit({
   store: globalStore,
   windowMs: 60 * 1000,
-  max: 200,
+  // 600 (was 200): a ticket page makes about 26 requests, so a technician
+  // working through a queue (8 tickets a minute) ran into 200 and got
+  // "Too many requests" (found walking through the app, 2026-11-12).
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: keyByUserOrIp,

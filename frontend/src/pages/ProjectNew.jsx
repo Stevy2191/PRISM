@@ -214,7 +214,7 @@ export default function ProjectNew() {
                 {leads.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
               </select>
             </Field>
-            <Field label="Owned by department" hint={ownerDepartment && !ownerDepartment.shortCode ? 'No short code set for this department, so the project ID starts with DEPT.' : 'Which team does the work.'}>
+            <Field label="Owned by department (required)" hint={ownerDepartment && !ownerDepartment.shortCode ? 'No short code set for this department, so the project ID starts with DEPT.' : 'Which team does the work.'}>
               <select className="input" required value={form.ownerDepartmentId} onChange={(e) => patch({ ownerDepartmentId: e.target.value })}>
                 <option value="">Select department…</option>
                 {owners.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}

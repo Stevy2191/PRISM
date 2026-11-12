@@ -124,7 +124,7 @@ function Keys({
       {error && <div className="px-5 pt-3"><Notice tone="bad">{error}</Notice></div>}
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead><tr><th className="table-th">Install key</th><th className="table-th">Used</th><th className="table-th">Status</th><th className="table-th"><span className="sr-only">Actions</span></th></tr></thead>
+          <thead><tr><th className="table-th">Install key</th><th className="table-th">Used</th><th className="table-th">Status</th></tr></thead>
           <tbody>
             {keys.map((k) => (
               <tr key={k.id} className="border-t" style={{ ...BORDER, ...(k.id === selectedId ? { backgroundColor: 'var(--color-accent-soft)' } : {}) }}>
@@ -134,21 +134,20 @@ function Keys({
                     {k.revokedAt ? `Revoked ${shortDate(k.revokedAt)}` : `Created ${shortDate(k.createdAt)}${k.createdBy ? ` by ${k.createdBy.displayName}` : ''}`}
                     {k.lastUsedAt && !k.revokedAt ? ` · last used ${shortDate(k.lastUsedAt)}` : ''}
                   </span>
-                </td>
-                <td className="table-td whitespace-nowrap">{used(k)}</td>
-                <td className="table-td whitespace-nowrap">{keyState(k)}</td>
-                <td className="table-td whitespace-nowrap text-right">
+                  {/* Under the name, so the name and dates keep the column's width. */}
                   {!k.revokedAt && (
-                    <span className="inline-flex items-center justify-end gap-2">
+                    <span className="mt-2 flex flex-wrap items-center gap-2">
                       {k.usable && <button type="button" className="btn-secondary h-8 px-3 text-sm" aria-pressed={k.id === selectedId} onClick={() => onSelect(k)} aria-label={`Install with ${k.name}`}>Install</button>}
                       <button type="button" className="btn-secondary h-8 px-3 text-sm" onClick={() => rotate(k)} aria-label={`Rotate ${k.name}`}>Rotate</button>
                       <button type="button" className="btn-secondary h-8 px-3 text-sm" onClick={() => revoke(k)} aria-label={`Revoke ${k.name}`}>Revoke</button>
                     </span>
                   )}
                 </td>
+                <td className="table-td whitespace-nowrap align-top">{used(k)}</td>
+                <td className="table-td whitespace-nowrap align-top">{keyState(k)}</td>
               </tr>
             ))}
-            {!keys.length && <tr><td className="table-td" colSpan={4}>No install keys yet. Create one to install the agent.</td></tr>}
+            {!keys.length && <tr><td className="table-td" colSpan={3}>No install keys yet. Create one to install the agent.</td></tr>}
           </tbody>
         </table>
       </div>
