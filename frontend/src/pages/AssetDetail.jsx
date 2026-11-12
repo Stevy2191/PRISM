@@ -19,6 +19,7 @@ import { scanPollMs } from '../components/agent/scanState';
 import { StatusBadge, CategoryBadge, dateUrgencyColor } from './Assets';
 import { formatTicketId } from '../utils/ticketId';
 import { orgToday } from '../utils/orgDate';
+import { fmtDate, fmtDateTime } from '../utils/formatDate';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -649,7 +650,7 @@ function TicketsTab({ assetId, asset, canLinkTickets, navigate }) {
                     {t.restricted ? '—' : (PRIORITY_META[t.priority] || PRIORITY_META.medium).label}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{t.restricted ? '—' : (t.assignee?.displayName || 'Unassigned')}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{t.restricted ? '—' : new Date(t.createdAt).toLocaleDateString()}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{t.restricted ? '—' : fmtDate(t.createdAt)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
                     {canLinkTickets && <button type="button" onClick={() => unlink(t.id)} style={{ color: 'var(--color-danger)' }}>Unlink</button>}
                   </td>
@@ -832,7 +833,7 @@ function AttachmentsTab({ assetId }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium" style={{ color: TEXT }}>{a.originalName}</p>
                 <p className="text-xs" style={{ color: MUTED }}>
-                  {formatFileSize(a.size)} · Uploaded by {a.uploadedBy?.displayName || 'System'} · {new Date(a.createdAt).toLocaleDateString()}
+                  {formatFileSize(a.size)} · Uploaded by {a.uploadedBy?.displayName || 'System'} · {fmtDate(a.createdAt)}
                 </p>
               </div>
               <a
@@ -952,8 +953,8 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
                       {active && <span className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: BLUE }}>Current</span>}
                     </p>
                     <p className="mt-0.5 text-xs" style={{ color: MUTED }}>
-                      Checked out {new Date(c.checkedOutAt).toLocaleDateString()}
-                      {c.checkedInAt ? ` · Checked in ${new Date(c.checkedInAt).toLocaleDateString()}` : ' · Still out'}
+                      Checked out {fmtDate(c.checkedOutAt)}
+                      {c.checkedInAt ? ` · Checked in ${fmtDate(c.checkedInAt)}` : ' · Still out'}
                       {' · '}{durationDays}d
                     </p>
                     {c.notes && <p className="mt-1 text-xs" style={{ color: MUTED }}>{c.notes}</p>}
@@ -1027,7 +1028,7 @@ function CheckoutsTab({ assetId, asset, onChanged }) {
 // Where a checkout's form is: signed and back (with the signed copy),
 // printed or emailed and waiting, or made and not yet given out.
 function CheckoutFormStatus({ checkout: c, fileUrl }) {
-  const day = (d) => new Date(d).toLocaleDateString();
+  const day = (d) => fmtDate(d);
   let text = null;
   if (c.checkoutFormReturnedAt) text = `Checkout form: signed copy received ${day(c.checkoutFormReturnedAt)}`;
   else if (c.checkoutFormSentAt && c.checkoutFormPrintedAt) text = `Checkout form printed ${day(c.checkoutFormPrintedAt)} and emailed ${day(c.checkoutFormSentAt)}, waiting for the signed copy`;
@@ -1299,7 +1300,7 @@ function ActivityTab({ assetId }) {
                 <strong>{a.user?.displayName || 'System'}</strong> — {ACTIVITY_LABEL[a.action] || a.action}
               </p>
               <p className="text-xs" style={{ color: MUTED }}>{activityDescription(a)}</p>
-              <p className="mt-0.5 text-xs" style={{ color: MUTED }}>{new Date(a.createdAt).toLocaleString()}</p>
+              <p className="mt-0.5 text-xs" style={{ color: MUTED }}>{fmtDateTime(a.createdAt)}</p>
             </div>
           </li>
         ))}

@@ -4,6 +4,7 @@ import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
 import SettingsPage from '../../components/settings/SettingsPage';
 import DepartmentOptions from '../../components/companies/DepartmentOptions';
+import { fmtDateTime } from '../../utils/formatDate';
 
 const SCHEDULE_OPTIONS = [
   { value: 1, label: 'Every hour' },
@@ -56,7 +57,7 @@ function SyncLogModal({ onClose }) {
                 const meta = STATUS_META[l.status] || STATUS_META.running;
                 return (
                   <tr key={l.id}>
-                    <td className="table-td whitespace-nowrap">{new Date(l.startedAt).toLocaleString()}</td>
+                    <td className="table-td whitespace-nowrap">{fmtDateTime(l.startedAt)}</td>
                     <td className="table-td capitalize">{l.triggeredBy}</td>
                     <td className="table-td"><span className={`badge ${meta.className}`}>{meta.label}</span></td>
                     <td className="table-td">{l.usersProcessed}</td>
@@ -215,7 +216,7 @@ export default function DirectorySync() {
         <div className="border-t border-navy-100 pt-4 text-sm text-navy-500">
           {settings.lastSync ? (
             <>
-              Last sync: <span className="font-medium text-navy-800">{new Date(settings.lastSync.startedAt).toLocaleString()}</span>
+              Last sync: <span className="font-medium text-navy-800">{fmtDateTime(settings.lastSync.startedAt)}</span>
               {' — '}
               <span className={settings.lastSync.status === 'success' ? 'font-medium text-emerald-600' : settings.lastSync.status === 'failed' ? 'font-medium text-red-600' : 'font-medium text-navy-500'}>
                 {settings.lastSync.status === 'success' ? 'Success' : settings.lastSync.status === 'failed' ? 'Failed' : 'Running'}

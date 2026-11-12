@@ -1,6 +1,7 @@
 // Activity tab.
 import LoadMore from '../../../components/LoadMore';
 import { TEXT, MUTED, timeAgo } from '../theme';
+import { fmtDateTime } from '../../../utils/formatDate';
 
 // ---- Activity tab ----
 
@@ -37,8 +38,8 @@ function activityDescription(a) {
   if (a.action === 'split_to') return `${actor} split a message off into ${a.toValue}`;
   if (a.action === 'split_from') return `${actor} split this ticket off from ${a.fromValue}`;
   if (a.action === 'comment') return `${actor} commented on this ticket`;
-  if (a.action === 'due_date_extended') return `${actor} extended the due date to ${new Date(a.toValue).toLocaleString()}`;
-  if (a.action === 'due_date_adjusted') return `${actor} changed the due date to ${new Date(a.toValue).toLocaleString()}`;
+  if (a.action === 'due_date_extended') return `${actor} extended the due date to ${fmtDateTime(a.toValue)}`;
+  if (a.action === 'due_date_adjusted') return `${actor} changed the due date to ${fmtDateTime(a.toValue)}`;
   if (a.action === 'time_logged') return `${actor} logged ${a.toValue} of time`;
   if (a.action === 'attachment_added') return `${actor} added attachment "${a.toValue}"`;
   if (a.action === 'relation_added') return `${actor} linked ${a.toValue}`;

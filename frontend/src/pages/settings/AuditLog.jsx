@@ -3,6 +3,7 @@ import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import AccessRestricted, { isForbidden } from '../../components/AccessRestricted';
 import SettingsPage from '../../components/settings/SettingsPage';
+import { fmtDateTime } from '../../utils/formatDate';
 
 const ACTION_LABELS = {
   role_assigned: 'Role assigned',
@@ -18,7 +19,7 @@ function formatDetail(log) {
   }
   if (log.action === 'override_granted' || log.action === 'override_revoked') {
     const access = d.granted ? 'grant' : 'deny';
-    const expiry = d.expiresAt ? ` until ${new Date(d.expiresAt).toLocaleString()}` : '';
+    const expiry = d.expiresAt ? ` until ${fmtDateTime(d.expiresAt)}` : '';
     return `${d.permissionKey} (${access}${expiry})${d.reason ? ` — ${d.reason}` : ''}`;
   }
   return JSON.stringify(d);
@@ -87,7 +88,7 @@ export default function AuditLog() {
               <tbody className="divide-y divide-navy-100">
                 {logs.map((log) => (
                   <tr key={log.id} className="hover:bg-navy-50">
-                    <td className="table-td whitespace-nowrap text-navy-500">{new Date(log.createdAt).toLocaleString()}</td>
+                    <td className="table-td whitespace-nowrap text-navy-500">{fmtDateTime(log.createdAt)}</td>
                     <td className="table-td">
                       <span className="badge bg-navy-100 text-navy-700">{ACTION_LABELS[log.action] || log.action}</span>
                     </td>

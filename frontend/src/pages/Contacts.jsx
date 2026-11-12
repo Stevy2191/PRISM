@@ -20,6 +20,7 @@ import Notice from '../components/ui/Notice';
 import Button from '../components/ui/Button';
 import DepartmentOptions from '../components/companies/DepartmentOptions';
 import { useCompanySummary } from '../context/CompanyContext';
+import { fmtDate } from '../utils/formatDate';
 
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
@@ -469,7 +470,7 @@ export default function Contacts() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: MUTED }}>{c.email || '—'}</td>
-                      <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{c.createdAt ? c.createdAt.slice(0, 10) : '—'}</td>
+                      <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{fmtDate(c.createdAt)}</td>
                       {multiCompany && (
                         <td className="whitespace-nowrap px-4 py-3 text-sm" style={{ color: TEXT }}>
                           {c.company ? <Link to={`/companies/${c.company.id}`} className="hover:underline">{c.company.name}</Link> : '—'}

@@ -550,7 +550,7 @@ export default function TicketDetail() {
         <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="flex min-w-0 flex-wrap gap-x-5 gap-y-1 text-sm" style={{ color: MUTED }}>
             <span className="min-w-0 break-words">
-              Customer:{' '}
+              Contact:{' '}
               {ticket.contact ? (
                 <><Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link><CompanyTag company={ticket.company} /></>
               ) : (

@@ -4,9 +4,10 @@ import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
 import { StatCard, ChartCard, SimpleBarChart, MultiLineChart, SortableTable } from './shared';
+import { fmtDate } from '../../utils/formatDate';
 
 function formatDate(value) {
-  return value ? new Date(value).toLocaleDateString() : '—';
+  return value ? fmtDate(value) : '—';
 }
 
 export default function CustomerHappinessReport({ filters, onForbidden }) {

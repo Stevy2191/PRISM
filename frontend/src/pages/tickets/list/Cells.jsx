@@ -1,6 +1,7 @@
 // Table and card cells for the ticket list.
 import PersonAvatar from '../../../components/ui/Avatar';
 import { TEXT, MUTED } from '../theme';
+import { fmtDate } from '../../../utils/formatDate';
 import { PRIORITY_META, SOURCE_META, todayStr, isClosedStatus, ageDays } from './listHelpers';
 import { addDays } from '../../../utils/orgDate';
 
@@ -60,7 +61,7 @@ export function DueDateCell({ dueDate }) {
   let color = MUTED;
   if (dueDate < today) color = 'var(--color-danger)';
   else if (dueDate <= soonStr) color = 'var(--color-warning)';
-  return <span className="num whitespace-nowrap text-sm" style={{ color }}>{dueDate}</span>;
+  return <span className="num whitespace-nowrap text-sm" style={{ color }}>{fmtDate(dueDate)}</span>;
 }
 
 export function AgeLine({ ticket, behaviorByName }) {
@@ -90,4 +91,17 @@ export function DeptPill({ name, className = 'ml-2' }) {
 export function SortIcon({ active, dir }) {
   if (!active) return null;
   return <span className="ml-1">{dir === 'asc' ? '▲' : '▼'}</span>;
+}
+
+// The ticket's category as its path (Network › Wireless), marked when the
+// person raising it wasn't sure (9).
+export function CategoryCell({ category, unsure }) {
+  const path = category?.path?.join(' › ');
+  if (!path && !unsure) return <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>—</span>;
+  return (
+    <span className="text-sm" style={{ color: TEXT }}>
+      {path}
+      {unsure && <span style={{ color: 'var(--color-warning)' }}>{path ? ' · not sure' : 'Not sure'}</span>}
+    </span>
+  );
 }

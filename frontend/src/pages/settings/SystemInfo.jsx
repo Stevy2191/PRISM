@@ -5,6 +5,7 @@ import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage, { SettingsPanel, SettingsRow } from '../../components/settings/SettingsPage';
 import SaveBar, { isDirty } from '../../components/settings/SaveBar';
+import { fmtDateTime } from '../../utils/formatDate';
 
 function Info({ label, children }) {
   return (
@@ -51,7 +52,7 @@ function AttachmentScanning() {
         <span className="font-medium" style={{ color: st ? st.color : 'var(--color-text-muted)' }}>{st ? st.label : 'Checking…'}</span>
       </div>
       {status?.state === 'ok' && <Info label="Version">{status.version}</Info>}
-      {status?.state === 'ok' && <Info label="Signatures updated">{status.signatureDate ? new Date(status.signatureDate).toLocaleString() : null}</Info>}
+      {status?.state === 'ok' && <Info label="Signatures updated">{status.signatureDate ? fmtDateTime(status.signatureDate) : null}</Info>}
       {status?.state === 'unreachable' && (
         <p className="px-5 py-2.5 text-sm text-navy-500">
           Files can't be uploaded or received by email until the scanner is back. Check that the ClamAV service is running.

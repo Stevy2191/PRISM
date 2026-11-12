@@ -40,6 +40,7 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
   const [newName, setNewName] = useState('');
   const [renaming, setRenaming] = useState(null); // { id, name }
   const [dragId, setDragId] = useState(null);
+  const [menuId, setMenuId] = useState(null); // the row whose ⋯ options are open
   const [busy, setBusy] = useState(false);
 
   const index = useMemo(() => buildIndex(categories), [categories]);
@@ -150,7 +151,7 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
             {c.parentId == null && c.forType && <span className="eyebrow">{c.forType === 'incident' ? 'incidents' : 'requests'}</span>}
             {usageText(c.usage) && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{usageText(c.usage)}</span>}
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs">
+          <div className="flex flex-shrink-0 items-center gap-3 text-xs">
             <button type="button" aria-label={`Move ${c.name} up`} onClick={() => shift(c, -1)} disabled={busy}>↑</button>
             <button type="button" aria-label={`Move ${c.name} down`} onClick={() => shift(c, 1)} disabled={busy}>↓</button>
             {depth + 1 < MAX_DEPTH && (
@@ -158,7 +159,26 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
                 add sub-category
               </button>
             )}
-            <button type="button" className="hover:underline" style={{ color: 'var(--color-accent)' }} onClick={() => setRenaming({ id: c.id, name: c.name })}>rename</button>
+            <button
+              type="button"
+              className="rounded-md border px-2 py-0.5 text-sm leading-none"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+              aria-label={`More for ${c.name}`}
+              aria-expanded={menuId === c.id}
+              onClick={() => setMenuId(menuId === c.id ? null : c.id)}
+            >
+              ⋯
+            </button>
+          </div>
+        </div>
+        {menuId === c.id && (
+          <div
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-3 py-2 text-xs"
+            style={{ borderColor: 'var(--color-border)', paddingLeft: `${0.75 + depth * 1.5}rem`, backgroundColor: 'var(--color-hover)' }}
+            role="group"
+            aria-label={`Options for ${c.name}`}
+          >
+            <button type="button" className="hover:underline" style={{ color: 'var(--color-accent)' }} onClick={() => { setRenaming({ id: c.id, name: c.name }); setMenuId(null); }}>rename</button>
             {c.parentId == null && (
               <label className="flex items-center gap-1">
                 For
@@ -195,7 +215,7 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
             </button>
             <button type="button" className="text-red-500 hover:underline" onClick={() => remove(c)} disabled={busy}>delete</button>
           </div>
-        </div>
+        )}
         {adding?.parentId === c.id && <div style={{ paddingLeft: `${2.25 + depth * 1.5}rem` }}>{addForm(c.id)}</div>}
         {kids.length > 0 && <ul>{kids.map((k) => renderNode(k, depth + 1))}</ul>}
       </li>

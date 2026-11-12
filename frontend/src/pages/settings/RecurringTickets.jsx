@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
+import { fmtDateTime } from '../../utils/formatDate';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -18,7 +19,7 @@ export function scheduleSummary(r) {
   return `${when} at ${r.timeOfDay} (${r.timezone})`;
 }
 
-const fmt = (v) => (v ? new Date(v).toLocaleString() : '—');
+const fmt = (v) => (v ? fmtDateTime(v) : '—');
 
 export default function RecurringTickets() {
   const [rules, setRules] = useState([]);

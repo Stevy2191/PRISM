@@ -5,6 +5,7 @@ import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
 import { StatCard, ChartCard, GroupedBarChart, MultiLineChart, SortableTable, PALETTE } from './shared';
+import { fmtDateTime } from '../../utils/formatDate';
 
 export default function SlaComplianceReport({ filters, onForbidden }) {
   const [data, setData] = useState(null);
@@ -79,7 +80,7 @@ export default function SlaComplianceReport({ filters, onForbidden }) {
           { key: 'assignee', label: 'Assignee' },
           { key: 'company', label: 'Company' },
           { key: 'clock', label: 'Clock' },
-          { key: 'dueAt', label: 'Due', render: (r) => new Date(r.dueAt).toLocaleString() },
+          { key: 'dueAt', label: 'Due', render: (r) => fmtDateTime(r.dueAt) },
           { key: 'overByMinutes', label: 'Minutes over' },
         ]}
         rows={data.tableData.rows.map((r, i) => ({ ...r, key: `${r.id}-${r.clock}-${i}` }))}
@@ -93,7 +94,7 @@ export default function SlaComplianceReport({ filters, onForbidden }) {
             { key: 'ticketNumber', label: '#' },
             { key: 'title', label: 'Title', render: (r) => <Link to={`/tickets/${r.id}`} className="text-prism hover:underline">{r.title}</Link> },
             { key: 'kind', label: 'Change', render: (r) => (r.kind === 'extension' ? 'Extended' : 'Changed') },
-            { key: 'to', label: 'New due', render: (r) => new Date(r.to).toLocaleString() },
+            { key: 'to', label: 'New due', render: (r) => fmtDateTime(r.to) },
             { key: 'reason', label: 'Reason' },
             { key: 'by', label: 'By' },
           ]}

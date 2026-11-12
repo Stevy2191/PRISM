@@ -78,3 +78,19 @@ it('an agent from before (no type, no category) can always raise a ticket: a req
   const res2 = await device.post(TICKETS, ask());
   expect(await models.Ticket.findByPk(res2.body.ticketId)).toMatchObject({ categoryId: null, categoryUnsure: false });
 });
+
+it('the activity feed names the person who raised a tray ticket, not the account PRISM saves it with', async () => {
+  await models.Contact.create({ firstName: 'Maria', lastName: 'Chen', displayName: 'Maria Chen', email: 'maria@riverside.test', companyId: company.id });
+  await device.post(TICKETS, ask({ upn: 'maria@riverside.test' }));
+  await device.post(TICKETS, ask({ account: 'R\\nobody', subject: 'Unknown person' }));
+  const staff = expectOk(await w.admin.agent.post(`${API}/tickets`).send({ title: 'By staff', contactId: w.contact.id }), 201).ticket;
+  const feed = (await w.admin.agent.get(`${API}/dashboard/activity`)).body;
+  const items = (feed.activity || feed.items || feed).filter((x) => x.action === 'created');
+  const by = Object.fromEntries(items.map((x) => [x.targetLabel.replace(/^#\d+ /, ''), x]));
+  expect(by['Wifi drops']).toMatchObject({ actorName: 'Maria Chen', verb: 'opened', suffix: 'from the PRISM tray' });
+  // No matching contact (the placeholder): "Someone", still not the admin.
+  expect(by['Unknown person']).toMatchObject({ actorName: 'Someone', suffix: 'from the PRISM tray' });
+  expect(by['By staff'].actorName).toBe(w.admin.user.displayName);
+  expect(by['By staff'].suffix).toBeNull();
+  expect(staff.id).toBeGreaterThan(0);
+});

@@ -1,4 +1,5 @@
 import StatusChip from '../ui/StatusChip';
+import { fmtDate } from '../../utils/formatDate';
 
 // Shared bits for the PRISM agent's staff screens (8a): a device's status
 // chip, "3 h ago", sizes and dates.
@@ -22,7 +23,7 @@ export function gb(bytes) {
   return `${g >= 100 ? Math.round(g) : g.toFixed(1)} GB`;
 }
 
-export const shortDate = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
+export const shortDate = (iso) => fmtDate(iso);
 export const dateTime = (iso) => (iso ? new Date(iso).toLocaleString(undefined, {
   month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
 }) : '—');

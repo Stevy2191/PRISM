@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const {
   Ticket, Project, User, TimeEntry, Notification, TicketActivity, ProjectActivity, DashboardLayout, Asset,
   License, Contract,
-  TicketSla, SlaPolicy,
+  TicketSla, SlaPolicy, Contact,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
@@ -234,6 +234,10 @@ async function teamWorkload(buckets, extraUserWhere = {}, companyWhere = {}) {
 const MEANINGFUL_TICKET_ACTIONS = ['created', 'status', 'assigneeId', 'priority', 'comment'];
 const MEANINGFUL_PROJECT_ACTIONS = ['project_created', 'status_changed', 'task_closed'];
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
+// How a ticket not opened by staff arrived, for the activity feed.
+const ARRIVED = {
+  agent: 'from the PRISM tray', portal: 'in the portal', email: 'by email', recurring: 'on its schedule',
+};
 
 function isClosedStatusName(name, buckets) {
   if (!name) return false;
@@ -320,7 +324,12 @@ async function activityFeed(buckets, ticketWhere = {}, projectWhere = {}, { limi
       where: ticketActWhere,
       include: [
         { model: User, as: 'user', attributes: ['id', 'displayName'] },
-        { model: Ticket, as: 'ticket', attributes: ['id', 'title'] },
+        {
+          model: Ticket,
+          as: 'ticket',
+          attributes: ['id', 'title', 'source'],
+          include: [{ model: Contact, as: 'contact', attributes: ['id', 'displayName', 'isPlaceholder'] }],
+        },
       ],
       // `id DESC` breaks ties deterministically — MariaDB's DATETIME here has
       // only second precision, so several activity rows from a rapid burst
@@ -345,13 +354,19 @@ async function activityFeed(buckets, ticketWhere = {}, projectWhere = {}, { limi
     .filter((a) => a.ticket)
     .map((a) => {
       const { colorKey, verb, suffix } = describeTicketAction(a.action, a.fromValue, a.toValue, buckets);
+      // A ticket that came in from the tray, the portal, email or a schedule
+      // was opened by its contact (or by PRISM), not by the account PRISM
+      // creates such tickets with (found walking through the app, 2026-11-12).
+      const via = a.action === 'created' ? ARRIVED[a.ticket.source] : null;
+      const contact = a.ticket.contact && !a.ticket.contact.isPlaceholder ? a.ticket.contact.displayName : null;
+      const arrivedName = via ? (a.ticket.source === 'recurring' ? 'PRISM' : (contact || 'Someone')) : null;
       return {
         id: `ticket-${a.id}`,
         userId: a.userId,
-        actorName: a.user?.displayName || 'System',
+        actorName: arrivedName || a.user?.displayName || 'System',
         colorKey,
         verb,
-        suffix: suffix || null,
+        suffix: via || suffix || null,
         targetType: 'ticket',
         targetId: a.ticket.id,
         targetLabel: `#${String(a.ticket.id).padStart(5, '0')} ${a.ticket.title}`,

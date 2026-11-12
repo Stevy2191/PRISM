@@ -1,3 +1,4 @@
+import { fmtDate } from '../../utils/formatDate';
 // Colors (admin-customizable theme CSS variables), the input style and small
 // formatters shared by the ticket pages.
 
@@ -32,8 +33,7 @@ export function formatMinutes(min) {
 }
 
 export function formatDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return fmtDate(d);
 }
 
 export function timeAgo(dateStr) {
@@ -52,11 +52,11 @@ export function timeAgo(dateStr) {
 // meaningful (and only ever set) when dueDate is also set.
 export function formatDueDateTime(dueDate, dueTime) {
   if (!dueDate) return 'None';
-  if (!dueTime) return dueDate;
+  if (!dueTime) return fmtDate(dueDate);
   const [h, m] = dueTime.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${dueDate} ${h12}:${String(m).padStart(2, '0')} ${period}`;
+  return `${fmtDate(dueDate)}, ${h12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
 export const fieldStyle = { backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-input-border)', color: TEXT };

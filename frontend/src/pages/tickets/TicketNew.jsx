@@ -199,7 +199,7 @@ export default function TicketNew() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isStaff && !contactId) {
-      setError('Customer is required');
+      setError('Contact is required');
       return;
     }
     const isCustomFieldMissing = (f) => {
@@ -349,7 +349,7 @@ export default function TicketNew() {
               {isStaff && (
                 <>
                   <div>
-                    <Label required>Customer</Label>
+                    <Label required>Contact</Label>
                     <ContactPicker selectedContact={selectedContact} onSelect={selectContact} />
                     {multiCompany && selectedContact?.company && (
                       <p className="mt-1 text-xs" style={{ color: MUTED }}>Company: {selectedContact.company.name}</p>
@@ -385,7 +385,7 @@ export default function TicketNew() {
                   </div>
 
                   <div>
-                    <Label htmlFor="new-ticket-customer-dept">Customer Department</Label>
+                    <Label htmlFor="new-ticket-customer-dept">Contact&apos;s department</Label>
                     <select id="new-ticket-customer-dept" value={customerDeptId} onChange={(e) => setCustomerDeptId(e.target.value)} className="input">
                       <option value="">None</option>
                       {companyDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}

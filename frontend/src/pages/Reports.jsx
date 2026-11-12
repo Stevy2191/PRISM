@@ -34,6 +34,7 @@ import SelectChip from '../components/ui/SelectChip';
 import FiltersSheet from '../components/ui/FiltersSheet';
 import Button from '../components/ui/Button';
 import DepartmentOptions from '../components/companies/DepartmentOptions';
+import { fmtDate } from '../utils/formatDate';
 
 const CATEGORIES = [
   {
@@ -342,7 +343,7 @@ export default function Reports() {
                 <button type="button" onClick={() => { openCustomBuilder(r.id); setNavOpen(false); }} className="min-w-0 flex-1 text-left">
                   <span className="block truncate">{r.name}</span>
                   <span className="block text-xs font-normal text-navy-400">
-                    {r.dataSource} · {r.lastRunAt ? new Date(r.lastRunAt).toLocaleDateString() : 'never run'}
+                    {r.dataSource} · {r.lastRunAt ? fmtDate(r.lastRunAt) : 'never run'}
                   </span>
                 </button>
                 <button

@@ -34,7 +34,7 @@ it("New ticket groups fields under The problem, Who it's for, Who's on it", asyn
 it('required fields say so to screen readers', async () => {
   const page = await smoke.pageAs('admin', undefined, { viewport: { width: 1440, height: 900 } });
   await page.goto('/tickets/new');
-  const customer = page.getByRole('group', { name: "Who it's for" }).locator('label', { hasText: 'Customer' }).first();
+  const customer = page.getByRole('group', { name: "Who it's for" }).locator('label', { hasText: 'Contact' }).first();
   expect(await customer.textContent()).toContain('(required)');
   await page.getByRole('textbox', { name: 'Title (required)' }).waitFor();
 });

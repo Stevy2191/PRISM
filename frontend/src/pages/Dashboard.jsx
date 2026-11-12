@@ -21,6 +21,7 @@ import Spinner from '../components/Spinner';
 import Button from '../components/ui/Button';
 import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
 import { formatTicketId } from '../utils/ticketId';
+import { fmtDateTime } from '../utils/formatDate';
 
 // Colors read from the light/dark theme's CSS variables (see index.css).
 const CARD_BG = 'var(--color-card)';
@@ -207,7 +208,7 @@ function TicketsPanel({ tickets }) {
                   <Link to={`/tickets/${t.id}`} className="truncate font-medium hover:underline" style={{ color: TEXT }}>
                     {formatTicketId(t)} {t.title}
                   </Link>
-                  <p className="text-xs" style={{ color: MUTED }} title={new Date(t.updatedAt).toLocaleString()}>
+                  <p className="text-xs" style={{ color: MUTED }} title={fmtDateTime(t.updatedAt)}>
                     Updated {timeAgo(t.updatedAt)}
                   </p>
                 </div>

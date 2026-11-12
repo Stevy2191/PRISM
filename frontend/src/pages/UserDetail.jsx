@@ -13,9 +13,10 @@ import { formatPhone } from '../utils/formatPhone';
 import SettingsPage from '../components/settings/SettingsPage';
 import { canOpen, findPage } from './settings/registry';
 import DepartmentOptions from '../components/companies/DepartmentOptions';
+import { fmtDateTime } from '../utils/formatDate';
 
 function formatDate(value) {
-  return value ? new Date(value).toLocaleString() : 'Never';
+  return value ? fmtDateTime(value) : 'Never';
 }
 
 // "System-wide" vs "Department-scoped" is driven by role.scope, not the

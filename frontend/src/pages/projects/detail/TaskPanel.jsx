@@ -16,6 +16,7 @@ import QuickTime from './QuickTime';
 import {
   dateRange, hoursFromMinutes, hoursFromSeconds, isDone,
 } from './taskFilters';
+import { fmtDate } from '../../../utils/formatDate';
 
 const PRIORITIES = [['urgent', 'Urgent'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']];
 const priorityName = (p) => PRIORITIES.find(([v]) => v === p)?.[1] || p;
@@ -284,7 +285,7 @@ export default function TaskPanel({
               <span className="min-w-0 flex-1">
                 <b className="font-medium text-navy-900">{a.user?.displayName || 'System'}</b> {ACTIVITY_LABELS[a.action] || a.action}
               </span>
-              <time className="whitespace-nowrap text-navy-400">{new Date(a.createdAt).toLocaleDateString()}</time>
+              <time className="whitespace-nowrap text-navy-400">{fmtDate(a.createdAt)}</time>
             </div>
           ))}
         </Section>

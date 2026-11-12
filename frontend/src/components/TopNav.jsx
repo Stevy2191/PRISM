@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
-import { IconSearch, IconSettings, IconMenu2, IconX, IconChevronDown } from '@tabler/icons-react';
+import { IconSearch, IconMenu2, IconX, IconChevronDown } from '@tabler/icons-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
@@ -189,15 +189,6 @@ export default function TopNav() {
 
           <TimerIndicator />
           <NotificationsDropdown />
-
-          <Link
-            to="/settings"
-            className="hidden h-8 w-8 items-center justify-center rounded-md hover:bg-[var(--color-hover)] md:flex"
-            style={{ color: 'var(--color-text-secondary)' }}
-            title="Settings"
-          >
-            <IconSettings size={18} stroke={1.8} />
-          </Link>
 
           {/* Visible at every width, unlike search/settings: on mobile it's
               the only way to switch theme without digging into Preferences. */}

@@ -8,6 +8,7 @@ import {
 } from '@tabler/icons-react';
 import Button from '../../../components/ui/Button';
 import Notice from '../../../components/ui/Notice';
+import { fmtDateTime } from '../../../utils/formatDate';
 
 export function FormProgress({ progress, state }) {
   if (state === 'skipped') return <span className="text-[12.5px] text-navy-500">Skipped</span>;
@@ -104,7 +105,7 @@ export default function PlaybookPanel({
                   {tp.contact && <span className="text-navy-500">for <Link to={`/contacts/${tp.contact.id}`} className="font-semibold" style={{ color: 'var(--color-accent)' }}>{tp.contact.displayName}</Link></span>}
                 </div>
                 <p className="mt-0.5 text-[12.5px] text-navy-400">
-                  Added{tp.appliedBy ? ` by ${tp.appliedBy.displayName}` : ''} · {new Date(tp.appliedAt).toLocaleString()} · {tp.forms.length} checklist{tp.forms.length === 1 ? '' : 's'}
+                  Added{tp.appliedBy ? ` by ${tp.appliedBy.displayName}` : ''} · {fmtDateTime(tp.appliedAt)} · {tp.forms.length} checklist{tp.forms.length === 1 ? '' : 's'}
                 </p>
               </div>
               <Totals forms={tp.forms} />

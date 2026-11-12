@@ -12,6 +12,7 @@ import Notice from '../../../components/ui/Notice';
 import Modal from '../../../components/Modal';
 import Spinner from '../../../components/Spinner';
 import { formatTicketId } from '../../../utils/ticketId';
+import { fmtDate, fmtDateTime } from '../../../utils/formatDate';
 
 const inputClass = 'h-10 w-full rounded-md border border-navy-200 bg-surface px-3 text-sm text-navy-900 disabled:bg-navy-50';
 const STATUS_LABELS = {
@@ -26,7 +27,7 @@ function Rich({ html, className = '' }) {
 
 function ByLine({ answer }) {
   if (!answer?.done) return null;
-  return <div className="mt-0.5 text-xs text-navy-400">{answer.byAgent ? 'Confirmed by the PRISM agent' : 'Done'} · {new Date(answer.at).toLocaleString()}</div>;
+  return <div className="mt-0.5 text-xs text-navy-400">{answer.byAgent ? 'Confirmed by the PRISM agent' : 'Done'} · {fmtDateTime(answer.at)}</div>;
 }
 
 function FieldInput({ item, value, disabled, onSave, ticket }) {
@@ -121,7 +122,7 @@ function SecureItem({ item, secret, disabled, onSet, onReveal }) {
           {!disabled && <Button size="sm" variant="quiet" onClick={() => setEditing(true)}>{secret ? 'Replace' : 'Record'}</Button>}
         </div>
       )}
-      {secret && <span className="text-xs text-navy-400">Recorded{secret.setBy ? ` by ${secret.setBy}` : ''}, {new Date(secret.setAt).toLocaleDateString()}. Each reveal is logged on the ticket.</span>}
+      {secret && <span className="text-xs text-navy-400">Recorded{secret.setBy ? ` by ${secret.setBy}` : ''}, {fmtDate(secret.setAt)}. Each reveal is logged on the ticket.</span>}
     </div>
   );
 }
@@ -141,7 +142,7 @@ function ActionItem({ item, form, disabled, onRun }) {
       <div className="min-w-[240px] flex-1">
         <b>{checkIn ? 'Check in this device' : 'Check out this device'}</b>
         <div className="text-[12.5px] text-navy-500">
-          {done ? `Done ${new Date(form.actionDoneAt).toLocaleString()}.`
+          {done ? `Done ${fmtDateTime(form.actionDoneAt)}.`
             : checkIn ? `Checks ${form.device?.assetTag} in and sets its status. Available once the required steps above are done.`
               : `Checks ${form.device?.assetTag} out to ${form.person?.displayName || 'the person'}. Available once the required steps above are done.`}
         </div>
@@ -323,7 +324,7 @@ export default function TicketFormPage() {
                 {form.device.serialNumber && <><dt className="text-navy-400">Serial</dt><dd className="num">{form.device.serialNumber}</dd></>}
                 <dt className="text-navy-400">Managed</dt><dd>{form.device.isManaged ? `Yes · ${form.device.mdm?.name || ''}` : 'No'}</dd>
                 {form.device.mdmLink && <><dt className="text-navy-400">MDM</dt><dd><a href={form.device.mdmLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>Open in {form.device.mdm?.name} <IconExternalLink size={12} className="inline" /></a></dd></>}
-                {form.device.agent && <><dt className="text-navy-400">PRISM agent</dt><dd>{form.device.agent.revoked ? 'Revoked' : form.device.agent.online ? <span style={{ color: 'var(--color-success)' }}>Online</span> : 'Offline'}{form.device.agent.lastSeenAt && !form.device.agent.revoked ? ` · seen ${new Date(form.device.agent.lastSeenAt).toLocaleString()}` : ''}</dd></>}
+                {form.device.agent && <><dt className="text-navy-400">PRISM agent</dt><dd>{form.device.agent.revoked ? 'Revoked' : form.device.agent.online ? <span style={{ color: 'var(--color-success)' }}>Online</span> : 'Offline'}{form.device.agent.lastSeenAt && !form.device.agent.revoked ? ` · seen ${fmtDateTime(form.device.agent.lastSeenAt)}` : ''}</dd></>}
               </dl>
               {form.device.agent && !form.device.agent.revoked && form.state === 'open' && (
                 <div className="px-4 pb-3"><Button size="sm" onClick={scan} disabled={form.device.agent.scanRequested}>{form.device.agent.scanRequested ? 'Scan requested' : 'Scan now'}</Button></div>

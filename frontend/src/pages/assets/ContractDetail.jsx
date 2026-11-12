@@ -9,6 +9,7 @@ import Button from '../../components/ui/Button';
 import Notice from '../../components/ui/Notice';
 import ContractFormModal from '../../components/ContractFormModal';
 import { CONTRACT_TYPE_LABELS, ContractTypeBadge, StatusPill, contractStatus, contractRenewsOn } from './Contracts';
+import { fmtDate } from '../../utils/formatDate';
 
 const BORDER = 'var(--color-border)';
 const CARD_BG = 'var(--color-card)';
@@ -300,7 +301,7 @@ function AssetsTab({ contractId, canManage }) {
                 <Link to={`/assets/${l.asset.id}`} className="text-sm font-medium hover:underline" style={{ color: TEXT }}>
                   <span className="num text-xs" style={{ color: MUTED }}>{l.asset.assetTag}</span> — {l.asset.name}
                 </Link>
-                <p className="text-xs" style={{ color: MUTED }}>Linked {new Date(l.linkedAt).toLocaleDateString()}{l.linkedByUser ? ` by ${l.linkedByUser.displayName}` : ''}</p>
+                <p className="text-xs" style={{ color: MUTED }}>Linked {fmtDate(l.linkedAt)}{l.linkedByUser ? ` by ${l.linkedByUser.displayName}` : ''}</p>
               </div>
               {canManage && <button type="button" onClick={() => unlink(l.asset.id)} className="flex-shrink-0 text-sm" style={{ color: 'var(--color-danger)' }}>Remove</button>}
             </div>
@@ -359,7 +360,7 @@ function AttachmentsTab({ contractId }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium" style={{ color: TEXT }}>{a.originalName}</p>
                 <p className="text-xs" style={{ color: MUTED }}>
-                  {formatFileSize(a.size)} · Uploaded by {a.uploadedBy?.displayName || 'System'} · {new Date(a.createdAt).toLocaleDateString()}
+                  {formatFileSize(a.size)} · Uploaded by {a.uploadedBy?.displayName || 'System'} · {fmtDate(a.createdAt)}
                 </p>
               </div>
               <a

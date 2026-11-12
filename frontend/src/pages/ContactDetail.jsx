@@ -14,6 +14,7 @@ import Notice from '../components/ui/Notice';
 import { useFullPageHeight } from '../hooks/useFullPageHeight';
 import { formatTicketId } from '../utils/ticketId';
 import DepartmentOptions from '../components/companies/DepartmentOptions';
+import { fmtDate, fmtDateTime } from '../utils/formatDate';
 
 const BG = 'var(--color-bg)';
 const CARD_BG = 'var(--color-card)';
@@ -274,11 +275,11 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
       </div>
 
       <div className="space-y-1 border-t pt-4 text-xs" style={{ borderColor: BORDER, color: MUTED }}>
-        <p>Created {contact.createdAt ? contact.createdAt.slice(0, 10) : '—'}</p>
+        <p>Created {fmtDate(contact.createdAt)}</p>
         <p>Last updated {contact.updatedAt ? contact.updatedAt.slice(0, 10) : '—'}</p>
         {contact.adSynced && (
           <p style={{ color: BLUE }}>
-            Synced from Active Directory{contact.adLastSynced ? ` — last sync ${new Date(contact.adLastSynced).toLocaleString()}` : ''}
+            Synced from Active Directory{contact.adLastSynced ? ` — last sync ${fmtDateTime(contact.adLastSynced)}` : ''}
           </p>
         )}
       </div>
@@ -320,7 +321,7 @@ function OverviewTab({ stats, recentTickets, statuses }) {
                 </Link>
                 <div className="flex flex-shrink-0 items-center gap-3">
                   <StatusBadge status={t.status} statuses={statuses} />
-                  <span style={{ color: MUTED }}>{t.createdAt?.slice(0, 10)}</span>
+                  <span style={{ color: MUTED }}>{fmtDate(t.createdAt)}</span>
                   <Avatar name={t.assignee?.displayName} size={22} />
                 </div>
               </li>
@@ -388,8 +389,8 @@ function TicketsTab({ tickets, statuses, total, onLoadMore }) {
                     </span>
                   </td>
                   <td className="px-4 py-2.5"><Avatar name={t.assignee?.displayName} size={22} /></td>
-                  <td className="px-4 py-2.5 text-sm" style={{ color: MUTED }}>{t.createdAt?.slice(0, 10)}</td>
-                  <td className="px-4 py-2.5 text-sm" style={{ color: MUTED }}>{t.updatedAt?.slice(0, 10)}</td>
+                  <td className="px-4 py-2.5 text-sm" style={{ color: MUTED }}>{fmtDate(t.createdAt)}</td>
+                  <td className="px-4 py-2.5 text-sm" style={{ color: MUTED }}>{fmtDate(t.updatedAt)}</td>
                 </tr>
               );
             })}
@@ -420,7 +421,7 @@ function ActivityTab({ activity, total, onLoadMore }) {
               <strong>{a.user?.displayName || 'System'}</strong> {ACTIVITY_LABELS[a.action] || a.action}
               {a.detail?.departmentName && <> — {a.detail.departmentName}</>}
             </span>
-            <span style={{ color: MUTED }}>{new Date(a.createdAt).toLocaleString()}</span>
+            <span style={{ color: MUTED }}>{fmtDateTime(a.createdAt)}</span>
           </li>
         ))}
         {activity.length === 0 && <li className="px-4 py-6 text-center text-sm" style={{ color: MUTED }}>No activity yet.</li>}

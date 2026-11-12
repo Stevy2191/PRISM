@@ -51,6 +51,7 @@ describe('tree editor', () => {
     expect(t.category.id).toBe(laptop.id);
     await page.goto('/settings/ticket-categories');
     const row = page.getByTestId(`category-${laptop.id}`);
+    await row.getByRole('button', { name: 'More for Laptop' }).click();
     await row.getByRole('button', { name: 'delete' }).first().click();
     await page.getByRole('alert').filter({ hasText: 'in use' }).waitFor();
     expect(await page.getByRole('alert').textContent()).toMatch(/1 ticket/);

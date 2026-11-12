@@ -3,6 +3,7 @@ import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import SettingsPage from '../components/settings/SettingsPage';
+import { fmtDate, fmtDateTime } from '../utils/formatDate';
 
 export default function AdminApiKeys() {
   const { isAdmin } = useAuth();
@@ -96,8 +97,8 @@ export default function AdminApiKeys() {
                 <td className="table-td font-medium">{k.name}</td>
                 <td className="table-td font-mono text-navy-500">{k.prefix}…</td>
                 {isAdmin && <td className="table-td text-navy-500">{k.user?.displayName || '—'}</td>}
-                <td className="table-td text-navy-400">{k.lastUsed ? new Date(k.lastUsed).toLocaleString() : 'never'}</td>
-                <td className="table-td text-navy-400">{k.expiresAt ? new Date(k.expiresAt).toLocaleDateString() : '—'}</td>
+                <td className="table-td text-navy-400">{k.lastUsed ? fmtDateTime(k.lastUsed) : 'never'}</td>
+                <td className="table-td text-navy-400">{k.expiresAt ? fmtDate(k.expiresAt) : '—'}</td>
                 <td className="table-td">
                   <button onClick={() => revoke(k.id)} className="text-xs text-red-500 hover:underline">revoke</button>
                 </td>

@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import StatusChip from '../components/ui/StatusChip';
 import SettingsPage from '../components/settings/SettingsPage';
 import DepartmentOptions from '../components/companies/DepartmentOptions';
+import { fmtDate } from '../utils/formatDate';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -156,7 +157,7 @@ export default function AdminUsers() {
                   </select>
                 </td>
                 <td className="table-td num whitespace-nowrap text-navy-400">
-                  {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : '—'}
+                  {u.lastLogin ? fmtDate(u.lastLogin) : '—'}
                 </td>
                 <td className="table-td">
                   <div className="flex gap-3 whitespace-nowrap">

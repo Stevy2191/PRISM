@@ -12,6 +12,7 @@ import TimeDropdownPicker from '../../components/TimeDropdownPicker';
 import { ContactPicker } from '../tickets/new/ContactPicker';
 import { orgToday } from '../../utils/orgDate';
 import DepartmentOptions from '../../components/companies/DepartmentOptions';
+import { fmtDateTime } from '../../utils/formatDate';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -145,7 +146,7 @@ export default function RecurringTicketEditor() {
             <textarea id="rt-desc" className="input min-h-[80px] resize-y" value={form.description} onChange={set('description')} />
           </div>
           <div>
-            <span className="label">Customer</span>
+            <span className="label">Contact</span>
             <ContactPicker selectedContact={contact} onSelect={setContact} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -164,7 +165,7 @@ export default function RecurringTicketEditor() {
             <div>
               <label className="label" htmlFor="rt-dept">Department</label>
               <select id="rt-dept" className="input" value={form.departmentId} onChange={set('departmentId')}>
-                <option value="">Customer's department</option>
+                <option value="">Contact's department</option>
                 <DepartmentOptions departments={departments} />
               </select>
             </div>
@@ -288,7 +289,7 @@ export default function RecurringTicketEditor() {
               ? <p className="text-xs" style={{ color: 'var(--color-danger)' }}>{preview.error}</p>
               : (
                 <ul className="mt-1 font-mono text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  {preview.runs.map((r) => <li key={r}>{new Date(r).toLocaleString()}</li>)}
+                  {preview.runs.map((r) => <li key={r}>{fmtDateTime(r)}</li>)}
                   {preview.runs.length === 0 && <li>No runs (the end date has passed).</li>}
                 </ul>
               )}

@@ -4,6 +4,7 @@ import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { formatTicketId } from '../../utils/ticketId';
 import SettingsPage from '../../components/settings/SettingsPage';
+import { fmtDateTime } from '../../utils/formatDate';
 
 const ACTION_META = {
   ticket_created: { label: 'Ticket created', cls: 'bg-green-100 text-green-800' },
@@ -49,7 +50,7 @@ export default function EmailLog() {
                 const meta = ACTION_META[log.action] || { label: log.action, cls: 'bg-navy-100 text-navy-600' };
                 return (
                   <tr key={log.id} className="hover:bg-navy-50">
-                    <td className="table-td whitespace-nowrap text-navy-500">{new Date(log.processedAt).toLocaleString()}</td>
+                    <td className="table-td whitespace-nowrap text-navy-500">{fmtDateTime(log.processedAt)}</td>
                     <td className="table-td">{log.fromEmail || '—'}</td>
                     <td className="table-td max-w-xs truncate">{log.subject || '—'}</td>
                     <td className="table-td">

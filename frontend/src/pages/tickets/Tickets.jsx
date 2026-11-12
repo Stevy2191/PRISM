@@ -45,8 +45,8 @@ import {
   DueDateCell,
   AgeLine,
   DeptPill,
-  SortIcon,
-} from './list/Cells';
+  SortIcon, CategoryCell } from './list/Cells';
+import { fmtDate } from '../../utils/formatDate';
 
 // ---- Main page ----
 
@@ -708,6 +708,7 @@ export default function Tickets() {
                       <td key={key} className="whitespace-nowrap px-4 py-3">
                         {key === 'priority' && <PriorityCell priority={t.priority} />}
                         {key === 'status' && <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />}
+                        {key === 'category' && <CategoryCell category={t.category} unsure={t.categoryUnsure} />}
                         {key === 'dueDate' && <DueDateCell dueDate={t.dueDate} />}
                         {key === 'sla' && <SlaBadge sla={t.sla} />}
                         {key === 'assignee' && (queue && !t.assigneeId ? (
@@ -724,7 +725,7 @@ export default function Tickets() {
                         {key === 'source' && <SourceCell source={t.source} />}
                         {key === 'team' && <span className="text-sm" style={{ color: TEXT }}>{t.team?.name || '—'}</span>}
                         {key === 'timeLogged' && <span className="text-sm" style={{ color: TEXT }}>{formatMinutes(t.timeLoggedMinutes)}</span>}
-                        {key === 'createdDate' && <span className="text-sm" style={{ color: MUTED }}>{new Date(t.createdAt).toLocaleDateString()}</span>}
+                        {key === 'createdDate' && <span className="text-sm" style={{ color: MUTED }}>{fmtDate(t.createdAt)}</span>}
                         {key === 'actions' && (
                           <Link to={`/tickets/${t.id}`} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>Open →</Link>
                         )}

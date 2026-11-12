@@ -19,8 +19,12 @@ export function ConversationTab({
         // A customer reply (portal or email) is marked; a portal reply also
         // names the contact who wrote it.
         const isCustomer = !!c.fromCustomer || !!c.authorContact || c.authorId === ticket.requesterId;
-        const name = c.authorContact?.displayName || (c.fromCustomer ? ticket.contact?.displayName : null) || c.author?.displayName;
         const isPrivate = c.type === 'comment_private';
+        // The agent's health snapshot is PRISM's own note, not the account
+        // PRISM saves it with (found walking through the app, 2026-11-12).
+        const fromAgent = ticket.source === 'agent' && isPrivate && typeof c.body === 'string' && c.body.startsWith('Health snapshot from ');
+        const name = fromAgent ? 'PRISM agent'
+          : (c.authorContact?.displayName || (c.fromCustomer ? ticket.contact?.displayName : null) || c.author?.displayName);
         const isPublicComment = c.type === 'comment_public';
         return (
           <div key={c.id} className="flex items-start gap-3">
@@ -38,7 +42,7 @@ export function ConversationTab({
             >
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: MUTED }}>
                 <span className="text-sm font-semibold" style={{ color: TEXT }}>{name}</span>
-                <span>{isCustomer ? 'Customer' : 'Tech'}</span>
+                <span>{fromAgent ? 'Automatic' : (isCustomer ? 'Contact' : 'Tech')}</span>
                 {isPrivate && (
                   <span className="conv-badge--private flex items-center gap-1 font-semibold">
                     <IconLock size={12} aria-hidden="true" /> Private comment

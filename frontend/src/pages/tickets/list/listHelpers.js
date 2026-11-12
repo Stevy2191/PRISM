@@ -1,6 +1,7 @@
 // Constants and helpers for the ticket list: filters, columns, formatting.
 import { IconDeviceDesktop, IconMail, IconPhone, IconWorld } from '@tabler/icons-react';
 import { orgToday } from '../../../utils/orgDate';
+import { fmtDateTime } from '../../../utils/formatDate';
 
 // 'closed' is a special client-side aggregate keyword (the backend maps it
 // to every behaviorType:'closed' status), not a literal status name — the
@@ -47,7 +48,7 @@ export const SOURCE_META = {
 export const FIXED_COLUMNS = ['id', 'title'];
 
 export const DEFAULT_COLUMN_ORDER = [
-  'priority', 'status', 'dueDate', 'sla', 'assignee', 'type', 'source', 'team', 'timeLogged', 'createdDate', 'actions',
+  'priority', 'status', 'category', 'dueDate', 'sla', 'assignee', 'type', 'source', 'team', 'timeLogged', 'createdDate', 'actions',
 ];
 
 export const COLUMN_LABELS = {
@@ -55,6 +56,7 @@ export const COLUMN_LABELS = {
   title: 'Title',
   priority: 'Priority',
   status: 'Status',
+  category: 'Category',
   dueDate: 'Due date',
   sla: 'SLA',
   assignee: 'Assignee',
@@ -78,7 +80,7 @@ export function formatCustomFieldValue(field, value) {
   if (value === undefined || value === null || value === '') return '—';
   if (field.fieldType === 'checkbox') return value === 'true' ? 'Yes' : 'No';
   if (field.fieldType === 'multiselect') return Array.isArray(value) ? value.join(', ') : String(value);
-  if (field.fieldType === 'datetime') return new Date(value).toLocaleString();
+  if (field.fieldType === 'datetime') return fmtDateTime(value);
   return String(value);
 }
 
@@ -111,8 +113,15 @@ export function loadColumnPrefs() {
     if (!raw) return defaults;
     const parsed = JSON.parse(raw);
     const order = Array.isArray(parsed.order) ? parsed.order.filter((k) => DEFAULT_COLUMN_ORDER.includes(k)) : DEFAULT_COLUMN_ORDER;
-    const missing = DEFAULT_COLUMN_ORDER.filter((k) => !order.includes(k));
-    return { order: [...order, ...missing], visible: { ...defaults.visible, ...(parsed.visible || {}) } };
+    // A column added since the preferences were saved goes where the default
+    // order has it (after the column before it there), not at the far end.
+    const merged = [...order];
+    DEFAULT_COLUMN_ORDER.forEach((k, i) => {
+      if (merged.includes(k)) return;
+      const before = DEFAULT_COLUMN_ORDER.slice(0, i).reverse().find((b) => merged.includes(b));
+      merged.splice(before ? merged.indexOf(before) + 1 : 0, 0, k);
+    });
+    return { order: merged, visible: { ...defaults.visible, ...(parsed.visible || {}) } };
   } catch {
     return defaults;
   }

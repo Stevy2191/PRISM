@@ -6,6 +6,7 @@ import Modal from '../../components/Modal';
 import Switch from '../../components/Switch';
 import { formatTicketId } from '../../utils/ticketId';
 import SettingsPage from '../../components/settings/SettingsPage';
+import { fmtDateTime } from '../../utils/formatDate';
 
 const TRIGGER_META = {
   ticket_created: { label: 'Ticket Created', badge: 'bg-emerald-100 text-emerald-700' },
@@ -28,7 +29,7 @@ function TriggerBadge({ triggerEvent }) {
 
 function formatWhen(value) {
   if (!value) return 'Never';
-  return new Date(value).toLocaleString();
+  return fmtDateTime(value);
 }
 
 // ==================== Logs modal ====================
@@ -72,7 +73,7 @@ function LogsModal({ rule, onClose }) {
                       </Link>
                     ) : '—'}
                   </td>
-                  <td className="table-td text-navy-500">{new Date(l.triggeredAt).toLocaleString()}</td>
+                  <td className="table-td text-navy-500">{fmtDateTime(l.triggeredAt)}</td>
                   <td className="table-td">
                     {l.conditionsMet ? (
                       <span className="badge bg-emerald-100 text-emerald-700">Yes</span>

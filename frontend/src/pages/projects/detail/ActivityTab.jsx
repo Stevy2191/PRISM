@@ -1,6 +1,7 @@
 // Activity tab.
 import LoadMore from '../../../components/LoadMore';
 import { CARD_BG, BORDER, TEXT, MUTED } from '../theme';
+import { fmtDateTime } from '../../../utils/formatDate';
 
 // ==================== Activity tab ====================
 export const ACTIVITY_LABELS = {
@@ -40,7 +41,7 @@ export function ActivityTab({ activity, total, onLoadMore }) {
                 {a.detail?.title && <> {a.detail.title}</>}
                 {a.detail?.name && <> {a.detail.name}</>}
               </span>
-              <span style={{ color: MUTED }}>{new Date(a.createdAt).toLocaleString()}</span>
+              <span style={{ color: MUTED }}>{fmtDateTime(a.createdAt)}</span>
             </li>
           );
         })}
