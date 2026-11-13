@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const {
   Ticket, Project, User, TimeEntry, Notification, TicketActivity, ProjectActivity, DashboardLayout, Asset,
   License, Contract,
-  TicketSla, SlaPolicy, Contact,
+  TicketSla, SlaPolicy, Contact, Company,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
@@ -451,6 +451,48 @@ async function slaAtRiskFor(buckets, where) {
     .slice(0, SLA_PANEL_LIMIT);
 }
 
+// "Needs attention": open tickets someone has to act on: an SLA breached or
+// at risk, nobody assigned, or a category the person wasn't sure of.
+// Breached first, then at risk (soonest due first), then the oldest others.
+const ATTENTION_LIMIT = 8;
+async function needsAttentionFor(buckets, where) {
+  const now = new Date();
+  const tickets = await Ticket.findAll({
+    where: andWhere(where, {
+      status: { [Op.in]: buckets.open },
+      [Op.or]: [slaFilterWhere('breached', now), slaFilterWhere('at_risk', now), { assigneeId: null }, { categoryUnsure: true }],
+    }),
+    attributes: ['id', 'title', 'priority', 'status', 'assigneeId', 'categoryUnsure', 'createdAt'],
+    include: [
+      { model: TicketSla, as: 'sla', required: false, include: [{ model: SlaPolicy, as: 'policy', attributes: ['id', 'name'] }] },
+      { model: User, as: 'assignee', attributes: ['id', 'displayName'] },
+      { model: Contact, as: 'contact', attributes: ['id', 'displayName'] },
+      { model: Company, as: 'company', attributes: ['id', 'name'] },
+    ],
+    order: [['createdAt', 'ASC']],
+    limit: 200,
+  });
+  const rank = { breached: 0, at_risk: 1 };
+  const rows = tickets.map((t) => {
+    const sla = t.sla ? toSlaView(t.sla, now) : null;
+    const state = sla?.worst?.state;
+    return {
+      id: t.id,
+      title: t.title,
+      priority: t.priority,
+      status: t.status,
+      assignee: t.assignee,
+      contact: t.contact ? { id: t.contact.id, displayName: t.contact.displayName } : null,
+      company: t.company ? { id: t.company.id, name: t.company.name } : null,
+      categoryUnsure: !!t.categoryUnsure,
+      sla: state === 'breached' || state === 'at_risk' ? sla : null,
+      order: [rank[state] ?? 2, state in rank ? new Date(sla.worst.dueAt).getTime() : new Date(t.createdAt).getTime()],
+    };
+  });
+  rows.sort((a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1]);
+  return { total: rows.length, tickets: rows.slice(0, ATTENTION_LIMIT).map(({ order, ...t }) => t) };
+}
+
 const get = asyncHandler(async (req, res) => {
   const requestedUserId = req.query.userId ? parseInt(req.query.userId, 10) : null;
 
@@ -482,7 +524,7 @@ const get = asyncHandler(async (req, res) => {
   if (isSystemView && !requestedUserId) {
     const settings = await getAllSettings();
     const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
-    const [stats, projectHealth, workload, activity, teamHappiness, assetsSummary, slaAtRisk] = await Promise.all([
+    const [stats, projectHealth, workload, activity, teamHappiness, assetsSummary, slaAtRisk, needsAttention] = await Promise.all([
       systemStats(buckets, companyWhere),
       projectHealthFor(companyWhere),
       teamWorkload(buckets, {}, companyWhere),
@@ -490,6 +532,7 @@ const get = asyncHandler(async (req, res) => {
       getTeamHappiness({ companyWhere }),
       assetsSummaryStats(companyWhere),
       slaAtRiskFor(buckets, andWhere(await ticketScopeWhere(req.user), companyWhere)),
+      needsAttentionFor(buckets, andWhere(await ticketScopeWhere(req.user), companyWhere)),
     ]);
     return res.json({
       mode: 'admin_system',
@@ -502,6 +545,7 @@ const get = asyncHandler(async (req, res) => {
       teamHappiness: teamHappiness.map((t) => ({ ...t, showRating: t.responseCount >= minResponses })),
       assetsSummary,
       slaAtRisk,
+      needsAttention,
     });
   }
 
@@ -510,13 +554,14 @@ const get = asyncHandler(async (req, res) => {
     const deptProjectWhere = { [Op.or]: [{ ownerDepartmentId: deptId }, { forDepartmentId: deptId }] };
     const settings = await getAllSettings();
     const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
-    const [stats, projectHealth, workload, activity, teamHappiness, slaAtRisk] = await Promise.all([
+    const [stats, projectHealth, workload, activity, teamHappiness, slaAtRisk, needsAttention] = await Promise.all([
       systemStats(buckets, andWhere({ departmentId: deptId }, companyWhere)),
       projectHealthFor(andWhere(deptProjectWhere, companyWhere)),
       teamWorkload(buckets, { departmentId: deptId }, companyWhere),
       activityFeed(buckets, andWhere({ departmentId: deptId }, companyWhere), andWhere(deptProjectWhere, companyWhere)),
       getTeamHappiness({ departmentId: deptId, companyWhere }),
       slaAtRiskFor(buckets, andWhere({ departmentId: deptId }, andWhere(await ticketScopeWhere(req.user), companyWhere))),
+      needsAttentionFor(buckets, andWhere({ departmentId: deptId }, andWhere(await ticketScopeWhere(req.user), companyWhere))),
     ]);
     return res.json({
       mode: 'admin_department',
@@ -528,6 +573,7 @@ const get = asyncHandler(async (req, res) => {
       activityHasMore: activity.hasMore,
       teamHappiness: teamHappiness.map((t) => ({ ...t, showRating: t.responseCount >= minResponses })),
       slaAtRisk,
+      needsAttention,
     });
   }
 
@@ -546,7 +592,7 @@ const get = asyncHandler(async (req, res) => {
   });
   const taskProjectIds = taskProjectRows.map((r) => r.projectId);
 
-  const [stats, tickets, notifications, projectHealth, hours, myRatingsRaw, settings, slaAtRisk] = await Promise.all([
+  const [stats, tickets, notifications, projectHealth, hours, myRatingsRaw, settings, slaAtRisk, needsAttention] = await Promise.all([
     statsForUser(targetId, scopeField, buckets, companyWhere),
     ticketsForUser(targetId, scopeField, behaviorByName, companyWhere),
     notificationsForUser(targetId),
@@ -555,6 +601,8 @@ const get = asyncHandler(async (req, res) => {
     getUserPerformanceStats(targetId, {}, companyWhere),
     getAllSettings(),
     slaAtRiskFor(buckets, andWhere({ [scopeField]: targetId }, andWhere(await ticketScopeWhere(req.user), companyWhere))),
+    // Theirs, and the ones nobody has taken yet (as far as the viewer sees tickets).
+    needsAttentionFor(buckets, andWhere({ [Op.or]: [{ [scopeField]: targetId }, { assigneeId: null }] }, andWhere(await ticketScopeWhere(req.user), companyWhere))),
   ]);
   const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
 
@@ -568,6 +616,7 @@ const get = asyncHandler(async (req, res) => {
     hours,
     myRatings: { ...myRatingsRaw, showRating: myRatingsRaw.responseCount >= minResponses },
     slaAtRisk,
+    needsAttention,
   });
 });
 

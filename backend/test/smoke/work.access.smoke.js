@@ -35,9 +35,9 @@ it('staff see the ticket read-only but can log their own time', async () => {
   expect(await page.getByLabel('Priority').filter({ visible: true }).first().isDisabled()).toBe(true);
   await tab(page, /^Tasks/);
   expect(await page.getByPlaceholder('Add a task…').count()).toBe(0);
-  await tab(page, /^Time Entries/);
+  await tab(page, /^Time$/);
   await button(page, 'Log time').waitFor();
-  await tab(page, /^Relationships/);
+  await tab(page, /^Details/);
   expect(await page.getByRole('button', { name: /Link ticket/ }).filter({ visible: true }).count()).toBe(0);
 });
 

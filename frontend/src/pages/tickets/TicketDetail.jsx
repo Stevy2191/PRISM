@@ -30,6 +30,8 @@ import { SourceBadge, CsatBadge } from './detail/Badges';
 import { LinkTicketModal, RelationshipsTab } from './detail/RelationshipsTab';
 import { GenerateReportModal } from './detail/GenerateReportModal';
 import { Sidebar } from './detail/Sidebar';
+import { CategoryCell } from './list/Cells';
+import SlaBadge from '../../components/SlaBadge';
 import { ConversationTab } from './detail/ConversationTab';
 import { MergeDialog } from './detail/MergeDialog';
 import { ResolutionTab } from './detail/ResolutionTab';
@@ -64,16 +66,70 @@ function findStatus(ticketStatuses, name) {
 
 // The description has its own tab, out of the conversation's and the reply
 // box's way (user decision 2026-10-27); a ticket still opens on Conversation.
+// Five tabs (owner, 2026-11-13). The description opens the conversation;
+// resolution, relationships and activity share Details.
 const TABS = [
-  { key: 'description', label: 'Description' },
   { key: 'conversation', label: 'Conversation' },
-  { key: 'resolution', label: 'Resolution' },
-  { key: 'time', label: 'Time Entries' },
   { key: 'tasks', label: 'Tasks' },
-  { key: 'attachments', label: 'Attachments' },
-  { key: 'relationships', label: 'Relationships' },
-  { key: 'activity', label: 'Activity' },
+  { key: 'time', label: 'Time' },
+  { key: 'attachments', label: 'Files' },
+  { key: 'details', label: 'Details' },
 ];
+
+const PRIORITY_OPTIONS = ['critical', 'high', 'medium', 'low'];
+
+// The ticket's state under its title: status, priority and assignee, each
+// changeable right there, then its category and the SLA countdown.
+function StateStrip({ ticket, canEdit, ticketStatuses, assignableUsers, onStatusChange, patchTicket }) {
+  const statusColor = findStatus(ticketStatuses, ticket.status)?.color || MUTED;
+  const pill = 'h-8 max-w-[11rem] rounded-full border py-0 pl-3 pr-7 text-sm font-semibold disabled:cursor-default disabled:opacity-100';
+  // The assignee may be someone who can no longer be picked: still show them.
+  const users = ticket.assignee && !assignableUsers.some((u) => u.id === ticket.assignee.id) ? [ticket.assignee, ...assignableUsers] : assignableUsers;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm" data-testid="ticket-state">
+      <select
+        aria-label="Status"
+        disabled={!canEdit}
+        value={ticket.status}
+        onChange={(e) => onStatusChange(e.target.value)}
+        className={pill}
+        style={{ backgroundColor: `color-mix(in srgb, ${statusColor} 14%, var(--color-card))`, borderColor: `color-mix(in srgb, ${statusColor} 40%, transparent)`, color: statusColor }}
+      >
+        {/* User responded is set by the system only, when a customer replies. */}
+        {(ticketStatuses.length ? ticketStatuses : [{ id: 0, name: ticket.status }])
+          .filter((st) => st.systemKey !== 'user_responded' || st.name === ticket.status)
+          .map((st) => <option key={st.id} value={st.name}>{st.name}</option>)}
+      </select>
+      <select
+        id="ticket-priority"
+        aria-label="Priority"
+        disabled={!canEdit}
+        value={ticket.priority}
+        onChange={(e) => patchTicket({ priority: e.target.value })}
+        className={pill}
+        style={{ backgroundColor: 'var(--color-card)', borderColor: BORDER, color: PRIORITY_META[ticket.priority]?.color || TEXT }}
+      >
+        {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{PRIORITY_META[p].label}</option>)}
+      </select>
+      <select
+        aria-label="Assignee"
+        disabled={!canEdit}
+        value={ticket.assigneeId || ''}
+        onChange={(e) => patchTicket({ assigneeId: e.target.value || null })}
+        className={pill}
+        style={{ backgroundColor: 'var(--color-card)', borderColor: BORDER, color: ticket.assigneeId ? TEXT : MUTED }}
+      >
+        <option value="">Unassigned</option>
+        {users.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+      </select>
+      {(ticket.category?.path?.length || ticket.categoryUnsure) && (
+        <span className="rounded-full border px-3 py-1" style={{ borderColor: BORDER }} title="Category (change it in the sidebar)"><CategoryCell category={ticket.category} unsure={ticket.categoryUnsure} /></span>
+      )}
+      {ticket.sla?.worst && <SlaBadge sla={ticket.sla} />}
+    </div>
+  );
+}
+
 
 function dueDateColor(dueDate) {
   if (!dueDate) return MUTED;
@@ -488,7 +544,6 @@ export default function TicketDetail() {
 
   const parentRelation = relations.find((r) => r.relationType === 'parent' && r.direction === 'outgoing') || null;
 
-  const statusColor = findStatus(ticketStatuses, ticket.status)?.color || MUTED;
   // Form tasks show under their playbook, not again in the task list.
   const formTaskIds = new Set((pbView ? [...pbView.applied.flatMap((a) => a.forms), ...(pbView.otherForms || [])] : []).map((f) => f.task?.id).filter(Boolean));
   const canEditTicket = isStaff && !!ticket.access?.edit;
@@ -524,29 +579,28 @@ export default function TicketDetail() {
               onClick={() => setMobileDetailsOpen(true)}
               className="h-11 flex-shrink-0 rounded-md border border-navy-100 bg-surface px-3 text-sm font-semibold text-navy-900 md:hidden"
             >
-              Details
+              Ticket info
             </button>
             <ActionsMenu items={headerActions} className="flex-shrink-0 md:hidden" />
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm">
           <span className="num font-semibold" style={{ color: MUTED }}>{formatTicketId(ticket)}</span>
-          <span
-            className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
-            style={{ backgroundColor: `color-mix(in srgb, ${statusColor} 16%, transparent)`, color: statusColor }}
-          >
-            {ticket.status}
-          </span>
-          <span className="flex items-center gap-1.5 font-medium" style={{ color: TEXT }}>
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PRIORITY_META[ticket.priority].color }} />
-            {PRIORITY_META[ticket.priority].label}
-          </span>
+          <span className="font-medium capitalize" style={{ color: TEXT }}>{ticket.type}</span>
           <SourceBadge source={ticket.source} />
           <CsatBadge survey={ticket.csatSurvey} />
         </div>
         <div className="mt-1 min-w-0">
           <EditableTitle title={ticket.title} canEdit={canEditTicket} onSave={saveTicketText} />
         </div>
+        <StateStrip
+          ticket={ticket}
+          canEdit={canEditTicket}
+          ticketStatuses={ticketStatuses}
+          assignableUsers={assignableUsers}
+          onStatusChange={handleStatusChange}
+          patchTicket={patchTicket}
+        />
         <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="flex min-w-0 flex-wrap gap-x-5 gap-y-1 text-sm" style={{ color: MUTED }}>
             <span className="min-w-0 break-words">
@@ -557,7 +611,6 @@ export default function TicketDetail() {
                 <span style={{ color: TEXT }}>—</span>
               )}
             </span>
-            <span>Assignee: <span className="font-medium" style={{ color: TEXT }}>{ticket.assignee?.displayName || 'Unassigned'}</span></span>
             <span>Due: <span className="num font-medium" style={{ color: dueDateColor(ticket.dueDate) }}>{ticket.dueDate ? formatDueDateTime(ticket.dueDate, ticket.dueTime) : '—'}</span></span>
             <span>Created: <span className="num font-medium" style={{ color: TEXT }}>{formatDate(ticket.createdAt)}</span></span>
             {ticket.waiting && (
@@ -677,14 +730,17 @@ export default function TicketDetail() {
                 aria-pressed={activeTab === t.key}
                 className={`ticket-tab -mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3.5 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-prism-accent ${activeTab === t.key ? 'ticket-tab--active font-semibold' : 'font-medium'}`}
               >
-                {t.key === 'relationships' && relations.length > 0 ? `${t.label} (${relations.length})` : t.label}
+                {t.label}
               </button>
             ))}
           </div>
 
           <div className="p-4 sm:p-5" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
-            {activeTab === 'description' && (
-              <DescriptionCard description={ticket.description} canEdit={isStaff && !!ticket.access?.edit} onSave={saveTicketText} />
+            {/* The problem as it was raised opens the conversation. */}
+            {activeTab === 'conversation' && (
+              <div className="mb-3">
+                <DescriptionCard description={ticket.description} canEdit={isStaff && !!ticket.access?.edit} onSave={saveTicketText} />
+              </div>
             )}
             {activeTab === 'conversation' && (
               <ConversationTab
@@ -694,9 +750,6 @@ export default function TicketDetail() {
                 onLoadMore={() => setCommentLimit((n) => n + SUBLIST_STEP)}
                 onSplit={isStaff && ticket.access?.edit ? splitComment : undefined}
               />
-            )}
-            {activeTab === 'resolution' && (
-              <ResolutionTab ticket={ticket} onSave={saveResolution} isStaff={isStaff && !!ticket.access?.edit} />
             )}
             {activeTab === 'time' && (
               <TimeLog
@@ -747,15 +800,22 @@ export default function TicketDetail() {
                 canRemove={(a) => a.uploadedById === user.id || !!ticket.access?.moderate}
               />
             )}
-            {activeTab === 'relationships' && (
-              <RelationshipsTab ticketId={id} relations={relations} isStaff={isStaff && !!ticket.access?.edit} reload={reloadActivityAndRelations} closedStatusNames={closedStatusNames} />
-            )}
-            {activeTab === 'activity' && (
-              <ActivityTab
-                activity={activity}
-                total={activityTotal}
-                onLoadMore={() => setActivityLimit((n) => n + SUBLIST_STEP)}
-              />
+            {activeTab === 'details' && (
+              <div className="space-y-8">
+                <ResolutionTab ticket={ticket} onSave={saveResolution} isStaff={isStaff && !!ticket.access?.edit} />
+                <section aria-labelledby="ticket-relationships">
+                  <h3 id="ticket-relationships" className="mb-3 text-sm font-semibold" style={{ color: TEXT }}>Relationships{relations.length > 0 ? ` (${relations.length})` : ''}</h3>
+                  <RelationshipsTab ticketId={id} relations={relations} isStaff={isStaff && !!ticket.access?.edit} reload={reloadActivityAndRelations} closedStatusNames={closedStatusNames} />
+                </section>
+                <section aria-labelledby="ticket-activity">
+                  <h3 id="ticket-activity" className="mb-3 text-sm font-semibold" style={{ color: TEXT }}>Activity</h3>
+                  <ActivityTab
+                    activity={activity}
+                    total={activityTotal}
+                    onLoadMore={() => setActivityLimit((n) => n + SUBLIST_STEP)}
+                  />
+                </section>
+              </div>
             )}
           </div>
 
@@ -806,7 +866,7 @@ export default function TicketDetail() {
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => { setNoResolutionWarning(null); setActiveTab('resolution'); }}
+              onClick={() => { setNoResolutionWarning(null); setActiveTab('details'); }}
               className="rounded-md border px-4 py-2 text-sm font-medium"
               style={{ borderColor: BORDER, color: TEXT }}
             >

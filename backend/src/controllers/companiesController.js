@@ -4,7 +4,7 @@
 const { Op, fn, col } = require('sequelize');
 const {
   Company, CompanyDomain, Site, User, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, SlaPolicy, TicketCategory, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, SlaPolicy, TicketCategory, Device, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
@@ -13,7 +13,8 @@ const {
   canAccessCompany, companyScopeWhere, parseRecordId, invalidateAllPermissions, hasPermission,
 } = require('../services/permissionService');
 const { FREE_MAIL_DOMAINS, assertCompanyNameFree: assertNameFree } = require('../services/companyService');
-const { andWhere, isEmpty } = require('../services/recordScope');
+const { andWhere, isEmpty, ticketScopeWhere, contactScopeWhere } = require('../services/recordScope');
+const { slaFilterWhere } = require('../services/sla/slaView');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { mergeCounts, mergeCompanies } = require('../services/companyMerge');
 
@@ -151,6 +152,46 @@ const get = asyncHandler(async (req, res) => {
   res.json({ company: await Company.findByPk(company.id, { include: companyInclude }) });
 });
 
+// GET /companies/:id/glance: the Overview's figures and setup checklist.
+// Each figure is counted only as far as the viewer may see those records;
+// one they may not see at all is null.
+const glance = asyncHandler(async (req, res) => {
+  const company = await loadAccessibleCompany(req);
+  const here = { companyId: company.id };
+  const can = async (...keys) => (await Promise.all(keys.map((k) => hasPermission(req.user.id, k)))).some(Boolean);
+  const [seesAssets, seesCategories] = await Promise.all([can('assets.view'), can('tickets.categories.manage')]);
+  const buckets = await getTicketStatusBuckets();
+  const open = andWhere(await ticketScopeWhere(req.user), { ...here, status: { [Op.in]: buckets.open } });
+  const contacts = andWhere(await contactScopeWhere(req.user), { ...here, status: 'active', isPlaceholder: false });
+  const online = new Date(Date.now() - 10 * 60 * 1000);
+  const [openTickets, pastSla, contactCount, portalCount, departments, sites, domains, categories, devices, devicesOnline] = await Promise.all([
+    Ticket.count({ where: open }),
+    Ticket.count({ where: andWhere(open, slaFilterWhere('breached')) }),
+    Contact.count({ where: contacts }),
+    Contact.count({ where: andWhere(contacts, { portalAccess: true }) }),
+    Department.findAll({ where: here, attributes: ['name'], order: [['name', 'ASC']], raw: true }),
+    Site.count({ where: here }),
+    CompanyDomain.count({ where: here }),
+    seesCategories ? TicketCategory.count({ where: { ...here, active: true } }) : null,
+    seesAssets ? Device.count({ where: { ...here, revokedAt: null } }) : null,
+    seesAssets ? Device.count({ where: { ...here, revokedAt: null, lastSeenAt: { [Op.gte]: online } } }) : null,
+  ]);
+  res.json({
+    glance: {
+      openTickets,
+      pastSla,
+      contacts: contactCount,
+      portalContacts: portalCount,
+      departments: departments.map((d) => d.name),
+      sites,
+      domains,
+      categories,
+      devices,
+      devicesOnline,
+    },
+  });
+});
+
 // POST /companies
 const create = asyncHandler(async (req, res) => {
   const fields = await readFields(req.body || {}, null);
@@ -277,5 +318,5 @@ const removeDomain = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  list, summary, vendors, get, create, update, remove, merge, addDomain, removeDomain, loadAccessibleCompany,
+  list, summary, vendors, get, glance, create, update, remove, merge, addDomain, removeDomain, loadAccessibleCompany,
 };

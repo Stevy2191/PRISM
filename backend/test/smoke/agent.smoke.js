@@ -7,6 +7,7 @@ const { makeAdmin, makeCompany } = require('../integration/fixtures');
 const { enrollDevice } = require('../integration/agentClient');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 const { startSmoke } = require('./harness');
+const { openCompanyTab } = require('./companyTabs');
 
 // Sub-project 8a, task 12: the agent's staff screens, end to end.
 
@@ -31,7 +32,7 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   const page = await smoke.pageAs('admin');
   page.on('dialog', (d) => d.accept());
   await page.goto(`/companies/${company.id}`);
-  await page.getByRole('button', { name: 'Devices' }).click();
+  await openCompanyTab(page, 'Assets', 'Devices');
   await page.getByRole('button', { name: 'New install key' }).click();
   await page.getByLabel('Name').fill('Clinic rollout');
   await page.getByLabel('Computers it can add (optional)').fill('25');
@@ -50,7 +51,7 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
 
   // Leaving and coming back: the key is hidden until Show key (audited).
   await page.reload();
-  await page.getByRole('button', { name: 'Devices' }).click();
+  await openCompanyTab(page, 'Assets', 'Devices');
   await page.getByRole('button', { name: 'Show key' }).click();
   await linkBox.getByText(firstSecret).waitFor();
   expect(await models.AuditLog.count({ where: { action: 'agent.key_revealed' } })).toBe(1);
@@ -108,7 +109,7 @@ it('a key, a computer online, its Device and Software tabs, the Online filter an
   const device = await enrollDevice(getApp(), secret);
   await device.post('/api/v1/agent/v1/inventory', inventory()).expect(200);
   await page.reload();
-  await page.getByRole('button', { name: 'Devices' }).click();
+  await openCompanyTab(page, 'Assets', 'Devices');
   const row = page.getByRole('row').filter({ hasText: 'RFC-FD-01' });
   await row.getByText('Online', { exact: true }).waitFor();
   await row.getByText('Maria Chen').waitFor();
@@ -161,7 +162,7 @@ it('the install card shows the trust step only when PRISM serves a test certific
 
   // No test certificate (here the address falls through to the app page).
   await page.goto(`/companies/${company.id}`);
-  await page.getByRole('button', { name: 'Devices' }).click();
+  await openCompanyTab(page, 'Assets', 'Devices');
   await page.getByRole('region', { name: 'Install the agent' }).getByRole('tablist').waitFor();
   await page.waitForLoadState('networkidle');
   expect(await page.getByRole('region', { name: 'Test certificate' }).count()).toBe(0);
@@ -173,7 +174,7 @@ it('the install card shows the trust step only when PRISM serves a test certific
     status: 200, contentType: 'application/x-x509-ca-cert', body: '-----BEGIN CERTIFICATE-----\n',
   }));
   await page.reload();
-  await page.getByRole('button', { name: 'Devices' }).click();
+  await openCompanyTab(page, 'Assets', 'Devices');
   const trust = page.getByRole('region', { name: 'Test certificate' });
   await trust.getByRole('link', { name: 'Download test certificate' }).waitFor();
   expect(await trust.getByRole('link', { name: 'Download test certificate' }).getAttribute('href')).toBe('/prism-test-ca.crt');
@@ -199,7 +200,7 @@ it('Scan now on the Asset page and the Devices tab; the next inventory answers i
 
   // The Devices tab shows it pending too.
   await page.goto(`/companies/${company.id}`);
-  await page.getByRole('button', { name: 'Devices' }).click();
+  await openCompanyTab(page, 'Assets', 'Devices');
   const row = page.getByRole('row').filter({ hasText: 'RFC-FD-01' });
   await row.getByText(/Scan requested/).waitFor();
 
@@ -209,6 +210,6 @@ it('Scan now on the Asset page and the Devices tab; the next inventory answers i
   expect(beat.body.scan).toBe(true);
   await device.post('/api/v1/agent/v1/inventory', inventory()).expect(200);
   await page.reload();
-  await page.getByRole('button', { name: 'Devices' }).click();
+  await openCompanyTab(page, 'Assets', 'Devices');
   await page.getByRole('row').filter({ hasText: 'RFC-FD-01' }).getByRole('button', { name: 'Scan now' }).waitFor();
 });

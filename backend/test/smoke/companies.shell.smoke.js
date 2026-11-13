@@ -27,7 +27,10 @@ it('once a client exists, the Companies tab and company filters appear', async (
   await makeCompany(admin, { name: 'Acme' });
   const page = await smoke.pageAs('admin');
   await page.goto('/tickets');
+  // Companies and Contacts share the Clients menu.
+  await page.getByRole('button', { name: 'Clients' }).click();
   await page.getByRole('link', { name: 'Companies', exact: true }).first().waitFor();
+  await page.getByRole('link', { name: 'Contacts', exact: true }).first().waitFor();
   await page.goto('/companies');
   await page.getByRole('heading', { name: 'Companies' }).waitFor();
 });

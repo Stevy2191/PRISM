@@ -94,7 +94,7 @@ it('a subtask has its own timer and time; switching from the ticket timer keeps 
 it('the Time Entries tab breaks the time down by task and subtask', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${ticket.id}`);
-  await tab(page, /^Time Entries/);
+  await tab(page, /^Time$/);
   const breakdown = page.getByRole('region', { name: 'Time by task' }).filter({ visible: true }).first();
   await breakdown.getByText(/General/).waitFor();
   await breakdown.getByText('Replace drum').waitFor();

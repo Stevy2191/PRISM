@@ -131,9 +131,13 @@ it('nav shows Workload only with workload.view', async () => {
   const without = await smoke.pageAs('nolook');
   await without.goto('/dashboard');
   await without.getByRole('navigation').first().waitFor();
+  // Workload is in the Projects menu (with Projects and Calendar).
+  const menu = without.getByRole('button', { name: 'Projects' });
+  if (await menu.count()) await menu.click();
   expect(await without.getByRole('link', { name: 'Workload', exact: true }).count()).toBe(0);
   const withIt = await smoke.pageAs('admin');
   await withIt.goto('/dashboard');
+  await withIt.getByRole('button', { name: 'Projects' }).click();
   await withIt.getByRole('link', { name: 'Workload', exact: true }).first().waitFor();
 });
 

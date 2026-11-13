@@ -148,6 +148,18 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
   const [notes, setNotes] = useState(contact.notes || '');
   const [notesSaved, setNotesSaved] = useState(true);
   const notesTimer = useRef(null);
+  // Every field here saves as it changes; say so beside the one that did.
+  const [savedKey, setSavedKey] = useState(null);
+  const savedTimer = useRef(null);
+  const save = async (key, changes) => {
+    const ok = await onSave(changes);
+    if (!ok) return;
+    setSavedKey(key);
+    clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSavedKey(null), 2500);
+  };
+  useEffect(() => () => clearTimeout(savedTimer.current), []);
+  const saved = (key) => (savedKey === key ? <span role="status" className="ml-2 text-xs font-medium" style={{ color: 'var(--color-success)' }}>✓ Saved</span> : null);
 
   useEffect(() => {
     setName(contact.displayName);
@@ -157,11 +169,11 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
 
   const saveName = () => {
     setEditingName(false);
-    if (name.trim() && name.trim() !== contact.displayName) onSave({ displayName: name.trim() });
+    if (name.trim() && name.trim() !== contact.displayName) save('name', { displayName: name.trim() });
   };
 
   const saveField = (key) => {
-    if (fields[key] !== (contact[key] || '')) onSave({ [key]: fields[key] || null });
+    if (fields[key] !== (contact[key] || '')) save(key, { [key]: fields[key] || null });
   };
 
   const handleNotesChange = (value) => {
@@ -198,7 +210,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
             onClick={() => canEdit && setEditingName(true)}
             title={canEdit ? 'Click to rename' : undefined}
           >
-            {contact.displayName}
+            {contact.displayName}{saved('name')}
           </h2>
         )}
         <div className="mt-2">
@@ -225,35 +237,37 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-semibold" style={{ color: MUTED }}>Assigned to</label>
+        <label htmlFor="contact-account-manager" className="mb-1 block text-xs font-semibold" style={{ color: MUTED }}>Account manager{saved('assignedTo')}</label>
         <select
+          id="contact-account-manager"
           value={contact.assignedTo || ''}
-          onChange={(e) => onSave({ assignedTo: e.target.value || null })}
+          onChange={(e) => save('assignedTo', { assignedTo: e.target.value || null })}
           disabled={!canEdit}
           className="input h-9 w-full text-sm"
           style={fieldStyle}
         >
-          <option value="">Unassigned</option>
+          <option value="">Nobody</option>
           {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
         </select>
       </div>
 
       <div className="space-y-3 border-t pt-4" style={{ borderColor: BORDER }}>
         <p className="text-xs font-semibold" style={{ color: MUTED }}>Contact details</p>
+        {canEdit && <p className="text-xs" style={{ color: MUTED }}>Changes save as you make them.</p>}
         <div>
-          <label className="mb-1 block text-xs" style={{ color: MUTED }}>Email</label>
+          <label className="mb-1 block text-xs" style={{ color: MUTED }}>Email{saved('email')}</label>
           <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.email} onChange={(e) => setFields((f) => ({ ...f, email: e.target.value }))} onBlur={() => saveField('email')} />
         </div>
         <div>
-          <label className="mb-1 block text-xs" style={{ color: MUTED }}>Phone</label>
+          <label className="mb-1 block text-xs" style={{ color: MUTED }}>Phone{saved('phone')}</label>
           <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.phone} onChange={(e) => setFields((f) => ({ ...f, phone: formatPhone(e.target.value) }))} onBlur={() => saveField('phone')} placeholder="(555) 123-4567" inputMode="tel" />
         </div>
         <div>
-          <label className="mb-1 block text-xs" style={{ color: MUTED }}>Mobile</label>
+          <label className="mb-1 block text-xs" style={{ color: MUTED }}>Mobile{saved('mobile')}</label>
           <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.mobile} onChange={(e) => setFields((f) => ({ ...f, mobile: formatPhone(e.target.value) }))} onBlur={() => saveField('mobile')} placeholder="(555) 123-4567" inputMode="tel" />
         </div>
         <div>
-          <label className="mb-1 block text-xs" style={{ color: MUTED }}>Job title</label>
+          <label className="mb-1 block text-xs" style={{ color: MUTED }}>Job title{saved('jobTitle')}</label>
           <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.jobTitle} onChange={(e) => setFields((f) => ({ ...f, jobTitle: e.target.value }))} onBlur={() => saveField('jobTitle')} />
         </div>
       </div>
@@ -292,7 +306,51 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
 }
 
 // ==================== Right: tabs ====================
-function OverviewTab({ stats, recentTickets, statuses }) {
+function PriorityLabel({ priority }) {
+  const meta = PRIORITY_META[priority] || PRIORITY_META.medium;
+  return (
+    <span className="flex items-center gap-1.5 whitespace-nowrap text-xs" style={{ color: MUTED }}>
+      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} /> {meta.label}
+    </span>
+  );
+}
+
+function Assignee({ user }) {
+  if (!user) return <span className="whitespace-nowrap text-xs" style={{ color: MUTED }}>Unassigned</span>;
+  return <Avatar name={user.displayName} size={22} />;
+}
+
+function Computers({ computers }) {
+  if (!computers?.length) return null;
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold" style={{ color: TEXT }}>Computers</h3>
+      <div className="rounded-xl border border-navy-100 bg-surface">
+        <ul className="divide-y divide-navy-100">
+          {computers.map((c) => (
+            <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+              <Link to={`/assets/${c.id}`} className="flex min-w-0 items-center gap-3 hover:underline">
+                <span className="truncate font-medium" style={{ color: TEXT }}>{c.name}</span>
+                <span className="num text-xs" style={{ color: MUTED }}>{c.assetTag}</span>
+              </Link>
+              <div className="flex flex-shrink-0 items-center gap-3 text-xs" style={{ color: MUTED }}>
+                {c.operatingSystem && <span>{c.operatingSystem}</span>}
+                {c.agent ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.agent.online ? 'var(--color-success)' : MUTED }} />
+                    {c.agent.online ? 'Online' : `Last seen ${c.agent.lastSeenAt ? fmtDateTime(c.agent.lastSeenAt) : 'never'}`}
+                  </span>
+                ) : <span>No agent</span>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function OverviewTab({ stats, recentTickets, statuses, computers }) {
   const cards = [
     { label: 'Total tickets', value: stats.totalTickets },
     { label: 'Open tickets', value: stats.openTickets },
@@ -320,9 +378,10 @@ function OverviewTab({ stats, recentTickets, statuses }) {
                   <span className="truncate" style={{ color: TEXT }}>{t.title}</span>
                 </Link>
                 <div className="flex flex-shrink-0 items-center gap-3">
+                  <PriorityLabel priority={t.priority} />
                   <StatusBadge status={t.status} statuses={statuses} />
                   <span style={{ color: MUTED }}>{fmtDate(t.createdAt)}</span>
-                  <Avatar name={t.assignee?.displayName} size={22} />
+                  <Assignee user={t.assignee} />
                 </div>
               </li>
             ))}
@@ -330,6 +389,7 @@ function OverviewTab({ stats, recentTickets, statuses }) {
           </ul>
         </div>
       </div>
+      <Computers computers={computers} />
     </div>
   );
 }
@@ -372,9 +432,7 @@ function TicketsTab({ tickets, statuses, total, onLoadMore }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((t) => {
-              const priorityMeta = PRIORITY_META[t.priority] || PRIORITY_META.medium;
-              return (
+            {filtered.map((t) => (
                 <tr key={t.id} className="cursor-pointer border-t hover:bg-[var(--color-hover)]" style={{ borderColor: BORDER }}>
                   <td className="px-4 py-2.5 text-xs num" style={{ color: MUTED }}>
                     <Link to={`/tickets/${t.id}`} className="hover:underline">{formatTicketId(t)}</Link>
@@ -383,17 +441,12 @@ function TicketsTab({ tickets, statuses, total, onLoadMore }) {
                     <Link to={`/tickets/${t.id}`} className="hover:underline" style={{ color: TEXT }}>{t.title}</Link>
                   </td>
                   <td className="px-4 py-2.5"><StatusBadge status={t.status} statuses={statuses} /></td>
-                  <td className="px-4 py-2.5">
-                    <span className="flex items-center gap-1.5 text-xs" style={{ color: MUTED }}>
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: priorityMeta.color }} /> {priorityMeta.label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5"><Avatar name={t.assignee?.displayName} size={22} /></td>
+                  <td className="px-4 py-2.5"><PriorityLabel priority={t.priority} /></td>
+                  <td className="px-4 py-2.5"><Assignee user={t.assignee} /></td>
                   <td className="px-4 py-2.5 text-sm" style={{ color: MUTED }}>{fmtDate(t.createdAt)}</td>
                   <td className="px-4 py-2.5 text-sm" style={{ color: MUTED }}>{fmtDate(t.updatedAt)}</td>
                 </tr>
-              );
-            })}
+            ))}
             {filtered.length === 0 && (
               <tr><td colSpan={7} className="px-4 py-6 text-center text-sm" style={{ color: MUTED }}>No tickets.</td></tr>
             )}
@@ -443,6 +496,7 @@ export default function ContactDetail() {
   const [contact, setContact] = useState(null);
   const [stats, setStats] = useState(null);
   const [recentTickets, setRecentTickets] = useState([]);
+  const [computers, setComputers] = useState([]);
   const [contactsList, setContactsList] = useState([]);
   const [contactsTotal, setContactsTotal] = useState(0);
   const [railSearch, setRailSearch] = useState('');
@@ -468,7 +522,7 @@ export default function ContactDetail() {
   // the fresh contact before saying what changed.
   const loadDetail = () => (
     api.get(`/contacts/${id}`)
-      .then(({ data }) => { setContact(data.contact); setStats(data.stats); setRecentTickets(data.recentTickets); })
+      .then(({ data }) => { setContact(data.contact); setStats(data.stats); setRecentTickets(data.recentTickets); setComputers(data.computers || []); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false))
   );
@@ -505,8 +559,10 @@ export default function ContactDetail() {
       const { data } = await api.patch(`/contacts/${id}`, changes);
       setContact(data.contact);
       setContactsList((prev) => prev.map((c) => (c.id === data.contact.id ? { ...c, ...data.contact } : c)));
+      return true;
     } catch (err) {
       alert(errMessage(err));
+      return false;
     }
   };
 
@@ -595,7 +651,7 @@ export default function ContactDetail() {
           </div>
         </div>
         <div className="flex-1 overflow-visible p-4 sm:p-6 md:overflow-y-auto">
-          {tab === 'Overview' && stats && <OverviewTab stats={stats} recentTickets={recentTickets} statuses={statuses} />}
+          {tab === 'Overview' && stats && <OverviewTab stats={stats} recentTickets={recentTickets} statuses={statuses} computers={computers} />}
           {tab === 'Tickets' && (
             <TicketsTab
               tickets={tickets}

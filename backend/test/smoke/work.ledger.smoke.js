@@ -49,7 +49,7 @@ it('a ticket checklist item ticks to Done and back', async () => {
 it('the ticket\'s time tab shows the entry and the total', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${ticket.id}`);
-  await tab(page, /^Time Entries/);
+  await tab(page, /^Time$/);
   await shown(page, 'Ninety').waitFor();
   await shown(page, '1h 30m').waitFor();
 });
@@ -77,7 +77,7 @@ it('the default work date is the organization\'s today', async () => {
   try {
     const page = await smoke.pageAs('admin');
     await page.goto(`/tickets/${ticket.id}`);
-    await tab(page, /^Time Entries/);
+    await tab(page, /^Time$/);
     await page.getByRole('button', { name: 'Log time' }).filter({ visible: true }).first().click();
     const dialog = page.getByRole('dialog').filter({ visible: true }).last();
     expect(await dialog.getByLabel('Date').inputValue()).toBe(dateIn(zone));

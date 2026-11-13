@@ -17,6 +17,7 @@ router.get('/vendors', requirePermission('assets.view', 'projects.manage_expense
 router.get('/', canView, ctrl.list);
 router.post('/', canManage, ctrl.create);
 router.get('/:id', canView, ctrl.get);
+router.get('/:id/glance', canView, ctrl.glance);
 router.patch('/:id', canManage, ctrl.update);
 router.delete('/:id', canManage, ctrl.remove);
 router.post('/:id/merge', canManage, ctrl.merge);

@@ -9,6 +9,7 @@ const {
   API, expectOk, makeWorld, makeTicket, makeCompany, makeContact, makeTech, waitFor,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { openCompanyTab } = require('./companyTabs');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 const { sendMail } = require('../../src/services/emailSender');
 
@@ -75,7 +76,7 @@ it('a staff user without portal.manage sees the block read-only and no invite bu
 it('marking a department admin and a company admin', async () => {
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto(`/companies/${alpha.id}`);
-  await page.getByRole('button', { name: 'Departments', exact: true }).click();
+  await openCompanyTab(page, 'People', 'Departments');
   await page.getByRole('heading', { name: 'Company admins' }).waitFor();
   await page.getByLabel('Add a company admin').fill('Tom');
   await page.getByRole('option', { name: /Tom Baker/ }).click();

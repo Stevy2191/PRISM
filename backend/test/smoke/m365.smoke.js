@@ -6,6 +6,7 @@ const {
 } = require('../integration/m365Fixtures');
 const { encryptToken } = require('../../src/utils/tokenCrypto');
 const { startSmoke } = require('./harness');
+const { openCompanyTab } = require('./companyTabs');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
 // Sub-project 7b, task 7: the company's Microsoft 365 tab, the Microsoft app
@@ -80,7 +81,7 @@ it('staff link a tenant, pick a sync group, Sync now, and map a detected departm
   await models.Contact.create({ firstName: 'Per', displayName: 'Per One', email: 'person1@tenant.test', companyId: company.id });
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto(`/companies/${company.id}`);
-  await page.getByRole('button', { name: 'Microsoft 365' }).click();
+  await openCompanyTab(page, 'Setup', 'Microsoft 365');
   await page.getByLabel('Tenant ID').fill(TENANT);
   await page.getByRole('region', { name: 'Microsoft 365 tenant' }).getByRole('button', { name: 'Save' }).click();
   await page.getByText('Waiting for approval').waitFor();

@@ -118,9 +118,14 @@ function Card({ children, className = '' }) {
 }
 
 // Stat tile: label, big number (coloured only when it signals trouble).
-function StatCard({ label, value, color = TEXT, delta }) {
+function StatCard({ label, value, color = TEXT, delta, to }) {
+  const Box = to ? Link : 'div';
   return (
-    <div className="h-full rounded-xl border p-5 max-sm:p-4" style={{ backgroundColor: CARD_BG, borderColor: CARD_BORDER }}>
+    <Box
+      {...(to ? { to, title: 'Open these tickets' } : {})}
+      className={`block h-full rounded-xl border p-5 max-sm:p-4 ${to ? 'transition-colors hover:border-[var(--color-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent' : ''}`}
+      style={{ backgroundColor: CARD_BG, borderColor: CARD_BORDER }}
+    >
       <p className="text-[13px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{label}</p>
       <p className="num mt-2 text-3xl font-semibold leading-none tracking-tight" style={{ color }}>{value}</p>
       {delta !== undefined && (
@@ -128,7 +133,7 @@ function StatCard({ label, value, color = TEXT, delta }) {
           {delta >= 0 ? '+' : ''}{delta} vs last week
         </p>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -304,26 +309,28 @@ function HoursPanel({ hours }) {
   );
 }
 
-function TeamWorkloadPanel({ workload }) {
+// One line per person, and only people who have something open.
+function TeamWorkloadPanel({ workload: everyone }) {
+  const workload = everyone.filter((w) => w.openCount > 0);
   const maxCount = Math.max(1, ...workload.map((w) => w.openCount));
   const colorFor = (count) => (count > 25 ? 'var(--color-danger)' : count > 15 ? 'var(--color-warning)' : 'var(--color-accent)');
   return (
     <Card className="!p-0">
       <PanelHead title="Team Workload" />
       {workload.length === 0 ? (
-        <p className="p-5 text-sm" style={{ color: MUTED }}>No staff members yet.</p>
+        <p className="p-5 text-sm" style={{ color: MUTED }}>{everyone.length === 0 ? 'No staff members yet.' : 'Nobody has an open ticket.'}</p>
       ) : (
-        <div className="space-y-3 px-5 py-4">
+        <div className="space-y-2 px-5 py-3">
           {workload.map((w) => (
             <div key={w.userId} className="flex items-center gap-3">
               <span className="w-32 flex-shrink-0 truncate text-sm" style={{ color: TEXT }}>{w.displayName}</span>
-              <div className="h-2 flex-1 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
+              <div className="h-1.5 flex-1 rounded-full" style={{ backgroundColor: 'var(--color-border)' }}>
                 <div
                   className="h-full rounded-full"
                   style={{ width: `${(w.openCount / maxCount) * 100}%`, backgroundColor: colorFor(w.openCount) }}
                 />
               </div>
-              <span className="w-8 text-right text-xs font-semibold" style={{ color: TEXT }}>{w.openCount}</span>
+              <span className="w-14 flex-shrink-0 text-right text-xs font-semibold" style={{ color: TEXT }}>{w.openCount} open</span>
             </div>
           ))}
         </div>
@@ -445,6 +452,52 @@ function AssetsSummaryPanel({ data }) {
   );
 }
 
+// What someone has to act on, most urgent first. Each row opens the ticket.
+function NeedsAttentionPanel({ data, myId, onTake, taking }) {
+  if (!data) return null;
+  const { tickets, total } = data;
+  return (
+    <Card className="!p-0">
+      <PanelHead title={total ? `Needs attention · ${total}` : 'Needs attention'}>
+        {total > tickets.length && <Link to="/tickets?unassigned=1" className="text-xs font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>See all unassigned</Link>}
+      </PanelHead>
+      {tickets.length === 0 ? (
+        <p className="p-5 text-sm" style={{ color: MUTED }}>Nothing is waiting on anyone: no SLA trouble, nothing unassigned, no category to choose.</p>
+      ) : (
+        <ul className="divide-y divide-navy-100" data-testid="needs-attention">
+          {tickets.map((t) => {
+            const who = [t.contact?.displayName, t.company?.name].filter(Boolean).join(' · ');
+            const notes = [
+              t.assignee ? (t.assignee.id === myId ? 'yours' : t.assignee.displayName) : 'unassigned',
+              t.categoryUnsure ? 'category not sure' : null,
+            ].filter(Boolean).join(' · ');
+            return (
+              <li key={t.id} className="flex items-center gap-3 px-5 py-3">
+                <span className="w-40 flex-shrink-0 max-sm:hidden">
+                  {t.sla ? <SlaBadge sla={t.sla} /> : <span className="text-xs" style={{ color: MUTED }}>{t.assignee ? 'Category' : 'Unassigned'}</span>}
+                </span>
+                <Link to={`/tickets/${t.id}`} className="min-w-0 flex-1 hover:underline">
+                  <span className="block truncate text-sm font-medium" style={{ color: TEXT }}>
+                    <span className="num text-xs font-normal" style={{ color: MUTED }}>{formatTicketId(t)}</span> {t.title}
+                  </span>
+                  <span className="block truncate text-xs" style={{ color: MUTED }}>{[who, notes].filter(Boolean).join(' · ')}</span>
+                </Link>
+                {t.assignee ? (
+                  <Link to={`/tickets/${t.id}`} className="flex-shrink-0 text-xs font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>Open</Link>
+                ) : (
+                  <button type="button" onClick={() => onTake(t.id)} disabled={taking === t.id} className="btn-primary h-7 flex-shrink-0 px-2.5 text-xs">
+                    {taking === t.id ? 'Taking…' : 'Take it'}
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 function SlaAtRiskPanel({ tickets }) {
   if (!tickets) return null;
   return (
@@ -561,6 +614,7 @@ function ActivityFeedPanel({ activity, hasMore, onLoadMore, loadingMore }) {
 // Panel catalogs per dashboard mode. `full`/`half` here is only the
 // *default* size — the saved layout's per-panel size always wins once one exists.
 const TECH_CATALOG = {
+  needsAttention: { label: 'Needs Attention', defaultSize: 'full' },
   tickets: { label: 'My Tickets', defaultSize: 'half' },
   notifications: { label: 'Notifications', defaultSize: 'half' },
   projectHealth: { label: 'Project Health', defaultSize: 'half' },
@@ -570,6 +624,7 @@ const TECH_CATALOG = {
   quickActions: { label: 'Quick Actions', defaultSize: 'half' },
 };
 const ADMIN_CATALOG = {
+  needsAttention: { label: 'Needs Attention', defaultSize: 'full' },
   teamWorkload: { label: 'Team Workload', defaultSize: 'half' },
   activityFeed: { label: 'Activity Feed', defaultSize: 'half' },
   projectHealth: { label: 'Project Health', defaultSize: 'full' },
@@ -580,21 +635,23 @@ const ADMIN_CATALOG = {
 };
 
 const TECH_DEFAULT_PANELS = [
+  { key: 'needsAttention', size: 'full', hidden: false },
   { key: 'tickets', size: 'half', hidden: false },
   { key: 'notifications', size: 'half', hidden: false },
   { key: 'projectHealth', size: 'half', hidden: false },
   { key: 'hours', size: 'half', hidden: false },
   { key: 'myRatings', size: 'half', hidden: false },
-  { key: 'slaAtRisk', size: 'half', hidden: false },
+  { key: 'slaAtRisk', size: 'half', hidden: true },
   { key: 'quickActions', size: 'half', hidden: true },
 ];
 const ADMIN_DEFAULT_PANELS = [
+  { key: 'needsAttention', size: 'full', hidden: false },
   { key: 'teamWorkload', size: 'half', hidden: false },
   { key: 'activityFeed', size: 'half', hidden: false },
   { key: 'projectHealth', size: 'full', hidden: false },
   { key: 'teamHappiness', size: 'half', hidden: false },
   { key: 'assetsSummary', size: 'half', hidden: false },
-  { key: 'slaAtRisk', size: 'half', hidden: false },
+  { key: 'slaAtRisk', size: 'half', hidden: true },
   { key: 'quickActions', size: 'half', hidden: true },
 ];
 
@@ -608,7 +665,9 @@ function reconcilePanels(savedPanels, catalog, defaults) {
   const savedByKey = new Map((savedPanels || []).map((p) => [p.key, p]));
   const orderedKnown = (savedPanels || []).map((p) => p.key).filter((k) => catalogKeys.includes(k));
   const missing = catalogKeys.filter((k) => !orderedKnown.includes(k));
-  return [...orderedKnown, ...missing].map((key) => {
+  // Needs Attention goes first, shown, for a layout saved before it existed.
+  const first = missing.filter((k) => k === 'needsAttention');
+  return [...first, ...orderedKnown, ...missing.filter((k) => !first.includes(k))].map((key) => {
     const saved = savedByKey.get(key);
     if (saved) return { key, size: saved.size === 'full' ? 'full' : 'half', hidden: !!saved.hidden };
     const def = defaults.find((d) => d.key === key);
@@ -702,7 +761,8 @@ function GreetingBar({ title, subtitleName }) {
 }
 
 export default function Dashboard() {
-  const { hasAnyPermission } = useAuth();
+  const { hasAnyPermission, user } = useAuth();
+  const [taking, setTaking] = useState(null);
   // System-wide viewers (tickets.view_all or projects.view_all) see every
   // user/dept; department viewers (view_department but not view_all) get the
   // same admin-style layout narrowed to their own department (see
@@ -798,6 +858,18 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.mode]);
 
+  const takeTicket = async (ticketId) => {
+    setTaking(ticketId);
+    try {
+      await api.post(`/tickets/${ticketId}/take`);
+    } catch (err) {
+      alert(errMessage(err));
+    } finally {
+      setTaking(null);
+      load();
+    }
+  };
+
   const handleMarkAllRead = async () => {
     setMarking(true);
     try {
@@ -870,6 +942,7 @@ export default function Dashboard() {
 
   const renderPanelContent = (key) => {
     switch (key) {
+      case 'needsAttention': return <NeedsAttentionPanel data={data.needsAttention} myId={user?.id} onTake={takeTicket} taking={taking} />;
       case 'tickets': return <TicketsPanel tickets={data.tickets} />;
       case 'notifications': return <NotificationsPanel notifications={data.notifications} onMarkAllRead={handleMarkAllRead} marking={marking} />;
       case 'projectHealth': return (
@@ -962,12 +1035,18 @@ export default function Dashboard() {
             <StatCard
               label={isTechMode ? 'My Open Tickets' : (data.mode === 'admin_department' ? 'My Department Open Tickets' : 'Total Open Tickets')}
               value={data.stats.openTickets}
+              to={data.mode === 'tech' ? '/tickets?mine=1' : (data.mode === 'admin_filtered' ? `/tickets?assignee=${data.viewingUser.id}` : '/tickets')}
             />
-            <StatCard label="Overdue Tickets" value={data.stats.overdueTickets} color="var(--color-danger)" />
+            <StatCard
+              label="Overdue Tickets"
+              value={data.stats.overdueTickets}
+              color="var(--color-danger)"
+              to={data.mode === 'tech' ? '/tickets?mine=1&overdue=1' : (data.mode === 'admin_filtered' ? `/tickets?assignee=${data.viewingUser.id}&overdue=1` : '/tickets?overdue=1')}
+            />
             {isTechMode ? (
               <StatCard label="High Priority" value={data.stats.highPriorityOpen} color="var(--color-warning)" />
             ) : (
-              <StatCard label="Unassigned Tickets" value={data.stats.unassignedTickets} color="var(--color-warning)" />
+              <StatCard label="Unassigned Tickets" value={data.stats.unassignedTickets} color="var(--color-warning)" to="/tickets?unassigned=1" />
             )}
             <StatCard label="Closed This Week" value={data.stats.closedThisWeek} delta={data.stats.closedDelta} />
           </div>

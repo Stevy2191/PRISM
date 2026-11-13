@@ -6,6 +6,7 @@ import Spinner from '../../components/Spinner';
 import Breadcrumbs from '../../components/ui/Breadcrumbs';
 import Notice from '../../components/ui/Notice';
 import StatusChip from '../../components/ui/StatusChip';
+import CompanyGlance from '../../components/companies/CompanyGlance';
 import CompanyOverview from '../../components/companies/CompanyOverview';
 import CompanySites from '../../components/companies/CompanySites';
 import CompanyDepartments from '../../components/companies/CompanyDepartments';
@@ -15,9 +16,14 @@ import CompanyMicrosoft365 from '../../components/companies/CompanyMicrosoft365'
 import CompanyDevices from '../../components/companies/CompanyDevices';
 import { CompanyFlags } from './CompaniesList';
 
-const TABS = [
-  ['overview', 'Overview'], ['sites', 'Sites'], ['departments', 'Departments'],
-  ['contacts', 'Contacts'], ['tickets', 'Tickets'], ['projects', 'Projects'], ['assets', 'Assets'],
+// Five tabs; a tab with more than one part shows them as a second row.
+// (Owner, 2026-11-13: ten tabs in a row was too many.)
+const GROUPS = [
+  ['overview', 'Overview', []],
+  ['people', 'People', [['contacts', 'Contacts'], ['departments', 'Departments'], ['sites', 'Sites']]],
+  ['work', 'Work', [['tickets', 'Tickets'], ['projects', 'Projects']]],
+  ['assets', 'Assets', [['assets', 'Assets'], ['devices', 'Devices'], ['vendor', 'Vendor']]],
+  ['setup', 'Setup', [['details', 'Details'], ['categories', 'Categories'], ['m365', 'Microsoft 365']]],
 ];
 
 // A company's page (spec: Companies nav tab).
@@ -29,7 +35,9 @@ export default function CompanyPage() {
   const m365Notice = params.get('m365');
   const [company, setCompany] = useState(null);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState(m365Notice ? 'm365' : 'overview');
+  const [tab, setTab] = useState(m365Notice ? 'setup' : 'overview');
+  // The part showing within each tab.
+  const [parts, setParts] = useState(m365Notice ? { setup: 'm365' } : {});
   const load = useCallback(() => {
     api.get(`/companies/${id}`).then(({ data }) => setCompany(data.company)).catch((err) => setError(errMessage(err)));
   }, [id]);
@@ -37,16 +45,19 @@ export default function CompanyPage() {
 
   if (error) return <Notice tone="bad">{error}</Notice>;
   if (!company) return <Spinner />;
-  // Microsoft 365 (7b) after Overview, for staff who manage portal access.
-  // Then Devices (the PRISM agent, 8a) for staff who can see assets.
-  let tabs = [TABS[0], ...(hasPermission('portal.manage') ? [['m365', 'Microsoft 365']] : []),
-    ...(hasPermission('assets.view') ? [['devices', 'Devices']] : []), ...TABS.slice(1)];
-  // Each client company's own ticket categories (9), after Departments.
-  if ((company.isClient || company.isInternal) && hasPermission('tickets.categories.manage')) {
-    const at = tabs.findIndex(([k]) => k === 'departments') + 1;
-    tabs = [...tabs.slice(0, at), ['categories', 'Categories'], ...tabs.slice(at)];
-  }
-  if (company.isVendor) tabs = [...tabs, ['vendor', 'Vendor']];
+  // Parts this viewer has: Microsoft 365 (7b) for staff who manage portal
+  // access, Devices (the PRISM agent, 8a) for staff who see assets, each
+  // client company's own ticket categories (9), Vendor for a vendor.
+  const has = {
+    m365: hasPermission('portal.manage'),
+    devices: hasPermission('assets.view'),
+    categories: (company.isClient || company.isInternal) && hasPermission('tickets.categories.manage'),
+    vendor: company.isVendor,
+  };
+  const groups = GROUPS.map(([key, label, subs]) => [key, label, subs.filter(([k]) => has[k] !== false)]);
+  const subs = groups.find(([key]) => key === tab)[2];
+  const part = subs.some(([k]) => k === parts[tab]) ? parts[tab] : subs[0]?.[0];
+  const open = (group, sub) => { setTab(group); if (sub) setParts((p) => ({ ...p, [group]: sub })); };
   return (
     <div className="mx-auto max-w-[1144px] space-y-5 lg:px-6">
       <div>
@@ -57,8 +68,8 @@ export default function CompanyPage() {
           {company.status !== 'active' && <StatusChip tone="neutral">Inactive</StatusChip>}
         </div>
       </div>
-      <div className="flex gap-1 overflow-x-auto border-b border-navy-100">
-        {tabs.map(([key, label]) => (
+      <nav aria-label="Company sections" className="flex gap-1 overflow-x-auto border-b border-navy-100">
+        {groups.map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -70,16 +81,35 @@ export default function CompanyPage() {
             {label}
           </button>
         ))}
-      </div>
+      </nav>
+      {subs.length > 1 && (
+        <div role="group" aria-label={`${groups.find(([key]) => key === tab)[1]} parts`} className="flex flex-wrap gap-2">
+          {subs.map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => open(tab, key)}
+              aria-pressed={part === key}
+              className="rounded-full border px-3 py-1 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent"
+              style={part === key
+                ? { backgroundColor: 'var(--color-accent-soft)', borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }
+                : { borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === 'overview' && <CompanyGlance company={company} onOpen={open} />}
       {/* Keyed on updatedAt so the form re-reads a saved company. */}
-      {tab === 'overview' && <CompanyOverview key={company.updatedAt} company={company} onSaved={setCompany} />}
-      {tab === 'm365' && <CompanyMicrosoft365 company={company} notice={m365Notice} />}
-      {tab === 'devices' && <CompanyDevices company={company} />}
-      {tab === 'sites' && <CompanySites company={company} />}
-      {tab === 'departments' && <CompanyDepartments company={company} />}
-      {tab === 'categories' && <CompanyCategories company={company} />}
-      {['contacts', 'tickets', 'projects', 'assets'].includes(tab) && <CompanyRecordList key={tab} kind={tab} companyId={company.id} />}
-      {tab === 'vendor' && (
+      {part === 'details' && <CompanyOverview key={company.updatedAt} company={company} onSaved={setCompany} />}
+      {part === 'm365' && <CompanyMicrosoft365 company={company} notice={m365Notice} />}
+      {part === 'devices' && <CompanyDevices company={company} />}
+      {part === 'sites' && <CompanySites company={company} />}
+      {part === 'departments' && <CompanyDepartments company={company} />}
+      {part === 'categories' && <CompanyCategories company={company} />}
+      {['contacts', 'tickets', 'projects', 'assets'].includes(part) && <CompanyRecordList key={part} kind={part} companyId={company.id} />}
+      {part === 'vendor' && (
         <div className="space-y-6">
           {['assets', 'licenses', 'contracts'].map((kind) => (
             <div key={kind}><p className="eyebrow mb-2">{kind[0].toUpperCase() + kind.slice(1)}</p><CompanyRecordList kind={kind} vendorCompanyId={company.id} /></div>

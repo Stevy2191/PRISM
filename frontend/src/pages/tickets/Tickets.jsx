@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { useAuth, usePermission } from '../../context/AuthContext';
+import { useCompanySummary } from '../../context/CompanyContext';
 import Spinner from '../../components/Spinner';
 import SlaBadge from '../../components/SlaBadge';
 import { formatTicketId } from '../../utils/ticketId';
@@ -45,13 +46,14 @@ import {
   DueDateCell,
   AgeLine,
   DeptPill,
-  SortIcon, CategoryCell } from './list/Cells';
+  SortIcon, CategoryCell, RequesterCell } from './list/Cells';
 import { fmtDate } from '../../utils/formatDate';
 
 // ---- Main page ----
 
 export default function Tickets() {
   const { isStaff, user } = useAuth();
+  const { multiCompany } = useCompanySummary();
   const canCreateTickets = usePermission('tickets.create');
   const canViewAllTickets = usePermission('tickets.view_all');
   const navigate = useNavigate();
@@ -68,20 +70,22 @@ export default function Tickets() {
   const [savedFilters, setSavedFilters] = useState([]);
   const [activeSavedFilterId, setActiveSavedFilterId] = useState(null);
 
+  // The dashboard's counts open this list already filtered (?unassigned=1 …).
+  const [searchParams] = useSearchParams();
+  const flag = (name) => searchParams.get(name) === '1';
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
-  const [priority, setPriority] = useState('');
+  const [priority, setPriority] = useState(searchParams.get('priority') || '');
   const [category, setCategory] = useState(null);
   const [categories, setCategories] = useState([]);
-  const [assignee, setAssignee] = useState('');
-  const [myTickets, setMyTickets] = useState(false);
-  const [overdue, setOverdue] = useState(false);
-  const [unassigned, setUnassigned] = useState(false);
-  const [slaFilter, setSlaFilter] = useState(''); // '' | 'breached' | 'at_risk'
+  const [assignee, setAssignee] = useState(searchParams.get('assignee') || '');
+  const [myTickets, setMyTickets] = useState(flag('mine'));
+  const [overdue, setOverdue] = useState(flag('overdue'));
+  const [unassigned, setUnassigned] = useState(flag('unassigned'));
+  const [slaFilter, setSlaFilter] = useState(['breached', 'at_risk'].includes(searchParams.get('sla')) ? searchParams.get('sla') : ''); // '' | 'breached' | 'at_risk'
   const [newFromEmail, setNewFromEmail] = useState(false);
   // "Category not sure" (9): raised with Other / I'm not sure, for triage.
-  const [categoryUnsure, setCategoryUnsure] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [categoryUnsure, setCategoryUnsure] = useState(flag('categoryUnsure'));
   const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
   // Queue view (5b): '' = no queue, 'mine' = every team I'm in, or a team id.
   // A queue sorts unassigned first, then earliest SLA due (server side), until
@@ -708,6 +712,7 @@ export default function Tickets() {
                       <td key={key} className="whitespace-nowrap px-4 py-3">
                         {key === 'priority' && <PriorityCell priority={t.priority} />}
                         {key === 'status' && <StatusBadge ticket={t} ticketStatuses={ticketStatuses} />}
+                        {key === 'requester' && <RequesterCell contact={t.contact} company={t.company} showCompany={multiCompany} />}
                         {key === 'category' && <CategoryCell category={t.category} unsure={t.categoryUnsure} />}
                         {key === 'dueDate' && <DueDateCell dueDate={t.dueDate} />}
                         {key === 'sla' && <SlaBadge sla={t.sla} />}

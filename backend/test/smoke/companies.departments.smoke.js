@@ -1,6 +1,7 @@
 const { resetData, closeDb, models } = require('../integration/helpers');
 const { makeAdmin, makeCompany, makeDept } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { openCompanyTab } = require('./companyTabs');
 
 // Plan 2b task 18.
 
@@ -19,7 +20,7 @@ it('Settings → Departments is the help desk\'s own; a client department is cre
   await page.getByText('Service Desk', { exact: true }).waitFor();
   expect(await page.getByText('Acme HR').count()).toBe(0);
   await page.goto(`/companies/${acme.id}`);
-  await page.getByRole('button', { name: 'Departments', exact: true }).click();
+  await openCompanyTab(page, 'People', 'Departments');
   await page.getByText('Acme HR').waitFor();
   await page.getByLabel('Department name').fill('Acme Ops');
   await page.getByRole('button', { name: 'Add department' }).click();
@@ -49,7 +50,7 @@ it('renaming a client department doesn\'t demand a short code', async () => {
   await models.Department.create({ name: 'Acme HR', companyId: acme.id });
   const page = await smoke.pageAs('admin');
   await page.goto(`/companies/${acme.id}`);
-  await page.getByRole('button', { name: 'Departments', exact: true }).click();
+  await openCompanyTab(page, 'People', 'Departments');
   page.once('dialog', (d) => d.accept('Acme People'));
   await page.getByRole('button', { name: 'Rename Acme HR' }).click();
   await page.getByText('Acme People').waitFor();

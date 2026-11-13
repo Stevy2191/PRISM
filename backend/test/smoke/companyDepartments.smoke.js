@@ -3,6 +3,7 @@ const {
   API, expectOk, makeWorld, makeCompany,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { openCompanyTab } = require('./companyTabs');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
 // Companies, their departments and their contacts kept apart: Settings →
@@ -43,7 +44,7 @@ it('Settings → Departments lists only the help desk\'s own departments', async
 it('a client\'s departments are renamed and deleted on its company page', async () => {
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto(`/companies/${acme.id}`);
-  await page.getByRole('button', { name: 'Departments', exact: true }).click();
+  await openCompanyTab(page, 'People', 'Departments');
   page.once('dialog', (d) => d.accept('People'));
   await page.getByRole('button', { name: 'Rename HR' }).click();
   await page.getByText('People', { exact: true }).waitFor();

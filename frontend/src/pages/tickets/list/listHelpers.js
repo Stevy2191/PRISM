@@ -48,13 +48,19 @@ export const SOURCE_META = {
 export const FIXED_COLUMNS = ['id', 'title'];
 
 export const DEFAULT_COLUMN_ORDER = [
-  'priority', 'status', 'category', 'dueDate', 'sla', 'assignee', 'type', 'source', 'team', 'timeLogged', 'createdDate', 'actions',
+  'requester', 'priority', 'status', 'category', 'dueDate', 'sla', 'assignee', 'type', 'source', 'team', 'timeLogged', 'createdDate', 'actions',
 ];
+
+// Shown until a technician chooses their own under Columns (owner,
+// 2026-11-13: the list had too much in it). Everything else is there to
+// switch on; each technician's choice is kept in their browser.
+export const DEFAULT_VISIBLE = ['requester', 'priority', 'status', 'category', 'sla', 'assignee'];
 
 export const COLUMN_LABELS = {
   id: '#',
   title: 'Title',
   priority: 'Priority',
+  requester: 'Requester',
   status: 'Status',
   category: 'Category',
   dueDate: 'Due date',
@@ -107,7 +113,7 @@ export function formatMinutes(min) {
 }
 
 export function loadColumnPrefs() {
-  const defaults = { order: DEFAULT_COLUMN_ORDER, visible: Object.fromEntries(DEFAULT_COLUMN_ORDER.map((k) => [k, true])) };
+  const defaults = { order: DEFAULT_COLUMN_ORDER, visible: Object.fromEntries(DEFAULT_COLUMN_ORDER.map((k) => [k, DEFAULT_VISIBLE.includes(k)])) };
   try {
     const raw = localStorage.getItem(COLUMN_STORAGE_KEY);
     if (!raw) return defaults;
@@ -121,7 +127,11 @@ export function loadColumnPrefs() {
       const before = DEFAULT_COLUMN_ORDER.slice(0, i).reverse().find((b) => merged.includes(b));
       merged.splice(before ? merged.indexOf(before) + 1 : 0, 0, k);
     });
-    return { order: merged, visible: { ...defaults.visible, ...(parsed.visible || {}) } };
+    // Someone who already chose their columns keeps them; only a column
+    // they've never seen takes its default.
+    const seen = parsed.visible || {};
+    const visible = Object.fromEntries(DEFAULT_COLUMN_ORDER.map((k) => [k, k in seen ? !!seen[k] : (Object.keys(seen).length ? k === 'requester' || k === 'category' : defaults.visible[k])]));
+    return { order: merged, visible };
   } catch {
     return defaults;
   }

@@ -29,7 +29,7 @@ afterAll(async () => { await smoke.stop(); await closeDb(); });
 it('logs time on a ticket with a work type and not billable', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${ticket.id}`);
-  await tab(page, /^Time Entries/);
+  await tab(page, /^Time$/);
   await button(page, 'Log time').click();
   const d = dialog(page);
   await d.getByLabel('Work type').selectOption({ label: 'On-site' });
@@ -46,7 +46,7 @@ it('logs time on a ticket with a work type and not billable', async () => {
 it('edits a duration-only entry without inventing times', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${ticket.id}`);
-  await tab(page, /^Time Entries/);
+  await tab(page, /^Time$/);
   await page.getByRole('row', { name: /Plain duration/ }).getByRole('button', { name: 'Edit' }).click();
   const d = dialog(page);
   expect(await d.getByLabel('Minutes').inputValue()).toBe('45');

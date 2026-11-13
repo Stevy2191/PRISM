@@ -43,16 +43,16 @@ it('every tab opens and shows its content', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${ticket.id}`);
   await shown(page, 'Printer offline').waitFor();
-  await tab(page, /^Time Entries/);
+  await tab(page, /^Time$/);
   await shown(page, 'Seeded time note').waitFor();
   await tab(page, /^Tasks/);
   await shown(page, 'Seeded checklist item').waitFor();
-  await tab(page, /^Relationships/);
+  await tab(page, /^Details/);
   await shown(page, 'Toner order').waitFor();
-  await tab(page, /^Resolution/);
+  await tab(page, /^Details/);
   await page.getByPlaceholder('Describe what resolved this issue...').filter({ visible: true }).waitFor();
-  await tab(page, /^Attachments/);
-  await tab(page, /^Activity/);
+  await tab(page, /^Files/);
+  await tab(page, /^Details/);
   await shown(page, 'opened this ticket').waitFor();
 });
 

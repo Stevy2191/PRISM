@@ -375,6 +375,56 @@ ticks itself when the computer reports in.
 **Workflow rules:** a new action, **Suggest a playbook**, shows "Suggested:
 <playbook> [Apply]" on the ticket. It never applies anything by itself.
 
+### Screens rearranged
+
+Nothing to do when upgrading; this is where things moved.
+
+**Top menu:** eight items. **Clients** holds Companies and Contacts;
+**Projects** holds Projects, Workload and Calendar; Assets is as before.
+
+**Dashboard:** a **Needs attention** panel comes first: open tickets with an
+SLA breached or at risk, nobody assigned, or a category the person wasn't
+sure of, most urgent first, with **Take it** on the unassigned ones. A
+technician sees their own and the unassigned ones they can see. The counts
+at the top open the Tickets list already filtered. Team Workload lists only
+people with an open ticket. The SLA at Risk panel is now off by default
+(Customize brings it back); a layout saved before this keeps its panels and
+gets Needs attention at the top.
+
+**Tickets list:** a **Requester** column (the contact, and their company
+where there are client companies). A technician who hasn't chosen columns
+sees Requester, Priority, Status, Category, SLA and Assignee; the others
+(Due date, Type, Source, Team, Time logged, Created, Open) are under
+**Columns**, which each technician sets for themselves and their browser
+remembers. Someone who already chose their columns keeps them and gains
+Requester. The list also opens filtered from an address such as
+`/tickets?unassigned=1` (`mine`, `overdue`, `categoryUnsure`, `sla=breached`,
+`assignee=<id>`).
+
+**Ticket page:** Status, Priority and Assignee are under the title (they
+were in the sidebar), beside the category and the SLA countdown. Five tabs:
+**Conversation** (the description opens it), **Tasks**, **Time**, **Files**
+and **Details** (resolution, relationships and activity). On a phone the
+button that opens the sidebar is **Ticket info**.
+
+**Company page:** five tabs. **Overview** shows open tickets, contacts,
+computers and the account manager, and a **Setup** checklist (contacts,
+departments, ticket categories, agent installed, email domain, portal
+access, account manager, sites); each line opens the place that sets it.
+**People** has Contacts, Departments and Sites; **Work** has Tickets and
+Projects; **Assets** has Assets, Devices and (for a vendor) Vendor;
+**Setup** has Details (the form that was Overview), Categories and
+Microsoft 365.
+
+**Contact page:** a contact's **Assigned to** is now called **Account
+manager** (the same field; the Contacts list and its filter too). A field
+says **Saved** when a change is kept. Recent tickets show their priority,
+and the page lists the computers assigned to the contact, with the agent's
+state, for staff who can see Assets.
+
+**API:** `GET /companies/:id/glance` (the Overview's figures); `GET
+/dashboard` adds `needsAttention`; `GET /contacts/:id` adds `computers`.
+
 ## v0.4.0
 
 Phase 1, the foundation: client companies, one work model for tickets and

@@ -2,7 +2,7 @@
 import { IconLayoutColumns } from '@tabler/icons-react';
 import { useRef, useState } from 'react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
-import { FIXED_COLUMNS, DEFAULT_COLUMN_ORDER, COLUMN_LABELS } from './listHelpers';
+import { FIXED_COLUMNS, DEFAULT_COLUMN_ORDER, DEFAULT_VISIBLE, COLUMN_LABELS } from './listHelpers';
 import { BORDER, TEXT, MUTED } from '../theme';
 
 export function ColumnsMenu({ order, visible, customFields, onChange }) {
@@ -25,7 +25,7 @@ export function ColumnsMenu({ order, visible, customFields, onChange }) {
     onChange({ order: next, visible });
   };
 
-  const reset = () => onChange({ order: DEFAULT_COLUMN_ORDER, visible: Object.fromEntries(DEFAULT_COLUMN_ORDER.map((k) => [k, true])) });
+  const reset = () => onChange({ order: DEFAULT_COLUMN_ORDER, visible: Object.fromEntries(DEFAULT_COLUMN_ORDER.map((k) => [k, DEFAULT_VISIBLE.includes(k)])) });
 
   return (
     <div className="relative" ref={ref}>

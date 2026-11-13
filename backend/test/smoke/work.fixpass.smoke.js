@@ -74,7 +74,7 @@ it('I2: editing an entry keeps its times, in any browser time zone', async () =>
   // A browser zone that is not this host's (the server may run on UTC).
   const page = await smoke.pageAs('admin', undefined, { timezoneId: 'Asia/Tokyo' });
   await page.goto(`/tickets/${A.id}`);
-  await tab(page, /^Time Entries/);
+  await tab(page, /^Time$/);
   await page.getByRole('row', { name: /Fixed span/ }).getByRole('button', { name: 'Edit' }).click();
   const dialog = page.getByRole('dialog').filter({ visible: true }).last();
   await dialog.getByLabel('Note').fill('Fixed span, edited');

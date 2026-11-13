@@ -28,8 +28,19 @@ export const SETTINGS_PERMISSION_KEYS = [
 export const NAV = [
   { key: 'dashboard', to: '/dashboard', label: 'Dashboard', icon: '◧' },
   { key: 'tickets', to: '/tickets', label: 'Tickets', icon: '🎫' },
-  { key: 'contacts', to: '/contacts', label: 'Contacts', icon: '👤' },
-  { key: 'companies', to: '/companies', label: 'Companies', icon: '🏢' },
+  // Eight items, not eleven (owner, 2026-11-13): things that belong together
+  // share a menu. A sub-item with a `key` is shown by its own permission; a
+  // group with one item left shows as that item, with none it's hidden.
+  {
+    key: 'clients',
+    to: '/companies',
+    label: 'Clients',
+    icon: '🏢',
+    subItems: [
+      { key: 'companies', to: '/companies', label: 'Companies', icon: '🏢' },
+      { key: 'contacts', to: '/contacts', label: 'Contacts', icon: '👤' },
+    ],
+  },
   {
     key: 'assets',
     to: '/assets',
@@ -41,11 +52,19 @@ export const NAV = [
       { to: '/assets/contracts', label: 'Contracts', icon: '📑' },
     ],
   },
-  { key: 'projects', to: '/projects', label: 'Projects', icon: '🗂' },
-  { key: 'workload', to: '/workload', label: 'Workload', icon: '👥' },
+  {
+    key: 'work',
+    to: '/projects',
+    label: 'Projects',
+    icon: '🗂',
+    subItems: [
+      { key: 'projects', to: '/projects', label: 'Projects', icon: '🗂' },
+      { key: 'workload', to: '/workload', label: 'Workload', icon: '👥' },
+      { key: 'calendar', to: '/calendar', label: 'Calendar', icon: '📅' },
+    ],
+  },
   { key: 'reports', to: '/reports', label: 'Reports', icon: '📊' },
   { key: 'knowledge', to: '/knowledge', label: 'Knowledge', icon: '📚' },
-  { key: 'calendar', to: '/calendar', label: 'Calendar', icon: '📅' },
   { key: 'settings', to: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -71,7 +90,27 @@ export function permissionGate(key, hasAnyPermission) {
 // `multiCompany` hides the Companies tab until a client company exists
 // (spec: the only new UI of a one-company install is Settings → Companies).
 export function visibleNavItems({ hasAnyPermission, multiCompany = false }) {
-  return NAV.filter((n) => (n.key !== 'companies' || multiCompany) && permissionGate(n.key, hasAnyPermission));
+  const allowed = (key) => (key !== 'companies' || multiCompany) && permissionGate(key, hasAnyPermission);
+  const out = [];
+  NAV.forEach((n) => {
+    const keyed = n.subItems && n.subItems.some((s) => s.key);
+    if (!keyed) { if (allowed(n.key)) out.push(n); return; }
+    const subs = n.subItems.filter((s) => allowed(s.key));
+    if (subs.length === 1) out.push({ key: subs[0].key, to: subs[0].to, label: subs[0].label, icon: subs[0].icon });
+    else if (subs.length > 1) out.push({ ...n, to: subs[0].to, subItems: subs });
+  });
+  return out;
+}
+
+// The icon sidebar has no menus: each page of a grouped item is its own icon.
+export function flatNavItems(opts) {
+  return visibleNavItems(opts).flatMap((n) => (n.subItems && n.subItems.some((s) => s.key) ? n.subItems : [n]));
+}
+
+// A sub-item matches its exact address only when another item of the menu
+// lives under it (/assets and /assets/licenses); otherwise its pages too.
+export function subItemEnd(item, s) {
+  return item.subItems.some((o) => o !== s && o.to.startsWith(`${s.to}/`));
 }
 
 // Fixed palette for department-colored avatars — hashed by departmentId so

@@ -105,3 +105,14 @@ export function CategoryCell({ category, unsure }) {
     </span>
   );
 }
+
+// Who the ticket is for, and their company where there are client companies.
+export function RequesterCell({ contact, company, showCompany }) {
+  if (!contact) return <span className="text-sm" style={{ color: MUTED }}>—</span>;
+  return (
+    <span className="block text-sm leading-tight">
+      <span style={{ color: TEXT }}>{contact.displayName || [contact.firstName, contact.lastName].filter(Boolean).join(' ')}</span>
+      {showCompany && company?.name && <span className="block text-xs" style={{ color: MUTED }}>{company.name}</span>}
+    </span>
+  );
+}

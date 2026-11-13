@@ -1,11 +1,11 @@
 const { Op, fn, col } = require('sequelize');
 const {
-  Contact, Ticket, Department, User, ContactActivity, Company, Site, PortalToken, CompanyPortalAdmin, DepartmentPortalAdmin, sequelize,
+  Contact, Ticket, Department, User, ContactActivity, Company, Site, PortalToken, CompanyPortalAdmin, DepartmentPortalAdmin, Asset, Device, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const {
-  hasPermission, findAccessibleContact, canAccessContact, parseRecordId,
+  hasPermission, findAccessibleContact, canAccessContact, parseRecordId, companyScopeWhere,
 } = require('../services/permissionService');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { andWhere, contactScopeWhere, ticketScopeWhere } = require('../services/recordScope');
@@ -237,6 +237,30 @@ const get = asyncHandler(async (req, res) => {
     }),
   ]);
 
+  // The computers and other assets this person uses: those assigned to them,
+  // by hand or by the agent from who signs in. Only for staff who see assets.
+  let computers = [];
+  if (await hasPermission(req.user.id, 'assets.view')) {
+    const assets = await Asset.findAll({
+      where: andWhere({ assignedToContactId: contact.id }, await companyScopeWhere(req.user)),
+      attributes: ['id', 'name', 'assetTag', 'operatingSystem', 'osVersion', 'status'],
+      include: [{ model: Device, as: 'device', attributes: ['id', 'lastSeenAt', 'revokedAt'], required: false }],
+      order: [['name', 'ASC']],
+      limit: 25,
+    });
+    computers = assets.map((a) => ({
+      id: a.id,
+      name: a.name,
+      assetTag: a.assetTag,
+      operatingSystem: [a.operatingSystem, a.osVersion].filter(Boolean).join(' ') || null,
+      status: a.status,
+      agent: a.device && !a.device.revokedAt ? {
+        online: !!a.device.lastSeenAt && Date.now() - new Date(a.device.lastSeenAt).getTime() <= 10 * 60 * 1000,
+        lastSeenAt: a.device.lastSeenAt,
+      } : null,
+    }));
+  }
+
   let avgResolutionHours = null;
   if (resolvedTickets.length) {
     const totalHours = resolvedTickets.reduce((sum, t) => {
@@ -250,6 +274,7 @@ const get = asyncHandler(async (req, res) => {
     contact: { ...contact.toJSON(), ...(await portalFields(contact)) },
     stats: { totalTickets, openTickets, overdueTickets, avgResolutionHours },
     recentTickets,
+    computers,
   });
 });
 

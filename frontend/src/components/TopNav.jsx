@@ -3,7 +3,7 @@ import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { IconSearch, IconMenu2, IconX, IconChevronDown } from '@tabler/icons-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
-import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
+import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut, subItemEnd } from './navConfig';
 import { useCompanySummary } from '../context/CompanyContext';
 import NotificationsDropdown from './NotificationsDropdown';
 import TimerIndicator from './work/TimerIndicator';
@@ -28,7 +28,7 @@ function NavDropdown({ item, iconOnly }) {
   }, [open]);
 
   const isActive = item.subItems.some((s) => (
-    s.to === item.to ? location.pathname === s.to : location.pathname === s.to || location.pathname.startsWith(`${s.to}/`)
+    subItemEnd(item, s) ? location.pathname === s.to : location.pathname === s.to || location.pathname.startsWith(`${s.to}/`)
   ));
 
   return (
@@ -36,6 +36,8 @@ function NavDropdown({ item, iconOnly }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-haspopup="true"
+        aria-expanded={open}
         className={
           iconOnly
             ? `relative my-1.5 flex flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-md px-2.5 text-[11px] font-medium transition ${isActive ? '' : 'hover:bg-[var(--color-hover)]'}`
@@ -59,7 +61,7 @@ function NavDropdown({ item, iconOnly }) {
             <NavLink
               key={s.to}
               to={s.to}
-              end={s.to === item.to}
+              end={subItemEnd(item, s)}
               onClick={() => setOpen(false)}
               className={({ isActive: a }) => `flex items-center gap-2 px-3 py-2 text-sm ${a ? 'font-medium' : ''}`}
               style={({ isActive: a }) => ({
@@ -278,6 +280,9 @@ export default function TopNav() {
             <nav className="flex-1 space-y-1 overflow-y-auto p-3">
               {items.map((n) => (
                 <div key={n.to}>
+                  {n.subItems && !n.subItems.some((s) => s.label === n.label) ? (
+                    <p className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>{n.label}</p>
+                  ) : (
                   <NavLink
                     to={n.to}
                     end={!!n.subItems}
@@ -290,7 +295,8 @@ export default function TopNav() {
                     <span className="w-4 text-center">{n.icon}</span>
                     {n.label}
                   </NavLink>
-                  {n.subItems && n.subItems.filter((s) => s.to !== n.to).map((s) => (
+                  )}
+                  {n.subItems && n.subItems.filter((s) => s.label !== n.label).map((s) => (
                     <NavLink
                       key={s.to}
                       to={s.to}

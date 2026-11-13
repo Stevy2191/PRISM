@@ -320,33 +320,7 @@ export function Sidebar({
             </div>
           ) : (
             <div className="space-y-3">
-              <div>
-                <label className="mb-1 block text-xs" style={{ color: MUTED }}>Status</label>
-                <select
-                  disabled={!canEdit}
-                  value={ticket.status}
-                  onChange={(e) => onStatusChange(e.target.value)}
-                  className="input h-9 text-sm"
-                  style={fieldStyle}
-                >
-                  {/* User responded is set by the system only, when a customer replies. */}
-                  {ticketStatuses.filter((s) => s.systemKey !== 'user_responded' || s.name === ticket.status)
-                    .map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="ticket-priority" className="mb-1 block text-xs" style={{ color: MUTED }}>Priority</label>
-                <select
-                  id="ticket-priority"
-                  disabled={!canEdit}
-                  value={ticket.priority}
-                  onChange={(e) => patchTicket({ priority: e.target.value })}
-                  className="input h-9 text-sm"
-                  style={fieldStyle}
-                >
-                  {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
+              {/* Status, priority and assignee are under the ticket's title. */}
               <div>
                 <label className="mb-1 block text-xs" style={{ color: MUTED }}>Type</label>
                 <select
@@ -357,19 +331,6 @@ export function Sidebar({
                   style={fieldStyle}
                 >
                   {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs" style={{ color: MUTED }}>Assignee</label>
-                <select
-                  disabled={!canEdit}
-                  value={ticket.assigneeId || ''}
-                  onChange={(e) => patchTicket({ assigneeId: e.target.value || null })}
-                  className="input h-9 text-sm"
-                  style={fieldStyle}
-                >
-                  <option value="">Unassigned</option>
-                  {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
                 </select>
               </div>
               <div>

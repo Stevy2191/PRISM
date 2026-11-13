@@ -30,7 +30,8 @@ beforeEach(resetRateLimits);
 
 // The description has its own tab (user decision 2026-10-27), out of the
 // conversation and the reply box's way.
-const openDescription = (page) => page.getByRole('button', { name: 'Description', exact: true }).click();
+// The description opens the Conversation tab, which the page lands on.
+const openDescription = (page) => page.getByTestId('ticket-description').waitFor();
 
 it('the description has its own tab, not the Conversation; line breaks kept', async () => {
   await admin.goto(`/tickets/${t.id}`);
@@ -85,7 +86,7 @@ it('the description edits with Save, and Cancel throws the change away', async (
 
 it('the edits show in the Activity tab', async () => {
   await admin.goto(`/tickets/${t.id}`);
-  await admin.getByRole('button', { name: 'Activity' }).click();
+  await admin.getByRole('button', { name: 'Details', exact: true }).click();
   await admin.getByText(/changed title from Printer offline to Front desk printer offline/).waitFor();
   await admin.getByText(/edited the description/).first().waitFor();
 });

@@ -96,7 +96,7 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Assigned to</label>
+          <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Account manager</label>
           <select className="input" style={fieldStyle} value={form.assignedTo} onChange={set('assignedTo')}>
             {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
           </select>
@@ -336,8 +336,8 @@ export default function Contacts() {
               <option value="">All departments</option>
               <DepartmentOptions departments={departments} companyId={companyId} />
             </SelectChip>
-            <SelectChip label="Assigned to" showLabel={false} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
-              <option value="">Assigned to (anyone)</option>
+            <SelectChip label="Account manager" showLabel={false} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
+              <option value="">Account manager (anyone)</option>
               {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
             </SelectChip>
             <SelectChip label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -438,7 +438,7 @@ export default function Contacts() {
                         {col.label} {sortBy === col.key ? (sortDir === 'asc' ? '▲' : '▼') : ''}
                       </th>
                     ))}
-                    {[...(multiCompany ? ['Company'] : []), 'Department', 'Phone', 'Assigned to', 'Tickets', 'Last ticket'].map((h) => (
+                    {[...(multiCompany ? ['Company'] : []), 'Department', 'Phone', 'Account manager', 'Tickets', 'Last ticket'].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: CARD_BG, borderBottom: `1px solid ${BORDER}`, color: MUTED }}>
                         {h}
                       </th>
@@ -492,7 +492,7 @@ export default function Contacts() {
                             <Avatar name={c.assignedToUser.displayName} size={22} /> {c.assignedToUser.displayName}
                           </span>
                         ) : (
-                          <span className="text-xs" style={{ color: MUTED }}>Unassigned</span>
+                          <span className="text-xs" style={{ color: MUTED }}>—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: TEXT }}>{c.ticketCount || 0}</td>

@@ -3,7 +3,7 @@ import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { IconSearch, IconSettings } from '@tabler/icons-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
-import { visibleNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
+import { flatNavItems, colorForDepartment, initials, useGlobalSearchShortcut } from './navConfig';
 import { useCompanySummary } from '../context/CompanyContext';
 import NotificationsDropdown from './NotificationsDropdown';
 import TimerIndicator from './work/TimerIndicator';
@@ -31,7 +31,7 @@ export default function SidebarCompact() {
   useGlobalSearchShortcut(() => setSearchOpen(true));
 
   const { multiCompany } = useCompanySummary();
-  const items = visibleNavItems({ hasAnyPermission, multiCompany });
+  const items = flatNavItems({ hasAnyPermission, multiCompany });
 
   const handleLogout = async () => {
     await logout();

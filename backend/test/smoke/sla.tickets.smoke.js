@@ -75,9 +75,10 @@ it('the list filters to breached and at-risk tickets', async () => {
 
 it('the dashboard lists breached and at-risk tickets, most urgent first', async () => {
   await page.goto('/');
-  const panel = page.getByTestId('sla-at-risk');
+  const panel = page.getByTestId('needs-attention');
   await panel.waitFor();
-  const items = await panel.locator('li').allTextContents();
+  // Then the unassigned ones with no SLA trouble.
+  const items = (await panel.locator('li').allTextContents()).slice(0, 2);
   expect(items.map((t) => (t.includes('Breached printer') ? 'breached' : t.includes('Risky scanner') ? 'risky' : t))).toEqual(['breached', 'risky']);
 });
 
@@ -148,7 +149,7 @@ describe('changing the due date', () => {
   it('at phone width the dialog fits the screen', async () => {
     const phone = await smoke.pageAs('admin', undefined, { viewport: { width: 375, height: 800 } });
     await phone.goto(`/tickets/${calm.id}`);
-    await phone.getByRole('button', { name: 'Details' }).click(); // the sidebar is a sheet on phones
+    await phone.getByRole('button', { name: 'Ticket info' }).click(); // the sidebar is a sheet on phones
     await phone.getByRole('button', { name: 'Extend due date' }).click();
     await phone.getByRole('dialog').waitFor();
     const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

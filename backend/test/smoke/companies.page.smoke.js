@@ -1,6 +1,7 @@
 const { resetData, closeDb, models } = require('../integration/helpers');
 const { makeAdmin, makeCompany } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
+const { openCompanyTab } = require('./companyTabs');
 
 // Plan 2b task 11: the company page.
 
@@ -17,16 +18,20 @@ it('shows the company, and adds a domain and a site', async () => {
   await page.goto(`/companies/${acme.id}`);
   await page.getByRole('heading', { name: 'Acme' }).waitFor();
 
+  // Overview: the setup checklist says what's missing and opens its place.
+  const setup = page.getByTestId('company-setup');
+  await setup.getByText('Setup · 1 of').waitFor();
+  await setup.getByRole('button', { name: 'Add a domain' }).click();
   await page.getByLabel('New domain').fill('acme.test');
   await page.getByRole('button', { name: 'Add domain' }).click();
   await page.getByText('acme.test').waitFor();
 
-  await page.getByRole('button', { name: 'Sites' }).click();
+  await openCompanyTab(page, 'People', 'Sites');
   await page.getByLabel('Site name').fill('HQ');
   await page.getByRole('button', { name: 'Add site' }).click();
   await page.getByRole('cell', { name: 'HQ' }).waitFor();
 
-  await page.getByRole('button', { name: 'Contacts' }).click();
+  await openCompanyTab(page, 'People', 'Contacts');
   await page.getByRole('link', { name: 'Ann Able' }).waitFor();
 });
 
@@ -38,7 +43,7 @@ it('a vendor company has a Vendor tab listing what was bought from it', async ()
   await models.Asset.create({ assetTag: 'DELL-9', name: 'Latitude', categoryId: category.id, vendorCompanyId: dell.id });
   const page = await smoke.pageAs('admin');
   await page.goto(`/companies/${dell.id}`);
-  await page.getByRole('button', { name: 'Vendor' }).click();
+  await openCompanyTab(page, 'Assets', 'Vendor');
   await page.getByText('DELL-9').waitFor();
   await models.AssetCategory.destroy({ where: { name: 'Laptops' } });
 });
