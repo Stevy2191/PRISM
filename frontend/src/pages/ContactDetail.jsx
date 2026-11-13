@@ -192,6 +192,12 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
       className="w-full flex-shrink-0 space-y-5 overflow-visible border-b p-4 sm:p-5 md:w-80 md:overflow-y-auto md:border-b-0 md:border-r"
       style={{ borderColor: BORDER, backgroundColor: CARD_BG }}
     >
+      {contact.isPlaceholder && (
+        <Notice tone="info">
+          This is the stand-in for tickets sent from the PRISM agent by people who aren&apos;t contacts yet. It can&apos;t be edited.
+          To fix one: add the person as a new contact (with the email they sign in to their computer with), then change the ticket&apos;s contact to them.
+        </Notice>
+      )}
       <div className="flex flex-col items-center text-center">
         <Avatar name={contact.displayName} size={72} color={deptColor(contact.departmentId)} />
         {editingName ? (
@@ -273,7 +279,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
         </div>
       </div>
 
-      <ContactPortalBlock contact={contact} onChanged={onPortalChanged} />
+      {!contact.isPlaceholder && <ContactPortalBlock contact={contact} onChanged={onPortalChanged} />}
 
       <div className="border-t pt-4" style={{ borderColor: BORDER }}>
         <div className="mb-1 flex items-center justify-between">
@@ -588,10 +594,11 @@ export default function ContactDetail() {
       </div>
 
       <PropertiesPanel
+        key={`${contact.id}-${contact.isPlaceholder ? 'p' : 'c'}`}
         contact={contact}
         departments={assignableContactDepartments(departments.filter((d) => d.companyId === contact.companyId), user, hasPermission, contact.departmentId)}
         assignableUsers={assignableUsers}
-        canEdit={canEdit}
+        canEdit={canEdit && !contact.isPlaceholder}
         onSave={saveContact}
         onAssignDepartment={assignDepartment}
         onCreateTicket={() => navigate(`/tickets/new?contactId=${contact.id}`)}

@@ -437,6 +437,17 @@ ImageMagick); with none installed the button isn't shown.
 /agent/v1/tray/tickets/:id`, `POST /agent/v1/tray/tickets/:id/reply` (30 an
 hour per computer).
 
+**The "Unknown tray user" contact** (migration 089, runs on start): each
+company's stand-in for agent tickets from people who aren't contacts could
+be edited into a real person, after which every unknown person's tickets
+were filed under them and their own agent matched nobody. A stand-in that
+was given a name or an email becomes an ordinary contact and keeps its
+tickets; the next ticket from an unknown person makes a new stand-in. From
+now on the stand-in can't be given a name, an email or portal access, and
+its page says what it is. To put an unknown person's ticket right: add them
+as a contact (with the email they sign in to their computer with) and
+change the ticket's contact; its description says who raised it.
+
 ### Screens rearranged
 
 Nothing to do when upgrading; this is where things moved.

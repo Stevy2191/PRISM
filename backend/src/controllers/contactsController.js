@@ -313,6 +313,16 @@ const update = asyncHandler(async (req, res) => {
   }
   if (changes.phone !== undefined) changes.phone = normalizePhone(changes.phone);
   if (changes.mobile !== undefined) changes.mobile = normalizePhone(changes.mobile);
+  // The company's "Unknown tray user" stands in for agent tickets from
+  // people who match no contact. Making it a person would file every
+  // unknown person's tickets under them, and their own agent would still
+  // not match (owner, 2026-11-13: exactly that happened).
+  if (contact.isPlaceholder) {
+    const identity = ['firstName', 'lastName', 'displayName', 'email'].some((k) => changes[k] !== undefined && (changes[k] || null) !== (contact[k] || null));
+    if (identity || (req.body || {}).portalAccess === true || isCompanyChange((req.body || {}).companyId, contact.companyId)) {
+      throw new ApiError(409, 'This is the stand-in for agent tickets from people who aren\'t contacts yet, so it can\'t be made into a person. Add the person as a new contact; their next ticket will be theirs.', 'PLACEHOLDER_CONTACT');
+    }
+  }
   if (changes.email) {
     const existing = await Contact.findOne({ where: { email: changes.email, id: { [Op.ne]: contact.id } } });
     if (existing) throw new ApiError(409, 'A contact with this email already exists', 'EMAIL_TAKEN');
