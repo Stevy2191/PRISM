@@ -203,18 +203,26 @@ const AGENT_FIELD_LABELS = {
 };
 
 export default function AssetFormModal({
-  asset, categories, departments, onClose, onSaved, agentFields = [],
+  asset, categories, departments, onClose, onSaved, agentFields = [], initial = null,
 }) {
   const isEdit = !!asset;
   const [form, setForm] = useState(() => {
-    if (!asset) return DEFAULT_FORM;
+    // A new asset opened from a contact's page starts assigned to them, in
+    // their company and department.
+    if (!asset) {
+      return {
+        ...DEFAULT_FORM,
+        ...(initial?.companyId ? { companyId: String(initial.companyId) } : {}),
+        ...(initial?.departmentId ? { departmentId: String(initial.departmentId) } : {}),
+      };
+    }
     const f = { ...DEFAULT_FORM };
     Object.keys(f).forEach((k) => { if (asset[k] !== undefined && asset[k] !== null) f[k] = asset[k]; });
     return f;
   });
   const { multiCompany } = useCompanySummary();
   const [vendor, setVendor] = useState(asset?.vendorCompany || null);
-  const [contact, setContact] = useState(asset?.assignedToContact || null);
+  const [contact, setContact] = useState(asset?.assignedToContact || initial?.contact || null);
   const [user, setUser] = useState(asset?.assignedToUser || null);
   const [tagTouched, setTagTouched] = useState(isEdit);
   const [fieldValues, setFieldValues] = useState(() => {

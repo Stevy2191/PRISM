@@ -483,9 +483,18 @@ Microsoft 365.
 
 **Contact page:** a contact's **Assigned to** is now called **Account
 manager** (the same field; the Contacts list and its filter too). A field
-says **Saved** when a change is kept. Recent tickets show their priority,
-and the page lists the computers assigned to the contact, with the agent's
-state, for staff who can see Assets.
+says **Saved** when a change is kept. Recent tickets show their priority.
+
+**A contact's Assets tab** (for staff who can see Assets): everything
+assigned to the person, with its category, serial number, when it was
+checked out and the agent's state. **Assign an existing asset** picks from
+the company's assets that nobody has and checks it out to them (the same
+checkout as on the asset's page, so it's in the asset's history; a checkout
+form can be made from there). **New asset** opens the asset form already
+assigned to them, in their company and department. **Check in** (or
+**Unassign**, for one assigned without a checkout) takes it back. Assigning
+and taking back need the Edit assets permission; New asset needs Create
+assets.
 
 **API:** `GET /companies/:id/glance` (the Overview's figures); `GET
 /dashboard` adds `needsAttention`; `GET /contacts/:id` adds `computers`.

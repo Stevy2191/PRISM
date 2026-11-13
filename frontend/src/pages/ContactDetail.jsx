@@ -8,6 +8,7 @@ import { useAnyPermission, useAuth, usePermission } from '../context/AuthContext
 import ContactPortalBlock from '../components/portal/ContactPortalBlock';
 import { assignableContactDepartments } from '../utils/contactDepartments';
 import ContactCompanyFields from '../components/companies/ContactCompanyFields';
+import ContactAssets from '../components/contacts/ContactAssets';
 import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
 import Notice from '../components/ui/Notice';
@@ -320,37 +321,7 @@ function Assignee({ user }) {
   return <Avatar name={user.displayName} size={22} />;
 }
 
-function Computers({ computers }) {
-  if (!computers?.length) return null;
-  return (
-    <div>
-      <h3 className="mb-2 text-sm font-semibold" style={{ color: TEXT }}>Computers</h3>
-      <div className="rounded-xl border border-navy-100 bg-surface">
-        <ul className="divide-y divide-navy-100">
-          {computers.map((c) => (
-            <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-              <Link to={`/assets/${c.id}`} className="flex min-w-0 items-center gap-3 hover:underline">
-                <span className="truncate font-medium" style={{ color: TEXT }}>{c.name}</span>
-                <span className="num text-xs" style={{ color: MUTED }}>{c.assetTag}</span>
-              </Link>
-              <div className="flex flex-shrink-0 items-center gap-3 text-xs" style={{ color: MUTED }}>
-                {c.operatingSystem && <span>{c.operatingSystem}</span>}
-                {c.agent ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.agent.online ? 'var(--color-success)' : MUTED }} />
-                    {c.agent.online ? 'Online' : `Last seen ${c.agent.lastSeenAt ? fmtDateTime(c.agent.lastSeenAt) : 'never'}`}
-                  </span>
-                ) : <span>No agent</span>}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-function OverviewTab({ stats, recentTickets, statuses, computers }) {
+function OverviewTab({ stats, recentTickets, statuses }) {
   const cards = [
     { label: 'Total tickets', value: stats.totalTickets },
     { label: 'Open tickets', value: stats.openTickets },
@@ -389,7 +360,6 @@ function OverviewTab({ stats, recentTickets, statuses, computers }) {
           </ul>
         </div>
       </div>
-      <Computers computers={computers} />
     </div>
   );
 }
@@ -522,7 +492,7 @@ export default function ContactDetail() {
   // the fresh contact before saying what changed.
   const loadDetail = () => (
     api.get(`/contacts/${id}`)
-      .then(({ data }) => { setContact(data.contact); setStats(data.stats); setRecentTickets(data.recentTickets); setComputers(data.computers || []); })
+      .then(({ data }) => { setContact(data.contact); setStats(data.stats); setRecentTickets(data.recentTickets); setComputers(data.assets || data.computers || []); })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false))
   );
@@ -631,8 +601,8 @@ export default function ContactDetail() {
       <div className="flex flex-1 flex-col overflow-visible md:overflow-hidden">
         <div className="flex-shrink-0 px-4 pt-4 sm:px-6 sm:pt-5">
           <div className="flex flex-wrap items-end justify-between gap-2 border-b border-navy-100">
-            <div className="flex gap-1 overflow-x-auto">
-              {['Overview', 'Tickets', 'Activity'].map((t) => (
+            <div className="flex gap-1 overflow-x-auto" role="group" aria-label="Contact sections">
+              {['Overview', 'Tickets', ...(hasPermission('assets.view') ? ['Assets'] : []), 'Activity'].map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -641,7 +611,7 @@ export default function ContactDetail() {
                   className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-prism-accent ${tab === t ? 'font-semibold text-navy-900' : 'border-transparent font-medium text-navy-500 hover:text-navy-900'}`}
                   style={tab === t ? { borderBottomColor: BLUE } : undefined}
                 >
-                  {t}
+                  {t}{t === 'Assets' && computers.length > 0 ? ` (${computers.length})` : ''}
                 </button>
               ))}
             </div>
@@ -651,7 +621,7 @@ export default function ContactDetail() {
           </div>
         </div>
         <div className="flex-1 overflow-visible p-4 sm:p-6 md:overflow-y-auto">
-          {tab === 'Overview' && stats && <OverviewTab stats={stats} recentTickets={recentTickets} statuses={statuses} computers={computers} />}
+          {tab === 'Overview' && stats && <OverviewTab stats={stats} recentTickets={recentTickets} statuses={statuses} />}
           {tab === 'Tickets' && (
             <TicketsTab
               tickets={tickets}
@@ -659,6 +629,9 @@ export default function ContactDetail() {
               total={ticketsTotal}
               onLoadMore={() => setTicketsLimit((n) => n + SUBLIST_STEP)}
             />
+          )}
+          {tab === 'Assets' && (
+            <ContactAssets contact={contact} assets={computers} departments={departments} onChanged={loadDetail} />
           )}
           {tab === 'Activity' && (
             <ActivityTab

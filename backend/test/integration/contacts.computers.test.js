@@ -23,15 +23,35 @@ beforeEach(async () => {
 });
 afterAll(closeDb);
 
-it('lists the contact\'s own computers with the agent\'s state', async () => {
-  const { computers } = expectOk(await w.admin.agent.get(`${API}/contacts/${amy.id}`));
-  expect(computers).toHaveLength(1);
-  expect(computers[0]).toMatchObject({ name: 'ALPHA-FD-01', operatingSystem: 'Windows 11', agent: { online: true } });
+it('lists everything assigned to the contact, with the agent\'s state and an open checkout', async () => {
+  const body = expectOk(await w.admin.agent.get(`${API}/contacts/${amy.id}`));
+  expect(body.assets).toHaveLength(1);
+  expect(body.assets[0]).toMatchObject({
+    name: 'ALPHA-FD-01', operatingSystem: 'Windows 11', agent: { online: true }, checkout: null,
+  });
+  expect(body.assets[0].category).toBeTruthy();
+  expect(body.computers).toEqual(body.assets);
+});
+
+it('an asset checked out to the contact joins the list, and leaves it when checked in or unassigned', async () => {
+  const a = w.admin.agent;
+  const spare = (await models.Asset.findOne({ where: { name: 'Somebody else\'s' } }));
+  const out = expectOk(await a.post(`${API}/assets/${spare.id}/checkouts`).send({ contactId: amy.id }), 201).checkout;
+  let { assets } = expectOk(await a.get(`${API}/contacts/${amy.id}`));
+  expect(assets.map((x) => x.name).sort()).toEqual(['ALPHA-FD-01', 'Somebody else\'s']);
+  expect(assets.find((x) => x.id === spare.id).checkout).toMatchObject({ id: out.id });
+  // Checked in: it leaves.
+  expectOk(await a.post(`${API}/assets/${spare.id}/checkouts/${out.id}/check-in`).send({}));
+  // Assigned by hand (no checkout): unassigning takes it off too.
+  const laptop = assets.find((x) => x.name === 'ALPHA-FD-01');
+  expectOk(await a.patch(`${API}/assets/${laptop.id}`).send({ assignedToContactId: null }));
+  ({ assets } = expectOk(await a.get(`${API}/contacts/${amy.id}`)));
+  expect(assets).toEqual([]);
 });
 
 it('is empty for staff without Assets', async () => {
   const staff = await makeStaff('staff-nc', w.deptA.id);
   const res = await staff.agent.get(`${API}/contacts/${amy.id}`);
-  if (res.status === 200) expect(res.body.computers).toEqual([]);
+  if (res.status === 200) expect(res.body.assets).toEqual([]);
   else expect([403, 404]).toContain(res.status);
 });

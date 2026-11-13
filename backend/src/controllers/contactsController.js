@@ -1,6 +1,6 @@
 const { Op, fn, col } = require('sequelize');
 const {
-  Contact, Ticket, Department, User, ContactActivity, Company, Site, PortalToken, CompanyPortalAdmin, DepartmentPortalAdmin, Asset, Device, sequelize,
+  Contact, Ticket, Department, User, ContactActivity, Company, Site, PortalToken, CompanyPortalAdmin, DepartmentPortalAdmin, Asset, Device, AssetCategory, AssetCheckout, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -237,21 +237,37 @@ const get = asyncHandler(async (req, res) => {
     }),
   ]);
 
-  // The computers and other assets this person uses: those assigned to them,
-  // by hand or by the agent from who signs in. Only for staff who see assets.
+  // Everything assigned to this person (the Assets tab): by a checkout, by
+  // hand, or by the agent from who signs in. Only for staff who see assets.
   let computers = [];
   if (await hasPermission(req.user.id, 'assets.view')) {
     const assets = await Asset.findAll({
       where: andWhere({ assignedToContactId: contact.id }, await companyScopeWhere(req.user)),
-      attributes: ['id', 'name', 'assetTag', 'operatingSystem', 'osVersion', 'status'],
-      include: [{ model: Device, as: 'device', attributes: ['id', 'lastSeenAt', 'revokedAt'], required: false }],
+      attributes: ['id', 'name', 'assetTag', 'serialNumber', 'make', 'model', 'operatingSystem', 'osVersion', 'status'],
+      include: [
+        { model: Device, as: 'device', attributes: ['id', 'lastSeenAt', 'revokedAt'], required: false },
+        { model: AssetCategory, as: 'category', attributes: ['id', 'name'], required: false },
+      ],
       order: [['name', 'ASC']],
-      limit: 25,
+      limit: 200,
     });
+    // The open checkout to this person, when the asset was checked out to them.
+    const open = assets.length ? await AssetCheckout.findAll({
+      where: { assetId: assets.map((a) => a.id), contactId: contact.id, checkedInAt: null },
+      attributes: ['id', 'assetId', 'checkedOutAt'],
+      order: [['checkedOutAt', 'DESC']],
+      raw: true,
+    }) : [];
+    const checkoutOf = new Map();
+    open.forEach((c) => { if (!checkoutOf.has(c.assetId)) checkoutOf.set(c.assetId, c); });
     computers = assets.map((a) => ({
       id: a.id,
       name: a.name,
       assetTag: a.assetTag,
+      serialNumber: a.serialNumber,
+      makeModel: [a.make, a.model].filter(Boolean).join(' ') || null,
+      category: a.category ? a.category.name : null,
+      checkout: checkoutOf.has(a.id) ? { id: checkoutOf.get(a.id).id, checkedOutAt: checkoutOf.get(a.id).checkedOutAt } : null,
       operatingSystem: [a.operatingSystem, a.osVersion].filter(Boolean).join(' ') || null,
       status: a.status,
       agent: a.device && !a.device.revokedAt ? {
@@ -274,6 +290,8 @@ const get = asyncHandler(async (req, res) => {
     contact: { ...contact.toJSON(), ...(await portalFields(contact)) },
     stats: { totalTickets, openTickets, overdueTickets, avgResolutionHours },
     recentTickets,
+    // `assets` is the Assets tab's list; `computers` is its older name.
+    assets: computers,
     computers,
   });
 });
