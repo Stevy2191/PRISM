@@ -16,6 +16,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -24,6 +25,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"fyne.io/systray"
 
@@ -42,11 +44,19 @@ type window interface {
 	SetHtml(html string)
 	Eval(js string)
 	Bind(name string, f interface{}) error
+	// The native window (an HWND, NSWindow or GtkWindow), to hide it while
+	// the screen is captured.
+	Window() unsafe.Pointer
 }
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "form" {
 		runForm()
+		return
+	}
+	// The pop-up's own short-lived process (Windows).
+	if len(os.Args) > 1 && os.Args[1] == "notify" {
+		runNotify(os.Args[2:])
 		return
 	}
 	// One icon per sign-in session.
@@ -117,6 +127,9 @@ func onReady() {
 		}
 	}()
 	// The home: the person's tickets in the menu, and the dot.
+	// What has already had its pop-up, so each is announced once (and again
+	// after the next sign-in, while it's still unread).
+	announced := map[string]bool{}
 	refreshHome := func() {
 		var h ipc.HomeAnswer
 		if err := ipc.Call(map[string]string{"op": "home"}, &h, 30*time.Second); err != nil || h.Offline {
@@ -124,12 +137,24 @@ func onReady() {
 		}
 		seen := trayui.LoadSeen(trayui.DraftDir())
 		fresh, first := 0, ""
+		popups := 0
+		announce := func(key, title, body string, ticketID int64) {
+			if announced[key] {
+				return
+			}
+			announced[key] = true
+			if popups < 3 { // a burst after a long absence stays readable
+				popups++
+				go notify(trayui.Shorten(title, 60), trayui.Shorten(body, 200), ticketID)
+			}
+		}
 		for _, n := range h.Notices {
 			if seen.NewNotice(n.ID) {
 				fresh++
 				if first == "" {
 					first = n.Headline
 				}
+				announce("n"+strconv.FormatInt(n.ID, 10), n.Headline, n.Message, 0)
 			}
 		}
 		for _, t := range h.Tickets {
@@ -138,6 +163,7 @@ func onReady() {
 				if first == "" {
 					first = t.LastReply.From + " replied: " + t.Title
 				}
+				announce("r"+strconv.FormatInt(t.LastReply.ID, 10), t.LastReply.From+" replied on \""+trayui.Shorten(t.Title, 40)+"\"", t.LastReply.Snippet, t.ID)
 			}
 		}
 		mu.Lock()
@@ -278,6 +304,7 @@ func runForm() {
 		Subject: draft.Subject, Description: draft.Description,
 		CategoriesJSON: string(cats), Type: draft.Type, CategoryID: draft.CategoryID, CategoryUnsure: draft.CategoryUnsure,
 		Start: start, StartTicket: startTicket, HomeJSON: string(homeJSON), SeenJSON: string(seenJSON),
+		CanCapture: canCapture(),
 	})
 	if err != nil {
 		return
@@ -357,6 +384,23 @@ func runForm() {
 				a = ipc.ReplyAnswer{Error: "offline"}
 			}
 			answer("prismReplyDone", a)
+		}()
+	})
+	// Capture my screen: the window steps out of the picture, the screen is
+	// read, and the window comes back with it attached.
+	_ = w.Bind("prismCaptureStart", func() {
+		go func() {
+			w.Dispatch(func() { hideWindow(w) })
+			time.Sleep(450 * time.Millisecond) // let the desktop redraw without it
+			data, mime, ext, err := captureScreen()
+			w.Dispatch(func() { showWindow(w) })
+			if err != nil {
+				answer("prismCaptureDone", map[string]string{"error": err.Error()})
+				return
+			}
+			answer("prismCaptureDone", map[string]any{
+				"name": shotName(ext), "type": mime, "size": len(data), "data": base64.StdEncoding.EncodeToString(data),
+			})
 		}()
 	})
 	// What the person has looked at, so the tray's dot can clear.

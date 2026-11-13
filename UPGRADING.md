@@ -420,6 +420,18 @@ help-desk reply they haven't read, the agent's icon carries a dot and the
 top of its menu says what's new. It clears when they open it. The agent
 checks every 3 minutes, so it can lag a reply by that long.
 
+**Pop-ups:** a new notice or help-desk reply also shows a pop-up by the
+agent's icon (Windows: a notification that opens the ticket when clicked;
+Mac and Linux: the system's own notification, where the dot and the menu
+open it). Each is shown once per sign-in while unread.
+
+**Capture my screen:** the new-ticket form has **Capture my screen**: the
+window hides, the whole screen is pictured and attached, and the person can
+remove it before sending. Windows needs nothing. A Mac asks the person once
+to allow PRISM under Privacy & Security → Screen Recording. Linux uses the
+desktop's own screenshot tool (gnome-screenshot, grim, spectacle, scrot or
+ImageMagick); with none installed the button isn't shown.
+
 **API:** `GET /agent-notices?companyId=`, `POST /agent-notices`, `DELETE
 /agent-notices/:id`. For agents (signed): `GET /agent/v1/tray/home`, `GET
 /agent/v1/tray/tickets/:id`, `POST /agent/v1/tray/tickets/:id/reply` (30 an

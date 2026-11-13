@@ -47,6 +47,8 @@ type Page struct {
 	// seen (Seen); "{}" when there is none.
 	HomeJSON string
 	SeenJSON string
+	// This computer can take a picture of its screen (Capture my screen).
+	CanCapture bool
 }
 
 // PortalDisplay is the portal address without its scheme, as the mockup

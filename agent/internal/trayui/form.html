@@ -90,7 +90,7 @@ select.fi{appearance:auto}
 .reply{min-height:64px;flex:none}
 </style>
 </head>
-<body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}" data-start="{{.Start}}" data-ticket="{{.StartTicket}}" data-home="{{.HomeJSON}}" data-seen="{{.SeenJSON}}">
+<body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}" data-start="{{.Start}}" data-ticket="{{.StartTicket}}" data-home="{{.HomeJSON}}" data-seen="{{.SeenJSON}}" data-capture="{{.CanCapture}}">
 <div class="wrap">
   <div class="head">
     <span class="logo" aria-hidden="true"></span>
@@ -139,7 +139,8 @@ select.fi{appearance:auto}
     <div style="flex:1;display:flex;flex-direction:column;min-height:146px"><label class="fl" for="desc">What's happening?</label><textarea id="desc" class="ft" style="flex:1" maxlength="20000">{{.Description}}</textarea></div>
     <div>
       <div class="att-row">
-        <label class="btn small" for="files" id="attach" role="button" tabindex="0">Attach screenshot or file</label>
+        <button class="btn small" type="button" id="capture" hidden>Capture my screen</button>
+        <label class="btn small" for="files" id="attach" role="button" tabindex="0">Attach a file</label>
         <span class="mut" style="font-size:12.5px">or paste a screenshot here</span>
       </div>
       <input type="file" id="files" class="pick" multiple tabindex="-1" aria-hidden="true">
@@ -298,6 +299,22 @@ select.fi{appearance:auto}
     var got = false;
     Array.prototype.forEach.call(items, function (it) { if (it.kind === 'file') { var f = it.getAsFile(); if (f) { addFile(f, true); got = true; } } });
     if (got) e.preventDefault();
+  });
+  // Capture my screen: the window hides, the screen is read, and the
+  // picture comes back attached. The person can remove it before sending.
+  if (document.body.dataset.capture === 'true') $('capture').hidden = false;
+  $('capture').addEventListener('click', function () {
+    if (files.length >= MAX_FILES) { fail('Attach at most ' + MAX_FILES + ' files.'); return; }
+    $('err').hidden = true; $('capture').disabled = true; $('capture').textContent = 'Capturing…';
+    new Promise(function (resolve) { window.prismCaptureDone = resolve; window.prismCaptureStart(); }).then(function (a) {
+      $('capture').disabled = false; $('capture').textContent = 'Capture my screen';
+      if (!a || a.error || !a.data) { fail((a && a.error) || "The screen couldn't be captured. Attach a file instead."); return; }
+      var total = files.reduce(function (n, f) { return n + f.size; }, 0);
+      if (total + a.size > MAX_TOTAL) { fail('The files add up to more than 20 MB.'); return; }
+      files.push({ name: a.name, type: a.type, size: a.size, data: a.data, shot: true });
+      renderFiles();
+      $('capture').focus();
+    });
   });
   var form = $('form');
   form.addEventListener('dragover', function (e) { e.preventDefault(); form.classList.add('drop'); });
