@@ -49,6 +49,7 @@ select.fi{appearance:auto}
 .info:hover .tip,.info:focus .tip{display:block}
 .att-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .btn.small{height:34px;padding:0 12px;font-size:13px}
+.pick{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
 .files{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .files li{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--surf2);font-size:13px}
 .files img{width:36px;height:28px;object-fit:cover;border-radius:4px;flex:none}
@@ -87,10 +88,10 @@ select.fi{appearance:auto}
     <div style="flex:1;display:flex;flex-direction:column;min-height:146px"><label class="fl" for="desc">What's happening?</label><textarea id="desc" class="ft" style="flex:1" maxlength="20000">{{.Description}}</textarea></div>
     <div>
       <div class="att-row">
-        <button class="btn small" type="button" id="attach">Attach screenshot or file</button>
+        <label class="btn small" for="files" id="attach" role="button" tabindex="0">Attach screenshot or file</label>
         <span class="mut" style="font-size:12.5px">or paste a screenshot here</span>
       </div>
-      <input type="file" id="files" multiple hidden>
+      <input type="file" id="files" class="pick" multiple tabindex="-1" aria-hidden="true">
       <ul class="files" id="att-list" aria-label="Attached files"></ul>
     </div>
     <p class="err" id="err" role="alert" hidden></p>
@@ -236,7 +237,10 @@ select.fi{appearance:auto}
     };
     reader.readAsDataURL(file);
   }
-  $('attach').addEventListener('click', function () { $('files').click(); });
+  // The button is the file input's own label: the window's engine opens the
+  // picker itself, with no script in between (some refuse a scripted click
+  // on a hidden input). Enter and Space work as on a button.
+  $('attach').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('files').click(); } });
   $('files').addEventListener('change', function () { Array.prototype.forEach.call($('files').files, function (f) { addFile(f, false); }); $('files').value = ''; });
   document.addEventListener('paste', function (e) {
     var items = (e.clipboardData && e.clipboardData.items) || [];
