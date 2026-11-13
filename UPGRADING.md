@@ -448,6 +448,11 @@ its page says what it is. To put an unknown person's ticket right: add them
 as a contact (with the email they sign in to their computer with) and
 change the ticket's contact; its description says who raised it.
 
+**Changing a ticket's contact:** the ticket's sidebar has **Change** beside
+the contact's name, for staff who can edit the ticket: search for a contact
+and the ticket moves to them (and to their company; a category of the old
+company is dropped, as before).
+
 ### Screens rearranged
 
 Nothing to do when upgrading; this is where things moved.

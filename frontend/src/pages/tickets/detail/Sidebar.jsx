@@ -10,6 +10,7 @@ import TimeDropdownPicker from '../../../components/TimeDropdownPicker';
 import CategoryPicker from '../../../components/CategoryPicker';
 import { forTicketType } from '../../../components/categoryTree';
 import SlaPanel from './SlaPanel';
+import ContactPicker from '../../../components/portal/ContactPicker';
 import CcPanel from './CcPanel';
 import DueDateModal from './DueDateModal';
 import { useAuth } from '../../../context/AuthContext';
@@ -185,6 +186,7 @@ export function Sidebar({
       .then(({ data }) => setCategories(data.categories)).catch(() => {});
   }, [ticket.companyId]);
   // A ticket whose SLA sets its due date: moved only through the dialog.
+  const [changingContact, setChangingContact] = useState(false);
   const slaDue = ticket.sla?.clocks?.resolution?.dueAt;
   const [watcherQuery, setWatcherQuery] = useState('');
   const watcherResults = watcherQuery.trim()
@@ -272,6 +274,27 @@ export function Sidebar({
                       <><Link to={`/contacts/${ticket.contact.id}`} className="hover:underline" style={{ color: BLUE }}>{ticket.contact.displayName}</Link><CompanyTag company={ticket.company} /></>
                     ) : (
                       <span style={{ color: TEXT }}>—</span>
+                    )}
+                    {/* The ticket is for someone else (owner, 2026-11-13): one
+                        raised from the agent by a person who wasn't a contact
+                        yet, or filed under the wrong person. */}
+                    {canEdit && !changingContact && (
+                      <button type="button" className="ml-2 text-xs font-semibold hover:underline" style={{ color: BLUE }} onClick={() => setChangingContact(true)}>Change</button>
+                    )}
+                    {canEdit && changingContact && (
+                      <div className="mt-1.5 space-y-1" data-testid="change-contact">
+                        <ContactPicker
+                          autoFocus
+                          label="Change the ticket's contact"
+                          placeholder="Search contacts by name or email…"
+                          exclude={ticket.contact ? [ticket.contact.id] : []}
+                          onPick={async (c) => { setChangingContact(false); await patchTicket({ contactId: c.id }); }}
+                        />
+                        <p className="text-xs" style={{ color: MUTED }}>
+                          The ticket moves to that person (and their company).{' '}
+                          <button type="button" className="font-semibold hover:underline" style={{ color: BLUE }} onClick={() => setChangingContact(false)}>Cancel</button>
+                        </p>
+                      </div>
                     )}
                   </dd>
                 </div>
