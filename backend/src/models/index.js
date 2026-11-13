@@ -62,6 +62,7 @@ const SavedCustomReport = require('./SavedCustomReport')(sequelize);
 const UserCalendarIntegration = require('./UserCalendarIntegration')(sequelize);
 const CalendarEventCache = require('./CalendarEventCache')(sequelize);
 const DashboardLayout = require('./DashboardLayout')(sequelize);
+const UserPreference = require('./UserPreference')(sequelize);
 const AdSyncLog = require('./AdSyncLog')(sequelize);
 const AdGroupMapping = require('./AdGroupMapping')(sequelize);
 const SsoProvider = require('./SsoProvider')(sequelize);
@@ -133,6 +134,7 @@ const db = {
   WorkflowRule,
   WorkflowCondition,
   DashboardLayout,
+  UserPreference,
   AdSyncLog,
   AdGroupMapping,
   SsoProvider,
@@ -611,6 +613,8 @@ User.hasMany(SavedCustomReport, { foreignKey: 'userId', as: 'savedCustomReports'
 SavedCustomReport.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasOne(DashboardLayout, { foreignKey: 'userId', as: 'dashboardLayout', onDelete: 'CASCADE' });
 DashboardLayout.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(UserPreference, { foreignKey: 'userId', as: 'preferences', onDelete: 'CASCADE' });
+UserPreference.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 User.hasMany(UserCalendarIntegration, { foreignKey: 'userId', as: 'calendarIntegrations', onDelete: 'CASCADE' });
 UserCalendarIntegration.belongsTo(User, { foreignKey: 'userId', as: 'user' });

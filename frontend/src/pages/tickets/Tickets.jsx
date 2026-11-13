@@ -23,7 +23,7 @@ import {
   SORTABLE_CUSTOM_FIELD_TYPES,
   formatCustomFieldValue,
   formatMinutes,
-  loadColumnPrefs,
+  loadColumnPrefs, readColumnPrefs, hasLocalColumnPrefs,
 } from './list/listHelpers';
 import { CARD_BG, BORDER, TEXT, MUTED, BLUE } from './theme';
 import { SavedFiltersMenu } from './list/SavedFiltersMenu';
@@ -137,9 +137,26 @@ export default function Tickets() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds.size]);
 
+  // Column choices belong to the account (owner, 2026-11-13), so they follow
+  // a technician to any computer. This browser keeps a copy only so the list
+  // draws right away. Choices made before this, kept in one browser, move to
+  // the account the first time that browser opens the list.
   useEffect(() => {
-    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnPrefs));
+    let cancelled = false;
+    api.get('/preferences/tickets.columns').then(({ data }) => {
+      if (cancelled) return;
+      if (data.value) setColumnPrefs(readColumnPrefs(data.value));
+      else if (hasLocalColumnPrefs()) api.put('/preferences/tickets.columns', { value: loadColumnPrefs() }).catch(() => {});
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnPrefs)); } catch { /* the account still has it */ }
   }, [columnPrefs]);
+  const changeColumns = (next) => {
+    setColumnPrefs(next);
+    api.put('/preferences/tickets.columns', { value: next }).catch((err) => alert(`Your columns weren't saved to your account: ${errMessage(err)}`));
+  };
 
   // Active custom fields, offered as optional table columns (Columns menu ->
   // "Custom fields" section) regardless of the viewer's own admin status —
@@ -421,7 +438,7 @@ export default function Tickets() {
             <>
               <ViewToggle view={view} setView={setView} />
               <span className="hidden lg:contents">
-                <ColumnsMenu order={columnPrefs.order} visible={columnPrefs.visible} customFields={customFieldDefs} onChange={setColumnPrefs} />
+                <ColumnsMenu order={columnPrefs.order} visible={columnPrefs.visible} customFields={customFieldDefs} onChange={changeColumns} />
               </span>
               {canCreateTickets && (
                 <Link to="/tickets/new" className="btn-primary hidden h-10 lg:inline-flex">

@@ -395,9 +395,12 @@ gets Needs attention at the top.
 where there are client companies). A technician who hasn't chosen columns
 sees Requester, Priority, Status, Category, SLA and Assignee; the others
 (Due date, Type, Source, Team, Time logged, Created, Open) are under
-**Columns**, which each technician sets for themselves and their browser
-remembers. Someone who already chose their columns keeps them and gains
-Requester. The list also opens filtered from an address such as
+**Columns**, which each technician sets for themselves. The choice is kept
+with their **account**, so it follows them to any computer or browser
+(migration 087, a `UserPreferences` table; it runs on start). Someone who
+already chose their columns in a browser keeps them and gains Requester:
+the first time that browser opens the list, the choice moves to their
+account. The list also opens filtered from an address such as
 `/tickets?unassigned=1` (`mine`, `overdue`, `categoryUnsure`, `sla=breached`,
 `assignee=<id>`).
 
@@ -424,6 +427,8 @@ state, for staff who can see Assets.
 
 **API:** `GET /companies/:id/glance` (the Overview's figures); `GET
 /dashboard` adds `needsAttention`; `GET /contacts/:id` adds `computers`.
+`GET`, `PUT` and `DELETE /preferences/tickets.columns` read, save and clear
+the signed-in user's own column choice.
 
 ## v0.4.0
 

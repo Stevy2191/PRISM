@@ -64,6 +64,7 @@ export function ColumnsMenu({ order, visible, customFields, onChange }) {
               <span className="cursor-grab text-xs" style={{ color: MUTED }}>⠿</span>
               <input
                 type="checkbox"
+                aria-label={COLUMN_LABELS[key]}
                 checked={!!visible[key]}
                 onChange={() => toggle(key)}
                 onClick={(e) => e.stopPropagation()}

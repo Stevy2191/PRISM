@@ -112,12 +112,12 @@ export function formatMinutes(min) {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
-export function loadColumnPrefs() {
+// Column choices as saved (by the account, or an older copy in this
+// browser) → what the list shows: unknown columns dropped, new ones added.
+export function readColumnPrefs(parsed) {
   const defaults = { order: DEFAULT_COLUMN_ORDER, visible: Object.fromEntries(DEFAULT_COLUMN_ORDER.map((k) => [k, DEFAULT_VISIBLE.includes(k)])) };
   try {
-    const raw = localStorage.getItem(COLUMN_STORAGE_KEY);
-    if (!raw) return defaults;
-    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return defaults;
     const order = Array.isArray(parsed.order) ? parsed.order.filter((k) => DEFAULT_COLUMN_ORDER.includes(k)) : DEFAULT_COLUMN_ORDER;
     // A column added since the preferences were saved goes where the default
     // order has it (after the column before it there), not at the far end.
@@ -131,8 +131,25 @@ export function loadColumnPrefs() {
     // they've never seen takes its default.
     const seen = parsed.visible || {};
     const visible = Object.fromEntries(DEFAULT_COLUMN_ORDER.map((k) => [k, k in seen ? !!seen[k] : (Object.keys(seen).length ? k === 'requester' || k === 'category' : defaults.visible[k])]));
+    // Custom-field columns (cf:<key>) are chosen the same way; keep them.
+    Object.keys(seen).filter((k) => k.startsWith('cf:')).forEach((k) => { visible[k] = !!seen[k]; });
     return { order: merged, visible };
   } catch {
     return defaults;
   }
+}
+
+// The copy this browser keeps, so the list draws with the right columns
+// before the account's choice has loaded. The account's copy is the one
+// that counts (see Tickets.jsx).
+export function loadColumnPrefs() {
+  try {
+    return readColumnPrefs(JSON.parse(localStorage.getItem(COLUMN_STORAGE_KEY)));
+  } catch {
+    return readColumnPrefs(null);
+  }
+}
+
+export function hasLocalColumnPrefs() {
+  try { return !!localStorage.getItem(COLUMN_STORAGE_KEY); } catch { return false; }
 }
