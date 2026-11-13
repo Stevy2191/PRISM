@@ -721,7 +721,7 @@ export default function TicketDetail() {
           className="min-w-0 border-t border-navy-100 bg-surface sm:rounded-xl sm:border"
           style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
-          <div className="ticket-tab-bar flex flex-shrink-0 gap-1 overflow-x-auto px-2 sm:px-3">
+          <div className="ticket-tab-bar flex flex-shrink-0 flex-wrap gap-1 px-2 sm:px-3">
             {TABS.map((t) => (
               <button
                 key={t.key}

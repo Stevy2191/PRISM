@@ -771,7 +771,9 @@ export default function Dashboard() {
   const isDepartmentViewer = !isSystemViewer && hasAnyPermission(['tickets.view_department', 'projects.view_department']);
   const canFilterByUser = isSystemViewer || isDepartmentViewer;
 
-  const [selectedUserId, setSelectedUserId] = useState('');
+  // Whose dashboard: the person's own to start with (owner, 2026-11-13);
+  // '' is everyone (the system or their department), or another person's id.
+  const [selectedUserId, setSelectedUserId] = useState(() => (user?.id ? String(user.id) : ''));
   const [users, setUsers] = useState([]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1007,8 +1009,9 @@ export default function Dashboard() {
                   aria-label="Whose dashboard"
                   className="sel w-full sm:w-auto"
                 >
+                  {user?.id && <option value={String(user.id)}>My dashboard</option>}
                   <option value="">{isSystemViewer ? 'All users (system wide)' : 'All users in my department'}</option>
-                  {users.map((u) => (
+                  {users.filter((u) => u.id !== user?.id).map((u) => (
                     <option key={u.id} value={u.id}>{u.displayName}</option>
                   ))}
                 </select>

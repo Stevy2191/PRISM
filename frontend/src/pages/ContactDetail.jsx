@@ -608,7 +608,7 @@ export default function ContactDetail() {
       <div className="flex flex-1 flex-col overflow-visible md:overflow-hidden">
         <div className="flex-shrink-0 px-4 pt-4 sm:px-6 sm:pt-5">
           <div className="flex flex-wrap items-end justify-between gap-2 border-b border-navy-100">
-            <div className="flex gap-1 overflow-x-auto" role="group" aria-label="Contact sections">
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Contact sections">
               {['Overview', 'Tickets', ...(hasPermission('assets.view') ? ['Assets'] : []), 'Activity'].map((t) => (
                 <button
                   key={t}

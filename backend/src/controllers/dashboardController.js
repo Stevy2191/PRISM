@@ -494,7 +494,10 @@ async function needsAttentionFor(buckets, where) {
 }
 
 const get = asyncHandler(async (req, res) => {
-  const requestedUserId = req.query.userId ? parseInt(req.query.userId, 10) : null;
+  // Asking for your own is your own dashboard, not "viewing someone".
+  const asked = req.query.userId ? parseInt(req.query.userId, 10) : null;
+  const requestedUserId = asked && asked !== req.user.id ? asked : null;
+  const own = asked === req.user.id;
 
   const { isSystemView, isDepartmentView } = await resolveDashboardScope(req.user.id);
   // The company fence follows the viewer: whatever dashboard is shown, it
@@ -521,7 +524,7 @@ const get = asyncHandler(async (req, res) => {
     }
   }
 
-  if (isSystemView && !requestedUserId) {
+  if (isSystemView && !requestedUserId && !own) {
     const settings = await getAllSettings();
     const minResponses = Number(settings['csat.minTicketsToShowRating']) || 3;
     const [stats, projectHealth, workload, activity, teamHappiness, assetsSummary, slaAtRisk, needsAttention] = await Promise.all([
@@ -549,7 +552,7 @@ const get = asyncHandler(async (req, res) => {
     });
   }
 
-  if (isDepartmentView && !requestedUserId) {
+  if (isDepartmentView && !requestedUserId && !own) {
     const deptId = req.user.departmentId || -1; // no department -> match nothing, not everything
     const deptProjectWhere = { [Op.or]: [{ ownerDepartmentId: deptId }, { forDepartmentId: deptId }] };
     const settings = await getAllSettings();

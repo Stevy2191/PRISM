@@ -495,6 +495,16 @@ people with an open ticket. The SLA at Risk panel is now off by default
 (Customize brings it back); a layout saved before this keeps its panels and
 gets Needs attention at the top.
 
+**The dashboard opens on your own.** Staff who can see everyone's used to
+land on the all-users view and switch to themselves; now it opens on **My
+dashboard**, and the picker switches to all users or another person.
+
+**Settings uses the whole width** from the left, and nothing in it scrolls
+on its own: the menu is as tall as it needs and moves with the page.
+
+**Tab rows** on a contact, a company and a ticket no longer have a scroll
+bar of their own; on a narrow window they wrap.
+
 **Tickets list:** a **Requester** column (the contact, and their company
 where there are client companies). A technician who hasn't chosen columns
 sees Requester, Priority, Status, Category, SLA and Assignee; the others

@@ -70,7 +70,7 @@ export default function CompanyPage() {
           {company.status !== 'active' && <StatusChip tone="neutral">Inactive</StatusChip>}
         </div>
       </div>
-      <nav aria-label="Company sections" className="flex gap-1 overflow-x-auto border-b border-navy-100">
+      <nav aria-label="Company sections" className="flex flex-wrap gap-1 border-b border-navy-100">
         {groups.map(([key, label]) => (
           <button
             key={key}

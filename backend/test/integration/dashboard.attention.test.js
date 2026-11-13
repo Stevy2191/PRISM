@@ -45,3 +45,13 @@ it('one person\'s dashboard lists theirs and the unassigned ones, not other peop
   expect(mode).toBe('admin_filtered');
   expect(needsAttention.tickets.map((t) => t.id).sort()).toEqual([theirs.id, loose.id].sort());
 });
+
+it('asking for your own dashboard is your own, not "viewing someone"; with no one named it is everyone\'s', async () => {
+  const mine = expectOk(await w.admin.agent.get(`${API}/dashboard`).query({ userId: w.admin.user.id }));
+  expect(mine.mode).toBe('tech');
+  expect(mine.viewingUser.id).toBe(w.admin.user.id);
+  expect(expectOk(await w.admin.agent.get(`${API}/dashboard`)).mode).toBe('admin_system');
+  // Someone who can only see their own gets it either way.
+  const tech = await makeTech('tech-own', w.deptA.id);
+  expect((await tech.agent.get(`${API}/dashboard`).query({ userId: tech.user.id })).status).toBe(200);
+});
