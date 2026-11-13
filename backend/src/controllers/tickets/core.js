@@ -35,13 +35,23 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
     search, myTickets, overdue, unassigned, companyId, sla, queue,
   } = req.query;
 
-  // "Closed" in the UI covers every status whose behaviorType is 'closed',
-  // and "On hold" every on-hold status; anything else is a status name.
+  // One status or several (?status=a&status=b, or status[]=…; owner,
+  // 2026-11-13: "my open tickets" is every status that isn't closed).
+  // "closed" covers every status whose behaviorType is 'closed', "on_hold"
+  // every on-hold one, "not_closed" every open and on-hold one; anything
+  // else is a status name.
   const buckets = await getTicketStatusBuckets();
-  if (status && !ignoreStatus) {
-    if (status === 'closed') where.status = { [Op.in]: buckets.closed };
-    else if (status === 'on_hold') where.status = { [Op.in]: buckets.onHold };
-    else where.status = status;
+  const asked = (Array.isArray(status) ? status : [status]).filter((s) => typeof s === 'string' && s).slice(0, 50);
+  if (asked.length && !ignoreStatus) {
+    const names = new Set();
+    asked.forEach((s) => {
+      if (s === 'closed') buckets.closed.forEach((n) => names.add(n));
+      else if (s === 'on_hold') buckets.onHold.forEach((n) => names.add(n));
+      else if (s === 'not_closed') buckets.open.forEach((n) => names.add(n));
+      else names.add(s);
+    });
+    // Nothing left (no status of that kind exists): match nothing, never everything.
+    where.status = { [Op.in]: names.size ? [...names] : ['\u0000'] };
   }
   if (priority) where.priority = priority;
   if (type) where.type = type;
@@ -78,7 +88,7 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
     // Only imply "open" when the status dropdown isn't already set — this is
     // an independent quick-filter toggle, not a status override. Archived
     // tickets are excluded here too (an "open" check, not just "not closed").
-    if (!status && !ignoreStatus) where.status = { [Op.in]: buckets.open };
+    if (!asked.length && !ignoreStatus) where.status = { [Op.in]: buckets.open };
   }
   if (unassigned === 'true') where.assigneeId = null;
   if (sla !== undefined && sla !== '') {
@@ -86,7 +96,7 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
     Object.assign(where, slaFilterWhere(sla));
     // Breached / at risk are about work still to do: open tickets, unless a
     // status was asked for explicitly.
-    if (!status && !ignoreStatus) where.status = { [Op.in]: buckets.open };
+    if (!asked.length && !ignoreStatus) where.status = { [Op.in]: buckets.open };
   }
 
   // "My tickets" pins the view to the logged-in user regardless of any

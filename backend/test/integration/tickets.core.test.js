@@ -375,6 +375,10 @@ describe('GET /tickets', () => {
     const cases = [
       ['status=Open', () => 'status=Open', ['Alpha', 'Bravo', 'Delta']],
       ['status=closed', () => 'status=closed', ['Charlie']],
+      // Several at once (owner, 2026-11-13), and every status that isn't closed.
+      ['two statuses', () => 'status=Open&status=closed', ['Alpha', 'Bravo', 'Charlie', 'Delta']],
+      ['status[] form', () => 'status[]=Open&status[]=closed', ['Alpha', 'Bravo', 'Charlie', 'Delta']],
+      ['not closed', () => 'status=not_closed', ['Alpha', 'Bravo', 'Delta']],
       ['priority=high', () => 'priority=high', ['Alpha']],
       ['type=incident', () => 'type=incident', ['Alpha']],
       ['source=phone', () => 'source=phone', ['Bravo']],

@@ -520,6 +520,14 @@ on its own: the menu is as tall as it needs and moves with the page.
 **Tab rows** on a contact, a company and a ticket no longer have a scroll
 bar of their own; on a narrow window they wrap.
 
+**Tickets list filters:** **Status** takes several at once (tick any
+statuses, or On hold / Closed as a whole), and **Not closed** picks every
+status that isn't closed, so a saved filter such as "My open tickets" (My
+tickets + Not closed) keeps working when statuses are added. **Clear
+filters** appears whenever anything narrows the list and puts it back to
+every ticket. Saved filters made before keep their single status. API:
+`GET /tickets?status=A&status=B` (or `status[]=`), and `status=not_closed`.
+
 **Tickets list:** a **Requester** column (the contact, and their company
 where there are client companies). A technician who hasn't chosen columns
 sees Requester, Priority, Status, Category, SLA and Assignee; the others

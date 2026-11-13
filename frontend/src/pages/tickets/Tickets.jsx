@@ -14,7 +14,6 @@ import { formatTicketId } from '../../utils/ticketId';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/Pagination';
 import {
-  buildStatusFilterOptions,
   PRIORITY_OPTIONS,
   PRIORITY_META,
   COLUMN_LABELS,
@@ -37,6 +36,7 @@ import { useFullPageHeight } from '../../hooks/useFullPageHeight';
 import PageHeader from '../../components/ui/PageHeader';
 import Pill from '../../components/ui/Pill';
 import SelectChip from '../../components/ui/SelectChip';
+import StatusFilter from './list/StatusFilter';
 import { ViewToggle } from './list/ViewToggle';
 import {
   Avatar,
@@ -71,10 +71,11 @@ export default function Tickets() {
   const [activeSavedFilterId, setActiveSavedFilterId] = useState(null);
 
   // The dashboard's counts open this list already filtered (?unassigned=1 …).
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const flag = (name) => searchParams.get(name) === '1';
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
+  // Several statuses at once (owner, 2026-11-13); [] is every status.
+  const [status, setStatus] = useState(() => (searchParams.get('status') ? [searchParams.get('status')] : []));
   const [priority, setPriority] = useState(searchParams.get('priority') || '');
   const [category, setCategory] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -190,7 +191,7 @@ export default function Tickets() {
   const filterParams = useCallback(() => {
     const params = {};
     if (search.trim()) params.search = search.trim();
-    if (status) params.status = status;
+    if (status.length) params.status = status;
     if (priority) params.priority = priority;
     // A category includes everything below it (server side).
     if (category) params.category = category;
@@ -252,7 +253,8 @@ export default function Tickets() {
   const applySavedFilter = (f) => {
     const fj = f.filterJson || {};
     setSearch(fj.search || '');
-    setStatus(fj.status || '');
+    // A filter saved before several statuses could be picked holds one.
+    setStatus(Array.isArray(fj.status) ? fj.status : (fj.status ? [fj.status] : []));
     setPriority(fj.priority || '');
     setCategory(fj.category || null);
     setAssignee(fj.assignee || '');
@@ -426,7 +428,18 @@ export default function Tickets() {
   // extend the selection rather than pretending the page is everything.
   const canOfferSelectAllMatching = allSelected && pager.total > tickets.length;
   const selectionCount = selectAllMatching ? pager.total : selectedIds.size;
-  const activeFilterCount = [status, priority, category, assignee].filter(Boolean).length;
+  const activeFilterCount = [status.length ? 'status' : '', priority, category, assignee].filter(Boolean).length;
+  // Anything narrowing the list, for Clear filters.
+  const anyFilter = !!(search.trim() || status.length || priority || category || assignee || companyId || myTickets || overdue
+    || unassigned || slaFilter || newFromEmail || categoryUnsure || queue || activeSavedFilterId);
+  // Back to every ticket in one click (owner, 2026-11-13).
+  const clearFilters = () => {
+    setSearch(''); setStatus([]); setPriority(''); setCategory(null); setAssignee(''); setCompanyId('');
+    setMyTickets(false); setOverdue(false); setUnassigned(false); setSlaFilter(''); setNewFromEmail(false); setCategoryUnsure(false);
+    setQueue(''); setSort({ key: 'updatedAt', dir: 'desc' }); setActiveSavedFilterId(null);
+    // An address from the dashboard (?unassigned=1) would bring them back on reload.
+    if ([...searchParams.keys()].length) setSearchParams({}, { replace: true });
+  };
 
   return (
     <div style={{ padding: 0, height: pageHeight }} className="-mx-4 -my-4 flex flex-col overflow-hidden bg-navy-50 sm:-mx-6 sm:-my-8">
@@ -502,9 +515,7 @@ export default function Tickets() {
             />
           </div>
           <span aria-hidden="true" className="hidden lg:order-3 lg:block lg:basis-full" />
-          <SelectChip label="Status" value={status} onChange={(e) => setStatusTracked(e.target.value)} className="max-lg:hidden lg:order-5">
-            {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </SelectChip>
+          <StatusFilter value={status} onChange={setStatusTracked} ticketStatuses={ticketStatuses} className="max-lg:hidden lg:order-5" />
           <SelectChip label="Priority" value={priority} onChange={(e) => setPriorityTracked(e.target.value)} className="max-lg:hidden lg:order-5">
             {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </SelectChip>
@@ -527,6 +538,11 @@ export default function Tickets() {
               {myTeams.length > 0 && <option value="mine">My queues</option>}
               {queueTeams.map((t) => <option key={t.id} value={String(t.id)}>Queue: {t.name}</option>)}
             </SelectChip>
+          )}
+          {anyFilter && (
+            <button type="button" onClick={clearFilters} className="order-4 inline-flex h-11 flex-shrink-0 items-center rounded-md px-2 text-[13px] font-semibold hover:underline lg:order-5 lg:h-8" style={{ color: 'var(--color-accent)' }}>
+              Clear filters
+            </button>
           )}
         </div>
 
@@ -795,10 +811,8 @@ export default function Tickets() {
 
       <FiltersSheet open={filtersOpen} onClose={() => setFiltersOpen(false)}>
         <div>
-          <label className="label" htmlFor="sheet-status">Status</label>
-          <select id="sheet-status" value={status} onChange={(e) => setStatusTracked(e.target.value)} className="input h-11 text-sm">
-            {buildStatusFilterOptions(ticketStatuses).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          <span className="label">Status</span>
+          <StatusFilter id="sheet-status" value={status} onChange={setStatusTracked} ticketStatuses={ticketStatuses} />
         </div>
         <div>
           <label className="label" htmlFor="sheet-priority">Priority</label>
