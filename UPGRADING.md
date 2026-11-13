@@ -469,6 +469,17 @@ another account on the same computer stays unknown until it's linked too.
 A ticket still under the stand-in says so on its page, with the computer
 account that raised it.
 
+**Linux computers joined to a domain without realmd:** the agent only asked
+realmd (`realm list`) which domain a Linux computer was joined to, so a
+computer joined with Samba's winbind or with SSSD set up by hand (the usual
+way on Arch, where realmd isn't packaged) showed no realm, and its users
+had no email to match. It now also reads SSSD's and Samba's configuration,
+and a Kerberos realm when the computer holds a host keytab. Winbind's
+user names (`RIVERSIDE\maria`, `RIVERSIDE+maria`) are recognized too. The
+person's sign-in becomes `maria@<domain>`: when that isn't their email
+address in PRISM (the AD domain differs from the email domain), link them
+once by changing a ticket's contact, as above.
+
 **Capture my screen on a Mac:** the picture is now simply tried; macOS's
 own "is it allowed?" answer was no on a Mac where PRISM Agent was switched
 on. If macOS refuses, the message says to switch PRISM Agent off and on

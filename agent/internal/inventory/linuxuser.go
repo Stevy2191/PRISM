@@ -9,9 +9,10 @@ import (
 	"strings"
 )
 
-// linuxUsername: local names and SSSD's fully qualified ones
-// ("maria@riverside.local"); nothing that could be read as an option.
-var linuxUsername = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._@-]{0,127}$`)
+// linuxUsername: local names, SSSD's fully qualified ones
+// ("maria@riverside.local") and winbind's ("RIVERSIDE\maria",
+// "RIVERSIDE+maria"); nothing that could be read as an option.
+var linuxUsername = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._@\\+-]{0,127}$`)
 
 // IsLinuxPerson: a person's account (uid 1000 or above, not nobody), with a
 // safe name.
@@ -74,6 +75,13 @@ func ParseGetentPasswd(line string) string {
 // Otherwise the plain name and no UPN (the placeholder).
 func LinuxPerson(name, realm string) *SignedUser {
 	short, domain := name, ""
+	// winbind's DOMAIN\maria or DOMAIN+maria: the short name, in the realm.
+	if i := strings.LastIndexAny(name, `\+`); i > 0 && i < len(name)-1 && !strings.Contains(name, "@") {
+		short = name[i+1:]
+		if realm == "" {
+			return &SignedUser{Account: strings.ToUpper(name[:i]) + `\` + short}
+		}
+	}
 	if s, d, ok := strings.Cut(name, "@"); ok && s != "" && d != "" {
 		short, domain = s, strings.ToLower(d)
 	} else if realm != "" {

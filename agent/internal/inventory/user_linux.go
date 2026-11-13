@@ -1,19 +1,31 @@
 package inventory
 
 import (
+	"os"
 	"os/user"
 	"strconv"
 	"strings"
 )
 
-// realm: the AD or IPA domain this computer is joined to (realmd), or "".
-func realm() string {
-	b, err := run("realm", "list", "--name-only")
-	if err != nil {
-		return ""
+// linuxJoin: the directory this computer is joined to (linuxjoin.go):
+// realmd, then SSSD's and Samba's configuration, then a Kerberos realm with
+// a host keytab. The service runs as root, so sssd.conf (0600) is readable.
+func linuxJoin() Join {
+	realmd := Join{}
+	if b, err := run("realm", "list"); err == nil {
+		realmd = JoinFromRealmList(string(b))
 	}
-	return ParseRealmList(string(b))
+	_, keytabErr := os.Stat("/etc/krb5.keytab")
+	return FirstJoin(
+		realmd,
+		JoinFromSSSD(readFile("/etc/sssd/sssd.conf")),
+		JoinFromSamba(readFile("/etc/samba/smb.conf")),
+		JoinFromKerberos(readFile("/etc/krb5.conf"), keytabErr == nil),
+	)
 }
+
+// realm: the joined directory's DNS name, or "".
+func realm() string { return linuxJoin().Name }
 
 // nameFor: the account name for a uid. The service is a static binary,
 // whose own lookup reads only /etc/passwd; directory users (SSSD) come from

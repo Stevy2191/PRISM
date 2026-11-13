@@ -66,3 +66,25 @@ func TestLinuxRealmAndAccount(t *testing.T) {
 		t.Fatalf("local %+v", u)
 	}
 }
+
+func TestWinbindNames(t *testing.T) {
+	for _, name := range []string{`RIVERSIDE\maria`, "RIVERSIDE+maria"} {
+		if !IsLinuxPerson(name, 10001105) {
+			t.Fatalf("%q refused", name)
+		}
+		if u := LinuxPerson(name, "riverside.local"); u.Account != `RIVERSIDE\maria` || u.UPN != "maria@riverside.local" {
+			t.Fatalf("%q with a realm: %+v", name, u)
+		}
+		if u := LinuxPerson(name, ""); u.Account != `RIVERSIDE\maria` || u.UPN != "" {
+			t.Fatalf("%q without a realm: %+v", name, u)
+		}
+	}
+	for _, name := range []string{`\maria`, `-x\y`, "a/b", `RIVERSIDE\`} {
+		if IsLinuxPerson(name, 10001105) && LinuxPerson(name, "").Account == "" {
+			t.Fatalf("%q", name)
+		}
+	}
+	if IsLinuxPerson(`\maria`, 1001) || IsLinuxPerson("-x", 1001) {
+		t.Fatal("a name that starts with a separator or a dash")
+	}
+}

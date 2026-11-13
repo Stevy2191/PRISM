@@ -35,9 +35,7 @@ func CollectSnapshot(account, agentVersion string) Snapshot {
 		}
 	}
 	r.PrimaryIP = PrimaryIP()
-	if b, err := run("realm", "list"); err == nil {
-		r.Realm = ParseRealm(string(b))
-	}
+	r.Realm = linuxJoin().Label()
 	r.Health = linuxHealth()
 	return BuildSnapshot(r, account, agentVersion, time.Now())
 }
