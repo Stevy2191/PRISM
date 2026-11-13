@@ -38,5 +38,6 @@ func CollectSnapshot(account, agentVersion string) Snapshot {
 	if b, err := run("realm", "list"); err == nil {
 		r.Realm = ParseRealm(string(b))
 	}
+	r.Health = linuxHealth()
 	return BuildSnapshot(r, account, agentVersion, time.Now())
 }

@@ -18,6 +18,9 @@ type Snapshot struct {
 	Directory    string     `json:"directory,omitempty"` // macOS directory binding (8b)
 	Realm        string     `json:"realm,omitempty"`     // Linux realm (8c)
 	IPAddresses  []string   `json:"ipAddresses"`
+	// Restart pending, network, battery, antivirus, disk encryption: what
+	// this platform could read (health.go).
+	Health       []SnapLine `json:"health,omitempty"`
 	AgentVersion string     `json:"agentVersion"`
 	TakenAt      string     `json:"takenAt"`
 }
@@ -51,7 +54,8 @@ type SnapRaw struct {
 	// The directory a Mac is bound to ("Active Directory: riverside.local").
 	Directory string
 	// The realm a Linux computer has joined ("Active Directory: riverside.local").
-	Realm string
+	Realm  string
+	Health []SnapLine
 }
 
 // BuildSnapshot turns what was read into the snapshot; account is the user
@@ -65,6 +69,7 @@ func BuildSnapshot(r SnapRaw, account, agentVersion string, now time.Time) Snaps
 		Directory:    tidy(r.Directory),
 		Realm:        tidy(r.Realm),
 		IPAddresses:  []string{},
+		Health:       r.Health,
 		AgentVersion: agentVersion,
 		// The computer's own clock, with its offset from UTC, so the help
 		// desk can show the time in its zone and the computer's.

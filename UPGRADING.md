@@ -375,6 +375,20 @@ ticks itself when the computer reports in.
 **Workflow rules:** a new action, **Suggest a playbook**, shows "Suggested:
 <playbook> [Apply]" on the ticket. It never applies anything by itself.
 
+### The agent
+
+**Attach on a Mac:** "Attach screenshot or file" now opens the file picker
+(as a sheet on the form's window), and the form has Cut, Copy, Paste and
+Select All, so a screenshot or text can be pasted into it.
+
+**A fuller health snapshot:** the private note on a ticket raised from the
+agent also says, where the computer can tell: whether a restart is pending
+(Windows, Linux), the network (Wi-Fi and its name and signal, or wired),
+the battery (charge, charger, health), antivirus and whether it's on and up
+to date (Windows), and disk encryption (BitLocker, FileVault, LUKS). A line
+the computer can't read is left out. Agents from before this send the
+shorter snapshot until they update themselves.
+
 ### Screens rearranged
 
 Nothing to do when upgrading; this is where things moved.

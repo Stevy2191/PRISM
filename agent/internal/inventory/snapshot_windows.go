@@ -44,5 +44,6 @@ func CollectSnapshot(account, agentVersion string) Snapshot {
 	r.Adapters = GoAdapters()
 	r.PrimaryIP = PrimaryIP()
 	r.Domain = domain()
+	r.Health = windowsHealth()
 	return BuildSnapshot(r, account, agentVersion, time.Now())
 }

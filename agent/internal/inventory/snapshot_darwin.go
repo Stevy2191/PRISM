@@ -40,5 +40,6 @@ func CollectSnapshot(account, agentVersion string) Snapshot {
 	if d := macADDomain(); d != "" {
 		r.Directory = "Active Directory: " + d
 	}
+	r.Health = macHealth()
 	return BuildSnapshot(r, account, agentVersion, time.Now())
 }

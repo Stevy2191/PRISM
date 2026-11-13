@@ -173,6 +173,14 @@ function snapshotNote(snap, computer, timeZone = 'UTC') {
     const name = line(d && d.name, 64);
     if (name && num(d.freeBytes) !== null && num(d.sizeBytes)) add(`Free on ${name}`, `${gb(d.freeBytes)} of ${gb(d.sizeBytes)}`);
   });
+  // What the agent could read of: restart pending, network, battery,
+  // antivirus, disk encryption. Labels and values are the agent's own words,
+  // cleaned like every other line; a label can't pose as one of ours.
+  const ours = new Set(['os', 'uptime', 'memory in use', 'signed in', 'domain', 'directory', 'realm', 'ip addresses', 'agent version', 'taken']);
+  (Array.isArray(s.health) ? s.health : []).slice(0, 12).forEach((h) => {
+    const label = (line(h && h.label, 40) || '').replace(/:/g, '');
+    if (label && !ours.has(label.toLowerCase()) && !/^free on /i.test(label)) add(label, line(h && h.value, 200));
+  });
   add('Signed in', line(s.signedInUser));
   add('Domain', line(s.domain));
   add('Directory', line(s.directory));
