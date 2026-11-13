@@ -201,6 +201,19 @@ const agentInventoryLimiter = rateLimit({
   message: { error: true, message: 'Too many inventories', code: 'RATE_LIMITED' },
 });
 
+// POST /agent/v1/tray/tickets/:id/reply, per device: a conversation, not a
+// flood. 30 an hour.
+const agentTrayReplyStore = new MemoryStore();
+const agentTrayReplyLimiter = rateLimit({
+  store: agentTrayReplyStore,
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `device:${req.device.id}`,
+  message: { error: true, message: 'Too many replies from this computer; try again later', code: 'RATE_LIMITED' },
+});
+
 // POST /agent/v1/tray/tickets, per device: people raise a few tickets; 10 an
 // hour stops a stuck or scripted tray from flooding the queue.
 const agentTrayTicketStore = new MemoryStore();
@@ -282,12 +295,12 @@ const secretRevealLimiter = rateLimit({
 // login attempts don't rate-limit the next; never called at runtime.
 function resetRateLimits() {
   [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
-    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore, secretRevealStore, installStore, agentTrayFileStore, agentTrayFileIpStore]
+    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore, secretRevealStore, installStore, agentTrayFileStore, agentTrayFileIpStore, agentTrayReplyStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
-  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, secretRevealLimiter, installLimiter, agentTrayFileLimiter, agentTrayFileIpLimiter,
+  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, secretRevealLimiter, installLimiter, agentTrayFileLimiter, agentTrayFileIpLimiter, agentTrayReplyLimiter,
 };

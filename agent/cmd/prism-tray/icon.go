@@ -10,9 +10,9 @@ import (
 
 // trayIcon is the notification-area icon: PRISM's blue rounded square with
 // a white P, as an .ico holding a 32×32 PNG (Windows scales it).
-func trayIcon() []byte {
+func trayIcon(dot bool) []byte {
 	const n = 32
-	p := trayPNG()
+	p := trayPNG(dot)
 	var ico bytes.Buffer
 	w := func(v any) { _ = binary.Write(&ico, binary.LittleEndian, v) }
 	w(uint16(0))
@@ -28,7 +28,7 @@ func trayIcon() []byte {
 }
 
 // trayPNG is the same icon as a PNG (Linux's StatusNotifierItem takes one).
-func trayPNG() []byte {
+func trayPNG(dot bool) []byte {
 	const n = 32
 	img := image.NewNRGBA(image.Rect(0, 0, n, n))
 	blue := color.NRGBA{0x24, 0x48, 0xC9, 0xFF}
@@ -65,6 +65,12 @@ func trayPNG() []byte {
 	fill(14, 7, 20, 10)
 	fill(14, 15, 20, 18)
 	fill(19, 9, 23, 16)
+	if dot {
+		// Something new from the help desk: an amber dot with a white ring,
+		// top right, readable on a light or dark taskbar.
+		disc(img, 24, 7, 8, white)
+		disc(img, 24, 7, 6, color.NRGBA{0xF5, 0x9E, 0x0B, 0xFF})
+	}
 	var p bytes.Buffer
 	_ = png.Encode(&p, img)
 	return p.Bytes()
@@ -73,7 +79,7 @@ func trayPNG() []byte {
 // trayTemplateIcon is the Mac menu-bar icon: a black P on transparent, as a
 // PNG. macOS treats it as a template (it uses only the shape and draws it
 // to suit the menu bar). 36×36 for sharp Retina rendering at 18 points.
-func trayTemplateIcon() []byte {
+func trayTemplateIcon(dot bool) []byte {
 	const n = 36
 	img := image.NewNRGBA(image.Rect(0, 0, n, n))
 	ink := color.NRGBA{0, 0, 0, 0xFF}
@@ -93,7 +99,23 @@ func trayTemplateIcon() []byte {
 	fill(16, 10, 22, 13)
 	fill(16, 17, 22, 20)
 	fill(21, 12, 25, 18)
+	if dot {
+		// A template icon has one ink: clear a ring, then a solid dot.
+		disc(img, 28, 8, 9, color.NRGBA{})
+		disc(img, 28, 8, 6, ink)
+	}
 	var p bytes.Buffer
 	_ = png.Encode(&p, img)
 	return p.Bytes()
+}
+
+// disc fills a circle (c with alpha 0 clears it).
+func disc(img *image.NRGBA, cx, cy, r int, c color.NRGBA) {
+	for y := cy - r; y <= cy+r; y++ {
+		for x := cx - r; x <= cx+r; x++ {
+			if (x-cx)*(x-cx)+(y-cy)*(y-cy) <= r*r && image.Pt(x, y).In(img.Rect) {
+				img.SetNRGBA(x, y, c)
+			}
+		}
+	}
 }

@@ -63,6 +63,7 @@ const UserCalendarIntegration = require('./UserCalendarIntegration')(sequelize);
 const CalendarEventCache = require('./CalendarEventCache')(sequelize);
 const DashboardLayout = require('./DashboardLayout')(sequelize);
 const UserPreference = require('./UserPreference')(sequelize);
+const AgentNotice = require('./AgentNotice')(sequelize);
 const AdSyncLog = require('./AdSyncLog')(sequelize);
 const AdGroupMapping = require('./AdGroupMapping')(sequelize);
 const SsoProvider = require('./SsoProvider')(sequelize);
@@ -135,6 +136,7 @@ const db = {
   WorkflowCondition,
   DashboardLayout,
   UserPreference,
+  AgentNotice,
   AdSyncLog,
   AdGroupMapping,
   SsoProvider,
@@ -615,6 +617,9 @@ User.hasOne(DashboardLayout, { foreignKey: 'userId', as: 'dashboardLayout', onDe
 DashboardLayout.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(UserPreference, { foreignKey: 'userId', as: 'preferences', onDelete: 'CASCADE' });
 UserPreference.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+Company.hasMany(AgentNotice, { foreignKey: 'companyId', as: 'agentNotices', onDelete: 'CASCADE' });
+AgentNotice.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+AgentNotice.belongsTo(User, { foreignKey: 'createdBy', as: 'author' });
 
 User.hasMany(UserCalendarIntegration, { foreignKey: 'userId', as: 'calendarIntegrations', onDelete: 'CASCADE' });
 UserCalendarIntegration.belongsTo(User, { foreignKey: 'userId', as: 'user' });

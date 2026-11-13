@@ -33,7 +33,7 @@ const (
 // setTrayIcon: the StatusNotifierItem shows the boxed P. On GNOME without
 // the AppIndicator extension nothing shows; the "Submit a ticket" launcher
 // app is the way in there.
-func setTrayIcon() { systray.SetIcon(trayPNG()) }
+func setTrayIcon(dot bool) { systray.SetIcon(trayPNG(dot)) }
 
 // lockPath: $XDG_RUNTIME_DIR (/run/user/<uid>: the user's own, cleared at
 // sign-out), else the user's cache folder.

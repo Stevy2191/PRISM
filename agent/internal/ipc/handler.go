@@ -6,6 +6,9 @@
 //	{"op":"whoami"}                                → WhoamiAnswer
 //	{"op":"submit","subject":…,"description":…,     → SubmitAnswer
 //	 "type":"incident|request","categoryId":…,"categoryUnsure":…}
+//	{"op":"home"}                                  → HomeAnswer
+//	{"op":"ticket","ticketId":…}                   → TicketAnswer
+//	{"op":"reply","ticketId":…,"body":…}           → ReplyAnswer
 //
 // Who is asking comes from the operating system (the pipe client's token on
 // Windows), never from the message: a request's own "account", "upn" or
@@ -78,6 +81,77 @@ type Request struct {
 	CategoryUnsure bool   `json:"categoryUnsure"`
 	// Files and screenshots the person added (sent after the ticket).
 	Attachments []Attachment `json:"attachments,omitempty"`
+	// One of the person's own tickets from this computer, and a reply to it.
+	TicketID int64  `json:"ticketId"`
+	Body     string `json:"body"`
+}
+
+// Notice is a help-desk notice for this computer's company.
+type Notice struct {
+	ID       int64  `json:"id"`
+	Headline string `json:"headline"`
+	Message  string `json:"message"`
+	PostedAt string `json:"postedAt"`
+}
+
+// LastReply is the newest answer from the help desk on a ticket.
+type LastReply struct {
+	ID      int64  `json:"id"`
+	From    string `json:"from"`
+	Snippet string `json:"snippet"`
+	At      string `json:"at"`
+}
+
+// HomeTicket is one of the person's tickets from this computer. State is
+// open, needs_answer, on_hold or done.
+type HomeTicket struct {
+	ID        int64      `json:"id"`
+	Number    string     `json:"number"`
+	Title     string     `json:"title"`
+	State     string     `json:"state"`
+	UpdatedAt string     `json:"updatedAt"`
+	LastReply *LastReply `json:"lastReply"`
+}
+
+// HomeAnswer is the window's home and the tray's menu. Matched: the signed-in
+// person is one of the company's contacts (only then are there tickets).
+type HomeAnswer struct {
+	Matched bool         `json:"matched"`
+	Notices []Notice     `json:"notices"`
+	Tickets []HomeTicket `json:"tickets"`
+	Offline bool         `json:"offline"`
+}
+
+// Message is one line of a ticket's conversation the person may read.
+// Side is support, you or contact.
+type Message struct {
+	ID   int64  `json:"id"`
+	From string `json:"from"`
+	Side string `json:"side"`
+	Body string `json:"body"`
+	At   string `json:"at"`
+}
+
+// TicketAnswer is one ticket with its conversation. Error: "offline" or
+// "not_found".
+type TicketAnswer struct {
+	Ticket struct {
+		ID          int64  `json:"id"`
+		Number      string `json:"number"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		State       string `json:"state"`
+		CreatedAt   string `json:"createdAt"`
+	} `json:"ticket"`
+	Messages []Message `json:"messages"`
+	Error    string    `json:"error,omitempty"`
+}
+
+// ReplyAnswer: Error "offline", "refused" (Message says why) or "invalid".
+type ReplyAnswer struct {
+	ID      int64  `json:"id,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // Attachment is one file from the form: its name, its type as the form
@@ -173,6 +247,12 @@ func (s *Server) Handle(ctx context.Context, id Identity, line []byte) any {
 		return s.whoami(ctx, id)
 	case "submit":
 		return s.submit(ctx, id, req)
+	case "home":
+		return s.home(ctx, id)
+	case "ticket":
+		return s.ticket(ctx, id, req.TicketID)
+	case "reply":
+		return s.reply(ctx, id, req)
 	default:
 		return SubmitAnswer{Error: "invalid", Message: "Unknown request."}
 	}
@@ -361,4 +441,96 @@ func (s *Server) loadHelpdesk() Helpdesk {
 		}
 	}
 	return h
+}
+
+// who is the asking user as PRISM's query string.
+func who(id Identity) url.Values {
+	q := url.Values{"account": {id.Account}}
+	if id.UPN != "" {
+		q.Set("upn", id.UPN)
+	}
+	return q
+}
+
+// home: the help desk's notices and the person's tickets from this
+// computer. Offline (or not enrolled): nothing, marked offline.
+func (s *Server) home(ctx context.Context, id Identity) HomeAnswer {
+	empty := HomeAnswer{Notices: []Notice{}, Tickets: []HomeTicket{}, Offline: true}
+	p := s.prism()
+	if p == nil {
+		return empty
+	}
+	ctx, cancel := context.WithTimeout(ctx, WhoamiWait)
+	defer cancel()
+	var a HomeAnswer
+	if _, err := p.Do(ctx, http.MethodGet, "/api/v1/agent/v1/tray/home?"+who(id).Encode(), nil, &a); err != nil {
+		return empty
+	}
+	if a.Notices == nil {
+		a.Notices = []Notice{}
+	}
+	if a.Tickets == nil {
+		a.Tickets = []HomeTicket{}
+	}
+	return a
+}
+
+// ticket: one of the person's tickets with its conversation.
+func (s *Server) ticket(ctx context.Context, id Identity, ticketID int64) TicketAnswer {
+	if ticketID <= 0 {
+		return TicketAnswer{Error: "not_found"}
+	}
+	p := s.prism()
+	if p == nil {
+		return TicketAnswer{Error: "offline"}
+	}
+	ctx, cancel := context.WithTimeout(ctx, WhoamiWait)
+	defer cancel()
+	var a TicketAnswer
+	if _, err := p.Do(ctx, http.MethodGet, fmt.Sprintf("/api/v1/agent/v1/tray/tickets/%d?%s", ticketID, who(id).Encode()), nil, &a); err != nil {
+		if client.Retryable(err) {
+			return TicketAnswer{Error: "offline"}
+		}
+		return TicketAnswer{Error: "not_found"}
+	}
+	if a.Messages == nil {
+		a.Messages = []Message{}
+	}
+	return a
+}
+
+// reply: the person's answer on one of their tickets.
+func (s *Server) reply(ctx context.Context, id Identity, req Request) ReplyAnswer {
+	body := strings.TrimSpace(req.Body)
+	if req.TicketID <= 0 || body == "" {
+		return ReplyAnswer{Error: "invalid", Message: "Write a reply first."}
+	}
+	if utf8.RuneCountInString(body) > 10000 {
+		return ReplyAnswer{Error: "invalid", Message: "That reply is too long."}
+	}
+	p := s.prism()
+	if p == nil {
+		return ReplyAnswer{Error: "offline"}
+	}
+	in := map[string]any{"account": id.Account, "body": body}
+	if id.UPN != "" {
+		in["upn"] = id.UPN
+	}
+	var out struct {
+		ID int64 `json:"id"`
+	}
+	if _, err := p.Do(ctx, http.MethodPost, fmt.Sprintf("/api/v1/agent/v1/tray/tickets/%d/reply", req.TicketID), in, &out); err != nil {
+		var e *client.Error
+		switch {
+		case errors.As(err, &e) && e.Status == http.StatusTooManyRequests:
+			return ReplyAnswer{Error: "refused", Message: "Too many replies from this computer. Try again in a while."}
+		case client.Retryable(err):
+			return ReplyAnswer{Error: "offline"}
+		case errors.As(err, &e) && e.Status == http.StatusBadRequest:
+			return ReplyAnswer{Error: "invalid", Message: e.Message}
+		default:
+			return ReplyAnswer{Error: "refused", Message: "The help desk didn't accept the reply. Open the ticket in the support portal instead."}
+		}
+	}
+	return ReplyAnswer{ID: out.ID}
 }

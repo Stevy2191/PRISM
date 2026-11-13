@@ -269,3 +269,69 @@ func TestReadRequestGrowsAndStopsAtTheLimit(t *testing.T) {
 		t.Fatal("nothing read, no error")
 	}
 }
+
+func TestHomeTicketAndReplyUseTheTokensIdentity(t *testing.T) {
+	p := &fakePrism{fn: func(path string) (any, error) {
+		switch {
+		case strings.Contains(path, "/tray/home"):
+			return map[string]any{"matched": true, "notices": []any{map[string]any{"id": 4, "headline": "Email is slow"}},
+				"tickets": []any{map[string]any{"id": 12, "number": "00012", "title": "Wifi", "state": "needs_answer", "lastReply": map[string]any{"id": 40, "from": "Tina"}}}}, nil
+		case strings.HasSuffix(path, "/reply"):
+			return map[string]any{"id": 77}, nil
+		default:
+			return map[string]any{"ticket": map[string]any{"id": 12, "title": "Wifi", "state": "open"}, "messages": []any{map[string]any{"id": 40, "side": "support", "body": "Which room?"}}}, nil
+		}
+	}}
+	s := &Server{PRISM: p}
+	h := s.Handle(context.Background(), maria, []byte(`{"op":"home","account":"RIVERSIDE\\boss"}`)).(HomeAnswer)
+	if !h.Matched || h.Offline || len(h.Notices) != 1 || len(h.Tickets) != 1 || h.Tickets[0].LastReply.ID != 40 {
+		t.Fatalf("home %+v", h)
+	}
+	if !strings.Contains(p.calls[0].path, "account=RIVERSIDE%5Cmchen") || !strings.Contains(p.calls[0].path, "upn=maria.chen%40riversideclinic.org") {
+		t.Fatalf("home asked as %s", p.calls[0].path)
+	}
+	tk := s.Handle(context.Background(), maria, []byte(`{"op":"ticket","ticketId":12}`)).(TicketAnswer)
+	if tk.Ticket.ID != 12 || len(tk.Messages) != 1 || tk.Error != "" {
+		t.Fatalf("ticket %+v", tk)
+	}
+	if !strings.HasPrefix(p.calls[1].path, "/api/v1/agent/v1/tray/tickets/12?") {
+		t.Fatalf("ticket path %s", p.calls[1].path)
+	}
+	r := s.Handle(context.Background(), maria, []byte(`{"op":"reply","ticketId":12,"body":"  Room 4  ","account":"RIVERSIDE\\boss","upn":"boss@x.org"}`)).(ReplyAnswer)
+	if r.ID != 77 || r.Error != "" {
+		t.Fatalf("reply %+v", r)
+	}
+	c := p.calls[2]
+	if c.path != "/api/v1/agent/v1/tray/tickets/12/reply" || c.body["account"] != `RIVERSIDE\mchen` || c.body["upn"] != "maria.chen@riversideclinic.org" || c.body["body"] != "Room 4" {
+		t.Fatalf("reply sent %+v", c)
+	}
+}
+
+func TestHomeTicketAndReplyOfflineAndInvalid(t *testing.T) {
+	s := &Server{}
+	if h := s.Handle(context.Background(), maria, []byte(`{"op":"home"}`)).(HomeAnswer); !h.Offline || h.Notices == nil || h.Tickets == nil {
+		t.Fatalf("home %+v", h)
+	}
+	if a := s.Handle(context.Background(), maria, []byte(`{"op":"ticket","ticketId":3}`)).(TicketAnswer); a.Error != "offline" {
+		t.Fatalf("ticket %+v", a)
+	}
+	if a := s.Handle(context.Background(), maria, []byte(`{"op":"ticket","ticketId":0}`)).(TicketAnswer); a.Error != "not_found" {
+		t.Fatalf("ticket 0 %+v", a)
+	}
+	if a := s.Handle(context.Background(), maria, []byte(`{"op":"reply","ticketId":3,"body":"   "}`)).(ReplyAnswer); a.Error != "invalid" {
+		t.Fatalf("empty reply %+v", a)
+	}
+	if a := s.Handle(context.Background(), maria, []byte(`{"op":"reply","ticketId":3,"body":"hi"}`)).(ReplyAnswer); a.Error != "offline" {
+		t.Fatalf("offline reply %+v", a)
+	}
+	refuse := &fakePrism{fn: func(string) (any, error) {
+		return nil, &client.Error{Status: http.StatusNotFound, Message: "Ticket not found"}
+	}}
+	s.SetPRISM(refuse)
+	if a := s.Handle(context.Background(), maria, []byte(`{"op":"ticket","ticketId":3}`)).(TicketAnswer); a.Error != "not_found" {
+		t.Fatalf("404 ticket %+v", a)
+	}
+	if a := s.Handle(context.Background(), maria, []byte(`{"op":"reply","ticketId":3,"body":"hi"}`)).(ReplyAnswer); a.Error != "refused" {
+		t.Fatalf("404 reply %+v", a)
+	}
+}

@@ -21,7 +21,7 @@ const (
 	connectedLabel = "connected to the help desk"
 )
 
-func setTrayIcon() { systray.SetIcon(trayIcon()) }
+func setTrayIcon(dot bool) { systray.SetIcon(trayIcon(dot)) }
 
 // singleInstance holds a named mutex for the life of the process; false if
 // another process already holds it.

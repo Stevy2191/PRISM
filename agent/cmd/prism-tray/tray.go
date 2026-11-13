@@ -7,7 +7,9 @@
 // who the user is from the operating system.
 //
 //	prism-tray        the icon (one per signed-in user)
-//	prism-tray form   the Submit a ticket window (the icon starts it)
+//	prism-tray form              the window, on its home (the icon starts it)
+//	prism-tray form new          … on the new-ticket form
+//	prism-tray form ticket <id>  … on one of the person's tickets
 //
 // This file is shared; platform_windows.go and platform_darwin.go hold the
 // differences (single instance, opening links, the web view, the icon).
@@ -18,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -58,10 +61,29 @@ var (
 	portalURL string
 )
 
+// How often the tray asks for notices and replies. The service's read
+// limit is 60 requests in 10 minutes for the whole computer.
+const homeEvery = 3 * time.Minute
+
+const menuTickets = 3
+
+var stateWord = map[string]string{"open": "Open", "needs_answer": "Needs your answer", "on_hold": "On hold", "done": "Done"}
+
 func onReady() {
-	setTrayIcon()
+	setTrayIcon(false)
 	systray.SetTooltip("PRISM: Submit a ticket")
+	// Shown, with a dot on the icon, while the help desk has said something
+	// this person hasn't looked at yet: it stays until they open it.
+	news := systray.AddMenuItem("", "Open it")
+	news.Hide()
 	submit := systray.AddMenuItem(submitLabel, "Send the help desk a ticket from this computer")
+	homeItem := systray.AddMenuItem("My tickets and notices", "Your tickets from this computer, and notices from the help desk")
+	var ticketItems [menuTickets]*systray.MenuItem
+	var ticketIDs [menuTickets]int64
+	for i := range ticketItems {
+		ticketItems[i] = systray.AddMenuItem("", "Open this ticket")
+		ticketItems[i].Hide()
+	}
 	portal := systray.AddMenuItem("Open the support portal", "Your tickets, in the browser")
 	portal.Hide()
 	systray.AddSeparator()
@@ -94,11 +116,103 @@ func onReady() {
 			time.Sleep(refresh())
 		}
 	}()
+	// The home: the person's tickets in the menu, and the dot.
+	refreshHome := func() {
+		var h ipc.HomeAnswer
+		if err := ipc.Call(map[string]string{"op": "home"}, &h, 30*time.Second); err != nil || h.Offline {
+			return // keep what was shown
+		}
+		seen := trayui.LoadSeen(trayui.DraftDir())
+		fresh, first := 0, ""
+		for _, n := range h.Notices {
+			if seen.NewNotice(n.ID) {
+				fresh++
+				if first == "" {
+					first = n.Headline
+				}
+			}
+		}
+		for _, t := range h.Tickets {
+			if t.LastReply != nil && seen.NewReply(t.ID, t.LastReply.ID) {
+				fresh++
+				if first == "" {
+					first = t.LastReply.From + " replied: " + t.Title
+				}
+			}
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		for i := range ticketItems {
+			if i < len(h.Tickets) {
+				t := h.Tickets[i]
+				ticketIDs[i] = t.ID
+				mark := ""
+				if t.LastReply != nil && seen.NewReply(t.ID, t.LastReply.ID) {
+					mark = "● "
+				}
+				ticketItems[i].SetTitle(mark + trayui.Shorten(t.Title, 34) + "  ·  " + stateWord[t.State])
+				ticketItems[i].Show()
+			} else {
+				ticketIDs[i] = 0
+				ticketItems[i].Hide()
+			}
+		}
+		setTrayIcon(fresh > 0)
+		switch {
+		case fresh == 1:
+			news.SetTitle("● New: " + trayui.Shorten(first, 40))
+			news.Show()
+			systray.SetTooltip("PRISM: something new from the help desk")
+		case fresh > 1:
+			news.SetTitle("● " + strconv.Itoa(fresh) + " new from the help desk")
+			news.Show()
+			systray.SetTooltip("PRISM: something new from the help desk")
+		default:
+			news.Hide()
+			systray.SetTooltip("PRISM: Submit a ticket")
+		}
+	}
+	// Sooner after the window was open: what was seen there clears the dot.
+	nudge := make(chan struct{}, 1)
+	go func() {
+		for {
+			refreshHome()
+			select {
+			case <-time.After(homeEvery):
+			case <-nudge:
+				time.Sleep(20 * time.Second)
+			}
+		}
+	}()
+	opened := func(args ...string) {
+		openForm(args...)
+		select {
+		case nudge <- struct{}{}:
+		default:
+		}
+	}
+	for i := range ticketItems {
+		i := i
+		go func() {
+			for range ticketItems[i].ClickedCh {
+				mu.Lock()
+				id := ticketIDs[i]
+				mu.Unlock()
+				if id > 0 {
+					opened("ticket", strconv.FormatInt(id, 10))
+				}
+			}
+		}()
+	}
 	go func() {
 		for {
 			select {
+			case <-news.ClickedCh:
+				opened()
+			case <-homeItem.ClickedCh:
+				opened()
 			case <-submit.ClickedCh:
-				openForm()
+				opened("new")
 			case <-portal.ClickedCh:
 				mu.Lock()
 				u := portalURL
@@ -111,18 +225,18 @@ func onReady() {
 
 // openForm starts the window as its own process (its own UI thread and
 // web view); the form allows one window at a time.
-func openForm() {
+func openForm(args ...string) {
 	exe, err := os.Executable()
 	if err != nil {
 		return
 	}
-	_ = exec.Command(exe, "form").Start()
+	_ = exec.Command(exe, append([]string{"form"}, args...)...).Start()
 }
 
 // runForm is the Submit a ticket window.
 func runForm() {
 	if !singleInstance(formLock) {
-		bringToFront("Submit a ticket")
+		bringToFront("Help desk")
 		return
 	}
 	var who ipc.WhoamiAnswer
@@ -139,6 +253,21 @@ func runForm() {
 	}
 	draftDir := trayui.DraftDir()
 	draft, _ := trayui.LoadDraft(draftDir)
+	// Where to open: the home, the new-ticket form, or one ticket.
+	start, startTicket := "home", int64(0)
+	if len(os.Args) > 2 && os.Args[2] == "new" {
+		start = "new"
+	} else if len(os.Args) > 3 && os.Args[2] == "ticket" {
+		if id, err := strconv.ParseInt(os.Args[3], 10, 64); err == nil && id > 0 {
+			start, startTicket = "ticket", id
+		}
+	}
+	home := ipc.HomeAnswer{Notices: []ipc.Notice{}, Tickets: []ipc.HomeTicket{}, Offline: true}
+	if !who.Offline {
+		_ = ipc.Call(map[string]string{"op": "home"}, &home, 30*time.Second)
+	}
+	homeJSON, _ := json.Marshal(home)
+	seenJSON, _ := json.Marshal(trayui.LoadSeen(draftDir))
 	cats, _ := json.Marshal(who.Categories)
 	if who.Categories == nil {
 		cats = []byte("[]")
@@ -148,12 +277,13 @@ func runForm() {
 		Name: who.Name, Company: company, Computer: who.Computer,
 		Subject: draft.Subject, Description: draft.Description,
 		CategoriesJSON: string(cats), Type: draft.Type, CategoryID: draft.CategoryID, CategoryUnsure: draft.CategoryUnsure,
+		Start: start, StartTicket: startTicket, HomeJSON: string(homeJSON), SeenJSON: string(seenJSON),
 	})
 	if err != nil {
 		return
 	}
 	// The web view's profile goes in the user's own folder.
-	w := newWindow("Submit a ticket", 460, 840, filepath.Join(draftDir, "WebView"))
+	w := newWindow("Help desk", 460, 840, filepath.Join(draftDir, "WebView"))
 	if w == nil {
 		noWebView(who)
 		return
@@ -198,6 +328,44 @@ func runForm() {
 			w.Dispatch(func() { w.Eval("window.prismDone(" + string(b) + ")") })
 		}()
 	})
+	// The home again, a ticket's conversation, and a reply: each asks the
+	// service in the background and answers through its own callback.
+	answer := func(callback string, v any) {
+		b, _ := json.Marshal(v)
+		w.Dispatch(func() { w.Eval("window." + callback + "(" + string(b) + ")") })
+	}
+	_ = w.Bind("prismHomeStart", func() {
+		go func() {
+			h := ipc.HomeAnswer{Notices: []ipc.Notice{}, Tickets: []ipc.HomeTicket{}, Offline: true}
+			_ = ipc.Call(map[string]string{"op": "home"}, &h, 30*time.Second)
+			answer("prismHomeDone", h)
+		}()
+	})
+	_ = w.Bind("prismTicketStart", func(id int64) {
+		go func() {
+			var a ipc.TicketAnswer
+			if err := ipc.Call(ipc.Request{Op: "ticket", TicketID: id}, &a, 30*time.Second); err != nil {
+				a = ipc.TicketAnswer{Error: "offline"}
+			}
+			answer("prismTicketDone", a)
+		}()
+	})
+	_ = w.Bind("prismReplyStart", func(id int64, body string) {
+		go func() {
+			var a ipc.ReplyAnswer
+			if err := ipc.Call(ipc.Request{Op: "reply", TicketID: id, Body: body}, &a, time.Minute); err != nil {
+				a = ipc.ReplyAnswer{Error: "offline"}
+			}
+			answer("prismReplyDone", a)
+		}()
+	})
+	// What the person has looked at, so the tray's dot can clear.
+	_ = w.Bind("prismSeen", func(raw string) {
+		if s, err := trayui.ParseSeen(raw); err == nil {
+			_ = trayui.SaveSeen(draftDir, s)
+		}
+	})
+	_ = w.Bind("prismOpenPortal", func() { openURL(who.Helpdesk.PortalURL) })
 	_ = w.Bind("prismClose", func() { w.Dispatch(w.Terminate) })
 	_ = w.Bind("prismOpenTicket", func(id int64) {
 		if u := trayui.TicketURL(who.Helpdesk.PortalURL, id); u != "" {

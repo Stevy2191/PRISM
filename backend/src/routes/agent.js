@@ -6,7 +6,7 @@ const path = require('path');
 const express = require('express');
 const { asyncHandler } = require('../middleware/error');
 const {
-  agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, agentTrayFileLimiter, agentTrayFileIpLimiter,
+  agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, agentTrayFileLimiter, agentTrayFileIpLimiter, agentTrayReplyLimiter,
 } = require('../middleware/rateLimit');
 const { verifyFileSignature, enforceMaxAttachmentSize, scanUpload } = require('../middleware/upload');
 const { receiveTrayFile, saveTrayAttachment, MAX_BYTES } = require('../services/agent/trayAttachments');
@@ -15,6 +15,7 @@ const { applyInventory } = require('../services/agent/inventory');
 const { ApiError } = require('../middleware/error');
 const { enroll, INTERVALS } = require('../services/agent/enrollment');
 const { whoami, raiseTrayTicket } = require('../services/agent/trayTickets');
+const trayHome = require('../services/agent/trayHome');
 const {
   updateKey, updateFor, latestPackage, formatOf, validFormat,
 } = require('../services/agent/updates');
@@ -73,6 +74,23 @@ router.post('/v1/inventory', agentAuth({ maxBody: 1024 * 1024 }), agentInventory
 // The agent's service passes the account the tray's pipe token belongs to.
 router.get('/v1/tray/whoami', agentAuthenticate, agentReadLimiter, asyncHandler(async (req, res) => {
   res.json(await whoami(req.device, req.query));
+}));
+
+// GET /agent/v1/tray/home?account=&upn= → { matched, notices, tickets }
+// The window's home and the tray's menu: help-desk notices for this
+// computer's company and the signed-in person's tickets from this computer.
+router.get('/v1/tray/home', agentAuthenticate, agentReadLimiter, asyncHandler(async (req, res) => {
+  res.json(await trayHome.home(req.device, req.query));
+}));
+
+// GET /agent/v1/tray/tickets/:id?account=&upn= → { ticket, messages }
+router.get('/v1/tray/tickets/:id', agentAuthenticate, agentReadLimiter, asyncHandler(async (req, res) => {
+  res.json(await trayHome.ticketView(req.device, req.query, req.params.id));
+}));
+
+// POST /agent/v1/tray/tickets/:id/reply { account, upn?, body } → { id }
+router.post('/v1/tray/tickets/:id/reply', agentAuthenticate, agentTrayReplyLimiter, asyncHandler(async (req, res) => {
+  res.status(201).json(await trayHome.reply(req.device, req.body, req.params.id));
 }));
 
 // POST /agent/v1/tray/tickets { account, upn?, subject, description, snapshot }

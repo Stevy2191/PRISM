@@ -31,8 +31,8 @@ const (
 
 // setTrayIcon: a template icon, so macOS draws it to suit a light or dark
 // menu bar.
-func setTrayIcon() {
-	icon := trayTemplateIcon()
+func setTrayIcon(dot bool) {
+	icon := trayTemplateIcon(dot)
 	systray.SetTemplateIcon(icon, icon)
 }
 

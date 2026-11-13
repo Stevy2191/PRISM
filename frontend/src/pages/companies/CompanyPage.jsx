@@ -14,6 +14,7 @@ import CompanyCategories from '../../components/companies/CompanyCategories';
 import CompanyRecordList from '../../components/companies/CompanyRecordList';
 import CompanyMicrosoft365 from '../../components/companies/CompanyMicrosoft365';
 import CompanyDevices from '../../components/companies/CompanyDevices';
+import CompanyNotices from '../../components/companies/CompanyNotices';
 import { CompanyFlags } from './CompaniesList';
 
 // Five tabs; a tab with more than one part shows them as a second row.
@@ -22,7 +23,7 @@ const GROUPS = [
   ['overview', 'Overview', []],
   ['people', 'People', [['contacts', 'Contacts'], ['departments', 'Departments'], ['sites', 'Sites']]],
   ['work', 'Work', [['tickets', 'Tickets'], ['projects', 'Projects']]],
-  ['assets', 'Assets', [['assets', 'Assets'], ['devices', 'Devices'], ['vendor', 'Vendor']]],
+  ['assets', 'Assets', [['assets', 'Assets'], ['devices', 'Devices'], ['notices', 'Agent notices'], ['vendor', 'Vendor']]],
   ['setup', 'Setup', [['details', 'Details'], ['categories', 'Categories'], ['m365', 'Microsoft 365']]],
 ];
 
@@ -53,6 +54,7 @@ export default function CompanyPage() {
     devices: hasPermission('assets.view'),
     categories: (company.isClient || company.isInternal) && hasPermission('tickets.categories.manage'),
     vendor: company.isVendor,
+    notices: hasPermission('devices.manage') || hasPermission('portal.manage'),
   };
   const groups = GROUPS.map(([key, label, subs]) => [key, label, subs.filter(([k]) => has[k] !== false)]);
   const subs = groups.find(([key]) => key === tab)[2];
@@ -105,6 +107,7 @@ export default function CompanyPage() {
       {part === 'details' && <CompanyOverview key={company.updatedAt} company={company} onSaved={setCompany} />}
       {part === 'm365' && <CompanyMicrosoft365 company={company} notice={m365Notice} />}
       {part === 'devices' && <CompanyDevices company={company} />}
+      {part === 'notices' && <CompanyNotices company={company} />}
       {part === 'sites' && <CompanySites company={company} />}
       {part === 'departments' && <CompanyDepartments company={company} />}
       {part === 'categories' && <CompanyCategories company={company} />}

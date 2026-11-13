@@ -389,6 +389,38 @@ to date (Windows), and disk encryption (BitLocker, FileVault, LUKS). A line
 the computer can't read is left out. Agents from before this send the
 shorter snapshot until they update themselves.
 
+**The window opens on a home** (migration 088, `AgentNotices`; it runs on
+start). The home shows any notice from the help desk, a **New ticket**
+button, and **My tickets**: the person's tickets from that computer, each
+marked Open, Needs your answer (a status that counts as waiting on the
+customer), On hold or Done. Clicking one opens its conversation in the
+window, with a box to **reply to the help desk**; the reply lands on the
+ticket exactly as one written in the portal does. Private notes are never
+shown. The tray menu lists the three most recent tickets too, and "Submit a
+ticket" still opens straight on the form.
+
+*Which tickets:* a computer shows only tickets that are **linked to that
+computer** and belong to the contact its signed-in user matches (by email).
+Tickets the person emailed in or raised elsewhere stay in the portal,
+behind their own sign-in. Someone who matches no contact sees notices and
+can send tickets, but has no list.
+
+**Notices:** a company's page has **Assets → Agent notices** (for staff
+with Manage devices or the portal permission): a headline, an optional
+message and when it comes down (2 hours, end of today, 24 hours, 3 days, or
+until taken down). Staff who reach every company can post one to all of
+them. Posting and taking down are audited.
+
+**A dot that stays:** while there is a notice the person hasn't seen, or a
+help-desk reply they haven't read, the agent's icon carries a dot and the
+top of its menu says what's new. It clears when they open it. The agent
+checks every 3 minutes, so it can lag a reply by that long.
+
+**API:** `GET /agent-notices?companyId=`, `POST /agent-notices`, `DELETE
+/agent-notices/:id`. For agents (signed): `GET /agent/v1/tray/home`, `GET
+/agent/v1/tray/tickets/:id`, `POST /agent/v1/tray/tickets/:id/reply` (30 an
+hour per computer).
+
 ### Screens rearranged
 
 Nothing to do when upgrading; this is where things moved.

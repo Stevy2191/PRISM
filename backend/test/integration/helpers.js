@@ -149,7 +149,7 @@ async function resetData() {
     'AuditLogs', 'SystemAuditLogs',
     'Sites', 'CompanyDomains', 'UserCompanyAccess', 'RoleCompanyAccess',
     'SsoAuthRequests', 'SsoGroupMappings', 'SsoIdentities', 'SsoProviders',
-    'UserRoles', 'UserPermissionOverrides', 'UserPreferences', 'ApiKeys', 'Sessions', 'Users', 'Departments',
+    'AgentNotices', 'UserRoles', 'UserPermissionOverrides', 'UserPreferences', 'ApiKeys', 'Sessions', 'Users', 'Departments',
   ];
   // Foreign key checks are off per statement, not with SET on "the"
   // connection: the pool hands each query whichever connection is free, so

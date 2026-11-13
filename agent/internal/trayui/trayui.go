@@ -39,6 +39,14 @@ type Page struct {
 	Type           string
 	CategoryID     int64
 	CategoryUnsure bool
+	// Where the window opens: "home" (the default), "new" (the ticket form)
+	// or "ticket" (StartTicket, one of the person's own).
+	Start       string
+	StartTicket int64
+	// The home as JSON (ipc.HomeAnswer) and what the person has already
+	// seen (Seen); "{}" when there is none.
+	HomeJSON string
+	SeenJSON string
 }
 
 // PortalDisplay is the portal address without its scheme, as the mockup
@@ -57,6 +65,15 @@ func Render(p Page) (string, error) {
 	}
 	if p.CategoriesJSON == "" {
 		p.CategoriesJSON = "[]"
+	}
+	if p.Start != "new" && p.Start != "ticket" {
+		p.Start = "home"
+	}
+	if p.HomeJSON == "" {
+		p.HomeJSON = `{"matched":false,"notices":[],"tickets":[],"offline":true}`
+	}
+	if p.SeenJSON == "" {
+		p.SeenJSON = "{}"
 	}
 	var b bytes.Buffer
 	if err := formTmpl.Execute(&b, p); err != nil {

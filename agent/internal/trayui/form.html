@@ -58,22 +58,73 @@ select.fi{appearance:auto}
 .files button:hover{color:var(--dang)}
 .drop{outline:2px dashed var(--acc);outline-offset:-6px}
 .warn{margin:0;padding:8px 12px;border-radius:8px;background:var(--warn-bg);color:var(--warn-ink);font-size:13px}
+/* Home first (owner, 2026-11-13): notices, New ticket, my tickets; a ticket opens here with its conversation and a reply box. */
+.me{font-size:12.5px;color:var(--tx3);margin:0;overflow-wrap:anywhere}
+.btn.big{height:48px;font-size:15px;justify-content:center;width:100%}
+.btn.link{border:0;background:none;color:var(--acc);padding:0;height:auto;font-weight:600}
+.notice{margin:0;padding:10px 12px;border-radius:10px;border:1px solid var(--warn-ink);background:var(--warn-bg);color:var(--warn-ink);font-size:13px}
+.notice b{display:block;color:var(--tx);font-size:14px}
+.notice small{display:block;margin-top:2px;opacity:.85}
+.notices{display:flex;flex-direction:column;gap:8px}
+.tk{list-style:none;margin:0;padding:0;border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+.tk li+li{border-top:1px solid var(--bd)}
+.tk button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;background:var(--surf);color:var(--tx);font:inherit;text-align:left;cursor:pointer}
+.tk button:hover{background:var(--surf2)}
+.tk button:focus-visible{outline:none;box-shadow:inset 0 0 0 3px var(--focus)}
+.tk .t{flex:1;min-width:0}
+.tk .t b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tk .t span{display:block;font-size:12.5px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tk .new{width:8px;height:8px;border-radius:50%;background:var(--acc);flex:none}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap;flex:none}
+.chip.open{background:var(--focus);color:var(--acc)}
+.chip.needs_answer{background:var(--warn-bg);color:var(--warn-ink)}
+.chip.on_hold{background:var(--surf2);color:var(--tx3);border:1px solid var(--bd)}
+.chip.done{background:var(--succ-bg);color:var(--succ-ink)}
+.empty{margin:0;padding:14px;border:1px dashed var(--bd2);border-radius:10px;color:var(--tx3);font-size:13px}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:auto}
+#home,#ticket{flex:1;min-height:0}
+.thread{flex:1;min-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:2px}
+.msg{max-width:88%;padding:8px 11px;border-radius:10px;border:1px solid var(--bd);background:var(--surf2);font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.you{align-self:flex-end;background:var(--focus);border-color:transparent}
+.msg small{display:block;font-size:11.5px;color:var(--tx3);margin-bottom:2px;white-space:normal}
+.reply{min-height:64px;flex:none}
 </style>
 </head>
-<body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}">
+<body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}" data-start="{{.Start}}" data-ticket="{{.StartTicket}}" data-home="{{.HomeJSON}}" data-seen="{{.SeenJSON}}">
 <div class="wrap">
   <div class="head">
     <span class="logo" aria-hidden="true"></span>
     <div style="min-width:0"><div style="font-weight:700">{{.HelpdeskName}}</div><div class="mut" style="font-size:12.5px">Powered by PRISM</div></div>
   </div>
 
-  <form id="form" class="pane" aria-labelledby="t-form" autocomplete="off">
-    <h2 id="t-form">Submit a ticket</h2>
-    <dl class="who">
-      <dt>Name</dt><dd>{{.Name}}</dd>
-      {{if .Company}}<dt>Company</dt><dd>{{.Company}}</dd>{{end}}
-      <dt>Computer</dt><dd>{{.Computer}}</dd>
-    </dl>
+  <section id="home" class="pane" aria-labelledby="t-home" hidden>
+    <h2 id="t-home" class="pick">Help desk</h2>
+    <div class="notices" id="notices" aria-label="Notices from the help desk"></div>
+    <button class="btn primary big" type="button" id="new">+ New ticket</button>
+    <div>
+      <div class="fl" id="mine-l">My tickets</div>
+      <ul class="tk" id="mine" aria-labelledby="mine-l" hidden></ul>
+      <p class="empty" id="mine-none" hidden></p>
+    </div>
+    <div class="foot">
+      <p class="me">{{.Name}} · {{.Computer}}</p>
+      <button class="btn link" type="button" id="all" hidden>All my tickets in the portal</button>
+    </div>
+  </section>
+
+  <section id="ticket" class="pane" aria-labelledby="t-ticket" hidden>
+    <div><button class="btn link" type="button" id="back-t">‹ Back</button></div>
+    <div style="display:flex;align-items:flex-start;gap:10px"><h2 id="t-ticket" style="flex:1;min-width:0;font-size:17px;overflow-wrap:anywhere"></h2><span class="chip" id="tk-state"></span></div>
+    <div class="thread" id="thread" aria-label="Conversation" tabindex="0"></div>
+    <p class="err" id="tk-err" role="alert" hidden></p>
+    <div><label class="fl" for="reply">Reply to the help desk</label><textarea id="reply" class="ft reply" maxlength="10000"></textarea></div>
+    <div class="row"><button class="btn" type="button" id="tk-portal" hidden>Open in the portal</button><button class="btn primary" type="button" id="tk-send">Send reply</button></div>
+  </section>
+
+  <form id="form" class="pane" aria-labelledby="t-form" autocomplete="off" hidden>
+    <div><button class="btn link" type="button" id="back-f">‹ Back</button></div>
+    <h2 id="t-form">New ticket</h2>
+    <p class="me">{{.Name}}{{if .Company}} · {{.Company}}{{end}} · {{.Computer}}</p>
     <div role="radiogroup" aria-labelledby="kind-l"><div class="fl" id="kind-l">Ticket type</div>
       <div class="types" id="kind">
         <label class="type"><input type="radio" name="kind" value="incident" aria-describedby="tip-inc">Incident
@@ -130,7 +181,7 @@ select.fi{appearance:auto}
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var ticketId = null;
-  function show(id) { ['form', 'sent', 'offline'].forEach(function (p) { $(p).hidden = p !== id; }); }
+  function show(id) { ['home', 'ticket', 'form', 'sent', 'offline'].forEach(function (p) { $(p).hidden = p !== id; }); }
   function setBusy(b) { $('send').disabled = b; $('retry').disabled = b; $('send').textContent = b ? 'Sending…' : 'Submit'; }
   function fail(msg) { show('form'); $('err').textContent = msg; $('err').hidden = false; }
   // The company's categories, one dropdown per level (sub-project 9). Other
@@ -295,12 +346,115 @@ select.fi{appearance:auto}
   }
   $('form').addEventListener('submit', function (e) { e.preventDefault(); submit(); });
   $('retry').addEventListener('click', submit);
-  $('cancel').addEventListener('click', function () { window.prismClose(); });
+  // ---- Home, and a ticket with its conversation (owner, 2026-11-13) ----
+  var STATE = { open: 'Open', needs_answer: 'Needs your answer', on_hold: 'On hold', done: 'Done' };
+  var home = { matched: false, notices: [], tickets: [], offline: true };
+  try { home = JSON.parse(document.body.dataset.home || '') || home; } catch (e) { /* offline */ }
+  // What this person has already looked at: notice ids, and the newest
+  // reply seen on each ticket. Kept by the window's Go side (prismSeen).
+  var seen = { notices: [], replies: {} };
+  try { seen = JSON.parse(document.body.dataset.seen || '') || seen; } catch (e) { /* none */ }
+  seen.notices = seen.notices || []; seen.replies = seen.replies || {};
+  function markSeen() { try { window.prismSeen(JSON.stringify(seen)); } catch (e) { /* not kept */ } }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function when(iso) {
+    var d = new Date(iso); if (isNaN(d)) return '';
+    var mins = Math.round((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + ' min ago';
+    if (mins < 24 * 60) return Math.round(mins / 60) + ' h ago';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+  function isNew(t) { return !!(t.lastReply && Number(seen.replies[t.id] || 0) < t.lastReply.id); }
+  function renderHome() {
+    var box = $('notices'); box.innerHTML = '';
+    (home.notices || []).forEach(function (n) {
+      var p = el('p', 'notice'); p.appendChild(el('b', null, n.headline));
+      if (n.message) p.appendChild(document.createTextNode(n.message));
+      p.appendChild(el('small', null, 'Posted ' + when(n.postedAt)));
+      box.appendChild(p);
+      if (seen.notices.indexOf(n.id) < 0) seen.notices.push(n.id);
+    });
+    seen.notices = seen.notices.slice(-200);
+    var list = $('mine'); list.innerHTML = '';
+    var tickets = home.tickets || [];
+    tickets.forEach(function (t) {
+      var li = el('li'), b = el('button'); b.type = 'button';
+      if (isNew(t)) { var dot = el('span', 'new'); dot.title = 'New reply'; b.appendChild(dot); }
+      var mid = el('span', 't'); mid.appendChild(el('b', null, t.title));
+      mid.appendChild(el('span', null, '#' + String(t.number).replace(/^0+(?=\d)/, '') + ' · ' + (t.lastReply ? t.lastReply.from + ' replied ' + when(t.lastReply.at) : 'updated ' + when(t.updatedAt))));
+      b.appendChild(mid); b.appendChild(el('span', 'chip ' + t.state, STATE[t.state] || 'Open'));
+      b.addEventListener('click', function () { openTicket(t.id); });
+      li.appendChild(b); list.appendChild(li);
+    });
+    list.hidden = !tickets.length;
+    var none = $('mine-none'); none.hidden = !!tickets.length;
+    none.textContent = home.offline ? "Can't reach the help desk right now, so your tickets can't be shown. You can still write a ticket; it's kept until you're back online."
+      : (home.matched ? 'Tickets you send from this computer show here, with the help desk\'s replies.'
+        : "The help desk doesn't have you on file yet, so tickets can't be listed here. You can still send one.");
+    $('all').hidden = !document.body.dataset.portal;
+    markSeen();
+  }
+  function goHome(refresh) {
+    show('home'); $('new').focus();
+    if (!refresh) return;
+    new Promise(function (resolve) { window.prismHomeDone = resolve; window.prismHomeStart(); })
+      .then(function (h) { if (h && !h.offline) { home = h; renderHome(); } }).catch(function () {});
+  }
+  var open = null;
+  function renderTicket(a) {
+    open = a.ticket;
+    $('t-ticket').textContent = a.ticket.title;
+    var chip = $('tk-state'); chip.className = 'chip ' + a.ticket.state; chip.textContent = STATE[a.ticket.state] || 'Open';
+    var th = $('thread'); th.innerHTML = '';
+    function bubble(side, from, at, body) {
+      var m = el('div', 'msg ' + (side === 'you' ? 'you' : ''));
+      m.appendChild(el('small', null, from + ' · ' + when(at))); m.appendChild(document.createTextNode(body)); th.appendChild(m);
+    }
+    if (a.ticket.description) bubble('you', 'You wrote', a.ticket.createdAt, a.ticket.description);
+    var last = 0;
+    (a.messages || []).forEach(function (m) { bubble(m.side, m.from, m.at, m.body); if (m.side === 'support') last = m.id; });
+    th.scrollTop = th.scrollHeight;
+    if (last) { seen.replies[a.ticket.id] = last; markSeen(); }
+    $('tk-portal').hidden = !document.body.dataset.portal;
+  }
+  function ticketFail(msg) { $('tk-err').textContent = msg; $('tk-err').hidden = false; }
+  function openTicket(id) {
+    $('tk-err').hidden = true; $('reply').value = '';
+    $('t-ticket').textContent = 'Opening…'; $('tk-state').textContent = ''; $('thread').innerHTML = '';
+    show('ticket');
+    new Promise(function (resolve) { window.prismTicketDone = resolve; window.prismTicketStart(id); }).then(function (a) {
+      if (a && a.ticket && a.ticket.id) { renderTicket(a); $('reply').focus(); return; }
+      $('t-ticket').textContent = 'Ticket';
+      ticketFail(a && a.error === 'offline' ? "Can't reach the help desk right now. Try again once you're back online." : "This ticket can't be opened here. Look for it in the support portal.");
+    });
+  }
+  $('tk-send').addEventListener('click', function () {
+    var body = $('reply').value.trim();
+    if (!open) return;
+    if (!body) { ticketFail('Write a reply first.'); $('reply').focus(); return; }
+    $('tk-err').hidden = true; $('tk-send').disabled = true; $('tk-send').textContent = 'Sending…';
+    new Promise(function (resolve) { window.prismReplyDone = resolve; window.prismReplyStart(open.id, body); }).then(function (a) {
+      $('tk-send').disabled = false; $('tk-send').textContent = 'Send reply';
+      if (a && a.id) { openTicket(open.id); return; }
+      ticketFail(a && a.error === 'offline' ? "Can't reach the help desk right now. Your reply is still here: try again once you're back online." : ((a && a.message) || 'The reply could not be sent.'));
+    });
+  });
+  $('new').addEventListener('click', function () { show('form'); if (!kind()) document.querySelector('input[name=kind]').focus(); else $('subj').focus(); });
+  $('all').addEventListener('click', function () { window.prismOpenPortal(); });
+  $('tk-portal').addEventListener('click', function () { if (open) window.prismOpenTicket(open.id); });
+  $('back-t').addEventListener('click', function () { goHome(true); });
+  $('back-f').addEventListener('click', function () { goHome(false); });
+  $('cancel').addEventListener('click', function () { goHome(false); });
   $('close').addEventListener('click', function () { window.prismClose(); });
-  $('done').addEventListener('click', function () { window.prismClose(); });
-  $('open').addEventListener('click', function () { window.prismOpenTicket(ticketId); window.prismClose(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window.prismClose(); });
-  if (!kind()) document.querySelector('input[name=kind]').focus(); else $('subj').focus();
+  $('done').addEventListener('click', function () { goHome(true); });
+  $('open').addEventListener('click', function () { window.prismOpenTicket(ticketId); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if ($('home').hidden && $('sent').hidden) goHome(false); else window.prismClose(); } });
+  renderHome();
+  var start = document.body.dataset.start, startTicket = Number(document.body.dataset.ticket || 0);
+  if (start === 'ticket' && startTicket) openTicket(startTicket);
+  else if (start === 'new') { show('form'); if (!kind()) document.querySelector('input[name=kind]').focus(); else $('subj').focus(); }
+  else goHome(false);
 })();
 </script>
 </body>
