@@ -151,11 +151,15 @@ async function resetData() {
     'SsoAuthRequests', 'SsoGroupMappings', 'SsoIdentities', 'SsoProviders',
     'UserRoles', 'UserPermissionOverrides', 'ApiKeys', 'Sessions', 'Users', 'Departments',
   ];
-  await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+  // Foreign key checks are off per statement, not with SET on "the"
+  // connection: the pool hands each query whichever connection is free, so
+  // while the app is also answering a browser's requests the SET and the
+  // TRUNCATE could land on different ones (and the table kept its rows).
+  const unchecked = 'SET STATEMENT foreign_key_checks = 0 FOR';
   for (const table of tables) {
     // Some tables only exist on newer schemas; skipping a missing one is fine.
     // eslint-disable-next-line no-await-in-loop
-    await sequelize.query(`TRUNCATE TABLE \`${table}\``).catch(() => {});
+    await sequelize.query(`${unchecked} TRUNCATE TABLE \`${table}\``).catch(() => {});
   }
   // Asset, license and contract records are emptied with DELETE: a TRUNCATE
   // costs a table rebuild even when empty, and these tables are empty for
@@ -172,9 +176,8 @@ async function resetData() {
   ];
   for (const table of deleted) {
     // eslint-disable-next-line no-await-in-loop
-    await sequelize.query(`DELETE FROM \`${table}\``).catch(() => {});
+    await sequelize.query(`${unchecked} DELETE FROM \`${table}\``).catch(() => {});
   }
-  await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
   // Companies is never truncated: the internal company (created by the
   // migration) must keep its id, because model hooks and the company cache
   // rely on it. Every other company goes.

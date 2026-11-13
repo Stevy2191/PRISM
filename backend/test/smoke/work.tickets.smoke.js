@@ -36,7 +36,9 @@ it('the header, sidebar and conversation render', async () => {
   await page.goto(`/tickets/${ticket.id}`);
   await shown(page, 'Printer offline').waitFor();
   await shown(page, 'Seeded note text').waitFor();
-  await shown(page, 'Test tina').waitFor();
+  // The assignee is under the title, changeable there.
+  const assignee = page.getByRole('combobox', { name: 'Assignee' }).filter({ visible: true }).first();
+  expect(await assignee.locator('option:checked').textContent()).toBe('Test tina');
 });
 
 it('every tab opens and shows its content', async () => {

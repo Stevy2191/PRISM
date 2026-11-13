@@ -134,11 +134,11 @@ it('nav shows Workload only with workload.view', async () => {
   // Workload is in the Projects menu (with Projects and Calendar).
   const menu = without.getByRole('button', { name: 'Projects' });
   if (await menu.count()) await menu.click();
-  expect(await without.getByRole('link', { name: 'Workload', exact: true }).count()).toBe(0);
+  expect(await without.getByRole('link', { name: /Workload$/ }).count()).toBe(0);
   const withIt = await smoke.pageAs('admin');
   await withIt.goto('/dashboard');
   await withIt.getByRole('button', { name: 'Projects' }).click();
-  await withIt.getByRole('link', { name: 'Workload', exact: true }).first().waitFor();
+  await withIt.getByRole('link', { name: /Workload$/ }).filter({ visible: true }).first().waitFor();
 });
 
 it('Hours people work saves a 6h override', async () => {

@@ -33,10 +33,9 @@ beforeEach(resetRateLimits);
 // The description opens the Conversation tab, which the page lands on.
 const openDescription = (page) => page.getByTestId('ticket-description').waitFor();
 
-it('the description has its own tab, not the Conversation; line breaks kept', async () => {
+it('the description opens the conversation; line breaks kept', async () => {
   await admin.goto(`/tickets/${t.id}`);
   await admin.getByRole('button', { name: 'Conversation', exact: true }).waitFor();
-  expect(await admin.getByTestId('ticket-description').count()).toBe(0);
   await openDescription(admin);
   const card = admin.getByTestId('ticket-description');
   await card.waitFor();
