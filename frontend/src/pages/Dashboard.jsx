@@ -310,7 +310,7 @@ function HoursPanel({ hours }) {
 }
 
 // One line per person, and only people who have something open.
-function TeamWorkloadPanel({ workload: everyone }) {
+function TeamWorkloadPanel({ workload: everyone = [] }) {
   const workload = everyone.filter((w) => w.openCount > 0);
   const maxCount = Math.max(1, ...workload.map((w) => w.openCount));
   const colorFor = (count) => (count > 25 ? 'var(--color-danger)' : count > 15 ? 'var(--color-warning)' : 'var(--color-accent)');
@@ -989,7 +989,7 @@ export default function Dashboard() {
       case 'slaAtRisk': return <SlaAtRiskPanel tickets={data.slaAtRisk} />;
       case 'activityFeed': return (
         <ActivityFeedPanel
-          activity={[...data.activity, ...activityMore]}
+          activity={[...(data.activity || []), ...activityMore]}
           hasMore={activityHasMore}
           onLoadMore={handleLoadMoreActivity}
           loadingMore={loadingMoreActivity}
@@ -1000,8 +1000,13 @@ export default function Dashboard() {
     }
   };
 
-  const visiblePanels = (panels || []).filter((p) => !p.hidden);
-  const hiddenPanelDefs = (panels || []).filter((p) => p.hidden).map((p) => ({ key: p.key, label: catalog[p.key]?.label || p.key }));
+  // Only this mode's panels. Right after switching "Whose dashboard", the
+  // panels are still the other mode's until its layout loads: drawing those
+  // with this mode's data (a personal dashboard has no activity feed or team
+  // workload) crashed the page.
+  const modePanels = (panels || []).filter((p) => catalog[p.key]);
+  const visiblePanels = modePanels.filter((p) => !p.hidden);
+  const hiddenPanelDefs = modePanels.filter((p) => p.hidden).map((p) => ({ key: p.key, label: catalog[p.key]?.label || p.key }));
 
   return (
     <div
