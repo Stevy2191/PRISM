@@ -675,28 +675,54 @@ function reconcilePanels(savedPanels, catalog, defaults) {
   });
 }
 
-function PanelSlot({ label, size, editMode, dragging, onDragStart, onDragOver, onDrop, onDragEnd, onHide, onToggleSize, children }) {
+function PanelSlot({
+  label, size, editMode, dragging, onDragStart, onDragOver, onDrop, onDragEnd, onHide, onToggleSize, onMove, isFirst, isLast, children,
+}) {
   const spanClass = size === 'full' ? 'min-w-0 md:col-span-2' : 'min-w-0 md:col-span-1';
+  const box = useRef(null);
+  const [over, setOver] = useState(false);
 
   if (!editMode) {
     return <div className={spanClass}>{children}</div>;
   }
 
+  // Dragging starts from the handle, not the whole box: a panel is full of
+  // links, which the browser would drag instead (owner, 2026-11-13: the
+  // boxes wouldn't move). Firefox only starts a drag that carries data, so
+  // it carries the panel's name; the picture is the whole box.
+  const start = (e) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', label);
+    if (box.current && e.dataTransfer.setDragImage) e.dataTransfer.setDragImage(box.current, 24, 16);
+    onDragStart();
+  };
+  const arrow = 'flex h-6 w-6 items-center justify-center rounded-md text-sm disabled:opacity-30 hover:bg-[var(--color-hover)]';
+
   return (
     <div
+      ref={box}
       className={`${spanClass} flex flex-col rounded-2xl border border-dashed p-2`}
-      style={{ borderColor: 'var(--color-border-strong)', opacity: dragging ? 0.4 : 1 }}
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      onDragEnd={onDragEnd}
+      style={{ borderColor: over ? 'var(--color-accent)' : 'var(--color-border-strong)', opacity: dragging ? 0.4 : 1 }}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (!over) setOver(true); onDragOver(e); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOver(false); }}
+      onDrop={(e) => { e.preventDefault(); setOver(false); onDrop(e); }}
+      data-testid="dashboard-panel"
     >
-      <div className="mb-2 flex items-center justify-between px-1">
-        <span className="flex cursor-grab items-center gap-1.5 text-xs font-medium select-none" style={{ color: MUTED }}>
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <span
+          draggable
+          onDragStart={start}
+          onDragEnd={() => { setOver(false); onDragEnd(); }}
+          className="flex cursor-grab items-center gap-1.5 rounded px-1 text-xs font-medium select-none active:cursor-grabbing"
+          style={{ color: MUTED }}
+          title="Drag to move"
+        >
           <span aria-hidden="true">⠿</span> {label}
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* The same without a mouse. */}
+          <button type="button" className={arrow} style={{ color: TEXT }} onClick={() => onMove(-1)} disabled={isFirst} aria-label={`Move ${label} earlier`} title="Move earlier">←</button>
+          <button type="button" className={arrow} style={{ color: TEXT }} onClick={() => onMove(1)} disabled={isLast} aria-label={`Move ${label} later`} title="Move later">→</button>
           <button type="button" onClick={onToggleSize} className="text-xs font-semibold hover:underline" style={{ color: TEXT }}>
             {size === 'full' ? 'Make half-width' : 'Make full-width'}
           </button>
@@ -936,6 +962,7 @@ export default function Dashboard() {
       const visible = prev.filter((p) => !p.hidden);
       const hidden = prev.filter((p) => p.hidden);
       const next = [...visible];
+      if (fromIdx === toIdx || toIdx < 0 || toIdx >= next.length) return prev;
       const [moved] = next.splice(fromIdx, 1);
       next.splice(toIdx, 0, moved);
       return [...next, ...hidden];
@@ -1069,6 +1096,9 @@ export default function Dashboard() {
                   onDragEnd={() => { dragIndex.current = null; setDraggingIndex(null); }}
                   onHide={() => hidePanel(p.key)}
                   onToggleSize={() => toggleSize(p.key)}
+                  onMove={(step) => reorder(idx, idx + step)}
+                  isFirst={idx === 0}
+                  isLast={idx === visiblePanels.length - 1}
                 >
                   {renderPanelContent(p.key)}
                 </PanelSlot>

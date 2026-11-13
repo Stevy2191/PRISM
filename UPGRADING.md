@@ -510,6 +510,10 @@ gets Needs attention at the top.
 land on the all-users view and switch to themselves; now it opens on **My
 dashboard**, and the picker switches to all users or another person.
 
+**Customize on the dashboard:** panels move again. They drag by their
+name (the ⠿ handle), not from anywhere in the box, which also makes it work
+in Firefox; each panel also has ← and → to move it without dragging.
+
 **Settings uses the whole width** from the left, and nothing in it scrolls
 on its own: the menu is as tall as it needs and moves with the page.
 
