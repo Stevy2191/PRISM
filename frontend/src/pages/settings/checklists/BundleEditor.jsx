@@ -11,26 +11,37 @@ import Spinner from '../../../components/Spinner';
 import Modal from '../../../components/Modal';
 import Breadcrumbs from '../../../components/ui/Breadcrumbs';
 import Button from '../../../components/ui/Button';
-import { buildIndex, pathLabel } from '../../../components/categoryTree';
+import { groupCategoriesByCompany, describeSuggest } from './bundleCategories';
 import TryOnSomeone from './TryOnSomeone';
 
 const slot = 'inline-flex min-h-[36px] items-center rounded-md border border-navy-200 bg-surface px-2 text-sm font-semibold text-navy-800';
 
+// `groups` ([{ company, options }]) puts the options under headings; with one
+// group, or plain `options`, there are none.
 function PickMany({
-  title, hint, options, value, onDone, onClose,
+  title, hint, options, groups, value, onDone, onClose,
 }) {
   const [chosen, setChosen] = useState(value);
+  const row = (o) => (
+    <label key={o.id} className="flex min-h-[40px] items-center gap-3 rounded-md px-2 text-sm hover:bg-navy-50">
+      <input type="checkbox" className="h-4 w-4" checked={chosen.includes(o.id)}
+        onChange={() => setChosen((c) => (c.includes(o.id) ? c.filter((x) => x !== o.id) : [...c, o.id]))} />
+      {o.name}
+    </label>
+  );
+  const sets = groups || [{ company: null, options }];
+  const headings = sets.length > 1;
   return (
     <Modal title={title} onClose={onClose}>
       {hint && <p className="mb-3 text-sm text-navy-500">{hint}</p>}
       <div className="flex max-h-80 flex-col gap-1 overflow-y-auto">
-        {options.map((o) => (
-          <label key={o.id} className="flex min-h-[40px] items-center gap-3 rounded-md px-2 text-sm hover:bg-navy-50">
-            <input type="checkbox" className="h-4 w-4" checked={chosen.includes(o.id)}
-              onChange={() => setChosen((c) => (c.includes(o.id) ? c.filter((x) => x !== o.id) : [...c, o.id]))} />
-            {o.name}
-          </label>
-        ))}
+        {sets.length === 0 && <p className="text-sm text-navy-400">There are no categories yet.</p>}
+        {sets.map((g) => (headings ? (
+          <fieldset key={g.companyId} className="mb-2">
+            <legend className="sticky top-0 w-full bg-surface px-2 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-navy-400">{g.company}</legend>
+            {g.options.map(row)}
+          </fieldset>
+        ) : g.options.map(row)))}
       </div>
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="quiet" onClick={() => onDone([])}>Clear</Button>
@@ -52,6 +63,7 @@ export default function BundleEditor() {
   const [forms, setForms] = useState([]);
   const [types, setTypes] = useState([]);
   const [ticketCategories, setTicketCategories] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [picking, setPicking] = useState(null); // { what: 'types', i } | { what: 'categories' }
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -62,8 +74,12 @@ export default function BundleEditor() {
     api.get('/forms').then(({ data }) => setForms(data.forms)).catch(() => {});
     api.get('/assets/categories').then(({ data }) => setTypes(data.categories || [])).catch(() => {});
     api.get('/ticket-categories').then(({ data }) => setTicketCategories(data.categories || [])).catch(() => {});
+    api.get('/companies', { params: { limit: 200 } }).then(({ data }) => setCompanies(data.companies || [])).catch(() => {});
   }, [id, isNew]);
-  const categoryIndex = useMemo(() => buildIndex(ticketCategories), [ticketCategories]);
+
+  const categoryGroups = useMemo(() => groupCategoriesByCompany(ticketCategories, companies, {
+    chosen: (pb && pb.suggestCategoryIds) || [], offeredFor: pb ? pb.companyIds : null,
+  }), [ticketCategories, companies, pb]);
 
   if (!pb) return error ? <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div> : <Spinner />;
 
@@ -182,7 +198,7 @@ export default function BundleEditor() {
           <p className="flex flex-wrap items-center gap-2 border-t border-navy-100 pt-4 text-[15px]">
             Suggest it on new tickets in
             <button type="button" className={slot} onClick={() => setPicking({ what: 'categories' })}>
-              {suggest.length ? suggest.map((cid) => pathLabel(categoryIndex, cid)).join(', ') : 'a category'} ▾
+              {describeSuggest(suggest, ticketCategories, companies) || 'a category'} ▾
             </button>
             <span className="text-sm text-navy-400">(optional)</span>
           </p>
@@ -200,8 +216,8 @@ export default function BundleEditor() {
           onDone={(ids) => { setBlock(picking.i, { limits: { ...(pb.blocks[picking.i].limits || {}), categoryIds: ids.length ? ids : undefined } }); setPicking(null); }} />
       )}
       {picking && picking.what === 'categories' && (
-        <PickMany title="Suggest on tickets in" hint="Tickets created in these categories, or under them, or moved into them, get this bundle suggested."
-          options={ticketCategories.map((c) => ({ id: c.id, name: pathLabel(categoryIndex, c.id) }))} value={suggest}
+        <PickMany title="Suggest on tickets in" hint="Tickets created in these categories, or under them, or moved into them, get this bundle suggested. Each company has its own categories."
+          groups={categoryGroups} value={suggest}
           onClose={() => setPicking(null)}
           onDone={(ids) => { set({ suggestCategoryIds: ids }); setPicking(null); }} />
       )}
