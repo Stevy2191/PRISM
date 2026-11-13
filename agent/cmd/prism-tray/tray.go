@@ -86,16 +86,23 @@ func onReady() {
 	// this person hasn't looked at yet: it stays until they open it.
 	news := systray.AddMenuItem("", "Open it")
 	news.Hide()
+	// Three groups, each between its own lines (owner, 2026-11-13: it all ran
+	// together): what you can do, your open tickets under a heading, and the
+	// computer's status. The lines can't be hidden, so every group always has
+	// something in it.
 	submit := systray.AddMenuItem(submitLabel, "Send the help desk a ticket from this computer")
-	homeItem := systray.AddMenuItem("My open tickets and notices", "Your open tickets, and notices from the help desk")
+	homeItem := systray.AddMenuItem("Notices and all my tickets", "Notices from the help desk, and every open ticket of yours")
+	portal := systray.AddMenuItem("Open the support portal", "Your tickets, in the browser")
+	portal.Hide()
+	systray.AddSeparator()
+	ticketsHead := systray.AddMenuItem(trayui.MenuTicketsHeading(0, 0), "")
+	ticketsHead.Disable()
 	var ticketItems [menuTickets]*systray.MenuItem
 	var ticketIDs [menuTickets]int64
 	for i := range ticketItems {
 		ticketItems[i] = systray.AddMenuItem("", "Open this ticket")
 		ticketItems[i].Hide()
 	}
-	portal := systray.AddMenuItem("Open the support portal", "Your tickets, in the browser")
-	portal.Hide()
 	systray.AddSeparator()
 	status := systray.AddMenuItem("Connecting to the help desk…", "")
 	status.Disable()
@@ -172,17 +179,19 @@ func onReady() {
 			if i < len(h.Tickets) {
 				t := h.Tickets[i]
 				ticketIDs[i] = t.ID
-				mark := ""
-				if t.LastReply != nil && seen.NewReply(t.ID, t.LastReply.ID) {
-					mark = "● "
-				}
-				ticketItems[i].SetTitle(mark + trayui.Shorten(t.Title, 34) + "  ·  " + stateWord[t.State])
+				unread := t.LastReply != nil && seen.NewReply(t.ID, t.LastReply.ID)
+				ticketItems[i].SetTitle(trayui.MenuTicketLine(t.Title, stateWord[t.State], unread))
 				ticketItems[i].Show()
 			} else {
 				ticketIDs[i] = 0
 				ticketItems[i].Hide()
 			}
 		}
+		shown := len(h.Tickets)
+		if shown > menuTickets {
+			shown = menuTickets
+		}
+		ticketsHead.SetTitle(trayui.MenuTicketsHeading(shown, len(h.Tickets)))
 		setTrayIcon(fresh > 0)
 		switch {
 		case fresh == 1:

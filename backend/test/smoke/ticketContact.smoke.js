@@ -17,11 +17,11 @@ beforeAll(async () => {
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 
-it('Change in Contact Info moves the ticket to the person picked', async () => {
+it('Change contact in Contact Info moves the ticket to the person picked', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${ticket.id}`);
   const aside = page.locator('aside').filter({ hasText: 'Contact Info' }).first();
-  await aside.getByRole('button', { name: 'Change', exact: true }).click();
+  await aside.getByRole('button', { name: 'Change contact' }).click();
   const box = aside.getByTestId('change-contact');
   await box.getByLabel("Change the ticket's contact").fill('Becker');
   const saved = page.waitForResponse((r) => r.url().endsWith(`/tickets/${ticket.id}`) && r.request().method() === 'PATCH');

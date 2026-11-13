@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import CompanyTag from '../../../components/companies/CompanyTag';
 import { Link } from 'react-router-dom';
-import { IconX } from '@tabler/icons-react';
+import { IconX, IconUserEdit } from '@tabler/icons-react';
 import api from '../../../api/api';
 import { initials } from '../../../utils/userDisplay';
 import { formatPhone } from '../../../utils/formatPhone';
@@ -281,11 +281,17 @@ export function Sidebar({
                     {ticket.contact?.isPlaceholder && (
                       <span className="mt-1 block rounded-md border p-2 text-xs" style={{ borderColor: BORDER, backgroundColor: BG, color: TEXT }} data-testid="unknown-agent-user">
                         PRISM doesn&apos;t know who this is yet{ticket.agentAccount ? <>: the computer account is <b>{ticket.agentAccount}</b></> : ''}.
-                        {canEdit && ' Choose their contact with Change (add them under Contacts first if needed). PRISM will remember them on that computer, and move their other agent tickets too.'}
+                        {canEdit && ' Choose their contact with Change contact (add them under Contacts first if needed). PRISM will remember them on that computer, and move their other agent tickets too.'}
                       </span>
                     )}
+                    {/* A real button on its own line (owner, 2026-11-13: the
+                        small "Change" link was hard to notice). */}
                     {canEdit && !changingContact && (
-                      <button type="button" className="ml-2 text-xs font-semibold hover:underline" style={{ color: BLUE }} onClick={() => setChangingContact(true)}>Change</button>
+                      <button type="button" onClick={() => setChangingContact(true)}
+                        className="mt-2 flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-semibold hover:bg-[var(--color-hover)] max-sm:min-h-[44px]"
+                        style={{ borderColor: BORDER, color: TEXT }}>
+                        <IconUserEdit size={15} aria-hidden="true" />Change contact
+                      </button>
                     )}
                     {canEdit && changingContact && (
                       <div className="mt-1.5 space-y-1" data-testid="change-contact">
