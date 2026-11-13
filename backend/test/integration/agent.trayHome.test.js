@@ -38,11 +38,14 @@ beforeEach(async () => {
 });
 afterAll(closeDb);
 
-it('home lists the person\'s tickets from this computer, with plain states and the last staff reply', async () => {
+it('home lists the person\'s open tickets, wherever they were raised, with plain states and the last staff reply', async () => {
   const first = await raise(device);
   const second = await raise(device, { subject: 'Screen flickers' });
-  // A ticket of hers that didn't come from this computer stays in the portal.
+  // One of hers that didn't come from this computer shows too.
   const emailed = await makeTicket(a(), { title: 'Emailed in', contactId: maria.id });
+  // Someone else's doesn't.
+  const tom = await contactIn(company, 'tom@riversideclinic.org', 'Tom');
+  const toms = await makeTicket(a(), { title: 'Tom\'s ticket', contactId: tom.id });
   expectOk(await a().post(`${API}/tickets/${first}/comments`).send({ body: 'Which room are you in?', type: 'reply' }), 201);
   expectOk(await a().post(`${API}/tickets/${first}/comments`).send({ body: 'Staff only', type: 'comment_private' }), 201);
   const closed = (await models.TicketStatus.findOne({ where: { behaviorType: 'closed' } })).name;
@@ -52,10 +55,12 @@ it('home lists the person\'s tickets from this computer, with plain states and t
   expect(res.status).toBe(200);
   expect(res.body.matched).toBe(true);
   const byId = Object.fromEntries(res.body.tickets.map((t) => [t.id, t]));
-  expect(Object.keys(byId).map(Number).sort()).toEqual([first, second].sort());
-  expect(byId[emailed.id]).toBeUndefined();
+  // The closed one is for the portal.
+  expect(Object.keys(byId).map(Number).sort()).toEqual([first, emailed.id].sort());
+  expect(byId[second]).toBeUndefined();
+  expect(byId[toms.id]).toBeUndefined();
+  expect(byId[emailed.id]).toMatchObject({ title: 'Emailed in', state: 'open' });
   expect(byId[first]).toMatchObject({ number: String(first).padStart(5, '0'), title: 'Printer offline', lastReply: { snippet: 'Which room are you in?' } });
-  expect(byId[second]).toMatchObject({ state: 'done', lastReply: null });
   expect(JSON.stringify(res.body)).not.toContain('Staff only');
   expect(JSON.stringify(res.body)).not.toContain('Health snapshot');
 });
@@ -78,8 +83,17 @@ it('a ticket opens with its public conversation only; another computer or person
   expect(res.body.ticket).toMatchObject({ id, title: 'Printer offline', description: 'It shows offline.', state: 'open' });
   expect(res.body.messages.map((m) => [m.side, m.body])).toEqual([['support', 'Which room?']]);
 
+  // Another of the company's computers, signed in as her: the same ticket.
   const second = await enroll(company);
-  expect((await second.get(`${TRAY}/tickets/${id}?${WHO}`)).status).toBe(404);
+  expect((await second.get(`${TRAY}/tickets/${id}?${WHO}`)).status).toBe(200);
+  // One she emailed in opens too.
+  const emailed = await makeTicket(a(), { title: 'Emailed in', contactId: maria.id });
+  expect((await device.get(`${TRAY}/tickets/${emailed.id}?${WHO}`)).body.ticket.title).toBe('Emailed in');
+  // A closed one is for the portal.
+  const closedName = (await models.TicketStatus.findOne({ where: { behaviorType: 'closed' } })).name;
+  await models.Ticket.update({ status: closedName }, { where: { id: emailed.id } });
+  expect((await device.get(`${TRAY}/tickets/${emailed.id}?${WHO}`)).status).toBe(404);
+  // Another company's computer never reaches it.
   const elsewhere = await enroll(other);
   expect((await elsewhere.get(`${TRAY}/tickets/${id}?${WHO}`)).status).toBe(404);
   await contactIn(company, 'tom@riversideclinic.org', 'Tom');
@@ -104,10 +118,14 @@ it('a reply from the agent is the contact\'s own reply, like one from the portal
 
   expect((await device.post(`${TRAY}/tickets/${id}/reply`, { ...who, body: '   ' })).status).toBe(400);
   expect((await device.post(`${TRAY}/tickets/${id}/reply`, { ...who, body: 'x'.repeat(10001) })).status).toBe(400);
-  const second = await enroll(company);
-  expect((await second.post(`${TRAY}/tickets/${id}/reply`, { ...who, body: 'Not mine' })).status).toBe(404);
+  const elsewhere = await enroll(other);
+  expect((await elsewhere.post(`${TRAY}/tickets/${id}/reply`, { ...who, body: 'Another company' })).status).toBe(404);
   expect((await device.post(`${TRAY}/tickets/${id}/reply`, { account: 'RIVERSIDE\\bob', body: 'Not matched' })).status).toBe(404);
   expect(await models.Comment.count({ where: { ticketId: id, type: 'reply' } })).toBe(1);
+  // A closed ticket takes no reply from the agent: that's for the portal.
+  const closedName = (await models.TicketStatus.findOne({ where: { behaviorType: 'closed' } })).name;
+  await models.Ticket.update({ status: closedName }, { where: { id } });
+  expect((await device.post(`${TRAY}/tickets/${id}/reply`, { ...who, body: 'Too late' })).status).toBe(404);
 });
 
 it('notices: for the company or everyone, until they expire or are taken down', async () => {

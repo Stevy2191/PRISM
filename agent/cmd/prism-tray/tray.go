@@ -77,7 +77,7 @@ func onReady() {
 	news := systray.AddMenuItem("", "Open it")
 	news.Hide()
 	submit := systray.AddMenuItem(submitLabel, "Send the help desk a ticket from this computer")
-	homeItem := systray.AddMenuItem("My tickets and notices", "Your tickets from this computer, and notices from the help desk")
+	homeItem := systray.AddMenuItem("My open tickets and notices", "Your open tickets, and notices from the help desk")
 	var ticketItems [menuTickets]*systray.MenuItem
 	var ticketIDs [menuTickets]int64
 	for i := range ticketItems {

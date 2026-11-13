@@ -1,14 +1,17 @@
 // The agent window's home (owner, 2026-11-13): help-desk notices, the
 // person's tickets from this computer, a ticket's conversation and a reply.
 //
-// What a computer may see is deliberately narrow. A device key can only be
-// trusted as far as the computer itself, so it reaches only tickets that
-// are linked to this computer AND belong to the contact its signed-in user
-// matches. A contact's other tickets (emailed in, raised in the portal or
-// from another computer) stay in the portal, behind their own sign-in.
+// Which tickets (owner, 2026-11-13): every OPEN ticket of the contact this
+// computer's signed-in user matches, wherever it was raised (the agent,
+// email, the portal, staff). Closed tickets are for the portal, behind the
+// person's own sign-in. The owner chose this knowing a device key is only
+// as trustworthy as the computer: someone with administrator rights on an
+// enrolled computer could ask as another of the company's contacts. It
+// stays inside the computer's own company, to open tickets and what a
+// customer may read (never a private note).
 const { Op } = require('sequelize');
 const {
-  Asset, Ticket, Comment, AssetTicket, AgentNotice, User, Contact, TicketStatus,
+  Asset, Ticket, Comment, AgentNotice, User, Contact, TicketStatus,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { parseRecordId } = require('../permissionService');
@@ -18,7 +21,7 @@ const { getSystemActorUserId } = require('../inboundEmailService');
 
 const PUBLIC_TYPES = ['reply', 'comment_public'];
 const MAX_REPLY = 10000;
-const HOME_TICKETS = 5;
+const HOME_TICKETS = 10;
 
 const text = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const account = (source) => {
@@ -48,11 +51,12 @@ async function context(device, source) {
   return { asset, contact };
 }
 
-// This computer's tickets for this contact, or none.
-async function reachableIds(asset, contact) {
-  if (!contact) return [];
-  const links = await AssetTicket.findAll({ where: { assetId: asset.id }, attributes: ['ticketId'], raw: true });
-  return links.map((l) => l.ticketId);
+// The contact's open tickets in this computer's company (not closed, not
+// archived), or nothing for someone who matches no contact.
+async function openWhere(asset, contact, states) {
+  if (!contact) return null;
+  const open = [...states].filter(([, state]) => state !== 'done').map(([name]) => name);
+  return { contactId: contact.id, companyId: asset.companyId, status: { [Op.in]: open } };
 }
 
 async function activeNotices(companyId) {
@@ -82,17 +86,14 @@ const snippet = (body) => {
 // GET /agent/v1/tray/home?account=&upn= → { notices, tickets, matched }
 async function home(device, query) {
   const { asset, contact } = await context(device, query);
-  const ids = await reachableIds(asset, contact);
-  const [notices, states, rows] = await Promise.all([
-    activeNotices(asset.companyId),
-    stateMap(),
-    ids.length ? Ticket.findAll({
-      where: { id: { [Op.in]: ids }, contactId: contact.id },
-      attributes: ['id', 'title', 'status', 'updatedAt'],
-      order: [['updatedAt', 'DESC'], ['id', 'DESC']],
-      limit: HOME_TICKETS,
-    }) : [],
-  ]);
+  const [notices, states] = await Promise.all([activeNotices(asset.companyId), stateMap()]);
+  const where = await openWhere(asset, contact, states);
+  const rows = where ? await Ticket.findAll({
+    where,
+    attributes: ['id', 'title', 'status', 'updatedAt'],
+    order: [['updatedAt', 'DESC'], ['id', 'DESC']],
+    limit: HOME_TICKETS,
+  }) : [];
   const replies = rows.length ? await Comment.findAll({
     where: { ticketId: { [Op.in]: rows.map((t) => t.id) }, type: { [Op.in]: PUBLIC_TYPES }, fromCustomer: false, authorContactId: null },
     attributes: ['id', 'ticketId', 'body', 'createdAt'],
@@ -124,9 +125,10 @@ async function home(device, query) {
 async function reachableTicket(device, source, rawId) {
   const { asset, contact } = await context(device, source);
   const id = parseRecordId(rawId);
-  const ids = await reachableIds(asset, contact);
-  const ticket = id && ids.includes(id) ? await Ticket.findOne({ where: { id, contactId: contact.id } }) : null;
-  // The same answer for a ticket that isn't there and one this computer may not see.
+  const where = id ? await openWhere(asset, contact, await stateMap()) : null;
+  const ticket = where ? await Ticket.findOne({ where: { ...where, id } }) : null;
+  // The same answer for a ticket that isn't there, one that's closed and one
+  // that belongs to someone else.
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   return { ticket, contact };
 }

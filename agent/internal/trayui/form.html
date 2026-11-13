@@ -102,13 +102,13 @@ select.fi{appearance:auto}
     <div class="notices" id="notices" aria-label="Notices from the help desk"></div>
     <button class="btn primary big" type="button" id="new">+ New ticket</button>
     <div>
-      <div class="fl" id="mine-l">My tickets</div>
+      <div class="fl" id="mine-l">My open tickets</div>
       <ul class="tk" id="mine" aria-labelledby="mine-l" hidden></ul>
       <p class="empty" id="mine-none" hidden></p>
     </div>
     <div class="foot">
       <p class="me">{{.Name}} · {{.Computer}}</p>
-      <button class="btn link" type="button" id="all" hidden>All my tickets in the portal</button>
+      <button class="btn link" type="button" id="all" hidden>Closed tickets, in the portal</button>
     </div>
   </section>
 
@@ -390,7 +390,7 @@ select.fi{appearance:auto}
     list.hidden = !tickets.length;
     var none = $('mine-none'); none.hidden = !!tickets.length;
     none.textContent = home.offline ? "Can't reach the help desk right now, so your tickets can't be shown. You can still write a ticket; it's kept until you're back online."
-      : (home.matched ? 'Tickets you send from this computer show here, with the help desk\'s replies.'
+      : (home.matched ? 'You have no open tickets. Closed ones are in the support portal.'
         : "The help desk doesn't have you on file yet, so tickets can't be listed here. You can still send one.");
     $('all').hidden = !document.body.dataset.portal;
     markSeen();

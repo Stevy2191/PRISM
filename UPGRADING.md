@@ -391,19 +391,23 @@ shorter snapshot until they update themselves.
 
 **The window opens on a home** (migration 088, `AgentNotices`; it runs on
 start). The home shows any notice from the help desk, a **New ticket**
-button, and **My tickets**: the person's tickets from that computer, each
-marked Open, Needs your answer (a status that counts as waiting on the
-customer), On hold or Done. Clicking one opens its conversation in the
+button, and **My open tickets**: every open ticket of the person, wherever
+it was raised, each marked Open, Needs your answer (a status that counts
+as waiting on the customer) or On hold. Clicking one opens its conversation in the
 window, with a box to **reply to the help desk**; the reply lands on the
 ticket exactly as one written in the portal does. Private notes are never
 shown. The tray menu lists the three most recent tickets too, and "Submit a
 ticket" still opens straight on the form.
 
-*Which tickets:* a computer shows only tickets that are **linked to that
-computer** and belong to the contact its signed-in user matches (by email).
-Tickets the person emailed in or raised elsewhere stay in the portal,
-behind their own sign-in. Someone who matches no contact sees notices and
-can send tickets, but has no list.
+*Which tickets:* every **open** ticket of the contact the computer's
+signed-in user matches (by email), whether it came from the agent, email,
+the portal or staff. Closed tickets are in the portal, behind the person's
+own sign-in; a closed ticket can't be opened or replied to from the agent.
+Someone who matches no contact sees notices and can send tickets, but has
+no list. *Know the trade-off:* the agent trusts the computer, not a
+password, so someone with administrator rights on an enrolled computer
+could ask as another contact of that same company and read that person's
+open tickets (never another company's, never a private note).
 
 **Notices:** a company's page has **Assets → Agent notices** (for staff
 with Manage devices or the portal permission): a headline, an optional
