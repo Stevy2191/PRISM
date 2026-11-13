@@ -48,6 +48,8 @@ module.exports = (sequelize) => {
       // How this ticket came into existence. 'portal' and 'recurring' are
       // only ever set by the system (future customer portal / the recurring
       // scheduler); staff may pick manual, phone or email by hand.
+      // The computer account that raised it from the PRISM agent (090).
+      agentAccount: { type: DataTypes.STRING(255), allowNull: true },
       source: {
         // 'agent': raised from the PRISM agent's tray (8a).
         type: DataTypes.ENUM('manual', 'email', 'phone', 'portal', 'recurring', 'agent'),

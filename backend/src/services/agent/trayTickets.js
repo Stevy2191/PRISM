@@ -16,7 +16,7 @@
 // The health snapshot becomes a private note. Everything the tray sends is
 // untrusted text: type-checked, cleaned and cut.
 const {
-  sequelize, Asset, Company, Contact, Comment, Department, SystemSettings,
+  sequelize, Asset, Company, Contact, Comment, Department, SystemSettings, Ticket,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { createTicket } = require('../tickets/ticketWrite');
@@ -24,7 +24,7 @@ const {
   loadTree, isEffectivelyActive, companyHasCategories, typeOf,
 } = require('../tickets/categories');
 const { getSystemActorUserId } = require('../inboundEmailService');
-const { matchContact } = require('./inventory');
+const { resolveContact } = require('./trayIdentity');
 const { orgTimeZone } = require('../../utils/orgTime');
 
 const PLACEHOLDER_NAME = 'Unknown tray user';
@@ -79,7 +79,7 @@ async function helpdesk() {
 }
 
 async function deviceAsset(device) {
-  const asset = await Asset.findByPk(device.assetId, { attributes: ['id', 'name', 'companyId'] });
+  const asset = await Asset.findByPk(device.assetId, { attributes: ['id', 'name', 'companyId', 'assignedToContactId'] });
   if (!asset) throw new ApiError(404, 'This device has no Asset', 'NOT_FOUND');
   return asset;
 }
@@ -103,7 +103,7 @@ async function whoami(device, query) {
   const asset = await deviceAsset(device);
   const [company, contact, desk] = await Promise.all([
     Company.findByPk(asset.companyId, { attributes: ['name'] }),
-    matchContact(asset.companyId, user),
+    resolveContact(device, asset, user),
     helpdesk(),
   ]);
   let full = null;
@@ -201,7 +201,7 @@ async function raiseTrayTicket(device, body, req) {
   const user = parseUser(b);
   const asset = await deviceAsset(device);
 
-  const matched = await matchContact(asset.companyId, user);
+  const matched = await resolveContact(device, asset, user);
   const contact = matched ? await Contact.findByPk(matched.id) : await placeholderFor(asset.companyId);
   const raisedBy = `Raised from ${asset.name} by ${user.account || user.upn || 'an unknown user'}`;
   const fullDescription = matched ? (description || raisedBy) : [raisedBy, description].filter(Boolean).join('\n\n');
@@ -228,6 +228,9 @@ async function raiseTrayTicket(device, body, req) {
   }, {
     req, createdById: actorId, source: 'agent', portal: { contact }, requireCategory: true,
   });
+  // Who raised it, so that giving the ticket to a contact teaches PRISM who
+  // that account on this computer is (trayIdentity).
+  if (user.account) await Ticket.update({ agentAccount: user.account.slice(0, 255) }, { where: { id: ticket.id }, hooks: false });
   await Comment.create({
     body: snapshotNote(b.snapshot, asset.name, await orgTimeZone()), authorId: actorId, ticketId: ticket.id, type: 'comment_private',
   });

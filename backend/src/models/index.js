@@ -64,6 +64,7 @@ const CalendarEventCache = require('./CalendarEventCache')(sequelize);
 const DashboardLayout = require('./DashboardLayout')(sequelize);
 const UserPreference = require('./UserPreference')(sequelize);
 const AgentNotice = require('./AgentNotice')(sequelize);
+const AgentUserLink = require('./AgentUserLink')(sequelize);
 const AdSyncLog = require('./AdSyncLog')(sequelize);
 const AdGroupMapping = require('./AdGroupMapping')(sequelize);
 const SsoProvider = require('./SsoProvider')(sequelize);
@@ -137,6 +138,7 @@ const db = {
   DashboardLayout,
   UserPreference,
   AgentNotice,
+  AgentUserLink,
   AdSyncLog,
   AdGroupMapping,
   SsoProvider,

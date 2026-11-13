@@ -278,6 +278,12 @@ export function Sidebar({
                     {/* The ticket is for someone else (owner, 2026-11-13): one
                         raised from the agent by a person who wasn't a contact
                         yet, or filed under the wrong person. */}
+                    {ticket.contact?.isPlaceholder && (
+                      <span className="mt-1 block rounded-md border p-2 text-xs" style={{ borderColor: BORDER, backgroundColor: BG, color: TEXT }} data-testid="unknown-agent-user">
+                        PRISM doesn&apos;t know who this is yet{ticket.agentAccount ? <>: the computer account is <b>{ticket.agentAccount}</b></> : ''}.
+                        {canEdit && ' Choose their contact with Change (add them under Contacts first if needed). PRISM will remember them on that computer, and move their other agent tickets too.'}
+                      </span>
+                    )}
                     {canEdit && !changingContact && (
                       <button type="button" className="ml-2 text-xs font-semibold hover:underline" style={{ color: BLUE }} onClick={() => setChangingContact(true)}>Change</button>
                     )}
@@ -291,7 +297,7 @@ export function Sidebar({
                           onPick={async (c) => { setChangingContact(false); await patchTicket({ contactId: c.id }); }}
                         />
                         <p className="text-xs" style={{ color: MUTED }}>
-                          The ticket moves to that person (and their company).{' '}
+                          The ticket moves to that person (and their company).{ticket.contact?.isPlaceholder ? ' PRISM remembers them as this computer account from now on.' : ''}{' '}
                           <button type="button" className="font-semibold hover:underline" style={{ color: BLUE }} onClick={() => setChangingContact(false)}>Cancel</button>
                         </p>
                       </div>

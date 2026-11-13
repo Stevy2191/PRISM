@@ -15,15 +15,9 @@ static void prismShow(void *win) {
 	[(__bridge NSWindow *)win makeKeyAndOrderFront:nil];
 }
 
-// macOS only shows other apps' windows to an app the person has allowed
-// under Screen Recording. Asking opens the system's own prompt, once.
-static int prismMayCapture(void) {
-	if (@available(macOS 10.15, *)) {
-		if (CGPreflightScreenCaptureAccess()) return 1;
-		CGRequestScreenCaptureAccess();
-		return 0;
-	}
-	return 1;
+// Asks macOS to show its own Screen Recording prompt (once per install).
+static void prismAskCapture(void) {
+	if (@available(macOS 10.15, *)) { CGRequestScreenCaptureAccess(); }
 }
 */
 import "C"
@@ -41,13 +35,20 @@ func hideWindow(w window) { C.prismHide(w.Window()) }
 func showWindow(w window) { C.prismShow(w.Window()) }
 
 // captureScreen uses macOS's own screencapture (-x: no shutter sound).
+//
+// It is simply tried. macOS's "may I?" check (CGPreflightScreenCaptureAccess)
+// answered no on a Mac where PRISM Agent was switched on under Screen
+// Recording (owner, 2026-11-13, macOS 26), so it isn't asked first: only
+// when screencapture itself fails is the person sent to the setting.
 func captureScreen() ([]byte, string, string, error) {
-	if C.prismMayCapture() == 0 {
-		return nil, "", "", errors.New("macOS needs your permission first. Allow PRISM under System Settings › Privacy & Security › Screen Recording, then try again.")
-	}
-	return shotFromTool(func(path string) error {
+	data, mime, ext, err := shotFromTool(func(path string) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		return exec.CommandContext(ctx, "/usr/sbin/screencapture", "-x", "-t", "png", path).Run()
 	})
+	if err != nil {
+		C.prismAskCapture()
+		return nil, "", "", errors.New("macOS didn't allow a picture of the screen. Under System Settings › Privacy & Security › Screen & System Audio Recording, switch PRISM Agent off and on again (or remove it and add it back), then try again.")
+	}
+	return data, mime, ext, nil
 }

@@ -458,6 +458,12 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
 // notifications, workflow rules, CSAT, the resolved email and the calendar.
 // `quiet` is for a ticket closed because it was merged away.
 async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = false, categoryTree = null } = {}) {
+  // An agent ticket from someone PRISM didn't know, now given to a contact:
+  // remember who that account on that computer is (lazy: the agent's
+  // services load this file).
+  if (changes.contactId !== undefined && before.contactId !== ticket.contactId && ticket.source === 'agent') {
+    await require('../agent/trayIdentity').learnFromTicket(ticket, before.contactId, req.user && req.user.id).catch(() => 0); // eslint-disable-line global-require
+  }
   // The category's old and new paths both come from one tree.
   const displayTree = changes.categoryId !== undefined && String(before.categoryId ?? '') !== String(ticket.categoryId ?? '')
     ? categoryTree || await loadCategoryTree()
@@ -533,7 +539,9 @@ async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = fa
 }
 
 const TRACKED_ACTIVITY_FIELDS = ['title', 'description', 'status', 'priority', 'type', 'assigneeId', 'teamId', 'departmentId', 'dueDate', 'dueTime', 'categoryId', 'plannedDate'];
-const snapshotBefore = (ticket) => Object.fromEntries(TRACKED_ACTIVITY_FIELDS.map((f) => [f, ticket[f]]));
+// contactId rides along (not an activity field): who the ticket was for
+// before, so an agent ticket given to a contact can teach PRISM who raised it.
+const snapshotBefore = (ticket) => ({ ...Object.fromEntries(TRACKED_ACTIVITY_FIELDS.map((f) => [f, ticket[f]])), contactId: ticket.contactId });
 
 // Edits a ticket: access + edit-tier checks, validation, save, side effects.
 async function updateTicket(req, ticket, body, { quiet = false, categoryTree = null } = {}) {

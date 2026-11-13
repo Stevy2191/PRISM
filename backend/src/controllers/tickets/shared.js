@@ -33,7 +33,7 @@ const ticketInclude = [
   {
     model: Contact,
     as: 'contact',
-    attributes: ['id', 'firstName', 'lastName', 'displayName', 'email', 'phone', 'departmentId'],
+    attributes: ['id', 'firstName', 'lastName', 'displayName', 'email', 'phone', 'departmentId', 'isPlaceholder'],
     include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
   },
   { model: Team, as: 'team', attributes: ['id', 'name'] },

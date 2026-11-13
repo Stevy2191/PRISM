@@ -448,6 +448,32 @@ its page says what it is. To put an unknown person's ticket right: add them
 as a contact (with the email they sign in to their computer with) and
 change the ticket's contact; its description says who raised it.
 
+**Who is at the computer** (migration 090, runs on start): the agent used
+to know a person only when their sign-in carried an email that matched a
+contact (a directory account). On a Mac or PC that isn't joined to a
+directory the account is just a local name, so everyone was "unknown".
+Now, in order:
+
+1. the sign-in's email matches a contact (as before);
+2. **staff have said so**: give a ticket that person raised from the agent
+   to their contact (Change, on the ticket) and PRISM remembers "this
+   account on this computer is that contact". Their other agent tickets
+   from that computer move with it, and from then on their tickets are
+   theirs and show in their agent;
+3. **the computer is assigned to them**: an asset assigned (or checked out)
+   to a contact treats the computer's usual user (the account the agent
+   reports) as that contact.
+
+A link is for one account on one computer, inside the computer's company;
+another account on the same computer stays unknown until it's linked too.
+A ticket still under the stand-in says so on its page, with the computer
+account that raised it.
+
+**Capture my screen on a Mac:** the picture is now simply tried; macOS's
+own "is it allowed?" answer was no on a Mac where PRISM Agent was switched
+on. If macOS refuses, the message says to switch PRISM Agent off and on
+again under Screen & System Audio Recording.
+
 **Changing a ticket's contact:** the ticket's sidebar has **Change** beside
 the contact's name, for staff who can edit the ticket: search for a contact
 and the ticket moves to them (and to their company; a category of the old

@@ -347,7 +347,8 @@ select.fi{appearance:auto}
     if (a && a.number) {
       ticketId = a.ticketId;
       $('t-sent').textContent = 'Ticket #' + String(a.number).replace(/^0+(?=\d)/, '') + ' sent';
-      $('sent-sub').textContent = a.replyTo ? 'The help desk will reply by email to ' + a.replyTo + '.' : 'The help desk has it and will be in touch.';
+      $('sent-sub').textContent = a.replyTo ? 'The help desk will reply by email to ' + a.replyTo + '.'
+        : (home.matched ? 'The help desk has it and will be in touch.' : "The help desk has it. They don't have you on file yet, so it won't show under My open tickets until they add you.");
       var portal = document.body.dataset.portal;
       $('open').hidden = !portal; $('sent-portal').hidden = !portal;
       var missing = a.notAttached || [];

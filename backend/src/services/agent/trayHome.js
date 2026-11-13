@@ -15,7 +15,7 @@ const {
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { parseRecordId } = require('../permissionService');
-const { matchContact } = require('./inventory');
+const { resolveContact } = require('./trayIdentity');
 const { applyCustomerReply } = require('../tickets/customerReply');
 const { getSystemActorUserId } = require('../inboundEmailService');
 
@@ -27,7 +27,7 @@ const text = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const account = (source) => {
   const s = source || {};
   const email = (v) => (typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? v.trim().slice(0, 255) : null);
-  return { upn: email(s.upn), email: email(s.email) };
+  return { account: typeof s.account === 'string' ? s.account.trim().slice(0, 255) : null, upn: email(s.upn), email: email(s.email) };
 };
 
 // → what a person reads: open, needs_answer, on_hold or done.
@@ -45,9 +45,9 @@ async function stateMap() {
 }
 
 async function context(device, source) {
-  const asset = await Asset.findByPk(device.assetId, { attributes: ['id', 'name', 'companyId'] });
+  const asset = await Asset.findByPk(device.assetId, { attributes: ['id', 'name', 'companyId', 'assignedToContactId'] });
   if (!asset) throw new ApiError(404, 'This device has no Asset', 'NOT_FOUND');
-  const contact = await matchContact(asset.companyId, account(source));
+  const contact = await resolveContact(device, asset, account(source));
   return { asset, contact };
 }
 
