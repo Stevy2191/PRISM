@@ -507,6 +507,11 @@ anyone with Manage system settings; **Settings → SLAs** shows which companies
 are on each policy and links to them. Old addresses (`/settings/companies`,
 `/admin/departments`) lead to the new places. No migration; nothing to do.
 
+**About PRISM** is its own section at the bottom of the Settings menu. It
+shows the version, not the commit. A build from a branch now has a real
+version number: the next version, the branch and how many changes since the
+last release (for example `0.5.0-dev.152`), where it used to say just `dev`.
+
 ### Screens rearranged
 
 Nothing to do when upgrading; this is where things moved.

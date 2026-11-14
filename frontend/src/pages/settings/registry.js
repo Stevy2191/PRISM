@@ -24,6 +24,8 @@ export const SECTIONS = [
   { name: 'Projects', slug: 'projects', icon: 'folder', desc: 'Starting points for new projects.' },
   { name: 'Assets', slug: 'assets', icon: 'box', desc: 'Equipment, licenses and contracts.' },
   { name: 'System', slug: 'system', icon: 'server', desc: 'Data in and out, jobs, the audit log and the server.' },
+  // Owner, 2026-11-14: About PRISM is its own section, not under You.
+  { name: 'About', slug: 'about', icon: 'info', desc: 'Which version this is, the license, and how to report a problem.' },
 ];
 export const GROUPS = SECTIONS.map((s) => s.name);
 export const sectionByName = (name) => SECTIONS.find((s) => s.name === name) || null;
@@ -35,7 +37,7 @@ const OWNER = { permission: ['settings.manage_system'], owner: true };
 export const PAGES = [
   // You
   { id: 'preferences', group: 'You', name: 'Preferences', desc: 'Theme, timers and reminders', keywords: ['theme', 'dark mode', 'timer', 'reminder', 'notifications', 'profile', 'password', 'calendar'], path: '/settings/preferences', access: {}, width: 'narrow' },
-  { id: 'about', group: 'You', name: 'About PRISM', desc: 'Version, license, report a problem', keywords: ['version', 'license', 'bug', 'issue'], path: '/settings/about', access: {}, width: 'narrow' },
+  { id: 'about', group: 'About', name: 'About PRISM', desc: 'Version, license, report a problem', keywords: ['version', 'license', 'bug', 'issue'], path: '/settings/about', access: {}, width: 'narrow' },
   // Organization
   { id: 'company', group: 'Your company', name: 'Company profile', desc: 'Name, logo, time zone and login page', keywords: ['logo', 'favicon', 'branding', 'time zone', 'timezone', 'login page', 'app name', 'organization name'], path: '/settings/company', access: { permission: ['settings.manage_branding', 'settings.manage_system'] }, width: 'narrow' },
   // These open a company's page (outside Settings): `external`.

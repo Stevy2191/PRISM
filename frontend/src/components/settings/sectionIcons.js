@@ -1,7 +1,7 @@
 // The icon for each Settings section (registry SECTIONS[].icon), kept out of
 // the registry so that stays plain data.
 import {
-  IconBox, IconBriefcase, IconBuilding, IconChartBar, IconClock, IconFolder, IconMail, IconServer, IconStopwatch, IconTicket, IconUser, IconUsers,
+  IconBox, IconBriefcase, IconBuilding, IconChartBar, IconClock, IconFolder, IconInfoCircle, IconMail, IconServer, IconStopwatch, IconTicket, IconUser, IconUsers,
 } from '@tabler/icons-react';
 
 const ICONS = {
@@ -17,6 +17,7 @@ const ICONS = {
   folder: IconFolder,
   box: IconBox,
   server: IconServer,
+  info: IconInfoCircle,
 };
 
 export const sectionIcon = (key) => ICONS[key] || IconFolder;

@@ -76,8 +76,8 @@ test('search matches names, descriptions and keywords, names first', () => {
 
 test('visibleGroups keeps the menu order and drops groups with nothing to open', () => {
   const staff = visibleGroups(auth());
-  assert.deepEqual(staff.map((g) => g.name), ['You', 'People & access', 'Service desk']);
-  assert.deepEqual(staff.find((g) => g.name === 'You').pages.map((p) => p.id), ['preferences', 'about']);
+  assert.deepEqual(staff.map((g) => g.name), ['You', 'People & access', 'Service desk', 'About']);
+  assert.deepEqual(staff.find((g) => g.name === 'You').pages.map((p) => p.id), ['preferences']);
   const all = visibleGroups(owner).map((g) => g.name);
   assert.deepEqual(all, GROUPS);
   // Non-owner administrators see only the email templates under Sign-in & email.

@@ -37,9 +37,8 @@ function VersionFooter() {
   return (
     <p className="border-t border-navy-100 pt-4 font-mono text-xs text-navy-400">
       PRISM {info.version}
-      {info.gitSha !== 'unknown' && <> · {info.gitSha}</>}
       {/* An untagged build says so, so a dev image is never taken for a release. */}
-      {!info.release && <> · unreleased build</>}
+      {!info.release && <> · development build</>}
       {' · '}<Link to="/settings/about" className="hover:text-prism hover:underline">About</Link>
     </p>
   );

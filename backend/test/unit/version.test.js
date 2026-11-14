@@ -24,6 +24,7 @@ describe('isRelease', () => {
     expect(isRelease('dev')).toBe(false);
     expect(isRelease('main')).toBe(false);
     expect(isRelease('feat-something')).toBe(false);
+    expect(isRelease('0.5.0-dev.42')).toBe(false);
   });
 });
 

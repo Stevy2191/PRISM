@@ -8,13 +8,14 @@
 //
 // Values you can expect:
 //   "0.2.0"   — built from a v0.2.0 tag
-//   "dev"     — built from the dev branch, or by hand from a checkout
-//   "main"    — built from main between releases
+//   "0.5.0-dev.42" — built from the dev branch: the next minor version, the
+//                    branch, and how many commits since the last tag (CI)
+//   "dev"     — built by hand from a checkout
 
 // A tagged build gets a bare semver; anything else is a branch name or the
 // Dockerfile default.
 function isRelease(version) {
-  return /^\d+\.\d+\.\d+/.test(version);
+  return /^\d+\.\d+\.\d+$/.test(version);
 }
 
 function getVersionInfo() {

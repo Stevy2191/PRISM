@@ -106,7 +106,7 @@ describe('the menu', () => {
   const menu = (page) => page.getByRole('complementary', { name: 'Settings menu' });
 
   it('an owner sees every group; a System Administrator only Email templates under Sign-in & email; Department Staff only a few', async () => {
-    const groups = ['You', 'Your company', 'Customers', 'People & access', 'Service desk', 'Hours & SLAs', 'Time & work', 'Assets', 'Sign-in & email', 'System'];
+    const groups = ['You', 'Your company', 'Customers', 'People & access', 'Service desk', 'Hours & SLAs', 'Time & work', 'Assets', 'Sign-in & email', 'System', 'About'];
     let page = await as('admin');
     await page.goto('/settings/preferences');
     for (const g of groups) await menu(page).getByRole('link', { name: new RegExp(`^${g}(?![a-z])`) }).waitFor(); // eslint-disable-line no-await-in-loop
@@ -270,7 +270,7 @@ describe('the rest in the frame, and every page opens', () => {
     const sections = await page.getByRole('complementary', { name: 'Settings menu' }).locator('a[href^="/settings?section="]').evaluateAll(
       (as) => as.map((a) => a.getAttribute('href')),
     );
-    expect(sections.length).toBe(12);
+    expect(sections.length).toBe(13);
     const links = [];
     for (const href of sections) {
       await page.goto(href); // eslint-disable-line no-await-in-loop
@@ -303,14 +303,14 @@ describe('review fixes', () => {
   it('picking a page in the menu opens it at the top', async () => {
     const page = await as('admin');
     await page.setViewportSize({ width: 1280, height: 420 });
-    await page.goto('/settings/preferences');
-    await page.getByRole('heading', { level: 1, name: 'Preferences' }).waitFor();
-    await page.getByText('Reminders for running timers').waitFor();
+    await page.goto('/settings/notifications');
+    await page.getByRole('heading', { level: 1, name: 'Notifications' }).waitFor();
+    await page.getByRole('main').getByRole('checkbox').first().waitFor();
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-    await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link', { name: 'About PRISM' }).click();
-    await page.waitForURL('**/settings/about');
-    await page.getByRole('heading', { level: 1, name: 'About PRISM' }).waitFor();
+    await page.getByRole('complementary', { name: 'Settings menu' }).getByRole('link', { name: 'Statuses' }).click();
+    await page.waitForURL('**/settings/statuses');
+    await page.getByRole('heading', { level: 1, name: 'Statuses' }).waitFor();
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await page.setViewportSize({ width: 1280, height: 720 });
   });

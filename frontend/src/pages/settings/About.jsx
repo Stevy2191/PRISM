@@ -75,7 +75,7 @@ export default function About() {
       </ExternalLink>
     ) : (
       <span className="font-mono">
-        {info.version} <span className="text-navy-400">· unreleased build</span>
+        {info.version} <span className="text-navy-400">· development build</span>
       </span>
     );
   }
@@ -86,15 +86,6 @@ export default function About() {
       <div className="card px-5 py-2">
         <dl className="divide-y divide-navy-100">
           <Row label="Version">{version}</Row>
-          <Row label="Commit">
-            {info && info.gitSha !== 'unknown' ? (
-              <ExternalLink href={`${REPO_URL}/commit/${info.gitSha}`}>
-                <span className="font-mono">{info.gitSha}</span>
-              </ExternalLink>
-            ) : (
-              <span className="text-navy-400">{info ? 'Unknown' : '—'}</span>
-            )}
-          </Row>
           <Row label="Source code">
             <ExternalLink href={`${REPO_URL}/tree/${buildRef(info)}`}>github.com/Stevy2191/PRISM</ExternalLink>
           </Row>
