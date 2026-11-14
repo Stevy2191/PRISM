@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Setup, Portal</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#" class="on">Companies</a><a href="#">Assets</a><a href="#">Reports</a><a href="#">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Companies</a><span>/</span><span>Acme Manufacturing</span></nav>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px"><h1>Acme Manufacturing</h1><span class="badge">Customer</span><span class="badge ok">Active</span></div>
+    <nav class="tabs" aria-label="Company" style="margin-top:18px"><a href="#">Overview</a><a href="#">People</a><a href="#">Work</a><a href="#">Assets</a><a href="#" class="on">Setup</a></nav>
+    <nav class="pills" aria-label="Setup parts" style="margin-top:14px"><a href="#">Details</a><a href="#">SLA and hours</a><a href="#" class="on">Portal</a><a href="#">Surveys</a><a href="#">Categories</a><a href="#">What applies here</a></nav>
+
+    <div style="display:flex;flex-direction:column;gap:18px;margin-top:18px">
+      <div class="panel">
+        <div class="panel-h"><div style="flex:1;min-width:220px"><h3>Acme's portal</h3><span class="hint">Where Acme's people raise and follow their tickets</span></div><label style="display:flex;gap:8px;align-items:center"><button type="button" class="sw on" aria-pressed="true" aria-label="Acme's portal is on"></button><b>On</b></label></div>
+        <div class="panel-b">
+          <div class="field">
+            <span class="label">Acme's own link</span>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><span class="link" style="flex:1;min-width:240px">https://prism.s6node.com/portal/<b>acme</b></span><button class="btn sm" type="button">Copy</button><button class="btn sm quiet" type="button">Change the name</button></div>
+            <span class="hint">Only Acme's contacts can sign in here. Someone from another company is told "wrong email or password", and nothing else. Changing the name keeps the old link working.</span>
+          </div>
+          <div class="callout"><span>Turning this off, or marking Acme inactive, stops every Acme contact signing in at once.</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><div style="flex:1;min-width:220px"><h3>Who can sign in</h3><span class="hint">3 of 5 contacts</span></div><button class="btn sm" type="button">Invite everyone without access</button></div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Contact</th><th>Department</th><th>Signs in with</th><th>Last signed in</th><th>Portal access</th></tr></thead>
+            <tbody>
+              <tr><td><b>Dana Ortiz</b><div class="hint">dana@acme.example</div></td><td>Office</td><td>Microsoft</td><td>Today</td><td><button type="button" class="sw on" aria-pressed="true" aria-label="Dana Ortiz can sign in"></button></td></tr>
+              <tr><td><b>Lee Park</b><div class="hint">lee@acme.example</div></td><td>Plant floor</td><td>Password</td><td>Nov 9</td><td><button type="button" class="sw on" aria-pressed="true" aria-label="Lee Park can sign in"></button></td></tr>
+              <tr><td><b>Priya Shah</b><div class="hint">priya@acme.example</div></td><td>Office</td><td>Invited Nov 12</td><td class="muted">Never</td><td><button type="button" class="sw on" aria-pressed="true" aria-label="Priya Shah can sign in"></button> <a href="#" class="hint">Send again</a></td></tr>
+              <tr><td><b>Marcus Bell</b><div class="hint">marcus@acme.example</div></td><td>Plant floor</td><td class="muted">—</td><td class="muted">—</td><td><button type="button" class="sw" aria-pressed="false" aria-label="Marcus Bell can sign in"></button> <a href="#" class="hint">Invite</a></td></tr>
+              <tr><td><b>Front desk</b><div class="hint">No email address</div></td><td>Office</td><td class="muted">—</td><td class="muted">—</td><td class="hint">Needs an email first</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start">
+        <div class="panel" style="flex:1 1 360px;min-width:0">
+          <div class="panel-h"><div style="flex:1"><h3>Portal admins</h3><span class="hint">Contacts who see more than their own tickets</span></div></div>
+          <div class="kv"><span><span class="k">All of Acme's tickets</span><span class="hint" style="display:block">Company admins</span></span><span>Dana Ortiz · <a href="#">Change</a></span></div>
+          <div class="kv"><span><span class="k">Plant floor's tickets</span><span class="hint" style="display:block">Department admin</span></span><span>Lee Park · <a href="#">Change</a></span></div>
+        </div>
+        <div class="panel" style="flex:1 1 360px;min-width:0">
+          <div class="panel-h"><div style="flex:1"><h3>Microsoft 365</h3><span class="hint">Acme's people sign in with their work account</span></div><span class="badge ok">Linked</span></div>
+          <div class="kv"><span class="k">Tenant</span><span class="muted">acme.onmicrosoft.com</span></div>
+          <div class="kv"><span class="k">Contacts synced from</span><span>2 groups · <a href="#">Change</a></span></div>
+          <p class="hint" style="margin:0;padding:10px 18px 14px">At Acme's link, Microsoft sign-in accepts only Acme's tenant.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"dark"},"$preview":{"width":1440,"height":1160}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+  }
+}
+</script>
+</body>
+</html>

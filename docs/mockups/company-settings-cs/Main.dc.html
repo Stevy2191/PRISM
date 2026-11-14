@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings, cleaned up</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a><a href="#">Reports</a><a href="#" class="on">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <div class="shell">
+    <nav class="side" aria-label="Settings sections">
+      <input class="input" placeholder="Find a setting" aria-label="Find a setting" style="margin-bottom:8px">
+      <a href="#" class="sec">You <span class="n">1</span></a>
+      <a href="#" class="sec on">Your company <span class="n">1</span></a>
+      <a href="#" class="sec">Customers <span class="n">3</span></a>
+      <a href="#" class="sec">People &amp; access <span class="n">4</span></a>
+      <a href="#" class="sec">Service desk <span class="n">9</span></a>
+      <a href="#" class="sec">Hours &amp; SLAs <span class="n">2</span></a>
+      <a href="#" class="sec">Time &amp; work <span class="n">2</span></a>
+      <a href="#" class="sec">Projects <span class="n">1</span></a>
+      <a href="#" class="sec">Assets <span class="n">3</span></a>
+      <a href="#" class="sec">Sign-in &amp; email <span class="n">6</span></a>
+      <a href="#" class="sec">System <span class="n">5</span></a>
+      <a href="#" class="sec">About <span class="n">1</span></a>
+    </nav>
+    <main class="main">
+      <div>
+        <h1>Settings</h1>
+        <p class="sub">Each setting is in one place: yours in Preferences, a company's on that company's page, the help desk's here.</p>
+      </div>
+
+      <div class="grp">Your company</div>
+      <div class="panel">
+        <a href="#" class="lrow" style="color:inherit">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M9 8h1M14 8h1M9 12h1M14 12h1M10 21v-4h4v4"></path></svg></span>
+          <span><b>Washington County IT</b> <span class="badge ok">Your company</span><span class="hint" style="display:block">Profile and login page · Departments · Sites · Support hours and holidays · SLA · Categories · Portal · Devices</span></span>
+          <span class="hint">One page ›</span>
+        </a>
+      </div>
+      <p class="hint" style="margin:-8px 2px 0">Your company is no longer in the Companies list. Company profile, Departments and "Your company's page" were three entries here; they are this one page.</p>
+
+      <div class="grp">Customers</div>
+      <div class="panel">
+        <a href="#" class="lrow" style="color:inherit">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"></path></svg></span>
+          <span><b>Customer companies</b><span class="hint" style="display:block">4 customers, 2 vendors. Each one's SLA, hours, portal, surveys and categories are on its own page.</span></span>
+          <span class="hint">Open the list ›</span>
+        </a>
+        <a href="#" class="lrow" style="color:inherit">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"></path></svg></span>
+          <span><b>Client portal</b><span class="hint" style="display:block">Microsoft sign-in app, and who may manage portal access. Turning a portal on is on each company's page.</span></span>
+          <span></span>
+        </a>
+        <a href="#" class="lrow" style="color:inherit">
+          <span class="lic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.500-.6 3.500-1.800M9 10h.010M15 10h.010"></path></svg></span>
+          <span><b>Satisfaction surveys</b><span class="hint" style="display:block">The question, when it is sent, how long the link works. On or off is on each company's page.</span></span>
+          <span></span>
+        </a>
+      </div>
+
+      <div class="grp">The help desk</div>
+      <div class="panel">
+        <div class="kv"><span class="k">Service desk</span><span class="hint">Statuses · Custom fields · Ticket templates · Canned responses · Recurring tickets · Checklists · Workflow rules · Notifications · Ticket rules</span></div>
+        <div class="kv"><span class="k">Hours &amp; SLAs</span><span class="hint">Starting values for new companies · Staff hours</span></div>
+        <div class="kv"><span class="k">Time &amp; work</span><span class="hint">Time tracking · Work types</span></div>
+        <div class="kv"><span class="k">Sign-in &amp; email</span><span class="hint">Single sign-on · Directory · Email · Email templates · Email log · Calendar apps</span></div>
+        <div class="kv"><span class="k">People &amp; access, Projects, Assets, System</span><span class="hint">As today</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><h3>Pages that are gone, and where their settings went</h3></div>
+        <table class="tbl">
+          <tbody>
+            <tr><td class="gone">Departments</td><td>Your company · and each customer's page</td></tr>
+            <tr><td class="gone">Ticket categories</td><td>Each company's page · the "require a category" rule is in Ticket rules</td></tr>
+            <tr><td class="gone">SLAs</td><td>Each company's page · Starting values for new companies</td></tr>
+            <tr><td class="gone">Business hours</td><td>Each company's page, as Support hours</td></tr>
+            <tr><td class="gone">Holidays</td><td>Each company's page</td></tr>
+            <tr><td class="gone">Directory sync</td><td>Directory (one page)</td></tr>
+            <tr><td class="gone">Incoming email · Outgoing email</td><td>Email (one page)</td></tr>
+          </tbody>
+        </table>
+        <p class="hint" style="margin:0;padding:10px 18px 14px">Old addresses and bookmarks redirect to the new place.</p>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"dark"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+  }
+}
+</script>
+</body>
+</html>

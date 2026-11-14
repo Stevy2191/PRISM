@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The timer, in one place</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a><a href="#" class="on">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <div class="shell">
+    <main class="main" style="flex:999 1 520px">
+      <div>
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><a href="#">You</a><span>/</span><span>Preferences</span></nav>
+        <h1 style="margin-top:8px">Preferences</h1>
+        <p class="sub">Your own settings. Nobody else's change when you change these.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h3>Your timer</h3><span class="badge ok">The only place for this now</span></div>
+        <div class="panel-b">
+          <fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:10px">
+            <legend class="label" style="margin-bottom:8px">How your timer runs</legend>
+            <button type="button" class="choice" aria-pressed="false"><span><b>Manual</b><span class="hint">You start and stop the timer yourself.</span></span></button>
+            <button type="button" class="choice on" aria-pressed="true"><span><b>Automatic</b><span class="hint">The timer runs while you have a ticket open.</span></span></button>
+          </fieldset>
+          <div class="field" style="max-width:360px"><label class="label" for="pf-min">Shortest time worth logging</label><input id="pf-min" class="input" value="1 minute"><span class="hint">Below this, PRISM asks before logging. If you close the tab instead, the time is dropped.</span></div>
+          <label style="display:flex;gap:10px;align-items:center"><span class="cbx on" aria-hidden="true"></span>Ask me before logging a timer</label>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h3>Reminders, notifications, theme, signature, my calendars</h3></div>
+        <div class="panel-b"><span class="hint">As today.</span></div>
+      </div>
+    </main>
+    <aside class="main" style="flex:1 1 380px;max-width:520px">
+      <div style="height:64px"></div>
+      <div class="panel">
+        <div class="panel-h"><h3>Settings › Time &amp; work › Time tracking</h3><span class="hint">for the whole help desk</span></div>
+        <div class="kv"><span class="k gone">Timer mode for new users</span><span class="badge">Removed</span></div>
+        <div class="kv"><span class="k gone">Minimum entry for new users</span><span class="badge">Removed</span></div>
+        <div class="kv"><span><span class="k">Longest time entry</span><span class="hint" style="display:block">A timer left running overnight logs this much at most.</span></span><span class="cell">12 h</span></div>
+        <p class="hint" style="margin:0;padding:10px 18px 14px">New accounts start on Manual and choose for themselves. The two removed settings only ever applied to accounts an admin made by hand; people who signed in through the directory or single sign-on never got them.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h3>Other doubles removed the same way</h3></div>
+        <div class="kv"><span class="k">A staff notification email</span><span class="hint">4 switches → 2: the help desk's default, and your own choice here</span></div>
+        <div class="kv"><span class="k">Survey on or off</span><span class="hint">2 switches → 1, on each company's page</span></div>
+        <div class="kv"><span class="k">"Require a category"</span><span class="hint">2 copies → 1</span></div>
+        <div class="kv"><span class="k">Time zones</span><span class="hint">3 lists that differed → 1</span></div>
+        <div class="kv"><span class="k">Business hours vs Hours people work</span><span class="hint">Named Support hours (a company) and Staff hours (a person)</span></div>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"dark"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+  }
+}
+</script>
+</body>
+</html>

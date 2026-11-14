@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Setup, SLA and hours</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#" class="on">Companies</a><a href="#">Assets</a><a href="#">Reports</a><a href="#">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Companies</a><span>/</span><span>Acme Manufacturing</span></nav>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px"><h1>Acme Manufacturing</h1><span class="badge">Customer</span><span class="badge ok">Active</span></div>
+    <nav class="tabs" aria-label="Company" style="margin-top:18px"><a href="#">Overview</a><a href="#">People</a><a href="#">Work</a><a href="#">Assets</a><a href="#" class="on">Setup</a></nav>
+    <nav class="pills" aria-label="Setup parts" style="margin-top:14px"><a href="#">Details</a><a href="#" class="on">SLA and hours</a><a href="#">Portal</a><a href="#">Surveys</a><a href="#">Categories</a><a href="#">What applies here</a></nav>
+
+    <div style="display:flex;flex-direction:column;gap:18px;margin-top:18px">
+      <div class="panel">
+        <div class="panel-h">
+          <div style="flex:1;min-width:220px"><h3>Acme's SLA targets</h3><span class="hint">How fast Acme's tickets are answered and resolved. These are Acme's own; changing them changes no other company.</span></div>
+          <div class="seg" role="group" aria-label="Ticket type"><span class="on">Incident</span><span>Request</span><span>Problem</span><span>Change</span><span>Task</span></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Priority</th><th>First response within</th><th>Resolved within</th><th>The clock runs</th></tr></thead>
+            <tbody>
+              <tr><td><b>Critical</b></td><td><span class="cell">1 hour</span></td><td><span class="cell">4 hours</span></td><td><span class="tag">Around the clock</span></td></tr>
+              <tr><td><b>High</b></td><td><span class="cell">4 hours</span></td><td><span class="cell">8 hours</span></td><td><span class="tag">In support hours</span></td></tr>
+              <tr><td><b>Medium</b></td><td><span class="cell">8 hours</span></td><td><span class="cell">3 days</span></td><td><span class="tag">In support hours</span></td></tr>
+              <tr><td><b>Low</b></td><td><span class="cell">1 day</span></td><td><span class="cell">5 days</span></td><td><span class="tag">In support hours</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="kv"><span><span class="k">Warn the assignee</span><span class="hint" style="display:block">Before a target is missed</span></span><span class="cell">at 75% of the time</span></div>
+        <div class="kv"><span class="hint">New tickets use these from the moment you save. Tickets already open keep the due dates they have.</span><button class="btn sm" type="button">Reset to your starting values</button></div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start">
+        <div class="panel" style="flex:999 1 520px;min-width:0">
+          <div class="panel-h"><div style="flex:1"><h3>Support hours</h3><span class="hint">When Acme's SLA clock runs</span></div><label style="display:flex;gap:8px;align-items:center"><button type="button" class="sw" aria-pressed="false" aria-label="Open around the clock"></button>Around the clock</label></div>
+          <div class="kv"><span class="k">Time zone</span><span class="cell">America/New_York</span></div>
+          <div class="kv"><span class="k">Monday to Friday</span><span><span class="cell">7:00 AM</span> to <span class="cell">6:00 PM</span></span></div>
+          <div class="kv"><span class="k">Saturday</span><span><span class="cell">8:00 AM</span> to <span class="cell">12:00 PM</span></span></div>
+          <div class="kv"><span class="k">Sunday</span><span class="muted">Closed</span></div>
+          <p class="hint" style="margin:0;padding:10px 18px 14px">Due dates on Acme's tickets are shown in Acme's time zone.</p>
+        </div>
+        <div class="panel" style="flex:1 1 320px;min-width:0">
+          <div class="panel-h"><div style="flex:1"><h3>Holidays</h3><span class="hint">Acme's clock stops all day</span></div><button class="btn sm" type="button">Add a day</button></div>
+          <div class="kv"><span>Thanksgiving</span><span class="muted">Nov 26, 2026</span></div>
+          <div class="kv"><span>Day after Thanksgiving</span><span class="muted">Nov 27, 2026</span></div>
+          <div class="kv"><span>Plant shutdown</span><span class="muted">Dec 24 – Jan 1</span></div>
+          <div class="kv"><span>New Year's Day</span><span class="muted">Jan 1, 2027</span></div>
+          <p class="hint" style="margin:0;padding:10px 18px 14px">Acme's holidays never change when your own staff are free; that follows your company's holidays.</p>
+        </div>
+      </div>
+
+      <div class="callout"><span><b>No shared list of SLA policies any more.</b> Every company's targets, hours and holidays are on its own page. Settings › Hours &amp; SLAs keeps one set of <b>starting values</b>, copied when you create a company.</span></div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"dark"},"$preview":{"width":1440,"height":1280}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+  }
+}
+</script>
+</body>
+</html>

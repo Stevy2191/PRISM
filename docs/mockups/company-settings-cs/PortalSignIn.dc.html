@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Acme's portal sign-in</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:900px;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 16px;background:var(--bar);border-bottom:1px solid var(--bd);font-size:13px;color:var(--tx3)">
+    <span aria-hidden="true">Address</span><span class="link" style="padding:4px 10px">https://prism.s6node.com/portal/<b style="color:var(--tx)">acme</b></span>
+  </div>
+  <div style="flex:1;display:flex;gap:64px;align-items:center;justify-content:center;padding:40px">
+    <div style="width:420px;display:flex;flex-direction:column;gap:18px">
+      <div>
+        <p class="hint" style="margin:0 0 6px">Washington County IT · help desk</p>
+        <h1>Acme Manufacturing</h1>
+        <p class="sub">Sign in to raise and follow your IT tickets.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-b">
+          <button class="btn big" type="button" style="justify-content:center">Sign in with Microsoft</button>
+          <div class="hint" style="text-align:center">or</div>
+          <div class="field"><label class="label" for="ps-email">Work email</label><input id="ps-email" class="input" value="sam@othercompany.example"></div>
+          <div class="field"><label class="label" for="ps-pw">Password</label><input id="ps-pw" class="input" type="password" value="xxxxxxxxxx"></div>
+          <div role="alert" style="background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-bd);border-radius:8px;padding:10px 12px;font-size:13.5px">That email or password isn't right.</div>
+          <button class="btn primary big" type="button" style="justify-content:center">Sign in</button>
+          <a href="#" class="hint" style="text-align:center">Forgot your password?</a>
+        </div>
+      </div>
+    </div>
+    <div style="width:440px;display:flex;flex-direction:column;gap:12px">
+      <div class="panel">
+        <div class="panel-h"><h3>What keeps each portal its own</h3></div>
+        <div class="kv"><span><span class="k">Only Acme's contacts sign in here</span><span class="hint" style="display:block">Sam belongs to another company. The page says the same thing it says for any wrong password, so it never reveals that the account exists somewhere else.</span></span></div>
+        <div class="kv"><span><span class="k">A session belongs to one company</span><span class="hint" style="display:block">Signed in at /portal/acme, a person cannot open /portal/another-company, or any of its tickets, files, articles or people.</span></span></div>
+        <div class="kv"><span><span class="k">Microsoft sign-in checks the tenant</span><span class="hint" style="display:block">At Acme's link, only Acme's Microsoft 365 is accepted.</span></span></div>
+        <div class="kv"><span><span class="k">Off means off</span><span class="hint" style="display:block">A company whose portal is off, or that is inactive, cannot be signed in to.</span></span></div>
+      </div>
+      <p class="hint" style="margin:0 4px">Emails PRISM sends (invites, password resets, ticket replies) link to the person's own company portal.</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>

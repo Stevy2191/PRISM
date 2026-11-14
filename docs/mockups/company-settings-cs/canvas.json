@@ -1,0 +1,25 @@
+{
+ "v": 3,
+ "createdOnFiles": {"v": 1, "at": "2026-11-14T18:30:00Z"},
+ "title": "PRISM company settings",
+ "launch": {"view": "canvas", "page": "settings"},
+ "pages": [
+  {"id": "settings", "name": "Settings, cleaned up"},
+  {"id": "company", "name": "A customer company's page"},
+  {"id": "portal", "name": "Each company's portal"}
+ ],
+ "boards": {
+  "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1000, "title": "1 · Settings: yours, customers', and the help desk's", "page": "settings", "expand": "fill"},
+  "YourCompany.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 1000, "title": "2 · Settings › Your company: its one page", "page": "settings", "expand": "fill"},
+  "Preferences.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 1000, "title": "3 · The timer, in one place", "page": "settings", "expand": "fill"},
+  "NewCompany.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1000, "title": "1 · A new company opens on its own page", "page": "company", "expand": "fill"},
+  "SlaHours.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 1280, "title": "2 · Setup › SLA and hours", "page": "company", "expand": "fill"},
+  "Portal.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 1160, "title": "3 · Setup › Portal", "page": "company", "expand": "fill"},
+  "Applies.dc.html": {"x": 4560, "y": 0, "w": 1440, "h": 1100, "title": "4 · Setup › Surveys, and What applies here", "page": "company", "expand": "fill"},
+  "PortalSignIn.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 900, "title": "1 · /portal/acme: only Acme's people", "page": "portal"},
+  "PortalShared.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "2 · The old shared /portal", "page": "portal"}
+ },
+ "order": ["Main.dc.html", "YourCompany.dc.html", "Preferences.dc.html", "NewCompany.dc.html", "SlaHours.dc.html", "Portal.dc.html", "Applies.dc.html", "PortalSignIn.dc.html", "PortalShared.dc.html"],
+ "notes": {},
+ "designSystems": []
+}

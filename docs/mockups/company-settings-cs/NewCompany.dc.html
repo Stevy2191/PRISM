@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A new company opens on its own page</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#" class="on">Companies</a><a href="#">Assets</a><a href="#">Reports</a><a href="#">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Companies</a><span>/</span><span>Acme Manufacturing</span></nav>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px">
+      <h1>Acme Manufacturing</h1><span class="badge">Customer</span><span class="badge ok">Active</span>
+    </div>
+    <div class="callout" style="margin-top:14px"><span><b>Acme Manufacturing is created.</b> It starts with a copy of your starting SLA targets, support hours and holidays. Work down the list to finish setting it up; everything for this company is on this page.</span></div>
+
+    <nav class="tabs" aria-label="Company" style="margin-top:18px"><a href="#" class="on">Overview</a><a href="#">People</a><a href="#">Work</a><a href="#">Assets</a><a href="#">Setup</a></nav>
+
+    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;margin-top:20px">
+      <div class="panel" style="flex:999 1 560px;min-width:0">
+        <div class="panel-h"><h3>Set up this company</h3><span class="hint">3 of 9 done</span></div>
+        <div class="step"><span class="dot done" aria-label="Done"></span><span><b>Details</b><span class="hint" style="display:block">Name, phone and website are in</span></span><a href="#" class="btn sm quiet">Open</a></div>
+        <div class="step"><span class="dot done" aria-label="Done"></span><span><b>SLA targets</b><span class="hint" style="display:block">Copied from your starting values. Review them for this customer.</span></span><a href="#" class="btn sm">Review</a></div>
+        <div class="step"><span class="dot done" aria-label="Done"></span><span><b>Support hours and holidays</b><span class="hint" style="display:block">Mon–Fri 8:00–17:00, America/Chicago, 11 holidays (copied)</span></span><a href="#" class="btn sm">Review</a></div>
+        <div class="step"><span class="dot" aria-label="To do"></span><span><b>Contacts</b><span class="hint" style="display:block">Add the people who will ask for help, or link Microsoft 365 to bring them in</span></span><a href="#" class="btn sm primary">Add contacts</a></div>
+        <div class="step"><span class="dot" aria-label="To do"></span><span><b>Email domain</b><span class="hint" style="display:block">So emails from @acme.example become Acme's tickets</span></span><a href="#" class="btn sm">Add</a></div>
+        <div class="step"><span class="dot" aria-label="To do"></span><span><b>Ticket categories</b><span class="hint" style="display:block">Acme's own list; start from yours or from nothing</span></span><a href="#" class="btn sm">Set up</a></div>
+        <div class="step"><span class="dot" aria-label="To do"></span><span><b>Portal</b><span class="hint" style="display:block">Off. Turn it on to give Acme its own link.</span></span><a href="#" class="btn sm">Set up</a></div>
+        <div class="step"><span class="dot" aria-label="To do"></span><span><b>Satisfaction surveys</b><span class="hint" style="display:block">On for new companies. Keep or turn off.</span></span><a href="#" class="btn sm">Choose</a></div>
+        <div class="step"><span class="dot" aria-label="To do"></span><span><b>Agent on their computers</b><span class="hint" style="display:block">Make an install link for Acme</span></span><a href="#" class="btn sm">Open</a></div>
+      </div>
+      <aside style="flex:1 1 300px;max-width:360px;display:flex;flex-direction:column;gap:12px">
+        <div class="panel"><div class="panel-b"><span class="hint">Open tickets</span><b style="font-size:24px">0</b></div></div>
+        <div class="panel"><div class="panel-b"><span class="hint">Contacts</span><b style="font-size:24px">0</b><span class="hint">0 with portal access</span></div></div>
+        <div class="panel"><div class="panel-b"><span class="hint">Account manager</span><span>Not set · <a href="#">Choose</a></span></div></div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"dark"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+  }
+}
+</script>
+</body>
+</html>

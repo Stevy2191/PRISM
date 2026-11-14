@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The old shared portal address</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}" style="width:1440px;height:900px;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 16px;background:var(--bar);border-bottom:1px solid var(--bd);font-size:13px;color:var(--tx3)">
+    <span aria-hidden="true">Address</span><span class="link" style="padding:4px 10px">https://prism.s6node.com/portal</span>
+  </div>
+  <div style="flex:1;display:flex;gap:64px;align-items:center;justify-content:center;padding:40px">
+    <div style="width:440px;display:flex;flex-direction:column;gap:16px">
+      <div>
+        <p class="hint" style="margin:0 0 6px">Washington County IT · help desk</p>
+        <h1>Use your company's portal link</h1>
+        <p class="sub" style="font-size:15px">Each company has its own portal. Open the link your IT help desk sent you, or the one in any email about your tickets.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-b">
+          <div class="field"><label class="label" for="sh-email">Can't find it? Enter your work email</label><input id="sh-email" class="input" placeholder="you@yourcompany.com"></div>
+          <button class="btn primary big" type="button" style="justify-content:center">Email me my link</button>
+          <span class="hint">If that address has portal access, we'll email its link. This page says the same thing either way.</span>
+        </div>
+      </div>
+    </div>
+    <div style="width:440px;display:flex;flex-direction:column;gap:12px">
+      <div class="panel">
+        <div class="panel-h"><h3>What happens to /portal</h3></div>
+        <div class="kv"><span><span class="k">With customer companies</span><span class="hint" style="display:block">Nobody signs in here any more. It points people to their own company's link.</span></span></div>
+        <div class="kv"><span><span class="k">With only your own company</span><span class="hint" style="display:block">This page never shows. /portal goes straight to your company's portal, as it does today.</span></span></div>
+        <div class="kv"><span><span class="k">Links in emails already sent</span><span class="hint" style="display:block">Keep working. They carry the ticket, so PRISM sends the person to the right company's portal.</span></span></div>
+      </div>
+      <p class="hint" style="margin:0 4px">New in this mockup: "Email me my link" is a suggestion, so people who bookmarked the old address aren't stuck. Say if you'd rather not have it.</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'light') };
+  }
+}
+</script>
+</body>
+</html>

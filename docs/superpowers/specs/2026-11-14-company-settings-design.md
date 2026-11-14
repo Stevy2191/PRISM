@@ -1,7 +1,8 @@
 # Settings cleanup: your company, customer companies, one place for each setting
 
-> Status: design and decisions approved by the owner 2026-11-14. Mockups and
-> plan to follow.
+> Status: design and decisions approved by the owner 2026-11-14.
+> Mockups: `docs/mockups/company-settings-cs/` (for the owner's approval).
+> Plan to follow.
 > Builds on today's first pass (`497fe41`, "Settings: global only; per-company
 > settings on each company's page") and on Playbooks/Checklists (PB, PB2), the
 > client portal (7a, 7b), SLAs (5a, 5b) and per-company categories (9).

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings, Your company</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Contacts</a><a href="#">Companies</a><a href="#">Assets</a><a href="#">Reports</a><a href="#" class="on">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <div class="shell">
+    <nav class="side" aria-label="Settings sections">
+      <a href="#" class="sec">You <span class="n">1</span></a>
+      <a href="#" class="sec on">Your company <span class="n">1</span></a>
+      <a href="#" class="sec">Customers <span class="n">3</span></a>
+      <a href="#" class="sec">People &amp; access <span class="n">4</span></a>
+      <a href="#" class="sec">Service desk <span class="n">9</span></a>
+      <a href="#" class="sec">Hours &amp; SLAs <span class="n">2</span></a>
+      <a href="#" class="sec">Time &amp; work <span class="n">2</span></a>
+      <a href="#" class="sec">Sign-in &amp; email <span class="n">6</span></a>
+      <a href="#" class="sec">System <span class="n">5</span></a>
+    </nav>
+    <main class="main">
+      <div>
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Settings</a><span>/</span><span>Your company</span></nav>
+        <h1 style="margin-top:8px">Washington County IT <span class="badge ok" style="vertical-align:middle">Your company</span></h1>
+        <p class="sub">Everything about your own organization. Customers each have a page like this one, under Companies.</p>
+      </div>
+      <nav class="pills" aria-label="Your company's settings">
+        <a href="#" class="on">Profile and login page</a><a href="#">Departments</a><a href="#">Sites</a><a href="#">Support hours and holidays</a><a href="#">SLA</a><a href="#">Categories</a><a href="#">Portal</a><a href="#">Devices</a>
+      </nav>
+
+      <div class="panel">
+        <div class="panel-h"><h3>Profile</h3></div>
+        <div class="panel-b" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px">
+          <div class="field"><label class="label" for="yc-name">Company name</label><input id="yc-name" class="input" value="Washington County IT"><span class="hint">Shown on tickets, emails and your portal. This was typed in two places; it is this one field now.</span></div>
+          <div class="field"><label class="label" for="yc-app">App name</label><input id="yc-app" class="input" value="PRISM"><span class="hint">In the top bar and the browser tab.</span></div>
+          <div class="field"><label class="label" for="yc-tz">Time zone</label><input id="yc-tz" class="input" value="America/Chicago"><span class="hint">For your staff, your own tickets, and the starting value for a new company.</span></div>
+          <div class="field"><span class="label">Logo</span><div style="display:flex;gap:10px;align-items:center"><span class="lic" aria-hidden="true"></span><button class="btn sm" type="button">Change logo</button></div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><h3>Login page</h3></div>
+        <div class="panel-b">
+          <div class="field"><label class="label" for="yc-login">Message under the sign-in form</label><input id="yc-login" class="input" value="Secure session: enter your PRISM credentials"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><h3>The same parts every company has</h3><span class="hint">Shown here for your company; on a customer's page for theirs.</span></div>
+        <div class="kv"><span><span class="k">Departments</span><span class="hint" style="display:block">Your staff's departments, short codes and default roles</span></span><span class="hint">6 departments ›</span></div>
+        <div class="kv"><span><span class="k">Support hours and holidays</span><span class="hint" style="display:block">When your own tickets' SLA clock runs. Your holidays are also the days your staff are off in Workload.</span></span><span class="hint">Mon–Fri 8:00–17:00 · 11 holidays ›</span></div>
+        <div class="kv"><span><span class="k">SLA</span><span class="hint" style="display:block">Response and resolution targets for your own employees' tickets</span></span><span class="hint">Set ›</span></div>
+        <div class="kv"><span><span class="k">Categories</span><span class="hint" style="display:block">Your own ticket categories</span></span><span class="hint">14 categories ›</span></div>
+        <div class="kv"><span><span class="k">Portal</span><span class="hint" style="display:block">For your own employees</span></span><span class="hint">On · /portal/washington-county ›</span></div>
+      </div>
+
+      <div class="callout"><span><b>Only your own company?</b> Then this page is all there is: Customers shows one line, "Add a customer company", and your portal keeps the plain address /portal.</span></div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"dark"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+  }
+}
+</script>
+</body>
+</html>
