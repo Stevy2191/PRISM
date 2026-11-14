@@ -239,6 +239,21 @@ Each part is usable on its own and ends with both test suites passing.
 5. **Each company has its own time zone** for its SLA clock and the due
    dates on its tickets. Yes.
 
+6. **The staff sign-in page's tagline and bullet points stay on *Your
+   company*,** beside the logo and app name.
+7. **Treat PRISM as a brand-new system: nobody is using it yet.**
+   - No screen mentions what moved, what was removed, or how things used to
+     be. Each page shows only what it is.
+   - Pages that go away simply go: no redirects are added for their old
+     addresses.
+   - The data change is done directly. The owner's test install is converted
+     so it keeps working (each company gets its own targets, hours and
+     holidays; contacts keep their portal access), but there is no
+     compatibility layer, no "old link keeps working", and no list of
+     affected rules in the upgrade notes beyond one plain entry.
+   - Where this note and an earlier section disagree (sections 3, 4 and 7
+     mention redirects, old links and move-over care), this note wins.
+
 ## Not in this change
 
 - A different survey question, or different email wording, per company.
