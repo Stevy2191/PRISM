@@ -88,9 +88,13 @@ async function getTemplate(key) {
   const def = CATALOG[key];
   if (!def) return null;
   const row = await deps().EmailTemplate.findOne({ where: { key } });
+  // A staff notification is decided by the help desk's default and each
+  // person's own choice (Settings › Notifications, Preferences): its
+  // template has wording, not a switch of its own (CS).
+  const staff = def.audience === 'staff';
   return row
-    ? { key, subject: row.subject, bodyHtml: row.bodyHtml, enabled: !!row.enabled, isDefault: false }
-    : { key, subject: def.subject, bodyHtml: def.bodyHtml, enabled: def.defaultEnabled, isDefault: true };
+    ? { key, subject: row.subject, bodyHtml: row.bodyHtml, enabled: staff || !!row.enabled, isDefault: false }
+    : { key, subject: def.subject, bodyHtml: def.bodyHtml, enabled: staff || def.defaultEnabled, isDefault: true };
 }
 
 async function branding() {

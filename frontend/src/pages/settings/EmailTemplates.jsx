@@ -127,15 +127,19 @@ export default function EmailTemplates() {
           <form onSubmit={save} className="card min-w-0 space-y-4 p-4" aria-label={`Edit ${detail.name}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-navy-900">{detail.name}</h2>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-navy-300 text-prism"
-                  checked={form.enabled}
-                  onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))}
-                />
-                Send this email
-              </label>
+              {detail.audience === 'staff' ? (
+                <span className="text-xs text-navy-500">Whether staff get this email is set in Notifications, and by each person in Preferences.</span>
+              ) : (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-navy-300 text-prism"
+                    checked={form.enabled}
+                    onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))}
+                  />
+                  Send this email
+                </label>
+              )}
             </div>
             <label className="block text-sm font-medium text-navy-700">
               Subject

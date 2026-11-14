@@ -40,7 +40,7 @@ const list = asyncHandler(async (req, res) => {
     key,
     name: def.name,
     audience: def.audience,
-    enabled: saved.has(key) ? !!saved.get(key).enabled : def.defaultEnabled,
+    enabled: def.audience === 'staff' ? true : (saved.has(key) ? !!saved.get(key).enabled : def.defaultEnabled),
     isDefault: !saved.has(key),
   }));
   res.json({ templates });
@@ -61,7 +61,8 @@ const update = asyncHandler(async (req, res) => {
   const values = {
     subject,
     bodyHtml,
-    enabled: enabled !== undefined ? enabled : (existing ? existing.enabled : def.defaultEnabled),
+    // A staff notification's template has no switch of its own.
+    enabled: def.audience === 'staff' ? true : (enabled !== undefined ? enabled : (existing ? existing.enabled : def.defaultEnabled)),
     updatedById: req.user.id,
   };
   if (existing) await existing.update(values);

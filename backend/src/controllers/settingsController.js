@@ -1,3 +1,4 @@
+const { DEFAULT_EMAIL_PREFS, completeEmailDefaults } = require('../services/email/emailDefaults');
 const path = require('path');
 const fs = require('fs');
 const { SystemSettings, SsoProvider, Company } = require('../models');
@@ -66,9 +67,7 @@ const DEFAULTS = {
   'notifications.enabledTypes': DEFAULT_NOTIFICATION_TYPES,
   // Settings -> Notifications: whether each emailing event type emails by
   // default (users can override theirs). See services/email/notificationMail.
-  'notifications.emailDefaults': JSON.stringify({
-    assigned: true, comment: true, new_in_queue: true, sla_warning: true, sla_breached: true, watcher_update: false,
-  }),
+  'notifications.emailDefaults': JSON.stringify(DEFAULT_EMAIL_PREFS),
 
   // Settings -> Customer Happiness: automated post-close CSAT survey emails
   // (distinct from the older staff-entered happy/neutral/unhappy CsatResponse
@@ -139,6 +138,8 @@ async function getAllSettings() {
   const rows = await SystemSettings.findAll();
   const values = { ...DEFAULTS };
   for (const row of rows) values[row.key] = row.value;
+  // Every emailing event has a default, whatever was stored before.
+  values['notifications.emailDefaults'] = JSON.stringify(completeEmailDefaults(values['notifications.emailDefaults']));
   return values;
 }
 

@@ -23,10 +23,7 @@ const EMAIL_EVENTS = Object.freeze({
   budget_reached: 'staff_budget_reached',
 });
 
-const DEFAULT_EMAIL_PREFS = Object.freeze({
-  assigned: true, comment: true, new_in_queue: true, sla_warning: true, sla_breached: true, watcher_update: false,
-  task_added: true, task_unblocked: false, budget_warning: true, budget_reached: true,
-});
+const { DEFAULT_EMAIL_PREFS } = require('./emailDefaults');
 
 // { type: bool } with known types only, or null. Anything else → null.
 function validEmailPrefs(value) {

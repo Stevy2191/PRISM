@@ -22,11 +22,8 @@ const TYPES = [
   ['budget_reached', 'Project budget reached', 'A project you work on has used its hour budget.'],
 ];
 
-// Events that can also email; users can change their own (Preferences).
-const EMAIL_DEFAULTS = {
-  assigned: true, comment: true, new_in_queue: true, sla_warning: true, sla_breached: true, watcher_update: false,
-  task_added: true, task_unblocked: false, budget_warning: true, budget_reached: true,
-};
+// Which events can also email, and their defaults, come from the server
+// (one list: services/email/emailDefaults). Users change their own in Preferences.
 
 export default function Notifications() {
   const [enabled, setEnabled] = useState(null);
@@ -35,8 +32,8 @@ export default function Notifications() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [snapshot, setSnapshot] = useState(null); // as loaded or last saved
-  const [emailDefaults, setEmailDefaults] = useState(EMAIL_DEFAULTS);
-  const [emailSnapshot, setEmailSnapshot] = useState(EMAIL_DEFAULTS);
+  const [emailDefaults, setEmailDefaults] = useState({});
+  const [emailSnapshot, setEmailSnapshot] = useState({});
 
   useEffect(() => {
     api.get('/settings')
@@ -52,9 +49,8 @@ export default function Notifications() {
         setSnapshot([...initial].sort());
         let defaults = {};
         try { defaults = JSON.parse(data.settings['notifications.emailDefaults']) || {}; } catch { defaults = {}; }
-        const merged = { ...EMAIL_DEFAULTS, ...defaults };
-        setEmailDefaults(merged);
-        setEmailSnapshot(merged);
+        setEmailDefaults(defaults);
+        setEmailSnapshot(defaults);
       })
       .catch((err) => setError(errMessage(err)))
       .finally(() => setLoading(false));
@@ -106,7 +102,7 @@ export default function Notifications() {
                   aria-label={`${label}: on`}
                 />
               </label>
-              {Object.hasOwn(EMAIL_DEFAULTS, key) && (
+              {Object.hasOwn(emailDefaults, key) && (
                 <label className="flex cursor-pointer items-center gap-2" title="Email this by default; each person can change it in Preferences">
                   Email by default
                   <input
