@@ -48,28 +48,6 @@ export default function AdminUsers() {
     }
   };
 
-  const deleteUser = async (id) => {
-    if (!confirm('Delete this user?')) return;
-    try {
-      await api.delete(`/users/${id}`);
-      setUsers((us) => us.filter((u) => u.id !== id));
-    } catch (err) {
-      alert(errMessage(err));
-    }
-  };
-
-  const resetPassword = async (u) => {
-    const pw = prompt(`Set a new temporary password for ${u.displayName} (min 8 chars).\nThey will be required to change it on next login.`);
-    if (!pw) return;
-    try {
-      await api.patch(`/users/${u.id}`, { password: pw });
-      setUsers((us) => us.map((x) => (x.id === u.id ? { ...x, mustChangePassword: true } : x)));
-      alert('Password reset. The user must change it on next login.');
-    } catch (err) {
-      alert(errMessage(err));
-    }
-  };
-
   if (loading) return <Spinner />;
 
   return (
@@ -109,7 +87,6 @@ export default function AdminUsers() {
               <th className="table-th">Role</th>
               <th className="table-th">Department</th>
               <th className="table-th">Last login</th>
-              <th className="table-th"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-navy-100">
@@ -118,7 +95,13 @@ export default function AdminUsers() {
               // An administrator's account is changed only by an Owner.
               const locked = u.administrator && !isOwner;
               return (
-              <tr key={u.id} className="hover:bg-[var(--color-hover)]">
+              // The whole row opens the user (owner, 2026-11-14: roles,
+              // reset password and delete live on the user's page now).
+              <tr
+                key={u.id}
+                className="cursor-pointer hover:bg-[var(--color-hover)]"
+                onClick={(e) => { if (!e.target.closest('a,button,select,input,label')) navigate(`/admin/users/${u.id}`); }}
+              >
                 <td className="table-td min-w-[11rem] font-semibold">
                   <Link to={`/admin/users/${u.id}`} className="hover:underline" style={{ color: 'var(--color-accent)' }}>{fullName}</Link>
                   {u.ownerLevel && <span className="ml-1.5"><OwnerBadge level={u.ownerLevel} size={14} /></span>}
@@ -158,23 +141,6 @@ export default function AdminUsers() {
                 </td>
                 <td className="table-td num whitespace-nowrap text-navy-400">
                   {u.lastLogin ? fmtDate(u.lastLogin) : '—'}
-                </td>
-                <td className="table-td">
-                  <div className="flex gap-3 whitespace-nowrap">
-                    <Link to={`/admin/users/${u.id}`} className="text-xs hover:underline" style={{ color: 'var(--color-accent)' }}>
-                      roles &amp; permissions
-                    </Link>
-                    {u.isLocalAccount && !locked && (
-                      <button onClick={() => resetPassword(u)} className="text-xs hover:underline" style={{ color: 'var(--color-accent)' }}>
-                        reset pw
-                      </button>
-                    )}
-                    {!locked && (
-                      <button onClick={() => deleteUser(u.id)} className="text-xs hover:underline" style={{ color: 'var(--color-danger)' }}>
-                        delete
-                      </button>
-                    )}
-                  </div>
                 </td>
               </tr>
               );

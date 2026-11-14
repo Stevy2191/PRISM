@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import CompanyAccessPanel from '../components/companies/CompanyAccessPanel';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useAuth, usePermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
@@ -873,6 +873,7 @@ function PerformanceTab({ userId }) {
 
 export default function UserDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const {
     refreshPermissions, refresh, isOwner, isTheOwner, user: me, hasAnyPermission,
   } = useAuth();
@@ -942,6 +943,15 @@ export default function UserDetail() {
   // "All users" only for someone who may open the list (not a person on
   // their own profile without people permissions).
   const canOpenUsers = canOpen(findPage('/admin/users').access, { role: me?.role, isOwner, hasAnyPermission });
+  const deleteUser = async () => {
+    if (!confirm(`Delete ${user.displayName}? This can't be undone.`)) return;
+    try {
+      await api.delete(`/users/${user.id}`);
+      navigate('/admin/users');
+    } catch (err) {
+      alert(errMessage(err));
+    }
+  };
   const title = (
     <>
       {user.displayName}
@@ -963,6 +973,10 @@ export default function UserDetail() {
             ? <Link to={`/contacts/${user.contact.id}`} className="btn-secondary">Open contact</Link>
             : <button type="button" onClick={makeContact} className="btn-secondary" title="Copy this person into Contacts, so tickets can be raised for them">Make contact</button>)}
           {canOpenUsers && <Link to="/admin/users" className="btn-secondary">All users</Link>}
+          {/* Moved here from the Users list (owner, 2026-11-14); Reset password is on Profile. */}
+          {canEditUsers && !readOnly && user.id !== me?.id && !user.ownerLevel && (
+            <button type="button" onClick={deleteUser} className="btn-danger">Delete user</button>
+          )}
         </>
       )}>
       {readOnly && (

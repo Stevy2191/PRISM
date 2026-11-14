@@ -520,6 +520,12 @@ on its own: the menu is as tall as it needs and moves with the page.
 **Tab rows** on a contact, a company and a ticket no longer have a scroll
 bar of their own; on a narrow window they wrap.
 
+**Users list:** the row actions are gone (roles & permissions, reset pw,
+delete), so the table fits without scrolling sideways. Click a user's row
+to open them: roles and permissions are on the **Roles & Permissions**
+tab, **Reset password** is on **Profile**, and **Delete user** is at the
+top (not on your own account or an owner's).
+
 **Enter sends:** in a ticket's reply box, the portal's reply box and the
 description of a ticket raised from the portal or the PRISM agent (and
 the agent's reply box), **Enter** sends and **Shift+Enter** starts a new

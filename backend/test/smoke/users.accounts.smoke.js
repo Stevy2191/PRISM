@@ -1,7 +1,7 @@
 const {
   resetData, closeDb, ROLE, models,
 } = require('../integration/helpers');
-const { makeWorld, makeUser } = require('../integration/fixtures');
+const { makeWorld, makeUser, makeTech } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
 
 // Creating an account with its role and overrides in one form, and changing
@@ -53,9 +53,34 @@ it('a System Administrator\'s form doesn\'t offer the top roles, and administrat
   const options = await role.locator('option').allTextContents();
   expect(options).not.toContain('Owner');
   expect(options).not.toContain('System Administrator');
+  // No row actions in the list any more: they're on the user's page, and
+  // an administrator's page offers no delete or reset to a non-Owner.
   const adminRow = page.getByRole('row').filter({ has: page.getByRole('link', { name: 'admin', exact: true }) });
-  await adminRow.getByRole('link', { name: 'roles & permissions' }).waitFor();
-  expect(await adminRow.getByRole('button', { name: 'delete' }).count()).toBe(0);
+  expect(await adminRow.getByRole('button').count()).toBe(0);
+  await page.keyboard.press('Escape');
+  await adminRow.getByRole('cell').nth(1).click(); // the row opens the user
+  await page.waitForURL(/\/admin\/users\/\d+$/);
+  await page.getByText("Only an Owner can change an administrator's account.").waitFor();
+  expect(await page.getByRole('button', { name: 'Delete user' }).count()).toBe(0);
+  expect(await page.getByRole('button', { name: 'Reset password' }).isDisabled()).toBe(true);
+});
+
+it('Reset password and Delete user are on the user\'s page', async () => {
+  const doomed = await makeTech('leaving-soon', w.deptA.id);
+  const page = await smoke.pageAs('admin');
+  page.on('dialog', (d) => (d.type() === 'prompt' ? d.accept('Temp-Pass-123') : d.accept()));
+  await page.goto(`/admin/users/${doomed.user.id}`);
+  const reset = page.waitForResponse((r) => r.request().method() === 'PATCH' && r.url().endsWith(`/api/v1/users/${doomed.user.id}`));
+  await page.getByRole('button', { name: 'Reset password' }).first().click();
+  expect((await reset).status()).toBe(200);
+  expect((await User.findByPk(doomed.user.id)).mustChangePassword).toBe(true);
+  await page.getByRole('button', { name: 'Delete user' }).click();
+  await page.waitForURL(/\/admin\/users$/);
+  expect(await User.findByPk(doomed.user.id)).toBeNull();
+  // Your own page offers no delete.
+  await page.goto(`/admin/users/${w.admin.user.id}`);
+  await page.getByRole('link', { name: 'All users' }).waitFor();
+  expect(await page.getByRole('button', { name: 'Delete user' }).count()).toBe(0);
 });
 
 it('an Owner renames themselves from the profile', async () => {
