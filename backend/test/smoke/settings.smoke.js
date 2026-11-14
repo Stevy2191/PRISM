@@ -106,10 +106,10 @@ describe('the menu', () => {
   const menu = (page) => page.getByRole('complementary', { name: 'Settings menu' });
 
   it('an owner sees every group; a System Administrator only Email templates under Sign-in & email; Department Staff only a few', async () => {
-    const groups = ['You', 'Organization', 'People & access', 'Service desk', 'Hours & SLAs', 'Time & work', 'Assets', 'Sign-in & email', 'System'];
+    const groups = ['You', 'Your company', 'Customers', 'People & access', 'Service desk', 'Hours & SLAs', 'Time & work', 'Assets', 'Sign-in & email', 'System'];
     let page = await as('admin');
     await page.goto('/settings/preferences');
-    for (const g of groups) await menu(page).getByRole('link', { name: new RegExp(`^${g}`) }).waitFor(); // eslint-disable-line no-await-in-loop
+    for (const g of groups) await menu(page).getByRole('link', { name: new RegExp(`^${g}(?![a-z])`) }).waitFor(); // eslint-disable-line no-await-in-loop
     await makeUser('sysadmin2', ROLE.ADMIN, w.deptA.id);
     page = await as('sysadmin2');
     // A section's pages show in the menu while it is open.
@@ -216,11 +216,11 @@ describe('Settings home', () => {
 });
 
 describe('every page uses the Settings frame', () => {
-  it('You, Organization, People & access', async () => {
+  it('You, Your company, People & access', async () => {
     const page = await as('admin');
     for (const [path, title] of [
-      ['/settings/preferences', 'Preferences'], ['/settings/about', 'About PRISM'], ['/settings/companies', 'Companies & vendors'],
-      ['/admin/users', 'Users'], ['/settings/teams', 'Teams'], ['/admin/departments', 'Departments'],
+      ['/settings/preferences', 'Preferences'], ['/settings/about', 'About PRISM'],
+      ['/admin/users', 'Users'], ['/settings/teams', 'Teams'],
       ['/admin/roles', 'Roles & permissions'], ['/admin/roles/new', 'New role'], ['/admin/apikeys', 'API keys'],
     ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
   });
@@ -270,7 +270,7 @@ describe('the rest in the frame, and every page opens', () => {
     const sections = await page.getByRole('complementary', { name: 'Settings menu' }).locator('a[href^="/settings?section="]').evaluateAll(
       (as) => as.map((a) => a.getAttribute('href')),
     );
-    expect(sections.length).toBe(11);
+    expect(sections.length).toBe(12);
     const links = [];
     for (const href of sections) {
       await page.goto(href); // eslint-disable-line no-await-in-loop
@@ -280,7 +280,8 @@ describe('the rest in the frame, and every page opens', () => {
       ));
     }
     expect(links.length).toBeGreaterThan(30);
-    for (const [href, name] of links) {
+    // Per-company settings link out to company pages (owner, 2026-11-14).
+    for (const [href, name] of links.filter(([h]) => !h.startsWith('/companies'))) {
       resetRateLimits();
       await page.goto(href); // eslint-disable-line no-await-in-loop
       await page.getByRole('main').getByRole('heading', { level: 1, name }).waitFor(); // eslint-disable-line no-await-in-loop

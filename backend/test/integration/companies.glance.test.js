@@ -40,3 +40,20 @@ it('is fenced like the company, and leaves out what the viewer may not see', asy
   if (mine.status === 200) expect(mine.body.glance.categories).toBeNull();
   else expect(mine.status).toBe(403);
 });
+
+it('a company\'s SLA policy is chosen on its page; the summary names your own company', async () => {
+  const gold = await models.SlaPolicy.create({ name: 'Gold', isDefault: false });
+  const put = (agent, body) => agent.put(`${API}/companies/${alpha.id}/sla-policy`).send(body);
+  let res = expectOk(await put(w.admin.agent, { slaPolicyId: gold.id }));
+  expect(res.company.slaPolicy).toMatchObject({ id: gold.id, name: 'Gold' });
+  expect((await models.Company.findByPk(alpha.id)).slaPolicyId).toBe(gold.id);
+  res = expectOk(await put(w.admin.agent, { slaPolicyId: null }));
+  expect(res.company.slaPolicy).toBeNull();
+  expect((await put(w.admin.agent, { slaPolicyId: 999999 })).status).toBe(400);
+  expect(await models.AuditLog.count({ where: { action: 'company.slaPolicy' } })).toBe(2);
+  // Without the SLA permission: refused.
+  const tech = await makeTech('tech-sla', w.deptA.id);
+  expect((await put(tech.agent, { slaPolicyId: gold.id })).status).toBe(403);
+  const internal = await models.Company.findOne({ where: { isInternal: true } });
+  expect(expectOk(await w.admin.agent.get(`${API}/companies/summary`)).internalId).toBe(internal.id);
+});

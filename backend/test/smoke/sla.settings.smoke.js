@@ -21,7 +21,7 @@ beforeAll(async () => {
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 beforeEach(resetRateLimits);
 
-it('an admin sets Request/Low to 20 days and Incident/High to 4 hours, with a company', async () => {
+it('an admin sets Request/Low to 20 days and Incident/High to 4 hours, then puts a company on it from the company\'s page', async () => {
   await page.goto('/settings/slas');
   await page.getByRole('heading', { level: 1, name: 'SLAs' }).waitFor();
   await page.getByRole('button', { name: '+ New policy' }).click();
@@ -33,12 +33,19 @@ it('an admin sets Request/Low to 20 days and Incident/High to 4 hours, with a co
   await page.getByRole('tab', { name: 'Request' }).click();
   await page.getByLabel('Request Low Resolve within amount').fill('20');
   await page.getByLabel('Request Low Resolve within unit').selectOption('days');
-  await page.getByLabel('Globex').check();
   await page.getByRole('button', { name: 'Save policy' }).click();
   const card = page.getByTestId('sla-policy').filter({ hasText: 'Gold' });
   await card.waitFor();
-  await card.getByText('Globex').waitFor();
   await card.getByText('20d').waitFor();
+
+  // A company's policy is chosen on its page (owner, 2026-11-14).
+  const globex = await models.Company.findOne({ where: { name: 'Globex' } });
+  await page.goto(`/companies/${globex.id}?tab=setup&part=details`);
+  const saved = page.waitForResponse((r) => r.url().endsWith(`/companies/${globex.id}/sla-policy`));
+  await page.getByLabel('SLA policy').selectOption({ label: 'Gold' });
+  expect((await saved).status()).toBe(200);
+  await page.goto('/settings/slas');
+  await page.getByTestId('sla-policy').filter({ hasText: 'Gold' }).getByText('Globex').waitFor();
 
   const gold = await SlaPolicy.findOne({ where: { name: 'Gold' } });
   const target = (ticketType, priority) => SlaTarget.findOne({ where: { slaPolicyId: gold.id, ticketType, priority } });

@@ -28,8 +28,9 @@ afterAll(async () => {
 beforeEach(resetRateLimits);
 
 describe('tree editor', () => {
+  // Your own company's categories are on its page now (owner, 2026-11-14).
   it('admin adds Hardware › Laptop and it persists after reload', async () => {
-    await page.goto('/settings/ticket-categories');
+    await page.goto('/companies/internal?part=categories');
     await page.getByRole('button', { name: 'Add category' }).click();
     await page.getByLabel('New category name').fill('Hardware');
     await page.getByRole('button', { name: 'Add', exact: true }).click();
@@ -49,7 +50,7 @@ describe('tree editor', () => {
     const laptop = await TicketCategory.findOne({ where: { name: 'Laptop' } });
     const t = await makeTicket(w.admin.agent, { title: 'Used', contactId: w.contact.id, departmentId: w.deptA.id, categoryId: laptop.id });
     expect(t.category.id).toBe(laptop.id);
-    await page.goto('/settings/ticket-categories');
+    await page.goto('/companies/internal?part=categories');
     const row = page.getByTestId(`category-${laptop.id}`);
     await row.getByRole('button', { name: 'More for Laptop' }).click();
     await row.getByRole('button', { name: 'delete' }).first().click();
@@ -59,8 +60,9 @@ describe('tree editor', () => {
     await models.Ticket.update({ categoryId: null }, { where: { id: t.id } });
   });
 
-  it('the require-a-category switch saves', async () => {
+  it('the require-a-category switch saves; Settings links to each company\'s categories', async () => {
     await page.goto('/settings/ticket-categories');
+    await page.getByTestId('category-links').getByRole('link', { name: 'Open' }).waitFor();
     await page.getByRole('switch', { name: 'Require a category on new tickets' }).click();
     await page.waitForResponse((r) => r.url().endsWith('/ticket-categories/settings'));
     const res = expectOk(await w.admin.agent.get(`${API}/ticket-categories`));

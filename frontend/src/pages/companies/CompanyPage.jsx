@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { useCompanySummary } from '../../context/CompanyContext';
+import AdminDepartments from '../AdminDepartments';
 import { useAuth } from '../../context/AuthContext';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
@@ -36,14 +38,26 @@ export default function CompanyPage() {
   const m365Notice = params.get('m365');
   const [company, setCompany] = useState(null);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState(m365Notice ? 'setup' : 'overview');
+  // ?tab= and ?part= open a place on the page (Settings links here for
+  // per-company settings, owner 2026-11-14); ?part= alone finds its tab.
+  const askedPart = params.get('part');
+  const tabOfPart = askedPart ? (GROUPS.find(([, , subs]) => subs.some(([k]) => k === askedPart)) || [])[0] : null;
+  const [tab, setTab] = useState(m365Notice ? 'setup' : (params.get('tab') || tabOfPart || 'overview'));
   // The part showing within each tab.
-  const [parts, setParts] = useState(m365Notice ? { setup: 'm365' } : {});
+  const [parts, setParts] = useState(m365Notice ? { setup: 'm365' } : (askedPart && (params.get('tab') || tabOfPart) ? { [params.get('tab') || tabOfPart]: askedPart } : {}));
+  const { internalId } = useCompanySummary();
   const load = useCallback(() => {
+    if (id === 'internal') return;
     api.get(`/companies/${id}`).then(({ data }) => setCompany(data.company)).catch((err) => setError(errMessage(err)));
   }, [id]);
   useEffect(load, [load]);
 
+  // /companies/internal is your own company's page, by its id.
+  if (id === 'internal') {
+    if (!internalId) return <Spinner />;
+    const q = params.toString();
+    return <Navigate to={`/companies/${internalId}${q ? `?${q}` : ''}`} replace />;
+  }
   if (error) return <Notice tone="bad">{error}</Notice>;
   if (!company) return <Spinner />;
   // Parts this viewer has: Microsoft 365 (7b) for staff who manage portal
@@ -109,7 +123,9 @@ export default function CompanyPage() {
       {part === 'devices' && <CompanyDevices company={company} />}
       {part === 'notices' && <CompanyNotices company={company} />}
       {part === 'sites' && <CompanySites company={company} />}
-      {part === 'departments' && <CompanyDepartments company={company} />}
+      {/* Your own company's departments are your staff's (short codes,
+          default roles): the editor that was Settings → Departments. */}
+      {part === 'departments' && (company.isInternal ? <AdminDepartments embedded /> : <CompanyDepartments company={company} />)}
       {part === 'categories' && <CompanyCategories company={company} />}
       {['contacts', 'tickets', 'projects', 'assets'].includes(part) && <CompanyRecordList key={part} kind={part} companyId={company.id} />}
       {part === 'vendor' && (

@@ -30,15 +30,17 @@ beforeEach(async () => {
   }
 });
 
-it('Settings → Departments lists only the help desk\'s own departments', async () => {
+it('your own departments are on your company\'s page, and the old address leads there', async () => {
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto('/admin/departments');
+  await page.waitForURL(/\/companies\/\d+\?part=departments/);
   await page.getByText(w.deptA.name, { exact: true }).waitFor();
-  await page.getByText(/A client.s departments are on its page/).waitFor();
   expect(await page.getByText('HR', { exact: true }).count()).toBe(0);
   // A new one goes to the help desk's own company, with no company to pick.
   await page.getByRole('button', { name: '+ New department' }).click();
-  expect(await page.getByLabel('Company').count()).toBe(0);
+  const form = page.locator('form').filter({ has: page.getByRole('button', { name: 'Create' }) });
+  await form.waitFor();
+  expect(await form.getByLabel('Company').count()).toBe(0);
 });
 
 it('a client\'s departments are renamed and deleted on its company page', async () => {

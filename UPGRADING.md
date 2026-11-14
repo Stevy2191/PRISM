@@ -490,6 +490,23 @@ the contact's name, for staff who can edit the ticket: search for a contact
 and the ticket moves to them (and to their company; a category of the old
 company is dropped, as before).
 
+### Settings: your company and your customers kept apart
+
+Settings now holds only settings that apply everywhere. Its **Organization**
+section is split in two: **Your company** (your company profile, your own
+departments and a link to your company's page) and **Customers** (customer
+companies, the client portal and customer happiness).
+
+Anything set per company lives on that company's page, your own company's
+page included: departments, ticket categories, sites, Microsoft 365, agent
+keys and portal admins. **Settings → Ticket categories** now holds only the
+rule "Require a category on new tickets", with links to the category lists.
+
+A company's **SLA policy** is now chosen on its page (Setup → Details), by
+anyone with Manage system settings; **Settings → SLAs** shows which companies
+are on each policy and links to them. Old addresses (`/settings/companies`,
+`/admin/departments`) lead to the new places. No migration; nothing to do.
+
 ### Screens rearranged
 
 Nothing to do when upgrading; this is where things moved.

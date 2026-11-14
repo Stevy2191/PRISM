@@ -10,12 +10,12 @@ beforeAll(async () => { smoke = await startSmoke(); });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 beforeEach(resetData);
 
-it('a one-company install shows only Settings → Companies', async () => {
+it('a one-company install shows only Settings → Customers → Customer companies', async () => {
   await makeAdmin();
   const page = await smoke.pageAs('admin');
-  // Settings shows one section at a time: Companies & vendors is under Organization.
-  await page.goto('/settings?section=organization');
-  await page.getByRole('link', { name: /Companies/ }).first().waitFor();
+  // Settings shows one section at a time: the companies are under Customers.
+  await page.goto('/settings?section=customers');
+  await page.getByRole('link', { name: /Customer companies/ }).first().waitFor();
   await page.goto('/tickets');
   await page.getByRole('link', { name: 'Tickets' }).first().waitFor();
   expect(await page.getByRole('link', { name: 'Companies', exact: true }).count()).toBe(0);

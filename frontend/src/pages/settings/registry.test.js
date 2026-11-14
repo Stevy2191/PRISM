@@ -15,7 +15,8 @@ test('every page has a known group, a name, a description, a path and a width', 
   for (const p of PAGES) {
     assert.ok(GROUPS.includes(p.group), `${p.id}: unknown group ${p.group}`);
     assert.ok(p.name && p.desc, `${p.id}: name and desc`);
-    assert.match(p.path, /^\/(settings|admin)\//, p.id);
+    // Settings' own pages, or (external) a company's page.
+    assert.match(p.path, p.external ? /^\/companies(\/|$)/ : /^\/(settings|admin)\//, p.id);
     assert.ok(['narrow', 'wide'].includes(p.width), p.id);
     assert.ok(Array.isArray(p.keywords), p.id);
   }
@@ -27,7 +28,7 @@ test('ids and paths are unique, and no redirect shadows a route', () => {
   assert.equal(new Set(routes.map((r) => r.path)).size, routes.length);
   for (const [from, to] of REDIRECTS) {
     assert.ok(!routes.some((r) => r.path === from), `${from} is both a page and a redirect`);
-    assert.ok(to === '/settings' || routes.some((r) => r.path === to), `${from} → ${to} goes nowhere`);
+    assert.ok(to === '/settings' || to.startsWith('/companies') || routes.some((r) => r.path === to), `${from} → ${to} goes nowhere`);
   }
 });
 
@@ -126,4 +127,25 @@ test('PB2: Forms and Playbooks moved to Checklists, keeping ids', async () => {
   assert.equal(redirectTarget(to['/settings/playbooks/:id'], { id: '3' }), '/settings/checklists/bundles/3');
   assert.equal(redirectTarget(to['/settings/forms'], {}), '/settings/checklists');
   assert.equal(findPage('/settings/checklists/bundles/3').id, 'checklists');
+});
+
+test('per-company settings live on company pages (owner, 2026-11-14)', () => {
+  const byId = Object.fromEntries(PAGES.map((p) => [p.id, p]));
+  assert.ok(GROUPS.includes('Your company') && GROUPS.includes('Customers'));
+  assert.ok(!GROUPS.includes('Organization'));
+  assert.equal(byId.company.group, 'Your company');
+  for (const id of ['own-departments', 'own-company-page']) {
+    assert.equal(byId[id].group, 'Your company');
+    assert.ok(byId[id].external && byId[id].path.startsWith('/companies/internal'));
+  }
+  assert.deepEqual(['companies', 'client-portal', 'customer-happiness'].map((id) => byId[id].group), ['Customers', 'Customers', 'Customers']);
+  assert.ok(!PAGES.some((p) => p.id === 'departments'));
+  // Links out are not Settings routes, and never the current Settings page.
+  const paths = allRoutes().map((r) => r.path);
+  assert.ok(!paths.some((p) => p.startsWith('/companies')));
+  assert.ok(!paths.includes('/admin/departments') && !paths.includes('/settings/companies'));
+  assert.equal(findPage('/companies'), null);
+  const to = Object.fromEntries(REDIRECTS);
+  assert.equal(to['/admin/departments'], '/companies/internal?part=departments');
+  assert.equal(to['/settings/companies'], '/companies');
 });

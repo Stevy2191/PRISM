@@ -8,7 +8,6 @@ import Pagination from '../../components/Pagination';
 import Spinner from '../../components/Spinner';
 import CompanyFormModal from '../../components/companies/CompanyFormModal';
 import MergeCompanyModal from '../../components/companies/MergeCompanyModal';
-import SettingsPage from '../../components/settings/SettingsPage';
 import { IconSearch } from '@tabler/icons-react';
 import PageHeader from '../../components/ui/PageHeader';
 import SelectChip from '../../components/ui/SelectChip';
@@ -26,8 +25,8 @@ export function CompanyFlags({ company }) {
 }
 
 // Settings → Companies (always present) and the Companies nav tab (once a
-// client exists) share this list; `inSettings` only changes the chrome.
-export default function CompaniesList({ inSettings = false }) {
+// client exists) share this list.
+export default function CompaniesList() {
   const { hasPermission } = useAuth();
   const { refresh: refreshSummary } = useCompanySummary();
   const canManage = hasPermission('companies.manage');
@@ -110,7 +109,6 @@ export default function CompaniesList({ inSettings = false }) {
     </>
   );
   // In Settings it sits in the Settings frame; on /companies it has its own header.
-  if (inSettings) return <SettingsPage title="Companies & vendors" actions={newButton}>{body}</SettingsPage>;
   return (
     <div className="mx-auto max-w-[1144px] space-y-5 lg:px-6">
       <PageHeader title="Companies" sub={loading ? undefined : `${pager.total.toLocaleString()} compan${pager.total === 1 ? 'y' : 'ies'}`} actions={newButton} />

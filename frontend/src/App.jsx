@@ -81,7 +81,6 @@ import AdminUsers from './pages/AdminUsers';
 import UserDetail from './pages/UserDetail';
 import AdminRoles from './pages/AdminRoles';
 import RoleEditor from './pages/RoleEditor';
-import AdminDepartments from './pages/AdminDepartments';
 import AdminBlueprints from './pages/AdminBlueprints';
 import AdminApiKeys from './pages/AdminApiKeys';
 import SettingsDirectory from './pages/settings/Directory';
@@ -125,8 +124,7 @@ function ParamRedirect({ to }) {
 
 const SETTINGS_COMPONENTS = {
   preferences: SettingsPreferences, about: SettingsAbout, company: CompanyProfile, 'client-portal': ClientPortalSettings,
-  companies: () => <CompaniesList inSettings />,
-  users: AdminUsers, 'user-detail': UserDetail, teams: SettingsTeams, departments: AdminDepartments,
+  users: AdminUsers, 'user-detail': UserDetail, teams: SettingsTeams,
   roles: AdminRoles, 'role-new': RoleEditor, 'role-edit': RoleEditor, 'api-keys': AdminApiKeys,
   statuses: SettingsStatuses, 'custom-fields': SettingsLayouts, blueprints: AdminBlueprints,
   'workflow-rules': WorkflowRules, 'canned-responses': SettingsCannedResponses, 'ticket-categories': SettingsTicketCategories,

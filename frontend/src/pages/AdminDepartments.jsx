@@ -6,12 +6,20 @@ import Spinner from '../components/Spinner';
 import { useCompanySummary } from '../context/CompanyContext';
 import SettingsPage from '../components/settings/SettingsPage';
 
+// The Settings page frame, or (on the company page) just the button row.
+function Frame({ embedded, actions, children }) {
+  if (!embedded) return <SettingsPage actions={actions}>{children}</SettingsPage>;
+  return <div className="space-y-4"><div className="flex justify-end">{actions}</div>{children}</div>;
+}
+
 // Settings → Departments is your own company's departments (staff, projects,
 // routing). A client's departments are on its company page (Departments
 // tab), so the two never mix. New ones here go to your own company.
 const EMPTY = { name: '', shortCode: '', description: '', defaultRoleId: '' };
 
-export default function AdminDepartments() {
+// On your own company's page (People → Departments) since 2026-11-14;
+// `embedded` drops the Settings page frame.
+export default function AdminDepartments({ embedded = false }) {
   const { showToast } = useToast();
   const { multiCompany } = useCompanySummary();
   const [departments, setDepartments] = useState([]);
@@ -118,7 +126,7 @@ export default function AdminDepartments() {
   if (loading) return <Spinner />;
 
   return (
-    <SettingsPage actions={(
+    <Frame embedded={embedded} actions={(
       <>
         {!showForm && (
           <button className="btn-primary" onClick={openCreate}>+ New department</button>
@@ -177,7 +185,7 @@ export default function AdminDepartments() {
         </form>
       )}
 
-      {multiCompany && (
+      {multiCompany && !embedded && (
         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
           Your own company&apos;s departments. A client&apos;s departments are on its page:{' '}
           <Link to="/companies" className="text-prism hover:underline">Companies</Link> → the company → <b>Departments</b>.
@@ -212,6 +220,6 @@ export default function AdminDepartments() {
         ))}
         {own.length === 0 && <p className="px-5 py-4 text-sm text-navy-400">No departments yet.</p>}
       </div>
-    </SettingsPage>
+    </Frame>
   );
 }

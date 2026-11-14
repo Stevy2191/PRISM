@@ -125,11 +125,14 @@ const list = asyncHandler(async (req, res) => {
 // global, since it switches UI on for everyone and reveals only that. Vendor
 // companies (including those made from vendor text) never switch it on.
 const summary = asyncHandler(async (req, res) => {
-  const [count, clients] = await Promise.all([
+  const [count, clients, internal] = await Promise.all([
     Company.count({ where: await companyScopeWhere(req.user, 'id') }),
     Company.count({ where: { isClient: true } }),
+    Company.findOne({ where: { isInternal: true }, attributes: ['id'] }),
   ]);
-  res.json({ count, multiCompany: clients > 0 });
+  // Your own company's id, for Settings' links to its page (owner,
+  // 2026-11-14: per-company settings live on each company's page).
+  res.json({ count, multiCompany: clients > 0, internalId: internal ? internal.id : null });
 });
 
 // GET /companies/vendors?search= — the vendor picker: shared vendor-only
@@ -190,6 +193,32 @@ const glance = asyncHandler(async (req, res) => {
       devicesOnline,
     },
   });
+});
+
+// PUT /companies/:id/sla-policy { slaPolicyId | null } — the company's SLA
+// policy, from its page (owner, 2026-11-14). null is "the default policy".
+// Like editing a policy's companies in Settings → SLAs, it needs the SLA
+// permission; tickets already open keep the clocks they started with.
+const setSlaPolicy = asyncHandler(async (req, res) => {
+  const company = await loadAccessibleCompany(req);
+  if (!(await hasPermission(req.user.id, 'settings.manage_system'))) {
+    throw new ApiError(403, 'Choosing a company\'s SLA policy needs the System settings permission', 'FORBIDDEN');
+  }
+  const raw = (req.body || {}).slaPolicyId;
+  let slaPolicyId = null;
+  if (raw !== null && raw !== undefined && raw !== '') {
+    const policy = await SlaPolicy.findByPk(parseRecordId(raw) || 0, { attributes: ['id', 'name'] });
+    if (!policy) throw new ApiError(400, 'Unknown SLA policy', 'VALIDATION_ERROR');
+    slaPolicyId = policy.id;
+  }
+  const from = company.slaPolicyId || null;
+  if (from !== slaPolicyId) {
+    await company.update({ slaPolicyId });
+    // The SLA code caches which policy each company is on.
+    require('../services/sla/calendar').invalidate(); // eslint-disable-line global-require
+    await writeAudit(req, 'company.slaPolicy', 'Company', company.id, { from, to: slaPolicyId });
+  }
+  res.json({ company: await Company.findByPk(company.id, { include: companyInclude }) });
 });
 
 // POST /companies
@@ -318,5 +347,5 @@ const removeDomain = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  list, summary, vendors, get, glance, create, update, remove, merge, addDomain, removeDomain, loadAccessibleCompany,
+  list, summary, vendors, get, glance, setSlaPolicy, create, update, remove, merge, addDomain, removeDomain, loadAccessibleCompany,
 };

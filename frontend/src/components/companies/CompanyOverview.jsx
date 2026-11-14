@@ -20,6 +20,19 @@ export default function CompanyOverview({ company, onSaved }) {
   const [domain, setDomain] = useState('');
   const [error, setError] = useState('');
   useEffect(() => { api.get('/users/assignable').then(({ data }) => setManagers(data.users)).catch(() => {}); }, []);
+  const canSla = hasPermission('settings.manage_system');
+  const [policies, setPolicies] = useState([]);
+  useEffect(() => { if (canSla) api.get('/sla-policies').then(({ data }) => setPolicies(data.policies)).catch(() => {}); }, [canSla]);
+  const setSla = async (value) => {
+    setError('');
+    try {
+      const { data } = await api.put(`/companies/${company.id}/sla-policy`, { slaPolicyId: value || null });
+      onSaved(data.company);
+      showToast(`SLA policy: ${data.company.slaPolicy ? data.company.slaPolicy.name : 'Default policy'}`);
+    } catch (err) {
+      setError(errMessage(err));
+    }
+  };
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
 
   const save = async (e) => {
@@ -75,10 +88,18 @@ export default function CompanyOverview({ company, onSaved }) {
         </div>
         <div><label className="label" htmlFor="co-phone">Phone</label><input id="co-phone" className="input" value={form.phone} disabled={!canManage} onChange={set('phone')} /></div>
         <div><label className="label" htmlFor="co-website">Website</label><input id="co-website" className="input" value={form.website} disabled={!canManage} onChange={set('website')} /></div>
-        {/* Set in Settings → SLAs (system settings permission), not here. */}
+        {/* Chosen here (owner, 2026-11-14), by staff who manage SLAs; the
+            policies themselves are in Settings → SLAs. Saves at once. */}
         <div>
-          <p className="label">SLA policy</p>
-          <p className="py-2 text-sm text-navy-700" data-testid="company-sla-policy">{company.slaPolicy ? company.slaPolicy.name : 'Default policy'}</p>
+          <label className="label" htmlFor="co-sla">SLA policy</label>
+          {canSla ? (
+            <select id="co-sla" className="input" value={company.slaPolicy ? String(company.slaPolicy.id) : ''} onChange={(e) => setSla(e.target.value)} data-testid="company-sla-policy">
+              <option value="">Default policy</option>
+              {policies.filter((p) => !p.isDefault).map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+            </select>
+          ) : (
+            <p className="py-2 text-sm text-navy-700" data-testid="company-sla-policy">{company.slaPolicy ? company.slaPolicy.name : 'Default policy'}</p>
+          )}
         </div>
         <div className="flex items-center gap-6 text-sm">
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.isClient} disabled={!canManage || company.isInternal} onChange={set('isClient')} /> Client</label>

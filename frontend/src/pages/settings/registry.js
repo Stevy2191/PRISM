@@ -9,7 +9,12 @@
 // icon is a name the menu maps to an icon.
 export const SECTIONS = [
   { name: 'You', slug: 'you', icon: 'user', desc: 'Your own preferences.' },
-  { name: 'Organization', slug: 'organization', icon: 'building', desc: 'Who you are and who you work with.' },
+  // Owner, 2026-11-14: Settings holds what applies everywhere; anything set
+  // for one company (departments, ticket categories, SLA policy, sites,
+  // devices) is on that company's page, your own company's included. These
+  // two sections say which is which and lead there.
+  { name: 'Your company', slug: 'your-company', icon: 'building', desc: 'Your own company: its profile, and its departments, ticket categories and sites (on its page).' },
+  { name: 'Customers', slug: 'customers', icon: 'briefcase', desc: 'The companies you support. Each one\'s departments, categories, SLA and devices are on its own page.' },
   { name: 'People & access', slug: 'people-access', icon: 'users', desc: 'Accounts, teams and what each role can do.' },
   { name: 'Service desk', slug: 'service-desk', icon: 'ticket', desc: 'How tickets work, from statuses to the client portal.' },
   { name: 'Sign-in & email', slug: 'sign-in-email', icon: 'mail', desc: 'How people sign in and how mail comes and goes.' },
@@ -32,27 +37,29 @@ export const PAGES = [
   { id: 'preferences', group: 'You', name: 'Preferences', desc: 'Theme, timers and reminders', keywords: ['theme', 'dark mode', 'timer', 'reminder', 'notifications', 'profile', 'password', 'calendar'], path: '/settings/preferences', access: {}, width: 'narrow' },
   { id: 'about', group: 'You', name: 'About PRISM', desc: 'Version, license, report a problem', keywords: ['version', 'license', 'bug', 'issue'], path: '/settings/about', access: {}, width: 'narrow' },
   // Organization
-  { id: 'company', group: 'Organization', name: 'Company profile', desc: 'Name, logo, time zone and login page', keywords: ['logo', 'favicon', 'branding', 'time zone', 'timezone', 'login page', 'app name', 'organization name'], path: '/settings/company', access: { permission: ['settings.manage_branding', 'settings.manage_system'] }, width: 'narrow' },
-  { id: 'companies', group: 'Organization', name: 'Companies & vendors', desc: 'Clients, vendors, sites and domains', keywords: ['client', 'customer', 'vendor', 'site', 'domain', 'msp'], path: '/settings/companies', access: { permission: ['companies.view'] }, width: 'wide' },
+  { id: 'company', group: 'Your company', name: 'Company profile', desc: 'Name, logo, time zone and login page', keywords: ['logo', 'favicon', 'branding', 'time zone', 'timezone', 'login page', 'app name', 'organization name'], path: '/settings/company', access: { permission: ['settings.manage_branding', 'settings.manage_system'] }, width: 'narrow' },
+  // These open a company's page (outside Settings): `external`.
+  { id: 'own-departments', group: 'Your company', name: 'Departments', desc: 'Who works where, short codes and default roles (on your company\'s page)', keywords: ['department', 'default role', 'short code'], path: '/companies/internal?part=departments', external: true, access: { permission: ['people.manage_departments'] }, width: 'wide' },
+  { id: 'own-company-page', group: 'Your company', name: 'Your company\'s page', desc: 'Its ticket categories, sites, SLA policy and devices', keywords: ['internal', 'own company', 'site', 'categories', 'sla', 'devices', 'agent'], path: '/companies/internal', external: true, access: { permission: ['companies.view'] }, width: 'wide' },
+  { id: 'companies', group: 'Customers', name: 'Customer companies', desc: 'Clients and vendors; each one\'s settings are on its page', keywords: ['client', 'customer', 'vendor', 'site', 'domain', 'msp', 'company'], path: '/companies', external: true, access: { permission: ['companies.view'] }, width: 'wide' },
   // People & access
   { id: 'users', group: 'People & access', name: 'Users', desc: 'Accounts, roles and owners', keywords: ['account', 'password', 'username', 'owner', 'invite', 'deactivate'], path: '/admin/users', access: { permission: ['people.view_all', 'people.create_users'] }, width: 'wide', sub: [{ id: 'user-detail', path: '/admin/users/:id', access: {} }] },
   { id: 'teams', group: 'People & access', name: 'Teams', desc: 'Groups of technicians', keywords: ['team lead', 'group'], path: '/settings/teams', access: { permission: ['people.view_all', 'people.manage_departments'] }, width: 'narrow' },
-  { id: 'departments', group: 'People & access', name: 'Departments', desc: 'Who works where', keywords: ['department', 'default role'], path: '/admin/departments', access: { permission: ['people.manage_departments'] }, width: 'wide' },
   { id: 'roles', group: 'People & access', name: 'Roles & permissions', desc: 'What each role can do', keywords: ['permission', 'access', 'role'], path: '/admin/roles', access: { permission: ['people.manage_roles'] }, width: 'wide', sub: [{ id: 'role-new', path: '/admin/roles/new' }, { id: 'role-edit', path: '/admin/roles/:id' }] },
   { id: 'api-keys', group: 'People & access', name: 'API keys', desc: 'Access for scripts and tools', keywords: ['api', 'token', 'integration'], path: '/admin/apikeys', access: { roles: ['admin', 'technician'] }, width: 'wide' },
   // Service desk
   { id: 'statuses', group: 'Service desk', name: 'Statuses', desc: 'Ticket, project and task statuses', keywords: ['status', 'workflow', 'closed'], path: '/settings/statuses', access: { permission: ['settings.manage_statuses'] }, width: 'narrow' },
   { id: 'custom-fields', group: 'Service desk', name: 'Custom fields', desc: 'Extra fields on tickets', keywords: ['field', 'layout', 'form'], path: '/settings/layouts', access: SYSTEM, width: 'wide' },
   { id: 'blueprints', group: 'Service desk', name: 'Ticket templates', desc: 'Blueprints for common tickets', keywords: ['blueprint', 'template'], path: '/admin/blueprints', access: { roles: ['admin', 'technician'] }, width: 'wide' },
-  { id: 'ticket-categories', group: 'Service desk', name: 'Ticket categories', desc: 'The category tree tickets are filed under', keywords: ['category', 'categories', 'classification', 'tree', 'sub-category'], path: '/settings/ticket-categories', access: { permission: ['tickets.categories.manage'] }, width: 'wide' },
+  { id: 'ticket-categories', group: 'Service desk', name: 'Ticket categories', desc: 'Whether a category is required; each company\'s categories are on its page', keywords: ['category', 'categories', 'classification', 'tree', 'sub-category'], path: '/settings/ticket-categories', access: { permission: ['tickets.categories.manage'] }, width: 'wide' },
   { id: 'canned-responses', group: 'Service desk', name: 'Canned responses', desc: 'Reusable replies for the reply box', keywords: ['canned', 'macro', 'snippet', 'template', 'reply'], path: '/settings/canned-responses', access: {}, width: 'narrow' },
   { id: 'recurring-tickets', group: 'Service desk', name: 'Recurring tickets', desc: 'Tickets opened on a schedule', keywords: ['recurring', 'schedule', 'repeat', 'maintenance', 'routine'], path: '/settings/recurring-tickets', access: { permission: ['tickets.recurring.manage'] }, width: 'narrow', sub: [{ id: 'recurring-ticket-new', path: '/settings/recurring-tickets/new' }, { id: 'recurring-ticket-edit', path: '/settings/recurring-tickets/:id' }] },
   // PB2: checklists and bundles on one page (were Forms and Playbooks).
   { id: 'checklists', group: 'Service desk', name: 'Checklists', desc: 'Steps for tickets, and bundles that add several at once', keywords: ['checklist', 'form', 'playbook', 'bundle', 'steps', 'onboarding', 'offboarding', 'termination', 'new account', 'check-in', 'check-out', 'device'], path: '/settings/checklists', access: { permission: ['settings.manage_playbooks'] }, width: 'wide', sub: [{ id: 'checklist-new', path: '/settings/checklists/new' }, { id: 'bundle-new', path: '/settings/checklists/bundles/new' }, { id: 'bundle-edit', path: '/settings/checklists/bundles/:id' }, { id: 'checklist-edit', path: '/settings/checklists/:id' }] },
   { id: 'workflow-rules', group: 'Service desk', name: 'Workflow rules', desc: 'Automatic actions on tickets', keywords: ['automation', 'trigger', 'action'], path: '/settings/workflow-rules', access: SYSTEM, width: 'wide', sub: [{ id: 'workflow-rule-new', path: '/settings/workflow-rules/new' }, { id: 'workflow-rule-edit', path: '/settings/workflow-rules/:id' }] },
   { id: 'notifications', group: 'Service desk', name: 'Notifications', desc: 'Which events notify people', keywords: ['bell', 'alert', 'notify'], path: '/settings/notifications', access: SYSTEM, width: 'narrow' },
-  { id: 'client-portal', group: 'Service desk', name: 'Client portal', desc: 'Where contacts raise and follow tickets', keywords: ['portal', 'customer portal', 'self service', 'contact sign in', 'help center'], path: '/settings/client-portal', access: SYSTEM, width: 'narrow' },
-  { id: 'customer-happiness', group: 'Service desk', name: 'Customer happiness', desc: 'Satisfaction surveys and scores', keywords: ['csat', 'survey', 'rating', 'feedback'], path: '/settings/customer-happiness', access: SYSTEM, width: 'narrow' },
+  { id: 'client-portal', group: 'Customers', name: 'Client portal', desc: 'Where contacts raise and follow tickets', keywords: ['portal', 'customer portal', 'self service', 'contact sign in', 'help center'], path: '/settings/client-portal', access: SYSTEM, width: 'narrow' },
+  { id: 'customer-happiness', group: 'Customers', name: 'Customer happiness', desc: 'Satisfaction surveys and scores', keywords: ['csat', 'survey', 'rating', 'feedback'], path: '/settings/customer-happiness', access: SYSTEM, width: 'narrow' },
   // Projects
   { id: 'project-templates', group: 'Projects', name: 'Project templates', desc: 'Phases and tasks to start new projects from', keywords: ['template', 'project', 'phase', 'task', 'plan', 'copy'], path: '/settings/project-templates', access: { permission: ['projects.manage_templates'] }, width: 'wide', sub: [{ id: 'project-template-new', path: '/settings/project-templates/new' }, { id: 'project-template-edit', path: '/settings/project-templates/:id' }] },
   // Workload
@@ -87,6 +94,9 @@ export const PAGES = [
 
 export const REDIRECTS = [
   ['/admin/settings', '/settings'],
+  // Per-company settings moved to company pages (owner, 2026-11-14).
+  ['/settings/companies', '/companies'],
+  ['/admin/departments', '/companies/internal?part=departments'],
   ['/settings/branding', '/settings/company'],
   ['/settings/blueprints', '/admin/blueprints'],
   ['/settings/macros', '/settings'],
@@ -117,15 +127,16 @@ export function canOpen(access, auth) {
   return true;
 }
 
+// Settings' own routes: not the entries that open a company's page.
 export function allRoutes() {
-  return PAGES.flatMap((p) => [
+  return PAGES.filter((p) => !p.external).flatMap((p) => [
     { id: p.id, path: p.path, access: p.access },
     ...(p.sub || []).map((s) => ({ id: s.id, path: s.path, access: s.access ?? p.access })),
   ]);
 }
 
 export function findPage(pathname) {
-  return PAGES.find((p) => pathname === p.path || pathname.startsWith(`${p.path}/`)) || null;
+  return PAGES.find((p) => !p.external && (pathname === p.path || pathname.startsWith(`${p.path}/`))) || null;
 }
 
 export function visibleGroups(auth) {

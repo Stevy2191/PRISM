@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useCompanySummary } from '../../context/CompanyContext';
-import { useCompanyOptions } from '../../hooks/useCompanyOptions';
+import { Link } from 'react-router-dom';
 
 export const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 export const PRIORITY_LABELS = { critical: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' };
@@ -50,7 +50,6 @@ export function formFromPolicy(policy) {
     name: policy?.name || '',
     businessHoursId: policy?.businessHoursId ? String(policy.businessHoursId) : '',
     warnAtPercent: String(policy?.warnAtPercent ?? 75),
-    companyIds: (policy?.companies || []).map((c) => c.id),
     targets,
   };
 }
@@ -60,7 +59,8 @@ export function payloadFromForm(form) {
     name: form.name,
     businessHoursId: form.businessHoursId ? Number(form.businessHoursId) : null,
     warnAtPercent: Number(form.warnAtPercent),
-    companyIds: form.companyIds,
+    // Which companies use a policy is chosen on each company's page
+    // (owner, 2026-11-14): saving a policy leaves them as they are.
     targets: TICKET_TYPES.flatMap((type) => PRIORITIES.map((p) => {
       const row = form.targets[key(type, p)];
       const out = { ticketType: type, priority: p, useBusinessHours: row.useBusinessHours };
@@ -96,14 +96,10 @@ export default function SlaPolicyEditor({
   const [form, setForm] = useState(() => formFromPolicy(initial));
   const [tab, setTab] = useState('incident');
   const { multiCompany } = useCompanySummary();
-  const companies = useCompanyOptions();
   const setTarget = (p, field, v) => setForm((f) => {
     const k = key(tab, p);
     return { ...f, targets: { ...f.targets, [k]: { ...f.targets[k], [field]: v } } };
   });
-  const toggleCompany = (id) => setForm((f) => ({
-    ...f, companyIds: f.companyIds.includes(id) ? f.companyIds.filter((x) => x !== id) : [...f.companyIds, id],
-  }));
 
   return (
     <form className="card space-y-5 p-5" onSubmit={(e) => { e.preventDefault(); onSave(payloadFromForm(form)); }}>
@@ -178,18 +174,19 @@ export default function SlaPolicyEditor({
         </div>
       </div>
 
-      {multiCompany && companies.length > 0 && (
-        <div>
+      {multiCompany && (
+        <div data-testid="sla-policy-companies">
           <p className="eyebrow mb-2">Companies on this policy</p>
-          <p className="mb-2 text-xs text-navy-500">A company is on one policy at a time; companies not on any policy use the default.</p>
-          <div className="grid max-h-48 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
-            {companies.map((c) => (
-              <label key={c.id} className="flex items-center gap-2 text-sm text-navy-700">
-                <input type="checkbox" className="h-4 w-4 rounded border-navy-300 text-prism" checked={form.companyIds.includes(c.id)} onChange={() => toggleCompany(c.id)} />
-                {c.name}{c.isInternal ? ' (internal)' : ''}
-              </label>
-            ))}
-          </div>
+          <p className="mb-2 text-xs text-navy-500">
+            A company&apos;s policy is chosen on its page (Setup → Details). Companies on no policy use the default.
+          </p>
+          {(initial?.companies || []).length ? (
+            <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+              {initial.companies.map((c) => (
+                <Link key={c.id} to={`/companies/${c.id}?tab=setup&part=details`} className="hover:underline" style={{ color: 'var(--color-accent)' }}>{c.name}</Link>
+              ))}
+            </p>
+          ) : <p className="text-sm text-navy-500">None yet.</p>}
         </div>
       )}
 
