@@ -45,16 +45,9 @@ const DEFAULTS = {
   'integrations.microsoftClientSecret': '',
   'integrations.microsoftTenantId': '',
 
-  // System-wide time-tracking defaults (Settings -> Customization -> Time
-  // Tracking). defaultMode/defaultMinThreshold seed a new local user's own
-  // timerMode/timerMinThreshold at account-creation time (see
-  // usersController.js's create) — after that, each user's Preferences page
-  // fully overrides their own values, matching "system-wide default, users
-  // can override" from the spec. requireBeforeClose is enforced live on
-  // every ticket status change, not just at creation (see ticketsController
-  // .js's update).
-  'timeTracking.defaultMode': 'manual',
-  'timeTracking.defaultMinThreshold': '0',
+  // Time tracking. How each person's timer runs is their own (Preferences);
+  // there is no default for new accounts (CS: one place per setting).
+  // requireBeforeClose is checked on every move to a closed status.
   'timeTracking.requireBeforeClose': 'false',
   // The longest one time entry may be, and where a timer stops counting
   // (user decision 2026-10-12): whole hours, 1 to 24.

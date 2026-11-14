@@ -145,7 +145,7 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: 'manual',
       },
-      // Seconds. Automatic-mode entries shorter than this are discarded silently.
+      // Seconds. Below this the timer asks before logging; closing the tab drops the time.
       timerMinThreshold: {
         type: DataTypes.INTEGER,
         allowNull: false,

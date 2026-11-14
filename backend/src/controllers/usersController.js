@@ -272,8 +272,6 @@ const create = asyncHandler(async (req, res) => {
       passwordHash,
       isLocalAccount: true,
       mustChangePassword: true,
-      timerMode: ['manual', 'automatic'].includes(settings['timeTracking.defaultMode']) ? settings['timeTracking.defaultMode'] : 'manual',
-      timerMinThreshold: Number(settings['timeTracking.defaultMinThreshold']) || 0,
       allCompanies: creatorCompanyIds === null,
     }, { transaction }).catch(rethrowIfUsernameTaken);
     if (creatorCompanyIds && creatorCompanyIds.length) {

@@ -5,12 +5,10 @@
 // messages. Settings → Ticket categories is the help desk's own company; a
 // client company's is its page's Categories tab (CategoryEditor).
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
-import { useCompanySummary } from '../../context/CompanyContext';
 import Spinner from '../../components/Spinner';
 import Switch from '../../components/Switch';
-import SettingsPage, { SettingsPanel } from '../../components/settings/SettingsPage';
+import { SettingsPanel } from '../../components/settings/SettingsPage';
 import {
   buildIndex, childrenOf, pathIds, pathLabel,
 } from '../../components/categoryTree';
@@ -33,9 +31,8 @@ function inUseMessage(err) {
   return text ? `${errMessage(err)} (used by ${text})` : errMessage(err);
 }
 
-export function CategoryEditor({ companyId = 'internal', companyName = '', showRequired = false }) {
+export function CategoryEditor({ companyId = 'internal', companyName = '' }) {
   const [categories, setCategories] = useState([]);
-  const [required, setRequired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(null); // { parentId } while the add form is open
@@ -48,7 +45,7 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
   const index = useMemo(() => buildIndex(categories), [categories]);
 
   const load = () => api.get('/ticket-categories', { params: { usage: '1', companyId } })
-    .then(({ data }) => { setCategories(data.categories); setRequired(data.categoryRequired); setError(''); })
+    .then(({ data }) => { setCategories(data.categories); setError(''); })
     .catch((err) => setError(errMessage(err)))
     .finally(() => setLoading(false));
   useEffect(() => { load(); }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -100,7 +97,6 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
     sibs.splice(sibs.indexOf(target.id), 0, dragged.id);
     reorder(target.parentId ?? null, sibs);
   };
-  const toggleRequired = (value) => run(() => api.put('/ticket-categories/settings', { categoryRequired: value }));
 
   // Possible new parents for a move: not itself or anything below it.
   const moveTargets = (c) => [...index.values()]
@@ -231,14 +227,6 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
   return (
     <>
       {error && <div role="alert" className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
-      {showRequired && (
-        <SettingsPanel title="New tickets">
-          <div className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
-            <span>Require a category on new tickets (staff form, where the ticket&apos;s company has categories; the portal and the agent always ask when there are categories)</span>
-            <Switch checked={required} onChange={toggleRequired} disabled={busy} label="Require a category on new tickets" />
-          </div>
-        </SettingsPanel>
-      )}
       <SettingsPanel
         title="Categories"
         actions={<button type="button" className="btn-primary" onClick={startAdding}>Add category</button>}
@@ -254,55 +242,5 @@ export function CategoryEditor({ companyId = 'internal', companyName = '', showR
         )}
       </SettingsPanel>
     </>
-  );
-}
-
-// Settings → Ticket categories holds only the rule for every company
-// (owner, 2026-11-14): the trees themselves are on each company's page
-// (Setup → Categories), your own company's included.
-export default function TicketCategories() {
-  const { internalId } = useCompanySummary();
-  const [required, setRequired] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    api.get('/ticket-categories', { params: { companyId: 'internal' } })
-      .then(({ data }) => setRequired(!!data.categoryRequired))
-      .catch((err) => setError(errMessage(err)));
-  }, []);
-  const toggle = async (value) => {
-    setBusy(true);
-    setError('');
-    try {
-      await api.put('/ticket-categories/settings', { categoryRequired: value });
-      setRequired(value);
-    } catch (err) {
-      setError(errMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <SettingsPage description="Each company has its own ticket categories, on its page. They narrow as you pick them on a ticket, up to 5 levels; each top-level category is for incidents, requests or both. This page holds the one rule that applies to every company.">
-      {error && <div role="alert" className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
-      <SettingsPanel title="Where the categories are">
-        <ul className="divide-y divide-navy-100 text-sm" data-testid="category-links">
-          <li className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
-            <span><b>Your company&apos;s categories</b>, for your own staff&apos;s tickets</span>
-            <Link to={`/companies/${internalId || 'internal'}?tab=setup&part=categories`} className="btn-secondary">Open</Link>
-          </li>
-          <li className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
-            <span><b>A customer&apos;s categories</b>: open the customer, then Setup → Categories</span>
-            <Link to="/companies" className="btn-secondary">Customer companies</Link>
-          </li>
-        </ul>
-      </SettingsPanel>
-      <SettingsPanel title="New tickets">
-        <div className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
-          <span>Require a category on new tickets (staff form, where the ticket&apos;s company has categories; the portal and the agent always ask when there are categories)</span>
-          <Switch checked={!!required} onChange={toggle} disabled={busy || required === null} label="Require a category on new tickets" />
-        </div>
-      </SettingsPanel>
-    </SettingsPage>
   );
 }

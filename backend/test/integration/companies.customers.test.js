@@ -17,3 +17,20 @@ it('leaves your own company out of the list when asked, and keeps it for pickers
   const all = expectOk(await w.admin.agent.get(`${API}/companies`));
   expect(all.companies.some((c) => c.id === internal.id)).toBe(true);
 });
+
+// CS: how a person's timer runs is theirs alone (Preferences). There is no
+// default for new accounts to set in Settings.
+it('has no timer defaults for new users, and a new account starts on manual', async () => {
+  const settings = expectOk(await w.admin.agent.get(`${API}/settings`)).settings;
+  expect(settings['timeTracking.defaultMode']).toBeUndefined();
+  expect(settings['timeTracking.defaultMinThreshold']).toBeUndefined();
+  const refused = await w.admin.agent.put(`${API}/settings`).send({ settings: { 'timeTracking.defaultMode': 'automatic' } });
+  expect((await models.SystemSettings.findByPk('timeTracking.defaultMode'))).toBeNull();
+  expect([200, 400]).toContain(refused.status);
+  const made = expectOk(await w.admin.agent.post(`${API}/users`).send({
+    username: 'newperson', displayName: 'New Person', password: 'IntegrationPass!2026', departmentId: w.deptA.id,
+  }), 201);
+  const user = await models.User.findByPk((made.user || made).id);
+  expect(user.timerMode).toBe('manual');
+  expect(user.timerMinThreshold).toBe(0);
+});

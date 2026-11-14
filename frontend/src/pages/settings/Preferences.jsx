@@ -183,12 +183,12 @@ export default function Preferences() {
       {isStaff && (
         <div className="card p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-semibold text-navy-900">Timer Behavior</h2>
+            <h2 className="font-semibold text-navy-900">Your timer</h2>
             {saved && <span className="text-xs font-medium text-green-600">Saved</span>}
           </div>
           {error && <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-          <label className="label">Timer mode</label>
+          <label className="label">How your timer runs</label>
           <div className="mb-4 flex gap-4">
             {[
               { value: 'manual', label: 'Manual', hint: 'You control start/stop.' },
@@ -211,7 +211,7 @@ export default function Preferences() {
             ))}
           </div>
 
-          <label className="label">Minimum log threshold</label>
+          <label className="label">Shortest time worth logging</label>
           <select
             className="input mb-4"
             value={timerMinThreshold}
@@ -225,7 +225,7 @@ export default function Preferences() {
             {THRESHOLD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <p className="-mt-3 mb-4 text-xs text-navy-400">
-            In automatic mode, entries shorter than this are discarded silently.
+            Below this, PRISM asks before logging. If you close the tab instead, the time is dropped.
           </p>
 
           <label className="flex items-center justify-between">

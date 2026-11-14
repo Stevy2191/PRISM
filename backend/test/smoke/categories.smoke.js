@@ -60,9 +60,9 @@ describe('tree editor', () => {
     await models.Ticket.update({ categoryId: null }, { where: { id: t.id } });
   });
 
-  it('the require-a-category switch saves; Settings links to each company\'s categories', async () => {
-    await page.goto('/settings/ticket-categories');
-    await page.getByTestId('category-links').getByRole('link', { name: 'Open' }).waitFor();
+  it('the require-a-category switch is in Settings › Ticket rules, and saves', async () => {
+    await page.goto('/settings/ticket-rules');
+    await page.getByRole('switch', { name: 'Require time before closing' }).waitFor();
     await page.getByRole('switch', { name: 'Require a category on new tickets' }).click();
     await page.waitForResponse((r) => r.url().endsWith('/ticket-categories/settings'));
     const res = expectOk(await w.admin.agent.get(`${API}/ticket-categories`));
