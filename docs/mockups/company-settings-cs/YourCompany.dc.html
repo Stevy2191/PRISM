@@ -40,7 +40,7 @@ body{margin:0}
         <p class="sub">Everything about your own organization. Customers each have a page like this one, under Companies.</p>
       </div>
       <nav class="pills" aria-label="Your company's settings">
-        <a href="#" class="on">Profile and login page</a><a href="#">Departments</a><a href="#">Sites</a><a href="#">Support hours and holidays</a><a href="#">SLA</a><a href="#">Categories</a><a href="#">Portal</a><a href="#">Devices</a>
+        <a href="#" class="on">Profile and sign-in page</a><a href="#">Departments</a><a href="#">Sites</a><a href="#">Support hours and holidays</a><a href="#">SLA</a><a href="#">Categories</a><a href="#">Portal</a><a href="#">Devices</a>
       </nav>
 
       <div class="panel">
@@ -54,9 +54,10 @@ body{margin:0}
       </div>
 
       <div class="panel">
-        <div class="panel-h"><h3>Login page</h3></div>
+        <div class="panel-h"><div style="flex:1"><h3>Staff sign-in page</h3><span class="hint">What your technicians see beside the form when they sign in to PRISM. Optional; leave empty for a plain page.</span></div></div>
         <div class="panel-b">
-          <div class="field"><label class="label" for="yc-login">Message under the sign-in form</label><input id="yc-login" class="input" value="Secure session: enter your PRISM credentials"></div>
+          <div class="field"><label class="label" for="yc-login">Tagline</label><input id="yc-login" class="input" value="IT help desk for Washington County"><span class="hint">One line under your logo.</span></div>
+          <div class="field"><span class="label">Bullet points</span><div class="kv" style="padding:8px 0"><span>Tickets, assets and projects in one place</span><button class="btn sm quiet" type="button" aria-label="Remove this bullet point">Remove</button></div><button class="btn sm" type="button" style="align-self:flex-start">Add a bullet point</button></div>
         </div>
       </div>
 
