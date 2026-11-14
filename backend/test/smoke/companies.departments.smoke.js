@@ -16,7 +16,7 @@ it('Settings → Departments is the help desk\'s own; a client department is cre
   const acme = await makeCompany(admin, { name: 'Acme' });
   await models.Department.create({ name: 'Acme HR', companyId: acme.id });
   const page = await smoke.pageAs('admin');
-  await page.goto('/admin/departments');
+  await page.goto('/settings/your-company?part=departments');
   await page.getByText('Service Desk', { exact: true }).waitFor();
   expect(await page.getByText('Acme HR').count()).toBe(0);
   await page.goto(`/companies/${acme.id}`);

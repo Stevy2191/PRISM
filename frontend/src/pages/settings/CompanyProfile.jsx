@@ -33,7 +33,8 @@ function ImagePicker({ label, url, onUpload, onRemove, help }) {
   );
 }
 
-export default function CompanyProfile() {
+// `embedded`: inside Settings › Your company, which has its own heading.
+export default function CompanyProfile({ embedded = false, onSaved = null }) {
   const { hasPermission } = useAuth();
   const canSave = hasPermission('settings.manage_system');
   const canBrand = hasPermission('settings.manage_branding');
@@ -73,6 +74,7 @@ export default function CompanyProfile() {
       await refresh();
       setSnapshot({ f: form, b: bullets });
       setSaved(true);
+      if (onSaved) onSaved();
     } catch (err) {
       setError(errMessage(err));
     } finally {
@@ -100,8 +102,9 @@ export default function CompanyProfile() {
     setList(next);
   };
 
+  const Frame = embedded ? 'div' : SettingsPage;
   return (
-    <SettingsPage>
+    <Frame {...(embedded ? { className: 'max-w-3xl space-y-5' } : {})}>
       {error && <div role="alert" className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
       <SettingsPanel title="Look" description={canBrand ? 'Saved as soon as you upload.' : 'Changing the logo and favicon needs the Branding permission.'}>
         <SettingsRow label="Logo" help="Shown in the top bar and on the login page. PNG or SVG, up to 5 MB.">
@@ -119,7 +122,7 @@ export default function CompanyProfile() {
       <form onSubmit={save} className="space-y-5">
         <fieldset disabled={!canSave} className="space-y-5">
           <SettingsPanel title="Details">
-            <SettingsRow label="Organization name" htmlFor="company-name" help="Shown in email footers and reports, and as your own company under Companies & vendors.">
+            <SettingsRow label="Company name" htmlFor="company-name" help="Shown in email footers and reports, and as your own company under Companies & vendors.">
               <input id="company-name" className="input" value={form['company.name']} onChange={set('company.name')} required />
             </SettingsRow>
             <SettingsRow label="App name" htmlFor="app-name" help="Shown in the top bar, the login page and the browser tab.">
@@ -159,6 +162,6 @@ export default function CompanyProfile() {
         <SaveBar dirty={dirty} saving={saving} saved={saved}
           note={canSave ? null : 'Changing these needs the System settings permission. You can still change the logo and favicon.'} />
       </form>
-    </SettingsPage>
+    </Frame>
   );
 }

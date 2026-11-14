@@ -87,6 +87,9 @@ const list = asyncHandler(async (req, res) => {
   const and = [await companyScopeWhere(req.user, 'id')];
   if (req.query.kind === 'client') and.push({ [Op.or]: [{ isClient: true }, { isInternal: true }] });
   if (req.query.kind === 'vendor') and.push({ isVendor: true });
+  // The Companies list: customers and vendors only (CS). Your own company's
+  // page is in Settings. Pickers still get every company.
+  if (req.query.own === 'exclude') and.push({ isInternal: false });
   if (req.query.status === 'active' || req.query.status === 'inactive') and.push({ status: req.query.status });
   if (req.query.search && String(req.query.search).trim()) {
     and.push({ name: { [Op.like]: `%${String(req.query.search).trim()}%` } });

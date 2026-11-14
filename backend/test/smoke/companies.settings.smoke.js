@@ -17,11 +17,13 @@ it('lists companies with their counts and creates one', async () => {
   await page.goto('/settings/companies');
   const row = page.getByRole('row', { name: /Acme/ });
   await row.waitFor();
-  expect(await row.textContent()).toMatch(/Client/);
+  expect(await row.textContent()).toMatch(/Customer/);
   await page.getByRole('button', { name: '+ New company' }).click();
   await page.getByLabel('Name').fill('Globex');
   await page.getByRole('button', { name: 'Create company' }).click();
-  await page.getByRole('row', { name: /Globex/ }).waitFor();
+  // A new company opens on its own page.
+  await page.waitForURL(/\/companies\/\d+$/);
+  await page.getByRole('heading', { level: 1, name: 'Globex' }).waitFor();
 });
 
 it('merges one company into another after a preview', async () => {

@@ -13,8 +13,8 @@ export const SECTIONS = [
   // for one company (departments, ticket categories, SLA policy, sites,
   // devices) is on that company's page, your own company's included. These
   // two sections say which is which and lead there.
-  { name: 'Your company', slug: 'your-company', icon: 'building', desc: 'Your own company: its profile, and its departments, ticket categories and sites (on its page).' },
-  { name: 'Customers', slug: 'customers', icon: 'briefcase', desc: 'The companies you support. Each one\'s departments, categories, SLA and devices are on its own page.' },
+  { name: 'Your company', slug: 'your-company', icon: 'building', desc: 'Your own company: its profile, departments, sites, categories and devices, on one page.' },
+  { name: 'Customers', slug: 'customers', icon: 'briefcase', desc: 'The companies you support. Each one\'s settings are on its own page.' },
   { name: 'People & access', slug: 'people-access', icon: 'users', desc: 'Accounts, teams and what each role can do.' },
   { name: 'Service desk', slug: 'service-desk', icon: 'ticket', desc: 'How tickets work, from statuses to the client portal.' },
   { name: 'Sign-in & email', slug: 'sign-in-email', icon: 'mail', desc: 'How people sign in and how mail comes and goes.' },
@@ -38,14 +38,9 @@ export const PAGES = [
   // You
   { id: 'preferences', group: 'You', name: 'Preferences', desc: 'Theme, timers and reminders', keywords: ['theme', 'dark mode', 'timer', 'reminder', 'notifications', 'profile', 'password', 'calendar'], path: '/settings/preferences', access: {}, width: 'narrow' },
   { id: 'about', group: 'About', name: 'About PRISM', desc: 'Version, license, report a problem', keywords: ['version', 'license', 'bug', 'issue'], path: '/settings/about', access: {}, width: 'narrow' },
-  // Organization
-  { id: 'company', group: 'Your company', name: 'Company profile', desc: 'Name, logo, time zone and login page', keywords: ['logo', 'favicon', 'branding', 'time zone', 'timezone', 'login page', 'app name', 'organization name'], path: '/settings/company', access: { permission: ['settings.manage_branding', 'settings.manage_system'] }, width: 'narrow' },
-  // Owner, 2026-11-14: your own departments stay inside Settings.
-  { id: 'own-departments', group: 'Your company', name: 'Departments', desc: 'Who works where, short codes and default roles', keywords: ['department', 'default role', 'short code'], path: '/settings/departments', access: { permission: ['people.manage_departments'] }, width: 'wide' },
-  // These leave Settings for a company's page (`external`); the menu and
-  // Settings home mark them so it's no surprise.
-  { id: 'own-company-page', group: 'Your company', name: 'Your company\'s page', desc: 'Its ticket categories, sites, SLA policy and devices', keywords: ['internal', 'own company', 'site', 'categories', 'sla', 'devices', 'agent'], path: '/companies/internal', external: true, access: { permission: ['companies.view'] }, width: 'wide' },
-  { id: 'companies', group: 'Customers', name: 'Customer companies', desc: 'Clients and vendors; each one\'s settings are on its page', keywords: ['client', 'customer', 'vendor', 'site', 'domain', 'msp', 'company'], path: '/companies', external: true, access: { permission: ['companies.view'] }, width: 'wide' },
+  // Your company (CS): one page for everything about your own company.
+  { id: 'your-company', group: 'Your company', name: 'Your company', desc: 'Profile and sign-in page, departments, sites, categories and devices', keywords: ['logo', 'favicon', 'branding', 'time zone', 'timezone', 'login page', 'sign-in page', 'app name', 'organization name', 'department', 'default role', 'short code', 'site', 'categories', 'devices', 'agent', 'own company', 'internal'], path: '/settings/your-company', access: { permission: ['settings.manage_branding', 'settings.manage_system', 'people.manage_departments', 'companies.view'] }, width: 'wide' },
+  { id: 'companies', group: 'Customers', name: 'Customer companies', desc: 'Customers and vendors; each one\'s settings are on its page', keywords: ['client', 'customer', 'vendor', 'site', 'domain', 'msp', 'company'], path: '/companies', external: true, access: { permission: ['companies.view'] }, width: 'wide' },
   // People & access
   { id: 'users', group: 'People & access', name: 'Users', desc: 'Accounts, roles and owners', keywords: ['account', 'password', 'username', 'owner', 'invite', 'deactivate'], path: '/admin/users', access: { permission: ['people.view_all', 'people.create_users'] }, width: 'wide', sub: [{ id: 'user-detail', path: '/admin/users/:id', access: {} }] },
   { id: 'teams', group: 'People & access', name: 'Teams', desc: 'Groups of technicians', keywords: ['team lead', 'group'], path: '/settings/teams', access: { permission: ['people.view_all', 'people.manage_departments'] }, width: 'narrow' },
@@ -100,8 +95,8 @@ export const REDIRECTS = [
   ['/admin/settings', '/settings'],
   // Per-company settings moved to company pages (owner, 2026-11-14).
   ['/settings/companies', '/companies'],
-  ['/admin/departments', '/settings/departments'],
-  ['/settings/branding', '/settings/company'],
+  ['/admin/departments', '/settings/your-company'],
+  ['/settings/branding', '/settings/your-company'],
   ['/settings/blueprints', '/admin/blueprints'],
   ['/settings/macros', '/settings'],
   ['/settings/supervisor-rules', '/settings'],

@@ -52,11 +52,12 @@ export default function CompanyPage() {
   }, [id]);
   useEffect(load, [load]);
 
-  // /companies/internal is your own company's page, by its id.
-  if (id === 'internal') {
-    if (!internalId) return <Spinner />;
-    const q = params.toString();
-    return <Navigate to={`/companies/${internalId}${q ? `?${q}` : ''}`} replace />;
+  // Your own company's page is in Settings (CS), not here: its address
+  // under /companies leads there, keeping the part that was asked for.
+  if (id === 'internal' || (internalId && String(id) === String(internalId)) || company?.isInternal) {
+    const part = params.get('m365') ? 'm365' : askedPart;
+    const q = new URLSearchParams({ ...(part ? { part } : {}), ...(params.get('m365') ? { m365: params.get('m365') } : {}) }).toString();
+    return <Navigate to={`/settings/your-company${q ? `?${q}` : ''}`} replace />;
   }
   if (error) return <Notice tone="bad">{error}</Notice>;
   if (!company) return <Spinner />;

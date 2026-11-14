@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { useCompanySummary } from '../../context/CompanyContext';
@@ -16,7 +16,7 @@ import Notice from '../../components/ui/Notice';
 import Button from '../../components/ui/Button';
 
 export function CompanyFlags({ company }) {
-  const flags = [company.isInternal && 'Internal', company.isClient && 'Client', company.isVendor && 'Vendor'].filter(Boolean);
+  const flags = [company.isInternal && 'Your company', company.isClient && 'Customer', company.isVendor && 'Vendor'].filter(Boolean);
   return (
     <span className="flex flex-wrap gap-1">
       {flags.map((f) => <span key={f} className="rounded-full border border-navy-100 px-2 py-px text-xs font-medium text-navy-600">{f}</span>)}
@@ -38,10 +38,12 @@ export default function CompaniesList() {
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [merging, setMerging] = useState(null);
+  const navigate = useNavigate();
   const pager = usePagination({ filterKey: JSON.stringify([kind, status, search]), storageKey: 'prism.companies.pageSize' });
 
   const load = useCallback(() => {
-    const params = { ...pager.params };
+    // Customers and vendors: your own company's page is in Settings.
+    const params = { ...pager.params, own: 'exclude' };
     if (kind) params.kind = kind;
     if (status) params.status = status;
     if (search.trim()) params.search = search.trim();
@@ -104,7 +106,7 @@ export default function CompaniesList() {
           </div>
         )}
         <Pagination page={pager.page} limit={pager.limit} total={pager.total} totalPages={pager.totalPages} onPageChange={pager.setPage} onLimitChange={pager.setLimit} />
-        {creating && <CompanyFormModal onClose={() => setCreating(false)} onSaved={() => { setCreating(false); changed(); }} />}
+        {creating && <CompanyFormModal onClose={() => setCreating(false)} onSaved={(created) => { setCreating(false); changed(); if (created?.id) navigate(`/companies/${created.id}`); }} />}
         {merging && <MergeCompanyModal company={merging} onClose={() => setMerging(null)} onMerged={() => { setMerging(null); changed(); }} />}
     </>
   );

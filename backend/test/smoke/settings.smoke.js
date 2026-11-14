@@ -44,16 +44,16 @@ async function as(username, password, options) {
   return signedIn.get(key);
 }
 
-describe('Company profile', () => {
+describe('Your company: profile', () => {
   it('holds what Company and Branding did, and saves a value from each panel', async () => {
     // Settings outlive resetData: start from known values.
     for (const [key, value] of [['company.name', 'Acme Corp'], ['company.timezone', 'UTC'], ['branding.appName', 'PRISM'], ['branding.tagline', '']]) {
       await models.SystemSettings.upsert({ key, value }); // eslint-disable-line no-await-in-loop
     }
     const page = await as('admin');
-    await page.goto('/settings/company');
-    await page.getByRole('heading', { level: 1, name: 'Company profile' }).waitFor();
-    await page.getByLabel('Organization name').fill('Northwind IT');
+    await page.goto('/settings/your-company');
+    await page.getByRole('navigation', { name: 'Breadcrumb' }).getByText('Your company', { exact: true }).waitFor();
+    await page.getByLabel('Company name').fill('Northwind IT');
     await page.getByLabel('Time zone').selectOption('America/Chicago');
     await page.getByLabel('App name').fill('Northwind Desk');
     await page.getByLabel('Login page tagline').fill('Help, fast');
@@ -70,18 +70,18 @@ describe('Company profile', () => {
     const brand = await makeUser('brand', ROLE.DEPARTMENT_STAFF, w.deptA.id);
     expectOk(await w.admin.agent.post(`${API}/users/${brand.user.id}/overrides`).send({ permissionKey: 'settings.manage_branding', granted: true }), 201);
     const page = await as('brand');
-    await page.goto('/settings/company');
-    await page.getByRole('heading', { level: 1, name: 'Company profile' }).waitFor();
-    expect(await page.getByLabel('Organization name').isDisabled()).toBe(true);
+    await page.goto('/settings/your-company');
+    await page.getByRole('navigation', { name: 'Breadcrumb' }).getByText('Your company', { exact: true }).waitFor();
+    expect(await page.getByLabel('Company name').isDisabled()).toBe(true);
     await shown(page, /Changing these needs the System settings permission/).waitFor();
     expect(await page.getByRole('button', { name: 'Save' }).count()).toBe(0);
     await page.getByText('Upload').first().waitFor();
   });
 
-  it('the old Branding address opens Company profile', async () => {
+  it('the old Branding address opens Your company', async () => {
     const page = await as('admin');
     await page.goto('/settings/branding');
-    await page.waitForURL('**/settings/company');
+    await page.waitForURL('**/settings/your-company');
   });
 });
 
@@ -148,14 +148,14 @@ describe('the menu', () => {
     await page.goto('/settings/preferences');
     const search = menu(page).getByLabel('Find a setting');
     await search.fill('logo');
-    await menu(page).getByRole('link', { name: 'Company profile' }).waitFor();
+    await menu(page).locator('a[href="/settings/your-company"]').waitFor();
     expect(await menu(page).getByRole('link', { name: 'Time tracking' }).count()).toBe(0);
     await search.press('Enter');
-    await page.waitForURL('**/settings/company');
+    await page.waitForURL('**/settings/your-company');
     await search.fill('([*');
     await menu(page).getByText('No settings match').waitFor();
     await search.press('Escape');
-    await menu(page).getByRole('link', { name: 'Company profile' }).waitFor();
+    await menu(page).locator('a[href="/settings/your-company"]').waitFor();
   });
 
   it('old addresses land where they should', async () => {
@@ -219,7 +219,7 @@ describe('every page uses the Settings frame', () => {
   it('You, Your company, People & access', async () => {
     const page = await as('admin');
     for (const [path, title] of [
-      ['/settings/preferences', 'Preferences'], ['/settings/about', 'About PRISM'], ['/settings/departments', 'Departments'],
+      ['/settings/preferences', 'Preferences'], ['/settings/about', 'About PRISM'],
       ['/admin/users', 'Users'], ['/settings/teams', 'Teams'],
       ['/admin/roles', 'Roles & permissions'], ['/admin/roles/new', 'New role'], ['/admin/apikeys', 'API keys'],
     ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
@@ -259,7 +259,7 @@ describe('the rest in the frame, and every page opens', () => {
       ['/settings/outgoing-email', 'Outgoing email'], ['/settings/email-log', 'Email log'],
       ['/settings/calendar-integration', 'Calendar'],
       ['/settings/schedules', 'Background jobs'], ['/settings/import', 'Import'], ['/settings/export', 'Export'],
-      ['/settings/audit-log', 'Audit log'], ['/settings/system', 'System info'], ['/settings/company', 'Company profile'],
+      ['/settings/audit-log', 'Audit log'], ['/settings/system', 'System info'],
     ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
   });
 
@@ -333,15 +333,15 @@ describe('review fixes', () => {
     expect(await page.getByText(/General Settings/).count()).toBe(0);
   });
 
-  it('Company profile offers logo and favicon uploads only with the branding permission', async () => {
+  it('Your company offers logo and favicon uploads only with the branding permission', async () => {
     const sys = await models.User.findOne({ where: { username: 'sysadmin2' } });
     expectOk(await w.admin.agent.post(`${API}/users/${sys.id}/overrides`).send({ permissionKey: 'settings.manage_branding', granted: false }), 201);
     const page = await as('sysadmin2');
-    await page.goto('/settings/company');
-    await page.getByRole('heading', { level: 1, name: 'Company profile' }).waitFor();
+    await page.goto('/settings/your-company');
+    await page.getByRole('navigation', { name: 'Breadcrumb' }).getByText('Your company', { exact: true }).waitFor();
     expect(await page.getByLabel('Upload logo').count()).toBe(0);
     await page.getByText(/Changing the logo and favicon needs the Branding permission/).waitFor();
-    expect(await page.getByLabel('Organization name').isDisabled()).toBe(false);
+    expect(await page.getByLabel('Company name').isDisabled()).toBe(false);
   });
 });
 

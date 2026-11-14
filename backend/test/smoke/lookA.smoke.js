@@ -27,7 +27,7 @@ const PHONE_ROUTES = [
   { name: 'portal sign in (the old /kb)', path: '/kb', as: null },
   { name: 'reports', path: '/reports' },
   { name: 'settings', path: '/settings' },
-  { name: 'company profile', path: '/settings/company' },
+  { name: 'your company', path: '/settings/your-company' },
   { name: 'users', path: '/admin/users' },
   { name: 'sign in', path: '/login', as: null },
   { name: 'change password', path: '/change-password' },
@@ -196,7 +196,7 @@ it.each(PHONE_ROUTES.map((r) => [r.name, r]))('no horizontal page scroll at 375p
   expect(poking).toEqual([]);
 });
 
-it('sign in shows the Company profile tagline and bullets', async () => {
+it('sign in shows Your company\'s tagline and bullets', async () => {
   await setSettings(w.admin, { 'branding.tagline': 'Help, fast', 'branding.loginBullets': JSON.stringify(['Quick replies', 'Clear updates']) });
   const page = await phonePage(null);
   await page.setViewportSize({ width: 1440, height: 900 });

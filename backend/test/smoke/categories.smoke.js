@@ -30,7 +30,7 @@ beforeEach(resetRateLimits);
 describe('tree editor', () => {
   // Your own company's categories are on its page now (owner, 2026-11-14).
   it('admin adds Hardware › Laptop and it persists after reload', async () => {
-    await page.goto('/companies/internal?part=categories');
+    await page.goto('/settings/your-company?part=categories');
     await page.getByRole('button', { name: 'Add category' }).click();
     await page.getByLabel('New category name').fill('Hardware');
     await page.getByRole('button', { name: 'Add', exact: true }).click();
@@ -50,7 +50,7 @@ describe('tree editor', () => {
     const laptop = await TicketCategory.findOne({ where: { name: 'Laptop' } });
     const t = await makeTicket(w.admin.agent, { title: 'Used', contactId: w.contact.id, departmentId: w.deptA.id, categoryId: laptop.id });
     expect(t.category.id).toBe(laptop.id);
-    await page.goto('/companies/internal?part=categories');
+    await page.goto('/settings/your-company?part=categories');
     const row = page.getByTestId(`category-${laptop.id}`);
     await row.getByRole('button', { name: 'More for Laptop' }).click();
     await row.getByRole('button', { name: 'delete' }).first().click();

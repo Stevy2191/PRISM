@@ -39,7 +39,7 @@ import NotFound from './pages/NotFound';
 
 // Settings hub + sections
 import SettingsHome from './pages/settings/SettingsHome';
-import CompanyProfile from './pages/settings/CompanyProfile';
+import YourCompany from './pages/settings/YourCompany';
 import SettingsStatuses from './pages/settings/Statuses';
 import SettingsBusinessHours from './pages/settings/BusinessHours';
 import SettingsHolidays from './pages/settings/Holidays';
@@ -48,7 +48,6 @@ import Workload from './pages/workload/Workload';
 import SettingsTeams from './pages/settings/Teams';
 import SettingsPreferences from './pages/settings/Preferences';
 import SettingsAbout from './pages/settings/About';
-import AdminDepartments from './pages/AdminDepartments';
 import SettingsLayouts from './pages/settings/Layouts';
 import SettingsAssetCategories from './pages/settings/AssetCategories';
 import SettingsAssetAlerts from './pages/settings/AssetAlerts';
@@ -124,7 +123,7 @@ function ParamRedirect({ to }) {
 }
 
 const SETTINGS_COMPONENTS = {
-  preferences: SettingsPreferences, about: SettingsAbout, company: CompanyProfile, 'own-departments': AdminDepartments, 'client-portal': ClientPortalSettings,
+  preferences: SettingsPreferences, about: SettingsAbout, 'your-company': YourCompany, 'client-portal': ClientPortalSettings,
   users: AdminUsers, 'user-detail': UserDetail, teams: SettingsTeams,
   roles: AdminRoles, 'role-new': RoleEditor, 'role-edit': RoleEditor, 'api-keys': AdminApiKeys,
   statuses: SettingsStatuses, 'custom-fields': SettingsLayouts, blueprints: AdminBlueprints,

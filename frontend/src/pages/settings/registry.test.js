@@ -67,7 +67,7 @@ test('findPage matches a page and its detail pages, never Settings home', () => 
 
 test('search matches names, descriptions and keywords, names first', () => {
   const found = searchPages('logo', PAGES).map((p) => p.id);
-  assert.equal(found[0], 'company');
+  assert.equal(found[0], 'your-company');
   assert.ok(searchPages('PASSWORD', PAGES).some((p) => p.id === 'users'));
   assert.equal(searchPages('time', PAGES)[0].id, 'time-tracking');
   assert.deepEqual(searchPages('   ', PAGES), []);
@@ -129,26 +129,18 @@ test('PB2: Forms and Playbooks moved to Checklists, keeping ids', async () => {
   assert.equal(findPage('/settings/checklists/bundles/3').id, 'checklists');
 });
 
-test('per-company settings live on company pages (owner, 2026-11-14)', () => {
+test('your company is one page in Settings; customers have their own section (CS)', () => {
   const byId = Object.fromEntries(PAGES.map((p) => [p.id, p]));
   assert.ok(GROUPS.includes('Your company') && GROUPS.includes('Customers'));
-  assert.ok(!GROUPS.includes('Organization'));
-  assert.equal(byId.company.group, 'Your company');
-  assert.equal(byId['own-company-page'].group, 'Your company');
-  assert.ok(byId['own-company-page'].external && byId['own-company-page'].path.startsWith('/companies/internal'));
-  // Your own departments open inside Settings (owner, 2026-11-14).
-  assert.equal(byId['own-departments'].group, 'Your company');
-  assert.ok(!byId['own-departments'].external);
-  assert.equal(findPage('/settings/departments').id, 'own-departments');
+  // One entry for your company: profile, departments, sites, categories, devices.
+  assert.deepEqual(PAGES.filter((p) => p.group === 'Your company').map((p) => p.id), ['your-company']);
+  assert.ok(!byId['your-company'].external);
+  assert.equal(findPage('/settings/your-company').id, 'your-company');
+  for (const gone of ['company', 'own-departments', 'own-company-page', 'departments']) assert.ok(!byId[gone], gone);
   assert.deepEqual(['companies', 'client-portal', 'customer-happiness'].map((id) => byId[id].group), ['Customers', 'Customers', 'Customers']);
-  assert.ok(!PAGES.some((p) => p.id === 'departments'));
-  // Links out are not Settings routes, and never the current Settings page.
+  // The customer list is outside Settings, and never the current Settings page.
   const paths = allRoutes().map((r) => r.path);
   assert.ok(!paths.some((p) => p.startsWith('/companies')));
-  assert.ok(!paths.includes('/admin/departments') && !paths.includes('/settings/companies'));
-  assert.ok(paths.includes('/settings/departments'));
+  for (const gone of ['/settings/company', '/settings/departments', '/admin/departments']) assert.ok(!paths.includes(gone), gone);
   assert.equal(findPage('/companies'), null);
-  const to = Object.fromEntries(REDIRECTS);
-  assert.equal(to['/admin/departments'], '/settings/departments');
-  assert.equal(to['/settings/companies'], '/companies');
 });
