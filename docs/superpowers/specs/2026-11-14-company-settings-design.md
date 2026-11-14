@@ -1,6 +1,7 @@
 # Settings cleanup: your company, customer companies, one place for each setting
 
-> Status: draft for the owner's approval (2026-11-14). No mockups or plan yet.
+> Status: design and decisions approved by the owner 2026-11-14. Mockups and
+> plan to follow.
 > Builds on today's first pass (`497fe41`, "Settings: global only; per-company
 > settings on each company's page") and on Playbooks/Checklists (PB, PB2), the
 > client portal (7a, 7b), SLAs (5a, 5b) and per-company categories (9).
@@ -46,6 +47,31 @@ nothing, it goes.
   link to *Settings › Your company*.
 - The same words everywhere: **Your company**, **Customer companies**,
   **Vendors**. "Clients", "Companies & vendors" and "Organization" go.
+
+### An install with only your own company
+
+Some installs serve one organization: the help desk's own. Your company is
+then the owner and the only "customer". PRISM already knows this case (no
+customer company exists yet) and hides company pickers and tags. This design
+follows the same switch:
+
+- **Everything is under *Settings › Your company*:** its SLA targets, support
+  hours, holidays, categories, portal and surveys. Your own staff and
+  employees are its contacts, and its SLA is the one every ticket uses.
+- ***Settings › Customers* shows one line**, "Add a customer company", and
+  nothing else. *Starting values for new companies* is hidden: there is
+  nothing to copy them to.
+- **The portal keeps the plain address.** `/portal` goes straight to your
+  company's portal, and `/portal/<your company>` works too. Nobody is told
+  to "use your company's link" when there is only one company.
+- **Adding the first customer company** turns the rest on: the Customers
+  section, company pickers and tags, the starting values (seeded from your
+  company's own targets, hours and holidays), and `/portal` becomes the
+  "use your company's link" page. Your company's settings don't move.
+
+When you do have customers, your company can still have its own portal and
+SLA, for your own employees' tickets: it is a company like the others, kept
+in Settings.
 
 ## 2. A company's one-stop page
 
@@ -200,25 +226,17 @@ Each part is usable on its own and ends with both test suites passing.
 4. **What applies here** (section 2's last row): bundles offered for this
    company, and the lists of rules, recurring tickets and custom fields.
 
-## Decisions for the owner
+## Decisions (owner, 2026-11-14)
 
-These change what gets built. The recommendation is first.
-
-1. **Your company's page moves into Settings and leaves the Companies list.**
-   Recommended, as the clearest line between yours and customers'. The
-   alternative keeps it in the Companies list with a "Your company" badge.
-2. **Portal links are a path** (`/portal/acme`), not a sub-domain
-   (`acme.prism.example`). Recommended: a sub-domain needs a DNS entry and a
-   certificate for every customer.
-3. **The old shared `/portal` stops signing people in.** Recommended, since
-   it is what makes each portal its own. Contacts who bookmarked it need
-   their company's link (an email to each contact with portal access can be
-   sent from Setup › Portal).
-4. **"Set SLA policy" in workflow rules is removed.** Recommended. If rules
-   depend on it today, say which and what they are for.
+1. **Your company's page moves into Settings and leaves the Companies
+   list.** Yes.
+2. **Portal links are a path** (`/portal/acme`), not a sub-domain. Yes.
+3. **The old shared `/portal` stops signing people in** once there are
+   customer companies (with only your own company, it goes to yours). Yes.
+4. **"Set SLA policy" in workflow rules is removed.** Yes; no rule of the
+   owner's uses it. The migration still lists any rule that does.
 5. **Each company has its own time zone** for its SLA clock and the due
-   dates shown on its tickets. Recommended; your company's zone stays the
-   default for a new company.
+   dates on its tickets. Yes.
 
 ## Not in this change
 
