@@ -1,3 +1,4 @@
+import { submitOnEnter, ENTER_HINT } from '../../utils/sendOnEnter';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { IconFile } from '@tabler/icons-react';
@@ -97,7 +98,8 @@ function ReplyForm({ ticket, onSent }) {
         <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>This ticket is closed. Your reply goes to the help desk, who decide whether to reopen it.</p>
       )}
       {error && <Notice tone="bad">{error}</Notice>}
-      <textarea id="portal-reply" ref={area} className="input min-h-[110px] py-2.5" placeholder="Add details or answer the help desk…" value={text} onChange={(e) => setText(e.target.value)} />
+      <textarea id="portal-reply" ref={area} className="input min-h-[110px] py-2.5" placeholder="Add details or answer the help desk…" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={busy ? undefined : submitOnEnter} aria-describedby="portal-reply-hint" />
+      <p id="portal-reply-hint" className="-mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>{ENTER_HINT}</p>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <FilePicker files={files} onChange={setFiles} compact />
         <button type="submit" disabled={busy || !text.trim()} className="btn-primary h-11 sm:h-10">{busy ? 'Sending…' : 'Send reply'}</button>

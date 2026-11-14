@@ -1,4 +1,5 @@
 // Reply/comment composer under the conversation.
+import { sendOnEnter, ENTER_HINT } from '../../../utils/sendOnEnter';
 import { useRef, useState } from 'react';
 import {
   IconPaperclip, IconAt, IconLock, IconWorld, IconChevronDown,
@@ -128,10 +129,13 @@ export function ReplyBox({
         autoFocus={collapsible}
         value={text}
         onChange={(e) => setText(e.target.value)}
+        onKeyDown={sendOnEnter(() => { if (!sending) send(); })}
+        aria-describedby="reply-enter-hint"
         placeholder={placeholder}
         className="input resize-y text-sm"
         style={{ minHeight: '88px', borderColor: isComment ? AMBER : undefined }}
       />
+      <p id="reply-enter-hint" className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>{ENTER_HINT}</p>
 
       {isStaff && isPublic && showCc && (
         <div className="mt-2 grid gap-2 sm:grid-cols-2">

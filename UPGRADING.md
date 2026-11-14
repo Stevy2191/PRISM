@@ -520,6 +520,11 @@ on its own: the menu is as tall as it needs and moves with the page.
 **Tab rows** on a contact, a company and a ticket no longer have a scroll
 bar of their own; on a narrow window they wrap.
 
+**Enter sends:** in a ticket's reply box, the portal's reply box and the
+description of a ticket raised from the portal or the PRISM agent (and
+the agent's reply box), **Enter** sends and **Shift+Enter** starts a new
+line. Each box says so under it. The staff New ticket page is unchanged.
+
 **Tickets list filters:** **Status** takes several at once (tick any
 statuses, or On hold / Closed as a whole), and **Not closed** picks every
 status that isn't closed, so a saved filter such as "My open tickets" (My

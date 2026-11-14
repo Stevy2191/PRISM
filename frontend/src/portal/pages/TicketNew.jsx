@@ -1,3 +1,4 @@
+import { submitOnEnter, ENTER_HINT } from '../../utils/sendOnEnter';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import portalApi, { errMessage } from '../api';
@@ -60,7 +61,8 @@ export default function TicketNew() {
             </div>
             <div>
               <label htmlFor="nt-desc" className="label">Description <span aria-hidden="true" style={{ color: 'var(--color-danger)' }}>*</span></label>
-              <textarea id="nt-desc" className="input min-h-[160px] py-2.5" required value={form.description} onChange={set('description')} placeholder="What happened, and what have you tried?" />
+              <textarea id="nt-desc" className="input min-h-[160px] py-2.5" required value={form.description} onChange={set('description')} onKeyDown={submitOnEnter} aria-describedby="nt-desc-hint" placeholder="What happened, and what have you tried?" />
+              <p id="nt-desc-hint" className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>{ENTER_HINT}</p>
             </div>
             <div>
               <span className="label">Attachments<Optional /></span>
