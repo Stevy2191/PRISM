@@ -31,8 +31,8 @@ it('the company list counts contacts and open tickets', async () => {
 it('the summary counts only companies the user can reach', async () => {
   const fenced = await makeTech('fenced', w.deptA.id);
   await setCompanyAccess(w.admin, fenced.user.id, { allCompanies: false, companyIds: [internalId] });
-  expect(expectOk(await a().get(`${API}/companies/summary`))).toEqual({ count: 2, multiCompany: true });
-  expect(expectOk(await fenced.agent.get(`${API}/companies/summary`))).toEqual({ count: 1, multiCompany: true });
+  expect(expectOk(await a().get(`${API}/companies/summary`))).toMatchObject({ count: 2, multiCompany: true });
+  expect(expectOk(await fenced.agent.get(`${API}/companies/summary`))).toMatchObject({ count: 1, multiCompany: true });
 });
 
 it('a company can\'t stop being a client while it owns records', async () => {

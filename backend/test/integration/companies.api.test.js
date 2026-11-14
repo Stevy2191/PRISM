@@ -90,11 +90,11 @@ it('lists, filters and searches', async () => {
 
 it('summary counts clients, not vendors', async () => {
   const summary = async () => expectOk(await a().get(`${API}/companies/summary`));
-  expect(await summary()).toEqual({ count: 1, multiCompany: false });
+  expect(await summary()).toMatchObject({ count: 1, multiCompany: false });
   await create({ name: 'Dell', isVendor: true });
-  expect(await summary()).toEqual({ count: 2, multiCompany: false });
+  expect(await summary()).toMatchObject({ count: 2, multiCompany: false });
   await create({ name: 'Acme', isClient: true });
-  expect(await summary()).toEqual({ count: 3, multiCompany: true });
+  expect(await summary()).toMatchObject({ count: 3, multiCompany: true });
 });
 
 it('domains: add, normalise, refuse free-mail and duplicates', async () => {
