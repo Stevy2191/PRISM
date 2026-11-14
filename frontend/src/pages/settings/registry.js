@@ -40,8 +40,10 @@ export const PAGES = [
   { id: 'about', group: 'About', name: 'About PRISM', desc: 'Version, license, report a problem', keywords: ['version', 'license', 'bug', 'issue'], path: '/settings/about', access: {}, width: 'narrow' },
   // Organization
   { id: 'company', group: 'Your company', name: 'Company profile', desc: 'Name, logo, time zone and login page', keywords: ['logo', 'favicon', 'branding', 'time zone', 'timezone', 'login page', 'app name', 'organization name'], path: '/settings/company', access: { permission: ['settings.manage_branding', 'settings.manage_system'] }, width: 'narrow' },
-  // These open a company's page (outside Settings): `external`.
-  { id: 'own-departments', group: 'Your company', name: 'Departments', desc: 'Who works where, short codes and default roles (on your company\'s page)', keywords: ['department', 'default role', 'short code'], path: '/companies/internal?part=departments', external: true, access: { permission: ['people.manage_departments'] }, width: 'wide' },
+  // Owner, 2026-11-14: your own departments stay inside Settings.
+  { id: 'own-departments', group: 'Your company', name: 'Departments', desc: 'Who works where, short codes and default roles', keywords: ['department', 'default role', 'short code'], path: '/settings/departments', access: { permission: ['people.manage_departments'] }, width: 'wide' },
+  // These leave Settings for a company's page (`external`); the menu and
+  // Settings home mark them so it's no surprise.
   { id: 'own-company-page', group: 'Your company', name: 'Your company\'s page', desc: 'Its ticket categories, sites, SLA policy and devices', keywords: ['internal', 'own company', 'site', 'categories', 'sla', 'devices', 'agent'], path: '/companies/internal', external: true, access: { permission: ['companies.view'] }, width: 'wide' },
   { id: 'companies', group: 'Customers', name: 'Customer companies', desc: 'Clients and vendors; each one\'s settings are on its page', keywords: ['client', 'customer', 'vendor', 'site', 'domain', 'msp', 'company'], path: '/companies', external: true, access: { permission: ['companies.view'] }, width: 'wide' },
   // People & access
@@ -98,7 +100,7 @@ export const REDIRECTS = [
   ['/admin/settings', '/settings'],
   // Per-company settings moved to company pages (owner, 2026-11-14).
   ['/settings/companies', '/companies'],
-  ['/admin/departments', '/companies/internal?part=departments'],
+  ['/admin/departments', '/settings/departments'],
   ['/settings/branding', '/settings/company'],
   ['/settings/blueprints', '/admin/blueprints'],
   ['/settings/macros', '/settings'],

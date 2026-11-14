@@ -219,7 +219,7 @@ describe('every page uses the Settings frame', () => {
   it('You, Your company, People & access', async () => {
     const page = await as('admin');
     for (const [path, title] of [
-      ['/settings/preferences', 'Preferences'], ['/settings/about', 'About PRISM'],
+      ['/settings/preferences', 'Preferences'], ['/settings/about', 'About PRISM'], ['/settings/departments', 'Departments'],
       ['/admin/users', 'Users'], ['/settings/teams', 'Teams'],
       ['/admin/roles', 'Roles & permissions'], ['/admin/roles/new', 'New role'], ['/admin/apikeys', 'API keys'],
     ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop

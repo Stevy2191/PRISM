@@ -30,10 +30,11 @@ beforeEach(async () => {
   }
 });
 
-it('your own departments are on your company\'s page, and the old address leads there', async () => {
+it('your own departments open inside Settings, and the old address leads there', async () => {
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto('/admin/departments');
-  await page.waitForURL(/\/companies\/\d+\?part=departments/);
+  await page.waitForURL('**/settings/departments');
+  await page.getByRole('complementary', { name: 'Settings menu' }).locator('[aria-current="page"]', { hasText: 'Departments' }).waitFor();
   await page.getByText(w.deptA.name, { exact: true }).waitFor();
   expect(await page.getByText('HR', { exact: true }).count()).toBe(0);
   // A new one goes to the help desk's own company, with no company to pick.
@@ -74,4 +75,11 @@ it('Contacts shows each contact\'s company, and the department filter follows th
   expect(names).toEqual(['All departments', 'HR']);
   await page.getByRole('row').filter({ hasText: 'Pat Acme' }).first().waitFor();
   await page.getByRole('row').filter({ hasText: 'Pat Bee Co' }).waitFor({ state: 'detached' });
+});
+
+it('your company\'s page shows the same departments', async () => {
+  const page = await smoke.pageAs('admin', undefined, DESKTOP);
+  await page.goto('/companies/internal?part=departments');
+  await page.waitForURL(/\/companies\/\d+\?part=departments/);
+  await page.getByText(w.deptA.name, { exact: true }).waitFor();
 });

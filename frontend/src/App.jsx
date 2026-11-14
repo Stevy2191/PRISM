@@ -48,6 +48,7 @@ import Workload from './pages/workload/Workload';
 import SettingsTeams from './pages/settings/Teams';
 import SettingsPreferences from './pages/settings/Preferences';
 import SettingsAbout from './pages/settings/About';
+import AdminDepartments from './pages/AdminDepartments';
 import SettingsLayouts from './pages/settings/Layouts';
 import SettingsAssetCategories from './pages/settings/AssetCategories';
 import SettingsAssetAlerts from './pages/settings/AssetAlerts';
@@ -123,7 +124,7 @@ function ParamRedirect({ to }) {
 }
 
 const SETTINGS_COMPONENTS = {
-  preferences: SettingsPreferences, about: SettingsAbout, company: CompanyProfile, 'client-portal': ClientPortalSettings,
+  preferences: SettingsPreferences, about: SettingsAbout, company: CompanyProfile, 'own-departments': AdminDepartments, 'client-portal': ClientPortalSettings,
   users: AdminUsers, 'user-detail': UserDetail, teams: SettingsTeams,
   roles: AdminRoles, 'role-new': RoleEditor, 'role-edit': RoleEditor, 'api-keys': AdminApiKeys,
   statuses: SettingsStatuses, 'custom-fields': SettingsLayouts, blueprints: AdminBlueprints,

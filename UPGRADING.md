@@ -507,6 +507,10 @@ anyone with Manage system settings; **Settings → SLAs** shows which companies
 are on each policy and links to them. Old addresses (`/settings/companies`,
 `/admin/departments`) lead to the new places. No migration; nothing to do.
 
+Your own departments open inside Settings (Your company → Departments) and
+are also on your company's page. Menu entries that leave Settings for a
+company's page carry an arrow (↗) and say "Opens outside Settings".
+
 **About PRISM** is its own section at the bottom of the Settings menu. It
 shows the version, not the commit. A build from a branch now has a real
 version number: the next version, the branch and how many changes since the

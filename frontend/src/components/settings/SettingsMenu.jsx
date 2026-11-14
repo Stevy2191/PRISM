@@ -5,7 +5,7 @@
 // access.
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { IconSearch } from '@tabler/icons-react';
+import { IconArrowUpRight, IconSearch } from '@tabler/icons-react';
 import { useAuth } from '../../context/AuthContext';
 import { findPage, searchPages, visibleGroups } from '../../pages/settings/registry';
 import { sectionIcon } from './sectionIcons';
@@ -16,6 +16,12 @@ function PageLink({ page, current, onNavigate, nested = false }) {
       className={`block rounded-md py-1.5 text-[13.5px] ${nested ? 'px-2.5' : 'px-3'} ${current ? 'font-semibold text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]'}`}
       style={current ? { backgroundColor: 'var(--color-hover)' } : undefined}>
       {page.name}
+      {page.external && (
+        <>
+          <IconArrowUpRight size={14} stroke={1.8} aria-hidden="true" className="ml-1 inline align-[-2px] text-navy-400" />
+          <span className="sr-only"> (leaves Settings)</span>
+        </>
+      )}
     </Link>
   );
 }

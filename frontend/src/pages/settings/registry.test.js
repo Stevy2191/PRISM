@@ -134,18 +134,21 @@ test('per-company settings live on company pages (owner, 2026-11-14)', () => {
   assert.ok(GROUPS.includes('Your company') && GROUPS.includes('Customers'));
   assert.ok(!GROUPS.includes('Organization'));
   assert.equal(byId.company.group, 'Your company');
-  for (const id of ['own-departments', 'own-company-page']) {
-    assert.equal(byId[id].group, 'Your company');
-    assert.ok(byId[id].external && byId[id].path.startsWith('/companies/internal'));
-  }
+  assert.equal(byId['own-company-page'].group, 'Your company');
+  assert.ok(byId['own-company-page'].external && byId['own-company-page'].path.startsWith('/companies/internal'));
+  // Your own departments open inside Settings (owner, 2026-11-14).
+  assert.equal(byId['own-departments'].group, 'Your company');
+  assert.ok(!byId['own-departments'].external);
+  assert.equal(findPage('/settings/departments').id, 'own-departments');
   assert.deepEqual(['companies', 'client-portal', 'customer-happiness'].map((id) => byId[id].group), ['Customers', 'Customers', 'Customers']);
   assert.ok(!PAGES.some((p) => p.id === 'departments'));
   // Links out are not Settings routes, and never the current Settings page.
   const paths = allRoutes().map((r) => r.path);
   assert.ok(!paths.some((p) => p.startsWith('/companies')));
   assert.ok(!paths.includes('/admin/departments') && !paths.includes('/settings/companies'));
+  assert.ok(paths.includes('/settings/departments'));
   assert.equal(findPage('/companies'), null);
   const to = Object.fromEntries(REDIRECTS);
-  assert.equal(to['/admin/departments'], '/companies/internal?part=departments');
+  assert.equal(to['/admin/departments'], '/settings/departments');
   assert.equal(to['/settings/companies'], '/companies');
 });

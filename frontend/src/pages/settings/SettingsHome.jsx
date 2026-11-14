@@ -5,7 +5,7 @@
 // booleans and counts only).
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { IconArrowUpRight, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import api from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { useNarrow } from '../../hooks/useNarrow';
@@ -102,11 +102,14 @@ export default function SettingsHome() {
                 <span className="min-w-0 flex-1">
                   <span data-page-name className="block text-[15px] font-semibold text-navy-900">{p.name}</span>
                   <span className="block text-[13px] text-navy-400">{p.desc}</span>
+                  {p.external && <span className="mt-0.5 block text-xs font-medium text-navy-500">Opens outside Settings</span>}
                 </span>
                 {hints[p.id] && (
                   <span className="flex-shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold" style={HINT[hints[p.id][0]]}>{hints[p.id][1]}</span>
                 )}
-                <IconChevronRight size={18} aria-hidden="true" className="flex-shrink-0 text-navy-400" />
+                {p.external
+                  ? <IconArrowUpRight size={18} aria-hidden="true" className="flex-shrink-0 text-navy-400" />
+                  : <IconChevronRight size={18} aria-hidden="true" className="flex-shrink-0 text-navy-400" />}
               </Link>
             </li>
           ))}
