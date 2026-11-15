@@ -24,8 +24,8 @@ function hintsFrom(s) {
   const dir = s.directory.connected ? ['ok', 'Connected'] : s.directory.configured ? ['warn', 'Not tested'] : ['off', 'Not set up'];
   return {
     directory: dir,
-    'incoming-email': s.incomingEmail.enabled ? ['ok', 'On'] : ['off', 'Off'],
-    'outgoing-email': s.outgoingEmail.configured ? ['ok', 'Set up'] : ['warn', 'Not set up'],
+    // One Email page (CS): sending is what must be set up; incoming is optional.
+    email: s.outgoingEmail.configured ? ['ok', s.incomingEmail.enabled ? 'Set up' : 'Sending set up'] : ['warn', 'Not set up'],
     'single-sign-on': s.singleSignOn.enabled ? ['ok', `${s.singleSignOn.enabled} on`] : ['off', 'Off'],
   };
 }

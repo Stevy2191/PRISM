@@ -68,7 +68,6 @@ import SettingsNotifications from './pages/settings/Notifications';
 import SettingsEmailTemplates from './pages/settings/EmailTemplates';
 import WorkflowRules from './pages/settings/WorkflowRules';
 import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
-import DirectorySync from './pages/settings/DirectorySync';
 import CalendarIntegration from './pages/settings/CalendarIntegration';
 import CustomerHappiness from './pages/settings/CustomerHappiness';
 import SettingsChecklists from './pages/settings/checklists/Checklists';
@@ -84,8 +83,7 @@ import RoleEditor from './pages/RoleEditor';
 import AdminBlueprints from './pages/AdminBlueprints';
 import AdminApiKeys from './pages/AdminApiKeys';
 import SettingsDirectory from './pages/settings/Directory';
-import SettingsIncomingEmail from './pages/settings/IncomingEmail';
-import SettingsOutgoingEmail from './pages/settings/OutgoingEmail';
+import SettingsEmail from './pages/settings/Email';
 import SettingsSystemInfo from './pages/settings/SystemInfo';
 import EmailLog from './pages/settings/EmailLog';
 import AccessRestricted from './components/AccessRestricted';
@@ -137,8 +135,8 @@ const SETTINGS_COMPONENTS = {
   slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays, 'work-hours': SettingsWorkHours,
   'time-tracking': SettingsTimeTracking, 'work-types': SettingsWorkTypes,
   'asset-categories': SettingsAssetCategories, 'asset-alerts': SettingsAssetAlerts,
-  'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory, 'directory-sync': DirectorySync,
-  'incoming-email': SettingsIncomingEmail, 'outgoing-email': SettingsOutgoingEmail, 'email-log': EmailLog, 'email-templates': SettingsEmailTemplates,
+  'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory,
+  email: SettingsEmail, 'email-log': EmailLog, 'email-templates': SettingsEmailTemplates,
   calendar: CalendarIntegration, schedules: Schedules, import: SettingsImport,
   export: SettingsExport, 'audit-log': AuditLog, system: SettingsSystemInfo,
 };

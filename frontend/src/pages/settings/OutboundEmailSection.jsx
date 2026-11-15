@@ -111,6 +111,15 @@ export default function OutboundEmailSection() {
           <div>
             <label className="label">From email address</label>
             <input type="email" className="input" style={fieldStyle} value={form.fromEmail} onChange={set('fromEmail')} placeholder="helpdesk@company.com" />
+            {/* Usually the same mailbox as incoming: one click, not typed twice (CS). */}
+            <button
+              type="button"
+              className="mt-1 text-xs font-semibold hover:underline"
+              style={{ color: 'var(--color-accent)' }}
+              onClick={() => api.get('/settings/inbound-email').then(({ data }) => { if (data.address) set('fromEmail')({ target: { value: data.address } }); }).catch(() => {})}
+            >
+              Use the incoming address
+            </button>
           </div>
         </div>
 

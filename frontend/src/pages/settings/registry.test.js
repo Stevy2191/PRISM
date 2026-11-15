@@ -37,7 +37,8 @@ test('the placeholders are gone and the split pages exist', () => {
   for (const gone of ['/settings/macros', '/settings/supervisor-rules', '/settings/recycle-bin', '/admin/settings', '/settings/branding', '/settings/assignment-rules', '/settings/modules']) {
     assert.ok(!paths.includes(gone), gone);
   }
-  for (const added of ['/settings/email-templates', '/settings/directory', '/settings/incoming-email', '/settings/outgoing-email', '/settings/system']) {
+  // Directory (sign-in and sync) and Email (in and out) are one page each (CS).
+  for (const added of ['/settings/email-templates', '/settings/directory', '/settings/email', '/settings/system']) {
     assert.ok(paths.includes(added), added);
   }
 });
@@ -96,7 +97,7 @@ test('project-templates is in group Projects and needs projects.manage_templates
   assert.ok(GROUPS.includes('Projects'));
 });
 
-test('Workload group holds Hours people work and Holidays (moved out of Hours & SLAs)', () => {
+test('Workload group holds Staff hours and Holidays (moved out of Hours & SLAs)', () => {
   assert.ok(GROUPS.includes('Workload'));
   const wh = PAGES.find((p) => p.id === 'work-hours');
   assert.equal(wh.group, 'Workload');

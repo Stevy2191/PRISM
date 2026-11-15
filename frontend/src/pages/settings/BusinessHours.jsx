@@ -1,3 +1,4 @@
+import { zoneOptions } from '../../utils/timeZones';
 import { useEffect, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
@@ -7,7 +8,6 @@ import DepartmentOptions from '../../components/companies/DepartmentOptions';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const WEEKEND_DAYS = ['saturday', 'sunday'];
-const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo'];
 
 function defaultSchedule() {
   const s = {};
@@ -135,7 +135,7 @@ export default function BusinessHours() {
             <div>
               <label className="label">Timezone</label>
               <select className="input" value={form.timezone} onChange={(e) => setForm((f) => ({ ...f, timezone: e.target.value }))}>
-                {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+                {zoneOptions(form.timezone).map((tz) => <option key={tz} value={tz}>{tz}</option>)}
               </select>
             </div>
             <div>

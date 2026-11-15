@@ -30,8 +30,8 @@ it('an Owner does', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto('/settings/directory');
   await shown(page, 'Active Directory / LDAP').waitFor();
-  await page.goto('/settings/outgoing-email');
-  await page.getByRole('heading', { level: 1, name: 'Outgoing email' }).waitFor();
+  await page.goto('/settings/email');
+  await page.getByRole('heading', { level: 1, name: 'Email', exact: true }).waitFor();
 });
 
 it('a System Administrator sees an administrator\'s account read-only', async () => {

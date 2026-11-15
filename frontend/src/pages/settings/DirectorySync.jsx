@@ -81,7 +81,8 @@ function SyncLogModal({ onClose }) {
   );
 }
 
-export default function DirectorySync() {
+// `embedded`: the second half of Settings › Directory (CS: one page).
+export default function DirectorySync({ embedded = false }) {
   const [settings, setSettings] = useState(null);
   const [mappings, setMappings] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -168,8 +169,9 @@ export default function DirectorySync() {
 
   if (loading) return <Spinner />;
 
+  const Frame = embedded ? 'div' : SettingsPage;
   return (
-    <SettingsPage>
+    <Frame {...(embedded ? { className: 'space-y-5' } : {})}>
 
       {error && <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
@@ -279,6 +281,6 @@ export default function DirectorySync() {
       </div>
 
       {showLog && <SyncLogModal onClose={() => setShowLog(false)} />}
-    </SettingsPage>
+    </Frame>
   );
 }

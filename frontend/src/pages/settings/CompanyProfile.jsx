@@ -3,6 +3,7 @@
 // allows only with settings.manage_branding; the rest saves with Save, which
 // it allows only with settings.manage_system. Each part is offered only to
 // someone the server will let change it.
+import { zoneOptions } from '../../utils/timeZones';
 import { useEffect, useRef, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
@@ -11,7 +12,6 @@ import Spinner from '../../components/Spinner';
 import SettingsPage, { SettingsPanel, SettingsRow } from '../../components/settings/SettingsPage';
 import SaveBar, { isDirty } from '../../components/settings/SaveBar';
 
-const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney'];
 const KEYS = ['company.name', 'company.timezone', 'branding.appName', 'branding.tagline'];
 const DEFAULTS = { 'company.timezone': 'UTC', 'branding.appName': 'PRISM' };
 
@@ -130,7 +130,7 @@ export default function CompanyProfile({ embedded = false, onSaved = null }) {
             </SettingsRow>
             <SettingsRow label="Time zone" htmlFor="tz" help="Used for dates, reports and the time ledger.">
               <select id="tz" className="input" value={form['company.timezone']} onChange={set('company.timezone')}>
-                {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+                {zoneOptions(form['company.timezone']).map((tz) => <option key={tz} value={tz}>{tz}</option>)}
               </select>
             </SettingsRow>
           </SettingsPanel>

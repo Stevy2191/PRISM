@@ -1,8 +1,15 @@
-// Active Directory / LDAP, out of the old General Settings (spec: Settings
-// redesign). Owner only: the route guards it, the server refuses others.
+// Settings › Sign-in & email › Directory (CS): Active Directory / LDAP
+// sign-in, and syncing contacts from it, on one page. They share one
+// connection. Owner only: the route guards it, the server refuses others.
 import SettingsPage from '../../components/settings/SettingsPage';
 import LdapSection from './LdapSection';
+import DirectorySync from './DirectorySync';
 
 export default function Directory() {
-  return <SettingsPage><LdapSection /></SettingsPage>;
+  return (
+    <SettingsPage>
+      <LdapSection />
+      <DirectorySync embedded />
+    </SettingsPage>
+  );
 }

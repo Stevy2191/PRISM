@@ -28,7 +28,7 @@ export default function Schedules() {
   if (!jobs) return <Spinner />;
 
   return (
-    <SettingsPage description="Background jobs this PRISM instance runs automatically. Read-only — configure Directory Sync and Calendar Integration on their own settings pages.">
+    <SettingsPage description="Background jobs this PRISM instance runs automatically. Read-only — the directory sync is set on Directory, calendar sync by each person in Preferences.">
 
       <div className="card divide-y divide-navy-100">
         {jobs.map((job) => (

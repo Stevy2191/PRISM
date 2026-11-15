@@ -1,6 +1,7 @@
 // Settings → Recurring tickets → new/edit (5b). The template is the fields of
 // the ticket each run opens; the schedule says when. The server checks the
 // template against your access on save and the rule then runs as you.
+import { zoneOptions } from '../../utils/timeZones';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import CategoryPicker from '../../components/CategoryPicker';
@@ -16,7 +17,6 @@ import { fmtDateTime } from '../../utils/formatDate';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney'];
 const today = () => orgToday();
 
 const EMPTY = {
@@ -271,7 +271,7 @@ export default function RecurringTicketEditor() {
               <label className="label" htmlFor="rt-tz">Time zone</label>
               <select id="rt-tz" className="input" value={form.timezone} onChange={set('timezone')}>
                 <option value="">Organisation's</option>
-                {[...new Set([form.timezone, ...TIMEZONES].filter(Boolean))].map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+                {zoneOptions(form.timezone).map((tz) => <option key={tz} value={tz}>{tz}</option>)}
               </select>
             </div>
             <div>

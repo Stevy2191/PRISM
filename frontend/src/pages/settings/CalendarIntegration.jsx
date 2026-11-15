@@ -88,7 +88,7 @@ export default function CalendarIntegration() {
   if (loading || !form) return <Spinner />;
 
   return (
-    <SettingsPage description="OAuth app credentials for the Google Calendar / Microsoft Outlook connect buttons on the Calendar page (Account Preferences → Calendar integrations). Without these configured here, users can still connect an iCal/CalDAV URL, but the Google/Microsoft options stay disabled.">
+    <SettingsPage description="OAuth app credentials for the Google Calendar / Microsoft Outlook connect buttons in each person's Preferences, under My calendars. Without these configured here, users can still connect an iCal/CalDAV URL, but the Google/Microsoft options stay disabled.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={save} className="space-y-5">

@@ -117,8 +117,8 @@ describe('the menu', () => {
     await menu(page).getByRole('link', { name: /^Time & work/ }).waitFor();
     // Email templates (plan 5a) is the one Sign-in & email page that needs no owner.
     await menu(page).getByRole('link', { name: 'Email templates' }).waitFor();
-    for (const ownerOnly of ['Single sign-on', 'Incoming email', 'Outgoing email']) {
-      expect([ownerOnly, await menu(page).getByRole('link', { name: ownerOnly }).count()]).toEqual([ownerOnly, 0]); // eslint-disable-line no-await-in-loop
+    for (const ownerOnly of ['Single sign-on', 'Directory', 'Email']) {
+      expect([ownerOnly, await menu(page).getByRole('link', { name: ownerOnly, exact: true }).count()]).toEqual([ownerOnly, 0]); // eslint-disable-line no-await-in-loop
     }
     staff1 = await makeUser('staff1', ROLE.DEPARTMENT_STAFF, w.deptA.id);
     page = await as('staff1');
@@ -201,7 +201,7 @@ describe('Settings home', () => {
     await page.waitForURL(/\/settings\?section=sign-in-email$/);
     await main.getByRole('heading', { level: 1, name: 'Sign-in & email' }).waitFor();
     await main.getByText('Not set up').first().waitFor(); // outgoing email in a fresh install
-    await main.getByRole('link', { name: /Outgoing email How PRISM sends mail/ }).waitFor();
+    await main.getByRole('link', { name: /^Email The help desk's mailbox/ }).waitFor();
     // Settings reopens on the section last used.
     await page.goto('/settings');
     await page.waitForURL(/\/settings\?section=sign-in-email$/);
@@ -254,10 +254,9 @@ describe('the rest in the frame, and every page opens', () => {
     for (const [path, title] of [
       ['/settings/time-tracking', 'Time tracking'], ['/settings/work-types', 'Work types'],
       ['/settings/asset-categories', 'Asset categories'], ['/settings/asset-alerts', 'Expiry alerts'],
-      ['/settings/single-sign-on', 'Single sign-on'], ['/settings/directory', 'Directory (AD/LDAP)'],
-      ['/settings/directory-sync', 'Directory sync'], ['/settings/incoming-email', 'Incoming email'],
-      ['/settings/outgoing-email', 'Outgoing email'], ['/settings/email-log', 'Email log'],
-      ['/settings/calendar-integration', 'Calendar'],
+      ['/settings/single-sign-on', 'Single sign-on'], ['/settings/directory', 'Directory'],
+      ['/settings/email', 'Email'], ['/settings/email-log', 'Email log'],
+      ['/settings/calendar-integration', 'Calendar apps'],
       ['/settings/schedules', 'Background jobs'], ['/settings/import', 'Import'], ['/settings/export', 'Export'],
       ['/settings/audit-log', 'Audit log'], ['/settings/system', 'System info'],
     ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
@@ -326,10 +325,10 @@ describe('review fixes', () => {
     await admin.getByRole('link', { name: 'All users' }).waitFor();
   });
 
-  it('Directory sync names the Directory page, not General Settings', async () => {
+  it('Directory holds sign-in and sync on one page, and never names General Settings', async () => {
     const page = await as('admin');
-    await page.goto('/settings/directory-sync');
-    await page.getByRole('heading', { level: 1, name: 'Directory sync' }).waitFor();
+    await page.goto('/settings/directory');
+    await page.getByRole('heading', { level: 1, name: 'Directory', exact: true }).waitFor();
     expect(await page.getByText(/General Settings/).count()).toBe(0);
   });
 

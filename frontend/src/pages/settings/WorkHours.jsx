@@ -1,4 +1,4 @@
-// Hours people work (sub-project 6): the default week every person starts
+// Staff hours (sub-project 6): the default week every person starts
 // from, the size a ticket with no estimate counts as, and per-person weeks.
 // Workload reads all three; the server enforces who may change them.
 import { useEffect, useState } from 'react';

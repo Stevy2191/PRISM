@@ -584,7 +584,7 @@ function CalendarIntegrationsSection() {
   return (
     <div className="card p-5">
       <div className="mb-1 flex items-center justify-between">
-        <h2 className="font-semibold text-navy-900">Calendar integrations</h2>
+        <h2 className="font-semibold text-navy-900">My calendars</h2>
         <button type="button" className="btn-secondary" onClick={() => setConnectOpen(true)}>+ Connect calendar</button>
       </div>
       <p className="mb-3 text-sm text-navy-500">
@@ -718,7 +718,7 @@ function ConnectCalendarModal({ settings, onClose, onCreated }) {
               className="flex w-full flex-col items-start rounded-md border border-navy-200 px-4 py-3 text-left hover:bg-navy-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="font-medium text-navy-800">Google Calendar</span>
-              {!googleConfigured && <span className="mt-0.5 text-xs text-navy-400">Configure OAuth credentials in Settings → Calendar Integration first</span>}
+              {!googleConfigured && <span className="mt-0.5 text-xs text-navy-400">An administrator sets this up in Settings › Calendar apps first</span>}
             </button>
             <button
               type="button"
@@ -727,7 +727,7 @@ function ConnectCalendarModal({ settings, onClose, onCreated }) {
               className="flex w-full flex-col items-start rounded-md border border-navy-200 px-4 py-3 text-left hover:bg-navy-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="font-medium text-navy-800">Microsoft Outlook / Office 365</span>
-              {!microsoftConfigured && <span className="mt-0.5 text-xs text-navy-400">Configure OAuth credentials in Settings → Calendar Integration first</span>}
+              {!microsoftConfigured && <span className="mt-0.5 text-xs text-navy-400">An administrator sets this up in Settings › Calendar apps first</span>}
             </button>
             <button
               type="button"

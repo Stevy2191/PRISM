@@ -5,7 +5,7 @@ const {
 const { startSmoke } = require('./harness');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
 
-// Sub-project 6, task 13: the Workload screen, dispatch, Hours people work.
+// Sub-project 6, task 13: the Workload screen, dispatch, Staff hours.
 // The screen starts on this week's Monday (the coming one on a weekend), so
 // every date here is worked out from the real clock, a week or so ahead of it.
 
@@ -141,10 +141,10 @@ it('nav shows Workload only with workload.view', async () => {
   await withIt.getByRole('link', { name: /Workload$/ }).filter({ visible: true }).first().waitFor();
 });
 
-it('Hours people work saves a 6h override', async () => {
+it('Staff hours saves a 6h override', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto('/settings/work-hours');
-  await page.getByRole('heading', { level: 1, name: 'Hours people work' }).waitFor();
+  await page.getByRole('heading', { level: 1, name: 'Staff hours' }).waitFor();
   const row = page.locator(`[data-person-hours="${samUser.id}"]`);
   await row.getByRole('button', { name: /Change hours for|Set own hours/ }).click();
   await row.getByLabel('Monday').fill('6');
@@ -172,7 +172,7 @@ it('Holidays appears under Workload in Settings', async () => {
   await page.getByRole('heading', { level: 1, name: 'Holidays' }).waitFor();
   await page.getByText('Days off for the SLA clock and workload').first().waitFor();
   await page.goto('/settings');
-  await page.getByText('Hours people work').first().waitFor();
+  await page.getByText('Staff hours').first().waitFor();
 });
 
 it("drag a task within a helper's row moves its dates and keeps the main assignee", async () => {
