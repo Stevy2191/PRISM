@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/api';
+import { showPhone } from '../../utils/formatPhone';
 import { useAuth } from '../../context/AuthContext';
 
 const MUTED = 'var(--color-text-muted)';
@@ -32,7 +33,7 @@ export default function CompanyGlance({ company, onOpen, justMade = false }) {
   const steps = [
     {
       key: 'details', done: !!(company.phone || company.website), label: 'Details',
-      detail: company.phone || company.website ? [company.phone, company.website].filter(Boolean).join(' · ') : 'name, phone and website', action: 'Open', open: ['setup', 'details'],
+      detail: company.phone || company.website ? [showPhone(company.phone), company.website].filter(Boolean).join(' · ') : 'name, phone and website', action: 'Open', open: ['setup', 'details'],
     },
     ...(sla ? [{
       key: 'sla', done: sla.reviewed, label: 'SLA targets',

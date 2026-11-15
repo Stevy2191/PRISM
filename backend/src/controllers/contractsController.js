@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { normalizePhone } = require('../utils/phone');
 const path = require('path');
 const { Op } = require('sequelize');
 const {
@@ -164,6 +165,7 @@ const create = asyncHandler(async (req, res) => {
   WRITABLE_FIELDS.forEach((f) => {
     if (req.body[f] !== undefined) values[f] = req.body[f] === '' ? null : req.body[f];
   });
+  if (values.contactPhone !== undefined) values.contactPhone = normalizePhone(values.contactPhone);
 
   Object.assign(values, await resolvePlacement(req.user, req.body, null));
   Object.assign(values, vendorFields);
@@ -185,6 +187,7 @@ const update = asyncHandler(async (req, res) => {
   WRITABLE_FIELDS.forEach((f) => {
     if (req.body[f] !== undefined) values[f] = req.body[f] === '' ? null : req.body[f];
   });
+  if (values.contactPhone !== undefined) values.contactPhone = normalizePhone(values.contactPhone);
 
   Object.assign(values, await resolvePlacement(req.user, req.body, contract));
   Object.assign(values, await resolveVendorFields(req.user, req.body, contract, 'vendor'));

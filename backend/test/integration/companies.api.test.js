@@ -161,7 +161,10 @@ it('permissions gate reads and writes', async () => {
 
 it('changes are audited', async () => {
   const acme = await create({ name: 'Acme', isClient: true });
-  expectOk(await a().patch(`${API}/companies/${acme.id}`).send({ phone: '555-0100' }));
+  expectOk(await a().patch(`${API}/companies/${acme.id}`).send({ phone: '(979) 555-0100' }));
+  // Stored as 10 digits, like every phone number; shown (979) 555-0100.
+  expect((await models.Company.findByPk(acme.id)).phone).toBe('9795550100');
+  expect((await a().patch(`${API}/companies/${acme.id}`).send({ phone: '555-0100' })).status).toBe(400);
   expectOk(await a().post(`${API}/companies/${acme.id}/domains`).send({ domain: 'acme.com' }), 201);
   const site = expectOk(await a().post(`${API}/companies/${acme.id}/sites`).send({ name: 'HQ' }), 201).site;
   // No endpoint reads AuditLogs.

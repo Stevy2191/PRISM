@@ -9,6 +9,7 @@ const {
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { parsePagination, paginated } = require('../utils/pagination');
+const { normalizePhone } = require('../utils/phone');
 const {
   canAccessCompany, companyScopeWhere, parseRecordId, invalidateAllPermissions, hasPermission,
 } = require('../services/permissionService');
@@ -55,7 +56,7 @@ async function readFields(body, existing) {
   if (body.name !== undefined || !existing) out.name = normalizeName(body.name);
   if (body.isClient !== undefined) out.isClient = !!body.isClient;
   if (body.isVendor !== undefined) out.isVendor = !!body.isVendor;
-  if (body.phone !== undefined) out.phone = body.phone ? String(body.phone).trim().slice(0, 50) : null;
+  if (body.phone !== undefined) out.phone = normalizePhone(body.phone);
   if (body.website !== undefined) out.website = normalizeWebsite(body.website);
   if (body.notes !== undefined) out.notes = body.notes || null;
   if (body.accountManagerId !== undefined) out.accountManagerId = await resolveAccountManager(body.accountManagerId);

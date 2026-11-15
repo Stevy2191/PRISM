@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { contactLabel } from '../utils/contactLabel';
+import { showPhone } from '../utils/formatPhone';
 import { useCompanySummary } from '../context/CompanyContext';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { IconFile, IconUpload, IconTrash, IconDownload } from '@tabler/icons-react';
@@ -318,7 +319,7 @@ function OverviewTab({ asset, departments, onPatch, onCheckedOut }) {
         {asset.hasCellular && (
           <FieldGroup title="Cellular">
             <Field label="IMEI" mono>{asset.imei}</Field>
-            <Field label="Phone number" mono>{asset.phoneNumber ? asset.phoneNumber.replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3') : ''}</Field>
+            <Field label="Phone number" mono>{showPhone(asset.phoneNumber)}</Field>
             <Field label="Carrier">{asset.carrier?.name}</Field>
           </FieldGroup>
         )}

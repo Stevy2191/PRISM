@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { showPhone } from '../../utils/formatPhone';
 import { IconFile, IconUpload, IconTrash, IconDownload } from '@tabler/icons-react';
 import api, { errMessage } from '../../api/api';
 import { usePermission } from '../../context/AuthContext';
@@ -207,7 +208,7 @@ function OverviewTab({ contract, canManage, onChanged }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="Name">{contract.contactPerson}</Field>
           <Field label="Email">{contract.contactEmail}</Field>
-          <Field label="Phone">{contract.contactPhone}</Field>
+          <Field label="Phone">{showPhone(contract.contactPhone)}</Field>
         </div>
       </div>
       <div className="sm:col-span-2 lg:col-span-3">

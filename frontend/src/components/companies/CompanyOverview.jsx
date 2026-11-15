@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCompanySummary } from '../../context/CompanyContext';
 import { useToast } from '../../context/ToastContext';
 import Notice from '../ui/Notice';
+import { formatPhone } from '../../utils/formatPhone';
 
 // Overview tab: the company's fields, email domains and account manager.
 export default function CompanyOverview({ company, onSaved }) {
@@ -13,7 +14,7 @@ export default function CompanyOverview({ company, onSaved }) {
   const canManage = hasPermission('companies.manage');
   const [form, setForm] = useState({
     name: company.name, isClient: company.isClient, isVendor: company.isVendor, status: company.status,
-    phone: company.phone || '', website: company.website || '', notes: company.notes || '',
+    phone: formatPhone(company.phone || ''), website: company.website || '', notes: company.notes || '',
     accountManagerId: company.accountManagerId || '',
   });
   const [managers, setManagers] = useState([]);
@@ -73,7 +74,7 @@ export default function CompanyOverview({ company, onSaved }) {
             {managers.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
           </select>
         </div>
-        <div><label className="label" htmlFor="co-phone">Phone</label><input id="co-phone" className="input" value={form.phone} disabled={!canManage} onChange={set('phone')} /></div>
+        <div><label className="label" htmlFor="co-phone">Phone</label><input id="co-phone" className="input" value={form.phone} disabled={!canManage} onChange={(e) => setForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))} placeholder="(555) 123-4567" inputMode="tel" /></div>
         <div><label className="label" htmlFor="co-website">Website</label><input id="co-website" className="input" value={form.website} disabled={!canManage} onChange={set('website')} /></div>
         <div className="flex items-center gap-6 text-sm">
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.isClient} disabled={!canManage || company.isInternal} onChange={set('isClient')} /> Client</label>

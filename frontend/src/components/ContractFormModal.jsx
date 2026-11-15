@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import api, { errMessage } from '../api/api';
 import Modal from './Modal';
+import { formatPhone } from '../utils/formatPhone';
 import { useCompanySummary } from '../context/CompanyContext';
 import CompanyPicker from './companies/CompanyPicker';
 import VendorPicker from './companies/VendorPicker';
@@ -31,6 +32,7 @@ export default function ContractFormModal({ contract, departments, onClose, onSa
     if (!contract) return DEFAULT_FORM;
     const f = { ...DEFAULT_FORM };
     Object.keys(f).forEach((k) => { if (contract[k] !== undefined && contract[k] !== null) f[k] = contract[k]; });
+    f.contactPhone = formatPhone(f.contactPhone);
     return f;
   });
   const { multiCompany } = useCompanySummary();
@@ -147,7 +149,7 @@ export default function ContractFormModal({ contract, departments, onClose, onSa
             </div>
             <div>
               <Label>Phone</Label>
-              <input className="input" style={fieldStyle} value={form.contactPhone} onChange={set('contactPhone')} />
+              <input className="input" style={fieldStyle} value={form.contactPhone} onChange={(e) => setForm((f) => ({ ...f, contactPhone: formatPhone(e.target.value) }))} placeholder="(555) 123-4567" inputMode="tel" />
             </div>
           </div>
         </div>

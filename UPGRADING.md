@@ -10,6 +10,16 @@ backend start.
 
 ## Unreleased
 
+### Phone numbers
+
+Every phone number in PRISM (users, contacts, companies, sites, contracts
+and devices) is shown and typed as **(979) 277-6200**, and stored as its 10
+digits. A number typed with a leading `+1` keeps its 10 digits. Companies,
+sites and contracts now refuse a number that isn't 10 digits, as users and
+contacts already did. **Database:** migration 094 puts numbers already saved
+as `(979) 277-6200`, `979-277-6200` or `+1 979 277 6200` into that form; any
+other number (an extension, a number from abroad) is left as it was.
+
 ### Company settings (CS)
 
 Your own company and your customers are now clearly apart. **Settings › Your

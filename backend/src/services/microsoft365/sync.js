@@ -15,6 +15,7 @@
 // When any group could not be read (consent withdrawn, an outage), the member
 // list is incomplete, so nobody is made inactive for being missing from it.
 const { Op } = require('sequelize');
+const { normalizePhoneLenient } = require('../../utils/phone');
 const { Company, Contact } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -54,7 +55,8 @@ function fieldsFrom(user, contact) {
   };
   const email = emailOf(user);
   if (email) fields.email = email;
-  if (fields.phone) fields.phone = String(fields.phone).slice(0, 50);
+  // Stored as 10 digits like every phone; one Microsoft can't give that way is left as it was.
+  if (fields.phone) fields.phone = normalizePhoneLenient(fields.phone) || contact.phone || null;
   return fields;
 }
 

@@ -91,13 +91,13 @@ it('links by email and by AD GUID, never creates a contact, and reads every page
 it('updates name, email, phone (business, else mobile), job title and department name', async () => {
   const c3 = await contact({ email: 'old3@tenant.test', msObjectId: uid(3) });
   const c4 = await contact({ email: 'old4@tenant.test', msObjectId: uid(4), phone: '111' });
-  Object.assign(ms.tenants[TENANT].users[uid(3)], { businessPhones: ['+1 555 0100'], mobilePhone: '+1 555 0199', department: 'Front Desk', jobTitle: 'Receptionist' });
-  Object.assign(ms.tenants[TENANT].users[uid(4)], { mobilePhone: '+1 555 0400' });
+  Object.assign(ms.tenants[TENANT].users[uid(3)], { businessPhones: ['+1 979 555 0100'], mobilePhone: '+1 979 555 0199', department: 'Front Desk', jobTitle: 'Receptionist' });
+  Object.assign(ms.tenants[TENANT].users[uid(4)], { mobilePhone: '+1 979 555 0400' });
   const result = await syncCompany(company.id);
   expect(await reload(c3)).toMatchObject({
-    firstName: 'Person', lastName: '3', displayName: 'Person 3', email: 'person3@tenant.test', phone: '+1 555 0100', jobTitle: 'Receptionist', msDepartmentName: 'Front Desk',
+    firstName: 'Person', lastName: '3', displayName: 'Person 3', email: 'person3@tenant.test', phone: '9795550100', jobTitle: 'Receptionist', msDepartmentName: 'Front Desk',
   });
-  expect((await reload(c4)).phone).toBe('+1 555 0400');
+  expect((await reload(c4)).phone).toBe('9795550400');
   expect(result.updated).toBe(2);
   // Nothing changed: nothing updated.
   expect((await syncCompany(company.id)).updated).toBe(0);

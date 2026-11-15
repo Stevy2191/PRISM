@@ -5,6 +5,7 @@
 // receives a partial update.
 import { useEffect, useState } from 'react';
 import api from '../../api/api';
+import { formatPhone } from '../../utils/formatPhone';
 import Field from '../ui/Field';
 import VendorPicker from '../companies/VendorPicker';
 
@@ -71,7 +72,7 @@ export default function DeviceFields({ value, onChange, mdms, columns = 2 }) {
         )}
         {value.hasCellular && (
           <Field label="Phone number" hint="Leave empty for a data-only line.">
-            <input className={`${inputClass} num`} inputMode="tel" value={value.phoneNumber || ''} onChange={(e) => onChange({ phoneNumber: e.target.value })} />
+            <input className={`${inputClass} num`} inputMode="tel" value={formatPhone(value.phoneNumber || '')} onChange={(e) => onChange({ phoneNumber: formatPhone(e.target.value) })} placeholder="(555) 123-4567" />
           </Field>
         )}
         {value.hasCellular && (

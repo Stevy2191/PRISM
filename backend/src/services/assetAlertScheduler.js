@@ -5,6 +5,7 @@
 // csatScheduler.js/workflowScheduler.js — single backend instance, no
 // Redis/cron framework, plain setInterval polling.
 const { Op } = require('sequelize');
+const { formatPhone } = require('../utils/phone');
 const {
   Ticket, Asset, AssetActivity, AssetTicket, SystemSettings,
   License, LicenseTicket, LicenseActivity,
@@ -194,7 +195,7 @@ async function checkContractRenewals() {
     const costLine = contract.annualCost !== null ? `$${Number(contract.annualCost).toLocaleString()}` : 'not set';
     // eslint-disable-next-line no-await-in-loop
     const assetsCoveredCount = await ContractAsset.count({ where: { contractId: contract.id } });
-    const contactLine = [contract.contactPerson, contract.contactEmail, contract.contactPhone].filter(Boolean).join(' / ') || 'not set';
+    const contactLine = [contract.contactPerson, contract.contactEmail, formatPhone(contract.contactPhone)].filter(Boolean).join(' / ') || 'not set';
 
     // eslint-disable-next-line no-await-in-loop
     const ticket = await Ticket.create({

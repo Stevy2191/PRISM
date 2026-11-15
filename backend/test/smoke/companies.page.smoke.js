@@ -66,3 +66,21 @@ it('company status shows as a chip in the list, and a company page has a breadcr
   await page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Companies' }).click();
   await page.waitForURL(/\/companies$/);
 });
+
+it('a phone number is shown and typed as (XXX) XXX-XXXX, and stored as 10 digits', async () => {
+  const admin = await makeAdmin();
+  const acme = await makeCompany(admin, { name: 'Acme', phone: '9792776200' });
+  const page = await smoke.pageAs('admin');
+  await page.goto(`/companies/${acme.id}`);
+  await page.getByTestId('company-setup').getByText('(979) 277-6200').waitFor();
+  await openCompanyTab(page, 'Setup', 'Details');
+  const phone = page.getByLabel('Phone');
+  expect(await phone.inputValue()).toBe('(979) 277-6200');
+  await phone.fill('');
+  await phone.pressSequentially('9795550100');
+  expect(await phone.inputValue()).toBe('(979) 555-0100');
+  const saved = page.waitForResponse((r) => r.url().endsWith(`/companies/${acme.id}`) && r.request().method() === 'PATCH');
+  await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+  expect((await saved).status()).toBe(200);
+  expect((await models.Company.findByPk(acme.id)).phone).toBe('9795550100');
+});

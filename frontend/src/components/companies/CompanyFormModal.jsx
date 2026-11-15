@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Notice from '../ui/Notice';
 import api, { errMessage } from '../../api/api';
 import Modal from '../Modal';
+import { formatPhone } from '../../utils/formatPhone';
 
 // Creates a company: a client, a vendor, or both.
 export default function CompanyFormModal({ onClose, onSaved }) {
@@ -40,7 +41,7 @@ export default function CompanyFormModal({ onClose, onSaved }) {
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.isVendor} onChange={set('isVendor')} /> Vendor</label>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div><label className="label" htmlFor="company-phone">Phone</label><input id="company-phone" className="input" value={form.phone} onChange={set('phone')} /></div>
+          <div><label className="label" htmlFor="company-phone">Phone</label><input id="company-phone" className="input" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))} placeholder="(555) 123-4567" inputMode="tel" /></div>
           <div><label className="label" htmlFor="company-website">Website</label><input id="company-website" className="input" value={form.website} onChange={set('website')} placeholder="https://" /></div>
         </div>
         <div className="flex justify-end gap-2">

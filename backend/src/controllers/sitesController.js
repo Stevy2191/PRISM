@@ -1,6 +1,7 @@
 // A company's sites (physical locations). Reached only through their own
 // company, which the caller must be able to reach.
 const { Op, fn, col } = require('sequelize');
+const { normalizePhone } = require('../utils/phone');
 const { Site, sequelize } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -15,7 +16,6 @@ const TEXT_FIELDS = {
   region: [100, 'Region'],
   postalCode: [20, 'Postal code'],
   country: [100, 'Country'],
-  phone: [50, 'Phone'],
 };
 
 function readFields(body, isCreate) {
@@ -33,6 +33,7 @@ function readFields(body, isCreate) {
       out[field] = value || null;
     }
   }
+  if (body.phone !== undefined) out.phone = normalizePhone(body.phone);
   if (body.notes !== undefined) out.notes = body.notes || null;
   if (body.status !== undefined) {
     if (!['active', 'inactive'].includes(body.status)) throw new ApiError(400, 'Status must be active or inactive', 'VALIDATION_ERROR');
