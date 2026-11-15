@@ -1,6 +1,7 @@
 const { resetData, closeDb, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeOwnTier, makeTicket, freezeClock, advanceClock, unfreezeClock,
+  setEverySla, slaRowOf, internalCompany,
 } = require('./fixtures');
 const { runSlaPass } = require('../../src/services/sla/slaScheduler');
 
@@ -8,7 +9,7 @@ const { runSlaPass } = require('../../src/services/sla/slaScheduler');
 // dashboard's "SLA at risk" panel (sub-project 4). All scoped like the rest
 // of the ticket views: a filter can only narrow what the caller sees.
 
-const { SlaPolicy, TicketSla, TicketStatus } = models;
+const { TicketSla, TicketStatus } = models;
 const T0 = '2026-03-09T15:00:00.000Z';
 const MIN = 60000;
 
@@ -24,15 +25,15 @@ beforeEach(async () => {
   await resetData();
   w = await makeWorld();
   tech = await makeTech('tech', w.deptA.id);
-  std = await SlaPolicy.findOne({ where: { isDefault: true } });
+  std = await slaRowOf((await internalCompany()).id);
   // medium: response 10, resolution 100, warn at 50%; high: response 100, resolution 200
-  expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({
+  await setEverySla(w.admin, {
     warnAtPercent: 50,
     targets: [
       { ticketType: 'request', priority: 'medium', responseMinutes: 10, resolutionMinutes: 100 },
       { ticketType: 'request', priority: 'high', responseMinutes: 100, resolutionMinutes: 200 },
     ],
-  }));
+  });
   freezeClock(T0);
 });
 afterEach(unfreezeClock);
@@ -46,7 +47,7 @@ describe('ticket responses', () => {
     const t = await newTicket();
     advanceClock(6 * MIN);
     const { ticket } = expectOk(await w.admin.agent.get(`${API}/tickets/${t.id}`));
-    expect(ticket.sla.policy).toEqual({ id: std.id, name: 'Standard' });
+    expect(ticket.sla.policy.id).toBe(std.id);
     expect(ticket.sla.clocks.assign.state).toBe('untracked');
     expect(ticket.sla.clocks.response).toMatchObject({ state: 'running', targetMinutes: 10, atRisk: true });
     expect(ticket.sla.clocks.resolution).toMatchObject({ state: 'running', atRisk: false });

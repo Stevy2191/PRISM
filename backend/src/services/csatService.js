@@ -9,7 +9,7 @@
 // unhappy "on the contact's behalf") — this is the real thing, a token-based
 // link a contact clicks themselves, no login required.
 const crypto = require('crypto');
-const { CsatSurvey, Contact } = require('../models');
+const { CsatSurvey, Contact, Company } = require('../models');
 const { getAllSettings } = require('../controllers/settingsController');
 
 // No existing "public app URL" setting/env var in this codebase (every other
@@ -26,9 +26,17 @@ function surveyBaseUrl() {
 // closed-behavior status (see ticketsController.js's update handler, same
 // spot workflow rules' 'ticket_closed' trigger fires). Returns the created
 // (or pre-existing) CsatSurvey row, or null if a survey shouldn't be sent.
+// Whether a company's closed tickets get a survey.
+async function surveysOn(companyId) {
+  if (!companyId) return false;
+  const company = await Company.findByPk(companyId, { attributes: ['id', 'csatEnabled'] });
+  return !!company && company.csatEnabled === true;
+}
+
 async function maybeCreateCsatSurvey(ticket) {
+  // Each company decides (CS): its page, Setup › Surveys.
+  if (!(await surveysOn(ticket.companyId))) return null;
   const settings = await getAllSettings();
-  if (settings['csat.enabled'] !== 'true') return null;
   if (!ticket.contactId) return null;
 
   const contact = await Contact.findByPk(ticket.contactId);
@@ -77,4 +85,6 @@ async function buildSurveyEmail({
   return { ...(await render('contact_csat_survey', context)), surveyUrl };
 }
 
-module.exports = { maybeCreateCsatSurvey, buildSurveyEmail, surveyBaseUrl };
+module.exports = {
+  maybeCreateCsatSurvey, buildSurveyEmail, surveyBaseUrl, surveysOn,
+};

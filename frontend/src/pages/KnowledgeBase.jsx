@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  IconSearch, IconPlus, IconWorld, IconLock, IconUsers, IconFolder, IconDots, IconTrash, IconPencil, IconFileText,
+  IconSearch, IconPlus, IconLock, IconUsers, IconFolder, IconDots, IconTrash, IconPencil, IconFileText,
   IconAdjustmentsHorizontal,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
@@ -201,9 +201,6 @@ export default function KnowledgeBase() {
         sub={loading ? undefined : `${pager.total.toLocaleString()} article${pager.total === 1 ? '' : 's'}`}
         actions={(
           <>
-            <a href="/kb" target="_blank" rel="noopener noreferrer" className="btn-secondary h-10 text-sm max-sm:min-h-[44px]">
-              <IconWorld size={16} aria-hidden="true" /> View portal
-            </a>
             {canManage && (
               <Link to="/knowledge/new" className="btn-primary h-10 text-sm max-lg:hidden"><IconPlus size={16} aria-hidden="true" /> New article</Link>
             )}

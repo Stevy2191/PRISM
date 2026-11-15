@@ -10,16 +10,15 @@
 export const SECTIONS = [
   { name: 'You', slug: 'you', icon: 'user', desc: 'Your own preferences.' },
   // Owner, 2026-11-14: Settings holds what applies everywhere; anything set
-  // for one company (departments, ticket categories, SLA policy, sites,
-  // devices) is on that company's page, your own company's included. These
-  // two sections say which is which and lead there.
-  { name: 'Your company', slug: 'your-company', icon: 'building', desc: 'Your own company: its profile, departments, sites, categories and devices, on one page.' },
+  // for one company (departments, sites, categories, SLA, support hours and
+  // holidays, portal, surveys, devices) is on that company's page, your own
+  // company's included. These two sections say which is which and lead there.
+  { name: 'Your company', slug: 'your-company', icon: 'building', desc: 'Your own company: profile and sign-in page, departments, sites, support hours and holidays, SLA, categories, portal and devices, on one page.' },
   { name: 'Customers', slug: 'customers', icon: 'briefcase', desc: 'The companies you support. Each one\'s settings are on its own page.' },
   { name: 'People & access', slug: 'people-access', icon: 'users', desc: 'Accounts, teams and what each role can do.' },
   { name: 'Service desk', slug: 'service-desk', icon: 'ticket', desc: 'How tickets work, from statuses to the client portal.' },
   { name: 'Sign-in & email', slug: 'sign-in-email', icon: 'mail', desc: 'How people sign in and how mail comes and goes.' },
-  { name: 'Hours & SLAs', slug: 'hours-slas', icon: 'clock', desc: 'When you work and how fast you answer.' },
-  { name: 'Workload', slug: 'workload', icon: 'chart', desc: 'Capacity: the hours people work and days off.' },
+  { name: 'Hours & SLAs', slug: 'hours-slas', icon: 'clock', desc: 'What a new company starts with, and the hours your staff work.' },
   { name: 'Time & work', slug: 'time-work', icon: 'stopwatch', desc: 'Time entries and kinds of work.' },
   { name: 'Projects', slug: 'projects', icon: 'folder', desc: 'Starting points for new projects.' },
   { name: 'Assets', slug: 'assets', icon: 'box', desc: 'Equipment, licenses and contracts.' },
@@ -57,17 +56,16 @@ export const PAGES = [
   { id: 'checklists', group: 'Service desk', name: 'Checklists', desc: 'Steps for tickets, and bundles that add several at once', keywords: ['checklist', 'form', 'playbook', 'bundle', 'steps', 'onboarding', 'offboarding', 'termination', 'new account', 'check-in', 'check-out', 'device'], path: '/settings/checklists', access: { permission: ['settings.manage_playbooks'] }, width: 'wide', sub: [{ id: 'checklist-new', path: '/settings/checklists/new' }, { id: 'bundle-new', path: '/settings/checklists/bundles/new' }, { id: 'bundle-edit', path: '/settings/checklists/bundles/:id' }, { id: 'checklist-edit', path: '/settings/checklists/:id' }] },
   { id: 'workflow-rules', group: 'Service desk', name: 'Workflow rules', desc: 'Automatic actions on tickets', keywords: ['automation', 'trigger', 'action'], path: '/settings/workflow-rules', access: SYSTEM, width: 'wide', sub: [{ id: 'workflow-rule-new', path: '/settings/workflow-rules/new' }, { id: 'workflow-rule-edit', path: '/settings/workflow-rules/:id' }] },
   { id: 'notifications', group: 'Service desk', name: 'Notifications', desc: 'Which events notify people', keywords: ['bell', 'alert', 'notify'], path: '/settings/notifications', access: SYSTEM, width: 'narrow' },
-  { id: 'client-portal', group: 'Customers', name: 'Client portal', desc: 'Where contacts raise and follow tickets', keywords: ['portal', 'customer portal', 'self service', 'contact sign in', 'help center'], path: '/settings/client-portal', access: SYSTEM, width: 'narrow' },
-  { id: 'customer-happiness', group: 'Customers', name: 'Customer happiness', desc: 'Satisfaction surveys and scores', keywords: ['csat', 'survey', 'rating', 'feedback'], path: '/settings/customer-happiness', access: SYSTEM, width: 'narrow' },
+  { id: 'client-portal', group: 'Customers', name: 'Client portal', desc: 'The Microsoft sign-in app, and who may manage portal access. Each company turns its own portal on, on its page', keywords: ['portal', 'customer portal', 'self service', 'contact sign in', 'help center'], path: '/settings/client-portal', access: SYSTEM, width: 'narrow' },
+  { id: 'customer-happiness', group: 'Customers', name: 'Satisfaction surveys', desc: 'The question, when it is sent, how long the link works. On or off is on each company\'s page', keywords: ['csat', 'survey', 'rating', 'feedback'], path: '/settings/customer-happiness', access: SYSTEM, width: 'narrow' },
   // Projects
   { id: 'project-templates', group: 'Projects', name: 'Project templates', desc: 'Phases and tasks to start new projects from', keywords: ['template', 'project', 'phase', 'task', 'plan', 'copy'], path: '/settings/project-templates', access: { permission: ['projects.manage_templates'] }, width: 'wide', sub: [{ id: 'project-template-new', path: '/settings/project-templates/new' }, { id: 'project-template-edit', path: '/settings/project-templates/:id' }] },
   // Workload
-  { id: 'work-hours', group: 'Workload', name: 'Staff hours', desc: 'The week your people work, ticket size and each person\'s own hours', keywords: ['hours', 'capacity', 'part time', 'schedule', 'workload', 'ticket size', 'estimate'], path: '/settings/work-hours', access: { permission: ['settings.manage_business_hours'] }, width: 'wide' },
-  { id: 'holidays', group: 'Workload', name: 'Holidays', desc: 'Days off for the SLA clock and workload', keywords: ['holiday', 'closed', 'day off', 'sla', 'workload'], path: '/settings/holidays', access: { permission: ['settings.manage_business_hours'] }, width: 'narrow' },
   // Hours & SLAs
-  { id: 'slas', group: 'Hours & SLAs', name: 'SLAs', desc: 'Assignment, response and resolution targets', keywords: ['sla', 'response time', 'resolution', 'escalation', 'assignment', 'breach'], path: '/settings/slas', access: SYSTEM, width: 'wide' },
-  { id: 'business-hours', group: 'Hours & SLAs', name: 'Business hours', desc: 'Work schedules', keywords: ['hours', 'schedule', 'open'], path: '/settings/business-hours', access: { permission: ['settings.manage_business_hours'] }, width: 'narrow' },
   // Time & work
+  // CS: each company's SLA, support hours and holidays are on its page.
+  { id: 'starting-values', group: 'Hours & SLAs', name: 'Starting values for new companies', desc: 'The SLA targets, support hours and holidays a new company starts with', keywords: ['sla', 'targets', 'response', 'resolution', 'business hours', 'support hours', 'holidays', 'default'], path: '/settings/starting-values', access: SYSTEM, width: 'wide' },
+  { id: 'work-hours', group: 'Hours & SLAs', name: 'Staff hours', desc: 'The week your people work, ticket size and each person\'s own hours', keywords: ['hours', 'capacity', 'part time', 'schedule', 'workload', 'ticket size', 'estimate'], path: '/settings/work-hours', access: { permission: ['settings.manage_business_hours'] }, width: 'wide' },
   { id: 'time-tracking', group: 'Time & work', name: 'Time tracking', desc: 'The longest time entry', keywords: ['timer', 'time entry', 'automatic', 'minimum', 'longest'], path: '/settings/time-tracking', access: SYSTEM, width: 'narrow' },
   { id: 'work-types', group: 'Time & work', name: 'Work types', desc: 'Kinds of work and billable defaults', keywords: ['billable', 'work type', 'labor'], path: '/settings/work-types', access: SYSTEM, width: 'narrow' },
   // Assets

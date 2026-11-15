@@ -16,8 +16,6 @@ module.exports = (sequelize) => {
       website: { type: DataTypes.STRING(255), allowNull: true },
       notes: { type: DataTypes.TEXT, allowNull: true },
       accountManagerId: { type: DataTypes.INTEGER, allowNull: true },
-      // null = the default SLA policy.
-      slaPolicyId: { type: DataTypes.INTEGER, allowNull: true },
       // Microsoft 365 (client portal 7b). One tenant links to one company.
       msTenantId: { type: DataTypes.STRING(36), allowNull: true, unique: true },
       // When the tenant's admin approved PRISM's app (admin consent).
@@ -31,6 +29,22 @@ module.exports = (sequelize) => {
       },
       // { at, durationMs, updated, deactivated, newDetected, errors: [string] }
       msLastSync: { type: DataTypes.JSON, allowNull: true },
+      // Its own portal (CS): /portal/<portalSlug>, open while switched on and
+      // the company is active. Contacts of other companies can't sign in there.
+      portalEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      portalSlug: { type: DataTypes.STRING(50), allowNull: true, unique: true },
+      // Links it had before a rename: they keep working. Stored NULL reads as [].
+      portalPreviousSlugs: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        get() {
+          const v = this.getDataValue('portalPreviousSlugs');
+          if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+          return v ?? [];
+        },
+      },
+      // Satisfaction surveys for its closed tickets.
+      csatEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     },
     { sequelize, modelName: 'Company', tableName: 'Companies', timestamps: true }
   );

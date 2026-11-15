@@ -1,14 +1,16 @@
 const { resetData, closeDb, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeTicket, makeCompany, makeContact, freezeClock, advanceClock, unfreezeClock,
+  setSla, setEverySla, slaRowOf, internalCompany,
 } = require('./fixtures');
 
-// SLA clocks (sub-project 4) on real ticket events. The Standard policy has
-// no schedule, so minutes are wall-clock minutes. Standard medium targets:
-// response 480, resolution 1440; tests add an assign target where needed.
+// SLA clocks (sub-project 4) on real ticket events. Each company has its own
+// SLA (CS); these tickets are your company's, whose SLA starts around the
+// clock, so minutes are wall-clock minutes. Medium targets: response 480,
+// resolution 1440; tests add an assign target where needed.
 
 const {
-  SlaPolicy, TicketSla, Comment, TicketStatus, WorkflowRule, WorkflowAction,
+  TicketSla, Comment, TicketStatus, WorkflowRule, WorkflowAction,
 } = models;
 const T0 = '2026-03-09T15:00:00.000Z';
 const at = (min) => new Date(new Date(T0).getTime() + min * 60000).toISOString();
@@ -20,7 +22,7 @@ let tech;
 let std;
 const sla = (ticketId) => TicketSla.findOne({ where: { ticketId } });
 const patchTicket = async (id, body) => expectOk(await w.admin.agent.patch(`${API}/tickets/${id}`).send(body));
-const setStandard = async (targets) => expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({ targets }));
+const setStandard = (targets) => setEverySla(w.admin, { targets });
 const newTicket = (fields = {}) => makeTicket(w.admin.agent, {
   title: 'Printer', contactId: w.contact.id, departmentId: w.deptA.id, priority: 'medium', ...fields,
 });
@@ -29,7 +31,7 @@ beforeEach(async () => {
   await resetData();
   w = await makeWorld();
   tech = await makeTech('tech', w.deptA.id);
-  std = await SlaPolicy.findOne({ where: { isDefault: true } });
+  std = await slaRowOf((await internalCompany()).id);
   await setStandard([
     { ticketType: 'request', priority: 'medium', assignMinutes: 30, resolutionMinutes: 1440 },
     { ticketType: 'request', priority: 'high', resolutionMinutes: 480 },
@@ -43,7 +45,7 @@ afterAll(async () => {
 });
 
 describe('starting clocks', () => {
-  it('a new unassigned ticket starts all three clocks on the Standard policy', async () => {
+  it("a new unassigned ticket starts all three clocks on your company's SLA", async () => {
     const t = await newTicket();
     const s = await sla(t.id);
     expect([s.slaPolicyId, s.priority]).toEqual([std.id, 'medium']);
@@ -57,15 +59,15 @@ describe('starting clocks', () => {
     expect(iso(s.responseRunningSince)).toBe(T0);
   });
 
-  it('a company with its own policy gets it', async () => {
+  it("a customer's ticket runs on that company's own SLA", async () => {
     const acme = await makeCompany(w.admin);
     const contact = await makeContact(w.admin, { companyId: acme.id });
-    const gold = expectOk(await w.admin.agent.post(`${API}/sla-policies`).send({
-      name: 'Gold', companyIds: [acme.id], targets: [{ ticketType: 'request', priority: 'medium', responseMinutes: 15 }],
-    }), 201).policy;
+    await setSla(w.admin, acme.id, { targets: [{ ticketType: 'request', priority: 'medium', responseMinutes: 15, resolutionMinutes: null }] });
     const t = await makeTicket(w.admin.agent, { title: 'Acme', contactId: contact.id, priority: 'medium' });
     const s = await sla(t.id);
-    expect([s.slaPolicyId, iso(s.responseDueAt), s.resolutionTargetMinutes]).toEqual([gold.id, at(15), null]);
+    expect([s.slaPolicyId, iso(s.responseDueAt), s.resolutionTargetMinutes]).toEqual([(await slaRowOf(acme.id)).id, at(15), null]);
+    // Your company's targets did not change.
+    expect((await sla((await newTicket()).id)).responseTargetMinutes).toBe(480);
   });
 });
 
@@ -175,14 +177,14 @@ describe('changing statuses that tickets are in', () => {
   });
 });
 
-describe('unusable business-hours schedules', () => {
-  afterEach(async () => { await models.BusinessHours.destroy({ where: {} }); });
+describe('unusable support hours', () => {
   const closedWeek = () => Object.fromEntries(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     .map((d) => [d, { start: '09:00', end: '17:00', enabled: false }]));
 
   it('a schedule with no open time counts every hour instead of failing ticket creation', async () => {
-    const bh = await models.BusinessHours.create({ name: 'Closed', timezone: 'UTC', schedule: closedWeek() });
-    await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({ businessHoursId: bh.id });
+    // The API refuses a week with no open day, so this is set underneath it.
+    await std.update({ is24x7: false, schedule: closedWeek() });
+    require('../../src/services/sla/calendar').invalidate(); // eslint-disable-line global-require
     const t = await newTicket();
     expect(iso((await sla(t.id)).responseDueAt)).toBe(at(480));
   });
@@ -190,22 +192,24 @@ describe('unusable business-hours schedules', () => {
   it('a schedule with an unknown time zone counts every hour too', async () => {
     const week = closedWeek();
     week.monday.enabled = true;
-    const bh = await models.BusinessHours.create({ name: 'Odd', timezone: 'Mars/Olympus', schedule: week });
-    await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({ businessHoursId: bh.id });
+    await std.update({ is24x7: false, timezone: 'Mars/Olympus', schedule: week });
+    require('../../src/services/sla/calendar').invalidate(); // eslint-disable-line global-require
     const t = await newTicket();
     expect(iso((await sla(t.id)).responseDueAt)).toBe(at(480));
   });
 
-  it('the business-hours API refuses an unknown time zone or a malformed time', async () => {
+  it('the SLA API refuses an unknown time zone, a malformed time or a closed week', async () => {
     const week = closedWeek();
-    const post = (b) => w.admin.agent.post(`${API}/business-hours`).send({ name: 'X', schedule: week, ...b });
-    expect((await post({ timezone: 'Mars/Olympus' })).status).toBe(400);
-    week.monday = { start: 9, end: '17:00', enabled: true };
-    expect((await post({ timezone: 'UTC', schedule: week })).status).toBe(400);
-    week.monday = { start: '09:00', end: '25:00', enabled: true };
-    expect((await post({ timezone: 'UTC', schedule: week })).status).toBe(400);
+    const put = (b) => w.admin.agent.put(`${API}/companies/${std.companyId}/sla`).send({ is24x7: false, schedule: week, ...b });
+    expect((await put({})).status).toBe(400);
     week.monday = { start: '09:00', end: '17:00', enabled: true };
-    expect((await post({ timezone: 'UTC', schedule: week })).status).toBe(201);
+    expect((await put({ timezone: 'Mars/Olympus' })).status).toBe(400);
+    week.monday = { start: 9, end: '17:00', enabled: true };
+    expect((await put({ timezone: 'UTC' })).status).toBe(400);
+    week.monday = { start: '09:00', end: '25:00', enabled: true };
+    expect((await put({ timezone: 'UTC' })).status).toBe(400);
+    week.monday = { start: '09:00', end: '17:00', enabled: true };
+    expect((await put({ timezone: 'UTC' })).status).toBe(200);
   });
 });
 

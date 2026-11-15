@@ -47,7 +47,7 @@ it('a new company opens on its own page', async () => {
   await page.getByRole('button', { name: /New company/ }).click();
   await page.getByLabel('Name').fill('Bolt Logistics');
   await page.getByRole('button', { name: 'Create company' }).click();
-  await page.waitForURL(/\/companies\/\d+$/);
+  await page.waitForURL(/\/companies\/\d+\?created=1$/);
   await page.getByRole('heading', { level: 1, name: 'Bolt Logistics' }).waitFor();
 });
 

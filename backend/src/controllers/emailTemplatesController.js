@@ -5,7 +5,7 @@ const { EmailTemplate } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { CATALOG } = require('../services/email/catalog');
-const { getTemplate, render } = require('../services/email/templates');
+const { getTemplate, render, decidedBy } = require('../services/email/templates');
 const { sanitizeRichHtml, escapeHtml } = require('../utils/richHtml');
 const { surveyBaseUrl } = require('../services/csatService');
 
@@ -30,7 +30,9 @@ function validate(body) {
   return { subject: subject.trim(), bodyHtml: sanitizeRichHtml(bodyHtml), enabled };
 }
 
-const withMeta = (key, tpl) => ({ ...tpl, name: CATALOG[key].name, audience: CATALOG[key].audience, placeholders: CATALOG[key].placeholders });
+const withMeta = (key, tpl) => ({
+  ...tpl, name: CATALOG[key].name, audience: CATALOG[key].audience, decidedBy: decidedBy(key), placeholders: CATALOG[key].placeholders,
+});
 
 // GET /settings/email-templates
 const list = asyncHandler(async (req, res) => {
@@ -40,7 +42,8 @@ const list = asyncHandler(async (req, res) => {
     key,
     name: def.name,
     audience: def.audience,
-    enabled: def.audience === 'staff' ? true : (saved.has(key) ? !!saved.get(key).enabled : def.defaultEnabled),
+    decidedBy: decidedBy(key),
+    enabled: decidedBy(key) ? true : (saved.has(key) ? !!saved.get(key).enabled : def.defaultEnabled),
     isDefault: !saved.has(key),
   }));
   res.json({ templates });
@@ -61,8 +64,8 @@ const update = asyncHandler(async (req, res) => {
   const values = {
     subject,
     bodyHtml,
-    // A staff notification's template has no switch of its own.
-    enabled: def.audience === 'staff' ? true : (enabled !== undefined ? enabled : (existing ? existing.enabled : def.defaultEnabled)),
+    // Staff emails and the survey have no switch of their own.
+    enabled: decidedBy(key) ? true : (enabled !== undefined ? enabled : (existing ? existing.enabled : def.defaultEnabled)),
     updatedById: req.user.id,
   };
   if (existing) await existing.update(values);

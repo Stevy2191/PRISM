@@ -6,10 +6,12 @@ const { makeWorld, makeTicket, makeCompany } = require('./fixtures');
 const playbooksMigration = require('../../migrations/20260101000080-playbooks');
 // 082 (PB2) adds columns to 080's tables, so it goes down first and back up after.
 const checklistsMigration = require('../../migrations/20260101000082-checklists-simpler');
+// CS: a column on Playbooks, which 080's round trip recreates without it.
+const exceptMigration = require('../../migrations/20260101000093-bundle-except-companies');
 
 const migration = {
-  down: async (...args) => { await checklistsMigration.down(...args); await playbooksMigration.down(...args); },
-  up: async (...args) => { await playbooksMigration.up(...args); await checklistsMigration.up(...args); },
+  down: async (...args) => { await exceptMigration.down(...args); await checklistsMigration.down(...args); await playbooksMigration.down(...args); },
+  up: async (...args) => { await playbooksMigration.up(...args); await checklistsMigration.up(...args); await exceptMigration.up(...args); },
 };
 
 // Sub-project PB, task 1: MDMs, managed and cellular devices, the two new

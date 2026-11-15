@@ -207,7 +207,7 @@ describe('Settings home', () => {
     await page.waitForURL(/\/settings\?section=sign-in-email$/);
     // Search covers every section.
     await menu(page).getByLabel('Find a setting').fill('sla');
-    await menu(page).getByRole('link', { name: /SLAs/ }).first().waitFor();
+    await menu(page).getByRole('link', { name: /Starting values for new companies/ }).first().waitFor();
     page = await as('sysadmin2');
     await page.goto('/settings?section=sign-in-email');
     await page.getByRole('main').getByRole('link', { name: /Email templates What PRISM emails say/ }).waitFor();
@@ -233,8 +233,8 @@ describe('Service desk and Hours & SLAs in the frame', () => {
       ['/settings/statuses', 'Statuses'], ['/settings/layouts', 'Custom fields'], ['/admin/blueprints', 'Ticket templates'],
       ['/settings/workflow-rules', 'Workflow rules'],
       ['/settings/workflow-rules/new', 'New workflow rule'], ['/settings/notifications', 'Notifications'],
-      ['/settings/customer-happiness', 'Customer happiness'], ['/settings/slas', 'SLAs'],
-      ['/settings/business-hours', 'Business hours'], ['/settings/holidays', 'Holidays'],
+      ['/settings/customer-happiness', 'Satisfaction surveys'],
+      ['/settings/starting-values', 'Starting values for new companies'], ['/settings/work-hours', 'Staff hours'],
     ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
   });
 
@@ -269,7 +269,7 @@ describe('the rest in the frame, and every page opens', () => {
     const sections = await page.getByRole('complementary', { name: 'Settings menu' }).locator('a[href^="/settings?section="]').evaluateAll(
       (as) => as.map((a) => a.getAttribute('href')),
     );
-    expect(sections.length).toBe(13);
+    expect(sections.length).toBe(12);
     const links = [];
     for (const href of sections) {
       await page.goto(href); // eslint-disable-line no-await-in-loop

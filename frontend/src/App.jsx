@@ -39,10 +39,9 @@ import NotFound from './pages/NotFound';
 
 // Settings hub + sections
 import SettingsHome from './pages/settings/SettingsHome';
+import StartingValues from './pages/settings/StartingValues';
 import YourCompany from './pages/settings/YourCompany';
 import SettingsStatuses from './pages/settings/Statuses';
-import SettingsBusinessHours from './pages/settings/BusinessHours';
-import SettingsHolidays from './pages/settings/Holidays';
 import SettingsWorkHours from './pages/settings/WorkHours';
 import Workload from './pages/workload/Workload';
 import SettingsTeams from './pages/settings/Teams';
@@ -60,7 +59,6 @@ import RecurringTicketEditor from './pages/settings/RecurringTicketEditor';
 import SettingsSingleSignOn from './pages/settings/SingleSignOn';
 import SettingsProjectTemplates from './pages/settings/ProjectTemplates';
 import ProjectTemplateEditor from './pages/settings/ProjectTemplateEditor';
-import SLAs from './pages/settings/SLAs';
 import Schedules from './pages/settings/Schedules';
 import SettingsImport from './pages/settings/Import';
 import SettingsExport from './pages/settings/Export';
@@ -132,7 +130,7 @@ const SETTINGS_COMPONENTS = {
   mdms: SettingsMdms,
   'project-templates': SettingsProjectTemplates, 'project-template-new': ProjectTemplateEditor, 'project-template-edit': ProjectTemplateEditor,
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
-  slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays, 'work-hours': SettingsWorkHours,
+  'starting-values': StartingValues, 'work-hours': SettingsWorkHours,
   'time-tracking': SettingsTimeTracking, 'work-types': SettingsWorkTypes,
   'asset-categories': SettingsAssetCategories, 'asset-alerts': SettingsAssetAlerts,
   'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory,
@@ -149,11 +147,6 @@ function settingsElement(id, access) {
     : page;
 }
 
-function KbRedirect() {
-  const { slug } = useParams();
-  return <Navigate to={`/portal/kb/a/${encodeURIComponent(slug)}`} replace />;
-}
-
 export default function App() {
   return (
     <Routes>
@@ -163,11 +156,9 @@ export default function App() {
       <Route path="/survey/:token" element={<SurveyPage />} />
       {/* An install link (8d): public; the install key is the credential. */}
       <Route path="/install/:key" element={<InstallPage />} />
-      {/* The client portal (contacts sign in there; its own session and frame). */}
+      {/* The client portal: /portal, and each company's at /portal/<slug>
+          (contacts sign in there; its own session and frame). */}
       <Route path="/portal/*" element={<PortalApp />} />
-      {/* The old public Help Center lives in the portal now, behind sign-in. */}
-      <Route path="/kb" element={<Navigate to="/portal/kb" replace />} />
-      <Route path="/kb/a/:slug" element={<KbRedirect />} />
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

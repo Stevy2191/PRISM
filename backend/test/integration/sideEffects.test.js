@@ -3,6 +3,7 @@ const { resetData, closeDb, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeManager, makeContact, makeTicket, makeProject, makeTask,
   makeSubtask, setSettings, freezeClock, advanceClock, unfreezeClock,
+  surveysOn,
 } = require('./fixtures');
 
 // Baseline for what ticket and project actions cause beyond their own
@@ -410,7 +411,8 @@ describe('CSAT surveys', () => {
 
   it('closing creates one pending survey, token hidden', async () => {
     freezeClock('2026-03-11T17:00:00Z');
-    await setSettings(w.admin, { 'csat.enabled': 'true', 'csat.sendDelayHours': '2' });
+    await surveysOn(w.admin);
+    await setSettings(w.admin, { 'csat.sendDelayHours': '2' });
     await setStatus('Request completed');
     const survey = await surveyOf();
     expect(survey).toEqual(expect.objectContaining({
@@ -420,7 +422,7 @@ describe('CSAT surveys', () => {
   });
 
   it('reopening and re-closing doesn\'t make a second survey', async () => {
-    await setSettings(w.admin, { 'csat.enabled': 'true' });
+    await surveysOn(w.admin);
     await setStatus('Request completed');
     const first = await surveyOf();
     await setStatus('Open');
@@ -429,7 +431,7 @@ describe('CSAT surveys', () => {
   });
 
   it('no survey for a contact without email', async () => {
-    await setSettings(w.admin, { 'csat.enabled': 'true' });
+    await surveysOn(w.admin);
     const quiet = await makeContact(w.admin, { firstName: 'Quiet', email: null });
     const q = await makeTicket(w.admin.agent, { title: 'Quiet', contactId: quiet.id });
     await setStatus('Request completed', q);

@@ -41,7 +41,9 @@ function blockMatches(block, ctx) {
 }
 
 // Whether a playbook is offered for a ticket of this company.
-const offeredFor = (playbook, companyId) => !Array.isArray(playbook.companyIds) || playbook.companyIds.includes(companyId);
+const listed = (ids, companyId) => Array.isArray(ids) && ids.map(Number).includes(Number(companyId));
+const offeredFor = (playbook, companyId) => (!Array.isArray(playbook.companyIds) || listed(playbook.companyIds, companyId))
+  && !listed(playbook.exceptCompanyIds, companyId);
 
 // → { forms: [{ blockIndex, formId, assetId }], uncovered: [asset] }
 // personDevices / ticketDevices: assets (with `device` when known). A device

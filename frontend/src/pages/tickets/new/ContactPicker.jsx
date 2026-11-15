@@ -22,7 +22,9 @@ import { BG, CARD_BG, BORDER, TEXT, MUTED, BLUE, fieldStyle } from '../theme';
 // ticket-submit validation ("Customer is required", since the contact
 // hasn't been created yet) while the contact POST was still in flight —
 // that's what looked like the page "resetting."
-export function ContactPicker({ selectedContact, onSelect }) {
+// companyId: only that company's contacts (a recurring ticket started from
+// a company's page, CS).
+export function ContactPicker({ selectedContact, onSelect, companyId: onlyCompany }) {
   const { multiCompany } = useCompanySummary();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -36,12 +38,12 @@ export function ContactPicker({ selectedContact, onSelect }) {
   useEffect(() => {
     if (!query.trim()) { setResults([]); return; }
     const t = setTimeout(() => {
-      api.get('/contacts', { params: { search: query.trim() } })
+      api.get('/contacts', { params: { search: query.trim(), ...(onlyCompany ? { companyId: onlyCompany } : {}) } })
         .then(({ data }) => setResults(data.contacts.slice(0, 8)))
         .catch(() => setResults([]));
     }, 250);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, onlyCompany]);
 
   useEffect(() => {
     function handleOutside(e) {

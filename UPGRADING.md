@@ -10,6 +10,58 @@ backend start.
 
 ## Unreleased
 
+### Company settings (CS)
+
+Your own company and your customers are now clearly apart. **Settings › Your
+company** is one page for your own organization: profile and staff sign-in
+page, departments, sites, categories, support hours, holidays and SLA,
+portal, surveys, devices, agent notices, and what applies to it. Customers are
+in **Companies**; each one's page has a **Setup** tab with everything for that
+customer, and a new company opens there with a setup list.
+
+**Each company has its own SLA.** Targets by ticket type and priority,
+support hours, time zone and holidays are set on the company's page (Setup ›
+SLA and hours). A new company starts with a copy of **Settings › Hours &
+SLAs › Starting values for new companies**; changing the starting values
+changes no existing company. A ticket's due dates use its company's hours,
+holidays and time zone. Workload counts your own company's holidays.
+
+**Each company has its own portal**, at `/portal/<its-name>`, turned on and
+off on its page (Setup › Portal), where you also see who can sign in, invite
+everyone at once, set its company admins and link Microsoft 365. Only that
+company's contacts can sign in there; anyone else is told "Invalid email or
+password". A sign-in is for that one company's portal. Turning a portal off,
+or making the company inactive, ends its sign-ins at once. Every email
+(invites, password resets, ticket replies) links to the person's own
+company's portal. The plain `/portal` address goes straight to your company's
+portal while you have no customers; once you do, it asks for the company's
+link and can email it to someone who lost theirs. A company's link can be
+renamed; the old one keeps working.
+
+**Surveys are on or off per company** (Setup › Surveys, with the last 90
+days' scores). The question, delay and expiry are in Settings › Satisfaction
+surveys, for every company.
+
+**What applies here** (Setup) lists the checklist bundles offered on the
+company's tickets, which you can turn on or off for that company, and the
+workflow rules, recurring tickets and custom fields that reach it, each
+linking to where it is edited.
+
+**One place for each setting:** each person sets their own timer in
+Preferences (Settings › Time tracking keeps the longest time entry);
+"Require a category" and "Require time before closing" are in Settings ›
+Ticket rules; whether staff get an email is decided in Notifications and by
+each person; incoming and outgoing email are one Email page; LDAP and
+directory sync are one Directory page.
+
+**Database:** migrations 091 (each company's own SLA, support hours,
+holidays and time zone; the starting values; tickets keep their clocks on
+their company's copy), 092 (each company's portal switch, link and survey
+switch; where the portal was on, companies with contacts who could sign in
+keep it on) and 093 (a bundle turned off for one company). They run on
+start; nothing to do. After upgrading, give each customer its portal link
+(Setup › Portal) in place of the plain `/portal` address.
+
 The PRISM agent for Windows (sub-project 8a) and macOS (8b). Every computer
 it's installed on becomes an Asset of its company and keeps its hardware,
 OS, disks, network, installed software and usual user current; people at

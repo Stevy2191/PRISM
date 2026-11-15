@@ -1,22 +1,47 @@
 const Sequelize = require('sequelize');
 const { resetData, closeDb, models, sequelize } = require('./helpers');
 const migration = require('../../migrations/20260101000061-sla-due-dates');
+// CS: 091 moved hours and holidays onto each company's SLA row; it is rolled
+// back for these cases and put back after.
+const companySla = require('../../migrations/20260101000091-company-sla');
 
 // SLA due dates (spec 2026-10-13 change): targets per ticket type ×
 // priority with units, no pausing statuses, a due date history and the
 // Adjust SLA due dates permission.
 
-const { SlaPolicy, SlaTarget, TicketSla } = models;
+const { SlaTarget, TicketSla } = models;
 const qi = () => sequelize.getQueryInterface();
 const tables = async () => (await qi().showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
 const select = (sql, replacements) => sequelize.query(sql, { type: Sequelize.QueryTypes.SELECT, replacements });
 
+// Raw read: the SlaPolicy model carries 091's columns.
+const defaultPolicy = async () => (await select('SELECT id FROM SlaPolicies WHERE isDefault = 1 ORDER BY id LIMIT 1'))[0];
+// A ticket and its SLA row, written raw: with 091 rolled back the Ticket
+// model's SLA hooks can't run. Call with 061 rolled back (no ticketType yet).
+async function rawTicket(title, sla) {
+  const [company] = await select('SELECT id FROM Companies WHERE isInternal = 1');
+  await sequelize.query("INSERT INTO Tickets (title, companyId, createdBy, status, type) VALUES (?, ?, 1, 'Open', 'incident')", { replacements: [title, company.id] });
+  const [ticket] = await select('SELECT id, type FROM Tickets WHERE title = ? ORDER BY id DESC LIMIT 1', [title]);
+  const std = await defaultPolicy();
+  const cols = Object.keys(sla);
+  await sequelize.query(
+    `INSERT INTO TicketSlas (ticketId, slaPolicyId, priority, createdAt, updatedAt${cols.map((c) => `, ${c}`).join('')})
+     VALUES (?, ?, 'medium', NOW(), NOW()${cols.map(() => ', ?').join('')})`,
+    { replacements: [ticket.id, std.id, ...cols.map((c) => sla[c])] },
+  );
+  return ticket;
+}
+
+beforeAll(async () => { await resetData(); await companySla.down(qi(), Sequelize); });
 beforeEach(resetData);
-afterAll(closeDb);
+afterAll(async () => {
+  await companySla.up(qi(), Sequelize);
+  await closeDb();
+});
 
 it("copies each priority target to all five ticket types", async () => {
   await migration.down(qi(), Sequelize);
-  const std = await SlaPolicy.findOne({ where: { isDefault: true } });
+  const std = await defaultPolicy();
   await sequelize.query("UPDATE SlaTargets SET resolutionMinutes = 999 WHERE slaPolicyId = ? AND priority = 'low'", { replacements: [std.id] });
   await migration.up(qi(), Sequelize);
   const lows = await SlaTarget.findAll({ where: { slaPolicyId: std.id, priority: 'low' } });
@@ -26,12 +51,9 @@ it("copies each priority target to all five ticket types", async () => {
 });
 
 it('backfills the original due date', async () => {
-  const ticket = await models.Ticket.create({
-    title: 't', companyId: (await models.Company.findOne({ where: { isInternal: true } })).id, createdBy: 1, status: 'Open',
-  });
   await migration.down(qi(), Sequelize);
   const due = new Date('2026-03-20T15:00:00Z');
-  await TicketSla.update({ resolutionDueAt: due }, { where: { ticketId: ticket.id } });
+  const ticket = await rawTicket('t', { resolutionDueAt: '2026-03-20 15:00:00' }); // stored as UTC
   await migration.up(qi(), Sequelize);
   const row = await TicketSla.findOne({ where: { ticketId: ticket.id } });
   expect(new Date(row.resolutionOriginalDueAt).toISOString()).toBe(due.toISOString());
@@ -49,7 +71,7 @@ it('grants Adjust SLA due dates to System Administrator only', async () => {
 });
 
 it('rolls back and re-applies', async () => {
-  const std = await SlaPolicy.findOne({ where: { isDefault: true } });
+  const std = await defaultPolicy();
   await SlaTarget.update({ resolutionMinutes: 20, resolutionUnit: 'business_days' }, { where: { slaPolicyId: std.id, ticketType: 'incident', priority: 'low' } });
   await migration.down(qi(), Sequelize);
   expect(await tables()).not.toContain('TicketDueDateChanges');
@@ -65,12 +87,8 @@ it('rolls back and re-applies', async () => {
 });
 
 it('starts the resolution clock of open tickets the first SLA build had paused', async () => {
-  const ticket = await models.Ticket.create({
-    title: 'paused', companyId: (await models.Company.findOne({ where: { isInternal: true } })).id, createdBy: 1, status: 'Open',
-  });
   await migration.down(qi(), Sequelize);
-  await sequelize.query(`UPDATE TicketSlas SET resolutionTargetMinutes = 60, resolutionUsedMinutes = 10,
-    resolutionRunningSince = NULL, resolutionDueAt = NULL, resolutionWarnAt = NULL, resolutionMetAt = NULL WHERE ticketId = ?`, { replacements: [ticket.id] });
+  const ticket = await rawTicket('paused', { resolutionTargetMinutes: 60, resolutionUsedMinutes: 10 });
   await migration.up(qi(), Sequelize);
   const row = await TicketSla.findOne({ where: { ticketId: ticket.id } });
   expect(row.resolutionRunningSince).not.toBeNull();

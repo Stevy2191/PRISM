@@ -97,15 +97,17 @@ test('project-templates is in group Projects and needs projects.manage_templates
   assert.ok(GROUPS.includes('Projects'));
 });
 
-test('Workload group holds Staff hours and Holidays (moved out of Hours & SLAs)', () => {
-  assert.ok(GROUPS.includes('Workload'));
+test('Hours & SLAs holds the starting values for new companies and Staff hours', () => {
+  assert.ok(GROUPS.includes('Hours & SLAs'));
+  assert.ok(!GROUPS.includes('Workload'));
+  const start = PAGES.find((p) => p.id === 'starting-values');
+  assert.equal(start.group, 'Hours & SLAs');
+  assert.equal(start.path, '/settings/starting-values');
   const wh = PAGES.find((p) => p.id === 'work-hours');
-  assert.equal(wh.group, 'Workload');
+  assert.equal(wh.group, 'Hours & SLAs');
   assert.deepEqual(wh.access, { permission: ['settings.manage_business_hours'] });
-  const hol = PAGES.find((p) => p.id === 'holidays');
-  assert.equal(hol.group, 'Workload');
-  assert.equal(hol.path, '/settings/holidays');
-  assert.equal(hol.desc, 'Days off for the SLA clock and workload');
+  // Each company's own SLA, hours and holidays are on its page, not here.
+  for (const gone of ['slas', 'business-hours', 'holidays']) assert.equal(PAGES.find((p) => p.id === gone), undefined);
 });
 
 test('every section has a unique slug, an icon and a description, and every group is a section', () => {

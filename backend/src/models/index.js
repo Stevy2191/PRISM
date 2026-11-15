@@ -29,8 +29,6 @@ const AuditLog = require('./AuditLog')(sequelize);
 const Blueprint = require('./Blueprint')(sequelize);
 const TicketRelation = require('./TicketRelation')(sequelize);
 const SystemSettings = require('./SystemSettings')(sequelize);
-const BusinessHours = require('./BusinessHours')(sequelize);
-const HolidayList = require('./HolidayList')(sequelize);
 const Holiday = require('./Holiday')(sequelize);
 const CsatResponse = require('./CsatResponse')(sequelize);
 const Team = require('./Team')(sequelize);
@@ -176,8 +174,6 @@ const db = {
   Blueprint,
   TicketRelation,
   SystemSettings,
-  BusinessHours,
-  HolidayList,
   Holiday,
   CsatResponse,
   Team,
@@ -431,9 +427,11 @@ Team.hasMany(Ticket, { foreignKey: 'teamId', as: 'tickets' });
 // Business hours / holidays
 SlaPolicy.hasMany(SlaTarget, { foreignKey: 'slaPolicyId', as: 'targets', onDelete: 'CASCADE' });
 SlaTarget.belongsTo(SlaPolicy, { foreignKey: 'slaPolicyId', as: 'policy' });
-SlaPolicy.belongsTo(BusinessHours, { foreignKey: 'businessHoursId', as: 'businessHours' });
-SlaPolicy.hasMany(Company, { foreignKey: 'slaPolicyId', as: 'companies' });
-Company.belongsTo(SlaPolicy, { foreignKey: 'slaPolicyId', as: 'slaPolicy' });
+// CS: each company has its own SLA row; the one with no company is the starting values.
+Company.hasOne(SlaPolicy, { foreignKey: 'companyId', as: 'sla', onDelete: 'CASCADE' });
+SlaPolicy.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+SlaPolicy.hasMany(Holiday, { foreignKey: 'slaPolicyId', as: 'holidays', onDelete: 'CASCADE' });
+Holiday.belongsTo(SlaPolicy, { foreignKey: 'slaPolicyId', as: 'policy' });
 Ticket.hasOne(TicketSla, { foreignKey: 'ticketId', as: 'sla', onDelete: 'CASCADE' });
 TicketSla.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
 TicketSla.belongsTo(SlaPolicy, { foreignKey: 'slaPolicyId', as: 'policy' });
@@ -456,11 +454,6 @@ RecurringTicket.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
 RecurringTicket.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
 RecurringTicket.belongsTo(Ticket, { foreignKey: 'lastTicketId', as: 'lastTicket' });
 EmailTemplate.belongsTo(User, { foreignKey: 'updatedById', as: 'updatedBy' });
-BusinessHours.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
-BusinessHours.belongsTo(HolidayList, { foreignKey: 'holidayListId', as: 'holidayList' });
-HolidayList.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
-HolidayList.hasMany(Holiday, { foreignKey: 'holidayListId', as: 'holidays', onDelete: 'CASCADE' });
-Holiday.belongsTo(HolidayList, { foreignKey: 'holidayListId', as: 'holidayList' });
 
 // CSAT
 Ticket.hasOne(CsatResponse, { foreignKey: 'ticketId', as: 'csat', onDelete: 'CASCADE' });
@@ -785,6 +778,23 @@ Contact.addHook('afterUpdate', 'prunePortalAdminRoles', async (contact, options)
   if (!contact.changed('departmentId') && !contact.changed('companyId')) return;
   // eslint-disable-next-line global-require
   await require('../services/portal/adminRoles').pruneAdminRoles(contact, { transaction: options.transaction });
+});
+
+// CS: a new company gets its own SLA, copied from the starting values, in
+// the same transaction, so a company never exists without one. Lazy: the
+// service needs this module.
+Company.addHook('afterCreate', 'ownSla', (company, options) => require('../services/sla/companySla').ensureCompanySla(company, options && options.transaction)); // eslint-disable-line global-require
+// CS: its portal switched off, or the company made inactive, ends every
+// session signed in to its portal.
+Company.addHook('afterUpdate', 'portalClosed', async (company) => {
+  const closed = (company.changed('portalEnabled') && !company.portalEnabled) || (company.changed('status') && company.status !== 'active');
+  if (closed) await require('../services/portal/sessions').destroyCompanyPortalSessions(company.id); // eslint-disable-line global-require
+});
+// CS: and its own portal link, from its name (acme, acme-2, ...).
+Company.addHook('beforeCreate', 'portalSlug', async (company, options) => {
+  if (company.portalSlug) return;
+  const { uniqueSlug } = require('../services/portal/company'); // eslint-disable-line global-require
+  company.portalSlug = await uniqueSlug(Company, company.name, { transaction: options && options.transaction });
 });
 
 require('./companyHooks')({

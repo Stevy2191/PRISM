@@ -30,7 +30,6 @@ beforeAll(async () => {
   w = await makeWorld();
   await models.SystemSettings.upsert({ key: 'smtp.host', value: 'smtp.example' });
   await models.SystemSettings.upsert({ key: 'smtp.fromEmail', value: 'noreply@prism.example' });
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
   const a = w.admin.agent;
   alpha = await makeCompany(w.admin, { name: 'Riverside Family Clinic' });
   billing = expectOk(await a.post(`${API}/departments`).send({ name: 'Billing', companyId: alpha.id }), 201).department;
@@ -41,11 +40,32 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await models.KbArticle.destroy({ where: { title: TITLE } });
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
   await smoke.stop();
   await closeDb();
 });
 beforeEach(resetRateLimits);
+
+it("a company's Portal part: turn it on, its own link, a new name", async () => {
+  const page = await smoke.pageAs('admin', undefined, PHONE);
+  await page.goto(`/companies/${alpha.id}`);
+  await openCompanyTab(page, 'Setup', 'Portal');
+  const sw = page.getByRole('switch', { name: 'Portal on' });
+  await sw.waitFor();
+  expect(await sw.getAttribute('aria-checked')).toBe('false');
+  await sw.click();
+  await page.waitForFunction(() => document.querySelector('[role="switch"][aria-label="Portal on"]')?.getAttribute('aria-checked') === 'true');
+  expect(await page.getByLabel('Portal link').inputValue()).toMatch(/\/portal\/riverside-family-clinic$/);
+  await page.getByRole('button', { name: 'Change the name' }).click();
+  await page.getByLabel('Portal link name').fill('riverside');
+  await page.getByRole('region', { name: 'Portal', exact: true }).getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByText('Saved. The old link keeps working.').waitFor();
+  expect(await page.getByLabel('Portal link').inputValue()).toMatch(/\/portal\/riverside$/);
+  await page.getByText(/Older links still work: riverside-family-clinic/).waitFor();
+  expect((await models.Company.findByPk(alpha.id)).portalEnabled).toBe(true);
+  const widths = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+  expect(widths[0]).toBeLessThanOrEqual(widths[1]);
+  await page.context().close();
+});
 
 it('turning portal access on and sending an invite from the contact page', async () => {
   sendMail.mockClear();
@@ -76,11 +96,13 @@ it('a staff user without portal.manage sees the block read-only and no invite bu
 it('marking a department admin and a company admin', async () => {
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto(`/companies/${alpha.id}`);
-  await openCompanyTab(page, 'People', 'Departments');
+  // Company admins are on Setup › Portal; department admins with each department.
+  await openCompanyTab(page, 'Setup', 'Portal');
   await page.getByRole('heading', { name: 'Company admins' }).waitFor();
   await page.getByLabel('Add a company admin').fill('Tom');
   await page.getByRole('option', { name: /Tom Baker/ }).click();
   await page.getByRole('button', { name: 'Remove Tom Baker as company admin' }).waitFor();
+  await openCompanyTab(page, 'People', 'Departments');
   await page.getByRole('button', { name: 'Add admin' }).click();
   await page.getByLabel('Add a Billing admin').fill('Maria');
   await page.getByRole('option', { name: /Maria Chen/ }).click();
@@ -122,18 +144,26 @@ it('choosing "Chosen departments" on an article and saving', async () => {
   await page.context().close();
 });
 
-it('Settings → Client portal switch persists', async () => {
+it("a company's Surveys part: on for a new company, switched off, and its recent scores", async () => {
+  const page = await smoke.pageAs('admin', undefined, PHONE);
+  await page.goto(`/companies/${alpha.id}`);
+  await openCompanyTab(page, 'Setup', 'Surveys');
+  const sw = page.getByRole('switch', { name: 'Send surveys' });
+  await sw.waitFor();
+  expect(await sw.getAttribute('aria-checked')).toBe('true');
+  await page.getByRole('region', { name: 'Recent scores' }).getByText('No surveys sent yet.').waitFor();
+  await sw.click();
+  await page.waitForFunction(() => document.querySelector('[role="switch"][aria-label="Send surveys"]')?.getAttribute('aria-checked') === 'false');
+  expect((await models.Company.findByPk(alpha.id)).csatEnabled).toBe(false);
+  await page.getByRole('link', { name: 'Satisfaction surveys' }).waitFor();
+  await page.context().close();
+});
+
+it('Settings › Client portal says where each company turns its portal on', async () => {
   const page = await smoke.pageAs('admin', undefined, PHONE);
   await page.goto('/settings/client-portal');
-  const sw = page.getByRole('switch', { name: 'Portal on' });
-  await sw.waitFor();
-  expect(await sw.getAttribute('aria-checked')).toBe('false');
-  await sw.click();
-  await page.waitForFunction(() => document.querySelector('[role="switch"][aria-label="Portal on"]')?.getAttribute('aria-checked') === 'true');
-  await page.reload();
-  await page.getByRole('switch', { name: 'Portal on' }).waitFor();
-  expect(await page.getByRole('switch', { name: 'Portal on' }).getAttribute('aria-checked')).toBe('true');
-  expect(await page.getByLabel('Portal address').inputValue()).toMatch(/\/portal$/);
+  await page.getByRole('region', { name: "Each company's portal" }).getByText('Setup › Portal').waitFor();
+  expect(await page.getByRole('switch', { name: 'Portal on' }).count()).toBe(0);
   const widths = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
   expect(widths[0]).toBeLessThanOrEqual(widths[1]);
   await page.context().close();

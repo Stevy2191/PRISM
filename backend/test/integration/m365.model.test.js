@@ -2,7 +2,9 @@ const Sequelize = require('sequelize');
 const {
   resetData, closeDb, sequelize, models, createUserAndLogin, ROLE,
 } = require('./helpers');
-const { makeWorld, makeCompany } = require('./fixtures');
+const {
+  makeWorld, makeCompany, portalApi, openPortal,
+} = require('./fixtures');
 const migration = require('../../migrations/20260101000073-microsoft365');
 
 // Sub-project 7b, task 1: tenant link, contact identity, detected departments
@@ -76,8 +78,14 @@ it('the app secret is stored encrypted, never read back, and only an owner may c
   await w.admin.agent.patch(`${API}/settings`).send({ 'portal.msClientId': 'client-123', 'portal.msClientSecret': '' });
   expect((await getPortalMicrosoftApp()).clientSecret).toBe('shh-secret');
 
-  const config = await w.admin.agent.get(`${API}/portal/config`);
+  // Offered at a company's portal once it is linked to a tenant (CS).
+  const linked = await makeCompany(w.admin, { name: 'Linked' });
+  await models.Company.update({ msTenantId: 'cccccccc-2222-3333-4444-555555555555', portalEnabled: true }, { where: { id: linked.id } });
+  const config = await w.admin.agent.get(`${await portalApi(linked.id)}/config`);
   expect(config.body.microsoft).toBe(true);
+  const unlinked = await makeCompany(w.admin, { name: 'Unlinked' });
+  await openPortal(unlinked.id);
+  expect((await w.admin.agent.get(`${await portalApi(unlinked.id)}/config`)).body.microsoft).toBe(false);
 
   const admin2 = await createUserAndLogin({ username: 'notowner', roleName: ROLE.ADMIN, legacyRole: 'admin' });
   res = await admin2.agent.patch(`${API}/settings`).send({ 'portal.msClientId': 'hijack' });
@@ -87,7 +95,9 @@ it('the app secret is stored encrypted, never read back, and only an owner may c
 
 it('portal config says no Microsoft sign-in until both the client id and secret are saved', async () => {
   await w.admin.agent.patch(`${API}/settings`).send({ 'portal.msClientId': 'client-123' });
-  const config = await w.admin.agent.get(`${API}/portal/config`);
+  const linked = await makeCompany(w.admin, { name: 'Linked' });
+  await models.Company.update({ msTenantId: 'cccccccc-2222-3333-4444-555555555555', portalEnabled: true }, { where: { id: linked.id } });
+  const config = await w.admin.agent.get(`${await portalApi(linked.id)}/config`);
   expect(config.body.microsoft).toBe(false);
 });
 

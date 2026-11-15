@@ -1,5 +1,5 @@
 const {
-  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog, Ticket, User, SlaPolicy, Playbook, sequelize,
+  WorkflowRule, WorkflowCondition, WorkflowAction, WorkflowRuleLog, Ticket, User, Playbook, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -29,7 +29,6 @@ const TREE_ONLY_OPERATORS = ['is', 'is_under'];
 const ACTION_TYPES = [
   'assign_to_user', 'assign_to_team', 'assign_round_robin', 'set_status', 'set_priority',
   'add_tag', 'remove_tag', 'set_due_date', 'send_notification', 'add_private_comment', 'escalate_to_user',
-  'set_sla_policy',
   // Playbooks (PB): shows "Suggested: <playbook> [Apply]" on the ticket;
   // never applies it.
   'suggest_playbook',
@@ -82,14 +81,6 @@ async function validateActions(actions) {
       throw new ApiError(400, `Action ${idx + 1} has an invalid action type`, 'VALIDATION_ERROR');
     }
     let actionValue = a.actionValue ?? null;
-    if (a.actionType === 'set_sla_policy') {
-      const id = parseRecordId(actionValue && actionValue.slaPolicyId);
-      // eslint-disable-next-line no-await-in-loop
-      if (!id || !(await SlaPolicy.findByPk(id))) {
-        throw new ApiError(400, `Action ${idx + 1}: SLA policy not found`, 'VALIDATION_ERROR');
-      }
-      actionValue = { slaPolicyId: id };
-    }
     if (a.actionType === 'suggest_playbook') {
       const id = parseRecordId(actionValue && actionValue.playbookId);
       // eslint-disable-next-line no-await-in-loop

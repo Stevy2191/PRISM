@@ -18,7 +18,23 @@ router.get('/', canView, ctrl.list);
 router.post('/', canManage, ctrl.create);
 router.get('/:id', canView, ctrl.get);
 router.get('/:id/glance', canView, ctrl.glance);
-router.put('/:id/sla-policy', canView, ctrl.setSlaPolicy);
+// CS: the company's own SLA, support hours and holidays.
+const companySla = require('../controllers/companySlaController');
+router.get('/:id/sla', canView, companySla.get);
+router.put('/:id/sla', canView, companySla.save);
+router.post('/:id/sla/reset', canView, companySla.reset);
+router.post('/:id/sla/holidays', canView, companySla.addHoliday);
+router.delete('/:id/sla/holidays/:holidayId', canView, companySla.removeHoliday);
+// CS: the company's own portal and surveys.
+const companyPortal = require('../controllers/companyPortalController');
+router.get('/:id/portal', canView, companyPortal.get);
+router.put('/:id/portal', canView, companyPortal.save);
+router.post('/:id/portal/invite-all', canView, companyPortal.inviteAll);
+router.put('/:id/surveys', canView, companyPortal.surveys);
+// CS: what applies to the company, and its checklist bundles on or off.
+const companyApplies = require('../controllers/companyAppliesController');
+router.get('/:id/applies', canView, companyApplies.get);
+router.put('/:id/bundles/:playbookId', canView, companyApplies.setBundle);
 router.patch('/:id', canManage, ctrl.update);
 router.delete('/:id', canManage, ctrl.remove);
 router.post('/:id/merge', canManage, ctrl.merge);

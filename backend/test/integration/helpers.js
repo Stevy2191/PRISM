@@ -111,13 +111,24 @@ const SLA_SEED = {
   critical: [60, null, false], high: [240, null, true], medium: [480, null, true], low: [1440, null, true],
 };
 async function resetSlaPolicies() {
-  const [rows] = await sequelize.query('SELECT id FROM SlaPolicies WHERE isDefault = 1').catch(() => [[]]);
+  require('../../src/services/sla/calendar').invalidate(); // eslint-disable-line global-require
+  // Before 091 (a round-trip test rolled it back) policies were shared.
+  const [own] = await sequelize.query("SHOW COLUMNS FROM SlaPolicies LIKE 'companyId'").catch(() => [[]]);
+  const [rows] = await sequelize.query(own.length
+    ? 'SELECT id FROM SlaPolicies WHERE companyId IS NULL ORDER BY isDefault DESC, id ASC'
+    : 'SELECT id FROM SlaPolicies WHERE isDefault = 1').catch(() => [[]]);
   if (!rows.length) return;
   const stdId = rows[0].id;
-  require('../../src/services/sla/calendar').invalidate(); // eslint-disable-line global-require
-  await sequelize.query('UPDATE Companies SET slaPolicyId = NULL');
-  await sequelize.query('DELETE FROM SlaPolicies WHERE id <> ?', { replacements: [stdId] });
-  await sequelize.query("UPDATE SlaPolicies SET name = 'Standard', businessHoursId = NULL, warnAtPercent = 75 WHERE id = ?", { replacements: [stdId] });
+  if (own.length) {
+    // The starting values, as migrated; then your company's own copy of them.
+    await sequelize.query('DELETE FROM SlaPolicies WHERE id <> ? AND (companyId IS NULL OR companyId NOT IN (SELECT id FROM Companies WHERE isInternal = 1))', { replacements: [stdId] });
+    await sequelize.query("UPDATE SlaPolicies SET name = 'Starting values', isDefault = 1, warnAtPercent = 75, timezone = 'UTC', is24x7 = 1, schedule = NULL WHERE id = ?", { replacements: [stdId] });
+    await sequelize.query('DELETE FROM Holidays WHERE slaPolicyId = ?', { replacements: [stdId] });
+  } else {
+    await sequelize.query('UPDATE Companies SET slaPolicyId = NULL').catch(() => {});
+    await sequelize.query('DELETE FROM SlaPolicies WHERE id <> ?', { replacements: [stdId] });
+    await sequelize.query("UPDATE SlaPolicies SET name = 'Standard', businessHoursId = NULL, warnAtPercent = 75 WHERE id = ?", { replacements: [stdId] }).catch(() => {});
+  }
   // Units only exist from migration 061 on (a test may have rolled it back).
   await sequelize.query("UPDATE SlaTargets SET assignUnit = 'minutes', responseUnit = 'minutes', resolutionUnit = 'minutes' WHERE slaPolicyId = ?", { replacements: [stdId] }).catch(() => {});
   for (const [priority, [resp, resol, biz]] of Object.entries(SLA_SEED)) {
@@ -126,6 +137,16 @@ async function resetSlaPolicies() {
       'UPDATE SlaTargets SET assignMinutes = NULL, responseMinutes = ?, resolutionMinutes = ?, useBusinessHours = ? WHERE slaPolicyId = ? AND priority = ?',
       { replacements: [resp, resol, biz, stdId, priority] }
     );
+  }
+  if (own.length) {
+    // eslint-disable-next-line global-require
+    const companySla = require('../../src/services/sla/companySla');
+    const internal = await models.Company.findOne({ where: { isInternal: true } });
+    if (internal) {
+      const row = await models.SlaPolicy.findOne({ where: { companyId: internal.id } });
+      if (row) await companySla.resetToStartingValues(row);
+      else await companySla.ensureCompanySla(internal);
+    }
   }
 }
 
@@ -182,6 +203,8 @@ async function resetData() {
   // migration) must keep its id, because model hooks and the company cache
   // rely on it. Every other company goes.
   await sequelize.query('DELETE FROM Companies WHERE isInternal = 0').catch(() => {});
+  // CS: your company's portal and surveys back to off (as migrated on a new install).
+  await sequelize.query("UPDATE Companies SET portalEnabled = 0, csatEnabled = 0, portalPreviousSlugs = NULL, status = 'active' WHERE isInternal = 1").catch(() => {});
   // SystemSettings is not truncated (other code relies on any rows an
   // install has), but settings a test flips must not leak into the next one —
   // SSO enforcement in particular would fail every subsequent login.

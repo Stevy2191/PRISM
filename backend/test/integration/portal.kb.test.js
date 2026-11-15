@@ -6,7 +6,7 @@ const {
   resetData, closeDb, models, getApp,
 } = require('./helpers');
 const {
-  makeWorld, makeContact, makeCompany, makeTech, setCompanyAccess, expectOk,
+  makeWorld, makeContact, makeCompany, makeTech, setCompanyAccess, expectOk, portalAgent, portalApi,
 } = require('./fixtures');
 const { UPLOAD_ROOT } = require('../../src/middleware/upload');
 
@@ -23,7 +23,7 @@ let hash;
 
 async function portalAs(contact) {
   await models.Contact.scope('withPassword').update({ portalAccess: true, passwordHash: hash }, { where: { id: contact.id } });
-  const agent = request.agent(getApp());
+  const agent = await portalAgent(contact.companyId);
   expectOk(await agent.post(`${API}/portal/auth/login`).send({ email: contact.email, password: PASSWORD }));
   return agent;
 }
@@ -40,7 +40,6 @@ beforeEach(async () => {
   await models.KbArticle.destroy({ where: {} });
   await models.KbCategory.destroy({ where: {} });
   w = await makeWorld();
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
   const a = w.admin.agent;
   alpha = await makeCompany(w.admin, { name: 'Alpha' });
   beta = await makeCompany(w.admin, { name: 'Beta' });
@@ -52,7 +51,6 @@ beforeEach(async () => {
 });
 afterAll(async () => {
   await models.KbArticle.destroy({ where: {} });
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
   await closeDb();
 });
 
@@ -63,8 +61,8 @@ it('the anonymous /kb is gone; the portal KB needs a contact session', async () 
     const res = await request(getApp()).get(url);
     expect(res.status).not.toBe(200);
   }
-  expect((await request(getApp()).get(`${K}/articles`)).status).toBe(401);
-  expect((await w.admin.agent.get(`${K}/articles`)).status).toBe(401);
+  expect((await (await portalAgent(alpha.id)).get(`${K}/articles`)).status).toBe(401);
+  expect((await w.admin.agent.get(`${await portalApi(alpha.id)}/kb/articles`)).status).toBe(401);
 });
 
 it('lists, reads and downloads only what my audience covers', async () => {

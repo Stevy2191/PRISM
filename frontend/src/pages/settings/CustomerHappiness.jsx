@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
-import Switch from '../../components/Switch';
 import Modal from '../../components/Modal';
 import SettingsPage from '../../components/settings/SettingsPage';
 import SaveBar, { isDirty } from '../../components/settings/SaveBar';
@@ -35,7 +34,6 @@ export default function CustomerHappiness() {
       .then(({ data }) => {
         const s = data.settings;
         const loaded = {
-          'csat.enabled': s['csat.enabled'] === 'true',
           'csat.sendDelayHours': s['csat.sendDelayHours'] || '0',
           'csat.surveyQuestion': s['csat.surveyQuestion'] || 'How satisfied were you with the support you received?',
           'csat.expiryDays': s['csat.expiryDays'] || '7',
@@ -58,7 +56,6 @@ export default function CustomerHappiness() {
     try {
       await api.put('/settings', {
         settings: {
-          'csat.enabled': String(form['csat.enabled']),
           'csat.sendDelayHours': form['csat.sendDelayHours'],
           'csat.surveyQuestion': form['csat.surveyQuestion'],
           'csat.expiryDays': form['csat.expiryDays'],
@@ -77,21 +74,11 @@ export default function CustomerHappiness() {
   if (loading || !form) return <Spinner />;
 
   return (
-    <SettingsPage description="Automatically email a satisfaction survey to the contact when a ticket is closed. Ratings feed into technician performance stats on their profile, the dashboard, and reports.">
+    <SettingsPage description="The survey emailed to the contact when a ticket is closed, for every company that has surveys on. Ratings feed into technician performance stats on their profile, the dashboard, and reports.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={save} className="card space-y-5 p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium text-navy-900">Enable CSAT surveys</p>
-            <p className="text-xs text-navy-400">Send a survey email to the contact whenever a ticket is closed.</p>
-          </div>
-          <Switch
-            checked={form['csat.enabled']}
-            onChange={(v) => { setSaved(false); setForm((f) => ({ ...f, 'csat.enabled': v })); }}
-            label="Enable CSAT surveys"
-          />
-        </div>
+        <p className="text-sm text-navy-500">Each company turns its surveys on or off on its page, under Setup › Surveys. These apply to every company that has them on.</p>
 
         <div>
           <label className="label">Survey question</label>

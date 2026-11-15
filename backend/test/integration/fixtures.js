@@ -5,7 +5,7 @@
 // `jest` is not required here: Jest injects it into every module it loads,
 // and requiring @jest/globals as well is a duplicate declaration.
 /* global jest */
-const { createUserAndLogin, ROLE } = require('./helpers');
+const { createUserAndLogin, ROLE, models } = require('./helpers');
 
 const API = '/api/v1';
 
@@ -192,9 +192,75 @@ async function makeLedger(w) {
   return { tina, carl, ticket, project };
 }
 
+// CS: each company has its own SLA, and the starting values new companies
+// copy. setSla(admin, 'start' | companyId, fields) saves one of them;
+// `targets` is a list of { ticketType, priority, ...changes } merged into the
+// current grid, the rest (warnAtPercent, timezone, is24x7, schedule) as sent.
+async function setSla(admin, where, fields = {}) {
+  const base = where === 'start' ? `${API}/sla/starting-values` : `${API}/companies/${where}/sla`;
+  const { targets = [], ...rest } = fields;
+  const grid = expectOk(await admin.agent.get(base)).sla.targets;
+  for (const { ticketType, priority, ...t } of targets) Object.assign(grid[ticketType][priority], t);
+  return expectOk(await admin.agent.put(base).send({ ...rest, targets: grid })).sla;
+}
+
+// The same change on the starting values and on every company's own SLA.
+async function setEverySla(admin, fields) {
+  await setSla(admin, 'start', fields);
+  const rows = await models.SlaPolicy.findAll({ attributes: ['companyId'] });
+  for (const { companyId } of rows) if (companyId) await setSla(admin, companyId, fields); // eslint-disable-line no-await-in-loop
+}
+
+// CS: each company's own portal. openPortal() turns on every company's
+// (or the given ones'); portalApi(companyId) is that company's portal API
+// (your own company's by default), where its contacts sign in.
+async function openPortal(...companyIds) {
+  await models.Company.update({ portalEnabled: true }, companyIds.length ? { where: { id: companyIds } } : { where: {} });
+}
+async function portalApi(companyId) {
+  const company = companyId ? await models.Company.findByPk(companyId) : await models.Company.findOne({ where: { isInternal: true } });
+  return `${API}/portal/c/${company.portalSlug}`;
+}
+
+// A browser at one company's portal (your own company's by default): opens
+// that portal, and sends `${API}/portal/...` to `${API}/portal/c/<slug>/...`,
+// so a suite written against "the portal" runs at its contact's company's.
+// A path already naming a company (/portal/c/...) is left as it is.
+function slugAgent(slug) {
+  const { getApp } = require('./helpers'); // eslint-disable-line global-require
+  const request = require('supertest'); // eslint-disable-line global-require
+  const agent = request.agent(getApp());
+  const at = (url) => (/^\/api\/v1\/portal\/(?!c\/)/.test(url) && !/^\/api\/v1\/portal\/(home|link)\b/.test(url) && !url.includes('/auth/microsoft/callback')
+    ? url.replace(/^\/api\/v1\/portal\//, `/api/v1/portal/c/${slug}/`) : url);
+  return new Proxy(agent, {
+    get(target, key) {
+      if (['get', 'post', 'put', 'patch', 'delete'].includes(key)) return (url, ...rest) => target[key](at(url), ...rest);
+      const v = target[key];
+      return typeof v === 'function' ? v.bind(target) : v;
+    },
+  });
+}
+async function portalAgent(companyId) {
+  const company = companyId ? await models.Company.findByPk(companyId) : await models.Company.findOne({ where: { isInternal: true } });
+  if (!company.portalEnabled) await company.update({ portalEnabled: true });
+  return slugAgent(company.portalSlug);
+}
+
+// CS: surveys are each company's; turns them on for a company (your own by
+// default) through its page's API.
+async function surveysOn(admin, companyId) {
+  const id = companyId || (await models.Company.findOne({ where: { isInternal: true } })).id;
+  expectOk(await admin.agent.put(`${API}/companies/${id}/surveys`).send({ enabled: true }));
+}
+
+// The SLA row (SlaPolicy) a company's tickets use.
+const slaRowOf = (companyId) => models.SlaPolicy.findOne({ where: { companyId } });
+const internalCompany = () => models.Company.findOne({ where: { isInternal: true } });
+
 module.exports = {
   API, expectOk, makeAdmin, makeDept, makeUser, makeTech, makeManager, makeStaff, makeOwnTier,
   makeContractor, makeContact, makeTicket, makeProject, makeTask, makeSubtask, makeTeam,
   setSettings, projectStatusId, taskStatusId, freezeClock, advanceClock, unfreezeClock, waitFor, makeWorld,
-  LEDGER_NOW, makeLedger, makeCompany, setCompanyAccess,
+  LEDGER_NOW, makeLedger, makeCompany, setCompanyAccess, setSla, setEverySla, slaRowOf, internalCompany,
+  openPortal, portalApi, portalAgent, slugAgent, surveysOn,
 };

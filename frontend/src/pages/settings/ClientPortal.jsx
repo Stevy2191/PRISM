@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
-import Switch from '../../components/Switch';
 import SettingsPage from '../../components/settings/SettingsPage';
 import Notice from '../../components/ui/Notice';
 
@@ -80,65 +79,35 @@ function MicrosoftApp({ settings, onSaved }) {
   );
 }
 
-// Mockup SettingsPortal: the portal switch and its address, the Microsoft
-// 365 app (7b), and who can manage access. The switch saves at once.
+// Settings › Client portal: what every company's portal shares, the
+// Microsoft 365 app (7b), and who can manage access. Each company turns its
+// own portal on, and has its own link, on its page (CS: Setup › Portal).
 export default function ClientPortal() {
-  const [enabled, setEnabled] = useState(null);
   const [settings, setSettings] = useState(null);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const address = `${window.location.origin}/portal`;
 
   useEffect(() => {
     api.get('/settings')
-      .then(({ data }) => { setEnabled(data.settings['portal.enabled'] === 'true'); setSettings(data.settings); })
+      .then(({ data }) => setSettings(data.settings))
       .catch((err) => setError(errMessage(err)));
   }, []);
 
-  const toggle = async (on) => {
-    setSaving(true); setError('');
-    try {
-      await api.patch('/settings', { 'portal.enabled': String(on) });
-      setEnabled(on);
-    } catch (err) {
-      setError(errMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(address); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* no clipboard */ }
-  };
-
-  if (enabled === null && !error) return <Spinner />;
+  if (!settings && !error) return <Spinner />;
   return (
-    <SettingsPage description="Contacts sign in to the portal to raise and follow tickets and read the knowledge base.">
+    <SettingsPage description="Contacts sign in to their company's portal to raise and follow tickets and read the knowledge base.">
       {error && <Notice tone="bad">{error}</Notice>}
-      <section aria-label="Portal" className="card divide-y divide-navy-100">
-        <div className="flex items-center justify-between gap-4 p-5">
-          <div>
-            <p className="font-medium text-navy-900">Portal on</p>
-            <p className="text-xs text-navy-400">{enabled ? 'Contacts with portal access can sign in.' : 'Off: nobody can sign in to the portal.'}</p>
-          </div>
-          <Switch checked={!!enabled} disabled={saving || enabled === null} onChange={toggle} label="Portal on" />
-        </div>
-        <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-medium text-navy-900">Portal address</p>
-            <p className="text-xs text-navy-400">Give this link to your customers.</p>
-          </div>
-          <div className="flex min-w-0 gap-2">
-            <input readOnly value={address} aria-label="Portal address" className="input h-9 min-w-0 text-sm sm:w-72" />
-            <button type="button" onClick={copy} className="btn-secondary h-9 flex-shrink-0 px-3 text-sm">{copied ? 'Copied' : 'Copy'}</button>
-          </div>
-        </div>
+      <section aria-label="Each company's portal" className="card p-5">
+        <p className="font-medium text-navy-900">Each company has its own portal</p>
+        <p className="mt-1 text-sm text-navy-500">
+          A company&apos;s portal is turned on, and its link is shown, on the company&apos;s page under Setup › Portal. Its contacts sign in there
+          and only there. Your own company&apos;s is in <Link to="/settings/your-company?part=portal" className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>Your company</Link>.
+        </p>
       </section>
       {settings && <MicrosoftApp key={settings['portal.msClientId']} settings={settings} onSaved={(next) => next && setSettings(next)} />}
       <section aria-label="Who can manage portal access" className="card p-5">
         <p className="font-medium text-navy-900">Who can manage portal access</p>
         <p className="mt-1 text-sm text-navy-500">
-          Granting access, sending invites, setting admins and contact watchers, and linking tenants need the &ldquo;Manage portal access&rdquo; permission:
+          Turning a company&apos;s portal on, granting access, sending invites, setting admins and contact watchers, and linking tenants need the &ldquo;Manage portal access&rdquo; permission:
           administrators, and anyone whose role includes it. Set that in <Link to="/admin/roles" className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>Roles &amp; permissions</Link>.
         </p>
       </section>

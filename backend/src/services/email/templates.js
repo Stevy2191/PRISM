@@ -84,6 +84,16 @@ function deps() {
   return { EmailTemplate, getAllSettings, BRANDING_DIR };
 }
 
+// Who decides whether an email goes when it has no switch of its own: staff
+// emails by Notifications and each person's preferences; the survey by each
+// company (CS, its page › Setup › Surveys). null: its own switch.
+function decidedBy(key) {
+  const def = CATALOG[key];
+  if (!def) return null;
+  if (def.audience === 'staff') return 'staff';
+  return key === 'contact_csat_survey' ? 'company' : null;
+}
+
 async function getTemplate(key) {
   const def = CATALOG[key];
   if (!def) return null;
@@ -91,7 +101,7 @@ async function getTemplate(key) {
   // A staff notification is decided by the help desk's default and each
   // person's own choice (Settings › Notifications, Preferences): its
   // template has wording, not a switch of its own (CS).
-  const staff = def.audience === 'staff';
+  const staff = !!decidedBy(key);
   return row
     ? { key, subject: row.subject, bodyHtml: row.bodyHtml, enabled: staff || !!row.enabled, isDefault: false }
     : { key, subject: def.subject, bodyHtml: def.bodyHtml, enabled: staff || def.defaultEnabled, isDefault: true };
@@ -138,5 +148,5 @@ async function render(key, context, override, { footer = null } = {}) {
 }
 
 module.exports = {
-  TRUSTED_HTML, renderTemplate, renderPlainText, render, getTemplate, branding,
+  TRUSTED_HTML, renderTemplate, renderPlainText, render, getTemplate, branding, decidedBy,
 };

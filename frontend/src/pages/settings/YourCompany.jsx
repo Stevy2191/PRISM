@@ -13,20 +13,26 @@ import { useCompanySummary } from '../../context/CompanyContext';
 import CompanyProfile from './CompanyProfile';
 import AdminDepartments from '../AdminDepartments';
 import CompanySites from '../../components/companies/CompanySites';
+import CompanySla from '../../components/companies/CompanySla';
 import CompanyCategories from '../../components/companies/CompanyCategories';
 import CompanyDevices from '../../components/companies/CompanyDevices';
 import CompanyNotices from '../../components/companies/CompanyNotices';
-import CompanyMicrosoft365 from '../../components/companies/CompanyMicrosoft365';
+import CompanyPortal from '../../components/companies/CompanyPortal';
+import CompanySurveys from '../../components/companies/CompanySurveys';
+import CompanyApplies from '../../components/companies/CompanyApplies';
 
 // Parts in menu order; `can` says who sees each.
 const PARTS = [
   ['profile', 'Profile and sign-in page', (p) => p('settings.manage_branding') || p('settings.manage_system')],
   ['departments', 'Departments', (p) => p('people.manage_departments')],
   ['sites', 'Sites', (p) => p('companies.view')],
+  ['sla', 'Support hours, holidays and SLA', (p) => p('companies.view')],
   ['categories', 'Categories', (p) => p('tickets.categories.manage')],
   ['devices', 'Devices', (p) => p('assets.view')],
   ['notices', 'Agent notices', (p) => p('devices.manage') || p('portal.manage')],
-  ['m365', 'Microsoft 365', (p) => p('portal.manage')],
+  ['portal', 'Portal', (p) => p('companies.view')],
+  ['surveys', 'Surveys', (p) => p('companies.view')],
+  ['applies', 'What applies here', (p) => p('companies.view')],
 ];
 
 export default function YourCompany() {
@@ -85,10 +91,13 @@ export default function YourCompany() {
       {needsCompany && company && (
         <>
           {part === 'sites' && <CompanySites company={company} />}
+          {part === 'sla' && <CompanySla base={`/companies/${company.id}/sla`} who="your company" />}
           {part === 'categories' && <CompanyCategories company={company} />}
           {part === 'devices' && <CompanyDevices company={company} />}
           {part === 'notices' && <CompanyNotices company={company} />}
-          {part === 'm365' && <CompanyMicrosoft365 company={company} notice={params.get('m365')} />}
+          {part === 'portal' && <CompanyPortal company={company} m365Notice={params.get('m365')} />}
+          {part === 'surveys' && <CompanySurveys company={company} />}
+          {part === 'applies' && <CompanyApplies company={company} />}
         </>
       )}
     </div>

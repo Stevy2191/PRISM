@@ -40,7 +40,6 @@ export default function SlaPanel({ sla, now = Date.now() }) {
   const moved = res.originalDueAt && res.dueAt && new Date(res.originalDueAt).getTime() !== new Date(res.dueAt).getTime();
   return (
     <div className="space-y-2">
-      {sla.policy?.name && <p className="text-xs" style={{ color: MUTED }}>Policy: {sla.policy.name}</p>}
       {moved && <p className="text-xs" style={{ color: MUTED }} data-testid="sla-original-due">Original SLA due {formatDue(res.originalDueAt)}</p>}
       {rows.length === 0
         ? <p className="text-xs" style={{ color: MUTED }}>No targets for this priority</p>

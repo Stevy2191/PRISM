@@ -22,7 +22,7 @@ it('lists companies with their counts and creates one', async () => {
   await page.getByLabel('Name').fill('Globex');
   await page.getByRole('button', { name: 'Create company' }).click();
   // A new company opens on its own page.
-  await page.waitForURL(/\/companies\/\d+$/);
+  await page.waitForURL(/\/companies\/\d+\?created=1$/);
   await page.getByRole('heading', { level: 1, name: 'Globex' }).waitFor();
 });
 

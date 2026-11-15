@@ -12,9 +12,12 @@ import CompanyGlance from '../../components/companies/CompanyGlance';
 import CompanyOverview from '../../components/companies/CompanyOverview';
 import CompanySites from '../../components/companies/CompanySites';
 import CompanyDepartments from '../../components/companies/CompanyDepartments';
+import CompanySla from '../../components/companies/CompanySla';
+import CompanyPortal from '../../components/companies/CompanyPortal';
+import CompanySurveys from '../../components/companies/CompanySurveys';
+import CompanyApplies from '../../components/companies/CompanyApplies';
 import CompanyCategories from '../../components/companies/CompanyCategories';
 import CompanyRecordList from '../../components/companies/CompanyRecordList';
-import CompanyMicrosoft365 from '../../components/companies/CompanyMicrosoft365';
 import CompanyDevices from '../../components/companies/CompanyDevices';
 import CompanyNotices from '../../components/companies/CompanyNotices';
 import { CompanyFlags } from './CompaniesList';
@@ -26,7 +29,7 @@ const GROUPS = [
   ['people', 'People', [['contacts', 'Contacts'], ['departments', 'Departments'], ['sites', 'Sites']]],
   ['work', 'Work', [['tickets', 'Tickets'], ['projects', 'Projects']]],
   ['assets', 'Assets', [['assets', 'Assets'], ['devices', 'Devices'], ['notices', 'Agent notices'], ['vendor', 'Vendor']]],
-  ['setup', 'Setup', [['details', 'Details'], ['categories', 'Categories'], ['m365', 'Microsoft 365']]],
+  ['setup', 'Setup', [['details', 'Details'], ['sla', 'SLA and hours'], ['portal', 'Portal'], ['surveys', 'Surveys'], ['categories', 'Categories'], ['applies', 'What applies here']]],
 ];
 
 // A company's page (spec: Companies nav tab).
@@ -44,7 +47,7 @@ export default function CompanyPage() {
   const tabOfPart = askedPart ? (GROUPS.find(([, , subs]) => subs.some(([k]) => k === askedPart)) || [])[0] : null;
   const [tab, setTab] = useState(m365Notice ? 'setup' : (params.get('tab') || tabOfPart || 'overview'));
   // The part showing within each tab.
-  const [parts, setParts] = useState(m365Notice ? { setup: 'm365' } : (askedPart && (params.get('tab') || tabOfPart) ? { [params.get('tab') || tabOfPart]: askedPart } : {}));
+  const [parts, setParts] = useState(m365Notice ? { setup: 'portal' } : (askedPart && (params.get('tab') || tabOfPart) ? { [params.get('tab') || tabOfPart]: askedPart } : {}));
   const { internalId } = useCompanySummary();
   const load = useCallback(() => {
     if (id === 'internal') return;
@@ -55,17 +58,19 @@ export default function CompanyPage() {
   // Your own company's page is in Settings (CS), not here: its address
   // under /companies leads there, keeping the part that was asked for.
   if (id === 'internal' || (internalId && String(id) === String(internalId)) || company?.isInternal) {
-    const part = params.get('m365') ? 'm365' : askedPart;
+    const part = params.get('m365') ? 'portal' : askedPart;
     const q = new URLSearchParams({ ...(part ? { part } : {}), ...(params.get('m365') ? { m365: params.get('m365') } : {}) }).toString();
     return <Navigate to={`/settings/your-company${q ? `?${q}` : ''}`} replace />;
   }
   if (error) return <Notice tone="bad">{error}</Notice>;
   if (!company) return <Spinner />;
-  // Parts this viewer has: Microsoft 365 (7b) for staff who manage portal
-  // access, Devices (the PRISM agent, 8a) for staff who see assets, each
-  // client company's own ticket categories (9), Vendor for a vendor.
+  // Parts this viewer has: Devices (the PRISM agent, 8a) for staff who see
+  // assets, each client company's own ticket categories (9), Vendor for a
+  // vendor. The portal (with Microsoft 365) and surveys are a customer's.
   const has = {
-    m365: hasPermission('portal.manage'),
+    portal: company.isClient,
+    surveys: company.isClient,
+    applies: company.isClient,
     devices: hasPermission('assets.view'),
     categories: (company.isClient || company.isInternal) && hasPermission('tickets.categories.manage'),
     vendor: company.isVendor,
@@ -117,10 +122,12 @@ export default function CompanyPage() {
           ))}
         </div>
       )}
-      {tab === 'overview' && <CompanyGlance company={company} onOpen={open} />}
+      {tab === 'overview' && <CompanyGlance company={company} onOpen={open} justMade={params.get('created') === '1'} />}
       {/* Keyed on updatedAt so the form re-reads a saved company. */}
       {part === 'details' && <CompanyOverview key={company.updatedAt} company={company} onSaved={setCompany} />}
-      {part === 'm365' && <CompanyMicrosoft365 company={company} notice={m365Notice} />}
+      {part === 'portal' && <CompanyPortal company={company} m365Notice={m365Notice} />}
+      {part === 'surveys' && <CompanySurveys company={company} />}
+      {part === 'applies' && <CompanyApplies company={company} />}
       {part === 'devices' && <CompanyDevices company={company} />}
       {part === 'notices' && <CompanyNotices company={company} />}
       {part === 'sites' && <CompanySites company={company} />}
@@ -128,6 +135,7 @@ export default function CompanyPage() {
           default roles): the editor that was Settings → Departments. */}
       {part === 'departments' && (company.isInternal ? <AdminDepartments embedded /> : <CompanyDepartments company={company} />)}
       {part === 'categories' && <CompanyCategories company={company} />}
+      {part === 'sla' && <CompanySla base={`/companies/${company.id}/sla`} who={company.name} />}
       {['contacts', 'tickets', 'projects', 'assets'].includes(part) && <CompanyRecordList key={part} kind={part} companyId={company.id} />}
       {part === 'vendor' && (
         <div className="space-y-6">

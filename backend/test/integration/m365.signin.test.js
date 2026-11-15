@@ -1,9 +1,10 @@
-const request = require('supertest');
 const bcrypt = require('bcryptjs');
 const {
-  resetData, closeDb, models, getApp,
+  resetData, closeDb, models,
 } = require('./helpers');
-const { makeWorld, makeCompany } = require('./fixtures');
+const {
+  makeWorld, makeCompany, slugAgent, openPortal, portalApi,
+} = require('./fixtures');
 const { startMockMicrosoft } = require('./mockMicrosoft');
 const { encryptToken } = require('../../src/utils/tokenCrypto');
 
@@ -23,7 +24,8 @@ const person = (n, extra = {}) => ({
 let ms;
 let w;
 let company;
-const portal = () => request.agent(getApp());
+// Tenant Co's own portal (CS): its tenant signs in there.
+const portal = () => slugAgent(company.portalSlug);
 
 beforeAll(async () => {
   ms = await startMockMicrosoft();
@@ -35,10 +37,10 @@ beforeEach(async () => {
   await resetData();
   w = await makeWorld();
   require('../../src/services/microsoft365/graph').clearTokenCache(); // eslint-disable-line global-require
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
   await models.SystemSettings.upsert({ key: 'portal.msClientId', value: ms.clientId });
   await models.SystemSettings.upsert({ key: 'portal.msClientSecret', value: encryptToken(ms.clientSecret) });
   company = await makeCompany(w.admin, { name: 'Tenant Co' });
+  await openPortal(company.id);
   await models.Company.update({ msTenantId: TENANT, msSyncGroups: [{ id: GROUP, name: 'Portal users' }] }, { where: { id: company.id } });
   ms.nextSignIn = null;
   ms.tenants = {
@@ -53,7 +55,6 @@ beforeEach(async () => {
 afterAll(async () => {
   delete process.env.MS_LOGIN_BASE;
   delete process.env.MS_GRAPH_BASE;
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
   await models.SystemSettings.destroy({ where: { key: ['portal.msClientId', 'portal.msClientSecret'] } });
   await ms.close();
   await closeDb();
@@ -61,9 +62,9 @@ afterAll(async () => {
 
 // start → Microsoft → callback. Returns the callback's response (a redirect
 // to the portal, or to the sign-in page with ?refused=) and its URL.
-async function microsoftSignIn(agent, profile) {
+async function microsoftSignIn(agent, profile, at = company) {
   ms.nextSignIn = profile;
-  const start = await agent.get(`${API}/portal/auth/microsoft/start`);
+  const start = await agent.get(`${await portalApi(at.id)}/auth/microsoft/start`);
   expect(start.status).toBe(302);
   const authorize = await fetch(start.headers.location, { redirect: 'manual' });
   expect(authorize.status).toBe(302);
@@ -72,7 +73,7 @@ async function microsoftSignIn(agent, profile) {
   return { res: await agent.get(callbackPath), callbackPath };
 }
 const refusedWith = (res) => new URL(res.headers.location, 'http://x').searchParams.get('refused');
-const signedInPortal = (res) => res.status === 302 && /\/portal$/.test(res.headers.location);
+const signedInPortal = (res) => res.status === 302 && res.headers.location.endsWith(`/portal/${company.portalSlug}`);
 
 it('a sync-group member with a new email gets a contact in the linked company, portal access on, signed in', async () => {
   const agent = portal();
@@ -137,13 +138,28 @@ it('rejects a token whose tenant does not match its issuer, and a replayed callb
   expect(refusedWith(await agent.get(callbackPath))).toBe('failed');
 });
 
+it("at another company's portal, this tenant's people are refused and nothing is made", async () => {
+  const other = await makeCompany(w.admin, { name: 'Other Co' });
+  await openPortal(other.id);
+  // Another company without Microsoft: no Microsoft sign-in there at all.
+  const none = await slugAgent(other.portalSlug).get(`${await portalApi(other.id)}/auth/microsoft/start`);
+  expect([none.status, refusedWith(none)]).toEqual([302, 'unavailable']);
+  expect(none.headers.location).toContain(`/portal/${other.portalSlug}/sign-in`);
+  // Linked to another tenant: Tenant Co's person is not set up there.
+  await models.Company.update({ msTenantId: UNLINKED, msSyncGroups: [{ id: GROUP, name: 'Portal users' }] }, { where: { id: other.id } });
+  const { res } = await microsoftSignIn(slugAgent(other.portalSlug), person(1), other);
+  expect(refusedWith(res)).toBe('not_linked');
+  expect(new URL(res.headers.location).pathname).toBe(`/portal/${other.portalSlug}/sign-in`);
+  expect(await models.Contact.count({ where: { msObjectId: uid(1) } })).toBe(0);
+});
+
 it('a staff member in the groups gets a contact too, and their staff session is untouched', async () => {
   await models.User.update({ email: 'person1@tenant.test' }, { where: { id: w.admin.user.id } });
   const { res } = await microsoftSignIn(w.admin.agent, person(1));
   expect(signedInPortal(res)).toBe(true);
   expect(await models.Contact.count({ where: { email: 'person1@tenant.test', companyId: company.id } })).toBe(1);
   expect((await w.admin.agent.get(`${API}/auth/me`)).status).toBe(200);
-  expect((await w.admin.agent.get(`${API}/portal/me`)).status).toBe(200);
+  expect((await w.admin.agent.get(`${await portalApi(company.id)}/me`)).status).toBe(200);
 });
 
 it('Microsoft-linked contacts have no password sign-in and get no invites', async () => {

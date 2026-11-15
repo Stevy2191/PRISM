@@ -30,6 +30,27 @@ it('counts what the company has set up', async () => {
   expect(glance).toMatchObject({ openTickets: 1, contacts: 2, portalContacts: 1, categories: 1, domains: 1 });
 });
 
+it("says whether the SLA was reviewed, the portal is on and surveys were chosen (CS)", async () => {
+  const a = w.admin.agent;
+  const look = async () => expectOk(await a.get(`${API}/companies/${alpha.id}/glance`)).glance;
+  let g = await look();
+  expect(g.sla).toEqual({ reviewed: false, hours: 'Around the clock', timezone: 'UTC', holidays: 0 });
+  expect(g.portal).toEqual({ enabled: false, slug: alpha.portalSlug });
+  expect(g.surveys).toEqual({ enabled: true, chosen: false });
+  const week = Object.fromEntries(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    .map((d, i) => [d, { enabled: i < 5, start: '08:00', end: '17:00' }]));
+  expectOk(await a.put(`${API}/companies/${alpha.id}/sla`).send({ is24x7: false, schedule: week, timezone: 'America/Chicago' }));
+  expectOk(await a.post(`${API}/companies/${alpha.id}/sla/holidays`).send({ name: 'Day', date: '2026-12-24' }), 201);
+  expectOk(await a.put(`${API}/companies/${alpha.id}/portal`).send({ enabled: true }));
+  expectOk(await a.put(`${API}/companies/${alpha.id}/surveys`).send({ enabled: true }));
+  expectOk(await a.put(`${API}/companies/${alpha.id}/surveys`).send({ enabled: false }));
+  g = await look();
+  expect(g.sla).toEqual({
+    reviewed: true, hours: 'Mon–Fri 08:00–17:00', timezone: 'America/Chicago', holidays: 1,
+  });
+  expect([g.portal.enabled, g.surveys]).toEqual([true, { enabled: false, chosen: true }]);
+});
+
 it('is fenced like the company, and leaves out what the viewer may not see', async () => {
   const beta = await makeCompany(w.admin, { name: 'Beta Law' });
   const tech = await makeTech('tech-gl', w.deptA.id);
@@ -41,19 +62,7 @@ it('is fenced like the company, and leaves out what the viewer may not see', asy
   else expect(mine.status).toBe(403);
 });
 
-it('a company\'s SLA policy is chosen on its page; the summary names your own company', async () => {
-  const gold = await models.SlaPolicy.create({ name: 'Gold', isDefault: false });
-  const put = (agent, body) => agent.put(`${API}/companies/${alpha.id}/sla-policy`).send(body);
-  let res = expectOk(await put(w.admin.agent, { slaPolicyId: gold.id }));
-  expect(res.company.slaPolicy).toMatchObject({ id: gold.id, name: 'Gold' });
-  expect((await models.Company.findByPk(alpha.id)).slaPolicyId).toBe(gold.id);
-  res = expectOk(await put(w.admin.agent, { slaPolicyId: null }));
-  expect(res.company.slaPolicy).toBeNull();
-  expect((await put(w.admin.agent, { slaPolicyId: 999999 })).status).toBe(400);
-  expect(await models.AuditLog.count({ where: { action: 'company.slaPolicy' } })).toBe(2);
-  // Without the SLA permission: refused.
-  const tech = await makeTech('tech-sla', w.deptA.id);
-  expect((await put(tech.agent, { slaPolicyId: gold.id })).status).toBe(403);
+it('the summary names your own company', async () => {
   const internal = await models.Company.findOne({ where: { isInternal: true } });
   expect(expectOk(await w.admin.agent.get(`${API}/companies/summary`)).internalId).toBe(internal.id);
 });

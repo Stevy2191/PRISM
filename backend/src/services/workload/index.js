@@ -5,7 +5,7 @@
 // company-access resolution, which is cached.
 const { Op, QueryTypes } = require('sequelize');
 const {
-  User, Ticket, Task, TaskAssignee, TaskStatus, Project, ProjectMember, Company, TeamMember, HolidayList, Holiday, SystemSettings, sequelize,
+  User, Ticket, Task, TaskAssignee, TaskStatus, Project, ProjectMember, Company, TeamMember, SystemSettings, sequelize,
 } = require('../../models');
 const { ticketScopeWhere, projectScopeWhere, andWhere } = require('../recordScope');
 const { resolveUserPermissions, getUserCompanyIds } = require('../permissionService');
@@ -40,29 +40,12 @@ function weekdayColumns(from, count) {
   return out;
 }
 
-// Holiday dates a person is off: lists with no department, plus their own department's.
+// Holiday dates your staff are off: your own company's holidays (CS). A
+// customer's holidays stop only that customer's SLA clock.
 async function loadHolidays(staff, since) {
-  const deptIds = [...new Set(staff.map((p) => p.departmentId).filter(Boolean))];
-  const lists = await HolidayList.findAll({
-    where: { [Op.or]: [{ departmentId: null }, ...(deptIds.length ? [{ departmentId: deptIds }] : [])] },
-    attributes: ['id', 'departmentId'],
-    raw: true,
-  });
-  const holidays = lists.length
-    ? await Holiday.findAll({ where: { holidayListId: lists.map((l) => l.id), date: { [Op.gte]: since } }, attributes: ['holidayListId', 'name', 'date'], raw: true })
-    : [];
-  const deptOf = new Map(lists.map((l) => [l.id, l.departmentId]));
-  const global = new Map(); // date -> name
-  const byDept = new Map(); // departmentId -> Set(date)
-  for (const h of holidays) {
-    const dept = deptOf.get(h.holidayListId);
-    if (dept == null) global.set(h.date, h.name);
-    else {
-      if (!byDept.has(dept)) byDept.set(dept, new Set());
-      byDept.get(dept).add(h.date);
-    }
-  }
-  return { global, byDept };
+  const days = await require('../sla/companySla').staffHolidays(since); // eslint-disable-line global-require
+  const global = new Map(days.map((h) => [String(h.date).slice(0, 10), h.name])); // date -> name
+  return { global, byDept: new Map() };
 }
 
 // Remaining work per top-level task: its own and its subtasks' logged time, everyone's.

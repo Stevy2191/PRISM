@@ -51,5 +51,5 @@ async function consumePortalToken(token, kind) {
 }
 
 module.exports = {
-  issuePortalToken, consumePortalToken, findUsableToken, hashToken, TOKEN_LIFETIME_MS,
+  issuePortalToken, consumePortalToken, findUsableToken, hashToken, TOKEN_LIFETIME_MS, TOKEN_INVALID: invalid,
 };

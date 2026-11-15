@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { IconCircleCheck } from '@tabler/icons-react';
-import portalApi from '../api';
+import portalApi, { p } from '../api';
 import AccountCard from './AccountCard';
 
 // The same answer whatever the email: nothing here says whether it exists.
@@ -32,7 +32,7 @@ export default function Forgot() {
           </div>
         )}
         <p className="text-[13px]" style={{ color: 'var(--color-text-muted)' }}>
-          <Link to="/portal/sign-in" className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>Back to sign in</Link>
+          <Link to={p('/sign-in')} className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>Back to sign in</Link>
         </p>
       </form>
     </AccountCard>

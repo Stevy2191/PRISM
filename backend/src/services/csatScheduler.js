@@ -4,7 +4,7 @@
 const { Op } = require('sequelize');
 const { CsatSurvey, Ticket, Contact, SystemSettings } = require('../models');
 const { getAllSettings } = require('../controllers/settingsController');
-const { buildSurveyEmail } = require('./csatService');
+const { buildSurveyEmail, surveysOn } = require('./csatService');
 const { sendMail } = require('./emailSender');
 const { buildTicketMessageId, ticketNumber } = require('./email/ticketMail');
 
@@ -13,7 +13,6 @@ const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 // Surveys whose send delay has elapsed and haven't gone out yet.
 async function sendDueSurveys() {
   const settings = await getAllSettings();
-  if (settings['csat.enabled'] !== 'true') return;
 
   const due = await CsatSurvey.findAll({
     where: { status: 'pending', sentAt: null, dueToSendAt: { [Op.lte]: new Date() } },
@@ -33,6 +32,12 @@ async function sendDueSurveys() {
       // nothing sensible to send; mark expired so it stops being polled.
       // eslint-disable-next-line no-await-in-loop
       await survey.update({ status: 'expired' });
+      continue; // eslint-disable-line no-continue
+    }
+    // The company switched surveys off since this one was queued.
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await surveysOn(survey.ticket.companyId))) {
+      await survey.update({ status: 'expired' }); // eslint-disable-line no-await-in-loop
       continue; // eslint-disable-line no-continue
     }
     try {

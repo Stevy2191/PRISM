@@ -1,6 +1,6 @@
 const { resetData, closeDb, models } = require('../integration/helpers');
 const {
-  API, expectOk, makeWorld, makeTicket, makeTech,
+  API, expectOk, makeWorld, makeTicket, makeTech, setEverySla,
 } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
@@ -27,10 +27,9 @@ beforeAll(async () => {
   await resetData();
   w = await makeWorld();
   // The test seed has no resolution targets: set the ones these tickets use.
-  const std = await models.SlaPolicy.findOne({ where: { isDefault: true } });
-  expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({
+  await setEverySla(w.admin, {
     targets: [{ ticketType: 'request', priority: 'medium', responseMinutes: 480, resolutionMinutes: 1440 }],
-  }));
+  });
   tech = await makeTech('tech', w.deptA.id);
   const base = { contactId: w.contact.id, departmentId: w.deptA.id, priority: 'medium' };
   breached = await makeTicket(w.admin.agent, { ...base, title: 'Breached printer' });
@@ -54,7 +53,6 @@ it('the ticket page shows the SLA clocks with due times', async () => {
   await response.waitFor();
   expect(await response.textContent()).toMatch(/First response.*target 8h.*left · due/);
   expect(await page.getByTestId('sla-clock-resolution').textContent()).toMatch(/Resolution.*target 24h/);
-  await shown(page, 'Policy: Standard').waitFor();
 });
 
 it('a ticket from before SLAs shows No SLA', async () => {

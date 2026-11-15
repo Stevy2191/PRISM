@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import {
   IconSearch, IconFileText, IconChevronRight, IconArrowLeft,
 } from '@tabler/icons-react';
-import portalApi from '../api';
+import portalApi, { p } from '../api';
 
 function ArticleRow({ article }) {
   return (
-    <Link to={`/portal/kb/a/${article.slug}`} className="flex items-start gap-3 px-4 py-3.5 transition hover:bg-[var(--color-hover)] sm:px-5">
+    <Link to={p(`/kb/a/${article.slug}`)} className="flex items-start gap-3 px-4 py-3.5 transition hover:bg-[var(--color-hover)] sm:px-5">
       <IconFileText size={20} aria-hidden="true" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-accent)' }} />
       <span className="min-w-0 flex-1">
         <span className="block break-words font-semibold" style={{ color: 'var(--color-text-primary)' }}>{article.title}</span>
@@ -91,7 +91,7 @@ export default function Kb() {
         </>
       )}
       <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-        Can&apos;t find it? <Link to="/portal/tickets/new" className="font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>Raise a ticket</Link>
+        Can&apos;t find it? <Link to={p('/tickets/new')} className="font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>Raise a ticket</Link>
       </p>
     </div>
   );

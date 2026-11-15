@@ -18,7 +18,7 @@ function Figure({ label, value, note, to }) {
 
 // Overview: the company at a glance, and what's set up and what's missing.
 // Each checklist line opens the place that fixes it.
-export default function CompanyGlance({ company, onOpen }) {
+export default function CompanyGlance({ company, onOpen, justMade = false }) {
   const { hasPermission } = useAuth();
   const [g, setG] = useState(null);
   useEffect(() => {
@@ -27,40 +27,43 @@ export default function CompanyGlance({ company, onOpen }) {
   if (!g) return null;
 
   const canManage = hasPermission('companies.manage');
-  const names = (list) => (list.length > 3 ? `${list.slice(0, 3).join(', ')} and ${list.length - 3} more` : list.join(', '));
+  // Mockup NewCompany (CS): the nine things that finish setting up a company.
+  const sla = g.sla;
   const steps = [
     {
-      key: 'contacts', done: g.contacts > 0, label: 'Contacts',
-      detail: g.contacts > 0 ? `${g.contacts} ${g.contacts === 1 ? 'person' : 'people'}` : 'the people who raise tickets', action: 'Add contacts', open: ['people', 'contacts'],
+      key: 'details', done: !!(company.phone || company.website), label: 'Details',
+      detail: company.phone || company.website ? [company.phone, company.website].filter(Boolean).join(' · ') : 'name, phone and website', action: 'Open', open: ['setup', 'details'],
     },
+    ...(sla ? [{
+      key: 'sla', done: sla.reviewed, label: 'SLA targets',
+      detail: sla.reviewed ? 'reviewed' : 'copied from your starting values; review them for this customer', action: 'Review', open: ['setup', 'sla'],
+    }, {
+      key: 'hours', done: sla.reviewed, label: 'Support hours and holidays',
+      detail: `${sla.hours}, ${sla.timezone}, ${sla.holidays} holiday${sla.holidays === 1 ? '' : 's'}${sla.reviewed ? '' : ' (copied)'}`, action: 'Review', open: ['setup', 'sla'],
+    }] : []),
     {
-      key: 'departments', done: g.departments.length > 0, label: 'Departments',
-      detail: g.departments.length ? names(g.departments) : 'none yet', action: 'Add a department', open: ['people', 'departments'],
+      key: 'contacts', done: g.contacts > 0, label: 'Contacts',
+      detail: g.contacts > 0 ? `${g.contacts} ${g.contacts === 1 ? 'person' : 'people'}` : 'the people who will ask for help, or link Microsoft 365 to bring them in', action: 'Add contacts', open: ['people', 'contacts'],
     },
-    ...(g.categories === null || !(company.isClient || company.isInternal) ? [] : [{
-      key: 'categories', done: g.categories > 0, label: 'Ticket categories',
-      detail: g.categories > 0 ? `${g.categories}` : 'what people choose from when they raise a ticket', action: 'Add categories', open: ['setup', 'categories'],
-    }]),
-    ...(g.devices === null ? [] : [{
-      key: 'agent', done: g.devices > 0, label: 'Agent installed',
-      detail: g.devices > 0 ? `${g.devices} ${g.devices === 1 ? 'computer' : 'computers'} reporting` : 'no computers yet', action: 'Install the agent', open: ['assets', 'devices'],
-    }]),
     {
       key: 'domains', done: g.domains > 0, label: 'Email domain',
-      detail: g.domains > 0 ? (company.domains || []).map((d) => d.domain).join(', ') : `so new senders are filed under ${company.name}`, action: 'Add a domain', open: ['setup', 'details'],
+      detail: g.domains > 0 ? (company.domains || []).map((d) => d.domain).join(', ') : `so emails from it become ${company.name}'s tickets`, action: 'Add', open: ['setup', 'details'],
     },
-    {
-      key: 'portal', done: g.portalContacts > 0, label: 'Portal access',
-      detail: g.portalContacts > 0 ? `${g.portalContacts} of ${g.contacts} can sign in` : 'nobody can sign in yet', action: 'Invite contacts', open: ['people', 'contacts'],
-    },
-    {
-      key: 'manager', done: !!company.accountManager, label: 'Account manager',
-      detail: company.accountManager ? company.accountManager.displayName : 'not set', action: canManage ? 'Choose one' : null, open: ['setup', 'details'],
-    },
-    {
-      key: 'sites', done: g.sites > 0, label: 'Sites',
-      detail: g.sites > 0 ? `${g.sites}` : 'none (only needed with more than one location)', action: 'Add a site', open: ['people', 'sites'],
-    },
+    ...(g.categories === null || !company.isClient ? [] : [{
+      key: 'categories', done: g.categories > 0, label: 'Ticket categories',
+      detail: g.categories > 0 ? `${g.categories}` : `${company.name}'s own list; start from yours or from nothing`, action: 'Set up', open: ['setup', 'categories'],
+    }]),
+    ...(!company.isClient ? [] : [{
+      key: 'portal', done: g.portal.enabled, label: 'Portal',
+      detail: g.portal.enabled ? `on · ${g.portalContacts} of ${g.contacts} can sign in` : `off. Turn it on to give ${company.name} its own link.`, action: 'Set up', open: ['setup', 'portal'],
+    }, {
+      key: 'surveys', done: g.surveys.chosen, label: 'Satisfaction surveys',
+      detail: g.surveys.enabled ? (g.surveys.chosen ? 'on' : 'on for new companies. Keep or turn off.') : 'off', action: 'Choose', open: ['setup', 'surveys'],
+    }]),
+    ...(g.devices === null ? [] : [{
+      key: 'agent', done: g.devices > 0, label: 'Agent on their computers',
+      detail: g.devices > 0 ? `${g.devices} ${g.devices === 1 ? 'computer' : 'computers'} reporting` : `make an install link for ${company.name}`, action: 'Open', open: ['assets', 'devices'],
+    }]),
   ];
   const done = steps.filter((s) => s.done).length;
 
@@ -70,10 +73,19 @@ export default function CompanyGlance({ company, onOpen }) {
         <Figure label="Open tickets" value={g.openTickets} note={g.pastSla ? `${g.pastSla} past SLA` : 'none past SLA'} to={`/tickets?companyId=${company.id}`} />
         <Figure label="Contacts" value={g.contacts} note={`${g.portalContacts} with portal access`} />
         {g.devices !== null && <Figure label="Computers" value={g.devices} note={g.devices ? `${g.devicesOnline} online` : 'no agent installed'} />}
-        <Figure label="Account manager" value={<span className="text-base">{company.accountManager?.displayName || 'Not set'}</span>} />
+        <Figure
+          label="Account manager"
+          value={<span className="text-base">{company.accountManager?.displayName || 'Not set'}</span>}
+          note={canManage ? <button type="button" onClick={() => onOpen('setup', 'details')} className="font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>{company.accountManager ? 'Change' : 'Choose'}</button> : null}
+        />
       </div>
+      {justMade && (
+        <div role="status" className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-accent-soft)' }}>
+          {company.name} is created. It starts with a copy of your starting SLA targets, support hours and holidays. Work down the list to finish setting it up; everything for this company is on this page.
+        </div>
+      )}
       <section className="card" data-testid="company-setup">
-        <h2 className="panel-header text-[15px] font-semibold text-navy-900">Setup · {done} of {steps.length} done</h2>
+        <h2 className="panel-header text-[15px] font-semibold text-navy-900">Set up this company · {done} of {steps.length} done</h2>
         <ul className="divide-y divide-navy-100 text-sm">
           {steps.map((s) => (
             <li key={s.key} className="flex items-center gap-3 px-5 py-3">

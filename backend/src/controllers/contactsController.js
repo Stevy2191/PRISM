@@ -19,6 +19,7 @@ const { orgToday } = require('../utils/orgTime');
 const { issuePortalToken } = require('../services/portal/tokens');
 const { sendPortalLink } = require('../services/portal/portalMail');
 const { signInMethod } = require('../services/portal/signInMethod');
+const { portalOpen } = require('../services/portal/company');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const contactInclude = [
@@ -573,11 +574,16 @@ const sendPortalInvite = asyncHandler(async (req, res) => {
   if (!contact.email) throw new ApiError(400, 'This contact has no email address to send the invite to', 'VALIDATION_ERROR');
   if (contact.msObjectId) throw new ApiError(400, 'This contact signs in with Microsoft, so there is no invite to send', 'USE_MICROSOFT');
   if (contact.status !== 'active') throw new ApiError(400, 'This contact is inactive', 'VALIDATION_ERROR');
+  // The invite is to the contact's own company's portal (CS), which must be open.
+  const company = await Company.findByPk(contact.companyId);
+  if (!portalOpen(company)) {
+    throw new ApiError(409, `Turn on ${company ? `${company.name}'s` : 'the company\'s'} portal first (its page, Setup › Portal)`, 'PORTAL_CLOSED');
+  }
 
   const { token, expiresAt } = await issuePortalToken(contact.id, 'invite');
   let sent;
   try {
-    sent = await sendPortalLink('invite', contact, token);
+    sent = await sendPortalLink('invite', contact, company, token);
   } catch (err) {
     await PortalToken.update({ usedAt: new Date() }, { where: { contactId: contact.id, kind: 'invite', usedAt: null } });
     throw new ApiError(502, `The invite email could not be sent: ${err.message}`, err.code || 'EMAIL_FAILED');

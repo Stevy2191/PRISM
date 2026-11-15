@@ -1,9 +1,8 @@
-const request = require('supertest');
 const {
-  resetData, closeDb, models, getApp,
+  resetData, closeDb, models,
 } = require('./helpers');
 const {
-  makeWorld, makeCompany, freezeClock, advanceClock, unfreezeClock,
+  makeWorld, makeCompany, freezeClock, advanceClock, unfreezeClock, portalAgent,
 } = require('./fixtures');
 const { startMockMicrosoft } = require('./mockMicrosoft');
 const {
@@ -33,7 +32,6 @@ beforeEach(async () => {
   await resetData();
   const w = await makeWorld();
   require('../../src/services/microsoft365/graph').clearTokenCache(); // eslint-disable-line global-require
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
   await models.SystemSettings.upsert({ key: 'portal.msClientId', value: ms.clientId });
   await models.SystemSettings.upsert({ key: 'portal.msClientSecret', value: encryptToken(ms.clientSecret) });
   company = await makeCompany(w.admin, { name: 'Tenant Co' });
@@ -46,7 +44,7 @@ beforeEach(async () => {
     },
   };
   freezeClock(new Date().toISOString());
-  agent = request.agent(getApp());
+  agent = await portalAgent(company.id);
   await microsoftSignIn(ms, agent, person(1));
   contactId = (await models.Contact.findOne({ where: { msObjectId: uid(1) } })).id;
   ms.requests = [];
@@ -57,7 +55,6 @@ afterEach(unfreezeClock);
 afterAll(async () => {
   delete process.env.MS_LOGIN_BASE;
   delete process.env.MS_GRAPH_BASE;
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
   await models.SystemSettings.destroy({ where: { key: ['portal.msClientId', 'portal.msClientSecret'] } });
   await ms.close();
   await closeDb();

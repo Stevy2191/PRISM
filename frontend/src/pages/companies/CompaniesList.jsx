@@ -108,7 +108,7 @@ export default function CompaniesList() {
           </div>
         )}
         <Pagination page={pager.page} limit={pager.limit} total={pager.total} totalPages={pager.totalPages} onPageChange={pager.setPage} onLimitChange={pager.setLimit} />
-        {creating && <CompanyFormModal onClose={() => setCreating(false)} onSaved={(created) => { setCreating(false); changed(); if (created?.id) navigate(`/companies/${created.id}`); }} />}
+        {creating && <CompanyFormModal onClose={() => setCreating(false)} onSaved={(created) => { setCreating(false); changed(); if (created?.id) navigate(`/companies/${created.id}?created=1`); }} />}
         {merging && <MergeCompanyModal company={merging} onClose={() => setMerging(null)} onMerged={() => { setMerging(null); changed(); }} />}
     </>
   );

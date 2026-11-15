@@ -29,13 +29,13 @@ describe('resetData()', () => {
     await resetData();
     const w = await makeWorld();
     expectOk(await w.admin.agent.patch(`${API}/settings`).send({
-      'timeTracking.requireBeforeClose': 'true', 'csat.enabled': 'true',
+      'timeTracking.requireBeforeClose': 'true', 'csat.sendDelayHours': '5',
     }));
     await resetData();
     // No endpoint distinguishes "unset" from "set to the default".
     const keys = (await models.SystemSettings.findAll({ raw: true })).map((r) => r.key);
     expect(keys).not.toContain('timeTracking.requireBeforeClose');
-    expect(keys).not.toContain('csat.enabled');
+    expect(keys).not.toContain('csat.sendDelayHours');
   });
 });
 

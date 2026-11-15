@@ -4,7 +4,7 @@
 const { Op, fn, col } = require('sequelize');
 const {
   Company, CompanyDomain, Site, User, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, SlaPolicy, TicketCategory, Device, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, TicketCategory, Device, SlaPolicy, Holiday, AuditLog, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
@@ -25,7 +25,6 @@ const DOMAIN_RE = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{
 const companyInclude = [
   { model: CompanyDomain, as: 'domains', attributes: ['id', 'domain'] },
   { model: User, as: 'accountManager', attributes: ['id', 'displayName'] },
-  { model: SlaPolicy, as: 'slaPolicy', attributes: ['id', 'name'] },
 ];
 
 function normalizeName(raw) {
@@ -161,6 +160,19 @@ const get = asyncHandler(async (req, res) => {
 // GET /companies/:id/glance: the Overview's figures and setup checklist.
 // Each figure is counted only as far as the viewer may see those records;
 // one they may not see at all is null.
+// [['Mon','08:00–17:00'], ...] → 'Mon–Fri 08:00–17:00': consecutive days
+// with the same hours run together.
+const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+function hoursText(days) {
+  const runs = [];
+  days.sort((a, b) => WEEK.indexOf(a[0]) - WEEK.indexOf(b[0])).forEach(([day, hours]) => {
+    const last = runs[runs.length - 1];
+    if (last && last.hours === hours && WEEK.indexOf(day) === WEEK.indexOf(last.to) + 1) last.to = day;
+    else runs.push({ from: day, to: day, hours });
+  });
+  return runs.map((r) => `${r.from === r.to ? r.from : `${r.from}–${r.to}`} ${r.hours}`).join(', ');
+}
+
 const glance = asyncHandler(async (req, res) => {
   const company = await loadAccessibleCompany(req);
   const here = { companyId: company.id };
@@ -182,6 +194,16 @@ const glance = asyncHandler(async (req, res) => {
     seesAssets ? Device.count({ where: { ...here, revokedAt: null } }) : null,
     seesAssets ? Device.count({ where: { ...here, revokedAt: null, lastSeenAt: { [Op.gte]: online } } }) : null,
   ]);
+  // CS: its SLA (copied when it was made: reviewed once saved), support
+  // hours, portal and surveys (chosen once switched, either way).
+  const slaRow = await SlaPolicy.findOne({ where: { companyId: company.id } });
+  const [holidays, slaSaves, surveyChoices] = await Promise.all([
+    slaRow ? Holiday.count({ where: { slaPolicyId: slaRow.id } }) : 0,
+    AuditLog.count({ where: { entityType: 'Company', entityId: company.id, action: ['company.sla', 'company.sla.reset'] } }),
+    AuditLog.count({ where: { entityType: 'Company', entityId: company.id, action: 'company.surveys' } }),
+  ]);
+  const DAY = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+  const openDays = slaRow && !slaRow.is24x7 && slaRow.schedule ? Object.entries(slaRow.schedule).filter(([, d]) => d && d.enabled) : [];
   res.json({
     glance: {
       openTickets,
@@ -194,34 +216,16 @@ const glance = asyncHandler(async (req, res) => {
       categories,
       devices,
       devicesOnline,
+      sla: slaRow ? {
+        reviewed: slaSaves > 0,
+        hours: slaRow.is24x7 ? 'Around the clock' : hoursText(openDays.map(([d, h]) => [DAY[d], `${h.start}–${h.end}`])) || 'No open days',
+        timezone: slaRow.timezone,
+        holidays,
+      } : null,
+      portal: { enabled: company.portalEnabled === true, slug: company.portalSlug },
+      surveys: { enabled: company.csatEnabled === true, chosen: surveyChoices > 0 },
     },
   });
-});
-
-// PUT /companies/:id/sla-policy { slaPolicyId | null } — the company's SLA
-// policy, from its page (owner, 2026-11-14). null is "the default policy".
-// Like editing a policy's companies in Settings → SLAs, it needs the SLA
-// permission; tickets already open keep the clocks they started with.
-const setSlaPolicy = asyncHandler(async (req, res) => {
-  const company = await loadAccessibleCompany(req);
-  if (!(await hasPermission(req.user.id, 'settings.manage_system'))) {
-    throw new ApiError(403, 'Choosing a company\'s SLA policy needs the System settings permission', 'FORBIDDEN');
-  }
-  const raw = (req.body || {}).slaPolicyId;
-  let slaPolicyId = null;
-  if (raw !== null && raw !== undefined && raw !== '') {
-    const policy = await SlaPolicy.findByPk(parseRecordId(raw) || 0, { attributes: ['id', 'name'] });
-    if (!policy) throw new ApiError(400, 'Unknown SLA policy', 'VALIDATION_ERROR');
-    slaPolicyId = policy.id;
-  }
-  const from = company.slaPolicyId || null;
-  if (from !== slaPolicyId) {
-    await company.update({ slaPolicyId });
-    // The SLA code caches which policy each company is on.
-    require('../services/sla/calendar').invalidate(); // eslint-disable-line global-require
-    await writeAudit(req, 'company.slaPolicy', 'Company', company.id, { from, to: slaPolicyId });
-  }
-  res.json({ company: await Company.findByPk(company.id, { include: companyInclude }) });
 });
 
 // POST /companies
@@ -350,5 +354,5 @@ const removeDomain = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  list, summary, vendors, get, glance, setSlaPolicy, create, update, remove, merge, addDomain, removeDomain, loadAccessibleCompany,
+  list, summary, vendors, get, glance, create, update, remove, merge, addDomain, removeDomain, loadAccessibleCompany,
 };
