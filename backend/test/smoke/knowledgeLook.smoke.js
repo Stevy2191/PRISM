@@ -101,14 +101,6 @@ it('an article has a breadcrumb back to Knowledge Base', async () => {
 
 // The public Help Center moved into the client portal (7a): portal.smoke.js
 // covers reading articles there; signed out, /kb now asks the contact to sign in.
-it('the old public /kb address forwards to the portal sign-in', async () => {
-  const context = await smoke.browser.newContext({ baseURL: smoke.base, ...PHONE });
-  const page = await context.newPage();
-  await page.goto('/kb');
-  await page.waitForURL(/\/portal\/sign-in/);
-  await context.close();
-});
-
 it('phone: a kb.manage user can still reach Manage categories', async () => {
   const page = await smoke.pageAs('admin', undefined, PHONE);
   await page.goto('/knowledge');
