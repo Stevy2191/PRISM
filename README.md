@@ -1,16 +1,64 @@
 # PRISM
 
-**PRISM** is a self-hosted ticketing and project management web application for use
-across departments (starting with IT). It provides ticket tracking, project and
-milestone management, time logging, attachments, reporting, and an API — all behind
-authentication.
+**PRISM** is a self-hosted help desk and project management system for IT teams
+and managed service providers. One place for tickets, projects, customers,
+assets and time, with a client portal for the people you support and an agent
+for their computers.
 
-- **Frontend:** React (Vite) + React Router + Tailwind CSS
-- **Backend:** Node.js + Express
-- **Database:** MariaDB via Sequelize ORM (with migrations)
-- **Auth:** Active Directory / LDAP (`ldapjs`) **and** local username/password accounts
-- **Deployment:** Docker Compose (frontend, backend, mariadb)
-- **Storage:** Ticket attachments on a local Docker volume
+## Screenshots
+
+| | |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) **Dashboard**: open work, what needs attention, project health, team workload and activity. | ![Tickets](docs/screenshots/tickets.png) **Tickets**: filters, saved views, live SLA countdowns, table or board. |
+| ![A ticket](docs/screenshots/ticket.png) **A ticket**: replies and private comments, SLA clocks, timer, tasks, checklists, files. | ![Project timeline](docs/screenshots/project-timeline.png) **Projects**: phases, tasks, dependencies and a drag-to-plan timeline. |
+| ![Workload](docs/screenshots/workload.png) **Workload**: tickets and project tasks per person per day; drag to hand work out. | ![A company](docs/screenshots/company.png) **Companies**: each customer's one page, with a setup list for new ones. |
+| ![A company's portal settings](docs/screenshots/company-portal.png) **Each company's portal**: its own link, who can sign in, invites, admins, Microsoft 365. | ![Assets](docs/screenshots/assets.png) **Assets**: equipment, licenses and contracts, kept current by the PRISM agent. |
+| ![Client portal](docs/screenshots/portal.png) **Client portal**: customers raise and follow their tickets. | ![Settings](docs/screenshots/settings.png) **Settings**: everything that applies to the whole help desk, in one place. |
+
+<p align="center"><img src="docs/screenshots/portal-phone.png" alt="The client portal's knowledge base on a phone" width="300"></p>
+<p align="center"><em>The portal and the whole app work on a phone.</em></p>
+
+---
+
+## What it does
+
+- **Service desk.** Tickets from the web, email and the agent's tray app;
+  queues, saved filters, a board view, canned responses, merge and split, bulk
+  actions, CC/BCC, signatures, editable email templates, recurring tickets,
+  ticket templates, categories per company, custom fields and workflow rules.
+- **SLAs.** Assignment, first-response and resolution clocks per ticket type
+  and priority, counted in each company's own support hours, time zone and
+  holidays, with warnings, breaches, escalation rules and a compliance report.
+- **Checklists and bundles.** Step-by-step checklists on tickets (with secure
+  fields and steps that only show when they apply), and bundles that add
+  several at once, suggested by category.
+- **Projects.** Phases, milestones, tasks and subtasks with dependencies, a
+  timeline you plan by dragging, templates, hour budgets, costs and files.
+- **Time.** One timer and one time ledger across tickets, projects, tasks and
+  subtasks, with reports and CSV export.
+- **Workload.** Who is busy with what, day by day, across tickets and project
+  tasks, against each person's own working hours.
+- **Companies and contacts.** Your company and each customer have one page
+  with everything for that company: contacts, departments, sites, SLA and
+  hours, portal, surveys, categories, devices, and what applies to it.
+- **Client portal.** Each company has its own portal link. Its contacts sign
+  in (password or Microsoft 365), raise and follow tickets, and read the
+  knowledge base; company and department admins see more. Nobody can sign in
+  at another company's portal.
+- **Assets.** Equipment, licenses and contracts, check-out forms with
+  signatures, expiry alerts and MDM records.
+- **The PRISM agent** (in testing) for Windows, macOS and Linux: keeps each
+  computer's hardware, software and users current as an Asset, and gives
+  people **Submit a ticket** in the tray or menu bar.
+- **Knowledge base** for staff and, per audience, the portal.
+- **Satisfaction surveys** per company, with scores on the dashboard, in
+  reports and per technician.
+- **Sign-in** with local accounts, Active Directory / LDAP, or single sign-on
+  (OpenID Connect and SAML 2.0), with roles and fine-grained permissions.
+- **Reports, audit log, imports and exports, an API with API keys, light and
+  dark themes, and a layout that works on a phone.**
+
+What's built and what's next: [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -22,45 +70,45 @@ authentication.
 │  (nginx +  │   (proxied)    │  (Express) │               │  10.11     │
 │   React)   │ ◀───────────── │            │ ◀──────────── │            │
 └────────────┘                └────────────┘               └────────────┘
-                                    │ writes
-                                    ▼
-                              /uploads volume
+                                 │      ▲
+                       writes    ▼      │ HTTPS (check-ins, tickets)
+                         /uploads volume     PRISM agent on computers
 ```
 
-The frontend container (nginx) serves the built React app and proxies `/api/*`
-to the backend. The backend authenticates users against LDAP/AD, stores sessions
-in MariaDB, and persists attachments to the `uploads` volume.
+- **Frontend:** React (Vite), React Router, Tailwind CSS, served by nginx,
+  which also proxies `/api` to the backend.
+- **Backend:** Node.js and Express, with Sequelize on **MariaDB**. Sessions are
+  stored in the database; attachments go to the `uploads` volume and are
+  checked by ClamAV.
+- **Agent:** Go, installed as a system service with a per-user tray app
+  (MSI, .pkg, .deb/.rpm/pacman), in [`agent/`](agent/).
+- **Deployment:** Docker Compose, from images published to GitHub Container
+  Registry.
 
 ---
 
 ## Roles and permissions
 
-Access is governed by **granular permissions** (49 of them, across tickets,
-projects, people, assets, reports, knowledge and settings) grouped into roles.
-A user's effective permissions are the union of the roles they hold, plus any
-per-user overrides.
-
-Six roles are seeded; all are editable under **Settings → Roles** except where
-noted, and you can add your own.
+Access is governed by **granular permissions** grouped into roles. A user's
+effective permissions are the union of the roles they hold, plus any per-user
+overrides. Most permissions come in `own` / `department` / `all` tiers, and a
+user can be limited to some companies.
 
 | Seeded role | Intended for |
 |------|--------------|
 | **System Administrator** | Full access to everything. Cannot be deleted. |
-| **System Technician** | Handles tickets and projects across the whole organisation |
+| **System Technician** | Handles tickets and projects across the whole organization |
 | **Department Manager** | Manages tickets, projects and people within one department |
 | **Department Staff** | Works tickets within one department |
 | **Read Only** | Views tickets, projects and people; no write access |
-| **Requester** | Retired — superseded by Contacts, kept only for legacy installs |
 
-Most permissions come in `own` / `department` / `all` tiers, which control both
-what a list returns and what a single record will open.
+Roles are edited, and new ones added, under **Settings › People & access ›
+Roles & permissions**. The people you support are **Contacts**, not users;
+they sign in to their company's portal, never to PRISM itself.
 
-Customers and end-users are **Contacts**, not users — they have no login. See
-the Contacts module rather than creating accounts for them.
-
-> New users are assigned a role at creation time. Directory (AD) users are
-> provisioned on first login with **no permissions at all** until an
-> administrator assigns them a role.
+> Directory (AD) and single sign-on users are created on first sign-in **with
+> no permissions** until an administrator assigns a role (or an SSO group
+> mapping does).
 
 ---
 
@@ -146,8 +194,8 @@ go back to plain HTTP, delete the `COMPOSE_FILE` line from `.env`, set
 ### First login
 
 Sign in at the URL printed by `setup.sh` on the **Local Account** tab, using the
-username and password shown at the end of the script. Go to **Admin → Users** to
-promote your AD account to Admin or create additional local accounts. You can delete
+username and password shown at the end of the script. Go to **Settings › People &
+access › Users** to give your directory account a role or create more local accounts. You can delete
 the bootstrap account once other admins exist.
 
 **Sign-in goes straight back to the login page?** The browser isn't keeping the
@@ -182,7 +230,7 @@ version instead — to pin a deployment, or to roll back after a bad upgrade —
 IMAGE_TAG=0.1.0
 ```
 
-The running version is shown in the Settings page footer. See
+The running version is shown in **Settings › About**. See
 [RELEASING.md](RELEASING.md) for how versions are built, deployed and rolled
 back, and [UPGRADING.md](UPGRADING.md) for what changed between them.
 
@@ -280,33 +328,19 @@ The Express session table (`Sessions`) is created automatically at startup by
 
 ## Authentication
 
-PRISM supports two login methods, selectable via tabs on the login page:
+Staff sign in with any of:
 
-- **Active Directory** — username + password verified against LDAP/AD. AD users are
-  created automatically on first login **with no permissions** until an administrator
-  assigns them a role, and their `displayName`/`email` are synced from the directory
-  on every login.
-- **Single sign-on** — SAML 2.0 or OpenID Connect against your own identity provider
-  (Entra ID, Okta, Google Workspace, Keycloak, ADFS, …). Configure under
-  **Settings → Single Sign-On**; see [SSO setup](#single-sign-on-sso) below.
-- **Local Account** — username **or** email + password, verified against a bcrypt
-  hash stored in the `Users` table. Local accounts are created **manually by an
-  Admin** (Admin → Users → *New Local Account*) and are never created or modified by
-  LDAP sync. Admin-created local accounts must change their password on first login
-  (the bootstrap admin created by `setup.sh` is exempt — its password was set
-  intentionally by the operator).
+- **Local account**: username or email and password (bcrypt). Created under
+  **Settings › People & access › Users**; a new account changes its password
+  at first sign-in (the first admin made by `setup.sh` is exempt).
+- **Active Directory / LDAP**: verified against your directory; display name
+  and email are synced at each sign-in. See [below](#configuring-ldap--active-directory).
+- **Single sign-on**: OpenID Connect or SAML 2.0 against your own identity
+  provider. See [below](#single-sign-on-sso).
 
-Sessions for both methods are stored in MariaDB. Programmatic clients can instead
-use an `X-API-Key` header (see *Generating an API key*).
-
-| User field | Meaning |
-|------------|---------|
-| `isLocalAccount` | `true` for local accounts, `false` for AD users |
-| `passwordHash` | bcrypt hash (local accounts only; `null` for AD users) |
-| `mustChangePassword` | forces a password change before any other action |
-
-Admins can reset a local account's password from **Admin → Users** (which re-arms
-`mustChangePassword`). AD passwords are managed in Active Directory, not in PRISM.
+Sessions are stored in MariaDB. Scripts and tools use an API key instead
+([below](#api-keys-and-the-api)). Contacts sign in to their company's portal
+with a password from an invite link, or with Microsoft 365.
 
 ---
 
@@ -314,11 +348,11 @@ Admins can reset a local account's password from **Admin → Users** (which re-a
 
 PRISM federates with any identity provider speaking **OpenID Connect** or
 **SAML 2.0**, and can use several at once. Configure them under
-**Settings → Single Sign-On** (requires `settings.manage_system`).
+**Settings › Sign-in & email › Single sign-on** (requires `settings.manage_system`).
 
 ### Adding a provider
 
-1. **Settings → Single Sign-On → Add provider**, pick the protocol and give it
+1. **Settings › Sign-in & email › Single sign-on › Add provider**, pick the protocol and give it
    a slug (it appears in the callback URL and cannot be changed later).
 2. Save, then copy the **Redirect URI** / **ACS URL** shown on the provider and
    register it with your IdP. SAML providers also expose service-provider
@@ -392,23 +426,24 @@ with `LDAP_USER_FILTER`, then re-binds as that user's DN with the supplied passw
 to verify the credentials. On success it syncs the user's `displayName`, `mail`,
 and `sAMAccountName` into the database.
 
-You can review the effective (non-secret) LDAP configuration in the app under
-**Admin → Settings**.
+You can review the effective (non-secret) LDAP configuration, and sync contacts
+from the directory, under **Settings › Sign-in & email › Directory**.
 
 ---
 
 ## Image publishing & production notes
 
-On every push to `main`, GitHub Actions builds and publishes both images to GHCR,
-tagged with `latest` and the git SHA — this is what the default `docker-compose.yml`
-pulls:
+GitHub Actions runs the tests, then builds and publishes both images to GHCR on
+every push to `main` and `dev` and on every version tag:
 
-- `ghcr.io/stevy2191/prism-backend:latest` (and `:<git-sha>`)
-- `ghcr.io/stevy2191/prism-frontend:latest` (and `:<git-sha>`)
+- `ghcr.io/stevy2191/prism-backend` and `ghcr.io/stevy2191/prism-frontend`
+- tagged `latest` (from `main`), `dev` (from `dev`), the version (e.g. `0.4.0`)
+  and the git SHA
 
-The host port is controlled by `APP_PORT` in `.env` (default **8080**). Put a
-TLS-terminating reverse proxy in front for HTTPS; if it forwards plain HTTP
-internally, set `COOKIE_SECURE=false` in `.env` so session cookies are still issued.
+The host port is `APP_PORT` in `.env` (default **8080**). For production, put a
+reverse proxy with a real certificate in front, set `PUBLIC_APP_URL` to its
+`https://` address and keep `COOKIE_SECURE=true`; the proxy must send
+`X-Forwarded-Proto: https`.
 
 ### Pulling the images
 
@@ -437,110 +472,36 @@ docker compose pull
 
 ---
 
-## Generating an API key
+## API keys and the API
 
-Programmatic clients authenticate with the `X-API-Key` header instead of a session
-cookie. Keys are stored **bcrypt-hashed**; the plaintext is shown **only once** at
-creation.
-
-1. Sign in to PRISM.
-2. Go to **Admin → API Keys**.
-3. Enter a name (and optional expiry) and click **Generate**.
-4. Copy the displayed key immediately — it cannot be retrieved again.
-
-Use it against the API:
+Scripts and tools authenticate with an `X-API-Key` header instead of a session
+cookie. Create a key under **Settings › People & access › API keys**; it is
+shown **once** and stored hashed. Revoke it from the same page.
 
 ```bash
-curl -H "X-API-Key: prism_xxxxxxxx..." \
-     https://your-host/api/v1/tickets
+curl -H "X-API-Key: prism_xxxxxxxx..." https://your-host/api/v1/tickets
 ```
 
-Revoke a key anytime from the same page (admins see all keys; other users see
-only their own).
-
----
-
-## REST API
-
-Base path: `/api/v1`. All responses are JSON. Errors use a consistent shape:
+The API lives under `/api/v1` and is the one the web app uses: tickets,
+comments, attachments, time, projects and tasks, companies, contacts, assets,
+knowledge base, reports and settings. Responses are JSON; errors look like:
 
 ```json
 { "error": true, "message": "Ticket not found", "code": "NOT_FOUND" }
 ```
 
-Authentication: session cookie (browser) **or** `X-API-Key` header (clients).
-
-| Area | Endpoints |
-|------|-----------|
-| Auth | `POST /auth/login` (`mode: ad\|local`), `POST /auth/logout`, `GET /auth/me`, `POST /auth/change-password` |
-| Users | `GET /users` (admin), `POST /users` (admin, local account), `GET/PATCH/DELETE /users/:id` |
-| Departments | `GET/POST /departments`, `GET/PATCH/DELETE /departments/:id` |
-| Projects | `GET/POST /projects`, `GET/PATCH/DELETE /projects/:id`, `…/:id/milestones[/:milestoneId]` |
-| Project time | `GET/POST /projects/:id/time`, `DELETE …/:entryId` (project-level time) |
-| Tickets | `GET/POST /tickets`, `GET/PATCH/DELETE /tickets/:id` |
-| Ticket comments | `GET/POST /tickets/:id/comments`, `PATCH/DELETE …/:commentId` |
-| Ticket attachments | `GET/POST /tickets/:id/attachments`, `GET …/:attachmentId/download`, `DELETE …/:attachmentId` |
-| Ticket time | `GET/POST /tickets/:id/time`, `DELETE …/:entryId` |
-| Ticket relations | `GET/POST /tickets/:id/relations`, `DELETE …/:relationId` |
-| Ticket CSAT | `GET /tickets/:id/csat`, `POST /tickets/:id/csat` (requester) |
-| Blueprints | `GET /blueprints`, `GET /blueprints/:id`, `POST/PATCH/DELETE` (staff) |
-| Teams | `GET /teams`, `GET /teams/:id`, `POST/PATCH/DELETE` (admin) |
-| Business hours | `GET /business-hours`, `POST/PATCH/DELETE` (admin) |
-| Holiday lists | `GET /holiday-lists`, `POST/PATCH/DELETE`, `…/:id/holidays[/:holidayId]` (admin) |
-| Modules | `GET /modules`, `PUT /modules` (admin) — sidebar visibility per role |
-| Custom fields | `GET /custom-fields` (`?ticketType=&departmentId=`), `POST/PATCH/DELETE` (admin) |
-| Timer | `GET /timer`, `POST /timer/start`, `POST /timer/stop`, `DELETE /timer` (staff) — per-user running timer |
-| API keys | `GET/POST /apikeys`, `DELETE /apikeys/:id` |
-| Reports | `GET /reports/tickets`, `GET /reports/time` (`?format=csv`), `GET /reports/csat` |
-| Settings | `GET /settings/public` (no auth), `GET/PUT /settings` (admin), `POST/DELETE /settings/logo`, `GET /settings/logo` |
-
-Ticket list filters (query params): `status`, `priority`, `type`, `assignee`,
-`team`, `project`, `department`, `requester`.
-
-### Settings system
-
-A `/settings` hub (role-aware card grid) groups all configuration. Highlights:
-**Company** (name, logo, timezone/locale — stored in `SystemSettings`), **Rebranding**
-(primary/accent/login colors + welcome message applied at runtime via CSS variables,
-with live preview), **Business Hours** & **Holiday Lists** (per-department schedules),
-**Teams** (tickets can be assigned to a team; filterable), **Customer Happiness**
-(CSAT survey on resolved/closed tickets, scored in Reports), and **Modules & Tabs**
-(toggle sidebar items per role). Admins see everything; technicians see a subset;
-requesters see only their **Preferences**. **Preferences** also offers a **theme
-switcher** (Light / Dark / System) — the whole UI flips via CSS variables, persisted
-per browser.
-
-**Layouts & Fields** (Phase 2): admins define `CustomField`s (text/textarea/number/
-select/checkbox/date/url), optionally scoped to a ticket type and/or department and
-ordered via `displayOrder`. Applicable fields render dynamically on the ticket
-create/edit forms; values are stored relationally in `TicketFieldValue` (one row per
-ticket × field). This is distinct from blueprint custom fields, which are template-
-driven and stored inline on the ticket.
-
-### Blueprints, related tickets & time tracking
-
-- **Blueprints** are reusable ticket templates (name, category, default field values,
-  and custom fields of type text/textarea/number/select/checkbox/date). Staff manage
-  them at **Admin → Blueprints**; on the new-ticket form, **Use Blueprint** pre-fills
-  the form and renders the custom fields, which are stored on the ticket.
-- **Ticket types** are `incident`, `request`, `problem`, `task`, `change`. A
-  **problem** represents the root cause behind one or more incidents; use
-  **Related Tickets** on the ticket detail page to link them (`related`, `caused_by`,
-  `duplicates`).
-- **Time tracking** works on both tickets and projects. A `TimeEntry` references
-  exactly one of `ticketId` / `projectId`. The project detail page has a **Time Log**
-  tab aggregating ticket + project-level time, and **Reports** breaks time down by
-  user, project, and department with CSV export.
+A key acts with its owner's permissions.
 
 ---
 
-## Roadmap and development
+## Roadmap, design notes and release notes
 
-What has been built, what's next, and the notes for working on the code
-(test database, test runs, CI) are in [`docs/ROADMAP.md`](docs/ROADMAP.md).
-Each sub-project's design and step-by-step plan are in
-`docs/superpowers/specs/` and `docs/superpowers/plans/`. Release notes are
-in [`UPGRADING.md`](UPGRADING.md).
+- [`docs/ROADMAP.md`](docs/ROADMAP.md): what's built, what's next, and notes for
+  working on the code.
+- `docs/superpowers/specs/` and `docs/superpowers/plans/`: each feature's design
+  and step-by-step plan; `docs/mockups/`: the approved screen designs.
+- [`UPGRADING.md`](UPGRADING.md): what changed in each version.
+- [`RELEASING.md`](RELEASING.md): how versions are built, deployed and rolled back.
 
 ## Running the tests
 
@@ -575,43 +536,29 @@ and replay failures are exercised rather than assumed.
 
 ```
 prism/
-├── docker-compose.yml          # default: run from prebuilt ghcr.io images
-├── docker-compose.dev.yml      # development: build everything from source
-├── setup.sh                    # interactive setup wizard (run this first)
-├── uninstall.sh                # complete teardown — containers, volumes, images, .env
-├── .env.example                # template for .env (generated by setup.sh or copy manually)
-├── .github/workflows/docker-publish.yml
-├── backend/
-│   ├── Dockerfile
-│   ├── migrations/             # Sequelize migrations
-│   └── src/
-│       ├── index.js            # Express app + session store
-│       ├── config/             # database, ldap, sequelize-cli config
-│       ├── models/             # Sequelize models + associations
-│       ├── middleware/         # auth, roles, errors, audit, uploads
-│       ├── controllers/
-│       └── routes/
-└── frontend/
-    ├── Dockerfile              # build → nginx
-    ├── nginx.conf              # serves SPA + proxies /api
-    └── src/
-        ├── api/                # central Axios client
-        ├── context/            # auth context
-        ├── components/
-        └── pages/
+├── docker-compose.yml          # run from the published images
+├── docker-compose.tls.yml      # adds HTTPS with a test certificate
+├── docker-compose.dev.yml      # build everything from source
+├── setup.sh                    # interactive setup (run this first)
+├── uninstall.sh                # remove containers, volumes, images and .env
+├── .env.example
+├── backend/                    # Express API, Sequelize models and migrations, tests
+├── frontend/                   # React app (staff app and client portal), nginx config
+├── agent/                      # the PRISM agent (Go) and its installers
+├── docs/                       # roadmap, specs, plans, mockups, screenshots
+└── .github/workflows/          # tests, image publishing, agent builds
 ```
 
 ---
 
 ## Operational notes
 
-- **Attachments** are limited to 25 MB and stored under `/uploads/{ticketId}/`
-  on the `uploads_data` volume.
-- **Audit logging:** every state-changing action writes an `AuditLog` row
-  (actor, action, entity, JSON metadata).
-- **Sessions** are stored in MariaDB and survive backend restarts.
-- **Data integrity:** multi-step writes use Sequelize transactions; deleting a
-  ticket cascades its comments, attachments, and time entries (and removes files).
+- **Attachments** are limited to 25 MB, scanned by ClamAV, and stored on the
+  `uploads_data` volume.
+- **Audit log:** every change writes who did what to what; see **Settings ›
+  System › Audit log**.
+- **Sessions** are stored in MariaDB and survive restarts.
+- **Backups:** back up the MariaDB database and the `uploads_data` volume.
 
 ## License
 
