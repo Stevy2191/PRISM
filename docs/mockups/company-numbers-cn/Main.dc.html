@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tickets with company numbers</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#" class="on">Tickets</a><a href="#">Clients</a><a href="#">Assets</a><a href="#">Projects</a><a href="#">Reports</a><a href="#">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
+      <div><h1>Tickets</h1><span class="sub">142 tickets across 4 companies</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><label class="field" style="margin:0"><span class="label">Company</span><select class="input" aria-label="Company"><option>All companies</option><option>Washington County (WC)</option><option>Acme Manufacturing (ACME)</option><option>Harbor Law Group (HLG)</option><option>Lakeside IT (LIT): your company</option></select></label><label class="field" style="margin:0"><span class="label">Find a ticket</span><input class="input" aria-label="Find a ticket" value="WC-T0042"></label><button type="button" class="btn primary">+ New ticket</button></div>
+    </div>
+    <div class="panel" style="margin-top:18px;overflow-x:auto">
+      <table class="tbl" style="min-width:900px">
+        <thead><tr><th>Number</th><th>Title</th><th>Company</th><th>Requester</th><th>Status</th><th>Assignee</th></tr></thead>
+        <tbody>
+          <tr><td><b>WC-T0042</b></td><td>Printer in the Tax Office won't scan</td><td>Washington County</td><td>Dana Ortiz · Tax Office</td><td><span class="badge">Open</span></td><td>Tina Morales</td></tr>
+          <tr><td><b>WC-T0041</b></td><td>New hire: laptop and accounts for Sam Ito</td><td>Washington County</td><td>Lee Park · Human Resources</td><td><span class="badge">Open</span></td><td>Marco Chen</td></tr>
+          <tr><td><b>ACME-T0118</b></td><td>Label printer on line 2 jams every morning</td><td>Acme Manufacturing</td><td>Marcus Bell · Plant floor</td><td><span class="badge warn">SLA at risk</span></td><td>Tina Morales</td></tr>
+          <tr><td><b>HLG-T0007</b></td><td>VPN drops when switching to Wi-Fi</td><td>Harbor Law Group</td><td>Grace Kim</td><td><span class="badge">Open</span></td><td>Unassigned</td></tr>
+          <tr><td><b>LIT-T0019</b></td><td>Renew the backup storage contract</td><td>Lakeside IT</td><td>Jordan Reyes · Service Desk</td><td><span class="badge">Open</span></td><td>Marco Chen</td></tr>
+          <tr><td><b>WC-T0040</b></td><td>Shared mailbox for the County Clerk</td><td>Washington County</td><td>Priya Shah · County Clerk</td><td><span class="badge ok">Closed</span></td><td>Marco Chen</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout" style="margin-top:16px"><span>Each company counts its own tickets from T0001: Washington County's 42nd ticket is <b>WC-T0042</b>, Acme's 118th is <b>ACME-T0118</b>. Your own company has a code too (LIT). Searching finds a ticket by its number, by its old number (#00042) or by the number alone within a company.</span></div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Projects with company numbers</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Clients</a><a href="#">Assets</a><a href="#" class="on">Projects</a><a href="#">Reports</a><a href="#">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
+      <div><h1>Projects</h1><span class="sub">9 active across 3 companies</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><label class="field" style="margin:0"><span class="label">Company</span><select class="input" aria-label="Company"><option>All companies</option><option>Washington County (WC)</option><option>Acme Manufacturing (ACME)</option><option>Lakeside IT (LIT): your company</option></select></label><button type="button" class="btn primary">+ New project</button></div>
+    </div>
+    <div class="panel" style="margin-top:18px;overflow-x:auto">
+      <table class="tbl" style="min-width:960px">
+        <thead><tr><th>Number</th><th>Project</th><th>Company</th><th>For</th><th>Done by</th><th>Progress</th><th>Due</th><th>Portal</th></tr></thead>
+        <tbody>
+          <tr><td><b>WC-HR-P0007</b></td><td>Onboarding portal for new county staff</td><td>Washington County</td><td>Human Resources</td><td>Service Desk</td><td>12 of 30 tasks</td><td>Jan 30</td><td><span class="badge ok">Shown</span></td></tr>
+          <tr><td><b>WC-P0006</b></td><td>County-wide Windows 11 upgrade</td><td>Washington County</td><td>The whole county</td><td>Service Desk</td><td>41 of 88 tasks</td><td>Mar 15</td><td><span class="badge ok">Shown</span></td></tr>
+          <tr><td><b>WC-TAX-P0005</b></td><td>Replace the Tax Office scanners</td><td>Washington County</td><td>Tax Office</td><td>Field Services</td><td>Done</td><td>Nov 1</td><td><span class="badge ok">Shown</span></td></tr>
+          <tr><td><b>ACME-P0003</b></td><td>Office 365 migration</td><td>Acme Manufacturing</td><td>The whole company</td><td>Service Desk</td><td>3 of 12 tasks</td><td>Dec 30</td><td><span class="badge">Hidden</span></td></tr>
+          <tr><td><b>LIT-SD-P0012</b></td><td>New backup storage</td><td>Lakeside IT</td><td>Service Desk</td><td>Service Desk</td><td>2 of 9 tasks</td><td>Dec 12</td><td><span class="muted">Not for customers</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout" style="margin-top:16px"><span>Each company counts its own projects from P0001, across all its departments, so <b>WC-HR-P0007</b> is Washington County's 7th project and is for its Human Resources. A project for the whole company leaves the department out: <b>WC-P0006</b>. Tasks follow it: WC-HR-P0007-T04.</span></div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+}
+}
+</script>
+</body>
+</html>

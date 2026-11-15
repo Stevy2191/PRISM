@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Company and department codes</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#" class="on">Clients</a><a href="#">Assets</a><a href="#">Projects</a><a href="#">Reports</a><a href="#">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Companies</a><span>/</span><span>Washington County</span></nav>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px"><h1>Washington County</h1><span class="tag"><b>WC</b></span><span class="badge">Customer</span></div>
+    <nav class="tabs" aria-label="Company" style="margin-top:18px"><a href="#">Overview</a><a href="#" class="on">People</a><a href="#">Work</a><a href="#">Assets</a><a href="#">Setup</a></nav>
+    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin-top:18px">
+      <div class="panel" style="flex:1 1 380px;min-width:0">
+        <div class="panel-h"><div><h3>Company code</h3><span class="hint">On Setup › Details. Starts every number of this company's.</span></div></div>
+        <div class="panel-b">
+          <div style="display:flex;flex-wrap:wrap;gap:12px">
+            <label class="field" style="flex:1 1 200px"><span class="label">Name</span><input class="input" value="Washington County"></label>
+            <label class="field" style="flex:0 0 120px"><span class="label">Code</span><input class="input" value="WC"></label>
+          </div>
+          <div class="kv"><span class="k">Its tickets</span><span>WC-T0001, WC-T0002 …</span></div>
+          <div class="kv"><span class="k">Its projects</span><span>WC-HR-P0001, or WC-P0001 for the whole county</span></div>
+          <span class="hint">2 to 6 letters or digits, unique across companies. Suggested from the name. Changing it later changes how numbers read; old ones keep finding their tickets.</span>
+        </div>
+      </div>
+      <div class="panel" style="flex:999 1 560px;min-width:0">
+        <div class="panel-h"><div><h3>Departments</h3><span class="hint">Each with a code, unique within Washington County</span></div><button type="button" class="btn sm">+ Department</button></div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Department</th><th>Code</th><th>Portal admins</th></tr></thead>
+            <tbody>
+              <tr><td>Human Resources</td><td><b>HR</b></td><td>Lee Park</td></tr>
+              <tr><td>Tax Office</td><td><b>TAX</b></td><td>Dana Ortiz</td></tr>
+              <tr><td>County Clerk</td><td><b>CLK</b></td><td>None</td></tr>
+              <tr><td>Sheriff's Office</td><td><b>SO</b></td><td>None</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="panel-b">
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+            <label class="field" style="flex:1 1 220px;margin:0"><span class="label">New department</span><input class="input" value="Finance"></label>
+            <label class="field" style="flex:0 0 110px;margin:0"><span class="label">Code</span><input class="input" value="FIN"></label>
+            <button type="button" class="btn primary">Add</button>
+          </div>
+          <span class="hint">The code is suggested as you type the name (Finance → FIN) and can be changed. Acme can have its own HR too.</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+}
+}
+</script>
+</body>
+</html>

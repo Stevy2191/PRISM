@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reports by company with a total</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Clients</a><a href="#">Assets</a><a href="#">Projects</a><a href="#" class="on">Reports</a><a href="#">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
+      <div><h1>Ticket report</h1><span class="sub">October 1 to October 31</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><label class="field" style="margin:0"><span class="label">Company</span><select class="input" aria-label="Company"><option>All companies</option><option>Washington County</option><option>Acme Manufacturing</option></select></label><button type="button" class="btn">Export CSV</button></div>
+    </div>
+    <div class="panel" style="margin-top:18px">
+      <div class="panel-h"><div><h3>By company</h3><span class="hint">Every company side by side; the total is the whole system</span></div></div>
+      <div style="overflow-x:auto">
+        <table class="tbl" style="min-width:760px">
+          <thead><tr><th>Company</th><th>Opened</th><th>Closed</th><th>Open now</th><th>SLA met</th><th>Average to resolve</th></tr></thead>
+          <tbody>
+            <tr><td><a href="#">Washington County (WC)</a></td><td>64</td><td>58</td><td>11</td><td>94%</td><td>6 h 40 m</td></tr>
+            <tr><td><a href="#">Acme Manufacturing (ACME)</a></td><td>41</td><td>39</td><td>7</td><td>88%</td><td>9 h 10 m</td></tr>
+            <tr><td><a href="#">Harbor Law Group (HLG)</a></td><td>12</td><td>12</td><td>2</td><td>100%</td><td>3 h 05 m</td></tr>
+            <tr><td><a href="#">Lakeside IT (LIT): your company</a></td><td>25</td><td>21</td><td>6</td><td>96%</td><td>4 h 20 m</td></tr>
+            <tr><td><b>All companies</b></td><td><b>142</b></td><td><b>130</b></td><td><b>26</b></td><td><b>93%</b></td><td><b>6 h 35 m</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:20px;margin-top:18px">
+      <div class="panel" style="flex:1 1 420px;min-width:0">
+        <div class="panel-h"><div><h3>Projects by company</h3></div></div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Company</th><th>Active</th><th>Completed</th><th>Overdue</th></tr></thead>
+            <tbody>
+              <tr><td>Washington County</td><td>4</td><td>3</td><td>0</td></tr>
+              <tr><td>Acme Manufacturing</td><td>2</td><td>1</td><td>1</td></tr>
+              <tr><td>Lakeside IT</td><td>3</td><td>5</td><td>0</td></tr>
+              <tr><td><b>All companies</b></td><td><b>9</b></td><td><b>9</b></td><td><b>1</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel" style="flex:1 1 420px;min-width:0">
+        <div class="panel-h"><div><h3>Custom reports</h3><span class="hint">Company is a new way to group</span></div></div>
+        <div class="panel-b">
+          <label class="field"><span class="label">Group by</span><select class="input"><option>Company</option><option>Department</option><option>Assignee</option><option>Status</option><option>Month</option></select></label>
+          <span class="hint">For tickets, projects and time entries. Picking a company in the filter shows just that company, as today.</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+}
+}
+</script>
+</body>
+</html>

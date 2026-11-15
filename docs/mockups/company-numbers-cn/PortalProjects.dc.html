@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Projects in a company's portal</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM <span class="muted" style="font-weight:500">· Support</span></div>
+    <nav class="nav" aria-label="Portal"><a href="#">Tickets</a><a href="#" class="on">Projects</a><a href="#">Knowledge base</a></nav>
+    <div class="bar-right"><span class="muted">Lee Park · Washington County</span><span class="me" aria-label="Lee Park">LP</span></div>
+  </header>
+  <main class="page">
+    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+      <div style="flex:1 1 380px;min-width:0">
+        <h1>Projects</h1>
+        <span class="sub">Washington County's projects you can follow</span>
+        <div class="panel" style="margin-top:16px">
+          <div class="panel-b" style="display:flex;flex-direction:column;gap:12px">
+            <a href="#" class="card" style="display:block;text-decoration:none;color:inherit"><span class="muted">WC-HR-P0007</span><br><b>Onboarding portal for new county staff</b><br><span class="hint">Human Resources · In progress · 40% · due Jan 30</span></a>
+            <a href="#" class="card" style="display:block;text-decoration:none;color:inherit"><span class="muted">WC-P0006</span><br><b>County-wide Windows 11 upgrade</b><br><span class="hint">The whole county · In progress · 47% · due Mar 15</span></a>
+            <a href="#" class="card" style="display:block;text-decoration:none;color:inherit"><span class="muted">WC-TAX-P0005</span><br><b>Replace the Tax Office scanners</b><br><span class="hint">Tax Office · Completed Nov 1</span></a>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="flex:999 1 560px;min-width:0">
+        <div class="panel-h"><div><span class="muted">WC-HR-P0007</span><h3>Onboarding portal for new county staff</h3><span class="hint">For Human Resources · Started Nov 4 · Due Jan 30</span></div><span class="badge">In progress</span></div>
+        <div class="panel-b">
+          <div class="field"><span class="label">Progress: 12 of 30 tasks done</span><div style="height:10px;border-radius:5px;background:var(--track)"><div style="width:40%;height:10px;border-radius:5px;background:var(--acc)"></div></div></div>
+          <div class="sectitle">Phases and milestones</div>
+          <div class="step"><span class="dot done" aria-label="Done"></span><span><b>Plan</b> · Nov 4 to Nov 15 · done</span></div>
+          <div class="step"><span class="dot done" aria-label="Done"></span><span>Milestone: HR signs off the forms · Nov 15 · done</span></div>
+          <div class="step"><span class="dot" aria-label="In progress"></span><span><b>Build</b> · Nov 18 to Dec 20 · in progress</span></div>
+          <div class="step"><span class="dot" aria-label="Not started"></span><span><b>Pilot with 10 new hires</b> · Jan 6 to Jan 24</span></div>
+          <div class="step"><span class="dot" aria-label="Not started"></span><span>Milestone: live for all new staff · Jan 30</span></div>
+          <div class="callout" style="margin-top:12px"><span>Customers see status, progress, phases and milestones only: no tasks, people, time, costs, files or notes. Questions go in a ticket.</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:16px"><span>Who sees which: Washington County's company admins see all its projects; a department admin sees their department's and the company-wide ones; anyone named as a customer contact on a project sees that one.</span></div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"light"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+return { cls: 'app t-' + (this.props.theme ?? 'light') };
+}
+}
+</script>
+</body>
+</html>

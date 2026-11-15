@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A ticket with its company number</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#" class="on">Tickets</a><a href="#">Clients</a><a href="#">Assets</a><a href="#">Projects</a><a href="#">Reports</a><a href="#">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Tickets</a><span>/</span><span>WC-T0042</span></nav>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px"><span class="tag"><b>WC-T0042</b></span><span class="muted">Incident · Washington County › Tax Office</span></div>
+    <h1 style="margin-top:6px">Printer in the Tax Office won't scan</h1>
+    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin-top:18px">
+      <div style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:18px">
+        <div class="panel">
+          <div class="panel-h"><h3>Tasks</h3></div>
+          <div class="panel-b">
+            <div class="kv"><span class="k">WC-T0042-T01</span><span>Check the scanner driver on the front-desk PC</span></div>
+            <div class="kv"><span class="k">WC-T0042-T02</span><span>Order a new feed roller if the driver is fine</span></div>
+            <div class="kv"><span class="k">WC-T0042-T02-S01</span><span>Get a quote from the vendor</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>The email Dana gets</h3><span class="hint">Replies find this ticket by its number</span></div>
+          <div class="panel-b">
+            <div class="kv"><span class="k">Subject</span><span><b>[WC-T0042]</b> Printer in the Tax Office won't scan</span></div>
+            <div class="kv"><span class="k">Still works</span><span>A reply to an older email carrying <b>[Ticket #00042]</b> lands on this same ticket</span></div>
+          </div>
+        </div>
+      </div>
+      <aside class="panel" style="flex:1 1 300px;min-width:0" aria-label="Ticket info">
+        <div class="panel-h"><h3>Ticket info</h3></div>
+        <div class="panel-b">
+          <div class="kv"><span class="k">Number</span><span>WC-T0042</span></div>
+          <div class="kv"><span class="k">Company</span><span>Washington County</span></div>
+          <div class="kv"><span class="k">Department</span><span>Tax Office (TAX)</span></div>
+          <div class="kv"><span class="k">Also found by</span><span class="muted">#00042, the number it had before</span></div>
+        </div>
+      </aside>
+    </div>
+    <div class="callout" style="margin-top:16px"><span>Moving a ticket to another company (changing its contact) gives it that company's next number. The old number still finds it, and its activity shows the change.</span></div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+}
+}
+</script>
+</body>
+</html>

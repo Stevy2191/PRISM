@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New project for a company or a department</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./cs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="{{cls}}">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span>PRISM</div>
+    <nav class="nav" aria-label="Main"><a href="#">Dashboard</a><a href="#">Tickets</a><a href="#">Clients</a><a href="#">Assets</a><a href="#" class="on">Projects</a><a href="#">Reports</a><a href="#">Settings</a></nav>
+    <div class="bar-right"><span class="me" aria-label="Sean Stevens">SS</span></div>
+  </header>
+  <main class="page" style="max-width:860px">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="#">Projects</a><span>/</span><span>New project</span></nav>
+    <h1 style="margin-top:8px">New project</h1>
+    <div class="panel" style="margin-top:18px">
+      <div class="panel-b">
+        <label class="field"><span class="label">Name</span><input class="input" value="Onboarding portal for new county staff"></label>
+        <label class="field"><span class="label">Company</span><select class="input"><option>Washington County (WC)</option><option>Acme Manufacturing (ACME)</option><option>Lakeside IT (LIT): your company</option></select><span class="hint">Any of your customers, or your own company.</span></label>
+        <div class="field">
+          <span class="label">For</span>
+          <div style="display:flex;flex-wrap:wrap;gap:10px">
+            <button type="button" class="choice"><span class="ic" aria-hidden="true"></span><span><b>The whole company</b><span class="hint" style="display:block">Washington County</span></span></button>
+            <button type="button" class="choice on"><span class="ic" aria-hidden="true"></span><span><b>One department</b><span class="hint" style="display:block">Human Resources (HR)</span></span></button>
+          </div>
+        </div>
+        <label class="field"><span class="label">Department</span><select class="input"><option>Human Resources (HR)</option><option>Tax Office (TAX)</option><option>County Clerk (CLK)</option><option>Sheriff's Office (SO)</option></select></label>
+        <label class="field"><span class="label">Done by (your department)</span><select class="input"><option>Service Desk</option><option>Field Services</option></select></label>
+        <div class="callout"><span>Its number will be <b>WC-HR-P0007</b>.</span></div>
+        <div class="field">
+          <span class="label">Customer contacts</span>
+          <div style="display:flex;flex-wrap:wrap;gap:8px"><span class="chip">Lee Park</span><span class="chip add">+ Add a contact</span></div>
+          <span class="hint">They see this project in Washington County's portal, with its company and HR admins.</span>
+        </div>
+        <div class="kv"><span class="k">Show in the portal</span><span style="display:flex;gap:8px;align-items:center"><button type="button" class="sw on" aria-pressed="true" aria-label="Show in the portal"></button>On: status, progress, phases and milestones only</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button type="button" class="btn quiet">Cancel</button><button type="button" class="btn primary">Create project</button></div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+return { cls: 'app t-' + (this.props.theme ?? 'dark') };
+}
+}
+</script>
+</body>
+</html>
