@@ -17,6 +17,7 @@ const { taskStatusBehaviorMap } = require('../services/tasks/statuses');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
 const { companyScopeWhere } = require('../services/permissionService');
 const { orgToday } = require('../utils/orgTime');
+const { ticketNumberOf } = require('../services/tickets/numbers');
 
 const userAttrs = ['id', 'displayName'];
 
@@ -78,7 +79,7 @@ const listEvents = asyncHandler(async (req, res) => {
     const tickets = await Ticket.findAll({
       where,
       include: [{ model: User, as: 'assignee', attributes: userAttrs }],
-      attributes: ['id', 'title', 'dueDate', 'dueTime', 'status', 'priority', 'assigneeId', 'departmentId'],
+      attributes: ['id', 'number', 'title', 'dueDate', 'dueTime', 'status', 'priority', 'assigneeId', 'departmentId'],
     });
     tickets.forEach((t) => {
       if (statusFilter === 'overdue' && !(t.dueDate < todayStr)) return;
@@ -95,7 +96,7 @@ const listEvents = asyncHandler(async (req, res) => {
         assigneeId: t.assigneeId,
         assigneeName: t.assignee?.displayName || null,
         departmentIds: t.departmentId ? [t.departmentId] : [],
-        ticketNumber: `#${String(t.id).padStart(5, '0')}`,
+        ticketNumber: `${ticketNumberOf(t)}`,
         url: `/tickets/${t.id}`,
       });
     });

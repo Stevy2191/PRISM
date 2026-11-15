@@ -20,14 +20,17 @@ const { runTicketUpdateEffects, snapshotBefore } = require('./ticketWrite');
 const { copyToTicket, removeFiles } = require('./attachmentFiles');
 
 const MAX_SOURCES = 50;
-const num = (id) => `#${String(id).padStart(5, '0')}`;
+const { ticketNumberOf } = require('./numbers');
+
+// A ticket's number as people see it (CN: WC-T0042).
+const num = (ticket) => ticketNumberOf(ticket);
 const notFound = () => new ApiError(404, 'Ticket not found', 'NOT_FOUND');
 const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 
 async function loadEditable(user, id) {
   const ticket = id ? await Ticket.findByPk(id) : null;
   if (!ticket || !(await canAccessTicket(user, ticket))) throw notFound();
-  if (!(await canEditTicket(user, ticket))) throw new ApiError(403, `You can't edit ticket ${num(ticket.id)}`, 'FORBIDDEN');
+  if (!(await canEditTicket(user, ticket))) throw new ApiError(403, `You can't edit ticket ${num(ticket)}`, 'FORBIDDEN');
   return ticket;
 }
 
@@ -43,12 +46,12 @@ async function checkMerge(user, targetRaw, sourceRaws) {
   if (sourceIds.length > MAX_SOURCES) throw bad(`Merge at most ${MAX_SOURCES} tickets at once`);
   const target = await loadEditable(user, parseTicketId(targetRaw));
   if (sourceIds.includes(target.id)) throw bad("A ticket can't be merged into itself");
-  if (target.mergedIntoId) throw bad(`Ticket ${num(target.id)} was merged into another ticket`);
+  if (target.mergedIntoId) throw bad(`Ticket ${num(target)} was merged into another ticket`);
   const sources = [];
   for (const id of sourceIds) {
     // eslint-disable-next-line no-await-in-loop
     const s = await loadEditable(user, id);
-    if (s.mergedIntoId) throw bad(`Ticket ${num(s.id)} is already merged`);
+    if (s.mergedIntoId) throw bad(`Ticket ${num(s)} is already merged`);
     if (s.companyId !== target.companyId) throw bad('Only tickets of the same company can be merged');
     sources.push(s);
   }
@@ -199,7 +202,7 @@ async function mergeTickets(req, targetRaw, sourceRaws) {
 
       // The target keeps a note of each source's own text, dated when it was written.
       for (const s of sources) {
-        const body = s.description ? `From ${num(s.id)}: ${s.title}\n\n${s.description}` : `From ${num(s.id)}: ${s.title}`;
+        const body = s.description ? `From ${num(s)}: ${s.title}\n\n${s.description}` : `From ${num(s)}: ${s.title}`;
         // eslint-disable-next-line no-await-in-loop
         await Comment.create({
           body, authorId: user.id, ticketId: target.id, type: 'comment_private', createdAt: s.createdAt,
@@ -242,11 +245,11 @@ async function mergeTickets(req, targetRaw, sourceRaws) {
         await row.update({ status: closedName, mergedIntoId: target.id }, { transaction });
         // eslint-disable-next-line no-await-in-loop
         await Comment.create({
-          body: `Merged into ${num(target.id)}`, authorId: user.id, ticketId: s.id, type: 'comment_private',
+          body: `Merged into ${num(target)}`, authorId: user.id, ticketId: s.id, type: 'comment_private',
         }, { transaction });
       }
       await Comment.create({
-        body: `Merged ${sourceIds.map(num).join(', ')} into this ticket`, authorId: user.id, ticketId: target.id, type: 'comment_private',
+        body: `Merged ${sources.map(num).join(', ')} into this ticket`, authorId: user.id, ticketId: target.id, type: 'comment_private',
       }, { transaction });
     });
   } catch (err) {
@@ -256,10 +259,10 @@ async function mergeTickets(req, targetRaw, sourceRaws) {
   await removeFiles(files.originals);
 
   await writeAudit(req, 'ticket.merge', 'Ticket', target.id, { sourceIds });
-  await logActivity(target.id, user.id, 'merged', null, sourceIds.map(num).join(', '));
+  await logActivity(target.id, user.id, 'merged', null, sources.map(num).join(', '));
   for (const s of sources) {
     // eslint-disable-next-line no-await-in-loop
-    await logActivity(s.id, user.id, 'merged_into', null, num(target.id));
+    await logActivity(s.id, user.id, 'merged_into', null, num(target));
     // eslint-disable-next-line no-await-in-loop
     const fresh = await Ticket.findByPk(s.id);
     // eslint-disable-next-line no-await-in-loop

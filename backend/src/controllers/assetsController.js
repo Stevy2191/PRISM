@@ -30,6 +30,7 @@ const { resolvePlacement, resolveVendorFields, hideUnreachableVendors } = requir
 const {
   orgToday, addDays,
 } = require('../utils/orgTime');
+const { ticketNumberOf } = require('../services/tickets/numbers');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -503,7 +504,7 @@ const listTickets = asyncHandler(async (req, res) => {
       // A linked ticket the viewer can't open shows only that it exists (as Q18 on tickets).
       rows: await Promise.all(links.filter((l) => l.ticket).map(async (l) => {
         const base = {
-          linkId: l.id, linkedAt: l.linkedAt, id: l.ticket.id, ticketNumber: String(l.ticket.id).padStart(5, '0'),
+          linkId: l.id, linkedAt: l.linkedAt, id: l.ticket.id, ticketNumber: ticketNumberOf(l.ticket),
         };
         if (!(await canAccessTicket(req.user, l.ticket))) return { ...base, restricted: true };
         return {
@@ -540,7 +541,7 @@ const linkTicket = asyncHandler(async (req, res) => {
 
   const link = await AssetTicket.create({ assetId: asset.id, ticketId, linkedBy: req.user.id });
   await logAssetActivity(asset.id, req.user.id, 'ticket_linked', {
-    ticketId, ticketNumber: String(ticket.id).padStart(5, '0'), ticketTitle: ticket.title,
+    ticketId, ticketNumber: ticketNumberOf(ticket), ticketTitle: ticket.title,
   });
   res.status(201).json({ link });
 });
@@ -558,7 +559,7 @@ const unlinkTicket = asyncHandler(async (req, res) => {
   if (!ticket) throw new ApiError(404, 'Link not found', 'NOT_FOUND');
   await link.destroy();
   await logAssetActivity(asset.id, req.user.id, 'ticket_unlinked', {
-    ticketId, ticketNumber: String(ticketId).padStart(5, '0'), ticketTitle: ticket?.title || '',
+    ticketId, ticketNumber: ticketNumberOf(ticket), ticketTitle: ticket?.title || '',
   });
   res.json({ success: true });
 });

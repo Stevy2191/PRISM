@@ -124,8 +124,8 @@ describe('projects', () => {
   it('a project can belong to a client', async () => {
     const hr = await acmeDept();
     const p = await makeProject(a(), { name: 'Acme rollout', ownerDepartmentId: w.deptA.id, companyId: acme.id, forDepartmentId: hr.id });
-    expect(p).toEqual(expect.objectContaining({ companyId: acme.id, projectCode: 'SD-P00001', forDepartmentId: hr.id }));
-    expect(p.company).toEqual({ id: acme.id, name: 'Acme' });
+    expect(p).toEqual(expect.objectContaining({ companyId: acme.id, projectCode: `${acme.code}-HR-P0001`, forDepartmentId: hr.id }));
+    expect(p.company).toEqual({ id: acme.id, name: 'Acme', code: acme.code, isInternal: false });
   });
 
   it('a project\'s company follows the same rules as a contact\'s', async () => {

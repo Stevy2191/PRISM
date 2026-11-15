@@ -84,10 +84,10 @@ describe('relations', () => {
   });
   const link = (from, body, agent = tech.agent) => agent.post(`${API}/tickets/${from.id}/relations`).send(body);
   const listOf = async (t, agent = tech.agent) => expectOk(await agent.get(`${API}/tickets/${t.id}/relations`)).relations;
-  // ticketNumber is the model's virtual, added by toJSON on top of the five
-  // selected columns.
+  // ticketNumber is the model's virtual, added by toJSON on top of the six
+  // selected columns (number: CN).
   const relTicket = (t) => ({
-    id: t.id, title: t.title, status: 'Open', priority: 'medium', type: 'request', ticketNumber: String(t.id).padStart(5, '0'),
+    id: t.id, number: t.ticketNumber, title: t.title, status: 'Open', priority: 'medium', type: 'request', ticketNumber: t.ticketNumber,
   });
 
   it('links two tickets as related by default', async () => {
@@ -98,7 +98,7 @@ describe('relations', () => {
       ticket: expect.objectContaining({ id: B.id, title: 'Bravo' }),
     });
     const { activity } = expectOk(await tech.agent.get(`${API}/tickets/${A.id}/activity`));
-    expect(activity.map((a) => [a.action, a.fromValue, a.toValue])).toContainEqual(['relation_added', null, `related: #${String(B.id).padStart(5, '0')} Bravo`]);
+    expect(activity.map((a) => [a.action, a.fromValue, a.toValue])).toContainEqual(['relation_added', null, `related: ${B.ticketNumber} Bravo`]);
   });
 
   it('lists a relation from both sides', async () => {

@@ -98,7 +98,7 @@ export default function Tickets() {
           {data.tickets.map((t) => (
             <Link key={t.id} to={p(`/tickets/${t.id}`)} className="card flex flex-col gap-1.5 p-4" style={{ color: 'var(--color-text-primary)' }}>
               <div className="flex items-center justify-between gap-2 text-[13px]">
-                <span className="num font-semibold" style={{ color: 'var(--color-text-muted)' }}>{ticketNo(t.id)}</span>
+                <span className="num font-semibold" style={{ color: 'var(--color-text-muted)' }}>{ticketNo(t)}</span>
                 <StatusChip tone={statusTone(t.statusBehavior)}>{t.status}</StatusChip>
               </div>
               <div className="break-words font-semibold">{t.title}</div>
@@ -124,7 +124,7 @@ export default function Tickets() {
             <tbody>
               {data.tickets.map((t) => (
                 <tr key={t.id} className="h-[58px] border-b last:border-b-0" style={{ borderColor: 'var(--color-border)' }}>
-                  <td className="num px-5" style={{ color: 'var(--color-text-muted)' }}>{ticketNo(t.id)}</td>
+                  <td className="num px-5" style={{ color: 'var(--color-text-muted)' }}>{ticketNo(t)}</td>
                   <td className="px-3"><Link to={p(`/tickets/${t.id}`)} className="block truncate font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>{t.title}</Link></td>
                   {isAdmin && <td className="truncate px-3" style={{ color: 'var(--color-text-secondary)' }}>{t.contact?.displayName}</td>}
                   <td className="px-3"><StatusChip tone={statusTone(t.statusBehavior)}>{t.status}</StatusChip></td>

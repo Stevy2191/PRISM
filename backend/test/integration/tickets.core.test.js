@@ -33,7 +33,7 @@ describe('POST /tickets', () => {
       title: 'Printer offline', description: null, status: 'Open', priority: 'medium', type: 'request',
       source: 'manual', assigneeId: null, teamId: null, departmentId: w.deptA.id, projectId: null,
       dueDate: null, dueTime: null, tags: null, resolvedAt: null, resolution: null,
-      createdBy: tech.user.id, contactId: w.contact.id, customFields: {}, ticketNumber: '00001',
+      createdBy: tech.user.id, contactId: w.contact.id, customFields: {}, ticketNumber: 'LITS-T0001',
     }));
     expect(expectOk(await tech.agent.get(`${API}/tickets/${t.id}`)).ticket)
       .toEqual(expect.objectContaining({ title: 'Printer offline', status: 'Open' }));
@@ -236,7 +236,7 @@ describe('PATCH /tickets/:id', () => {
       createdBy: 999, resolvedAt: '2020-01-01T00:00:00Z', source: 'email', ticketNumber: '9',
     }));
     expect(ticket).toEqual(expect.objectContaining({
-      createdBy: tech.user.id, resolvedAt: null, source: 'manual', ticketNumber: '00001',
+      createdBy: tech.user.id, resolvedAt: null, source: 'manual', ticketNumber: 'LITS-T0001',
     }));
   });
 

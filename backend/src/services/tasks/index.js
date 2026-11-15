@@ -47,7 +47,7 @@ function taskIncludes(parent) {
   const helpers = () => ({ model: User, as: 'helpers', attributes: userAttrs, through: { attributes: [] } });
   const people = parent.kind === 'project' ? [helpers()] : [];
   const linked = parent.kind === 'project'
-    ? [{ model: Ticket, as: 'linkedTicket', attributes: ['id', 'title', 'departmentId', 'assigneeId', 'companyId'], where: { companyId: parent.companyId }, required: false }]
+    ? [{ model: Ticket, as: 'linkedTicket', attributes: ['id', 'number', 'title', 'departmentId', 'assigneeId', 'companyId'], where: { companyId: parent.companyId }, required: false }]
     : [];
   return [
     assignee(), status(), ...people, ...linked,

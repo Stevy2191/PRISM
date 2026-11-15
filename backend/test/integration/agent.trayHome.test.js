@@ -60,7 +60,7 @@ it('home lists the person\'s open tickets, wherever they were raised, with plain
   expect(byId[second]).toBeUndefined();
   expect(byId[toms.id]).toBeUndefined();
   expect(byId[emailed.id]).toMatchObject({ title: 'Emailed in', state: 'open' });
-  expect(byId[first]).toMatchObject({ number: String(first).padStart(5, '0'), title: 'Printer offline', lastReply: { snippet: 'Which room are you in?' } });
+  expect(byId[first]).toMatchObject({ number: (await models.Ticket.findByPk(first)).number, title: 'Printer offline', lastReply: { snippet: 'Which room are you in?' } });
   expect(JSON.stringify(res.body)).not.toContain('Staff only');
   expect(JSON.stringify(res.body)).not.toContain('Health snapshot');
 });

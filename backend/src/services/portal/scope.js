@@ -12,7 +12,7 @@
 // row pointing elsewhere (stale after a move, or bad data) opens nothing.
 const { Op } = require('sequelize');
 const {
-  sequelize, Ticket, Contact, Department, TicketWatcher, CompanyPortalAdmin, DepartmentPortalAdmin,
+  sequelize, Ticket, Contact, Department, TicketWatcher, CompanyPortalAdmin, DepartmentPortalAdmin, ProjectContact,
 } = require('../../models');
 const { parseRecordId } = require('../permissionService');
 
@@ -51,6 +51,23 @@ async function portalTicketWhere(contact, scope = 'all') {
   if (want('company') && (await isCompanyAdmin(contact))) parts.push({ companyId: contact.companyId });
   if (!parts.length) return NOTHING;
   return { [Op.and]: [{ companyId: contact.companyId }, { [Op.or]: parts }] };
+}
+
+// CN: projects shown in the portal (showInPortal) of the contact's company:
+// all of them for a company admin; for a department admin, their
+// departments' and the company-wide ones; and any they are named on.
+async function portalProjectWhere(contact) {
+  const parts = [];
+  if (await isCompanyAdmin(contact)) {
+    parts.push({ companyId: contact.companyId });
+  } else {
+    const deptIds = await adminDepartmentIds(contact);
+    if (deptIds.length) parts.push({ forDepartmentId: deptIds }, { forDepartmentId: null });
+    const named = await ProjectContact.findAll({ where: { contactId: contact.id }, attributes: ['projectId'] });
+    if (named.length) parts.push({ id: named.map((r) => r.projectId) });
+  }
+  if (!parts.length) return NOTHING;
+  return { [Op.and]: [{ companyId: contact.companyId, showInPortal: true }, { [Op.or]: parts }] };
 }
 
 async function canSeeTicket(contact, ticketId) {
@@ -99,5 +116,5 @@ function portalArticleWhere(contact) {
 }
 
 module.exports = {
-  SCOPES, portalTicketWhere, canSeeTicket, forContacts, portalArticleWhere, isCompanyAdmin, adminDepartmentIds,
+  SCOPES, portalTicketWhere, portalProjectWhere, canSeeTicket, forContacts, portalArticleWhere, isCompanyAdmin, adminDepartmentIds,
 };

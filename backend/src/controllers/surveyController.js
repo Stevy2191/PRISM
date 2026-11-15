@@ -4,6 +4,7 @@
 const { CsatSurvey, Ticket } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { getAllSettings } = require('./settingsController');
+const { ticketNumberOf } = require('../services/tickets/numbers');
 
 function isExpired(survey, expiryDays) {
   const anchor = survey.sentAt || survey.createdAt;
@@ -25,7 +26,7 @@ const getSurvey = asyncHandler(async (req, res) => {
   if (!isValidToken(req.params.token)) throw new ApiError(404, 'Survey not found', 'NOT_FOUND');
   const survey = await CsatSurvey.findOne({
     where: { surveyToken: req.params.token },
-    include: [{ model: Ticket, as: 'ticket', attributes: ['id', 'title'] }],
+    include: [{ model: Ticket, as: 'ticket', attributes: ['id', 'number', 'title'] }],
   });
   if (!survey) throw new ApiError(404, 'Survey not found', 'NOT_FOUND');
 
@@ -43,7 +44,7 @@ const getSurvey = asyncHandler(async (req, res) => {
   return res.json({
     status: 'pending',
     question: settings['csat.surveyQuestion'] || 'How satisfied were you with the support you received?',
-    ticketNumber: String(survey.ticket.id).padStart(5, '0'),
+    ticketNumber: ticketNumberOf(survey.ticket),
     ticketTitle: survey.ticket.title,
     companyName: settings['company.name'] || '',
   });

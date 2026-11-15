@@ -6,6 +6,7 @@
 const { getTicketStatusBehaviorMap } = require('../statusBehavior');
 const { moveToSystemStatus } = require('../statusMoves');
 const { notifyComment, createNotification } = require('../notifications');
+const { ticketNumberOf } = require('./numbers');
 
 async function applyCustomerReply(ticket, comment, actorId) {
   const kind = (await getTicketStatusBehaviorMap()).get(ticket.status);
@@ -14,7 +15,7 @@ async function applyCustomerReply(ticket, comment, actorId) {
       await createNotification({
         userId: ticket.assigneeId,
         type: 'comment',
-        message: `Customer replied to closed ticket #${String(ticket.id).padStart(5, '0')}: ${ticket.title}`,
+        message: `Customer replied to closed ticket ${ticketNumberOf(ticket)}: ${ticket.title}`,
         ticketId: ticket.id,
       }).catch(() => {});
     }

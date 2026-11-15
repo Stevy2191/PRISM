@@ -4,6 +4,7 @@ import { IconStar, IconStarFilled } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { useSettings } from '../context/SettingsContext';
 import Spinner from '../components/Spinner';
+import { showTicketNumber } from '../utils/ticketId';
 
 // Fully public page — reached via an emailed CSAT survey link, no PRISM
 // login involved. Deliberately does not render inside <Layout> (see
@@ -98,7 +99,7 @@ export default function SurveyPage() {
               <h1 className="text-lg font-bold text-navy-900">Thank you for using our support services</h1>
               {survey.ticketNumber && (
                 <p className="mt-1 text-xs text-navy-400">
-                  Ticket #{survey.ticketNumber} — {survey.ticketTitle}
+                  Ticket {showTicketNumber(survey.ticketNumber)} — {survey.ticketTitle}
                 </p>
               )}
               <p className="mt-3 font-medium text-navy-800">{survey.question}</p>

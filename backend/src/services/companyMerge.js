@@ -7,6 +7,9 @@ const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
   ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla,
 } = require('../models');
+const { renumberMoved } = require('./tickets/numbers');
+const { renumberMoved: renumberMovedProjects } = require('./projects/numbers');
+const { uniqueCode } = require('./codes');
 
 const OWNED = {
   contacts: Contact, departments: Department, sites: Site, tickets: Ticket,
@@ -32,6 +35,21 @@ async function mergeCounts(fromId, transaction) {
 
 // Same-named departments and sites are kept side by side (spec), but names
 // are unique per company, so B's clashing rows take a " (B)" suffix.
+// CN: department codes are unique within a company: B's that A already uses
+// get the next free one (HR → HR2).
+async function recodeClashes(from, into, transaction) {
+  const taken = new Set((await Department.findAll({ where: { companyId: into.id }, attributes: ['shortCode'], transaction }))
+    .map((d) => (d.shortCode || '').toUpperCase()).filter(Boolean));
+  const theirs = await Department.findAll({ where: { companyId: from.id }, transaction });
+  for (const dept of theirs) {
+    const code = (dept.shortCode || '').toUpperCase();
+    if (code && !taken.has(code)) { taken.add(code); continue; } // eslint-disable-line no-continue
+    const next = uniqueCode(code || 'D', taken, 6);
+    taken.add(next);
+    await dept.update({ shortCode: next }, { transaction, hooks: false }); // eslint-disable-line no-await-in-loop
+  }
+}
+
 async function renameClashes(Model, from, into, maxLength, transaction) {
   const taken = new Set((await Model.findAll({ where: { companyId: into.id }, attributes: ['name'], transaction }))
     .map((r) => r.name.toLowerCase()));
@@ -96,10 +114,18 @@ async function mergeCompanies(from, into, transaction) {
   await moveCategories(from, into, transaction);
   await renameClashes(Department, from, into, 255, transaction);
   await renameClashes(Site, from, into, 150, transaction);
+  // CN: B's tickets take the next numbers in A; their B numbers stay findable.
+  const movingTickets = (await Ticket.findAll({ where: { companyId: from.id }, attributes: ['id'], transaction })).map((t) => t.id);
+  await Ticket.update({ companySeq: null }, { where: { companyId: from.id }, transaction, hooks: false });
+  const movingProjects = (await Project.findAll({ where: { companyId: from.id }, attributes: ['id'], transaction })).map((p) => p.id);
+  await Project.update({ companySeq: null }, { where: { companyId: from.id }, transaction, hooks: false });
+  await recodeClashes(from, into, transaction);
   for (const Model of Object.values(OWNED)) {
     // eslint-disable-next-line no-await-in-loop
     await Model.update({ companyId: into.id }, { where: { companyId: from.id }, transaction, hooks: false });
   }
+  await renumberMoved(movingTickets, transaction);
+  await renumberMovedProjects(movingProjects, transaction);
   for (const Model of new Set(Object.values(SUPPLIED))) {
     // eslint-disable-next-line no-await-in-loop
     await Model.update({ vendorCompanyId: into.id }, { where: { vendorCompanyId: from.id }, transaction, hooks: false });

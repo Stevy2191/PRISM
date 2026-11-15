@@ -29,6 +29,7 @@ const {
   resolveCategoryForSave, loadTree: loadCategoryTree, companyHasCategories, fitsType,
 } = require('./categories');
 const { isIsoDate } = require('../workload/capacity');
+const { ticketNumberOf } = require('./numbers');
 
 
 // A status must be one of the configured ticket statuses (Q25). Returns its
@@ -278,7 +279,7 @@ async function createTicket(actor, input, {
   await writeAudit(req, 'ticket.create', 'Ticket', ticket.id, { title: ticket.title });
   await logActivity(ticket.id, createdById, 'created', null, null);
   if (assetIdList.length) {
-    const ticketNumber = String(ticket.id).padStart(5, '0');
+    const ticketNumber = ticketNumberOf(ticket);
     for (const assetId of assetIdList) {
       // eslint-disable-next-line no-await-in-loop
       await logAssetActivity(assetId, createdById, 'ticket_linked', { ticketId: ticket.id, ticketNumber, ticketTitle: ticket.title });

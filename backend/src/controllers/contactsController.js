@@ -28,7 +28,7 @@ const contactInclude = [
   { model: Site, as: 'site', attributes: ['id', 'name'] },
   { model: User, as: 'assignedToUser', attributes: userAttrs },
 ];
-const ticketAttrs = ['id', 'title', 'status', 'priority', 'type', 'dueDate', 'resolvedAt', 'createdAt', 'updatedAt'];
+const ticketAttrs = ['id', 'number', 'title', 'status', 'priority', 'type', 'dueDate', 'resolvedAt', 'createdAt', 'updatedAt'];
 
 // Chunk size for the "load more" lists on a contact's detail page.
 const SUBLIST_LIMIT = 25;

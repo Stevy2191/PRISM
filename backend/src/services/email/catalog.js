@@ -5,7 +5,7 @@
 // only server-built or sanitized values may say so.
 
 const TICKET = [
-  { name: 'ticket.number', description: 'Ticket number, e.g. 00042' },
+  { name: 'ticket.number', description: 'Ticket number, e.g. WC-T0042' },
   { name: 'ticket.title', description: 'Ticket title' },
   { name: 'ticket.url', description: 'Link to the ticket' },
   { name: 'ticket.status', description: 'Current status' },
@@ -37,7 +37,7 @@ const staff = (name, subject, intro) => ({
   name,
   subject,
   bodyHtml: `<p>${intro}</p><p><strong>{{ticket.title}}</strong><br>Priority: {{ticket.priority}} · Status: {{ticket.status}}</p>`
-    + '<p><a href="{{ticket.url}}">Open ticket #{{ticket.number}}</a></p>',
+    + '<p><a href="{{ticket.url}}">Open ticket {{ticket.number}}</a></p>',
   placeholders: [...TICKET, NOTIFICATION],
   defaultEnabled: true,
 });
@@ -62,8 +62,8 @@ const CATALOG = Object.freeze({
   contact_auto_reply: {
     audience: 'contact',
     name: 'Request received (auto-reply)',
-    subject: 'Your request has been received [Ticket #{{ticket.number}}]',
-    bodyHtml: '<p>Hi {{contact.firstName}},</p><p>We have received your request and created ticket #{{ticket.number}}. '
+    subject: 'Your request has been received [{{ticket.number}}]',
+    bodyHtml: '<p>Hi {{contact.firstName}},</p><p>We have received your request and created ticket {{ticket.number}}. '
       + 'Our team will be in touch shortly.</p><p>— {{org.name}}</p>',
     placeholders: TICKET,
     defaultEnabled: true,
@@ -71,7 +71,7 @@ const CATALOG = Object.freeze({
   contact_tech_reply: {
     audience: 'contact',
     name: 'Reply from a technician',
-    subject: 'Re: [Ticket #{{ticket.number}}] {{ticket.title}}',
+    subject: 'Re: [{{ticket.number}}] {{ticket.title}}',
     bodyHtml: '<p>{{comment.body}}</p><p>{{signature}}</p>'
       + '<p style="color:#64748b">Reply to this email to respond to your ticket.</p>',
     placeholders: [...TICKET, SIGNATURE],
@@ -81,7 +81,7 @@ const CATALOG = Object.freeze({
   contact_resolved: {
     audience: 'contact',
     name: 'Ticket resolved',
-    subject: 'Your request is resolved [Ticket #{{ticket.number}}] {{ticket.title}}',
+    subject: 'Your request is resolved [{{ticket.number}}] {{ticket.title}}',
     bodyHtml: '<p>Hi {{contact.firstName}},</p><p>Your request "{{ticket.title}}" has been marked {{ticket.status}}.</p>'
       + '<p>If anything is still wrong, just reply to this email.</p><p>— {{org.name}}</p>',
     placeholders: TICKET,
@@ -90,7 +90,7 @@ const CATALOG = Object.freeze({
   contact_csat_survey: {
     audience: 'contact',
     name: 'Satisfaction survey',
-    subject: 'How did we do? [Ticket #{{ticket.number}}] {{ticket.title}}',
+    subject: 'How did we do? [{{ticket.number}}] {{ticket.title}}',
     bodyHtml: '<p>Hi {{contact.firstName}},</p><p>Your recent support request has been resolved. We\'d love to hear how we did.</p>'
       + '<p><strong>{{survey.question}}</strong></p><p style="text-align:center">{{survey.starLinks}}</p>'
       + '<p style="text-align:center"><a href="{{survey.url}}">Or click here to leave detailed feedback</a></p>',
@@ -131,12 +131,12 @@ const CATALOG = Object.freeze({
     placeholders: PORTAL,
     defaultEnabled: true,
   },
-  staff_assigned: staff('Ticket assigned to you', '[Ticket #{{ticket.number}}] Assigned to you: {{ticket.title}}', '{{notification.message}}'),
-  staff_reply: staff('New reply or comment', '[Ticket #{{ticket.number}}] New comment: {{ticket.title}}', '{{notification.message}}'),
-  staff_watcher_update: staff('Update on a watched ticket', '[Ticket #{{ticket.number}}] Update: {{ticket.title}}', '{{notification.message}}'),
-  staff_new_in_queue: staff('New ticket in your queue', '[Ticket #{{ticket.number}}] New in your queue: {{ticket.title}}', '{{notification.message}}'),
-  staff_sla_warning: staff('SLA warning', '[Ticket #{{ticket.number}}] SLA warning: {{ticket.title}}', '{{notification.message}}'),
-  staff_sla_breached: staff('SLA breached', '[Ticket #{{ticket.number}}] SLA breached: {{ticket.title}}', '{{notification.message}}'),
+  staff_assigned: staff('Ticket assigned to you', '[{{ticket.number}}] Assigned to you: {{ticket.title}}', '{{notification.message}}'),
+  staff_reply: staff('New reply or comment', '[{{ticket.number}}] New comment: {{ticket.title}}', '{{notification.message}}'),
+  staff_watcher_update: staff('Update on a watched ticket', '[{{ticket.number}}] Update: {{ticket.title}}', '{{notification.message}}'),
+  staff_new_in_queue: staff('New ticket in your queue', '[{{ticket.number}}] New in your queue: {{ticket.title}}', '{{notification.message}}'),
+  staff_sla_warning: staff('SLA warning', '[{{ticket.number}}] SLA warning: {{ticket.title}}', '{{notification.message}}'),
+  staff_sla_breached: staff('SLA breached', '[{{ticket.number}}] SLA breached: {{ticket.title}}', '{{notification.message}}'),
   staff_task_added: staffProject('Added to a project task', '[{{project.name}}] You were added to a task', '{{notification.message}}'),
   staff_task_unblocked: staffProject('Project task ready to start', '[{{project.name}}] A task you are on is ready to start', '{{notification.message}}'),
   staff_budget_warning: staffProject('Project budget warning', '[{{project.name}}] Budget warning', '{{notification.message}}'),

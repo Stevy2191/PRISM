@@ -152,7 +152,7 @@ describe('automatic moves', () => {
     expect(out.action).toBe('reply_added');
     expect((await Ticket.findByPk(ticket.id)).status).toBe('Request completed');
     const [n] = await Notification.findAll({ where: { userId: tech.user.id } });
-    expect([n.type, n.message]).toEqual(['comment', `Customer replied to closed ticket #${num(ticket.id)}: Printer offline`]);
+    expect([n.type, n.message]).toEqual(['comment', `Customer replied to closed ticket ${ticket.ticketNumber}: Printer offline`]);
   });
 
   it('a tech public reply moves User responded to Waiting on User; a private note does not', async () => {

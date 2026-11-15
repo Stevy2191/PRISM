@@ -25,7 +25,10 @@ async function ownAddresses() {
   return rows.map((r) => String(r.value || '').trim().toLowerCase()).filter(Boolean);
 }
 
+// The X-PRISM-Ticket-ID header keeps the ticket's id (five digits); people
+// see its number (CN: WC-T0042).
 const ticketNumber = (id) => String(id).padStart(5, '0');
+const { ticketNumberOf } = require('../tickets/numbers');
 const ticketUrl = (id) => `${surveyBaseUrl()}/tickets/${id}`;
 
 // The placeholder values for a ticket email. `extra` adds key-specific
@@ -38,7 +41,7 @@ async function ticketContext({
   const tech = techId ? await User.findByPk(techId, { attributes: ['id', 'displayName', 'emailSignature'] }) : null;
   const context = {
     ticket: {
-      number: ticketNumber(ticket.id),
+      number: ticketNumberOf(ticket),
       title: ticket.title,
       url: ticketUrl(ticket.id),
       status: ticket.status,

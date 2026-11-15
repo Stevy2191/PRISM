@@ -25,13 +25,13 @@ afterAll(closeDb);
 const tasksUrl = (t = ticket) => `${API}/tickets/${t.id}/tasks`;
 const create = async (body, agent = tech.agent, t = ticket) => expectOk(await agent.post(tasksUrl(t)).send(body), 201).task;
 const patch = async (task, body) => expectOk(await tech.agent.patch(`${tasksUrl()}/${task.id}`).send(body)).task;
-const pad = () => String(ticket.id).padStart(5, '0');
+const pad = () => ticket.ticketNumber;
 const activity = async () => expectOk(await tech.agent.get(`${API}/tickets/${ticket.id}/activity`)).activity;
 
 it('creates a task, trimmed, in To do, with a code and an assignee', async () => {
   const task = await create({ title: '  Swap toner  ', assigneeId: tech.user.id });
   expect(task).toEqual(expect.objectContaining({
-    ticketId: ticket.id, projectId: null, title: 'Swap toner', statusId: TODO, code: `#${pad()}-T01`,
+    ticketId: ticket.id, projectId: null, title: 'Swap toner', statusId: TODO, code: `${pad()}-T01`,
     assigneeId: tech.user.id, completedAt: null, position: 1, subtasks: [],
   }));
   expect(task.status.name).toBe('To do');
@@ -52,7 +52,7 @@ it('lists tasks in order, with subtasks nested', async () => {
   const one = await create({ title: 'one' }, fresh.agent);
   const two = await create({ title: 'two' }, fresh.agent);
   const sub = await create({ title: 'one.a', parentTaskId: one.id }, fresh.agent);
-  expect(sub.code).toBe(`#${pad()}-T01-S01`);
+  expect(sub.code).toBe(`${pad()}-T01-S01`);
   const { tasks } = expectOk(await tech.agent.get(tasksUrl()));
   expect(tasks.map((t) => [t.id, t.subtasks.map((s) => s.id)])).toEqual([[one.id, [sub.id]], [two.id, []]]);
 });
@@ -97,7 +97,7 @@ it('reorders, renumbers and deletes', async () => {
   expect(expectOk(await tech.agent.get(tasksUrl())).tasks.map((t) => t.title)).toEqual(['b', 'a']);
   const partial = await tech.agent.patch(`${tasksUrl()}/reorder`).send({ order: [a.id] });
   expect(partial.body.message).toBe('order must list every task at this level exactly once');
-  expect(expectOk(await tech.agent.patch(`${tasksUrl()}/${a.id}/code`).send({ number: 7 })).task.code).toBe(`#${pad()}-T07`);
+  expect(expectOk(await tech.agent.patch(`${tasksUrl()}/${a.id}/code`).send({ number: 7 })).task.code).toBe(`${pad()}-T07`);
   expectOk(await tech.agent.delete(`${tasksUrl()}/${b.id}`));
   expect(expectOk(await tech.agent.get(tasksUrl())).tasks.map((t) => t.title)).toEqual(['a']);
 });
@@ -138,7 +138,7 @@ it('Q8: creating and completing a task writes activity and audit rows', async ()
   const task = await create({ title: 'Image laptop' });
   await patch(task, { statusId: DONE });
   const acts = (await activity()).map((a) => [a.action, a.toValue]);
-  expect(acts).toContainEqual(['task_created', `#${pad()}-T01 Image laptop`]);
-  expect(acts).toContainEqual(['task_closed', `#${pad()}-T01 Image laptop`]);
+  expect(acts).toContainEqual(['task_created', `${pad()}-T01 Image laptop`]);
+  expect(acts).toContainEqual(['task_closed', `${pad()}-T01 Image laptop`]);
   expect(await models.AuditLog.count({ where: { entityType: 'Task' } })).toBe(2);
 });

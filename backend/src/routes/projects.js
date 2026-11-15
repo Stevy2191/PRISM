@@ -29,11 +29,15 @@ router.post('/', requirePermission('projects.create'), ctrl.create);
 // Must precede '/:id' — otherwise 'tags' is read as a project id.
 router.get('/tags', viewMin, ctrl.listTags);
 router.get('/attention', viewMin, ctrl.attentionTiles);
+router.get('/next-number', requirePermission('projects.create'), ctrl.nextNumber);
 router.get('/:id', viewMin, ctrl.get);
 router.patch('/:id', editMin, ctrl.update);
 router.delete('/:id', requirePermission('projects.delete'), ctrl.remove);
 router.get('/:id/stats', viewMin, ctrl.getStats);
 router.get('/:id/budget', viewMin, ctrl.getBudget);
+// CN: customer contacts who follow the project in the portal.
+router.get('/:id/contacts', viewMin, ctrl.listContacts);
+router.put('/:id/contacts', editMin, ctrl.setContacts);
 router.post('/:id/save-as-template', requirePermission('projects.manage_templates'), templatesCtrl.saveFromProject);
 
 // Tasks + subtasks

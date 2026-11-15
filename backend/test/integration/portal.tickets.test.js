@@ -133,6 +133,8 @@ describe('reading tickets', () => {
     expect(await ids('?status=open')).toEqual([raised.id]);
     expect(await ids('?status=closed')).toEqual([mine.id]);
     expect(await ids(`?q=${String(mine.id).padStart(5, '0')}`)).toEqual([mine.id]);
+    // CN: its number, as on its emails.
+    expect(await ids(`?q=${mine.ticketNumber}`)).toEqual([mine.id]);
     expect(await ids(`?q=%23${mine.id}`)).toEqual([mine.id]);
     expect(await ids('?q=raised')).toEqual([raised.id]);
     expect(await ids('?q=%25')).toEqual([]);

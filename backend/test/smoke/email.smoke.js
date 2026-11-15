@@ -17,7 +17,7 @@ it('email templates: edit, preview, reset', async () => {
   await page.getByRole('button', { name: /Request received/ }).click();
   const subject = page.getByLabel('Subject');
   await subject.fill('Thanks, {{contact.firstName}} [Ticket #{{ticket.number}}]');
-  await page.getByText('Thanks, Ann [Ticket #00042]').waitFor();
+  await page.getByText('Thanks, Ann [Ticket #WC-T0042]').waitFor();
   await page.getByRole('button', { name: 'Save' }).click();
   await page.getByText('Saved', { exact: true }).waitFor();
   expect((await models.EmailTemplate.findOne({ where: { key: 'contact_auto_reply' } })).subject)
@@ -28,7 +28,7 @@ it('email templates: edit, preview, reset', async () => {
   await page.getByRole('button', { name: 'Reset to default' }).click();
   await page.getByText('Back to the default').waitFor();
   expect(await models.EmailTemplate.count()).toBe(0);
-  expect(await subject.inputValue()).toBe('Your request has been received [Ticket #{{ticket.number}}]');
+  expect(await subject.inputValue()).toBe('Your request has been received [{{ticket.number}}]');
 });
 
 it('preferences: signature saves', async () => {

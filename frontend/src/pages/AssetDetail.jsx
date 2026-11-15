@@ -18,7 +18,7 @@ import { AgentStatus, AgentBadge } from '../components/agent/agentFormat';
 import ScanNow from '../components/agent/ScanNow';
 import { scanPollMs } from '../components/agent/scanState';
 import { StatusBadge, CategoryBadge, dateUrgencyColor } from './Assets';
-import { formatTicketId } from '../utils/ticketId';
+import { formatTicketId, showTicketNumber } from '../utils/ticketId';
 import { orgToday } from '../utils/orgDate';
 import { fmtDate, fmtDateTime } from '../utils/formatDate';
 
@@ -641,7 +641,7 @@ function TicketsTab({ assetId, asset, canLinkTickets, navigate }) {
               {tickets.map((t) => (
                 <tr key={t.id} style={{ borderBottom: `1px solid ${BORDER}` }} className="hover:bg-[var(--color-hover)]">
                   <td className="whitespace-nowrap px-4 py-3 num text-xs" style={{ color: MUTED }}>
-                    <Link to={`/tickets/${t.id}`} className="hover:underline">#{t.ticketNumber}</Link>
+                    <Link to={`/tickets/${t.id}`} className="hover:underline">{formatTicketId(t)}</Link>
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <Link to={`/tickets/${t.id}`} className="hover:underline" style={{ color: TEXT }}>{t.restricted ? 'Restricted ticket' : t.title}</Link>
@@ -763,14 +763,14 @@ function activityDescription(a) {
   if (a.action === 'created') return `Asset ${d.assetTag || ''} "${d.name || ''}" created`;
   if (a.action === 'status_changed') return `Status changed from "${d.from}" to "${d.to}"`;
   if (a.action === 'assignment_changed') return 'Assignment changed';
-  if (a.action === 'ticket_linked' || a.action === 'ticket_unlinked') return `Ticket #${d.ticketNumber}${d.ticketTitle ? ` — ${d.ticketTitle}` : ''}`;
+  if (a.action === 'ticket_linked' || a.action === 'ticket_unlinked') return `Ticket ${showTicketNumber(d.ticketNumber)}${d.ticketTitle ? ` — ${d.ticketTitle}` : ''}`;
   if (a.action === 'updated') return `Updated: ${(d.fields || []).join(', ')}`;
   if (a.action === 'checked_out') return `Checked out to ${d.contactName || 'a contact'}`;
   if (a.action === 'checkout_form_sent') return `Sent to ${d.to || ''}`;
   if (a.action === 'attachment_added' || a.action === 'attachment_removed') return d.originalName || '';
   if (a.action === 'agent_inventory') return `Changed: ${(d.changed || []).join(', ')}`;
   if (a.action === 'agent_revoked') return `${d.hostname || 'This computer'} can no longer report to PRISM`;
-  if (a.action === 'subscription_alert_ticket_created') return `Ticket #${d.ticketNumber} created — renews ${d.renewalDate}`;
+  if (a.action === 'subscription_alert_ticket_created') return `Ticket ${showTicketNumber(d.ticketNumber)} created — renews ${d.renewalDate}`;
   return a.action;
 }
 

@@ -141,7 +141,7 @@ describe('tasks, subtasks, codes and rollups', () => {
   it('creates a task with defaults', async () => {
     const t = await makeTask(mgr.agent, P.id, { title: '  Audit  ' });
     expect(t).toEqual(expect.objectContaining({
-      title: 'Audit', code: 'SD-P00001-T01', statusId: ACTIVE, priority: 'medium', position: 1, projectId: P.id,
+      title: 'Audit', code: 'LITS-SD-P0001-T01', statusId: ACTIVE, priority: 'medium', position: 1, projectId: P.id,
       ticketId: null, parentTaskId: null, estimateMinutes: null, completedAt: null, linkedTicketId: null,
       createdBy: mgr.user.id, subtasks: [],
     }));
@@ -183,7 +183,7 @@ describe('tasks, subtasks, codes and rollups', () => {
     const t = await makeTask(mgr.agent, P.id, { title: 'Audit' });
     expect(typeof (await patchTask(t, { statusId: COMPLETED })).completedAt).toBe('string');
     expect((await patchTask(t, { statusId: ACTIVE })).completedAt).toBeNull();
-    const detail = { taskId: t.id, title: 'Audit', taskCode: 'SD-P00001-T01' };
+    const detail = { taskId: t.id, title: 'Audit', taskCode: 'LITS-SD-P0001-T01' };
     const acts = (await activity()).map((a) => [a.action, a.detail]);
     expect(acts).toContainEqual(['task_closed', detail]);
     expect(acts).toContainEqual(['task_reopened', detail]);
@@ -210,7 +210,7 @@ describe('tasks, subtasks, codes and rollups', () => {
       made.push(await makeTask(mgr.agent, P.id));
     }
     expect(made.map((t) => [t.code, t.position])).toEqual([
-      ['SD-P00001-T01', 1], ['SD-P00001-T02', 2], ['SD-P00001-T03', 3],
+      ['LITS-SD-P0001-T01', 1], ['LITS-SD-P0001-T02', 2], ['LITS-SD-P0001-T03', 3],
     ]);
   });
 
@@ -226,7 +226,7 @@ describe('tasks, subtasks, codes and rollups', () => {
   it('logs task_created', async () => {
     const t = await makeTask(mgr.agent, P.id, { title: 'Audit' });
     expect((await activity()).map((a) => [a.action, a.detail])).toContainEqual(
-      ['task_created', { taskId: t.id, title: 'Audit', taskCode: 'SD-P00001-T01' }]
+      ['task_created', { taskId: t.id, title: 'Audit', taskCode: 'LITS-SD-P0001-T01' }]
     );
   });
 
@@ -235,7 +235,7 @@ describe('tasks, subtasks, codes and rollups', () => {
     expect(expectOk(await mgr.agent.delete(taskUrl(t)))).toEqual({ ok: true });
     expect(await listTasks()).toEqual([]);
     expect((await activity()).map((a) => [a.action, a.detail])).toContainEqual(
-      ['task_deleted', { taskId: t.id, title: 'Audit', taskCode: 'SD-P00001-T01' }]
+      ['task_deleted', { taskId: t.id, title: 'Audit', taskCode: 'LITS-SD-P0001-T01' }]
     );
   });
 
@@ -303,8 +303,8 @@ describe('tasks, subtasks, codes and rollups', () => {
       const t1 = await makeTask(mgr.agent, P.id);
       await makeTask(mgr.agent, P.id);
       const renumbered = expectOk(await renumber(t1, 5)).task;
-      expect(renumbered).toEqual(expect.objectContaining({ code: 'SD-P00001-T05', position: 1 }));
-      expect((await makeTask(mgr.agent, P.id)).code).toBe('SD-P00001-T06');
+      expect(renumbered).toEqual(expect.objectContaining({ code: 'LITS-SD-P0001-T05', position: 1 }));
+      expect((await makeTask(mgr.agent, P.id)).code).toBe('LITS-SD-P0001-T06');
     });
 
     it('renumber validation', async () => {
@@ -334,7 +334,7 @@ describe('tasks, subtasks, codes and rollups', () => {
       expectOk(await renumber(t1, 5));
       const s2 = await makeSubtask(mgr.agent, P.id, t1.id);
       const [fresh] = await listTasks();
-      expect(fresh.subtasks.map((s) => [s.id, s.code])).toEqual([[s1.id, 'SD-P00001-T05-S01'], [s2.id, 'SD-P00001-T05-S02']]);
+      expect(fresh.subtasks.map((s) => [s.id, s.code])).toEqual([[s1.id, 'LITS-SD-P0001-T05-S01'], [s2.id, 'LITS-SD-P0001-T05-S02']]);
     });
   });
 
@@ -347,7 +347,7 @@ describe('tasks, subtasks, codes and rollups', () => {
     it('creates a subtask with defaults', async () => {
       const s = await makeSubtask(mgr.agent, P.id, t1.id, { title: '  Cable  ' });
       expect(s).toEqual(expect.objectContaining({
-        title: 'Cable', code: 'SD-P00001-T01-S01', statusId: ACTIVE, position: 1, completedAt: null, parentTaskId: t1.id,
+        title: 'Cable', code: 'LITS-SD-P0001-T01-S01', statusId: ACTIVE, position: 1, completedAt: null, parentTaskId: t1.id,
       }));
     });
 
@@ -369,7 +369,7 @@ describe('tasks, subtasks, codes and rollups', () => {
       expect(typeof (await patchSub(t1, s, { statusId: COMPLETED })).completedAt).toBe('string');
       await patchSub(t1, s, { statusId: COMPLETED });
       const closed = (await activity()).filter((a) => a.action === 'subtask_closed');
-      expect(closed.map((a) => a.detail)).toEqual([{ subtaskId: s.id, title: 'Cable', subtaskCode: 'SD-P00001-T01-S01' }]);
+      expect(closed.map((a) => a.detail)).toEqual([{ subtaskId: s.id, title: 'Cable', subtaskCode: 'LITS-SD-P0001-T01-S01' }]);
       expect((await patchSub(t1, s, { statusId: ACTIVE })).completedAt).toBeNull();
     });
 
@@ -405,7 +405,7 @@ describe('tasks, subtasks, codes and rollups', () => {
       const s1 = await makeSubtask(mgr.agent, P.id, t1.id);
       await makeSubtask(mgr.agent, P.id, t1.id);
       const code = (s, number) => mgr.agent.patch(`${subUrl(t1, s)}/code`).send({ number });
-      expect(expectOk(await code(s1, 5)).subtask.code).toBe('SD-P00001-T01-S05');
+      expect(expectOk(await code(s1, 5)).subtask.code).toBe('LITS-SD-P0001-T01-S05');
       const taken = await code(s1, 2);
       expect(taken.status).toBe(409);
       expect(taken.body).toEqual({
@@ -478,7 +478,7 @@ describe('tasks, subtasks, codes and rollups', () => {
     it('a subtask is a task with parentTaskId, one level deep', async () => {
       const t1 = await makeTask(mgr.agent, P.id);
       const s = expectOk(await mgr.agent.post(`${API}/projects/${P.id}/tasks`).send({ title: 'Sub', parentTaskId: t1.id }), 201).task;
-      expect([s.parentTaskId, s.code]).toEqual([t1.id, 'SD-P00001-T01-S01']);
+      expect([s.parentTaskId, s.code]).toEqual([t1.id, 'LITS-SD-P0001-T01-S01']);
       const deeper = await mgr.agent.post(`${API}/projects/${P.id}/tasks`).send({ title: 'Deeper', parentTaskId: s.id });
       expect(deeper.body).toEqual({ error: true, message: "Subtasks can't have subtasks", code: 'VALIDATION_ERROR' });
       const other = await makeTask(w.admin.agent, Q.id);

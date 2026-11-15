@@ -21,7 +21,7 @@ export function GenerateReportModal({ ticketId, ticketNumber, onClose }) {
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ticket-#${ticketNumber}-report.pdf`;
+      a.download = `ticket-${String(ticketNumber).replace(/^#/, '')}-report.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();

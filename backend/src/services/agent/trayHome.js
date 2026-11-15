@@ -18,6 +18,7 @@ const { parseRecordId } = require('../permissionService');
 const { resolveContact } = require('./trayIdentity');
 const { applyCustomerReply } = require('../tickets/customerReply');
 const { getSystemActorUserId } = require('../inboundEmailService');
+const { ticketNumberOf } = require('../tickets/numbers');
 
 const PUBLIC_TYPES = ['reply', 'comment_public'];
 const MAX_REPLY = 10000;
@@ -90,7 +91,7 @@ async function home(device, query) {
   const where = await openWhere(asset, contact, states);
   const rows = where ? await Ticket.findAll({
     where,
-    attributes: ['id', 'title', 'status', 'updatedAt'],
+    attributes: ['id', 'number', 'title', 'status', 'updatedAt'],
     order: [['updatedAt', 'DESC'], ['id', 'DESC']],
     limit: HOME_TICKETS,
   }) : [];
@@ -110,7 +111,7 @@ async function home(device, query) {
       const c = last.get(t.id);
       return {
         id: t.id,
-        number: String(t.id).padStart(5, '0'),
+        number: ticketNumberOf(t),
         title: t.title,
         state: states.get(t.status) || 'open',
         updatedAt: t.updatedAt,
@@ -153,7 +154,7 @@ async function ticketView(device, query, rawId) {
   return {
     ticket: {
       id: ticket.id,
-      number: String(ticket.id).padStart(5, '0'),
+      number: ticketNumberOf(ticket),
       title: ticket.title,
       description: ticket.description || '',
       state: states.get(ticket.status) || 'open',

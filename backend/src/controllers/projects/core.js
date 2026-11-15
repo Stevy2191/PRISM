@@ -5,6 +5,10 @@ const path = require('path');
 const {
   Project,
   ProjectMember,
+  ProjectContact,
+  Contact,
+  Company,
+  Department,
   ProjectExpense,
   ProjectMaterial,
   ProjectStatus,
@@ -18,6 +22,7 @@ const {
   sequelize,
 } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
+const { formatProjectCode, previousCodeWhere } = require('../../services/projects/numbers');
 const { writeAudit } = require('../../middleware/audit');
 const { logProjectActivity } = require('../../services/projectActivity');
 const {
@@ -42,7 +47,6 @@ const {
   canAccessProject,
   parseRecordId,
 } = require('../../services/permissionService');
-const { generateProjectCode } = require('../../services/projectCodeService');
 const { attentionClause, attentionCounts, rowFigures, todayFrom, validDay } = require('../../services/projects/listing');
 const { cleanBudgetMinutes, budgetSummary, rearmBudgetAlerts } = require('../../services/projects/budget');
 const templates = require('../../services/projects/templates');
@@ -108,6 +112,9 @@ async function buildProjectListWhere(req) {
       { projectCode: { [Op.like]: `%${search}%` } },
       tagsLike(`%${search}%`),
     ];
+    // CN: a code it had before.
+    const byOldCode = previousCodeWhere(search);
+    if (byOldCode) where[Op.or].push(byOldCode);
   }
   // Tag filter dropdown — exact tag match. Matching the quoted element is
   // precise enough for this app's simple freeform tags (mirrors the
@@ -279,6 +286,7 @@ const create = asyncHandler(async (req, res) => {
   const {
     name, description, status, ownerDepartmentId, forDepartmentId,
     assignedToUserId, teamId, dueDate, memberIds, tags, companyId, startDate, finishDate,
+    contactIds, showInPortal,
   } = req.body || {};
 
   if (!name || !name.trim()) throw new ApiError(400, 'Project name is required', 'VALIDATION_ERROR');
@@ -294,9 +302,10 @@ const create = asyncHandler(async (req, res) => {
   if (finish && finish < start) throw bad('Finish date can\'t be before the start date');
   if (start && validDay(dueDate) && start > dueDate) throw bad('Start date can\'t be after the due date');
 
-  // "Owned by" is one of the organization's own (internal) departments: that
-  // is who does the work, and its short code numbers the project. "For"
-  // belongs to the project's company (client companies, sub-project 2).
+  // "Done by" (ownerDepartmentId) is one of the organization's own (internal)
+  // departments. "For" is the project's company as a whole (null) or one of
+  // its departments, whose code is in the project's number (CN:
+  // WC-HR-P0007, WC-P0006).
   const internalCompanyId = await getInternalCompanyId();
   const projectCompanyId = (await resolveRecordCompany(req.user, companyId)).id;
   const ownerDept = await findDepartmentInCompany(ownerDepartmentId, internalCompanyId);
@@ -306,6 +315,9 @@ const create = asyncHandler(async (req, res) => {
     forDept = await findDepartmentInCompany(forDepartmentId, projectCompanyId);
     if (!forDept) throw new ApiError(400, 'For-department does not exist', 'VALIDATION_ERROR');
   }
+
+  const contactList = await projectContactIds(contactIds, projectCompanyId);
+  if (showInPortal !== undefined && typeof showInPortal !== 'boolean') throw bad('Show in the portal must be true or false');
 
   const leadId = assignedToUserId ? await assertCanWorkProject(assignedToUserId, projectCompanyId, 'Lead') : null;
   const memberSet = new Set();
@@ -322,24 +334,22 @@ const create = asyncHandler(async (req, res) => {
     resolvedStatus = firstOpen ? firstOpen.name : 'Active';
   }
 
-  // READ COMMITTED, as nextProjectSequence requires: its row lock makes two
-  // concurrent creates queue rather than collide or fail.
+  // READ COMMITTED: the company's project counter (services/projects/
+  // numbers.js) is locked until commit, so two concurrent creates queue.
   const isolationLevel = Transaction.ISOLATION_LEVELS.READ_COMMITTED;
   const project = await sequelize.transaction({ isolationLevel }, async (t) => {
-    // Generated inside the transaction — nextProjectSequence row-locks the
-    // department's counter so two concurrent creates never collide.
-    const projectCode = await generateProjectCode(ownerDept.id, t);
     const values = {
       name: name.trim(),
-      projectCode,
       description: description || null,
       tags: Array.isArray(tags) && tags.length ? tags : null,
       status: resolvedStatus,
       companyId: projectCompanyId,
       ownerDepartmentId: ownerDept.id,
-      // An internal project is "for" its owner unless told otherwise; a
-      // client project's "for" is a client department or nobody.
-      forDepartmentId: forDept ? forDept.id : (projectCompanyId === internalCompanyId ? ownerDept.id : null),
+      // Not said (older callers): an internal project is for the department
+      // doing it. null: for the whole company.
+      forDepartmentId: forDept ? forDept.id : (forDepartmentId === undefined && projectCompanyId === internalCompanyId ? ownerDept.id : null),
+      // Customer projects show in their portal unless told not to; yours never.
+      showInPortal: projectCompanyId === internalCompanyId ? false : showInPortal !== false,
       assignedToUserId: leadId,
       teamId: teamId || null,
       dueDate: dueDate || null,
@@ -356,6 +366,9 @@ const create = asyncHandler(async (req, res) => {
     }
     for (const userId of memberSet) {
       await ProjectMember.create({ projectId: created.id, userId, role: userId === leadId ? 'lead' : 'member' }, { transaction: t }); // eslint-disable-line no-await-in-loop
+    }
+    if (contactList.length) {
+      await ProjectContact.bulkCreate(contactList.map((contactId) => ({ projectId: created.id, contactId })), { transaction: t });
     }
     return created;
   });
@@ -419,13 +432,14 @@ const update = asyncHandler(async (req, res) => {
 
   const allowed = [
     'name', 'description', 'status', 'ownerDepartmentId', 'forDepartmentId',
-    'assignedToUserId', 'teamId', 'dueDate', 'startDate', 'tags', ...BUDGET_FIELDS,
+    'assignedToUserId', 'teamId', 'dueDate', 'startDate', 'tags', 'showInPortal', ...BUDGET_FIELDS,
   ];
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key];
   }
   cleanBudgetFields(project, changes);
+  if (changes.showInPortal !== undefined && typeof changes.showInPortal !== 'boolean') throw bad('Show in the portal must be true or false');
   if (changes.name !== undefined) {
     if (typeof changes.name !== 'string' || !changes.name.trim()) {
       throw new ApiError(400, 'Project name is required', 'VALIDATION_ERROR');
@@ -550,7 +564,64 @@ const getBudget = asyncHandler(async (req, res) => {
   res.json({ budget: await budgetSummary(project.id) });
 });
 
+// CN: customer contacts named on a project: active contacts of its own
+// company, and only for a customer project.
+async function projectContactIds(raw, companyId) {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.length > 200) throw bad('Customer contacts must be a list');
+  const ids = [...new Set(raw.map((v) => parseRecordId(v)))];
+  if (ids.some((v) => !v)) throw bad('Customer contacts must be a list of contacts');
+  if (!ids.length) return [];
+  const company = await Company.findByPk(companyId, { attributes: ['id', 'isInternal'] });
+  if (!company || company.isInternal) throw bad('Customer contacts are for a customer\'s project');
+  const found = await Contact.count({ where: { id: ids, companyId, status: 'active' } });
+  if (found !== ids.length) throw bad('Customer contacts must be active contacts of the project\'s company');
+  return ids;
+}
+
+const contactView = (c) => ({ id: c.id, displayName: c.displayName, email: c.email });
+
+// GET /projects/:id/contacts — the customer contacts named on it.
+const listContacts = asyncHandler(async (req, res) => {
+  const project = await Project.findByPk(req.params.id, { attributes: ['id', 'companyId', 'ownerDepartmentId', 'forDepartmentId', 'assignedToUserId', 'createdBy'] });
+  if (!project || !(await canAccessProject(req.user, project))) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  const rows = await ProjectContact.findAll({ where: { projectId: project.id }, attributes: ['contactId'] });
+  const contacts = rows.length ? await Contact.findAll({ where: { id: rows.map((r) => r.contactId) }, attributes: ['id', 'displayName', 'email'], order: [['displayName', 'ASC']] }) : [];
+  res.json({ contacts: contacts.map(contactView) });
+});
+
+// PUT /projects/:id/contacts { contactIds } — replaces the list.
+const setContacts = asyncHandler(async (req, res) => {
+  const project = await Project.findByPk(req.params.id);
+  if (!project || !(await canAccessProject(req.user, project))) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
+  await assertCanEditProject(req.user, project);
+  const ids = await projectContactIds((req.body || {}).contactIds || [], project.companyId);
+  await sequelize.transaction(async (t) => {
+    await ProjectContact.destroy({ where: { projectId: project.id }, transaction: t });
+    if (ids.length) await ProjectContact.bulkCreate(ids.map((contactId) => ({ projectId: project.id, contactId })), { transaction: t });
+  });
+  const contacts = ids.length ? await Contact.findAll({ where: { id: ids }, attributes: ['id', 'displayName', 'email'], order: [['displayName', 'ASC']] }) : [];
+  res.json({ contacts: contacts.map(contactView) });
+});
+
+// GET /projects/next-number?companyId&forDepartmentId — the number a new
+// project would get now (CN; taken only when it's created).
+const nextNumber = asyncHandler(async (req, res) => {
+  const companyId = (await resolveRecordCompany(req.user, req.query.companyId || undefined)).id;
+  const company = await Company.findByPk(companyId, { attributes: ['id', 'code'] });
+  const forId = parseRecordId(req.query.forDepartmentId);
+  const dept = forId ? await Department.findOne({ where: { id: forId, companyId }, attributes: ['shortCode'] }) : null;
+  const [row] = await sequelize.query(
+    "SELECT seq FROM CompanyCounters WHERE companyId = ? AND kind = 'project'",
+    { replacements: [companyId], type: sequelize.QueryTypes.SELECT },
+  );
+  res.json({ code: formatProjectCode(company.code, dept && dept.shortCode, (row ? row.seq : 0) + 1) });
+});
+
 module.exports = {
+  listContacts,
+  setContacts,
+  nextNumber,
   getBudget,
   attentionTiles,
   list,

@@ -510,7 +510,7 @@ function SlaAtRiskPanel({ tickets }) {
           {tickets.map((t) => (
             <li key={t.id} className="flex items-center justify-between gap-3 py-2">
               <Link to={`/tickets/${t.id}`} className="min-w-0 truncate text-sm hover:underline" style={{ color: TEXT }}>
-                <span className="num text-xs" style={{ color: MUTED }}>#{String(t.id).padStart(5, '0')}</span> {t.title}
+                <span className="num text-xs" style={{ color: MUTED }}>{formatTicketId(t)}</span> {t.title}
               </Link>
               <span className="flex flex-shrink-0 items-center gap-2">
                 {t.sla?.worst && <span className="hidden text-xs sm:inline" style={{ color: MUTED }}>{CLOCK_LABELS[t.sla.worst.clock]}</span>}

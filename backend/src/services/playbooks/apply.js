@@ -19,6 +19,7 @@ const { nextCode } = require('../tasks/codes');
 const { ticketParent } = require('../tasks');
 const { resolvePlaybook, offeredFor, deviceContext } = require('./resolve');
 const { evaluate } = require('./formDefinition');
+const { ticketNumberOf } = require('../tickets/numbers');
 
 const deviceInclude = { model: Device, as: 'device', required: false, attributes: ['id', 'revokedAt', 'lastSeenAt', 'lastInventoryAt'] };
 const assetIncludes = [deviceInclude, { model: Mdm, as: 'mdm', required: false, attributes: ['id', 'name'] }];
@@ -52,7 +53,7 @@ async function linkDevice(req, ticket, asset, transaction) {
   });
   if (created) {
     await logAssetActivity(asset.id, req.user.id, 'ticket_linked', {
-      ticketId: ticket.id, ticketNumber: String(ticket.id).padStart(5, '0'), ticketTitle: ticket.title,
+      ticketId: ticket.id, ticketNumber: ticketNumberOf(ticket), ticketTitle: ticket.title,
     }, { transaction });
   }
 }

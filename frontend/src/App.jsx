@@ -13,7 +13,7 @@ import InstallPage from './pages/InstallPage';
 import Dashboard from './pages/Dashboard';
 import Tickets from './pages/tickets/Tickets';
 import TicketNew from './pages/tickets/TicketNew';
-import TicketDetail from './pages/tickets/TicketDetail';
+import TicketRoute from './pages/tickets/TicketRoute';
 import TicketFormPage from './pages/tickets/form/TicketFormPage';
 import Projects from './pages/Projects';
 import ProjectNew from './pages/ProjectNew';
@@ -166,7 +166,7 @@ export default function App() {
 
         <Route path="/tickets" element={perm(<Tickets />, TICKETS_KEYS)} />
         <Route path="/tickets/new" element={perm(<TicketNew />, TICKETS_KEYS)} />
-        <Route path="/tickets/:id" element={perm(<TicketDetail />, TICKETS_KEYS)} />
+        <Route path="/tickets/:id" element={perm(<TicketRoute />, TICKETS_KEYS)} />
         <Route path="/tickets/:id/forms/:formId" element={perm(<TicketFormPage />, TICKETS_KEYS)} />
 
         <Route path="/contacts" element={perm(<Contacts />, CONTACTS_KEYS)} />

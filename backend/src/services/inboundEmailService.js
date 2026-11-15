@@ -19,6 +19,7 @@ const { getFirstTicketStatusByBehavior } = require('./statusBehavior');
 const { getAllSettings } = require('../controllers/settingsController');
 const { sendTicketEmail, buildTicketMessageId } = require('./email/ticketMail');
 const { findTicketRef, classifyInbound } = require('./email/inboundClassify');
+const { numberForId, findTicketIdByNumber } = require('./tickets/numbers');
 const { verifySender, isMicrosoftHost } = require('./email/senderAuth');
 const { isEmail, MAX_EXTRA: MAX_TICKET_CCS } = require('./email/recipients');
 const { ownAddresses } = require('./email/ticketMail');
@@ -251,7 +252,7 @@ async function saveAttachments(mailAttachments, ticketId, uploaderId, commentId 
   const infected = skipped.filter((x) => x.reason === 'virus');
   if (infected.length) {
     await virusScan.notifyVirusBlocked({
-      place: `Ticket #${String(ticketId).padStart(5, '0')} (email from ${from || 'unknown sender'})`,
+      place: `Ticket ${await numberForId(ticketId)} (email from ${from || 'unknown sender'})`,
       who: 'inbound email',
       files: infected.map((x) => ({ filename: x.name, signature: x.signature })),
     });
@@ -392,6 +393,10 @@ async function handleParsedMessage(parsed, config) {
   // Which ticket: "[Ticket #N]" or PRISM's own threading, then the ticket an
   // email this one replies to was filed on, then a bare "#N".
   let ref = findTicketRef(subject, parsed.inReplyTo, parsed.references);
+  if (ref && ref.number) {
+    const id = await findTicketIdByNumber(ref.number);
+    ref = id ? { id, loose: ref.loose } : null;
+  }
   if (!ref || ref.loose) {
     const cited = [parsed.inReplyTo, ...(Array.isArray(parsed.references) ? parsed.references : [parsed.references])]
       .filter((v) => typeof v === 'string' && v.length <= 500);

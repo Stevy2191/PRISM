@@ -6,6 +6,7 @@ const User = require('./User')(sequelize);
 const Department = require('./Department')(sequelize);
 const Project = require('./Project')(sequelize);
 const ProjectMember = require('./ProjectMember')(sequelize);
+const ProjectContact = require('./ProjectContact')(sequelize);
 const Task = require('./Task')(sequelize);
 const ProjectPhase = require('./ProjectPhase')(sequelize);
 const TaskDependency = require('./TaskDependency')(sequelize);
@@ -151,6 +152,7 @@ const db = {
   CalendarEventCache,
   Project,
   ProjectMember,
+  ProjectContact,
   ProjectExpense,
   ProjectMaterial,
   ProjectFile,
@@ -273,6 +275,13 @@ Project.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 // Project <-> ProjectMember
 Project.hasMany(ProjectMember, { foreignKey: 'projectId', as: 'members', onDelete: 'CASCADE' });
 ProjectMember.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+// CN: customer contacts named on a project (portal).
+Project.belongsToMany(Contact, {
+  through: ProjectContact, foreignKey: 'projectId', otherKey: 'contactId', as: 'customerContacts',
+});
+Contact.belongsToMany(Project, {
+  through: ProjectContact, foreignKey: 'contactId', otherKey: 'projectId', as: 'followedProjects',
+});
 ProjectMember.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(ProjectMember, { foreignKey: 'userId', as: 'projectMemberships' });
 
@@ -804,6 +813,20 @@ Company.addHook('beforeUpdate', 'previousCode', (company) => {
   if (!old || old === company.code) return;
   company.previousCodes = [...new Set([old, ...company.previousCodes])].filter((c) => c !== company.code);
 });
+// CN: a new code renumbers the company's tickets (WC-T0042 → WCO-T0042).
+Company.addHook('afterUpdate', 'ticketNumbers', async (company, options) => {
+  if (!company.changed('code')) return;
+  const old = company.previous('code');
+  await require('../services/tickets/numbers').followCompanyCode(company.id, old, company.code, options && options.transaction); // eslint-disable-line global-require
+  await require('../services/projects/numbers').followCompanyCode(company.id, old, company.code, options && options.transaction); // eslint-disable-line global-require
+});
+// CN: each project is numbered within its company (WC-HR-P0007).
+Project.addHook('beforeCreate', 'number', (project, options) => require('../services/projects/numbers').beforeCreate(project, options)); // eslint-disable-line global-require
+Project.addHook('beforeUpdate', 'number', (project, options) => require('../services/projects/numbers').beforeUpdate(project, options)); // eslint-disable-line global-require
+// CN: each ticket is numbered within its company; a move takes the next
+// number in the new one.
+Ticket.addHook('beforeCreate', 'number', (ticket, options) => require('../services/tickets/numbers').beforeCreate(ticket, options)); // eslint-disable-line global-require
+Ticket.addHook('beforeUpdate', 'number', (ticket, options) => require('../services/tickets/numbers').beforeUpdate(ticket, options)); // eslint-disable-line global-require
 // CS: and its own portal link, from its name (acme, acme-2, ...).
 Company.addHook('beforeCreate', 'portalSlug', async (company, options) => {
   if (company.portalSlug) return;

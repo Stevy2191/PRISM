@@ -1,11 +1,17 @@
-// Zero-padded 5-digit ticket display id, e.g. 114 -> "#00114".
-// Prefers a backend-supplied ticketNumber (already zero-padded) and falls
-// back to formatting the raw numeric id so any endpoint that hasn't been
-// updated to include ticketNumber still renders consistently.
+// A ticket's number as people see it. Since CN each company numbers its own
+// tickets (WC-T0042), shown as is; a number from before CN (00114) or a bare
+// id is shown the old way, "#00114".
+export function showTicketNumber(number) {
+  const text = String(number ?? '');
+  return /-T\d/.test(text) ? text : `#${text.padStart(5, '0')}`;
+}
+
+// Prefers the backend-supplied ticketNumber and falls back to the raw id.
 export function formatTicketId(ticketOrId) {
   if (ticketOrId && typeof ticketOrId === 'object') {
-    if (ticketOrId.ticketNumber) return `#${ticketOrId.ticketNumber}`;
-    return `#${String(ticketOrId.id).padStart(5, '0')}`;
+    if (ticketOrId.ticketNumber) return showTicketNumber(ticketOrId.ticketNumber);
+    if (ticketOrId.number) return showTicketNumber(ticketOrId.number);
+    return showTicketNumber(ticketOrId.id);
   }
-  return `#${String(ticketOrId).padStart(5, '0')}`;
+  return showTicketNumber(ticketOrId);
 }

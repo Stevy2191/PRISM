@@ -147,7 +147,7 @@ function SurveyEmailPreview({ question, expiryDays, companyName, onClose }) {
   return (
     <Modal title="Survey email preview" onClose={onClose} wide>
       <div className="rounded-md border border-navy-100 bg-navy-50 p-3 text-xs text-navy-500">
-        Subject: How did we do? — Ticket #00114 Printer not connecting to network
+        Subject: How did we do? [WC-T0114] Printer not connecting to network
       </div>
       <div className="mt-3 rounded-md border border-navy-100 bg-surface p-6 font-sans text-sm text-navy-900">
         <p>Hi Jordan,</p>

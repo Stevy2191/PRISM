@@ -86,9 +86,9 @@ describe('POST /tickets/:id/merge', () => {
     expect(exists(source.id, 'a.txt')).toBe(false);
     expect(await TimeEntry.count({ where: { ticketId: target.id } })).toBe(1);
     const tasks = await Task.findAll({ where: { ticketId: target.id }, order: [['id', 'ASC']] });
-    const tn = String(target.id).padStart(5, '0');
+    const tn = target.ticketNumber;
     expect(tasks.map((t) => [t.title, t.code])).toEqual([
-      ['Target task', `#${tn}-T01`], ['Source task', `#${tn}-T02`], ['Sub', `#${tn}-T02-S01`],
+      ['Target task', `${tn}-T01`], ['Source task', `${tn}-T02`], ['Sub', `${tn}-T02-S01`],
     ]);
     expect((await ActiveTimer.findOne()).entityId).toBe(target.id);
     expect((await TicketWatcher.findAll({ where: { ticketId: target.id } })).map((x) => x.userId).sort())
@@ -171,12 +171,11 @@ describe('POST /tickets/:id/merge', () => {
       expect([fresh.status, fresh.mergedIntoId, fresh.priority]).toEqual(['Closed', target.id, 'medium']);
       // eslint-disable-next-line no-await-in-loop
       const notes = await Comment.findAll({ where: { ticketId: s.id } });
-      expect(notes.map((c) => [c.type, c.body])).toEqual([['comment_private', `Merged into #${String(target.id).padStart(5, '0')}`]]);
+      expect(notes.map((c) => [c.type, c.body])).toEqual([['comment_private', `Merged into ${target.ticketNumber}`]]);
       // eslint-disable-next-line no-await-in-loop
       expect(await TicketActivity.count({ where: { ticketId: s.id, action: 'merged_into' } })).toBe(1);
     }
-    const n = (id) => `#${String(id).padStart(5, '0')}`;
-    expect(await Comment.count({ where: { ticketId: target.id, body: `Merged ${n(s1.id)}, ${n(s2.id)} into this ticket` } })).toBe(1);
+    expect(await Comment.count({ where: { ticketId: target.id, body: `Merged ${s1.ticketNumber}, ${s2.ticketNumber} into this ticket` } })).toBe(1);
     expect(await TicketActivity.count({ where: { ticketId: target.id, action: 'merged' } })).toBe(1);
     expect(sendMail).not.toHaveBeenCalled();
     expect(await models.CsatSurvey.count()).toBe(0);
@@ -187,8 +186,8 @@ describe('POST /tickets/:id/merge', () => {
     const s = await ticket({ title: 'Mouse', description: 'Left button sticks' });
     expectOk(await merge(w.admin.agent, target.id, [s.id]));
     const notes = await Comment.findAll({ where: { ticketId: target.id, type: 'comment_private' }, order: [['id', 'ASC']] });
-    const note = notes.find((c) => c.body.startsWith('From #'));
-    expect(note.body).toBe(`From #${String(s.id).padStart(5, '0')}: Mouse\n\nLeft button sticks`);
+    const note = notes.find((c) => c.body.startsWith('From '));
+    expect(note.body).toBe(`From ${s.ticketNumber}: Mouse\n\nLeft button sticks`);
     expect(note.createdAt.toISOString()).toBe(new Date(s.createdAt).toISOString());
   });
 

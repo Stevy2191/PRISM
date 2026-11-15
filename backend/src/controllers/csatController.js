@@ -4,6 +4,7 @@ const { getAllSettings } = require('./settingsController');
 const { getUserReportScope } = require('../services/permissionService');
 const { User } = require('../models');
 const { companyFilterWhere } = require('../services/recordScope');
+const { ticketNumberOf } = require('../services/tickets/numbers');
 
 // Same reports.view_own/department/all family already used to gate every
 // other report — a technician can always see their own numbers (self-view),
@@ -83,7 +84,7 @@ const responses = asyncHandler(async (req, res) => {
     responses: rows.map((r) => ({
       id: r.id,
       ticketId: r.ticketId,
-      ticketNumber: r.ticket ? String(r.ticket.id).padStart(5, '0') : null,
+      ticketNumber: r.ticket ? ticketNumberOf(r.ticket) : null,
       ticketTitle: r.ticket?.title || '',
       contact: r.contact?.displayName || '',
       tech: r.assignedToUser?.displayName || 'Unassigned',

@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
-import { StatCard, ChartCard, SimpleBarChart, SortableTable, PALETTE } from './shared';
+import {
+  StatCard, ChartCard, SimpleBarChart, SortableTable, PALETTE, ByCompanyTable,
+} from './shared';
 
 export default function ProjectsReport({ filters, onForbidden }) {
   const navigate = useNavigate();
@@ -44,6 +46,16 @@ export default function ProjectsReport({ filters, onForbidden }) {
         <StatCard label="Materials cost" value={money(data.summary.totalMaterialsCost)} />
         <StatCard label="Expenses cost" value={money(data.summary.totalExpensesCost)} />
       </div>
+
+      <ByCompanyTable
+        title="Projects by company"
+        byCompany={data.byCompany}
+        columns={[
+          { key: 'active', label: 'Active' },
+          { key: 'completed', label: 'Completed' },
+          { key: 'overdue', label: 'Overdue' },
+        ]}
+      />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <ChartCard title="Projects by status">

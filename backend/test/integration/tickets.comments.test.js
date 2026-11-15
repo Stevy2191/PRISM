@@ -158,7 +158,7 @@ describe('reply email to the contact', () => {
     const mail = sendMail.mock.calls[0][0];
     expect(mail).toEqual(expect.objectContaining({
       to: [w.contact.email],
-      subject: 'Re: [Ticket #00001] Printer offline',
+      subject: 'Re: [LITS-T0001] Printer offline',
       headers: { 'X-PRISM-Ticket-ID': '00001' },
       messageId: expect.stringMatching(/^<prism-ticket-1-\d+@[^>]+>$/),
     }));

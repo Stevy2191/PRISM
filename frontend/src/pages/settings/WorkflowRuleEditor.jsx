@@ -6,6 +6,7 @@ import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
 import Switch from '../../components/Switch';
 import SettingsPage from '../../components/settings/SettingsPage';
+import { formatTicketId } from '../../utils/ticketId';
 
 const TRIGGER_OPTIONS = [
   { value: 'ticket_created', label: 'Ticket created' },
@@ -391,7 +392,7 @@ function TestRuleModal({ ruleId, onClose }) {
         <div className="flex gap-2">
           <select className="input h-9 flex-1 text-sm" value={ticketId} onChange={(e) => setTicketId(e.target.value)}>
             <option value="">Select a ticket…</option>
-            {tickets.map((t) => <option key={t.id} value={t.id}>#{String(t.id).padStart(5, '0')} {t.title}</option>)}
+            {tickets.map((t) => <option key={t.id} value={t.id}>{formatTicketId(t)} {t.title}</option>)}
           </select>
           <button type="button" onClick={run} disabled={!ticketId || testing} className="btn-primary">
             {testing ? 'Testing…' : 'Run test'}

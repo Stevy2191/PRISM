@@ -15,12 +15,12 @@ describe('resetData()', () => {
     await resetData();
     const w = await makeWorld();
     const p1 = await makeProject(w.admin.agent, { name: 'First', ownerDepartmentId: w.deptA.id });
-    expect(p1.projectCode).toBe('SD-P00001');
+    expect(p1.projectCode).toBe('LITS-SD-P0001');
 
     await resetData();
     const w2 = await makeWorld();
     const p2 = await makeProject(w2.admin.agent, { name: 'Second', ownerDepartmentId: w2.deptA.id });
-    expect(p2.projectCode).toBe('SD-P00001');
+    expect(p2.projectCode).toBe('LITS-SD-P0001');
     const activity = expectOk(await w2.admin.agent.get(`${API}/projects/${p2.id}/activity`)).activity;
     expect(activity.map((a) => a.detail.name)).toEqual(['Second']);
   });

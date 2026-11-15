@@ -20,6 +20,7 @@ const {
   ticketInclude, shownTicketFor, ticketAccessFor, ticketDetailFor,
 } = require('./shared');
 const { orgToday } = require('../../utils/orgTime');
+const { numberWhere, findTicketIdByNumber } = require('../../services/tickets/numbers');
 
 const SORTABLE_COLUMNS = ['id', 'title', 'priority', 'status', 'dueDate', 'createdAt', 'updatedAt'];
 
@@ -80,6 +81,10 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
     ];
     const numeric = term.replace(/^#/, '').replace(/^0+(?=\d)/, '');
     if (/^\d+$/.test(numeric)) or.push({ id: Number(numeric) });
+    // CN: WC-T0042, partly typed or an old number it had.
+    or.push({ number: { [Op.like]: `%${term}%` } });
+    const byNumber = numberWhere(term);
+    if (byNumber) or.push(byNumber);
     where[Op.or] = or;
   }
 
@@ -292,9 +297,10 @@ const create = asyncHandler(async (req, res) => {
   res.status(201).json({ ticket: { ...(await shownTicketFor(req.user, fresh)), access: await ticketAccessFor(req.user, fresh) } });
 });
 
-// GET /tickets/:id
+// GET /tickets/:id — or by any number it has had (CN: /tickets/WC-T0042).
 const get = asyncHandler(async (req, res) => {
-  const ticket = await Ticket.findByPk(req.params.id, { include: ticketInclude });
+  const id = await findTicketIdByNumber(req.params.id);
+  const ticket = id ? await Ticket.findByPk(id, { include: ticketInclude }) : null;
   if (!ticket) throw new ApiError(404, 'Ticket not found', 'NOT_FOUND');
   // requirePermission only checked "has ANY view tier" at the route level;
   // an 'own'/'department'-scoped user could otherwise read any ticket by id.

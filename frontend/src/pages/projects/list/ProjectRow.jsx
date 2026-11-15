@@ -46,7 +46,9 @@ function Hours({ project }) {
 export default function ProjectRow({ project, statusColor, closed, today, selectable, selected, onToggle }) {
   const lead = project.lead?.displayName;
   const next = project.nextMilestone;
-  const where = [project.projectCode, project.company?.name || project.ownerDepartment?.name || 'Internal'].filter(Boolean).join(' · ');
+  // CN: its number, its company, and the department it's for (none: the whole company).
+  const company = project.company?.name || project.ownerDepartment?.name || 'Internal';
+  const where = [project.projectCode, project.forDepartment ? `${company} › ${project.forDepartment.name}` : company].filter(Boolean).join(' · ');
   return (
     <div
       role="row"

@@ -2,11 +2,11 @@ const { DataTypes, Model } = require('sequelize');
 
 module.exports = (sequelize) => {
   class Ticket extends Model {
-    // Zero-padded 5-digit display id (e.g. 114 -> "00114"), included in every
-    // API response that serializes a Ticket instance.
+    // The number people see (CN): WC-T0042, numbered within its company.
+    // Included in every API response that serializes a Ticket instance.
     toJSON() {
       const values = { ...this.get() };
-      values.ticketNumber = String(values.id).padStart(5, '0');
+      values.ticketNumber = values.number || (values.id ? String(values.id).padStart(5, '0') : undefined);
       return values;
     }
   }
@@ -104,6 +104,18 @@ module.exports = (sequelize) => {
       },
       // Always the contact's company — set by models/companyHooks.js.
       companyId: { type: DataTypes.INTEGER, allowNull: false },
+      // CN: numbered within its company (services/tickets/numbers.js).
+      companySeq: { type: DataTypes.INTEGER, allowNull: true },
+      number: { type: DataTypes.STRING(24), allowNull: true },
+      previousNumbers: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        get() {
+          const v = this.getDataValue('previousNumbers');
+          if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+          return v ?? [];
+        },
+      },
       departmentId: {
         type: DataTypes.INTEGER,
         allowNull: true,

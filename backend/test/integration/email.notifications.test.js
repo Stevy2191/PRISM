@@ -43,7 +43,7 @@ it('assignment emails the assignee when their pref is on, not when off', async (
   await newTicket({ assigneeId: tina.user.id });
   await waitFor(() => mailsTo('tina@acme.com').length === 1);
   const [mail] = mailsTo('tina@acme.com');
-  expect(mail.subject).toBe('[Ticket #00001] Assigned to you: Printer offline');
+  expect(mail.subject).toMatch(/^\[[A-Z0-9]{2,6}-T0001\] Assigned to you: Printer offline$/);
   expect(mail.to).toEqual(['tina@acme.com']);
   expect(mail.html).toContain('Ticket assigned to you: Printer offline');
 
@@ -95,7 +95,7 @@ it('new ticket into a team while unassigned notifies members except the actor', 
   expect(queue.map((n) => [n.userId, n.ticketId])).toEqual([
     [tina.user.id, t.id], [otto.user.id, t.id], [tina.user.id, fromOtto.id],
   ]);
-  expect(mailsTo('tina@acme.com')[0].subject).toBe(`[Ticket #${String(t.id).padStart(5, '0')}] New in your queue: Printer offline`);
+  expect(mailsTo('tina@acme.com')[0].subject).toBe(`[${t.ticketNumber}] New in your queue: Printer offline`);
 
   // Moved into another team while unassigned: that team hears about it.
   const field = await makeTeam(w.admin, 'Field', [{ userId: otto.user.id }]);
@@ -156,6 +156,6 @@ it('SLA warning emails through staff_sla_warning', async () => {
   await createNotification({ userId: tina.user.id, type: 'sla_warning', message: 'Resolution SLA at risk: Printer offline', ticketId: t.id });
   await waitFor(() => mailsTo('tina@acme.com').length === 1);
   const [mail] = mailsTo('tina@acme.com');
-  expect(mail.subject).toBe('[Ticket #00001] SLA warning: Printer offline');
+  expect(mail.subject).toMatch(/^\[[A-Z0-9]{2,6}-T0001\] SLA warning: Printer offline$/);
   expect(mail.html).toContain('Resolution SLA at risk: Printer offline');
 });

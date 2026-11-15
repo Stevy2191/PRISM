@@ -5,6 +5,8 @@ const { hasPermission } = require('../services/permissionService');
 const {
   andWhere, ticketScopeWhere, projectScopeWhere, contactScopeWhere,
 } = require('../services/recordScope');
+const { numberWhere } = require('../services/tickets/numbers');
+const { previousCodeWhere } = require('../services/projects/numbers');
 
 const RESULT_LIMIT = 5;
 
@@ -30,11 +32,18 @@ const search = asyncHandler(async (req, res) => {
 
   const ticketOr = [{ title: { [Op.like]: `%${q}%` } }];
   if (numericId !== null) ticketOr.push({ id: numericId });
+  // CN: WC-T0042, partly typed or an old number it had.
+  ticketOr.push({ number: { [Op.like]: `%${q}%` } });
+  const byNumber = numberWhere(q);
+  if (byNumber) ticketOr.push(byNumber);
 
   const projectOr = [
     { name: { [Op.like]: `%${q}%` } },
     { projectCode: { [Op.like]: `%${q}%` } },
   ];
+  // CN: a code the project had (SD-P00007 from before, an old WC-HR-P0007).
+  const byOldCode = previousCodeWhere(q);
+  if (byOldCode) projectOr.push(byOldCode);
 
   const contactOr = [
     { displayName: { [Op.like]: `%${q}%` } },
@@ -44,7 +53,7 @@ const search = asyncHandler(async (req, res) => {
   const [tickets, projects, contacts] = await Promise.all([
     Ticket.findAll({
       where: andWhere(ticketWhere, { [Op.or]: ticketOr }),
-      attributes: ['id', 'title', 'status', 'priority'],
+      attributes: ['id', 'number', 'title', 'status', 'priority'],
       order: [['updatedAt', 'DESC']],
       limit: RESULT_LIMIT,
     }),

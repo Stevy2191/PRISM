@@ -1,5 +1,10 @@
 // Small display helpers shared by the portal pages.
-export const ticketNo = (id) => `#${String(id).padStart(5, '0')}`;
+// A ticket's number: WC-T0042 (CN), or #00042 for one without.
+export const ticketNo = (ticketOrId) => {
+  const t = ticketOrId && typeof ticketOrId === 'object' ? ticketOrId : { id: ticketOrId };
+  const n = t.ticketNumber || t.number;
+  return n && /-T\d/.test(n) ? n : `#${String(n || t.id).padStart(5, '0')}`;
+};
 
 export const statusTone = (behavior) => ({ on_hold: 'waiting', closed: 'neutral' }[behavior] || 'info');
 

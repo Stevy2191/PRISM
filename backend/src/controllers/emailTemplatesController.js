@@ -97,7 +97,7 @@ const preview = asyncHandler(async (req, res) => {
   const surveyUrl = `${base}/survey/sample`;
   const context = {
     ticket: {
-      number: '00042', title: 'Printer on the 2nd floor is offline', url: `${base}/tickets/42`, status: 'Open', priority: 'high',
+      number: 'WC-T0042', title: 'Printer on the 2nd floor is offline', url: `${base}/tickets/42`, status: 'Open', priority: 'high',
     },
     contact: { firstName: 'Ann', name: 'Ann Smith' },
     tech: { name: req.user.displayName || req.user.username },

@@ -14,6 +14,7 @@ const authRoutes = require('./auth');
 const ticketRoutes = require('./tickets');
 const kbRoutes = require('./kb');
 const ticketsCtrl = require('../../controllers/portal/ticketsController');
+const projectsCtrl = require('../../controllers/portal/projectsController');
 // Registers the Microsoft 15-minute re-check on every portal request (7b).
 require('../../services/microsoft365/sessionCheck');
 
@@ -27,6 +28,9 @@ company.get('/me', portalGuard, ctrl.me);
 company.get('/meta', portalGuard, ticketsCtrl.meta);
 company.use('/tickets', portalGuard, ticketRoutes);
 company.use('/kb', portalGuard, kbRoutes);
+// CN: the company's projects (status and progress).
+company.get('/projects', portalGuard, projectsCtrl.list);
+company.get('/projects/:id', portalGuard, projectsCtrl.get);
 
 const router = express.Router();
 router.get('/home', ctrl.home);

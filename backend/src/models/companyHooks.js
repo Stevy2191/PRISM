@@ -63,10 +63,18 @@ module.exports = function registerCompanyHooks(models) {
     if (!contact.changed('companyId')) return;
     // A ticket's department belongs to its company, so moved tickets take the
     // contact's department (already cleared above if it was the old company's).
+    const moving = await Ticket.findAll({
+      where: { contactId: contact.id, companyId: { [Op.ne]: contact.companyId } }, attributes: ['id'], transaction: options.transaction,
+    });
+    if (moving.length) {
+      await Ticket.update({ companySeq: null }, { where: { id: moving.map((t) => t.id) }, transaction: options.transaction, hooks: false });
+    }
     await Ticket.update(
       { companyId: contact.companyId, departmentId: contact.departmentId || null },
       { where: { contactId: contact.id }, transaction: options.transaction, hooks: false }
     );
+    // CN: moved tickets take the next numbers in the new company.
+    await require('../services/tickets/numbers').renumberMoved(moving.map((t) => t.id), options.transaction); // eslint-disable-line global-require
     // An asset's contact belongs to the asset's company: assets left behind
     // in the old company are no longer assigned to this contact.
     await Asset.update(

@@ -110,7 +110,7 @@ describe('audit rows', () => {
     }],
     ['project.create', async () => {
       const p = await project();
-      return { actor: tech, entityType: 'Project', entityId: p.id, meta: { name: 'Refresh', projectCode: 'SD-P00001' } };
+      return { actor: tech, entityType: 'Project', entityId: p.id, meta: { name: 'Refresh', projectCode: 'LITS-SD-P0001' } };
     }],
     ['project.update', async () => {
       const p = await project();

@@ -5,7 +5,7 @@ import { IconMenu2, IconX } from '@tabler/icons-react';
 import { usePortalAuth } from './PortalAuth';
 
 // The portal frame (mockups Tickets / Phone): brand "· Support", Tickets and
-// Knowledge base, who is signed in and Sign out; on a phone a menu button
+// Projects (CN), Knowledge base, who is signed in and Sign out; on a phone a menu button
 // and tabs under the bar.
 export function Brand({ config, to = p('/tickets'), support = true }) {
   const name = config?.branding?.appName || 'PRISM';
@@ -45,6 +45,7 @@ export default function PortalLayout() {
           <Brand config={config} />
           <nav aria-label="Portal" className="hidden gap-1 md:flex">
             <NavLink to={p('/tickets')} className={navCls} style={navStyle}>Tickets</NavLink>
+            <NavLink to={p('/projects')} className={navCls} style={navStyle}>Projects</NavLink>
             <NavLink to={p('/kb')} className={navCls} style={navStyle}>Knowledge base</NavLink>
           </nav>
           <div className="ml-auto hidden items-center gap-3 md:flex">
@@ -75,6 +76,7 @@ export default function PortalLayout() {
         )}
         <nav aria-label="Portal sections" className="flex gap-1 border-t px-4 py-2 md:hidden" style={{ borderColor: 'var(--color-border)' }}>
           <NavLink to={p('/tickets')} className={(s) => `${navCls(s)} h-11 flex-1 justify-center`} style={navStyle}>Tickets</NavLink>
+          <NavLink to={p('/projects')} className={(s) => `${navCls(s)} h-11 flex-1 justify-center`} style={navStyle}>Projects</NavLink>
           <NavLink to={p('/kb')} className={(s) => `${navCls(s)} h-11 flex-1 justify-center`} style={navStyle}>Knowledge base</NavLink>
         </nav>
       </header>

@@ -9,6 +9,7 @@ const { stripToText } = require('../../utils/richHtml');
 const { User, Contact } = require('../../models');
 const { stateOf, secretsOf } = require('./ticketForms');
 const { ApiError } = require('../../middleware/error');
+const { ticketNumberOf } = require('../tickets/numbers');
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
 
@@ -42,12 +43,12 @@ async function streamFormPdf(res, ticket, tf) {
   };
   const byLine = (a) => (a && a.done ? ` (${a.byAgent ? 'PRISM agent' : users.get(a.by) || 'someone'}, ${when(a.at)})` : '');
 
-  const filename = `${formName.replace(/[^\w .()-]/g, '_')} - ticket ${String(ticket.id).padStart(5, '0')}.pdf`;
+  const filename = `${formName.replace(/[^\w .()-]/g, '_')} - ticket ${ticketNumberOf(ticket)}.pdf`;
   const doc = newDocument();
   await streamPdfResponse(res, filename, doc, async () => {
     await drawHeader(doc, formName);
     fieldGrid(doc, [
-      ['Ticket', `#${String(ticket.id).padStart(5, '0')} ${ticket.title}`],
+      ['Ticket', `${ticketNumberOf(ticket)} ${ticket.title}`],
       ['Form version', String(tf.formVersion.version)],
       ['Device', tf.asset ? `${tf.asset.name} (${tf.asset.assetTag})` : ''],
       ['For', p ? p.displayName : ''],

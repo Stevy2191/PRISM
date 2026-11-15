@@ -16,7 +16,10 @@ const { logActivity } = require('../ticketActivity');
 const { createTicket } = require('./ticketWrite');
 const { copyToTicket, removeFiles } = require('./attachmentFiles');
 
-const num = (id) => `#${String(id).padStart(5, '0')}`;
+const { ticketNumberOf } = require('./numbers');
+
+// A ticket's number as people see it (CN: WC-T0042).
+const num = (ticket) => ticketNumberOf(ticket);
 
 async function splitTicket(req, ticketRaw, commentRaw) {
   const { user } = req;
@@ -36,7 +39,7 @@ async function splitTicket(req, ticketRaw, commentRaw) {
 
   const firstLine = String(comment.body || '').split(/\r?\n/).map((l) => l.trim()).find(Boolean) || '(no text)';
   const created = await createTicket(user, {
-    title: isPrivate ? `Split from ${num(ticket.id)}` : `Split from ${num(ticket.id)}: ${firstLine.slice(0, 200)}`,
+    title: isPrivate ? `Split from ${num(ticket)}` : `Split from ${num(ticket)}: ${firstLine.slice(0, 200)}`,
     description: isPrivate ? null : comment.body,
     contactId: ticket.contactId,
     departmentId: ticket.departmentId,
@@ -73,8 +76,8 @@ async function splitTicket(req, ticketRaw, commentRaw) {
   await removeFiles(files.originals);
 
   await writeAudit(req, 'ticket.split', 'Ticket', ticket.id, { newTicketId: created.id, commentId: comment.id });
-  await logActivity(ticket.id, user.id, 'split_to', null, num(created.id));
-  await logActivity(created.id, user.id, 'split_from', num(ticket.id), null);
+  await logActivity(ticket.id, user.id, 'split_to', null, num(created));
+  await logActivity(created.id, user.id, 'split_from', num(ticket), null);
   return created;
 }
 

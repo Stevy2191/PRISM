@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
+import { formatTicketId } from '../../utils/ticketId';
 
 // A compact list of one company's records (or of what was bought from a
 // vendor), with a link to the full list filtered to that company.
 const KINDS = {
   contacts: { url: '/contacts', key: 'contacts', href: (r) => `/contacts/${r.id}`, full: '/contacts', cols: [['Name', (r) => r.displayName], ['Email', (r) => r.email || '—'], ['Department', (r) => r.department?.name || '—']] },
-  tickets: { url: '/tickets', key: 'tickets', href: (r) => `/tickets/${r.id}`, full: '/tickets', cols: [['#', (r) => String(r.id).padStart(5, '0')], ['Title', (r) => r.title], ['Status', (r) => r.status]] },
+  tickets: { url: '/tickets', key: 'tickets', href: (r) => `/tickets/${r.id}`, full: '/tickets', cols: [['#', (r) => formatTicketId(r)], ['Title', (r) => r.title], ['Status', (r) => r.status]] },
   projects: { url: '/projects', key: 'projects', href: (r) => `/projects/${r.id}`, full: '/projects', cols: [['Code', (r) => r.projectCode], ['Name', (r) => r.name], ['Status', (r) => r.status?.name || r.status]] },
   assets: { url: '/assets', key: 'assets', href: (r) => `/assets/${r.id}`, full: '/assets', cols: [['Tag', (r) => r.assetTag], ['Name', (r) => r.name], ['Status', (r) => r.status]] },
   licenses: { url: '/licenses', key: 'licenses', href: (r) => `/assets/licenses/${r.id}`, full: '/assets/licenses', cols: [['Name', (r) => r.name], ['Expires', (r) => r.expiryDate || '—']] },

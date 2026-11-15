@@ -163,7 +163,7 @@ async function resetData() {
     // would otherwise inherit the previous test's expenses/time/materials.
     'ProjectExpenses', 'ProjectMaterials', 'ProjectFiles',
     'ProjectActivities', 'ProjectMembers',
-    'ProjectIdSequences', 'ProjectPhases', 'Projects',
+    'ProjectIdSequences', 'ProjectContacts', 'ProjectPhases', 'Projects',
     'ProjectTemplateDependencies', 'ProjectTemplateTasks', 'ProjectTemplatePhases', 'ProjectTemplates',
     'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
     'CustomFields', 'TicketCategories', 'TeamMembers', 'Teams',
@@ -205,6 +205,8 @@ async function resetData() {
   await sequelize.query('DELETE FROM Companies WHERE isInternal = 0').catch(() => {});
   // CS: your company's portal and surveys back to off (as migrated on a new install).
   await sequelize.query("UPDATE Companies SET portalEnabled = 0, csatEnabled = 0, portalPreviousSlugs = NULL, status = 'active' WHERE isInternal = 1").catch(() => {});
+  // CN: every company's tickets count from T0001 again.
+  await sequelize.query('DELETE FROM CompanyCounters').catch(() => {});
   // SystemSettings is not truncated (other code relies on any rows an
   // install has), but settings a test flips must not leak into the next one —
   // SSO enforcement in particular would fail every subsequent login.

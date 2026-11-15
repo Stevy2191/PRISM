@@ -2,11 +2,12 @@
 // Subtasks append -S02 to their task's code. A new number is "current max + 1"
 // among siblings, so renumbering (1–99) never drifts out of step.
 const { Task } = require('../../models');
+const { ticketNumberOf } = require('../tickets/numbers');
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
 function parentPrefix(parent) {
-  return parent.kind === 'ticket' ? `#${String(parent.record.id).padStart(5, '0')}` : parent.record.projectCode;
+  return parent.kind === 'ticket' ? `${ticketNumberOf(parent.record)}` : parent.record.projectCode;
 }
 
 function formatTaskCode(parent, number) {

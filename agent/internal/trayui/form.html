@@ -180,6 +180,11 @@ select.fi{appearance:auto}
 </div>
 <script>
 (function () {
+  // A ticket's number: WC-T0042 from servers that number per company, else #42.
+  function ticketNo(n) {
+    var text = String(n == null ? '' : n);
+    return /-T\d/.test(text) ? text : '#' + text.replace(/^0+(?=\d)/, '');
+  }
   var $ = function (id) { return document.getElementById(id); };
   var ticketId = null;
   function show(id) { ['home', 'ticket', 'form', 'sent', 'offline'].forEach(function (p) { $(p).hidden = p !== id; }); }
@@ -346,7 +351,7 @@ select.fi{appearance:auto}
     setBusy(false);
     if (a && a.number) {
       ticketId = a.ticketId;
-      $('t-sent').textContent = 'Ticket #' + String(a.number).replace(/^0+(?=\d)/, '') + ' sent';
+      $('t-sent').textContent = 'Ticket ' + ticketNo(a.number) + ' sent';
       $('sent-sub').textContent = a.replyTo ? 'The help desk will reply by email to ' + a.replyTo + '.'
         : (home.matched ? 'The help desk has it and will be in touch.' : "The help desk has it. They don't have you on file yet, so it won't show under My open tickets until they add you.");
       var portal = document.body.dataset.portal;
@@ -405,7 +410,7 @@ select.fi{appearance:auto}
       var li = el('li'), b = el('button'); b.type = 'button';
       if (isNew(t)) { var dot = el('span', 'new'); dot.title = 'New reply'; b.appendChild(dot); }
       var mid = el('span', 't'); mid.appendChild(el('b', null, t.title));
-      mid.appendChild(el('span', null, '#' + String(t.number).replace(/^0+(?=\d)/, '') + ' · ' + (t.lastReply ? t.lastReply.from + ' replied ' + when(t.lastReply.at) : 'updated ' + when(t.updatedAt))));
+      mid.appendChild(el('span', null, ticketNo(t.number) + ' · ' + (t.lastReply ? t.lastReply.from + ' replied ' + when(t.lastReply.at) : 'updated ' + when(t.updatedAt))));
       b.appendChild(mid); b.appendChild(el('span', 'chip ' + t.state, STATE[t.state] || 'Open'));
       b.addEventListener('click', function () { openTicket(t.id); });
       li.appendChild(b); list.appendChild(li);

@@ -39,10 +39,10 @@ const userAttrs = ['id', 'displayName', 'username', 'email'];
 
 const projectInclude = [
   { model: Department, as: 'ownerDepartment', attributes: ['id', 'name'] },
-  { model: Department, as: 'forDepartment', attributes: ['id', 'name'] },
+  { model: Department, as: 'forDepartment', attributes: ['id', 'name', 'shortCode'] },
   { model: User, as: 'lead', attributes: userAttrs },
   { model: Team, as: 'team', attributes: ['id', 'name'] },
-  { model: Company, as: 'company', attributes: ['id', 'name'] },
+  { model: Company, as: 'company', attributes: ['id', 'name', 'code', 'isInternal'] },
 ];
 
 // The earliest open milestone (undated ones last) and how many open tasks

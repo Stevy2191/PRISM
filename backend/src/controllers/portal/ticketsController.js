@@ -79,7 +79,9 @@ const meta = asyncHandler(async (req, res) => {
   });
 });
 
-// "12", "00012", "#12" → 12.
+const { numberWhere } = require('../../services/tickets/numbers');
+
+// "12", "00012", "#12" → 12 (numbers from before CN); "WC-T0042" by numberWhere.
 const ticketNumber = (q) => {
   const m = /^#?0*(\d{1,10})$/.exec(q);
   return m ? Number(m[1]) : null;
@@ -95,12 +97,13 @@ const list = asyncHandler(async (req, res) => {
   const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 200) : '';
   if (q) {
     const n = ticketNumber(q);
-    parts.push({ [Op.or]: [...(n ? [{ id: n }] : []), { title: { [Op.like]: `%${escapeLike(q)}%` } }] });
+    const byNumber = numberWhere(q);
+    parts.push({ [Op.or]: [...(n ? [{ id: n }] : []), ...(byNumber ? [byNumber] : []), { title: { [Op.like]: `%${escapeLike(q)}%` } }] });
   }
   const { page, limit, offset } = parsePagination(req);
   const { rows, count } = await Ticket.findAndCountAll({
     where: { [Op.and]: parts },
-    attributes: ['id', 'title', 'status', 'contactId', 'updatedAt'],
+    attributes: ['id', 'number', 'title', 'status', 'contactId', 'updatedAt'],
     include: [{ model: Contact, as: 'contact', attributes: ['id', 'firstName', 'lastName', 'displayName', 'email'] }],
     order: [['updatedAt', 'DESC'], ['id', 'DESC']],
     limit,

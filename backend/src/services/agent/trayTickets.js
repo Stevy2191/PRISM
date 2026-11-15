@@ -27,6 +27,7 @@ const { getSystemActorUserId } = require('../inboundEmailService');
 const { resolveContact } = require('./trayIdentity');
 const { orgTimeZone } = require('../../utils/orgTime');
 const { portalOpen } = require('../portal/company');
+const { ticketNumberOf } = require('../tickets/numbers');
 
 const PLACEHOLDER_NAME = 'Unknown tray user';
 const MAX_DESCRIPTION = 20000;
@@ -238,7 +239,7 @@ async function raiseTrayTicket(device, body, req) {
   });
   // Where the help desk's replies go, for the tray's "Ticket sent" screen:
   // the matched contact's email; none for the placeholder.
-  return { ticketId: ticket.id, number: String(ticket.id).padStart(5, '0'), replyTo: matched ? contact.email : null };
+  return { ticketId: ticket.id, number: ticketNumberOf(ticket), replyTo: matched ? contact.email : null };
 }
 
 module.exports = {

@@ -1,6 +1,8 @@
 // Ticket volume and trend reports, and the raw ticket export.
 const { Op, fn, col } = require('sequelize');
-const { Ticket, User, Department, Contact } = require('../../models');
+const {
+  Ticket, User, Department, Contact, Company, TicketSla,
+} = require('../../models');
 const { asyncHandler } = require('../../middleware/error');
 const { getUserReportScope } = require('../../services/permissionService');
 const { andWhere, companyFilterWhere } = require('../../services/recordScope');
@@ -19,8 +21,65 @@ const {
   userAttrs,
 } = require('./shared');
 const { dayOf } = require('../../utils/orgTime');
+const { ticketNumberOf } = require('../../services/tickets/numbers');
 
 // ==================== Report 1: Ticket Volume ====================
+
+// CN: every company side by side, and the total across them (the whole
+// system, within what the viewer may see). Opened and closed in the range;
+// open now; SLA met = resolutions met on time out of those met or breached.
+async function ticketsByCompany(tickets, openNowWhere, buckets) {
+  const openRows = await Ticket.findAll({
+    where: andWhere(openNowWhere, { status: { [Op.in]: buckets.open } }),
+    attributes: ['companyId', [fn('COUNT', col('id')), 'n']],
+    group: ['companyId'],
+    raw: true,
+  });
+  const ids = tickets.map((t) => t.id);
+  const slas = ids.length ? await TicketSla.findAll({
+    where: { ticketId: ids }, attributes: ['ticketId', 'resolutionMetAt', 'resolutionBreachedAt'], raw: true,
+  }) : [];
+  const slaByTicket = new Map(slas.map((s) => [s.ticketId, s]));
+  const rows = new Map();
+  const row = (companyId) => {
+    if (!rows.has(companyId)) rows.set(companyId, { companyId, opened: 0, closed: 0, openNow: 0, met: 0, judged: 0, hours: 0 });
+    return rows.get(companyId);
+  };
+  tickets.forEach((t) => {
+    const r = row(t.companyId);
+    r.opened += 1;
+    if (t.resolvedAt) { r.closed += 1; r.hours += hoursBetween(t.createdAt, t.resolvedAt); }
+    const s = slaByTicket.get(t.id);
+    if (s && (s.resolutionMetAt || s.resolutionBreachedAt)) {
+      r.judged += 1;
+      if (s.resolutionMetAt && !s.resolutionBreachedAt) r.met += 1;
+    }
+  });
+  openRows.forEach((o) => { row(o.companyId).openNow = Number(o.n); });
+  const companies = rows.size ? await Company.findAll({ where: { id: [...rows.keys()] }, attributes: ['id', 'name', 'code', 'isInternal'] }) : [];
+  const byId = new Map(companies.map((c) => [c.id, c]));
+  const shape = (r, name, extra = {}) => ({
+    name,
+    opened: r.opened,
+    closed: r.closed,
+    openNow: r.openNow,
+    slaMetPct: r.judged ? Math.round((r.met / r.judged) * 100) : null,
+    avgResolutionHours: r.closed ? Math.round((r.hours / r.closed) * 10) / 10 : null,
+    ...extra,
+  });
+  const list = [...rows.values()].map((r) => {
+    const c = byId.get(r.companyId);
+    return shape(r, c ? c.name : 'Unknown', {
+      companyId: r.companyId, code: c ? c.code : null, isInternal: !!(c && c.isInternal),
+    });
+  }).sort((a, b) => b.opened - a.opened || a.name.localeCompare(b.name));
+  const total = [...rows.values()].reduce((t, r) => ({
+    opened: t.opened + r.opened, closed: t.closed + r.closed, openNow: t.openNow + r.openNow, met: t.met + r.met, judged: t.judged + r.judged, hours: t.hours + r.hours,
+  }), {
+    opened: 0, closed: 0, openNow: 0, met: 0, judged: 0, hours: 0,
+  });
+  return { rows: list, total: shape(total, 'All companies') };
+}
 
 async function buildTicketVolumeReport(req) {
   const scope = await getUserReportScope(req.user.id);
@@ -71,6 +130,7 @@ async function buildTicketVolumeReport(req) {
       currentlyOpen,
       avgResolutionHours,
     },
+    byCompany: await ticketsByCompany(tickets, openNowWhere, buckets),
     chartData: {
       granularity,
       volumeOverTime,
@@ -96,7 +156,7 @@ async function buildTicketVolumeReport(req) {
       ],
       rows: tickets.map((t) => ({
         id: t.id,
-        ticketNumber: String(t.id).padStart(5, '0'),
+        ticketNumber: ticketNumberOf(t),
         title: t.title,
         type: t.type,
         priority: t.priority,
@@ -246,7 +306,7 @@ const ticketsExport = asyncHandler(async (req, res) => {
   });
 
   const rows = tickets.map((t) => ({
-    ticketNumber: `#${String(t.id).padStart(5, '0')}`,
+    ticketNumber: `${ticketNumberOf(t)}`,
     title: t.title,
     type: t.type,
     priority: t.priority,

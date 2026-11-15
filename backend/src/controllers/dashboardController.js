@@ -16,6 +16,7 @@ const { ledgerCompanyWhere } = require('./reports/shared');
 const { getUserPerformanceStats, getTeamHappiness } = require('../services/csatStatsService');
 const { getAllSettings } = require('./settingsController');
 const { getSubscriptionRenewals } = require('../services/assetSubscriptionService');
+const { ticketNumberOf } = require('../services/tickets/numbers');
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -137,7 +138,7 @@ async function ticketsForUser(userId, scopeField, behaviorByName, companyWhere =
   const today = await orgToday();
   return tickets.map((t) => ({
     id: t.id,
-    ticketNumber: String(t.id).padStart(5, '0'),
+    ticketNumber: ticketNumberOf(t),
     title: t.title,
     status: t.status,
     displayStatus: displayStatus(t, behaviorByName, today),
@@ -327,7 +328,7 @@ async function activityFeed(buckets, ticketWhere = {}, projectWhere = {}, { limi
         {
           model: Ticket,
           as: 'ticket',
-          attributes: ['id', 'title', 'source'],
+          attributes: ['id', 'number', 'title', 'source'],
           include: [{ model: Contact, as: 'contact', attributes: ['id', 'displayName', 'isPlaceholder'] }],
         },
       ],
@@ -369,7 +370,7 @@ async function activityFeed(buckets, ticketWhere = {}, projectWhere = {}, { limi
         suffix: via || suffix || null,
         targetType: 'ticket',
         targetId: a.ticket.id,
-        targetLabel: `#${String(a.ticket.id).padStart(5, '0')} ${a.ticket.title}`,
+        targetLabel: `${ticketNumberOf(a.ticket)} ${a.ticket.title}`,
         action: a.action,
         occurredAt: a.createdAt,
       };
@@ -435,7 +436,7 @@ async function slaAtRiskFor(buckets, where) {
   const base = andWhere(where, { status: { [Op.in]: buckets.open } });
   const tickets = await Ticket.findAll({
     where: andWhere(base, { [Op.or]: [slaFilterWhere('breached', now), slaFilterWhere('at_risk', now)] }),
-    attributes: ['id', 'title', 'priority', 'status', 'assigneeId'],
+    attributes: ['id', 'number', 'title', 'priority', 'status', 'assigneeId'],
     include: [
       { model: TicketSla, as: 'sla', required: true, include: [{ model: SlaPolicy, as: 'policy', attributes: ['id', 'name'] }] },
       { model: User, as: 'assignee', attributes: ['id', 'displayName'] },

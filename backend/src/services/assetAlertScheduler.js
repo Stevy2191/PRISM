@@ -16,6 +16,7 @@ const { getSubscriptionRenewals } = require('./assetSubscriptionService');
 const { logAssetActivity } = require('./assetActivity');
 const { getTicketStatusBuckets } = require('./statusBehavior');
 const { orgToday, addDays } = require('../utils/orgTime');
+const { ticketNumberOf } = require('./tickets/numbers');
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -55,7 +56,7 @@ async function checkSubscriptionRenewals() {
     await AssetTicket.create({ assetId: r.asset.id, ticketId: ticket.id, linkedBy: null });
     // eslint-disable-next-line no-await-in-loop
     await logAssetActivity(r.asset.id, null, 'subscription_alert_ticket_created', {
-      renewalDate: r.renewalDate, ticketId: ticket.id, ticketNumber: String(ticket.id).padStart(5, '0'),
+      renewalDate: r.renewalDate, ticketId: ticket.id, ticketNumber: ticketNumberOf(ticket),
     });
   }
 }
@@ -86,7 +87,7 @@ async function checkWarrantyExpiry() {
     await AssetTicket.create({ assetId: asset.id, ticketId: ticket.id, linkedBy: null });
     // eslint-disable-next-line no-await-in-loop
     await logAssetActivity(asset.id, null, 'warranty_alert_ticket_created', {
-      date: asset.warrantyExpiryDate, ticketId: ticket.id, ticketNumber: String(ticket.id).padStart(5, '0'),
+      date: asset.warrantyExpiryDate, ticketId: ticket.id, ticketNumber: ticketNumberOf(ticket),
     });
   }
 }
@@ -117,7 +118,7 @@ async function checkReplacementDates() {
     await AssetTicket.create({ assetId: asset.id, ticketId: ticket.id, linkedBy: null });
     // eslint-disable-next-line no-await-in-loop
     await logAssetActivity(asset.id, null, 'replacement_alert_ticket_created', {
-      date: asset.replacementPlanDate, ticketId: ticket.id, ticketNumber: String(ticket.id).padStart(5, '0'),
+      date: asset.replacementPlanDate, ticketId: ticket.id, ticketNumber: ticketNumberOf(ticket),
     });
   }
 }
@@ -165,7 +166,7 @@ async function checkLicenseExpiry() {
     // eslint-disable-next-line no-await-in-loop
     await LicenseActivity.create({
       licenseId: license.id, userId: null, action: 'expiry_alert_ticket_created',
-      detail: { expiryDate: license.expiryDate, ticketId: ticket.id, ticketNumber: String(ticket.id).padStart(5, '0') },
+      detail: { expiryDate: license.expiryDate, ticketId: ticket.id, ticketNumber: ticketNumberOf(ticket) },
     });
   }
 }
@@ -210,7 +211,7 @@ async function checkContractRenewals() {
     // eslint-disable-next-line no-await-in-loop
     await ContractActivity.create({
       contractId: contract.id, userId: null, action: 'renewal_alert_ticket_created',
-      detail: { renewalDate: renewsOn, ticketId: ticket.id, ticketNumber: String(ticket.id).padStart(5, '0') },
+      detail: { renewalDate: renewsOn, ticketId: ticket.id, ticketNumber: ticketNumberOf(ticket) },
     });
   }
 }

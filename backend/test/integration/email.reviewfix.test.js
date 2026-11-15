@@ -64,5 +64,5 @@ it('a workflow rule closing a ticket sends the resolved email when it is on', as
   expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ priority: 'low' }));
   await waitFor(() => sendMail.mock.calls.length === 1);
   expect((await models.Ticket.findByPk(t.id)).status).toBe('Closed');
-  expect(sendMail.mock.calls[0][0]).toEqual(expect.objectContaining({ to: [w.contact.email], subject: 'Resolved [Ticket #00001]' }));
+  expect(sendMail.mock.calls[0][0]).toEqual(expect.objectContaining({ to: [w.contact.email], subject: `Resolved [Ticket #${t.ticketNumber}]` }));
 });

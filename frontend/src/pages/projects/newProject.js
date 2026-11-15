@@ -44,7 +44,8 @@ export function createBody({
   const body = {
     name: form.name.trim(),
     ownerDepartmentId: form.ownerDepartmentId,
-    forDepartmentId: form.forDepartmentId || undefined,
+    // CN: for the whole company (null) or one of its departments.
+    forDepartmentId: form.forScope === 'company' ? null : (form.forDepartmentId || undefined),
     companyId: form.companyId || undefined,
     assignedToUserId: form.assignedToUserId || null,
     tags, // always sent: [] means no tags, absent means "take the template's"
@@ -56,6 +57,8 @@ export function createBody({
   if (origin !== 'blank' && form.finishDate) body.finishDate = form.finishDate;
   if (origin === 'blank' && form.finishDate) body.dueDate = form.finishDate;
   if (budget !== undefined) body.hourBudgetMinutes = budget;
+  if (Array.isArray(form.contactIds)) body.contactIds = form.contactIds;
+  if (typeof form.showInPortal === 'boolean') body.showInPortal = form.showInPortal;
   return body;
 }
 

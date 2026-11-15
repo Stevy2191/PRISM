@@ -57,6 +57,14 @@ describe('today\'s behaviour', () => {
     expect([log.action, log.ticketId, log.fromEmail]).toEqual(['reply_added', ticket.id, 'ann@acme.com']);
   });
 
+  it('a reply naming the ticket by its number appends (CN: [LITS-T0001])', async () => {
+    const raw = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'mail', 'contact-reply.eml'), 'utf8')
+      .replace('[Ticket #%TICKET%]', `[${ticket.ticketNumber}]`);
+    const out = await handleParsedMessage(await simpleParser(raw), CONFIG);
+    expect(out).toEqual({ action: 'reply_added', ticketId: ticket.id });
+    expect(ticket.ticketNumber).toMatch(/^[A-Z0-9]{2,6}-T0001$/);
+  });
+
   it('stranger with a guessed number gets a new ticket', async () => {
     const out = await handle('stranger-guess', { TICKET: num(ticket.id) });
     expect(out.action).toBe('ticket_created');

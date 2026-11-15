@@ -23,6 +23,7 @@ import BudgetPanel from './detail/BudgetPanel';
 import TimelineTab from './detail/TimelineTab';
 import GenerateProjectReportModal from './detail/ReportModal';
 import { hoursFromMinutes, localToday } from './detail/taskFilters';
+import PortalPanel from './detail/PortalPanel';
 
 // Rows loaded at a time by the growing detail lists.
 const SUBLIST_STEP = 25;
@@ -303,6 +304,7 @@ export default function ProjectDetail() {
           onMoreMaterials={() => setMaterialLimit((n) => n + SUBLIST_STEP)}
         />
       )}
+      {tab === 'people' && <div className="mb-4"><PortalPanel project={project} canEdit={canEdit} onChanged={reloadProject} /></div>}
       {tab === 'people' && (
         <PeopleTab
           members={members}

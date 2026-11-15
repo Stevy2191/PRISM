@@ -36,7 +36,7 @@ async function recipients(ticket, clock) {
 
 async function announce(ticketId, clock, kind) {
   const k = KINDS[kind];
-  const ticket = await Ticket.findByPk(ticketId, { attributes: ['id', 'title', 'assigneeId', 'teamId'] });
+  const ticket = await Ticket.findByPk(ticketId, { attributes: ['id', 'number', 'title', 'assigneeId', 'teamId'] });
   if (!ticket) return;
   // eslint-disable-next-line no-restricted-syntax
   for (const userId of await recipients(ticket, clock)) {

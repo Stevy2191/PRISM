@@ -5,6 +5,7 @@ import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import SettingsPage from '../../components/settings/SettingsPage';
 import { fmtDateTime } from '../../utils/formatDate';
+import { formatTicketId } from '../../utils/ticketId';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -42,7 +43,7 @@ export default function RecurringTickets() {
   const toggle = (r) => act(r, () => api.patch(`/recurring-tickets/${r.id}`, { active: !r.active }));
   const runNow = (r) => act(r, async () => {
     const { data } = await api.post(`/recurring-tickets/${r.id}/run`);
-    alert(`Created ticket #${String(data.ticket.id).padStart(5, '0')}`);
+    alert(`Created ticket ${formatTicketId(data.ticket)}`);
   });
   const remove = (r) => {
     if (!confirm(`Delete "${r.title}"? Tickets it already made stay.`)) return;

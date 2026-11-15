@@ -7,6 +7,7 @@ const {
   MUTED, TEXT, CONTENT_WIDTH, PAGE_MARGIN,
 } = require('./pdfReport');
 const { ticketWaitingView } = require('./ticketWaiting');
+const { ticketNumberOf } = require('./tickets/numbers');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 
@@ -83,7 +84,7 @@ async function renderTicketReportPdf(doc, data) {
   const {
     ticket, comments, timeEntries, attachments, activity, waiting,
   } = data;
-  const ticketNumber = `#${String(ticket.id).padStart(5, '0')}`;
+  const ticketNumber = `${ticketNumberOf(ticket)}`;
 
   await drawHeader(doc, 'Ticket Report');
 
@@ -170,7 +171,7 @@ function describeActivity(a) {
 async function generateTicketReport(ticketId, res) {
   const data = await loadTicketReportData(ticketId);
   if (!data) return false;
-  const filename = `ticket-#${String(data.ticket.id).padStart(5, '0')}-report.pdf`;
+  const filename = `ticket-${ticketNumberOf(data.ticket)}-report.pdf`;
   const doc = newDocument();
   await streamPdfResponse(res, filename, doc, (d) => renderTicketReportPdf(d, data));
   return true;

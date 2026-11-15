@@ -58,7 +58,7 @@ it('merge dialog merges a ticket and the source shows the merged banner', async 
   await page.goto(`/tickets/${source.id}`);
   const banner = page.getByTestId('merged-banner');
   await banner.waitFor();
-  expect(await banner.textContent()).toContain(`#${String(target.id).padStart(5, '0')}`);
+  expect(await banner.textContent()).toContain((await models.Ticket.findByPk(target.id)).number);
 });
 
 it('recurring editor shows five next runs and saves a rule', async () => {
@@ -89,7 +89,7 @@ it('canned picker inserts a rendered response into the reply box', async () => {
   await page.getByRole('button', { name: 'Insert' }).click();
   await page.getByTestId('canned-picker').getByText('Greeting').click();
   const box = page.getByPlaceholder(/Reply to/);
-  await expect_value(box, `Hi Casey, about #${String(t.id).padStart(5, '0')}`);
+  await expect_value(box, `Hi Casey, about #${(await models.Ticket.findByPk(t.id)).number}`);
 });
 
 async function expect_value(locator, text) {

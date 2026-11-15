@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, LabelList,
@@ -195,6 +196,46 @@ export function SortableTable({ columns, rows, onRowClick, emptyMessage = 'No da
           )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// CN: every company side by side, then the total across them ("All
+// companies": the whole system you can see). columns: [{ key, label, render? }].
+export function ByCompanyTable({ title = 'By company', hint = 'Every company side by side; the total is all of them', columns, byCompany }) {
+  if (!byCompany || !byCompany.rows || byCompany.rows.length === 0) return null;
+  const cell = (row, col) => (col.render ? col.render(row) : (row[col.key] ?? '—'));
+  return (
+    <div className="card min-w-0 p-4 sm:p-5">
+      <h3 className="text-[15px] font-semibold text-navy-900">{title}</h3>
+      <p className="mb-3 text-xs text-navy-400">{hint}</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm" aria-label={title}>
+          <thead>
+            <tr className="border-b text-left text-xs font-semibold text-navy-400" style={{ borderColor: 'var(--color-border)' }}>
+              <th className="py-2 pr-3">Company</th>
+              {columns.map((c) => <th key={c.key} className="py-2 pr-3">{c.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {byCompany.rows.map((r) => (
+              <tr key={r.companyId} className="border-b" style={{ borderColor: 'var(--color-border)' }}>
+                <td className="py-2 pr-3">
+                  <Link to={r.isInternal ? '/settings/your-company' : `/companies/${r.companyId}`} className="text-prism hover:underline">
+                    {r.name}{r.code ? ` (${r.code})` : ''}
+                  </Link>
+                  {r.isInternal && <span className="text-navy-400">: your company</span>}
+                </td>
+                {columns.map((c) => <td key={c.key} className="num py-2 pr-3">{cell(r, c)}</td>)}
+              </tr>
+            ))}
+            <tr className="font-semibold">
+              <td className="py-2 pr-3">All companies</td>
+              {columns.map((c) => <td key={c.key} className="num py-2 pr-3">{cell(byCompany.total, c)}</td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

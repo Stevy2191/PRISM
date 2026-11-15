@@ -2,7 +2,7 @@ const { Notification, Ticket } = require('../models');
 const { asyncHandler } = require('../middleware/error');
 const { syncDerivedNotifications } = require('../services/notifications');
 
-const ticketAttrs = ['id', 'title'];
+const ticketAttrs = ['id', 'number', 'title'];
 
 // GET /notifications — unread notifications for the logged-in user.
 const list = asyncHandler(async (req, res) => {

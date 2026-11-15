@@ -6,6 +6,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import CompanyPicker from '../components/companies/CompanyPicker';
+import ContactPicker from '../components/portal/ContactPicker';
+import { useCompanyOptions } from '../hooks/useCompanyOptions';
 import TagInput from '../components/TagInput';
 import Button from '../components/ui/Button';
 import Field from '../components/ui/Field';
@@ -38,7 +40,13 @@ export default function ProjectNew() {
   const [origin, setOrigin] = useState(params.get('template') ? 'template' : 'blank');
   const [form, setForm] = useState({
     name: '', ownerDepartmentId: '', forDepartmentId: '', companyId: '', assignedToUserId: '', startDate: localToday(), finishDate: '', templateId: params.get('template') || '',
+    // CN: for the whole company or one of its departments; customer
+    // contacts who follow it in the portal, and whether it shows there.
+    forScope: 'company', contactIds: [], showInPortal: undefined,
   });
+  const [contacts, setContacts] = useState([]);
+  const [nextNumber, setNextNumber] = useState('');
+  const companies = useCompanyOptions();
   const [finishTouched, setFinishTouched] = useState(false);
   const [budgetText, setBudgetText] = useState('');
   const [budgetTouched, setBudgetTouched] = useState(false);
@@ -76,6 +84,22 @@ export default function ProjectNew() {
     api.get('/departments', { params: form.companyId ? { companyId: form.companyId } : {} })
       .then(({ data }) => setForDepartments(data.departments)).catch(() => {});
   }, [form.companyId]);
+
+  // The company: yours, or a customer's (whose contacts can follow it in the portal).
+  const company = companies.find((c) => String(c.id) === String(form.companyId));
+  const customer = Boolean(company && !company.isInternal);
+  const forDepartment = forDepartments.find((d) => String(d.id) === String(form.forDepartmentId));
+
+  // The number it will get (the next free one, taken when it's created).
+  useEffect(() => {
+    let live = true;
+    const forDepartmentId = form.forScope === 'department' ? form.forDepartmentId : '';
+    if (form.forScope === 'department' && !forDepartmentId) { setNextNumber(''); return undefined; }
+    api.get('/projects/next-number', { params: { companyId: form.companyId || undefined, forDepartmentId: forDepartmentId || undefined } })
+      .then(({ data }) => { if (live) setNextNumber(data.code || ''); })
+      .catch(() => { if (live) setNextNumber(''); });
+    return () => { live = false; };
+  }, [form.companyId, form.forScope, form.forDepartmentId]);
 
   // Picking a template brings its tags and hour budget along.
   useEffect(() => {
@@ -142,7 +166,8 @@ export default function ProjectNew() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!form.ownerDepartmentId) { setError('Owned by department is required'); return; }
+    if (!form.ownerDepartmentId) { setError('Done by is required'); return; }
+    if (form.forScope === 'department' && !form.forDepartmentId) { setError('Pick the department it is for'); return; }
     if (origin === 'template' && !form.templateId) { setError('Pick a template, or start from a blank project'); return; }
     if (origin === 'copy' && !copyId) { setError('Pick the project to copy'); return; }
     if (origin !== 'blank' && !form.startDate) { setError('A start date is required'); return; }
@@ -155,7 +180,16 @@ export default function ProjectNew() {
     setSaving(true);
     try {
       const { data } = await api.post('/projects', createBody({
-        form, tags, origin, copyId, budget, memberIds: [],
+        form: {
+          ...form,
+          contactIds: customer ? contacts.map((c) => c.id) : [],
+          showInPortal: customer ? form.showInPortal !== false : false,
+        },
+        tags,
+        origin,
+        copyId,
+        budget,
+        memberIds: [],
       }));
       navigate(`/projects/${data.project.id}`);
     } catch (err) {
@@ -166,7 +200,6 @@ export default function ProjectNew() {
   };
 
   const summary = plan ? previewSummary(plan) : null;
-  const ownerDepartment = owners.find((d) => String(d.id) === String(form.ownerDepartmentId));
   const copySource = copyProject;
 
   return (
@@ -207,26 +240,87 @@ export default function ProjectNew() {
           )}
           <Field label="Project name"><input className="input" required maxLength={255} value={form.name} onChange={(e) => patch({ name: e.target.value })} /></Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <CompanyPicker label="Client company" value={form.companyId} onChange={(v) => patch({ companyId: v, forDepartmentId: '' })} />
+            <CompanyPicker
+              label="Company"
+              value={form.companyId}
+              onChange={(v) => { patch({ companyId: v, forDepartmentId: '', forScope: 'company', showInPortal: undefined }); setContacts([]); }}
+            />
             <Field label="Lead">
               <select className="input" value={form.assignedToUserId} onChange={(e) => patch({ assignedToUserId: e.target.value })}>
                 <option value="">Unassigned</option>
                 {leads.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
               </select>
             </Field>
-            <Field label="Owned by department (required)" hint={ownerDepartment && !ownerDepartment.shortCode ? 'No short code set for this department, so the project ID starts with DEPT.' : 'Which team does the work.'}>
-              <select className="input" required value={form.ownerDepartmentId} onChange={(e) => patch({ ownerDepartmentId: e.target.value })}>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-medium text-navy-500" id="for-label">For</span>
+            <div role="radiogroup" aria-labelledby="for-label" className="flex flex-wrap gap-2.5">
+              {[['company', 'The whole company', company ? company.name : 'Its company'], ['department', 'One department', forDepartment ? `${forDepartment.name}${forDepartment.shortCode ? ` (${forDepartment.shortCode})` : ''}` : 'Pick it below']].map(([value, title, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.forScope === value}
+                  onClick={() => patch({ forScope: value })}
+                  className="min-w-[200px] flex-1 rounded-lg border px-3 py-2.5 text-left"
+                  style={form.forScope === value
+                    ? { borderColor: 'var(--color-accent)', backgroundColor: 'var(--color-accent-soft)' }
+                    : { borderColor: 'var(--color-border)' }}
+                >
+                  <span className="block text-sm font-semibold">{title}</span>
+                  <span className="block text-[12.5px] text-navy-400">{hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {form.forScope === 'department' && (
+              <Field label="Department">
+                <select className="input" aria-label="Department it is for" value={form.forDepartmentId} onChange={(e) => patch({ forDepartmentId: e.target.value })}>
+                  <option value="">Select department…</option>
+                  {forDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}{d.shortCode ? ` (${d.shortCode})` : ''}</option>)}
+                </select>
+              </Field>
+            )}
+            <Field label="Done by (your department)" hint="Which of your teams does the work.">
+              <select className="input" required aria-label="Done by" value={form.ownerDepartmentId} onChange={(e) => patch({ ownerDepartmentId: e.target.value })}>
                 <option value="">Select department…</option>
                 {owners.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </Field>
-            <Field label="For department" hint="Which department benefits.">
-              <select className="input" value={form.forDepartmentId} onChange={(e) => patch({ forDepartmentId: e.target.value })}>
-                <option value="">Same as owned by</option>
-                {forDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </Field>
           </div>
+          {nextNumber && (
+            <Notice tone="info">Its number will be <b className="num">{nextNumber}</b>.</Notice>
+          )}
+          {customer && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-medium text-navy-500">Customer contacts</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {contacts.map((c) => (
+                    <span key={c.id} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm" style={{ borderColor: 'var(--color-border)' }}>
+                      {c.displayName}
+                      <button type="button" aria-label={`Remove ${c.displayName}`} className="text-navy-400 hover:underline" onClick={() => setContacts((list) => list.filter((x) => x.id !== c.id))}>×</button>
+                    </span>
+                  ))}
+                  <ContactPicker
+                    companyId={form.companyId}
+                    exclude={contacts.map((c) => c.id)}
+                    label="Add a customer contact"
+                    onPick={(c) => setContacts((list) => [...list, c])}
+                  />
+                </div>
+                <p className="text-[12.5px] text-navy-400">They see this project in {company.name}&apos;s portal, as do its company admins{form.forScope === 'department' && forDepartment ? ` and ${forDepartment.name}'s admins` : ''}.</p>
+              </div>
+              <label className="flex items-start gap-2.5 pt-6 text-sm">
+                <input type="checkbox" checked={form.showInPortal !== false} onChange={(e) => patch({ showInPortal: e.target.checked })} />
+                <span>
+                  <span className="font-medium">Show in the portal</span>
+                  <span className="block text-[12.5px] text-navy-400">Status, progress, phases and milestones only.</span>
+                </span>
+              </label>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Start date"><input type="date" className="input num" value={form.startDate} onChange={(e) => patch({ startDate: e.target.value })} /></Field>
             <Boxed

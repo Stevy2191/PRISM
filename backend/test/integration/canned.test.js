@@ -94,7 +94,7 @@ it('render fills ticket placeholders; refused with no ticket access or unseen re
     title: 'Hi', body: 'Hi {{contact.firstName}}, #{{ticket.number}} {{ticket.title}} — {{tech.name}} / {{org.name}}',
   }), 201).response;
   const out = expectOk(await tina.agent.post(`${API}/tickets/${t.id}/canned/${r.id}/render`));
-  expect(out.text).toMatch(/^Hi Casey, #00001 Printer <jam> — Test tina \/ /);
+  expect(out.text).toMatch(/^Hi Casey, #LITS-T0001 Printer <jam> — Test tina \/ /);
 
   // Someone who can't see the ticket, and someone who can't see the response.
   const olly = await makeOwnTier(w.admin, 'olly', w.deptA.id);

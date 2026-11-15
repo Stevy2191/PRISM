@@ -151,9 +151,9 @@ export default function Ticket() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        crumbs={[{ label: 'Tickets', to: p('/tickets') }, { label: ticketNo(ticket.id), id: true }]}
+        crumbs={[{ label: 'Tickets', to: p('/tickets') }, { label: ticketNo(ticket), id: true }]}
         title={ticket.title}
-        sub={<span className="flex items-center gap-2"><span className="num font-semibold">{ticketNo(ticket.id)}</span><StatusChip tone={statusTone(ticket.statusBehavior)}>{ticket.status}</StatusChip></span>}
+        sub={<span className="flex items-center gap-2"><span className="num font-semibold">{ticketNo(ticket)}</span><StatusChip tone={statusTone(ticket.statusBehavior)}>{ticket.status}</StatusChip></span>}
       />
       {failedUploads?.length > 0 && <Notice tone="warn">Your ticket was created, but some files weren&apos;t attached: {failedUploads.join('; ')}</Notice>}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">

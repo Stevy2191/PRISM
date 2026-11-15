@@ -267,7 +267,7 @@ const logs = asyncHandler(async (req, res) => {
 
   const rows = await WorkflowRuleLog.findAll({
     where: { ruleId: rule.id },
-    include: [{ model: Ticket, as: 'ticket', attributes: ['id', 'title'] }],
+    include: [{ model: Ticket, as: 'ticket', attributes: ['id', 'number', 'title'] }],
     order: [['triggeredAt', 'DESC']],
     limit: 100,
   });

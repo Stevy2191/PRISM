@@ -15,6 +15,7 @@ const { addDays, isoWeekday } = require('../projects/schedule');
 const {
   DEFAULT_WORK_HOURS, DEFAULT_TICKET_MINUTES, NONE, capacityFor, workingWeekdays, workingSpan, snapBack, snapForward, spread, itemMinutes, shareMinutes, validWorkHours,
 } = require('./capacity');
+const { ticketNumberOf } = require('../tickets/numbers');
 
 const sameDept = (a, b) => a != null && b != null && a === b;
 const inList = (ids) => ({ [Op.in]: ids.length ? ids : [-1] });
@@ -148,7 +149,7 @@ async function buildWorkload(viewer, {
   const tickets = wantTickets
     ? await Ticket.findAll({
       where: andWhere(await ticketScopeWhere(viewer), { status: inList(ticketBuckets.open), mergedIntoId: null }),
-      attributes: ['id', 'title', 'assigneeId', 'teamId', 'companyId', 'departmentId', 'dueDate', 'plannedDate'],
+      attributes: ['id', 'number', 'title', 'assigneeId', 'teamId', 'companyId', 'departmentId', 'dueDate', 'plannedDate'],
       raw: true,
     })
     : [];
@@ -203,7 +204,7 @@ async function buildWorkload(viewer, {
       kind: 'ticket',
       id: t.id,
       projectId: null,
-      code: `#${String(t.id).padStart(5, '0')}`,
+      code: `${ticketNumberOf(t)}`,
       title: t.title,
       company: companyName.get(t.companyId) || null,
       minutes: itemMinutes({ kind: 'ticket', tasks: tasksOfTicket.get(t.id) || [] }, settings.defaultTicketMinutes),

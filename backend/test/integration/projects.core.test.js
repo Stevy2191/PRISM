@@ -1,5 +1,4 @@
 const { resetData, closeDb, models, sequelize } = require('./helpers');
-const { generateProjectCode } = require('../../src/services/projectCodeService');
 const {
   API, expectOk, makeWorld, makeTech, makeManager, makeStaff, makeOwnTier, makeTicket, makeProject,
   makeTask, makeTeam, projectStatusId, freezeClock, unfreezeClock,
@@ -30,7 +29,7 @@ describe('POST /projects', () => {
   it('applies defaults', async () => {
     const p = await makeProject(tech.agent, { name: '  Refresh  ', ownerDepartmentId: w.deptA.id });
     expect(p).toEqual(expect.objectContaining({
-      name: 'Refresh', projectCode: 'SD-P00001', status: 'Active', forDepartmentId: w.deptA.id,
+      name: 'Refresh', projectCode: 'LITS-SD-P0001', status: 'Active', forDepartmentId: w.deptA.id,
       assignedToUserId: null, teamId: null, dueDate: null, tags: null, description: null,
       createdBy: tech.user.id, closedAt: null, members: [],
     }));
@@ -47,7 +46,7 @@ describe('POST /projects', () => {
       // eslint-disable-next-line no-await-in-loop
       codes.push((await makeProject(tech.agent, { name: 'P', ownerDepartmentId: dept.id })).projectCode);
     }
-    expect(codes).toEqual(['SD-P00001', 'SD-P00002', 'FAC-P00001']);
+    expect(codes).toEqual(['LITS-SD-P0001', 'LITS-SD-P0002', 'LITS-FAC-P0003']);
   });
 
   // The per-department counter used to race: a department's first project
@@ -63,21 +62,14 @@ describe('POST /projects', () => {
       expect(results.map((r) => r.status)).toEqual([201, 201, 201]);
       codes.push(...results.map((r) => r.body.project.projectCode));
     }
-    expect(codes.sort()).toEqual(Array.from({ length: 9 }, (_, i) => `SD-P0000${i + 1}`));
-  });
-
-  it('the counter refuses a transaction that would fail under concurrency', async () => {
-    // Guards future callers: under the default REPEATABLE READ, MariaDB 11
-    // fails concurrent increments instead of queueing them.
-    await expect(sequelize.transaction((t) => generateProjectCode(w.deptA.id, t)))
-      .rejects.toThrow('nextProjectSequence needs a READ COMMITTED transaction');
+    expect(codes.sort()).toEqual(Array.from({ length: 9 }, (_, i) => `LITS-SD-P000${i + 1}`));
   });
 
   it('never reuses a deleted project\'s number', async () => {
     const first = await makeProject(tech.agent, { name: 'First', ownerDepartmentId: w.deptA.id });
     expectOk(await w.admin.agent.delete(projUrl(first)));
     const second = await makeProject(tech.agent, { name: 'Second', ownerDepartmentId: w.deptA.id });
-    expect(second.projectCode).toBe('SD-P00002');
+    expect(second.projectCode).toBe('LITS-SD-P0002');
   });
 
   it('makes the lead a lead member and the rest members', async () => {
@@ -119,7 +111,7 @@ describe('POST /projects', () => {
     const p = await makeProject(tech.agent, { name: 'Refresh', ownerDepartmentId: w.deptA.id });
     const { activity } = expectOk(await tech.agent.get(`${projUrl(p)}/activity`));
     expect(activity.map((a) => ({ action: a.action, detail: a.detail })))
-      .toEqual([{ action: 'project_created', detail: { name: 'Refresh', projectCode: 'SD-P00001' } }]);
+      .toEqual([{ action: 'project_created', detail: { name: 'Refresh', projectCode: 'LITS-SD-P0001' } }]);
   });
 });
 
@@ -325,7 +317,7 @@ describe('GET /projects', () => {
         name: 'Bravo', ownerDepartmentId: w.deptB.id, forDepartmentId: w.deptA.id, description: 'boiler swap', tags: ['vpn-legacy'],
       });
       const charlie = await makeProject(t, { name: 'Charlie', ownerDepartmentId: w.deptB.id, status: 'Completed', dueDate: '2026-03-01' });
-      expect([alpha.projectCode, bravo.projectCode, charlie.projectCode]).toEqual(['SD-P00001', 'FAC-P00001', 'FAC-P00002']);
+      expect([alpha.projectCode, bravo.projectCode, charlie.projectCode]).toEqual(['LITS-SD-P0001', 'LITS-SD-P0002', 'LITS-FAC-P0003']);
     });
 
     it.each([
@@ -338,7 +330,7 @@ describe('GET /projects', () => {
       ['myDepartment=true', () => 'myDepartment=true', ['Alpha', 'Bravo']],
       ['overdue=true', () => 'overdue=true', ['Alpha']],
       ['search=boiler', () => 'search=boiler', ['Bravo']],
-      ['search=FAC-P00002', () => 'search=FAC-P00002', ['Charlie']],
+      ['search=LITS-FAC-P0003', () => 'search=LITS-FAC-P0003', ['Charlie']],
       ['search=urgent', () => 'search=urgent', ['Alpha']],
       ['tag=vpn', () => 'tag=vpn', ['Alpha']],
     ])('%s', async (_label, query, names) => {

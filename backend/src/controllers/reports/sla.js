@@ -15,6 +15,7 @@ const { liveUsedMinutes } = require('../../services/sla/ticketSla');
 const {
   parseDateRange, dateWhere, parseDepartmentId, granularityFor, bucketKey, ticketScopeWhere, sendCsv, userAttrs,
 } = require('./shared');
+const { ticketNumberOf } = require('../../services/tickets/numbers');
 
 const CLOCKS = ['assign', 'response', 'resolution'];
 const LABEL = { assign: 'Assignment', response: 'First response', resolution: 'Resolution' };
@@ -38,7 +39,7 @@ async function buildSlaComplianceReport(req) {
 
   const tickets = await Ticket.findAll({
     where: ticketScopeWhere(dateWhere('createdAt', range), scope, req.user, deptId, companyWhere),
-    attributes: ['id', 'title', 'status', 'createdAt', 'assigneeId', 'departmentId', 'companyId'],
+    attributes: ['id', 'number', 'title', 'status', 'createdAt', 'assigneeId', 'departmentId', 'companyId'],
     include: [
       { model: TicketSla, as: 'sla', required: true },
       { model: User, as: 'assignee', attributes: userAttrs },
@@ -104,7 +105,7 @@ async function buildSlaComplianceReport(req) {
         const used = await liveUsedMinutes(t.sla, c, now);
         breaches.push({
           id: t.id,
-          ticketNumber: String(t.id).padStart(5, '0'),
+          ticketNumber: ticketNumberOf(t),
           title: t.title,
           assignee: t.assignee?.displayName || 'Unassigned',
           company: t.company?.name || '',
@@ -128,7 +129,7 @@ async function buildSlaComplianceReport(req) {
   }) : [];
   const extensions = changes.map((ch) => ({
     id: ch.ticketId,
-    ticketNumber: String(ch.ticketId).padStart(5, '0'),
+    ticketNumber: ticketNumberOf(byId.get(ch.ticketId)),
     title: byId.get(ch.ticketId).title,
     kind: ch.kind,
     from: ch.fromDueAt ? new Date(ch.fromDueAt).toISOString() : null,

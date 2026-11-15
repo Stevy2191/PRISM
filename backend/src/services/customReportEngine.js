@@ -5,6 +5,7 @@ const { Op } = require('sequelize');
 const {
   Ticket, TimeEntry, User, Team, Project, ProjectExpense, ProjectMaterial,
   Department, Contact, CustomField, TicketFieldValue,
+  Company,
 } = require('../models');
 const { getUserReportScope } = require('./permissionService');
 const { andWhere, companyFilterWhere } = require('./recordScope');
@@ -13,6 +14,7 @@ const { computeProjectCompletion } = require('./projectCompletion');
 const rc = require('../controllers/reportsController'); // reuse scope/date-range helpers, not routes
 const { loadTree: loadCategoryTree, pathOf: categoryPathOf } = require('./tickets/categories');
 const { dayOf } = require('../utils/orgTime');
+const { ticketNumberOf } = require('./tickets/numbers');
 
 const userAttrs = ['id', 'displayName', 'username'];
 
@@ -94,9 +96,9 @@ const FIELD_DEFS = {
 };
 
 const GROUP_BY_OPTIONS = {
-  tickets: ['department', 'assignee', 'status', 'priority', 'month', 'type', 'source', 'category'],
-  projects: ['department', 'status', 'month'],
-  time_entries: ['tech', 'month', 'ticket', 'project'],
+  tickets: ['company', 'department', 'assignee', 'status', 'priority', 'month', 'type', 'source', 'category'],
+  projects: ['company', 'department', 'status', 'month'],
+  time_entries: ['company', 'tech', 'month', 'ticket', 'project'],
   expenses_materials: [],
   contacts: ['department'],
 };
@@ -161,13 +163,14 @@ async function loadTicketRecords(req, filters) {
   const minutesByTicket = new Map();
   timeTotals.forEach((r) => minutesByTicket.set(r.ticketId, (minutesByTicket.get(r.ticketId) || 0) + r.durationSeconds / 60));
   const categoryTree = await loadCategoryTree();
+  const companyNames = await companyNameMap();
   const categoryPath = (id) => categoryPathOf(categoryTree, id).map((n) => n.name).join(' › ');
 
   let records = tickets.map((t) => {
     const resolutionHours = t.resolvedAt ? Math.round(((new Date(t.resolvedAt) - new Date(t.createdAt)) / 3600000) * 10) / 10 : null;
     const rec = {
       id: t.id,
-      ticketNumber: `#${String(t.id).padStart(5, '0')}`,
+      ticketNumber: `${ticketNumberOf(t)}`,
       title: t.title,
       status: t.status,
       priority: t.priority,
@@ -185,6 +188,7 @@ async function loadTicketRecords(req, filters) {
       source: t.source,
       tags: Array.isArray(t.tags) ? t.tags.join(', ') : '',
       _departmentName: t.department?.name || 'Unassigned',
+      _companyName: companyNames.get(t.companyId) || '',
       _assigneeName: t.assignee?.displayName || 'Unassigned',
       _month: t.createdAt ? dayOf(t.createdAt, range.tz).slice(0, 7) : '',
       _tagList: Array.isArray(t.tags) ? t.tags : [],
@@ -222,6 +226,7 @@ async function loadProjectRecords(req, filters) {
     order: [['createdAt', 'DESC']],
   });
 
+  const companyNames = await companyNameMap();
   let records = await Promise.all(projects.map(async (p) => {
     const [completion, timeSum, laborSum, expenseSum, materialSum] = await Promise.all([
       computeProjectCompletion(p.id),
@@ -252,6 +257,7 @@ async function loadProjectRecords(req, filters) {
       totalCost: Math.round((laborCost + expensesTotal + materialsTotal) * 100) / 100,
       tags: Array.isArray(p.tags) ? p.tags.join(', ') : '',
       _departmentName: p.ownerDepartment?.name || 'Unassigned',
+      _companyName: companyNames.get(p.companyId) || '',
       _month: p.createdAt ? dayOf(p.createdAt, range.tz).slice(0, 7) : '',
       _tagList: Array.isArray(p.tags) ? p.tags : [],
     };
@@ -276,24 +282,26 @@ async function loadTimeEntryRecords(req, filters) {
     where,
     include: [
       { model: User, as: 'user', attributes: [...userAttrs, 'userType'] },
-      { model: Ticket, as: 'ticket', attributes: ['id', 'title', 'departmentId'], required: false },
-      { model: Project, as: 'project', attributes: ['id', 'projectCode', 'ownerDepartmentId'], required: false },
+      { model: Ticket, as: 'ticket', attributes: ['id', 'number', 'title', 'departmentId', 'companyId'], required: false },
+      { model: Project, as: 'project', attributes: ['id', 'projectCode', 'ownerDepartmentId', 'companyId'], required: false },
     ],
     order: [['entryDate', 'DESC'], ['createdAt', 'DESC'], ['id', 'DESC']],
   });
 
+  const companyNames = await companyNameMap();
   let records = entries.map((e) => ({
     id: e.id,
     date: e.entryDate,
     techName: e.user?.displayName || 'Unknown',
     userType: e.user?.userType === 'contractor' ? 'Contractor' : 'Internal',
-    ticketNumber: e.ticket ? `#${String(e.ticket.id).padStart(5, '0')}` : '',
+    ticketNumber: e.ticket ? `${ticketNumberOf(e.ticket)}` : '',
     projectCode: e.project?.projectCode || '',
     description: e.note || '',
     durationHours: Math.round((e.durationSeconds / 3600) * 10) / 10,
     laborCost: e.laborCost != null ? Number(e.laborCost) : null,
     _userTypeRaw: e.user?.userType || 'internal',
     _techId: e.user?.id ?? 'unknown',
+    _companyName: companyNames.get((e.ticket || e.project || {}).companyId) || '',
     _month: (e.entryDate || '').slice(0, 7),
   }));
   if (filters.userType) records = records.filter((r) => r._userTypeRaw === filters.userType);
@@ -408,6 +416,12 @@ async function loadContactRecords(req, filters) {
   return records;
 }
 
+// CN: company names by id, for grouping by company.
+async function companyNameMap() {
+  const rows = await Company.findAll({ attributes: ['id', 'name'], raw: true });
+  return new Map(rows.map((c) => [c.id, c.name]));
+}
+
 const LOADERS = {
   tickets: loadTicketRecords,
   projects: loadProjectRecords,
@@ -419,6 +433,8 @@ const LOADERS = {
 // ---- Grouping ----
 
 function groupKeyFor(dataSource, groupBy, record) {
+  // CN: a company's records together; the report's total is every company's.
+  if (groupBy === 'company') return record._companyName || '(no company)';
   if (dataSource === 'tickets') {
     if (groupBy === 'department') return record._departmentName;
     if (groupBy === 'assignee') return record._assigneeName;

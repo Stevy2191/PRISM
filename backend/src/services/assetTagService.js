@@ -1,9 +1,9 @@
 // Asset tag suggestion — "PC-0001" style. Unlike project codes
-// (projectCodeService.js), asset tags don't need a persistent atomic
+// (project numbers, services/projects/numbers.js), asset tags don't need a persistent atomic
 // counter: the admin can freely override the suggestion, so a small gap in
 // the sequence (from an overridden or deleted tag) is fine. The suggestion
 // is derived fresh each time from the highest existing tag with that
-// prefix, same "Pattern B" approach projectCodeService.js uses for
+// prefix, the same "Pattern B" approach project numbers once used for
 // renumberable task/subtask codes.
 const { Op } = require('sequelize');
 const { Asset } = require('../models');

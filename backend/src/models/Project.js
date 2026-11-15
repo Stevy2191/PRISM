@@ -14,13 +14,27 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(255),
         allowNull: false,
       },
-      // Department-prefixed display ID, e.g. "IT-P00001" — assigned once at
-      // creation (see services/projectCodeService.js), never regenerated.
+      // CN: numbered within its company, with the department it's for:
+      // WC-HR-P0007, or WC-P0006 for the whole company. Assigned at creation
+      // (services/projects/numbers.js); a move to another company or a new
+      // company code changes it, and old codes stay in previousCodes.
       projectCode: {
         type: DataTypes.STRING(30),
         allowNull: true,
         unique: true,
       },
+      companySeq: { type: DataTypes.INTEGER, allowNull: true },
+      previousCodes: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        get() {
+          const v = this.getDataValue('previousCodes');
+          if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+          return v ?? [];
+        },
+      },
+      // CN: shown in its company's portal (status and progress only).
+      showInPortal: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       description: {
         type: DataTypes.TEXT,
         allowNull: true,

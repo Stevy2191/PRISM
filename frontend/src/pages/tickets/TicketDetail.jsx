@@ -666,7 +666,7 @@ export default function TicketDetail() {
         <div role="status" data-testid="merged-banner" className="flex-shrink-0 px-6 py-2 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 12%, transparent)', color: TEXT, borderBottom: `1px solid ${BORDER}` }}>
           This ticket was merged into{' '}
           <Link to={`/tickets/${ticket.mergedInto.id}`} className="font-medium hover:underline" style={{ color: BLUE }}>
-            #{String(ticket.mergedInto.id).padStart(5, '0')}{ticket.mergedInto.title ? ` ${ticket.mergedInto.title}` : ''}
+            {formatTicketId(ticket.mergedInto)}{ticket.mergedInto.title ? ` ${ticket.mergedInto.title}` : ''}
           </Link>
           . New replies go there.
         </div>
@@ -710,7 +710,7 @@ export default function TicketDetail() {
         <LinkTicketModal ticketId={id} onClose={() => setHeaderLinkModalOpen(false)} onLinked={reloadActivityAndRelations} />
       )}
       {reportModalOpen && (
-        <GenerateReportModal ticketId={id} ticketNumber={String(ticket.id).padStart(5, '0')} onClose={() => setReportModalOpen(false)} />
+        <GenerateReportModal ticketId={id} ticketNumber={formatTicketId(ticket)} onClose={() => setReportModalOpen(false)} />
       )}
 
       {/* Body: sidebar + main. flex:1 + min-height:0 + overflow:hidden so this

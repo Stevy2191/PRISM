@@ -70,9 +70,9 @@ describe('over the ledger', () => {
       const row = (techName, reference, hours, laborCost, date) => ({ techName, reference, note: '', date, hours, laborCost });
       expect(rows.map(({ id, ...rest }) => rest)).toEqual([
         row('Test carl', 'Project: Refresh', 0.5, 37.5, '2026-03-11'),
-        row('Test carl', '#00001 Printer', 1, 75, '2026-03-11'),
+        row('Test carl', 'LITS-T0001 Printer', 1, 75, '2026-03-11'),
         row('Test tina', 'Project: Refresh', 2, '', '2026-03-10'),
-        row('Test tina', '#00001 Printer', 1.5, '', '2026-03-02'),
+        row('Test tina', 'LITS-T0001 Printer', 1.5, '', '2026-03-02'),
       ]);
       expect(rows).toHaveLength(4);
     });
@@ -122,7 +122,7 @@ describe('over the ledger', () => {
       const lines = res.text.split('\r\n');
       expect(lines[0]).toBe('Tech,Ticket/Project,Description,Date,Hours,Labor cost');
       expect(lines).toHaveLength(5);
-      expect(lines).toContain('Test carl,#00001 Printer,,2026-03-11,1,75');
+      expect(lines).toContain('Test carl,LITS-T0001 Printer,,2026-03-11,1,75');
     });
   });
 
@@ -161,7 +161,7 @@ describe('over the ledger', () => {
     it('Q11: the projects report\'s total cost includes labour', async () => {
       const [row] = (await get(w.admin.agent, 'projects')).tableData.rows;
       expect(row).toEqual({
-        id: L.project.id, projectCode: 'SD-P00001', name: 'Refresh', ownedBy: 'Service Desk', forDept: 'Service Desk',
+        id: L.project.id, projectCode: 'LITS-SD-P0001', name: 'Refresh', ownedBy: 'Service Desk', forDept: 'Service Desk',
         status: 'Active', completion: 0, dueDate: '', timeLoggedHours: 2.5, materialsCost: 50, expensesCost: 100,
         laborCost: 37.5, totalCost: 187.5,
       });

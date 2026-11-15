@@ -101,7 +101,12 @@ export default function ProjectHeader({
           <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-navy-500">
             <StatusChip tone={statusMeta?.behaviorType === 'closed' ? 'neutral' : 'info'}>{project.status}</StatusChip>
             <CompanyTag company={project.company} />
-            {project.ownerDepartment?.name && <span>{project.ownerDepartment.name}</span>}
+            {/* CN: who it's for: the whole company, or one of its departments. */}
+            <span>For {project.company?.name || 'your company'}{project.forDepartment?.name ? ` › ${project.forDepartment.name}` : ''}</span>
+            {project.ownerDepartment?.name && <span>Done by {project.ownerDepartment.name}</span>}
+            {project.company && !project.company.isInternal && (
+              <span>{project.showInPortal ? 'Shown in the portal' : 'Hidden from the portal'}</span>
+            )}
             <span>Lead: {project.lead?.displayName || 'none'}</span>
             <span>{project.dueDate ? `Due ${dateRange(null, project.dueDate)}` : 'No due date'}</span>
           </div>

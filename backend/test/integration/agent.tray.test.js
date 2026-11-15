@@ -52,7 +52,8 @@ it('a ticket is raised as the matched contact, linked to the computer, with a pr
   const maria = await contactIn(company, 'maria.chen@riversideclinic.org');
   const res = await device.post(TICKETS, ask());
   expect(res.status).toBe(201);
-  expect(res.body.number).toBe(String(res.body.ticketId).padStart(5, '0'));
+  expect(res.body.number).toBe((await models.Ticket.findByPk(res.body.ticketId)).number);
+  expect(res.body.number).toMatch(/^[A-Z0-9]{2,6}-T\d{4}$/);
   expect(res.body.replyTo).toBe('maria.chen@riversideclinic.org');
   const t = await models.Ticket.findByPk(res.body.ticketId);
   expect(t).toMatchObject({

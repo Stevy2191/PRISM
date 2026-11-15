@@ -44,6 +44,18 @@ test('create body: template sends its id and dates; blank sends the finish as th
   assert.equal(createBody({ form, tags: [], origin: 'copy', copyId: '9', memberIds: [] }).copyFromProjectId, '9');
 });
 
+test('CN: a project is for the whole company or one department, with its contacts and portal choice', () => {
+  const base = { name: 'X', ownerDepartmentId: '1', companyId: '4', startDate: '2026-11-16' };
+  const whole = createBody({ form: { ...base, forScope: 'company', forDepartmentId: '9', contactIds: [3], showInPortal: true }, tags: [], origin: 'blank', memberIds: [] });
+  assert.equal(whole.forDepartmentId, null);
+  assert.deepEqual(whole.contactIds, [3]);
+  assert.equal(whole.showInPortal, true);
+  const dept = createBody({ form: { ...base, forScope: 'department', forDepartmentId: '9', showInPortal: false }, tags: [], origin: 'blank', memberIds: [] });
+  assert.equal(dept.forDepartmentId, '9');
+  assert.equal(dept.showInPortal, false);
+  assert.equal('contactIds' in dept, false);
+});
+
 test('finish note names the task that runs past the finish you asked for', () => {
   assert.equal(finishNote(plan, '2026-12-10'), '');
   assert.equal(finishNote(plan, ''), '');

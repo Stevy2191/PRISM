@@ -225,7 +225,7 @@ async function ticketDetailFor(viewer, ticket) {
   // can open it.
   json.mergedInto = null;
   if (ticket.mergedIntoId) {
-    const into = await Ticket.findByPk(ticket.mergedIntoId, { attributes: ['id', 'title', 'companyId', 'departmentId', 'assigneeId'] });
+    const into = await Ticket.findByPk(ticket.mergedIntoId, { attributes: ['id', 'number', 'title', 'companyId', 'departmentId', 'assigneeId'] });
     if (into) json.mergedInto = (await canAccessTicket(viewer, into)) ? { id: into.id, title: into.title } : { id: into.id };
   }
   return { ...json, access: await ticketAccessFor(viewer, ticket) };

@@ -5,7 +5,9 @@ const {
   ProjectExpense,
   ProjectMaterial,
   Department,
+  Company,
 } = require('../../models');
+const { orgToday } = require('../../utils/orgTime');
 const { asyncHandler } = require('../../middleware/error');
 const { getUserReportScope } = require('../../services/permissionService');
 const { companyFilterWhere } = require('../../services/recordScope');
@@ -99,7 +101,36 @@ async function buildProjectsReport(req) {
 
   const avgCompletion = rows.length ? Math.round(rows.reduce((sum, r) => sum + r.completion, 0) / rows.length) : 0;
 
+  // CN: by company, with the total across them. Active now, completed in
+  // the period, and overdue (active and past due).
+  const today = await orgToday();
+  const perCompany = new Map();
+  const tally = (companyId) => {
+    if (!perCompany.has(companyId)) perCompany.set(companyId, { active: 0, completed: 0, overdue: 0 });
+    return perCompany.get(companyId);
+  };
+  active.forEach((p) => {
+    const t = tally(p.companyId);
+    t.active += 1;
+    if (p.dueDate && p.dueDate < today) t.overdue += 1;
+  });
+  completedInPeriod.forEach((p) => { tally(p.companyId).completed += 1; });
+  const companyRows = perCompany.size ? await Company.findAll({ where: { id: [...perCompany.keys()] }, attributes: ['id', 'name', 'code', 'isInternal'] }) : [];
+  const companyById = new Map(companyRows.map((c) => [c.id, c]));
+  const byCompanyRows = [...perCompany.entries()].map(([companyId, t]) => {
+    const c = companyById.get(companyId);
+    return {
+      companyId, name: c ? c.name : 'Unknown', code: c ? c.code : null, isInternal: !!(c && c.isInternal), ...t,
+    };
+  }).sort((a, b) => b.active - a.active || a.name.localeCompare(b.name));
+  const byCompanyTotal = byCompanyRows.reduce((t, r) => ({
+    name: 'All companies', active: t.active + r.active, completed: t.completed + r.completed, overdue: t.overdue + r.overdue,
+  }), {
+    name: 'All companies', active: 0, completed: 0, overdue: 0,
+  });
+
   return {
+    byCompany: { rows: byCompanyRows, total: byCompanyTotal },
     summary: {
       totalActive: active.length,
       totalCompletedInPeriod: completedInPeriod.length,

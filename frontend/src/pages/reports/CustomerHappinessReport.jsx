@@ -5,6 +5,7 @@ import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
 import { StatCard, ChartCard, SimpleBarChart, MultiLineChart, SortableTable } from './shared';
 import { fmtDate } from '../../utils/formatDate';
+import { showTicketNumber } from '../../utils/ticketId';
 
 function formatDate(value) {
   return value ? fmtDate(value) : '—';
@@ -68,7 +69,7 @@ export default function CustomerHappinessReport({ filters, onForbidden }) {
                     <span className="text-xs text-amber-500">{'★'.repeat(c.rating)}{'☆'.repeat(5 - c.rating)}</span>
                   </div>
                   <p className="mt-0.5 text-navy-600">{c.comment}</p>
-                  <p className="mt-0.5 text-xs text-navy-400">Ticket #{c.ticketNumber} · {c.tech} · {formatDate(c.date)}</p>
+                  <p className="mt-0.5 text-xs text-navy-400">Ticket {showTicketNumber(c.ticketNumber)} · {c.tech} · {formatDate(c.date)}</p>
                 </li>
               ))}
             </ul>

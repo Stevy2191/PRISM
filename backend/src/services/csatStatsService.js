@@ -13,6 +13,7 @@ const { Op, fn, col } = require('sequelize');
 const { CsatSurvey, Ticket, Comment, User, Department, Contact } = require('../models');
 const { andWhere, isEmpty } = require('./recordScope');
 const { orgTimeZone, periodKey } = require('../utils/orgTime');
+const { ticketNumberOf } = require('./tickets/numbers');
 
 // Every function below takes the viewer's company fence (a where on
 // companyId, empty for "all companies"). Ticket queries apply it directly;
@@ -202,7 +203,7 @@ async function getOverview({ range, userId, departmentId, companyWhere = {} } = 
       {
         model: Ticket,
         as: 'ticket',
-        attributes: ['id', 'title', 'departmentId'],
+        attributes: ['id', 'number', 'title', 'departmentId'],
         include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
         ...(isEmpty(companyWhere) ? {} : { where: companyWhere, required: true }),
       },
@@ -260,7 +261,7 @@ async function getOverview({ range, userId, departmentId, companyWhere = {} } = 
     .filter((r) => r.comment && r.comment.trim())
     .slice(0, 20)
     .map((r) => ({
-      ticketNumber: String(r.ticket?.id || 0).padStart(5, '0'),
+      ticketNumber: ticketNumberOf(r.ticket),
       contact: r.contact?.displayName || '',
       tech: r.assignedToUser?.displayName || 'Unassigned',
       rating: r.rating,
@@ -269,7 +270,7 @@ async function getOverview({ range, userId, departmentId, companyWhere = {} } = 
     }));
 
   const tableRows = filtered.map((r) => ({
-    ticketNumber: String(r.ticket?.id || 0).padStart(5, '0'),
+    ticketNumber: ticketNumberOf(r.ticket),
     ticketTitle: r.ticket?.title || '',
     contact: r.contact?.displayName || '',
     tech: r.assignedToUser?.displayName || 'Unassigned',
@@ -299,7 +300,7 @@ async function listResponses({ range, userId, departmentId, companyWhere = {} })
       {
         model: Ticket,
         as: 'ticket',
-        attributes: ['id', 'title'],
+        attributes: ['id', 'number', 'title'],
         ...(isEmpty(ticketWhere) ? {} : { where: ticketWhere, required: true }),
       },
       { model: Contact, as: 'contact', attributes: ['id', 'displayName'] },

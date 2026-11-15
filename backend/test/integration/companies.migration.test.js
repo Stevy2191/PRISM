@@ -26,6 +26,10 @@ const companyPortal = require('../../migrations/20260101000092-company-portal');
 const bundleExcept = require('../../migrations/20260101000093-bundle-except-companies');
 // CN: each company's code, on Companies.
 const companyCodes = require('../../migrations/20260101000096-company-codes');
+// CN: each company's ticket counter, on Companies; numbers on Tickets.
+const ticketNumbers = require('../../migrations/20260101000097-ticket-numbers');
+// CN: project numbers, portal flag and customer contacts (FKs into Contacts).
+const projectNumbers = require('../../migrations/20260101000098-project-numbers');
 
 // down() drops Companies, which 072's portal-admin and KB-audience tables and
 // 073's Microsoft 365 columns and detected departments, and 074's agent
@@ -33,6 +37,8 @@ const companyCodes = require('../../migrations/20260101000096-company-codes');
 // down refuses).
 const migration = {
   down: async (...args) => {
+    await projectNumbers.down(...args);
+    await ticketNumbers.down(...args);
     await companyCodes.down(...args);
     await bundleExcept.down(...args);
     await companyPortal.down(...args);
@@ -44,7 +50,7 @@ const migration = {
     await agent.down(...args);
     await m365.down(...args);
     await portal.down(...args);
-    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); await companySla.up(...args); await companyPortal.up(...args); await bundleExcept.up(...args); await companyCodes.up(...args); throw e; }
+    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); await companySla.up(...args); await companyPortal.up(...args); await bundleExcept.up(...args); await companyCodes.up(...args); await ticketNumbers.up(...args); await projectNumbers.up(...args); throw e; }
   },
   up: async (...args) => {
     await base.up(...args);
@@ -62,6 +68,8 @@ const migration = {
     await companyPortal.up(...args);
     await bundleExcept.up(...args);
     await companyCodes.up(...args);
+    await ticketNumbers.up(...args);
+    await projectNumbers.up(...args);
   },
 };
 

@@ -15,6 +15,7 @@ const {
   sendCsv,
   userAttrs,
 } = require('./shared');
+const { ticketNumberOf } = require('../../services/tickets/numbers');
 
 // ==================== Report 5: Time & Billing ====================
 
@@ -39,7 +40,7 @@ async function buildTimeBillingReport(req) {
     include: [
       { model: User, as: 'user', attributes: userAttrs },
       {
-        model: Ticket, as: 'ticket', attributes: ['id', 'title', 'type', 'departmentId'], required: false,
+        model: Ticket, as: 'ticket', attributes: ['id', 'number', 'title', 'type', 'departmentId'], required: false,
         include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }],
       },
       {
@@ -60,7 +61,7 @@ async function buildTimeBillingReport(req) {
       ticketType: isProject ? null : e.ticket?.type || null,
       reference: isProject
         ? (e.project ? `Project: ${e.project.name}` : 'Project')
-        : (e.ticket ? `#${String(e.ticket.id).padStart(5, '0')} ${e.ticket.title}` : ''),
+        : (e.ticket ? `${ticketNumberOf(e.ticket)} ${e.ticket.title}` : ''),
       department: isProject ? e.project?.ownerDepartment || null : e.ticket?.department || null,
       note: e.note,
       laborCost: e.laborCost,

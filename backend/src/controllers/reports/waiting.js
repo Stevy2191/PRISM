@@ -13,6 +13,7 @@ const {
   parseDateRange, dateWhere, parseDepartmentId, parseAssigneeId, granularityFor, bucketKey, ticketScopeWhere, sendCsv, userAttrs,
 } = require('./shared');
 const { dayOf } = require('../../utils/orgTime');
+const { ticketNumberOf } = require('../../services/tickets/numbers');
 
 const hours = (ms) => Math.round(ms / 360000) / 10;
 
@@ -55,7 +56,7 @@ async function buildCustomerWaitingReport(req) {
 
   const tickets = await Ticket.findAll({
     where,
-    attributes: ['id', 'title', 'status', 'createdAt', 'resolvedAt', 'assigneeId', 'companyId'],
+    attributes: ['id', 'number', 'title', 'status', 'createdAt', 'resolvedAt', 'assigneeId', 'companyId'],
     include: [
       { model: User, as: 'assignee', attributes: userAttrs },
       { model: Company, as: 'company', attributes: ['id', 'name'] },
@@ -82,7 +83,7 @@ async function buildCustomerWaitingReport(req) {
     byPeriod.add(period, period, w);
     return {
       id: t.id,
-      ticketNumber: String(t.id).padStart(5, '0'),
+      ticketNumber: ticketNumberOf(t),
       title: t.title,
       status: t.status,
       assignee: t.assignee?.displayName || 'Unassigned',

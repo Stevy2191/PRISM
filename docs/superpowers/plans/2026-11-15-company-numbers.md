@@ -31,7 +31,7 @@ what it touches and the smoke tests for its screens; commit per part.
   dashboard, reports, calendar) uses `number`.
 - Email subjects `[WC-T0042]`; inbound matching of `[WC-T0042]`,
   `[Ticket #00042]` and `[#00042]`.
-- [ ] Commit `feat(tickets): numbered per company (migration 097)`
+- [x] Commit `feat(tickets): numbered per company (migration 097)`
 
 ## Part 3: project numbers (migration 098)
 
@@ -42,20 +42,20 @@ what it touches and the smoke tests for its screens; commit per part.
   Customer contacts, Show in the portal. `ProjectContacts`,
   `Projects.showInPortal`.
 - Projects list: Company column and filter.
-- [ ] Commit `feat(projects): numbered per company and department (migration 098)`
+- [x] Commit `feat(projects): numbered per company and department (migration 098)`
 
 ## Part 4: projects in the portal
 
 - Portal API `GET /portal/c/:slug/projects`, `/projects/:id`: status,
   progress, phases, milestones only; who sees what as the spec says.
 - Portal pages: Projects list and a project.
-- [ ] Commit `feat(portal): each company's projects`
+- [x] Commit `feat(portal): each company's projects`
 
 ## Part 5: reports by company
 
 - By company tables (tickets, projects) with an All companies total; Company
   as a custom-report group-by.
-- [ ] Commit `feat(reports): by company, with the total`
+- [x] Commit `feat(reports): by company, with the total`
 
 ## Finish
 

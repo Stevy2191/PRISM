@@ -127,10 +127,10 @@ describe('over the ledger', () => {
       });
       expect(report.tableData.rows).toEqual(expect.arrayContaining([
         // One ledger: rows carry the entry's own id (makeLedger's creation order).
-        row(1, '2026-03-02', 'Test tina', 'Internal', '#00001', '', 1.5, null),
-        row(2, '2026-03-11', 'Test carl', 'Contractor', '#00001', '', 1, 75),
-        row(3, '2026-03-11', 'Test carl', 'Contractor', '', 'SD-P00001', 0.5, 37.5),
-        row(4, '2026-03-10', 'Test tina', 'Internal', '', 'SD-P00001', 2, null),
+        row(1, '2026-03-02', 'Test tina', 'Internal', 'LITS-T0001', '', 1.5, null),
+        row(2, '2026-03-11', 'Test carl', 'Contractor', 'LITS-T0001', '', 1, 75),
+        row(3, '2026-03-11', 'Test carl', 'Contractor', '', 'LITS-SD-P0001', 0.5, 37.5),
+        row(4, '2026-03-10', 'Test tina', 'Internal', '', 'LITS-SD-P0001', 2, null),
       ]));
       expect(report.tableData.rows).toHaveLength(4);
       expect(report.summary).toEqual({ totalRecords: 4, total_durationHours: 5, total_laborCost: 112.5 });
@@ -149,7 +149,7 @@ describe('over the ledger', () => {
       const { chartData } = await custom({ dataSource: 'time_entries', groupBy: 'project' });
       expect(chartData).toEqual(expect.arrayContaining([
         { name: '(ticket time)', count: 2, durationHours: 2.5, laborCost: 75 },
-        { name: 'SD-P00001', count: 2, durationHours: 2.5, laborCost: 37.5 },
+        { name: 'LITS-SD-P0001', count: 2, durationHours: 2.5, laborCost: 37.5 },
       ]));
       expect(chartData).toHaveLength(2);
     });

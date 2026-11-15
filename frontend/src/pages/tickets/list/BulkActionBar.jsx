@@ -3,6 +3,7 @@
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { PRIORITY_OPTIONS } from './listHelpers';
 import CategoryPicker from '../../../components/CategoryPicker';
+import { formatTicketId } from '../../../utils/ticketId';
 
 export function BulkActionBar({
   bulkBarClosing,
@@ -118,7 +119,7 @@ export function BulkActionBar({
         <input
           value={bulkValue}
           onChange={(e) => setBulkValue(e.target.value)}
-          placeholder="Target ticket #"
+          placeholder="Target ticket, e.g. WC-T0042"
           aria-label="Merge into ticket number"
           title="The selected tickets move into this one. It can be one of the selected tickets."
           className="input num h-8 w-36 flex-shrink-0 text-[13px]"
@@ -148,7 +149,7 @@ export function BulkActionBar({
               {': '}
             </>
           )}
-          {bulkResult.failed.slice(0, 5).map((f) => `#${String(f.id).padStart(5, '0')} ${f.error}`).join('; ')}
+          {bulkResult.failed.slice(0, 5).map((f) => `${formatTicketId(f)} ${f.error}`).join('; ')}
           {bulkResult.failed.length > 5 ? '; …' : ''}
           <button type="button" onClick={() => setBulkResult(null)} className="ml-2 underline">dismiss</button>
         </span>

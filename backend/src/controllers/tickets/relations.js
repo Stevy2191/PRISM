@@ -9,7 +9,7 @@ const { assertCanEditTicket } = require('./shared');
 
 // ---- Related tickets ----
 
-const relTicketAttrs = ['id', 'title', 'status', 'priority', 'type'];
+const relTicketAttrs = ['id', 'number', 'title', 'status', 'priority', 'type'];
 // The access check also needs these; they are not shown.
 const relQueryAttrs = [...relTicketAttrs, 'departmentId', 'assigneeId', 'companyId'];
 

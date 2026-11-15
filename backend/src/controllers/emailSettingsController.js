@@ -176,7 +176,7 @@ const testSmtp = asyncHandler(async (req, res) => {
 // GET /settings/email-log — last 100 processed inbound emails.
 const getEmailLog = asyncHandler(async (req, res) => {
   const logs = await EmailProcessingLog.findAll({
-    include: [{ model: Ticket, as: 'ticket', attributes: ['id', 'title'] }],
+    include: [{ model: Ticket, as: 'ticket', attributes: ['id', 'number', 'title'] }],
     order: [['processedAt', 'DESC']],
     limit: 100,
   });

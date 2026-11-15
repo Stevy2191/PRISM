@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import Spinner from '../../components/Spinner';
 import { isForbidden } from '../../components/AccessRestricted';
-import { StatCard, ChartCard, SimpleBarChart, MultiLineChart, SortableTable, PALETTE, formatHours } from './shared';
+import {
+  StatCard, ChartCard, SimpleBarChart, MultiLineChart, SortableTable, PALETTE, formatHours, ByCompanyTable,
+} from './shared';
 
 export default function TicketVolumeReport({ filters, onForbidden }) {
   const [data, setData] = useState(null);
@@ -49,6 +51,17 @@ export default function TicketVolumeReport({ filters, onForbidden }) {
         <StatCard label="Currently open" value={data.summary.currentlyOpen} />
         <StatCard label="Avg resolution time" value={formatHours(data.summary.avgResolutionHours)} />
       </div>
+
+      <ByCompanyTable
+        byCompany={data.byCompany}
+        columns={[
+          { key: 'opened', label: 'Opened' },
+          { key: 'closed', label: 'Closed' },
+          { key: 'openNow', label: 'Open now' },
+          { key: 'slaMetPct', label: 'SLA met', render: (r) => (r.slaMetPct == null ? '—' : `${r.slaMetPct}%`) },
+          { key: 'avgResolutionHours', label: 'Average to resolve', render: (r) => formatHours(r.avgResolutionHours) },
+        ]}
+      />
 
       <ChartCard title={`Tickets created over time (${data.chartData.granularity})`}>
         <MultiLineChart data={data.chartData.volumeOverTime} xKey="date" lines={[{ dataKey: 'count', label: 'Created', color: PALETTE[0] }]} />

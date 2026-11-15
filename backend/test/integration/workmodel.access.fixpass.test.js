@@ -65,9 +65,9 @@ it('M2: the activity feed doesn\'t name a linked ticket the viewer can\'t open',
   await models.TicketActivity.create({ ticketId: mine.id, userId: w.admin.user.id, action: 'relation_added', toValue: 'related: Terminate J. Doe' });
   const linkRows = async (u) => expectOk(await u.agent.get(`${API}/tickets/${mine.id}/activity`)).activity
     .filter((a) => a.action === 'relation_added').map((a) => a.toValue);
-  const pad = String(secret.id).padStart(5, '0');
-  expect(await linkRows(staff)).toEqual(['related: a linked ticket', `related: #${pad} (restricted)`]);
-  expect(await linkRows(w.admin)).toEqual(['related: a linked ticket', `related: #${pad} Terminate J. Doe`]);
+  const pad = secret.ticketNumber;
+  expect(await linkRows(staff)).toEqual(['related: a linked ticket', `related: ${pad} (restricted)`]);
+  expect(await linkRows(w.admin)).toEqual(['related: a linked ticket', `related: ${pad} Terminate J. Doe`]);
 });
 
 describe('assets show linked tickets only to those who can open them (L3)', () => {

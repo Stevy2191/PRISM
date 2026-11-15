@@ -102,7 +102,7 @@ async function deleteFromOneIntegration(integration, type, itemId) {
 // await this in a way that blocks the HTTP response.
 async function syncTicketToExternalCalendars(ticketId) {
   try {
-    const ticket = await Ticket.findByPk(ticketId, { attributes: ['id', 'title', 'dueDate', 'assigneeId'] });
+    const ticket = await Ticket.findByPk(ticketId, { attributes: ['id', 'number', 'title', 'dueDate', 'assigneeId'] });
     if (!ticket) return;
     if (!ticket.dueDate) {
       await pushDelete('ticket', ticket.id, ticket.assigneeId);

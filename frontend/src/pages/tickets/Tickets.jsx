@@ -365,13 +365,18 @@ export default function Tickets() {
       // "Remove the category" is sent as null.
       if (action === 'category' && bulkValue === 'none') value = null;
       if (action === 'merge') {
-        const target = Number(String(bulkValue).replace(/[^0-9]/g, ''));
-        if (!target) { alert('Enter the ticket number to merge into'); return; }
+        // WC-T0042 (CN), an old number or an id: the ticket says which it is.
+        const typed = String(bulkValue || '').trim().replace(/^#/, '');
+        if (!typed) { alert('Enter the ticket number to merge into'); return; }
+        let into;
+        try { into = (await api.get(`/tickets/${encodeURIComponent(typed)}`)).data.ticket; } catch { into = null; }
+        if (!into) { alert(`Ticket ${typed} not found`); return; }
+        const target = into.id;
         value = target;
         ids = ids.filter((id) => id !== target);
         // A merge is all or nothing, so it can't be split into batches.
         if (ids.length > 100) { alert('Merge at most 100 tickets at once'); return; }
-        if (!confirm(`Merge ${ids.length} ticket(s) into #${String(target).padStart(5, '0')}? Their comments, files, time and tasks move there, and they are closed.`)) return;
+        if (!confirm(`Merge ${ids.length} ticket(s) into ${formatTicketId(into)}? Their comments, files, time and tasks move there, and they are closed.`)) return;
       }
       if (action === 'delete' && !confirm(`Delete ${ids.length} ticket(s)? This cannot be undone.`)) return;
       const results = [];

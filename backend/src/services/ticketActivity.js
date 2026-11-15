@@ -2,6 +2,7 @@
 // display values so the frontend can render rows directly without extra lookups.
 const { TicketActivity, User, Team, Department, Ticket } = require('../models');
 const { canAccessTicket } = require('./permissionService');
+const { ticketNumberOf } = require('./tickets/numbers');
 
 async function logActivity(ticketId, userId, action, fromValue = null, toValue = null) {
   return TicketActivity.create({ ticketId, userId: userId || null, action, fromValue, toValue });
@@ -17,8 +18,8 @@ async function shownActivity(viewer, rows) {
     if (json.action !== 'relation_added') return json;
     const linkedId = /^\d+$/.test(json.fromValue || '') ? Number(json.fromValue) : null;
     if (!linkedId) return { ...json, toValue: `${String(json.toValue || '').split(': ')[0]}: a linked ticket` };
-    const linked = await Ticket.findByPk(linkedId, { attributes: ['id', 'title', 'departmentId', 'assigneeId', 'companyId'] });
-    const label = `#${String(linkedId).padStart(5, '0')}`;
+    const linked = await Ticket.findByPk(linkedId, { attributes: ['id', 'number', 'title', 'departmentId', 'assigneeId', 'companyId'] });
+    const label = ticketNumberOf(linked || { id: linkedId });
     const shown = linked && viewer && (await canAccessTicket(viewer, linked)) ? `${label} ${linked.title}` : `${label} (restricted)`;
     return { ...json, fromValue: null, toValue: `${json.toValue}: ${shown}` };
   }));

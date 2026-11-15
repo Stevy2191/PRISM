@@ -10,6 +10,35 @@ backend start.
 
 ## Unreleased
 
+**Company numbers (CN).** Every company and every department now has a code
+(Washington County → `WC`, Human Resources → `HR`), suggested from its name
+and editable. Tickets are numbered per company (`WC-T0042`) and projects per
+company with the department they're for (`WC-HR-P0007`, or `WC-P0006` for a
+whole company). Customer projects show in their company's portal (status,
+progress, phases and milestones), and the ticket and project reports have a
+By company table with an All companies total.
+
+**What changes on upgrade:** migrations 096 to 098 give every company and
+department a code, then renumber every existing ticket and project within its
+company, oldest first. Ticket and project task codes follow
+(`#00042-T04` → `WC-T0012-T04`). Nothing that pointed at the old numbers
+breaks:
+
+- Links (`/tickets/42`) still work; `/tickets/WC-T0042` works too.
+- Email subjects become `[WC-T0042]`; replies to older emails with
+  `[Ticket #00042]` still land on the right ticket. Email templates you
+  customized keep their own wording (`[Ticket #{{ticket.number}}]` now reads
+  `[Ticket #WC-T0042]`, which is matched too).
+- Search finds a ticket by `WC-T0042`, `T0042`, `#00042` or `42`, and a
+  project by its old code (`SD-P00007`).
+- Agents already installed show `#WC-T0042` until they update.
+
+**Before upgrading:** take a database dump (see `RELEASING.md`); rolling back
+puts the old project codes back but not every ticket number shown in emails
+already sent. Check the codes it suggested afterwards (each company's Setup ›
+Details, and Departments): changing a company's code later renumbers how its
+tickets and projects read, and the old numbers keep working.
+
 ## v0.5.0
 
 Released 2026-11-15. Phase 2, RMM core.

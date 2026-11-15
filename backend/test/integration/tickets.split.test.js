@@ -44,7 +44,7 @@ it('creates a linked ticket with the original contact, company, department, team
   const c = await comment(original.id, 'Also my mouse is broken\nand more text', 'comment_public');
   const created = expectOk(await split(w.admin.agent, original.id, c.id), 201).ticket;
   expect(created).toEqual(expect.objectContaining({
-    title: `Split from #${String(original.id).padStart(5, '0')}: Also my mouse is broken`,
+    title: `Split from ${original.ticketNumber}: Also my mouse is broken`,
     contactId: w.contact.id, companyId: original.companyId, departmentId: w.deptA.id, teamId: desk.id,
     priority: 'high', type: 'incident', source: 'phone', assigneeId: null,
   }));
@@ -107,7 +107,7 @@ it('a private note: needs view_private_comments (else looks missing) and its tex
   expect(await Ticket.count()).toBe(1);
 
   const created = expectOk(await split(w.admin.agent, t.id, note.id), 201).ticket;
-  expect(created.title).toBe(`Split from #${String(t.id).padStart(5, '0')}`);
+  expect(created.title).toBe(`Split from ${t.ticketNumber}`);
   expect(created.description).toBeNull();
   const moved = await Comment.findByPk(note.id);
   expect([moved.ticketId, moved.type]).toEqual([created.id, 'comment_private']);
