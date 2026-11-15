@@ -50,3 +50,16 @@ it('a new company opens on its own page', async () => {
   await page.waitForURL(/\/companies\/\d+$/);
   await page.getByRole('heading', { level: 1, name: 'Bolt Logistics' }).waitFor();
 });
+
+describe('only your own company', () => {
+  beforeAll(async () => { await models.Company.update({ isClient: false }, { where: { isInternal: false } }); });
+  afterAll(async () => { await models.Company.update({ isClient: true }, { where: { isInternal: false } }); });
+
+  it('Settings › Customers offers "Add a customer company", which opens the form', async () => {
+    const page = await smoke.pageAs('admin');
+    await page.goto('/settings?section=customers');
+    await page.getByRole('link', { name: /Add a customer company/ }).click();
+    await page.waitForURL(/\/companies\?new=1/);
+    await page.getByRole('button', { name: 'Create company' }).waitFor();
+  });
+});

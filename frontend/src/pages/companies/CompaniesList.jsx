@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { useCompanySummary } from '../../context/CompanyContext';
@@ -36,9 +36,11 @@ export default function CompaniesList() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [merging, setMerging] = useState(null);
   const navigate = useNavigate();
+  // ?new=1 (Settings › Customers with no customer yet) opens the form.
+  const [askNew] = useSearchParams();
+  const [creating, setCreating] = useState(askNew.get('new') === '1' && canManage);
+  const [merging, setMerging] = useState(null);
   const pager = usePagination({ filterKey: JSON.stringify([kind, status, search]), storageKey: 'prism.companies.pageSize' });
 
   const load = useCallback(() => {

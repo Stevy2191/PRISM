@@ -8,6 +8,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { IconArrowUpRight, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import api from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
+import { useCompanySummary } from '../../context/CompanyContext';
 import { useNarrow } from '../../hooks/useNarrow';
 import { visibleGroups } from './registry';
 import SettingsMenu from '../../components/settings/SettingsMenu';
@@ -49,6 +50,8 @@ export default function SettingsHome() {
   const groups = useMemo(() => visibleGroups({ role: user?.role, isOwner, hasAnyPermission }), [user, isOwner, hasAnyPermission]);
   const [params] = useSearchParams();
   const narrow = useNarrow();
+  // With only your own company there is no list to open yet (CS).
+  const { multiCompany } = useCompanySummary();
   const [status, setStatus] = useState(null);
   useEffect(() => {
     if (!isOwner) return;
@@ -96,7 +99,9 @@ export default function SettingsHome() {
       </header>
       <div className="card overflow-hidden">
         <ul className="divide-y divide-navy-100">
-          {section.pages.map((p) => (
+          {section.pages.map((page) => (page.id === 'companies' && !multiCompany
+            ? { ...page, name: 'Add a customer company', desc: 'Your help desk serves only your own company. Add a customer to give it its own page, SLA and portal.', path: '/companies?new=1' }
+            : page)).map((p) => (
             <li key={p.id}>
               <Link to={p.path} className="flex min-h-[64px] items-center gap-3 px-4 py-3.5 hover:bg-[var(--color-hover)] sm:px-5">
                 <span className="min-w-0 flex-1">
