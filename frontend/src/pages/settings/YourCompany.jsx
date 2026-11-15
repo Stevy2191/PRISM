@@ -19,6 +19,7 @@ import CompanyDevices from '../../components/companies/CompanyDevices';
 import CompanyNotices from '../../components/companies/CompanyNotices';
 import CompanyPortal from '../../components/companies/CompanyPortal';
 import CompanySurveys from '../../components/companies/CompanySurveys';
+import CompanyApplies from '../../components/companies/CompanyApplies';
 
 // Parts in menu order; `can` says who sees each.
 const PARTS = [
@@ -31,6 +32,7 @@ const PARTS = [
   ['notices', 'Agent notices', (p) => p('devices.manage') || p('portal.manage')],
   ['portal', 'Portal', (p) => p('companies.view')],
   ['surveys', 'Surveys', (p) => p('companies.view')],
+  ['applies', 'What applies here', (p) => p('companies.view')],
 ];
 
 export default function YourCompany() {
@@ -95,6 +97,7 @@ export default function YourCompany() {
           {part === 'notices' && <CompanyNotices company={company} />}
           {part === 'portal' && <CompanyPortal company={company} m365Notice={params.get('m365')} />}
           {part === 'surveys' && <CompanySurveys company={company} />}
+          {part === 'applies' && <CompanyApplies company={company} />}
         </>
       )}
     </div>

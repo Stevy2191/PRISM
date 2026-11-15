@@ -152,6 +152,8 @@ async function cleanPlaybook(body, current = null) {
     description: b.description !== undefined ? cleanDescription(b.description) : (current ? current.description : null),
     needsPerson,
     companyIds: b.companyIds !== undefined ? await cleanCompanyIds(b.companyIds) : (current ? current.companyIds : null),
+    // Set on a company's page (What applies here), never here.
+    exceptCompanyIds: current ? current.exceptCompanyIds : null,
     blocks: await cleanBlocks(b.blocks !== undefined ? b.blocks : (current ? current.blocks : []), { needsPerson }),
     suggestCategoryIds: b.suggestCategoryIds !== undefined ? await cleanSuggestCategoryIds(b.suggestCategoryIds) : (current ? current.suggestCategoryIds : null),
     ...(b.isActive !== undefined ? { isActive: b.isActive === true } : {}),

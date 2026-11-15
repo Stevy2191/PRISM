@@ -15,6 +15,7 @@ import CompanyDepartments from '../../components/companies/CompanyDepartments';
 import CompanySla from '../../components/companies/CompanySla';
 import CompanyPortal from '../../components/companies/CompanyPortal';
 import CompanySurveys from '../../components/companies/CompanySurveys';
+import CompanyApplies from '../../components/companies/CompanyApplies';
 import CompanyCategories from '../../components/companies/CompanyCategories';
 import CompanyRecordList from '../../components/companies/CompanyRecordList';
 import CompanyDevices from '../../components/companies/CompanyDevices';
@@ -28,7 +29,7 @@ const GROUPS = [
   ['people', 'People', [['contacts', 'Contacts'], ['departments', 'Departments'], ['sites', 'Sites']]],
   ['work', 'Work', [['tickets', 'Tickets'], ['projects', 'Projects']]],
   ['assets', 'Assets', [['assets', 'Assets'], ['devices', 'Devices'], ['notices', 'Agent notices'], ['vendor', 'Vendor']]],
-  ['setup', 'Setup', [['details', 'Details'], ['sla', 'SLA and hours'], ['portal', 'Portal'], ['surveys', 'Surveys'], ['categories', 'Categories']]],
+  ['setup', 'Setup', [['details', 'Details'], ['sla', 'SLA and hours'], ['portal', 'Portal'], ['surveys', 'Surveys'], ['categories', 'Categories'], ['applies', 'What applies here']]],
 ];
 
 // A company's page (spec: Companies nav tab).
@@ -69,6 +70,7 @@ export default function CompanyPage() {
   const has = {
     portal: company.isClient,
     surveys: company.isClient,
+    applies: company.isClient,
     devices: hasPermission('assets.view'),
     categories: (company.isClient || company.isInternal) && hasPermission('tickets.categories.manage'),
     vendor: company.isVendor,
@@ -125,6 +127,7 @@ export default function CompanyPage() {
       {part === 'details' && <CompanyOverview key={company.updatedAt} company={company} onSaved={setCompany} />}
       {part === 'portal' && <CompanyPortal company={company} m365Notice={m365Notice} />}
       {part === 'surveys' && <CompanySurveys company={company} />}
+      {part === 'applies' && <CompanyApplies company={company} />}
       {part === 'devices' && <CompanyDevices company={company} />}
       {part === 'notices' && <CompanyNotices company={company} />}
       {part === 'sites' && <CompanySites company={company} />}

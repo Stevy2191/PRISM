@@ -31,6 +31,10 @@ router.get('/:id/portal', canView, companyPortal.get);
 router.put('/:id/portal', canView, companyPortal.save);
 router.post('/:id/portal/invite-all', canView, companyPortal.inviteAll);
 router.put('/:id/surveys', canView, companyPortal.surveys);
+// CS: what applies to the company, and its checklist bundles on or off.
+const companyApplies = require('../controllers/companyAppliesController');
+router.get('/:id/applies', canView, companyApplies.get);
+router.put('/:id/bundles/:playbookId', canView, companyApplies.setBundle);
 router.patch('/:id', canManage, ctrl.update);
 router.delete('/:id', canManage, ctrl.remove);
 router.post('/:id/merge', canManage, ctrl.merge);

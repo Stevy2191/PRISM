@@ -4,7 +4,8 @@ const { DataTypes, Model } = require('sequelize');
 // blocks: [{ formId, applies: 'once'|'person_devices'|'ticket_devices',
 //            limits: { categoryIds?, managed?, mdmIds?, hasCellular?, hasAgent? } }]
 // A device takes the first per-device block it matches.
-// companyIds: null for every company, else the companies it's offered for.
+// companyIds: null for every company, else the companies it's offered for;
+// exceptCompanyIds: companies it is turned off for, whatever companyIds says.
 module.exports = (sequelize) => {
   class Playbook extends Model {}
 
@@ -15,6 +16,9 @@ module.exports = (sequelize) => {
       description: { type: DataTypes.TEXT, allowNull: true },
       needsPerson: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       companyIds: { type: DataTypes.JSON, allowNull: true },
+      // Companies it is not offered to, though companyIds would (CS: set on
+      // the company's page, What applies here).
+      exceptCompanyIds: { type: DataTypes.JSON, allowNull: true },
       blocks: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
       // Ticket categories whose new tickets get this bundle suggested (PB2).
       suggestCategoryIds: { type: DataTypes.JSON, allowNull: true },

@@ -3,7 +3,9 @@
 // template against your access on save and the rule then runs as you.
 import { zoneOptions } from '../../utils/timeZones';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import {
+  useNavigate, useParams, useSearchParams, Link,
+} from 'react-router-dom';
 import CategoryPicker from '../../components/CategoryPicker';
 import { buildIndex, isEffectivelyActive, forTicketType } from '../../components/categoryTree';
 import api, { errMessage } from '../../api/api';
@@ -29,6 +31,9 @@ export default function RecurringTicketEditor() {
   const { id } = useParams();
   const isNew = !id || id === 'new';
   const navigate = useNavigate();
+  // ?companyId= (New for this company, on a company's page): its contacts only.
+  const [askedFor] = useSearchParams();
+  const forCompany = isNew ? askedFor.get('companyId') : null;
   const [form, setForm] = useState(EMPTY);
   const [contact, setContact] = useState(null);
   const [departments, setDepartments] = useState([]);
@@ -147,7 +152,7 @@ export default function RecurringTicketEditor() {
           </div>
           <div>
             <span className="label">Contact</span>
-            <ContactPicker selectedContact={contact} onSelect={setContact} />
+            <ContactPicker selectedContact={contact} onSelect={setContact} companyId={forCompany || undefined} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
