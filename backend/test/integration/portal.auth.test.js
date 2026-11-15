@@ -4,13 +4,12 @@ jest.mock('../../src/services/emailSender', () => ({
   sendMail: jest.fn(async () => ({})),
 }));
 
-const request = require('supertest');
 const {
-  resetData, closeDb, models, getApp,
+  resetData, closeDb, models,
 } = require('./helpers');
 const {
   makeWorld, makeContact, makeCompany, makeTech, setCompanyAccess, expectOk, waitFor,
-  freezeClock, advanceClock, unfreezeClock,
+  freezeClock, advanceClock, unfreezeClock, slugAgent, openPortal, internalCompany,
 } = require('./fixtures');
 const { sendMail } = require('../../src/services/emailSender');
 
@@ -21,7 +20,9 @@ const PASSWORD = 'Harbour-Lights-2026';
 const settle = () => new Promise((r) => { setTimeout(r, 200); });
 const mailsTo = (addr) => sendMail.mock.calls.map(([m]) => m).filter((m) => [].concat(m.to).includes(addr));
 const tokenIn = (mail) => /token=([A-Za-z0-9_-]+)/.exec(mail.html)[1];
-const portal = () => request.agent(getApp());
+// Your company's portal: w.contact is one of its contacts.
+let slug;
+const portal = () => slugAgent(slug);
 
 let w;
 beforeEach(async () => {
@@ -30,14 +31,11 @@ beforeEach(async () => {
   w = await makeWorld();
   await models.SystemSettings.upsert({ key: 'smtp.host', value: 'smtp.example' });
   await models.SystemSettings.upsert({ key: 'smtp.fromEmail', value: 'noreply@prism.example' });
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
+  await openPortal();
+  slug = (await internalCompany()).portalSlug;
 });
 afterEach(unfreezeClock);
-// Settings outlive resetData: leave the portal switched off for later suites.
-afterAll(async () => {
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
-  await closeDb();
-});
+afterAll(closeDb);
 
 async function invite(contact = w.contact, by = w.admin) {
   sendMail.mockClear();
@@ -56,7 +54,7 @@ async function signedIn(contact = w.contact) {
 it('invite → accept → login works; the link works once', async () => {
   const token = await invite();
   const [mail] = mailsTo(w.contact.email);
-  expect(mail.html).toContain('/portal/welcome?token=');
+  expect(mail.html).toContain(`/portal/${slug}/welcome?token=`);
   expect((await models.Contact.findByPk(w.contact.id)).portalAccess).toBe(true);
 
   const agent = portal();
@@ -81,7 +79,7 @@ it('invite → accept → login works; the link works once', async () => {
   expect(contact).toMatchObject({
     id: w.contact.id, email: w.contact.email, isCompanyAdmin: false, adminDepartmentIds: [], signInMethod: 'password',
   });
-  expect(contact.company).toEqual({ id: w.contact.companyId, name: expect.any(String) });
+  expect(contact.company).toEqual({ id: w.contact.companyId, name: expect.any(String), slug });
   expect(contact.department).toEqual({ id: w.deptA.id, name: 'Service Desk' });
   // The token is stored hashed only.
   const row = await models.PortalToken.findOne({ where: { contactId: w.contact.id } });
@@ -127,7 +125,7 @@ it('forgot password answers 202 for unknown and known emails alike, and emails o
   await settle();
   expect(sendMail).toHaveBeenCalledTimes(1);
   const [mail] = mailsTo(w.contact.email);
-  expect(mail.html).toContain('/portal/reset?token=');
+  expect(mail.html).toContain(`/portal/${slug}/reset?token=`);
 
   // A contact without portal access gets nothing either.
   const other = await makeContact(w.admin, { departmentId: w.deptA.id });
@@ -155,7 +153,7 @@ it('a reset link sets a new password and ends the other open sessions', async ()
   expect([wrongKind.status, wrongKind.body.code]).toEqual([400, 'TOKEN_INVALID']);
 });
 
-it('login is refused with portal access off, contact inactive, or portal switched off', async () => {
+it("login is refused with portal access off, contact inactive, or the company's portal switched off", async () => {
   await signedIn();
   const tryLogin = () => portal().post(`${API}/portal/auth/login`).send({ email: w.contact.email, password: PASSWORD });
   const wrong = await portal().post(`${API}/portal/auth/login`).send({ email: w.contact.email, password: 'Not-The-Password-1' });
@@ -168,10 +166,11 @@ it('login is refused with portal access off, contact inactive, or portal switche
   await models.Contact.update({ portalAccess: true, status: 'inactive' }, { where: { id: w.contact.id } });
   expect((await tryLogin()).status).toBe(401);
   await models.Contact.update({ status: 'active' }, { where: { id: w.contact.id } });
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
-  expect((await tryLogin()).status).toBe(403);
-  const { enabled } = expectOk(await portal().get(`${API}/portal/config`));
-  expect(enabled).toBe(false);
+  await (await internalCompany()).update({ portalEnabled: false });
+  const closed = await tryLogin();
+  expect([closed.status, closed.body.code]).toEqual([404, 'PORTAL_CLOSED']);
+  const config = expectOk(await portal().get(`${API}/portal/config`));
+  expect([config.enabled, config.company]).toEqual([false, null]);
 });
 
 it('an open session ends at the next request when access is turned off', async () => {
@@ -192,7 +191,7 @@ it('a contact session is 401 on staff routes and a staff session is 401 on /api/
   const agent = await signedIn();
   expect((await agent.get(`${API}/tickets`)).status).toBe(401);
   expect((await agent.get(`${API}/contacts/${w.contact.id}`)).status).toBe(401);
-  expect((await w.admin.agent.get(`${API}/portal/me`)).status).toBe(401);
+  expect((await w.admin.agent.get(`${API}/portal/c/${slug}/me`)).status).toBe(401);
   // Routing is case-insensitive but the portal cookie's path isn't: any
   // other letter case is refused before either session is looked at.
   expect((await w.admin.agent.get(`${API}/PORTAL/me`)).status).toBe(404);
@@ -281,10 +280,11 @@ it('accepting a new invite ends the contact\'s other sessions, as a reset does',
   expect((await open.get(`${API}/portal/me`)).status).toBe(401);
 });
 
-it('config is public and says whether Microsoft sign-in is offered', async () => {
+it('config is public: the company, and whether Microsoft sign-in is offered', async () => {
   const body = expectOk(await portal().get(`${API}/portal/config`));
+  const own = await internalCompany();
   expect(body).toEqual({
-    enabled: true, microsoft: false, branding: { appName: expect.any(String), tagline: expect.any(String), logoUrl: body.branding.logoUrl },
+    enabled: true, company: { name: own.name, slug }, microsoft: false, branding: { appName: expect.any(String), tagline: expect.any(String), logoUrl: body.branding.logoUrl },
   });
   expect([null, '/api/v1/settings/logo']).toContain(body.branding.logoUrl);
 });

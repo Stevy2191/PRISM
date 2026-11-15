@@ -1,9 +1,10 @@
-const request = require('supertest');
 const bcrypt = require('bcryptjs');
 const {
-  resetData, closeDb, models, createUserAndLogin, ROLE, getApp,
+  resetData, closeDb, models, createUserAndLogin, ROLE,
 } = require('./helpers');
-const { makeWorld, makeCompany } = require('./fixtures');
+const {
+  makeWorld, makeCompany, portalAgent,
+} = require('./fixtures');
 const { startMockMicrosoft } = require('./mockMicrosoft');
 const { TENANT, GROUP, uid } = require('./m365Fixtures');
 const { encryptToken } = require('../../src/utils/tokenCrypto');
@@ -194,15 +195,10 @@ it('the nightly run syncs each linked company once after 02:00 in the organizati
 
 it('linking a contact ends the portal sessions they started with their password', async () => {
   const PASSWORD = 'Harbour-Lights-2026';
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
-  try {
-    await contact({ email: 'person1@tenant.test', portalAccess: true, passwordHash: await bcrypt.hash(PASSWORD, 4) });
-    const agent = request.agent(getApp());
-    expect((await agent.post(`${API}/portal/auth/login`).send({ email: 'person1@tenant.test', password: PASSWORD })).status).toBe(200);
-    expect((await agent.get(`${API}/portal/me`)).status).toBe(200);
-    await syncCompany(company.id);
-    expect((await agent.get(`${API}/portal/me`)).status).toBe(401);
-  } finally {
-    await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
-  }
+  await contact({ email: 'person1@tenant.test', portalAccess: true, passwordHash: await bcrypt.hash(PASSWORD, 4) });
+  const agent = await portalAgent(company.id);
+  expect((await agent.post(`${API}/portal/auth/login`).send({ email: 'person1@tenant.test', password: PASSWORD })).status).toBe(200);
+  expect((await agent.get(`${API}/portal/me`)).status).toBe(200);
+  await syncCompany(company.id);
+  expect((await agent.get(`${API}/portal/me`)).status).toBe(401);
 });

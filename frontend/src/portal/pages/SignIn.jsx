@@ -15,7 +15,6 @@ const REFUSED = {
   other_company: ['Your account is linked to another organization', 'Contact support: nothing has been changed.'],
   conflict: ['Your account needs a hand from support', 'Your email belongs to a portal account linked to a different Microsoft account. Contact support.'],
   inactive: ['Your portal access has ended', 'Contact support if this is unexpected.'],
-  wrong_company: ["That account belongs to another company's portal", 'Use the portal link your own help desk gave you.'],
   unavailable: ['Microsoft sign-in isn\'t available right now', 'Try again later, or sign in with email if you have a password.'],
   failed: ['Sign-in with Microsoft didn\'t finish', 'Please try again.'],
 };

@@ -5,7 +5,7 @@
 //   PUT  /companies/:id/surveys             { enabled }               System settings
 const { Op } = require('sequelize');
 const {
-  Contact, Department, PortalToken, DepartmentPortalAdmin,
+  sequelize, Contact, Department, PortalToken, DepartmentPortalAdmin,
 } = require('../models');
 const { asyncHandler, ApiError } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
@@ -20,6 +20,23 @@ const { signInMethod } = require('../services/portal/signInMethod');
 
 const MAX_PREVIOUS = 10;
 const MAX_LISTED = 500;
+const SCORE_DAYS = 90;
+
+// The company's surveys over the last 90 days: sent, answered, average (1-5).
+async function surveyScores(companyId) {
+  const [row] = await sequelize.query(
+    `SELECT COUNT(s.sentAt) AS sent, COUNT(s.respondedAt) AS answered, AVG(s.rating) AS average
+       FROM CsatSurveys s JOIN Tickets t ON t.id = s.ticketId
+      WHERE t.companyId = :companyId AND s.createdAt >= :since`,
+    { replacements: { companyId, since: new Date(Date.now() - SCORE_DAYS * 86400000) }, type: sequelize.QueryTypes.SELECT },
+  );
+  return {
+    days: SCORE_DAYS,
+    sent: Number(row.sent) || 0,
+    answered: Number(row.answered) || 0,
+    average: row.average === null ? null : Math.round(Number(row.average) * 10) / 10,
+  };
+}
 
 async function assertCan(req, permission, message) {
   if (!(await hasPermission(req.user.id, permission))) throw new ApiError(403, message, 'FORBIDDEN');
@@ -56,6 +73,7 @@ async function present(req, company) {
       previousSlugs: company.portalPreviousSlugs,
       surveys: company.csatEnabled === true,
     },
+    surveyScores: await surveyScores(company.id),
     contacts: contacts.map((c) => ({
       id: c.id,
       name: displayName(c),

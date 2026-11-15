@@ -1,12 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const request = require('supertest');
 const {
-  resetData, closeDb, models, getApp,
+  resetData, closeDb, models,
 } = require('./helpers');
 const {
-  makeWorld, makeContact, makeCompany, makeTicket, makeTech, expectOk,
+  makeWorld, makeContact, makeCompany, makeTicket, makeTech, expectOk, portalAgent, portalApi,
 } = require('./fixtures');
 const { startFakeClamd } = require('../helpers/fakeClamd');
 const { _resetThrottleForTest } = require('../../src/services/virusScan');
@@ -26,7 +25,7 @@ let hash;
 
 async function portalAs(contact) {
   await models.Contact.scope('withPassword').update({ portalAccess: true, passwordHash: hash }, { where: { id: contact.id } });
-  const agent = request.agent(getApp());
+  const agent = await portalAgent(contact.companyId);
   expectOk(await agent.post(`${P}/auth/login`).send({ email: contact.email, password: PASSWORD }));
   return agent;
 }
@@ -42,7 +41,6 @@ beforeEach(async () => {
   await resetData();
   _resetThrottleForTest();
   w = await makeWorld();
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
   const a = w.admin.agent;
   alpha = await makeCompany(w.admin, { name: 'Alpha' });
   beta = await makeCompany(w.admin, { name: 'Beta' });
@@ -61,11 +59,7 @@ const savedEnv = Object.fromEntries(SCAN_ENV.map((k) => [k, process.env[k]]));
 afterEach(async () => {
   SCAN_ENV.forEach((k) => { if (savedEnv[k] === undefined) delete process.env[k]; else process.env[k] = savedEnv[k]; });
 });
-// Settings outlive resetData: leave the portal switched off for later suites.
-afterAll(async () => {
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
-  await closeDb();
-});
+afterAll(closeDb);
 
 describe('raising a ticket', () => {
   it('needs a title and a description; the title is at most 255 characters', async () => {
@@ -171,8 +165,8 @@ describe('reading tickets', () => {
   });
 
   it('a contact session is required', async () => {
-    expect((await request(getApp()).get(`${P}/tickets`)).status).toBe(401);
-    expect((await w.admin.agent.get(`${P}/tickets/${mine.id}`)).status).toBe(401);
+    expect((await (await portalAgent(alpha.id)).get(`${P}/tickets`)).status).toBe(401);
+    expect((await w.admin.agent.get(`${await portalApi(alpha.id)}/tickets/${mine.id}`)).status).toBe(401);
   });
 });
 

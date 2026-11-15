@@ -6,6 +6,7 @@ const { resetData, closeDb, models } = require('./helpers');
 const { sendMail } = require('../../src/services/emailSender');
 const {
   API, expectOk, makeWorld, makeTech, makeTicket, setSettings, waitFor,
+  surveysOn,
 } = require('./fixtures');
 const { sendAutoReply } = require('../../src/services/inboundEmailService');
 const { runChecks } = require('../../src/services/csatScheduler');
@@ -78,7 +79,8 @@ it('auto-reply and csat survey use their templates', async () => {
   expect(auto.html).toContain('<p>Thanks Casey</p>');
 
   sendMail.mockReset();
-  await setSettings(w.admin, { 'csat.enabled': 'true', 'csat.sendDelayHours': '0', 'csat.surveyQuestion': 'Happy <yes>?' });
+  await surveysOn(w.admin, ticket.companyId);
+  await setSettings(w.admin, { 'csat.sendDelayHours': '0', 'csat.surveyQuestion': 'Happy <yes>?' });
   expectOk(await w.admin.agent.patch(`${API}/tickets/${ticket.id}`).send({ status: 'Closed' }));
   const survey = await models.CsatSurvey.findOne({ where: { ticketId: ticket.id } });
   await runChecks();

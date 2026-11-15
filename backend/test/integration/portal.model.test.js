@@ -4,6 +4,9 @@ const {
 } = require('./helpers');
 const { makeWorld, makeTicket, makeCompany } = require('./fixtures');
 const migration = require('../../migrations/20260101000072-client-portal');
+// CS: 092 took 072's one portal switch onto each company; rolled back around
+// 072's round trip so the switch is there to roll back and comes off again.
+const companyPortal = require('../../migrations/20260101000092-company-portal');
 
 // Sub-project 7a, task 1: the portal's data model, permission and setting.
 
@@ -57,8 +60,9 @@ it('contacts start without portal access; portal.manage belongs to System Admini
       WHERE p.\`key\` = 'portal.manage' AND rp.granted = 1 ORDER BY r.name`
   );
   expect(holders.map((h) => h.name)).toEqual(['System Administrator']);
-  const [setting] = await select("SELECT value FROM SystemSettings WHERE `key` = 'portal.enabled'");
-  expect(setting.value).toBe('false');
+  // Each company's portal starts off (CS); there is no portal-wide switch.
+  expect((await makeCompany(w.admin, { name: 'Fresh' })).portalEnabled).toBe(false);
+  expect(await select("SELECT 1 FROM SystemSettings WHERE `key` = 'portal.enabled'")).toHaveLength(0);
 });
 
 it('round trip: "End users" articles become portal articles for all companies, and back', async () => {
@@ -66,6 +70,7 @@ it('round trip: "End users" articles become portal articles for all companies, a
   const article = await models.KbArticle.create({ title: 'Was public', slug: `was-public-${Date.now()}`, visibility: 'portal', status: 'published' });
   // Readable only by chosen companies: rolling back must not hand it to the anonymous /kb.
   const scoped = await models.KbArticle.create({ title: 'Scoped', slug: `scoped-${Date.now()}`, visibility: 'portal', portalScope: 'companies', status: 'published' });
+  await companyPortal.down(qi(), Sequelize);
   await migration.down(qi(), Sequelize);
   try {
     expect((await qi().describeTable('Contacts')).portalAccess).toBeUndefined();
@@ -75,6 +80,7 @@ it('round trip: "End users" articles become portal articles for all companies, a
     expect(await select("SELECT 1 FROM SystemSettings WHERE `key` = 'portal.enabled'")).toHaveLength(0);
   } finally {
     await migration.up(qi(), Sequelize);
+    await companyPortal.up(qi(), Sequelize);
   }
   await migration.up(qi(), Sequelize); // idempotent
   const [row] = await select('SELECT visibility, portalScope FROM KbArticles WHERE id = ?', [article.id]);

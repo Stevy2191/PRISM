@@ -222,6 +222,37 @@ async function portalApi(companyId) {
   return `${API}/portal/c/${company.portalSlug}`;
 }
 
+// A browser at one company's portal (your own company's by default): opens
+// that portal, and sends `${API}/portal/...` to `${API}/portal/c/<slug>/...`,
+// so a suite written against "the portal" runs at its contact's company's.
+// A path already naming a company (/portal/c/...) is left as it is.
+function slugAgent(slug) {
+  const { getApp } = require('./helpers'); // eslint-disable-line global-require
+  const request = require('supertest'); // eslint-disable-line global-require
+  const agent = request.agent(getApp());
+  const at = (url) => (/^\/api\/v1\/portal\/(?!c\/)/.test(url) && !/^\/api\/v1\/portal\/(home|link)\b/.test(url) && !url.includes('/auth/microsoft/callback')
+    ? url.replace(/^\/api\/v1\/portal\//, `/api/v1/portal/c/${slug}/`) : url);
+  return new Proxy(agent, {
+    get(target, key) {
+      if (['get', 'post', 'put', 'patch', 'delete'].includes(key)) return (url, ...rest) => target[key](at(url), ...rest);
+      const v = target[key];
+      return typeof v === 'function' ? v.bind(target) : v;
+    },
+  });
+}
+async function portalAgent(companyId) {
+  const company = companyId ? await models.Company.findByPk(companyId) : await models.Company.findOne({ where: { isInternal: true } });
+  if (!company.portalEnabled) await company.update({ portalEnabled: true });
+  return slugAgent(company.portalSlug);
+}
+
+// CS: surveys are each company's; turns them on for a company (your own by
+// default) through its page's API.
+async function surveysOn(admin, companyId) {
+  const id = companyId || (await models.Company.findOne({ where: { isInternal: true } })).id;
+  expectOk(await admin.agent.put(`${API}/companies/${id}/surveys`).send({ enabled: true }));
+}
+
 // The SLA row (SlaPolicy) a company's tickets use.
 const slaRowOf = (companyId) => models.SlaPolicy.findOne({ where: { companyId } });
 const internalCompany = () => models.Company.findOne({ where: { isInternal: true } });
@@ -231,5 +262,5 @@ module.exports = {
   makeContractor, makeContact, makeTicket, makeProject, makeTask, makeSubtask, makeTeam,
   setSettings, projectStatusId, taskStatusId, freezeClock, advanceClock, unfreezeClock, waitFor, makeWorld,
   LEDGER_NOW, makeLedger, makeCompany, setCompanyAccess, setSla, setEverySla, slaRowOf, internalCompany,
-  openPortal, portalApi,
+  openPortal, portalApi, portalAgent, slugAgent, surveysOn,
 };

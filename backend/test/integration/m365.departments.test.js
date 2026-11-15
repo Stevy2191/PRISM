@@ -1,8 +1,9 @@
-const request = require('supertest');
 const {
-  resetData, closeDb, models, getApp,
+  resetData, closeDb, models,
 } = require('./helpers');
-const { makeWorld, makeCompany } = require('./fixtures');
+const {
+  makeWorld, makeCompany, portalAgent,
+} = require('./fixtures');
 const { startMockMicrosoft } = require('./mockMicrosoft');
 const {
   TENANT, GROUP, uid, person, microsoftSignIn,
@@ -36,7 +37,6 @@ beforeEach(async () => {
   await resetData();
   w = await makeWorld();
   require('../../src/services/microsoft365/graph').clearTokenCache(); // eslint-disable-line global-require
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
   await models.SystemSettings.upsert({ key: 'portal.msClientId', value: ms.clientId });
   await models.SystemSettings.upsert({ key: 'portal.msClientSecret', value: encryptToken(ms.clientSecret) });
   company = await makeCompany(w.admin, { name: 'Tenant Co' });
@@ -63,7 +63,6 @@ beforeEach(async () => {
 afterAll(async () => {
   delete process.env.MS_LOGIN_BASE;
   delete process.env.MS_GRAPH_BASE;
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
   await models.SystemSettings.destroy({ where: { key: ['portal.msClientId', 'portal.msClientSecret'] } });
   await ms.close();
   await closeDb();
@@ -137,12 +136,12 @@ it('refuses a department of another company and a detected row of another compan
 });
 
 it('a new contact from Microsoft sign-in gets the department their name resolves to', async () => {
-  const { res } = await microsoftSignIn(ms, request.agent(getApp()), person(5));
+  const { res } = await microsoftSignIn(ms, await portalAgent(company.id), person(5));
   expect(res.status).toBe(302);
   const contact = await models.Contact.findOne({ where: { msObjectId: uid(5) } });
   expect(contact).toMatchObject({ departmentId: accounts.id, msDepartmentName: 'ACCOUNTS' });
   // An unknown name: no department, and it joins the to-do list.
-  await microsoftSignIn(ms, request.agent(getApp()), person(4));
+  await microsoftSignIn(ms, await portalAgent(company.id), person(4));
   expect((await models.Contact.findOne({ where: { msObjectId: uid(4) } })).departmentId).toBeNull();
   expect((await detected()).detected.map((d) => d.name)).toEqual(['billing']);
 });

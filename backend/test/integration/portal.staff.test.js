@@ -1,10 +1,9 @@
 const bcrypt = require('bcryptjs');
-const request = require('supertest');
 const {
-  resetData, closeDb, models, getApp,
+  resetData, closeDb, models,
 } = require('./helpers');
 const {
-  makeWorld, makeContact, makeCompany, makeTicket, makeTech, setCompanyAccess, expectOk,
+  makeWorld, makeContact, makeCompany, makeTicket, makeTech, setCompanyAccess, expectOk, portalAgent,
 } = require('./fixtures');
 
 // Sub-project 7a, task 5: staff set portal admins and contact watchers, and
@@ -21,7 +20,6 @@ const grantPortal = (u) => w.admin.agent.post(`${API}/users/${u.user.id}/overrid
 beforeEach(async () => {
   await resetData();
   w = await makeWorld();
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
   const a = w.admin.agent;
   alpha = await makeCompany(w.admin, { name: 'Alpha' });
   beta = await makeCompany(w.admin, { name: 'Beta' });
@@ -35,7 +33,6 @@ beforeEach(async () => {
 });
 // Settings outlive resetData: leave the portal switched off for later suites.
 afterAll(async () => {
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
   await closeDb();
 });
 
@@ -109,7 +106,7 @@ describe('contact watchers', () => {
     // Rita sees it in her portal.
     const hash = await bcrypt.hash(PASSWORD, 4);
     await models.Contact.scope('withPassword').update({ portalAccess: true, passwordHash: hash }, { where: { id: rita.id } });
-    const portal = request.agent(getApp());
+    const portal = await portalAgent(rita.companyId);
     expectOk(await portal.post(`${API}/portal/auth/login`).send({ email: rita.email, password: PASSWORD }));
     expectOk(await portal.get(`${API}/portal/tickets/${t.id}`));
 

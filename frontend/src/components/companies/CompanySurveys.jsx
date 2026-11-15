@@ -34,6 +34,18 @@ export default function CompanySurveys({ company }) {
           <Switch checked={data.portal.surveys} disabled={!data.canChangeSurveys || busy} onChange={toggle} label="Send surveys" />
         </span>
       </section>
+      <section aria-label="Recent scores" className="card p-5">
+        <p className="font-semibold text-navy-900">Last {data.surveyScores.days} days</p>
+        {data.surveyScores.sent === 0 ? (
+          <p className="mt-1 text-sm text-navy-500">No surveys sent yet.</p>
+        ) : (
+          <dl className="mt-2 grid grid-cols-3 gap-3 text-sm">
+            <div><dt className="text-xs text-navy-400">Sent</dt><dd className="num text-lg font-semibold">{data.surveyScores.sent}</dd></div>
+            <div><dt className="text-xs text-navy-400">Answered</dt><dd className="num text-lg font-semibold">{data.surveyScores.answered}</dd></div>
+            <div><dt className="text-xs text-navy-400">Average</dt><dd className="num text-lg font-semibold">{data.surveyScores.average === null ? '—' : `${data.surveyScores.average} / 5`}</dd></div>
+          </dl>
+        )}
+      </section>
       <p className="text-sm text-navy-500">
         The question, when it is sent and how long it stays open are the same for every company, in{' '}
         <Link to="/settings/customer-happiness" className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>Customer happiness</Link>.

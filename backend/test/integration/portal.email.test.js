@@ -6,7 +6,7 @@ jest.mock('../../src/services/emailSender', () => ({
 
 const { resetData, closeDb, models } = require('./helpers');
 const {
-  makeWorld, makeContact, makeCompany, makeTicket, expectOk, waitFor,
+  makeWorld, makeContact, makeCompany, makeTicket, expectOk, waitFor, openPortal,
 } = require('./fixtures');
 const { sendMail } = require('../../src/services/emailSender');
 
@@ -24,7 +24,8 @@ const copyFor = (addr) => {
   expect(found).toHaveLength(1);
   return found[0];
 };
-const hasLink = (m) => m.html.includes(`/portal/tickets/${t.id}`) && m.text.includes(`/portal/tickets/${t.id}`);
+// The link is to the ticket's company's own portal (CS).
+const hasLink = (m) => m.html.includes(`/portal/${alpha.portalSlug}/tickets/${t.id}`) && m.text.includes(`/portal/${alpha.portalSlug}/tickets/${t.id}`);
 const access = (c, on) => models.Contact.update({ portalAccess: on }, { where: { id: c.id } });
 
 async function reply(extra = {}) {
@@ -42,18 +43,15 @@ beforeEach(async () => {
   w = await makeWorld();
   await models.SystemSettings.upsert({ key: 'smtp.host', value: 'smtp.example' });
   await models.SystemSettings.upsert({ key: 'smtp.fromEmail', value: 'noreply@prism.example' });
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
   alpha = await makeCompany(w.admin, { name: 'Alpha' });
+  await openPortal(alpha.id);
   pat = await makeContact(w.admin, { firstName: 'Pat', companyId: alpha.id });
   rita = await makeContact(w.admin, { firstName: 'Rita', companyId: alpha.id });
   wes = await makeContact(w.admin, { firstName: 'Wes', companyId: alpha.id });
   t = await makeTicket(w.admin.agent, { title: 'Printer', contactId: pat.id });
   await models.TicketWatcher.create({ ticketId: t.id, contactId: wes.id });
 });
-afterAll(async () => {
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
-  await closeDb();
-});
+afterAll(closeDb);
 
 it('links only for recipients who can see the ticket in the portal; the headers stay the same', async () => {
   await Promise.all([access(pat, true), access(rita, true), access(wes, true)]);
@@ -68,13 +66,13 @@ it('links only for recipients who can see the ticket in the portal; the headers 
   expect(copies()).toHaveLength(2);
 });
 
-it('no portal access, or the portal switched off: no link at all, one email', async () => {
+it("no portal access, or the company's portal switched off: no link at all, one email", async () => {
   await reply();
   expect(copies()).toHaveLength(1);
   expect(hasLink(copies()[0])).toBe(false);
 
   await Promise.all([access(pat, true), access(wes, true)]);
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
+  await models.Company.update({ portalEnabled: false }, { where: { id: alpha.id } });
   await reply();
   expect(copies()).toHaveLength(1);
   expect(hasLink(copies()[0])).toBe(false);

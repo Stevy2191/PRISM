@@ -203,8 +203,8 @@ async function resetData() {
   // migration) must keep its id, because model hooks and the company cache
   // rely on it. Every other company goes.
   await sequelize.query('DELETE FROM Companies WHERE isInternal = 0').catch(() => {});
-  // CS: your company's portal back to off, its first link, surveys on.
-  await sequelize.query("UPDATE Companies SET portalEnabled = 0, csatEnabled = 1, portalPreviousSlugs = NULL, status = 'active' WHERE isInternal = 1").catch(() => {});
+  // CS: your company's portal and surveys back to off (as migrated on a new install).
+  await sequelize.query("UPDATE Companies SET portalEnabled = 0, csatEnabled = 0, portalPreviousSlugs = NULL, status = 'active' WHERE isInternal = 1").catch(() => {});
   // SystemSettings is not truncated (other code relies on any rows an
   // install has), but settings a test flips must not leak into the next one —
   // SSO enforcement in particular would fail every subsequent login.

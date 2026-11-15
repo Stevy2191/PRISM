@@ -292,9 +292,9 @@ const microsoftCallback = asyncHandler(async (req, res) => {
     return refuse('failed');
   }
   // Only this company's tenant signs in at this company's portal.
-  if (person.tid !== company.msTenantId) return refuse('wrong_company', { tenantId: person.tid });
+  if (person.tid !== company.msTenantId) return refuse('not_linked', { tenantId: person.tid });
   const result = await resolveMicrosoftSignIn(person);
-  if (!result.refused && result.company.id !== company.id) return refuse('wrong_company', { tenantId: person.tid });
+  if (!result.refused && result.company.id !== company.id) return refuse('other_company', { tenantId: person.tid });
   if (result.refused) {
     if (result.error) console.warn('[portal] Microsoft group check failed:', result.error);
     return refuse(result.refused, { tenantId: person.tid, contactId: result.contact && result.contact.id });
