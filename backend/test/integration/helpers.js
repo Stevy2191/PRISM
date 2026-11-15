@@ -207,6 +207,10 @@ async function resetData() {
   await sequelize.query("UPDATE Companies SET portalEnabled = 0, csatEnabled = 0, portalPreviousSlugs = NULL, status = 'active' WHERE isInternal = 1").catch(() => {});
   // CN: every company's tickets count from T0001 again.
   await sequelize.query('DELETE FROM CompanyCounters').catch(() => {});
+  // CN: your own company's code is the same everywhere (its name differs
+  // between installs, so a suggested code would too): LITS, as in
+  // LITS-T0001 and LITS-SD-P0001.
+  await sequelize.query("UPDATE Companies SET code = 'LITS', previousCodes = NULL WHERE isInternal = 1").catch(() => {});
   // SystemSettings is not truncated (other code relies on any rows an
   // install has), but settings a test flips must not leak into the next one —
   // SSO enforcement in particular would fail every subsequent login.
