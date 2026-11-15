@@ -5,7 +5,7 @@
 const { Op } = require('sequelize');
 const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla,
 } = require('../models');
 
 const OWNED = {
@@ -79,7 +79,20 @@ async function moveCategories(from, into, transaction) {
   await TicketCategory.update({ companyId: into.id }, { where: { companyId: from.id }, transaction, hooks: false });
 }
 
+// CS: the merged-away company's own SLA goes with it; its tickets' clocks
+// move onto the company they now belong to (their due dates stay as set).
+async function moveSla(from, into, transaction) {
+  const [old, kept] = await Promise.all([
+    SlaPolicy.findOne({ where: { companyId: from.id }, transaction }),
+    SlaPolicy.findOne({ where: { companyId: into.id }, transaction }),
+  ]);
+  if (!old) return;
+  if (kept) await TicketSla.update({ slaPolicyId: kept.id }, { where: { slaPolicyId: old.id }, transaction, hooks: false });
+  await old.destroy({ transaction });
+}
+
 async function mergeCompanies(from, into, transaction) {
+  await moveSla(from, into, transaction);
   await moveCategories(from, into, transaction);
   await renameClashes(Department, from, into, 255, transaction);
   await renameClashes(Site, from, into, 150, transaction);

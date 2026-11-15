@@ -1,6 +1,6 @@
 // A company's satisfaction surveys (CS part 3), on its page under Setup ›
-// Surveys. The question, delay and expiry are shared, in Settings › Customer
-// happiness.
+// Surveys. The question, delay and expiry are shared, in Settings ›
+// Satisfaction surveys.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errMessage } from '../../api/api';
@@ -48,7 +48,7 @@ export default function CompanySurveys({ company }) {
       </section>
       <p className="text-sm text-navy-500">
         The question, when it is sent and how long it stays open are the same for every company, in{' '}
-        <Link to="/settings/customer-happiness" className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>Customer happiness</Link>.
+        <Link to="/settings/customer-happiness" className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>Satisfaction surveys</Link>.
       </p>
     </div>
   );

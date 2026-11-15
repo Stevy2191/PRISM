@@ -74,7 +74,7 @@ export default function CustomerHappiness() {
   if (loading || !form) return <Spinner />;
 
   return (
-    <SettingsPage description="Email a satisfaction survey to the contact when a ticket is closed. Ratings feed into technician performance stats on their profile, the dashboard, and reports.">
+    <SettingsPage description="The survey emailed to the contact when a ticket is closed, for every company that has surveys on. Ratings feed into technician performance stats on their profile, the dashboard, and reports.">
       {error && <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
 
       <form onSubmit={save} className="card space-y-5 p-5">

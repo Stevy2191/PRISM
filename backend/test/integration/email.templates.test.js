@@ -20,7 +20,11 @@ it('lists every catalogue key with isDefault true at first', async () => {
   expect(templates.map((t) => t.key).sort()).toEqual(Object.keys(CATALOG).sort());
   expect(templates.every((t) => t.isDefault)).toBe(true);
   const resolved = templates.find((t) => t.key === 'contact_resolved');
-  expect(resolved).toEqual({ key: 'contact_resolved', name: CATALOG.contact_resolved.name, audience: 'contact', enabled: false, isDefault: true });
+  expect(resolved).toEqual({
+    key: 'contact_resolved', name: CATALOG.contact_resolved.name, audience: 'contact', decidedBy: null, enabled: false, isDefault: true,
+  });
+  // The survey has no switch of its own: each company decides (CS).
+  expect(templates.find((t) => t.key === 'contact_csat_survey')).toMatchObject({ decidedBy: 'company', enabled: true });
   const one = expectOk(await w.admin.agent.get(`${URL}/contact_tech_reply`));
   expect(one.template.subject).toBe(CATALOG.contact_tech_reply.subject);
   expect(one.template.placeholders.map((p) => p.name)).toContain('signature');

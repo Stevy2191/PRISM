@@ -20,6 +20,8 @@ const later = [
   // Checklists (PB2): columns on 080's tables, which 080's round trip
   // recreates without them.
   require('../../migrations/20260101000082-checklists-simpler'),
+  // CS: a column on 080's Playbooks, which 080's round trip recreates without it.
+  require('../../migrations/20260101000093-bundle-except-companies'),
 ];
 
 const qi = () => sequelize.getQueryInterface();

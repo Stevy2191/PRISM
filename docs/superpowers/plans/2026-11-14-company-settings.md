@@ -36,9 +36,9 @@
 - Remove: `pages/settings/CompanyProfile.jsx` (its fields move into YourCompany), the `own-departments`, `own-company-page` and `ticket-categories` registry entries; `pages/settings/TicketCategories.jsx`'s page (its rule moves to Ticket rules, 1.3)
 - Test: `registry.test.js`; `backend/test/integration/companies.list.test.js`; `backend/test/smoke/yourCompany.smoke.js`
 
-- [ ] **Step 1: Failing tests:** the Companies list and its API leave out the internal company; `/settings/your-company` shows Profile, Departments, Sites, Categories, Devices for it; the company name is one field (saving it updates both `company.name` and the internal company's name); opening the internal company's id under `/companies/` lands in Settings; with no customer company, Settings › Customers shows only "Add a customer company".
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(settings): Your company's page is in Settings; Companies lists customers`
+- [x] **Step 1: Failing tests:** the Companies list and its API leave out the internal company; `/settings/your-company` shows Profile, Departments, Sites, Categories, Devices for it; the company name is one field (saving it updates both `company.name` and the internal company's name); opening the internal company's id under `/companies/` lands in Settings; with no customer company, Settings › Customers shows only "Add a customer company".
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(settings): Your company's page is in Settings; Companies lists customers`
 
 ### Task 1.2: A company's Setup tab, and landing on a new company
 
@@ -46,9 +46,9 @@
 - Modify: `CompanyPage.jsx` (Setup parts in the spec's order; parts not built yet are simply absent), `CompaniesList.jsx` (after create → the new company's page), `CompanyGlance.jsx` and `GET /companies/:id/glance` (the setup list in the mockup's order, for the steps that exist now)
 - Test: `backend/test/smoke/companies.shell.smoke.js` (updated), `companies.glance.test.js`
 
-- [ ] **Step 1: Failing tests:** creating a company opens `/companies/:id` on Overview with its setup list; Setup shows Details then Categories (more parts arrive in Parts 2–4).
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(companies): a new company opens on its own page`
+- [x] **Step 1: Failing tests:** creating a company opens `/companies/:id` on Overview with its setup list; Setup shows Details then Categories (more parts arrive in Parts 2–4).
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(companies): a new company opens on its own page`
 
 ### Task 1.3: Duplicates that need no data change
 
@@ -61,13 +61,13 @@
 - Names: "Staff hours" (was Hours people work), "Calendar apps" (Settings) and "My calendars" (Preferences)
 - Test: `backend/test/integration/preferences.test.js`, `settings.test.js`, `email.notifications.test.js` (updated); `backend/test/smoke/settings.smoke.js` (updated); `frontend/src/utils/timeZones.test.js`
 
-- [ ] **Step 1: Failing tests:** the two timer defaults are not writable and a new local account starts on manual; a staff notification is decided by the default and the person's choice only; the defaults list is the same on server and screen; Ticket rules saves both rules; the merged pages save what the old ones did.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(settings): one place for the timer, ticket rules, notification switches and time zones`
+- [x] **Step 1: Failing tests:** the two timer defaults are not writable and a new local account starts on manual; a staff notification is decided by the default and the person's choice only; the defaults list is the same on server and screen; Ticket rules saves both rules; the merged pages save what the old ones did.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(settings): one place for the timer, ticket rules, notification switches and time zones`
 
 ### Task 1.4: Part 1 finish
 
-- [ ] Full backend suite, whole smoke suite, `npm test` in `frontend`. `UPGRADING.md` one plain entry. Commit `docs(settings): part 1 notes`, push.
+- [x] Full backend suite, whole smoke suite, `npm test` in `frontend`. `UPGRADING.md` one plain entry. Commit `docs(settings): part 1 notes`, push.
 
 ---
 
@@ -82,14 +82,14 @@
 
 **What 091 does:** for each company, one policy row of its own: a copy of the policy it is on (the default when none), with that policy's schedule, time zone (the org zone when 24×7) and holidays; `TicketSlas.slaPolicyId` → the ticket's company's row; the default becomes the starting values (`companyId` null, `isDefault` gone); other shared policies, `BusinessHours`, `HolidayLists`, `Companies.slaPolicyId`, `BusinessHours.departmentId` are dropped; workflow actions `set_sla_policy` are deleted. Down rebuilds one shared default from the starting values.
 
-- [ ] **Step 1: Failing tests** (round trip; every company has exactly one row; tickets point at their company's; the starting values row exists). **Step 2–4.** **Step 5: Commit** `feat(sla): each company has its own targets, hours and holidays (migration 091)`
+- [x] **Step 1: Failing tests** (round trip; every company has exactly one row; tickets point at their company's; the starting values row exists). **Step 2–4.** **Step 5: Commit** `feat(sla): each company has its own targets, hours and holidays (migration 091)`
 
 ### Task 2.2: The engine
 
 **Files:** `services/sla/calendar.js` (calendar from the company's policy row), `ticketSla.js` (`selectPolicyId` = the company's row), `services/workload/index.js` and `capacity.js` (holidays = the internal company's), `services/companyService.js` (creating a company copies the starting values), `services/workflowEngine.js` and `workflowRulesController.js` (no `set_sla_policy`), `utils/orgTime.js` callers in `ticketSla.js` and `controllers/tickets/dueDate.js` (the ticket's company's zone)
 - Test: `sla.clocks.test.js`, `sla.duedates.test.js`, `workload.test.js`, `test/unit/*` (updated), new `companySla.engine.test.js`
 
-- [ ] **Step 1: Failing tests:** two companies with different hours and zones get different due dates for the same ticket; a holiday of one stops only its clock; a new company starts with a copy; workload follows only your company's holidays. **Step 2–4.** **Step 5: Commit** `feat(sla): the clock follows the ticket's company`
+- [x] **Step 1: Failing tests:** two companies with different hours and zones get different due dates for the same ticket; a holiday of one stops only its clock; a new company starts with a copy; workload follows only your company's holidays. **Step 2–4.** **Step 5: Commit** `feat(sla): the clock follows the ticket's company`
 
 ### Task 2.3: API and screens
 
@@ -98,11 +98,11 @@
 - Frontend: create `components/companies/CompanySla.jsx` (per the `SlaHours` mockup), `pages/settings/StartingValues.jsx`; `CompanyPage.jsx` and `YourCompany.jsx` gain the part; `CompanyGlance` steps; remove `SLAs.jsx`, `SlaPolicyEditor.jsx`, `BusinessHours.jsx`, `Holidays.jsx`, the SLA select in `CompanyOverview.jsx`, the rule editor's action; `SlaPanel.jsx` shows no policy name
 - Test: `companySla.api.test.js`; smoke `companySla.smoke.js` (replaces `sla.settings.smoke.js`)
 
-- [ ] **Step 1–4.** **Step 5: Commit** `feat(companies): Setup › SLA and hours`
+- [x] **Step 1–4.** **Step 5: Commit** `feat(companies): Setup › SLA and hours`
 
 ### Task 2.4: Part 2 finish
 
-- [ ] Suites, notes, push.
+- [x] Suites, notes, push.
 
 ---
 
@@ -117,25 +117,25 @@
 
 **Rules:** sign-in is `POST /portal/:slug/login`; a session stores its company; every portal request carries the slug and is refused unless the session's company is that company and its portal is open; a contact of another company gets the same INVALID_CREDENTIALS; Microsoft sign-in at a slug accepts only that company's tenant; with no customer company, the internal company's slug is implied by the plain address.
 
-- [ ] **Step 1: Failing tests:** all of the rules above, plus isolation: signed in at A, requests for B's tickets, attachments, articles, people and devices by id answer 404; an inactive company or a portal turned off refuses sign-in and ends sessions. **Step 2–4.** **Step 5: Commit** `feat(portal): each company has its own portal (migration 092)`
+- [x] **Step 1: Failing tests:** all of the rules above, plus isolation: signed in at A, requests for B's tickets, attachments, articles, people and devices by id answer 404; an inactive company or a portal turned off refuses sign-in and ends sessions. **Step 2–4.** **Step 5: Commit** `feat(portal): each company has its own portal (migration 092)`
 
 ### Task 3.2: The portal's pages and emails
 
 **Files:** `frontend/src/portal/*` (routes under `/portal/:slug`; the sign-in page names the company; `/portal` is the "use your company's link" page with "Email me my link", or the internal company's portal when there are no customers), `services/portal/portalMail.js` and `services/email/*` (links built from the contact's company's slug), `POST /portal/link` (always the same answer)
 - Test: smoke `portal.company.smoke.js`; `portal.mail.test.js`
 
-- [ ] **Step 1–4.** **Step 5: Commit** `feat(portal): the company's own sign-in page and links`
+- [x] **Step 1–4.** **Step 5: Commit** `feat(portal): the company's own sign-in page and links`
 
 ### Task 3.3: Setup › Portal and Setup › Surveys
 
 **Files:** create `components/companies/CompanyPortal.jsx` (switch, link, change the name, who can sign in with Invite and "Invite everyone", portal admins, Microsoft 365), `CompanySurveys.jsx`; backend `GET/PUT /companies/:id/portal`, `POST /companies/:id/portal/invite-all`, `PUT /companies/:id/surveys`; `csatService.js` and `csatScheduler.js` read the company's switch; `ClientPortal.jsx` and `CustomerHappiness.jsx` lose their on/off; the survey template loses "Send this email"; portal admins and Microsoft 365 leave their old parts
 - Test: `companyPortal.api.test.js`, `csat.company.test.js`; smoke `companyPortal.smoke.js`
 
-- [ ] **Step 1–4.** **Step 5: Commit** `feat(companies): Setup › Portal and Surveys`
+- [x] **Step 1–4.** **Step 5: Commit** `feat(companies): Setup › Portal and Surveys`
 
 ### Task 3.4: Part 3 finish
 
-- [ ] Suites, a security pass over the portal routes, notes, push.
+- [x] Suites, a security pass over the portal routes, notes, push.
 
 ---
 
@@ -146,8 +146,8 @@
 **Files:** backend `GET /companies/:id/applies` (bundles with offered yes/no; rules whose conditions name the company's departments or categories, and the count that apply to all; recurring tickets of the company's contacts; custom fields on its categories), `PUT /companies/:id/bundles/:playbookId { offered }` (edits `Playbook.companyIds`); frontend `components/companies/CompanyApplies.jsx` (per the `Applies` mockup), "New for this company" opens the recurring editor with the company chosen
 - Test: `companyApplies.test.js`; smoke `companyApplies.smoke.js`
 
-- [ ] **Step 1–4.** **Step 5: Commit** `feat(companies): Setup › What applies here`
+- [x] **Step 1–4.** **Step 5: Commit** `feat(companies): Setup › What applies here`
 
 ### Task 4.2: Finish
 
-- [ ] Sweep the words; `UPGRADING.md`; `docs/ROADMAP.md` row CS → Shipped; full suites; screenshots of the built screens beside the mockups; push.
+- [x] Sweep the words; `UPGRADING.md`; `docs/ROADMAP.md` row CS → Shipped; full suites; screenshots of the built screens beside the mockups; push.
