@@ -46,7 +46,7 @@ it("says whether the SLA was reviewed, the portal is on and surveys were chosen 
   expectOk(await a.put(`${API}/companies/${alpha.id}/surveys`).send({ enabled: false }));
   g = await look();
   expect(g.sla).toEqual({
-    reviewed: true, hours: 'Mon 08:00–17:00, Tue 08:00–17:00, Wed 08:00–17:00, Thu 08:00–17:00, Fri 08:00–17:00', timezone: 'America/Chicago', holidays: 1,
+    reviewed: true, hours: 'Mon–Fri 08:00–17:00', timezone: 'America/Chicago', holidays: 1,
   });
   expect([g.portal.enabled, g.surveys]).toEqual([true, { enabled: false, chosen: true }]);
 });

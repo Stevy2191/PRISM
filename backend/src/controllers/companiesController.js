@@ -160,6 +160,19 @@ const get = asyncHandler(async (req, res) => {
 // GET /companies/:id/glance: the Overview's figures and setup checklist.
 // Each figure is counted only as far as the viewer may see those records;
 // one they may not see at all is null.
+// [['Mon','08:00–17:00'], ...] → 'Mon–Fri 08:00–17:00': consecutive days
+// with the same hours run together.
+const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+function hoursText(days) {
+  const runs = [];
+  days.sort((a, b) => WEEK.indexOf(a[0]) - WEEK.indexOf(b[0])).forEach(([day, hours]) => {
+    const last = runs[runs.length - 1];
+    if (last && last.hours === hours && WEEK.indexOf(day) === WEEK.indexOf(last.to) + 1) last.to = day;
+    else runs.push({ from: day, to: day, hours });
+  });
+  return runs.map((r) => `${r.from === r.to ? r.from : `${r.from}–${r.to}`} ${r.hours}`).join(', ');
+}
+
 const glance = asyncHandler(async (req, res) => {
   const company = await loadAccessibleCompany(req);
   const here = { companyId: company.id };
@@ -205,7 +218,7 @@ const glance = asyncHandler(async (req, res) => {
       devicesOnline,
       sla: slaRow ? {
         reviewed: slaSaves > 0,
-        hours: slaRow.is24x7 ? 'Around the clock' : openDays.map(([d, h]) => `${DAY[d]} ${h.start}–${h.end}`).join(', ') || 'No open days',
+        hours: slaRow.is24x7 ? 'Around the clock' : hoursText(openDays.map(([d, h]) => [DAY[d], `${h.start}–${h.end}`])) || 'No open days',
         timezone: slaRow.timezone,
         holidays,
       } : null,
