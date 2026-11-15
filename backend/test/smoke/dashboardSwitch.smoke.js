@@ -26,16 +26,19 @@ it("switches to another administrator's dashboard and back without breaking", as
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto('/dashboard');
   const whose = page.getByLabel('Whose dashboard');
+  // It opens on your own; the system-wide one has the activity feed.
+  await page.getByText('My Open Tickets').first().waitFor();
+  await whose.selectOption({ label: 'All users (system wide)' });
   await page.getByText('Activity Feed').first().waitFor();
 
   await whose.selectOption({ label: 'Test second_admin' });
   await page.getByText("Viewing Test second_admin's dashboard").waitFor();
   await page.getByRole('link', { name: /Assigned to the second admin/ }).first().waitFor();
 
-  await whose.selectOption({ label: 'Test admin' });
-  await page.getByText("Viewing Test admin's dashboard").waitFor();
+  await whose.selectOption({ label: 'My dashboard' });
+  await page.getByText('My Open Tickets').first().waitFor();
 
-  await whose.selectOption({ index: 0 }); // All users (system wide)
+  await whose.selectOption({ label: 'All users (system wide)' });
   await page.getByText('Activity Feed').first().waitFor();
   expect(errors).toEqual([]);
 });
