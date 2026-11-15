@@ -33,8 +33,8 @@ beforeAll(async () => {
   process.env.PUBLIC_APP_URL = smoke.base;
   await resetData();
   w = await makeWorld();
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
   company = await makeCompany(w.admin, { name: 'Tenant Co' });
+  await models.Company.update({ portalEnabled: true }, { where: { id: company.id } });
   billing = await models.Department.create({ companyId: company.id, name: 'Billing' });
   ms.tenants = {
     [TENANT]: {
@@ -51,7 +51,6 @@ afterAll(async () => {
   delete process.env.MS_LOGIN_BASE;
   delete process.env.MS_GRAPH_BASE;
   delete process.env.PUBLIC_APP_URL;
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
   await models.SystemSettings.destroy({ where: { key: ['portal.msClientId', 'portal.msClientSecret'] } });
   await ms.close();
   await smoke.stop();
@@ -81,7 +80,7 @@ it('staff link a tenant, pick a sync group, Sync now, and map a detected departm
   await models.Contact.create({ firstName: 'Per', displayName: 'Per One', email: 'person1@tenant.test', companyId: company.id });
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto(`/companies/${company.id}`);
-  await openCompanyTab(page, 'Setup', 'Microsoft 365');
+  await openCompanyTab(page, 'Setup', 'Portal');
   await page.getByLabel('Tenant ID').fill(TENANT);
   await page.getByRole('region', { name: 'Microsoft 365 tenant' }).getByRole('button', { name: 'Save' }).click();
   await page.getByText('Waiting for approval').waitFor();
@@ -117,15 +116,15 @@ it('Sign in with Microsoft signs a sync-group member in, and shows a non-member 
   const context = await smoke.browser.newContext({ baseURL: smoke.base, ...DESKTOP });
   const page = await context.newPage();
   ms.nextSignIn = person(2);
-  await page.goto('/portal/sign-in');
+  await page.goto(`/portal/${company.portalSlug}/sign-in`);
   await page.getByRole('link', { name: 'Sign in with Microsoft' }).click();
-  await page.waitForURL(/\/portal\/tickets/);
-  const me = await context.request.get('/api/v1/portal/me');
+  await page.waitForURL(new RegExp(`/portal/${company.portalSlug}/tickets`));
+  const me = await context.request.get(`/api/v1/portal/c/${company.portalSlug}/me`);
   expect((await me.json()).contact).toMatchObject({ email: 'person2@tenant.test', signInMethod: 'microsoft' });
 
   const other = await (await smoke.browser.newContext({ baseURL: smoke.base, ...DESKTOP })).newPage();
   ms.nextSignIn = person(9);
-  await other.goto('/portal/sign-in');
+  await other.goto(`/portal/${company.portalSlug}/sign-in`);
   await other.getByRole('link', { name: 'Sign in with Microsoft' }).click();
   await other.waitForURL(/refused=not_in_groups/);
   await other.getByRole('region', { name: 'Microsoft account not allowed' }).getByText("Your account isn't set up for this portal").waitFor();

@@ -29,10 +29,11 @@ beforeAll(async () => {
   await resetData();
   await clearOwn();
   w = await makeWorld();
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'true' });
   const a = w.admin.agent;
   alpha = await makeCompany(w.admin, { name: 'Riverside Family Clinic and Associated Practices of the Greater Valley' });
   beta = await makeCompany(w.admin, { name: 'Beta Builders' });
+  // Each company's own portal (CS): Riverside's people sign in at Riverside's.
+  await models.Company.update({ portalEnabled: true }, { where: { id: [alpha.id, beta.id] } });
   billing = expectOk(await a.post(`${API}/departments`).send({ name: 'Billing', companyId: alpha.id }), 201).department;
   pat = await makeContact(w.admin, { firstName: 'Pat', lastName: 'Plain', companyId: alpha.id, departmentId: billing.id });
   dana = await makeContact(w.admin, { firstName: 'Dana', lastName: 'Admin', companyId: alpha.id, departmentId: billing.id });
@@ -54,16 +55,18 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await clearOwn();
-  await models.SystemSettings.upsert({ key: 'portal.enabled', value: 'false' });
   await smoke.stop();
   await closeDb();
 });
 beforeEach(resetRateLimits);
+// A page of Riverside's portal.
+const A = (path = '') => `/portal/${alpha.portalSlug}${path}`;
 
 async function contactPage(contact, options = DESKTOP) {
   const context = await smoke.browser.newContext({ baseURL: smoke.base, ...options });
   if (contact) {
-    const res = await context.request.post('/api/v1/portal/auth/login', { data: { email: contact.email, password: PASSWORD } });
+    const company = await models.Company.findByPk(contact.companyId);
+    const res = await context.request.post(`/api/v1/portal/c/${company.portalSlug}/auth/login`, { data: { email: contact.email, password: PASSWORD } });
     if (!res.ok()) throw new Error(`portal login failed for ${contact.email}: ${res.status()}`);
   }
   return context.newPage();
@@ -72,8 +75,10 @@ async function contactPage(contact, options = DESKTOP) {
 describe.each([['desktop', DESKTOP], ['phone', PHONE]])('%s', (_name, size) => {
   it('sign in, see own tickets, raise one, reply, sign out', async () => {
     const page = await contactPage(null, size);
-    await page.goto('/portal');
-    await page.waitForURL(/\/portal\/sign-in/);
+    await page.goto(A());
+    await page.waitForURL(/\/sign-in/);
+    // The sign-in page names the company.
+    await page.getByRole('heading', { name: alpha.name }).waitFor();
     await page.getByLabel('Email').fill(pat.email);
     await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in with email' }).click();
@@ -95,14 +100,14 @@ describe.each([['desktop', DESKTOP], ['phone', PHONE]])('%s', (_name, size) => {
     const menu = page.getByRole('button', { name: 'Menu' });
     if (await menu.isVisible()) await menu.click();
     await page.getByRole('button', { name: 'Sign out' }).click();
-    await page.waitForURL(/\/portal\/sign-in/);
+    await page.waitForURL(/\/sign-in/);
     await page.context().close();
   });
 });
 
 it('a ticket shows public replies, never private comments', async () => {
   const page = await contactPage(pat);
-  await page.goto(`/portal/tickets/${patTicket.id}`);
+  await page.goto(A(`/tickets/${patTicket.id}`));
   await page.getByText('Have you tried the power cable?').waitFor();
   expect(await page.getByText('Internal: order a new PSU').count()).toBe(0);
   await page.context().close();
@@ -110,10 +115,10 @@ it('a ticket shows public replies, never private comments', async () => {
 
 it('a department admin sees the Billing department pill and can raise a ticket For a Billing contact', async () => {
   const page = await contactPage(dana);
-  await page.goto('/portal/tickets');
+  await page.goto(A('/tickets'));
   await page.getByRole('button', { name: 'Billing department' }).click();
   await page.getByRole('link', { name: /Pat laptop will not start/ }).first().waitFor();
-  await page.goto('/portal/tickets/new');
+  await page.goto(A('/tickets/new'));
   await page.getByLabel(/^For/).selectOption({ label: 'Pat Plain' });
   await page.getByLabel(/^Title/).fill('Raised by Dana for Pat');
   await page.getByLabel(/^Description/).fill('Pat asked me to log this.');
@@ -126,7 +131,7 @@ it('a department admin sees the Billing department pill and can raise a ticket F
 
 it('the reply box is one line on a phone and opens on tap', async () => {
   const page = await contactPage(pat, PHONE);
-  await page.goto(`/portal/tickets/${patTicket.id}`);
+  await page.goto(A(`/tickets/${patTicket.id}`));
   const collapsed = page.getByRole('button', { name: /^Reply/ });
   await collapsed.waitFor();
   expect(await collapsed.getAttribute('aria-expanded')).toBe('false');
@@ -142,7 +147,7 @@ it('forgot password shows the same message for any email', async () => {
   for (const email of [pat.email, 'nobody@nowhere.example']) {
     // eslint-disable-next-line no-await-in-loop
     const page = await contactPage(null, PHONE);
-    await page.goto('/portal/sign-in'); // eslint-disable-line no-await-in-loop
+    await page.goto(A('/sign-in')); // eslint-disable-line no-await-in-loop
     await page.getByRole('link', { name: 'Forgot password?' }).click(); // eslint-disable-line no-await-in-loop
     await page.getByLabel('Email').fill(email); // eslint-disable-line no-await-in-loop
     await page.getByRole('button', { name: 'Send link' }).click(); // eslint-disable-line no-await-in-loop
@@ -158,7 +163,7 @@ it('forgot password shows the same message for any email', async () => {
 it('the invite page sets a password and signs in', async () => {
   const { token } = await issuePortalToken(invited.id, 'invite');
   const page = await contactPage(null, PHONE);
-  await page.goto(`/portal/welcome?token=${token}`);
+  await page.goto(A(`/welcome?token=${token}`));
   // The page asks who the link is for before showing it.
   await page.waitForFunction((email) => document.getElementById('sp-email')?.value === email, invited.email);
   await page.getByText(/help desk invited you/).waitFor();
@@ -169,19 +174,31 @@ it('the invite page sets a password and signs in', async () => {
   await page.context().close();
 });
 
-it('/kb redirects to the portal sign-in when signed out', async () => {
+it("the plain /portal address asks for the company's own link, and can email it", async () => {
+  const page = await contactPage(null, PHONE);
+  await page.goto('/portal');
+  await page.getByRole('heading', { name: "Use your company's portal link" }).waitFor();
+  expect(page.url()).toMatch(/\/portal$/);
+  await page.getByLabel(/Enter your work email/).fill(pat.email);
+  await page.getByRole('button', { name: 'Email me my link' }).click();
+  await page.getByRole('status').getByText(/its link is on its way/).waitFor();
+  await page.context().close();
+});
+
+it("Beta's person can't sign in at Riverside's portal: the same answer as a wrong password", async () => {
   const page = await contactPage(null);
-  await page.goto('/kb');
-  await page.waitForURL(/\/portal\/sign-in/);
-  await page.getByRole('heading', { name: 'Sign in' }).waitFor();
-  await page.goto(`/kb/a/${seeded.everyone.slug}`);
-  await page.waitForURL(/\/portal\/sign-in/);
+  await page.goto(A('/sign-in'));
+  await page.getByLabel('Email').fill(otto.email);
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Sign in with email' }).click();
+  await page.getByText('Invalid email or password').waitFor();
+  expect(page.url()).toContain(A('/sign-in'));
   await page.context().close();
 });
 
 it('knowledge base lists only articles for my company', async () => {
   const page = await contactPage(pat);
-  await page.goto('/portal/kb');
+  await page.goto(A('/kb'));
   await page.getByRole('heading', { name: 'How can we help?' }).waitFor();
   await page.getByRole('link', { name: new RegExp(`${KB_PREFIX} Riverside only`) }).waitFor();
   await page.getByRole('link', { name: new RegExp(`${KB_PREFIX} Everyone`) }).waitFor();
@@ -192,13 +209,14 @@ it('knowledge base lists only articles for my company', async () => {
 });
 
 const PHONE_ROUTES = [
-  { name: 'sign in', path: '/portal/sign-in', as: null },
-  { name: 'forgot password', path: '/portal/forgot', as: null },
-  { name: 'tickets', path: '/portal/tickets' },
-  { name: 'new ticket', path: '/portal/tickets/new', as: () => dana },
-  { name: 'a ticket', path: () => `/portal/tickets/${patTicket.id}` },
-  { name: 'knowledge base', path: '/portal/kb' },
-  { name: 'an article', path: () => `/portal/kb/a/${seeded.alphaOnly.slug}` },
+  { name: 'the plain address', path: () => '/portal', as: null },
+  { name: 'sign in', path: () => A('/sign-in'), as: null },
+  { name: 'forgot password', path: () => A('/forgot'), as: null },
+  { name: 'tickets', path: () => A('/tickets') },
+  { name: 'new ticket', path: () => A('/tickets/new'), as: () => dana },
+  { name: 'a ticket', path: () => A(`/tickets/${patTicket.id}`) },
+  { name: 'knowledge base', path: () => A('/kb') },
+  { name: 'an article', path: () => A(`/kb/a/${seeded.alphaOnly.slug}`) },
 ];
 
 it.each(PHONE_ROUTES.map((r) => [r.name, r]))('no horizontal scroll at 375 px: %s', async (_n, route) => {
