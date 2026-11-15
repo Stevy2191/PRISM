@@ -86,7 +86,7 @@ it('the activity feed names the person who raised a tray ticket, not the account
   const staff = expectOk(await w.admin.agent.post(`${API}/tickets`).send({ title: 'By staff', contactId: w.contact.id }), 201).ticket;
   const feed = (await w.admin.agent.get(`${API}/dashboard/activity`)).body;
   const items = (feed.activity || feed.items || feed).filter((x) => x.action === 'created');
-  const by = Object.fromEntries(items.map((x) => [x.targetLabel.replace(/^#\d+ /, ''), x]));
+  const by = Object.fromEntries(items.map((x) => [x.targetLabel.replace(/^(#\d+|[A-Z0-9]{2,6}-T\d+) /, ''), x]));
   expect(by['Wifi drops']).toMatchObject({ actorName: 'Maria Chen', verb: 'opened', suffix: 'from the PRISM tray' });
   // No matching contact (the placeholder): "Someone", still not the admin.
   expect(by['Unknown person']).toMatchObject({ actorName: 'Someone', suffix: 'from the PRISM tray' });
