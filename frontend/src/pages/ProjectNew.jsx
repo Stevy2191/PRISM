@@ -290,7 +290,7 @@ export default function ProjectNew() {
             </Field>
           </div>
           {nextNumber && (
-            <Notice tone="info">Its number will be <b className="num">{nextNumber}</b>.</Notice>
+            <Notice tone="info"><span>Its number will be <b className="num">{nextNumber}</b></span></Notice>
           )}
           {customer && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
