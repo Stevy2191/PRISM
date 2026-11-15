@@ -90,7 +90,7 @@ export default function CompaniesList() {
               <tbody>
                 {companies.map((c) => (
                   <tr key={c.id} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
-                    <td className="table-td"><Link to={`/companies/${c.id}`} className="font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>{c.name}</Link></td>
+                    <td className="table-td"><Link to={`/companies/${c.id}`} className="font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>{c.name}</Link>{c.code && <span className="ml-2 font-mono text-xs text-navy-400">{c.code}</span>}</td>
                     <td className="table-td"><CompanyFlags company={c} /></td>
                     <td className="table-td"><StatusChip tone={c.status === 'active' ? 'good' : 'neutral'} className="!text-xs">{c.status === 'active' ? 'Active' : 'Inactive'}</StatusChip></td>
                     <td className="table-td num">{c.contactCount}</td>

@@ -4,6 +4,7 @@ import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import ContactPicker from '../portal/ContactPicker';
 import AdminChips from '../portal/AdminChips';
+import { suggestCode, cleanCode } from '../../utils/codes';
 
 // Client portal (7a): a department's admins see all of its tickets in the
 // portal. Read for anyone who sees the tab; changed with portal.manage.
@@ -69,6 +70,8 @@ export default function CompanyDepartments({ company }) {
   const [departments, setDepartments] = useState([]);
   const [name, setName] = useState('');
   const [shortCode, setShortCode] = useState('');
+  // The code follows the name until someone types their own.
+  const [codeTouched, setCodeTouched] = useState(false);
   const [error, setError] = useState('');
   const load = useCallback(() => {
     api.get('/departments', { params: { companyId: company.id } }).then(({ data }) => setDepartments(data.departments)).catch((err) => setError(errMessage(err)));
@@ -79,9 +82,10 @@ export default function CompanyDepartments({ company }) {
     e.preventDefault();
     setError('');
     try {
-      await api.post('/departments', { name, companyId: company.id, ...(company.isInternal ? { shortCode } : {}) });
+      await api.post('/departments', { name, companyId: company.id, ...(shortCode ? { shortCode } : {}) });
       setName('');
       setShortCode('');
+      setCodeTouched(false);
       load();
     } catch (err) {
       setError(errMessage(err));
@@ -95,6 +99,15 @@ export default function CompanyDepartments({ company }) {
     if (!next || !next.trim() || next.trim() === d.name) return;
     setError('');
     try { await api.patch(`/departments/${d.id}`, { name: next.trim() }); load(); } catch (err) { setError(errMessage(err)); }
+  };
+  // Every department has a code (CN): it sits in project numbers (WC-HR-P0007).
+  const recode = async (d) => {
+    const next = window.prompt(`Code for "${d.name}" (1 to 6 letters or digits):`, d.shortCode || '');
+    if (next === null) return;
+    const clean = cleanCode(next);
+    if (!clean || clean === d.shortCode) return;
+    setError('');
+    try { await api.patch(`/departments/${d.id}`, { shortCode: clean }); load(); } catch (err) { setError(errMessage(err)); }
   };
   const remove = async (d) => {
     if (!window.confirm(`Delete the department "${d.name}"? Its contacts and assets stay, with no department.`)) return;
@@ -118,6 +131,7 @@ export default function CompanyDepartments({ company }) {
             {canAdd && (
               <span className={`flex flex-shrink-0 gap-3 ${portalAdmins ? 'sm:ml-auto' : 'ml-3'}`}>
                 <button type="button" className="text-xs text-prism hover:underline" onClick={() => rename(d)} aria-label={`Rename ${d.name}`}>Rename</button>
+                <button type="button" className="text-xs text-prism hover:underline" onClick={() => recode(d)} aria-label={`Change ${d.name}'s code`}>Code</button>
                 <button type="button" className="text-xs hover:underline" style={{ color: 'var(--color-danger)' }} onClick={() => remove(d)} aria-label={`Delete ${d.name}`}>Delete</button>
               </span>
             )}
@@ -127,8 +141,8 @@ export default function CompanyDepartments({ company }) {
       </ul>
       {canAdd && (
         <form onSubmit={add} className="flex flex-wrap gap-2">
-          <input aria-label="Department name" className="input h-9 text-sm" placeholder="Department name" value={name} onChange={(e) => setName(e.target.value)} />
-          {company.isInternal && <input aria-label="Short code" className="input h-9 w-28 text-sm uppercase" placeholder="Code" value={shortCode} onChange={(e) => setShortCode(e.target.value.toUpperCase())} />}
+          <input aria-label="Department name" className="input h-9 text-sm" placeholder="Department name" value={name} onChange={(e) => { setName(e.target.value); if (!codeTouched) setShortCode(suggestCode(e.target.value, { single: 3 })); }} />
+          <input aria-label="Department code" className="input h-9 w-24 font-mono text-sm" placeholder="Code" value={shortCode} onChange={(e) => { setCodeTouched(true); setShortCode(cleanCode(e.target.value)); }} />
           <button type="submit" className="btn-secondary h-9 px-3 text-sm" disabled={!name.trim()}>Add department</button>
         </form>
       )}

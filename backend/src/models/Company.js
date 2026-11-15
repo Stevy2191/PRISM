@@ -8,6 +8,18 @@ module.exports = (sequelize) => {
     {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       name: { type: DataTypes.STRING(150), allowNull: false },
+      // Its short code (CN): starts its ticket and project numbers (WC-T0042,
+      // WC-HR-P0007). Unique; previousCodes still find its old numbers.
+      code: { type: DataTypes.STRING(6), allowNull: true, unique: true },
+      previousCodes: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        get() {
+          const v = this.getDataValue('previousCodes');
+          if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+          return v ?? [];
+        },
+      },
       isInternal: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isClient: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isVendor: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },

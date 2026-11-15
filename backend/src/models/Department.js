@@ -21,7 +21,8 @@ module.exports = (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
-      // Short code used in project IDs (e.g. "IT", "HR", "MNT").
+      // Short code (HR, FIN): every department has one, unique within its
+      // company; it sits in project numbers (WC-HR-P0007).
       shortCode: {
         type: DataTypes.STRING(10),
         allowNull: true,

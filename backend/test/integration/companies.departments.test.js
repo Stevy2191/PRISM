@@ -33,15 +33,22 @@ const grant = async (user, permissionKey) => expectOk(
 
 it('a client can have a department named like one of yours', async () => {
   const res = expectOk(await a().post(`${API}/departments`).send({ name: 'Service Desk', companyId: acme.id }), 201).department;
-  expect(res).toEqual(expect.objectContaining({ companyId: acme.id, shortCode: null }));
+  // CN: its own code, suggested from the name; the same code as yours is fine.
+  expect(res).toEqual(expect.objectContaining({ companyId: acme.id, shortCode: 'SD' }));
 });
 
 it('names are unique within a company', async () => {
   expectErr(await a().post(`${API}/departments`).send({ name: 'hr', companyId: acme.id }), 409, 'DEPARTMENT_NAME_TAKEN', 'This company already has a department with that name');
 });
 
-it('internal departments still need a short code; client ones don\'t', async () => {
-  expectErr(await a().post(`${API}/departments`).send({ name: 'Ops' }), 400, 'VALIDATION_ERROR', 'Short code is required (used to prefix this department\'s project IDs)');
+it('every department has a code: suggested when left out, unique within its company only (CN)', async () => {
+  const ops = expectOk(await a().post(`${API}/departments`).send({ name: 'Human Resources', companyId: acme.id }), 201).department;
+  const again = expectOk(await a().post(`${API}/departments`).send({ name: 'Human Relations', companyId: acme.id }), 201).department;
+  expect([ops.shortCode, again.shortCode]).toEqual(['HR2', 'HR3']);
+  expectErr(await a().post(`${API}/departments`).send({ name: 'Legal', shortCode: 'HR', companyId: acme.id }), 409, 'SHORT_CODE_TAKEN', 'Code "HR" is already used by another department of this company');
+  expect(expectOk(await a().post(`${API}/departments`).send({ name: 'People', shortCode: 'hr' }), 201).department.shortCode).toBe('HR');
+  expect((await a().post(`${API}/departments`).send({ name: 'Bad', shortCode: 'H-R', companyId: acme.id })).status).toBe(400);
+  expect((await a().patch(`${API}/departments/${ops.id}`).send({ shortCode: '' })).status).toBe(400);
 });
 
 it('client departments need companies.manage; internal ones keep people.manage_departments', async () => {

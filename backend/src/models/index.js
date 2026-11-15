@@ -790,6 +790,20 @@ Company.addHook('afterUpdate', 'portalClosed', async (company) => {
   const closed = (company.changed('portalEnabled') && !company.portalEnabled) || (company.changed('status') && company.status !== 'active');
   if (closed) await require('../services/portal/sessions').destroyCompanyPortalSessions(company.id); // eslint-disable-line global-require
 });
+// CN: a code from its name when it has none (WC, WC2, ...), and an old code
+// kept when it changes, so its old ticket and project numbers still find it.
+Company.addHook('beforeCreate', 'code', async (company, options) => {
+  if (company.code) { company.code = String(company.code).toUpperCase(); return; }
+  const { suggestCode, uniqueCode } = require('../services/codes'); // eslint-disable-line global-require
+  const rows = await Company.findAll({ attributes: ['code', 'previousCodes'], transaction: options && options.transaction });
+  company.code = uniqueCode(suggestCode(company.name), rows.flatMap((r) => [r.code, ...r.previousCodes]), 6);
+});
+Company.addHook('beforeUpdate', 'previousCode', (company) => {
+  if (!company.changed('code')) return;
+  const old = company.previous('code');
+  if (!old || old === company.code) return;
+  company.previousCodes = [...new Set([old, ...company.previousCodes])].filter((c) => c !== company.code);
+});
 // CS: and its own portal link, from its name (acme, acme-2, ...).
 Company.addHook('beforeCreate', 'portalSlug', async (company, options) => {
   if (company.portalSlug) return;

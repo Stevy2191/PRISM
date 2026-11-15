@@ -85,7 +85,7 @@ export default function CompanyPage() {
       <div>
         <Breadcrumbs items={[{ label: 'Companies', to: '/companies' }, { label: company.name }]} />
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="page-title min-w-0 break-words">{company.name}</h1>
+          <h1 className="page-title min-w-0 break-words">{company.name}{company.code && <span className="ml-2 align-middle font-mono text-sm font-medium text-navy-400" aria-label={`Code ${company.code}`}>{company.code}</span>}</h1>
           <CompanyFlags company={company} />
           {company.status !== 'active' && <StatusChip tone="neutral">Inactive</StatusChip>}
         </div>

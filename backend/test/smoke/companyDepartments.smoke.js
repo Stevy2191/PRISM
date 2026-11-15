@@ -82,3 +82,21 @@ it('your company\'s address under Companies leads to Settings', async () => {
   await page.waitForURL(/\/settings\/your-company\?part=departments/);
   await page.getByText(w.deptA.name, { exact: true }).waitFor();
 });
+
+it('a client\'s new department gets a code from its name, and the code can be changed (CN)', async () => {
+  const page = await smoke.pageAs('admin', undefined, DESKTOP);
+  await page.goto(`/companies/${acme.id}`);
+  await openCompanyTab(page, 'People', 'Departments');
+  await page.getByLabel('Department name').fill('Tax Office');
+  expect(await page.getByLabel('Department code').inputValue()).toBe('TO');
+  await page.getByLabel('Department code').fill('tax');
+  expect(await page.getByLabel('Department code').inputValue()).toBe('TAX');
+  await page.getByLabel('Department name').press('Enter');
+  await page.getByText('TAX', { exact: true }).waitFor();
+  expect((await models.Department.findOne({ where: { companyId: acme.id, name: 'Tax Office' } })).shortCode).toBe('TAX');
+
+  page.once('dialog', (d) => d.accept('PPL'));
+  await page.getByRole('button', { name: "Change HR's code" }).click();
+  await page.getByText('PPL', { exact: true }).waitFor();
+  expect((await models.Department.findOne({ where: { companyId: acme.id, name: 'HR' } })).shortCode).toBe('PPL');
+});

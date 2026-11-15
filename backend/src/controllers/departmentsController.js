@@ -1,4 +1,5 @@
 const { fn, col, Op } = require('sequelize');
+const { suggestCode, uniqueCode, isValidCode } = require('../services/codes');
 const {
   Department, User, Role, Company, Contact, Asset, License, Contract, sequelize,
 } = require('../models');
@@ -51,22 +52,29 @@ async function loadAccessibleDepartment(req, options = {}) {
 }
 const SHORT_CODE_MAX = 6;
 
-// Normalizes + validates a short code (uppercase, max 6 chars, unique across
-// departments — used to prefix project IDs like IT-P00001, so a collision
-// would make two departments' project numbering ambiguous). excludeId lets
-// update() check uniqueness against every *other* department.
-async function normalizeShortCode(shortCode, excludeId) {
+// Normalizes + validates a department's code (CN: HR, FIN): letters and
+// digits, at most 6, unique within its company (it sits in project numbers,
+// WC-HR-P0007; Acme can have its own HR). excludeId lets update() check
+// against every *other* department.
+async function normalizeShortCode(shortCode, companyId, excludeId) {
   const trimmed = shortCode.trim().toUpperCase();
-  if (trimmed.length > SHORT_CODE_MAX) {
-    throw new ApiError(400, `Short code must be ${SHORT_CODE_MAX} characters or fewer`, 'VALIDATION_ERROR');
+  if (!isValidCode(trimmed, { min: 1, max: SHORT_CODE_MAX })) {
+    throw new ApiError(400, `A department code is 1 to ${SHORT_CODE_MAX} letters or digits`, 'VALIDATION_ERROR');
   }
-  const where = { shortCode: trimmed };
+  const where = { shortCode: trimmed, companyId };
   if (excludeId) where.id = { [Op.ne]: excludeId };
   const existing = await Department.findOne({ where });
   if (existing) {
-    throw new ApiError(409, `Short code "${trimmed}" is already used by another department`, 'SHORT_CODE_TAKEN');
+    throw new ApiError(409, `Code "${trimmed}" is already used by another department of this company`, 'SHORT_CODE_TAKEN');
   }
   return trimmed;
+}
+
+// The code a new department gets when none is given: from its name, unique
+// within its company (Human Resources → HR, a second → HR2).
+async function suggestDepartmentCode(name, companyId) {
+  const taken = (await Department.findAll({ where: { companyId }, attributes: ['shortCode'] })).map((d) => d.shortCode);
+  return uniqueCode(suggestCode(name, { max: SHORT_CODE_MAX, single: 3 }), taken, SHORT_CODE_MAX);
 }
 
 async function memberCounts() {
@@ -145,12 +153,11 @@ const create = asyncHandler(async (req, res) => {
   if (!name || !name.trim()) {
     throw new ApiError(400, 'Department name is required', 'VALIDATION_ERROR');
   }
-  // Only internal departments own projects, so only they need a short code.
-  if (company.isInternal && (!shortCode || !shortCode.trim())) {
-    throw new ApiError(400, 'Short code is required (used to prefix this department\'s project IDs)', 'VALIDATION_ERROR');
-  }
   await assertNameFreeInCompany(name.trim(), company.id);
-  const normalizedShortCode = shortCode && shortCode.trim() ? await normalizeShortCode(shortCode) : null;
+  // Every department has a code (CN), suggested from its name when not given.
+  const normalizedShortCode = shortCode && shortCode.trim()
+    ? await normalizeShortCode(shortCode, company.id)
+    : await suggestDepartmentCode(name.trim(), company.id);
   const resolvedDefaultRoleId = defaultRoleId ? await resolveDefaultRole(req, defaultRoleId) : null;
   const department = await Department.create({
     companyId: company.id,
@@ -186,7 +193,8 @@ const update = asyncHandler(async (req, res) => {
   }
   if (description !== undefined) changes.description = description;
   if (shortCode !== undefined) {
-    changes.shortCode = shortCode ? await normalizeShortCode(shortCode, department.id) : null;
+    if (!shortCode || !String(shortCode).trim()) throw new ApiError(400, 'A department needs a code', 'VALIDATION_ERROR');
+    changes.shortCode = await normalizeShortCode(shortCode, department.companyId, department.id);
   }
   if (defaultRoleId !== undefined) {
     // Re-sending the current default (the whole form comes back) isn't a grant.
@@ -225,5 +233,5 @@ const remove = asyncHandler(async (req, res) => {
 module.exports = {
   list, owners, create, get, update, remove,
   // For Microsoft 365's "Create department" (7b): the same checks.
-  assertCanManageDepartmentsOf, assertNameFreeInCompany, normalizeShortCode,
+  assertCanManageDepartmentsOf, assertNameFreeInCompany, normalizeShortCode, suggestDepartmentCode,
 };

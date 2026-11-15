@@ -5,6 +5,7 @@ import { useCompanySummary } from '../../context/CompanyContext';
 import { useToast } from '../../context/ToastContext';
 import Notice from '../ui/Notice';
 import { formatPhone } from '../../utils/formatPhone';
+import { cleanCode } from '../../utils/codes';
 
 // Overview tab: the company's fields, email domains and account manager.
 export default function CompanyOverview({ company, onSaved }) {
@@ -13,7 +14,7 @@ export default function CompanyOverview({ company, onSaved }) {
   const { showToast } = useToast();
   const canManage = hasPermission('companies.manage');
   const [form, setForm] = useState({
-    name: company.name, isClient: company.isClient, isVendor: company.isVendor, status: company.status,
+    name: company.name, code: company.code || '', isClient: company.isClient, isVendor: company.isVendor, status: company.status,
     phone: formatPhone(company.phone || ''), website: company.website || '', notes: company.notes || '',
     accountManagerId: company.accountManagerId || '',
   });
@@ -66,7 +67,13 @@ export default function CompanyOverview({ company, onSaved }) {
       <section className="card min-w-0">
       <h2 className="panel-header text-[15px] font-semibold text-navy-900">Details</h2>
       <form onSubmit={save} className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-        <div><label className="label" htmlFor="co-name">Name</label><input id="co-name" className="input" value={form.name} disabled={!canManage} onChange={set('name')} /></div>
+        <div className="flex gap-3">
+          <div className="min-w-0 flex-1"><label className="label" htmlFor="co-name">Name</label><input id="co-name" className="input" value={form.name} disabled={!canManage} onChange={set('name')} /></div>
+          <div className="w-28">
+            <label className="label" htmlFor="co-code">Code</label>
+            <input id="co-code" className="input font-mono" value={form.code} disabled={!canManage} onChange={(e) => setForm((f) => ({ ...f, code: cleanCode(e.target.value) }))} />
+          </div>
+        </div>
         <div>
           <label className="label" htmlFor="co-manager">Account manager</label>
           <select id="co-manager" className="input" value={form.accountManagerId} disabled={!canManage} onChange={set('accountManagerId')}>

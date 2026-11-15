@@ -11,6 +11,8 @@ import { useSettings } from '../../context/SettingsContext';
 import Spinner from '../../components/Spinner';
 import SettingsPage, { SettingsPanel, SettingsRow } from '../../components/settings/SettingsPage';
 import SaveBar, { isDirty } from '../../components/settings/SaveBar';
+import { useCompanySummary } from '../../context/CompanyContext';
+import { cleanCode } from '../../utils/codes';
 
 const KEYS = ['company.name', 'company.timezone', 'branding.appName', 'branding.tagline'];
 const DEFAULTS = { 'company.timezone': 'UTC', 'branding.appName': 'PRISM' };
@@ -46,6 +48,14 @@ export default function CompanyProfile({ embedded = false, onSaved = null }) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Your own company's code (CN): starts its ticket and project numbers.
+  const { internalId } = useCompanySummary();
+  const [code, setCode] = useState('');
+  const [savedCode, setSavedCode] = useState('');
+  useEffect(() => {
+    if (!internalId) return;
+    api.get(`/companies/${internalId}`).then(({ data }) => { setCode(data.company.code || ''); setSavedCode(data.company.code || ''); }).catch(() => {});
+  }, [internalId]);
 
   useEffect(() => {
     api.get('/settings').then(({ data }) => {
@@ -61,7 +71,7 @@ export default function CompanyProfile({ embedded = false, onSaved = null }) {
 
   if (!form) return error ? <div className="rounded-md bg-red-50 p-4 text-red-700">{error}</div> : <Spinner />;
 
-  const dirty = isDirty({ f: form, b: bullets }, snapshot);
+  const dirty = isDirty({ f: form, b: bullets }, snapshot) || code !== savedCode;
   const set = (k) => (e) => { setSaved(false); setForm((f) => ({ ...f, [k]: e.target.value })); };
   const setList = (next) => { setSaved(false); setBullets(next); };
 
@@ -70,6 +80,10 @@ export default function CompanyProfile({ embedded = false, onSaved = null }) {
     setSaving(true);
     setError('');
     try {
+      if (internalId && code !== savedCode) {
+        await api.patch(`/companies/${internalId}`, { code });
+        setSavedCode(code);
+      }
       await api.patch('/settings', { settings: { ...form, 'branding.loginBullets': JSON.stringify(bullets) } });
       await refresh();
       setSnapshot({ f: form, b: bullets });
@@ -124,6 +138,9 @@ export default function CompanyProfile({ embedded = false, onSaved = null }) {
           <SettingsPanel title="Details">
             <SettingsRow label="Company name" htmlFor="company-name" help="Shown in email footers and reports, and as your own company under Companies & vendors.">
               <input id="company-name" className="input" value={form['company.name']} onChange={set('company.name')} required />
+            </SettingsRow>
+            <SettingsRow label="Company code" htmlFor="company-code" help={`Starts your own tickets' and projects' numbers: ${code || 'LIT'}-T0001, ${code || 'LIT'}-SD-P0001. Old numbers keep working if you change it.`}>
+              <input id="company-code" className="input w-28 font-mono" value={code} onChange={(e) => { setSaved(false); setCode(cleanCode(e.target.value)); }} required />
             </SettingsRow>
             <SettingsRow label="App name" htmlFor="app-name" help="Shown in the top bar, the login page and the browser tab.">
               <input id="app-name" className="input" value={form['branding.appName']} onChange={set('branding.appName')} />

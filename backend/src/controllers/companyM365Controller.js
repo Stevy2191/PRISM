@@ -186,14 +186,14 @@ const createFromDetected = asyncHandler(async (req, res) => {
   const row = await loadDetected(req, company);
   await departments.assertCanManageDepartmentsOf(req.user, company);
   const { shortCode } = req.body || {};
-  if (company.isInternal && (typeof shortCode !== 'string' || !shortCode.trim())) {
-    throw new ApiError(400, 'Short code is required (used to prefix this department\'s project IDs)', 'VALIDATION_ERROR');
-  }
   await departments.assertNameFreeInCompany(row.name, company.id);
+  // Every department has a code (CN), suggested from its name when not given.
   const department = await Department.create({
     companyId: company.id,
     name: row.name,
-    shortCode: typeof shortCode === 'string' && shortCode.trim() ? await departments.normalizeShortCode(shortCode) : null,
+    shortCode: typeof shortCode === 'string' && shortCode.trim()
+      ? await departments.normalizeShortCode(shortCode, company.id)
+      : await departments.suggestDepartmentCode(row.name, company.id),
   });
   await writeAudit(req, 'department.create', 'Department', department.id, { name: department.name, via: 'microsoft365' });
   res.status(201).json(await mapAndApply(req, company, row, department, 'company.m365_department_created'));

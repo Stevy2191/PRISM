@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import Spinner from '../components/Spinner';
 import { useCompanySummary } from '../context/CompanyContext';
 import SettingsPage from '../components/settings/SettingsPage';
+import { suggestCode, cleanCode } from '../utils/codes';
 
 // The Settings page frame, or (on the company page) just the button row.
 function Frame({ embedded, actions, children }) {
@@ -39,6 +40,8 @@ export default function AdminDepartments({ embedded = false }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [shortCodeError, setShortCodeError] = useState('');
+  // A new department's code follows its name until someone types their own.
+  const [codeTouched, setCodeTouched] = useState(false);
 
   const load = () => {
     Promise.all([api.get('/departments'), api.get('/roles')])
@@ -54,6 +57,7 @@ export default function AdminDepartments({ embedded = false }) {
     setEditingId(null);
     setFormError('');
     setShortCodeError('');
+    setCodeTouched(false);
     setShowForm(true);
   };
 
@@ -141,22 +145,22 @@ export default function AdminDepartments({ embedded = false }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="label">Name</label>
-              <input className="input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
+              <input className="input" value={form.name} onChange={(e) => { const value = e.target.value; setForm((f) => ({ ...f, name: value, ...(editingId || codeTouched ? {} : { shortCode: suggestCode(value, { single: 3 }) }) })); }} required />
             </div>
             <div>
-              <label className="label">Short code <span className="text-red-500">*</span></label>
+              <label className="label">Code <span className="text-red-500">*</span></label>
               <input
                 className={`input uppercase ${shortCodeError ? 'border-red-400' : ''}`}
                 value={form.shortCode}
                 maxLength={6}
                 placeholder="e.g. IT, HR, MNT"
-                onChange={(e) => { setForm((f) => ({ ...f, shortCode: e.target.value.toUpperCase() })); setShortCodeError(''); }}
+                onChange={(e) => { setCodeTouched(true); setForm((f) => ({ ...f, shortCode: cleanCode(e.target.value) })); setShortCodeError(''); }}
                 required
               />
               {shortCodeError ? (
                 <p className="mt-1 text-xs text-red-600">{shortCodeError}</p>
               ) : (
-                <p className="mt-1 text-xs text-navy-400">Up to 6 characters, used to prefix this department's project IDs (e.g. IT-P00001).</p>
+                <p className="mt-1 text-xs text-navy-400">Up to 6 letters or digits, suggested from the name. It sits in this department's project numbers.</p>
               )}
             </div>
           </div>

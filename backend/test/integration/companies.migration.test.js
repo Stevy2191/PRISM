@@ -24,6 +24,8 @@ const companySla = require('../../migrations/20260101000091-company-sla');
 const companyPortal = require('../../migrations/20260101000092-company-portal');
 // CS: a column on 080's Playbooks.
 const bundleExcept = require('../../migrations/20260101000093-bundle-except-companies');
+// CN: each company's code, on Companies.
+const companyCodes = require('../../migrations/20260101000096-company-codes');
 
 // down() drops Companies, which 072's portal-admin and KB-audience tables and
 // 073's Microsoft 365 columns and detected departments, and 074's agent
@@ -31,6 +33,7 @@ const bundleExcept = require('../../migrations/20260101000093-bundle-except-comp
 // down refuses).
 const migration = {
   down: async (...args) => {
+    await companyCodes.down(...args);
     await bundleExcept.down(...args);
     await companyPortal.down(...args);
     await companySla.down(...args);
@@ -41,7 +44,7 @@ const migration = {
     await agent.down(...args);
     await m365.down(...args);
     await portal.down(...args);
-    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); await companySla.up(...args); await companyPortal.up(...args); await bundleExcept.up(...args); throw e; }
+    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); await companySla.up(...args); await companyPortal.up(...args); await bundleExcept.up(...args); await companyCodes.up(...args); throw e; }
   },
   up: async (...args) => {
     await base.up(...args);
@@ -58,6 +61,7 @@ const migration = {
     await companySla.up(...args);
     await companyPortal.up(...args);
     await bundleExcept.up(...args);
+    await companyCodes.up(...args);
   },
 };
 

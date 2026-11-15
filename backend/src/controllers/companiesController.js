@@ -10,6 +10,7 @@ const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { normalizePhone } = require('../utils/phone');
+const { isValidCode } = require('../services/codes');
 const {
   canAccessCompany, companyScopeWhere, parseRecordId, invalidateAllPermissions, hasPermission,
 } = require('../services/permissionService');
@@ -51,11 +52,24 @@ function normalizeWebsite(raw) {
 
 // Builds the writable fields from a request body. isInternal and id are
 // never taken from a body.
+// A company's code (CN): 2-6 letters or digits, unique across companies,
+// and not another company's old code (its old numbers must still find it).
+async function readCompanyCode(raw, existing) {
+  const code = String(raw || '').trim().toUpperCase();
+  if (!isValidCode(code)) throw new ApiError(400, 'A company code is 2 to 6 letters or digits', 'VALIDATION_ERROR');
+  if (existing && existing.code === code) return code;
+  const others = await Company.findAll({ attributes: ['id', 'code', 'previousCodes'] });
+  const clash = others.find((c) => (!existing || c.id !== existing.id) && (c.code === code || c.previousCodes.includes(code)));
+  if (clash) throw new ApiError(409, `Another company uses the code ${code}`, 'CODE_TAKEN');
+  return code;
+}
+
 async function readFields(body, existing) {
   const out = {};
   if (body.name !== undefined || !existing) out.name = normalizeName(body.name);
   if (body.isClient !== undefined) out.isClient = !!body.isClient;
   if (body.isVendor !== undefined) out.isVendor = !!body.isVendor;
+  if (body.code !== undefined) out.code = await readCompanyCode(body.code, existing);
   if (body.phone !== undefined) out.phone = normalizePhone(body.phone);
   if (body.website !== undefined) out.website = normalizeWebsite(body.website);
   if (body.notes !== undefined) out.notes = body.notes || null;
