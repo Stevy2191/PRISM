@@ -233,7 +233,7 @@ describe('Service desk and Hours & SLAs in the frame', () => {
       ['/settings/statuses', 'Statuses'], ['/settings/layouts', 'Custom fields'], ['/admin/blueprints', 'Ticket templates'],
       ['/settings/workflow-rules', 'Workflow rules'],
       ['/settings/workflow-rules/new', 'New workflow rule'], ['/settings/notifications', 'Notifications'],
-      ['/settings/customer-happiness', 'Customer happiness'],
+      ['/settings/customer-happiness', 'Satisfaction surveys'],
       ['/settings/starting-values', 'Starting values for new companies'], ['/settings/work-hours', 'Staff hours'],
     ]) await framed(page, path, title); // eslint-disable-line no-await-in-loop
   });

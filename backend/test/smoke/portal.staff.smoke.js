@@ -155,7 +155,7 @@ it("a company's Surveys part: on for a new company, switched off, and its recent
   await sw.click();
   await page.waitForFunction(() => document.querySelector('[role="switch"][aria-label="Send surveys"]')?.getAttribute('aria-checked') === 'false');
   expect((await models.Company.findByPk(alpha.id)).csatEnabled).toBe(false);
-  await page.getByRole('link', { name: 'Customer happiness' }).waitFor();
+  await page.getByRole('link', { name: 'Satisfaction surveys' }).waitFor();
   await page.context().close();
 });
 
