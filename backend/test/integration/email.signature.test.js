@@ -74,7 +74,7 @@ it('auto-reply and csat survey use their templates', async () => {
   await sendAutoReply(await models.Ticket.findByPk(ticket.id), contact);
   const auto = sendMail.mock.calls[0][0];
   expect(auto).toEqual(expect.objectContaining({
-    to: [contact.email], subject: 'Got it, Casey [Ticket #00001]', headers: { 'X-PRISM-Ticket-ID': '00001' },
+    to: [contact.email], subject: 'Got it, Casey [Ticket #LITS-T0001]', headers: { 'X-PRISM-Ticket-ID': '00001' },
   }));
   expect(auto.html).toContain('<p>Thanks Casey</p>');
 
@@ -85,7 +85,7 @@ it('auto-reply and csat survey use their templates', async () => {
   const survey = await models.CsatSurvey.findOne({ where: { ticketId: ticket.id } });
   await runChecks();
   const mail = sendMail.mock.calls.find(([m]) => /How did we do\?/.test(m.subject))[0];
-  expect(mail.subject).toBe('How did we do? [Ticket #00001] Printer offline');
+  expect(mail.subject).toBe('How did we do? [LITS-T0001] Printer offline');
   expect(mail.html).toContain(`/survey/${survey.surveyToken}?rating=5`);
   expect(mail.html).toContain('Happy &lt;yes&gt;?');
   expect(mail.text).toContain(`/survey/${survey.surveyToken}`);
@@ -106,6 +106,6 @@ it('contact_resolved is off by default and sends once enabled', async () => {
   expectOk(await w.admin.agent.patch(`${API}/tickets/${ticket.id}`).send({ status: 'Closed' }));
   await waitFor(() => sendMail.mock.calls.length === 1);
   const mail = sendMail.mock.calls[0][0];
-  expect(mail).toEqual(expect.objectContaining({ to: [w.contact.email], subject: 'Your request is resolved [Ticket #00001] Printer offline' }));
+  expect(mail).toEqual(expect.objectContaining({ to: [w.contact.email], subject: 'Your request is resolved [Ticket #LITS-T0001] Printer offline' }));
   expect(mail.html).toContain('Done: Closed');
 });
