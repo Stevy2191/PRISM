@@ -1,3 +1,4 @@
+import { p } from './api';
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { IconMenu2, IconX } from '@tabler/icons-react';
@@ -6,7 +7,7 @@ import { usePortalAuth } from './PortalAuth';
 // The portal frame (mockups Tickets / Phone): brand "· Support", Tickets and
 // Knowledge base, who is signed in and Sign out; on a phone a menu button
 // and tabs under the bar.
-export function Brand({ config, to = '/portal/tickets', support = true }) {
+export function Brand({ config, to = p('/tickets'), support = true }) {
   const name = config?.branding?.appName || 'PRISM';
   const logo = config?.branding?.logoUrl;
   return (
@@ -34,7 +35,7 @@ export default function PortalLayout() {
   const out = async () => {
     setMenuOpen(false);
     await signOut();
-    navigate('/portal/sign-in', { replace: true });
+    navigate(p('/sign-in'), { replace: true });
   };
 
   return (
@@ -43,8 +44,8 @@ export default function PortalLayout() {
         <div className="mx-auto flex h-[60px] max-w-[1120px] items-center gap-7 px-4 sm:px-6">
           <Brand config={config} />
           <nav aria-label="Portal" className="hidden gap-1 md:flex">
-            <NavLink to="/portal/tickets" className={navCls} style={navStyle}>Tickets</NavLink>
-            <NavLink to="/portal/kb" className={navCls} style={navStyle}>Knowledge base</NavLink>
+            <NavLink to={p('/tickets')} className={navCls} style={navStyle}>Tickets</NavLink>
+            <NavLink to={p('/kb')} className={navCls} style={navStyle}>Knowledge base</NavLink>
           </nav>
           <div className="ml-auto hidden items-center gap-3 md:flex">
             <div className="min-w-0 text-right">
@@ -73,8 +74,8 @@ export default function PortalLayout() {
           </div>
         )}
         <nav aria-label="Portal sections" className="flex gap-1 border-t px-4 py-2 md:hidden" style={{ borderColor: 'var(--color-border)' }}>
-          <NavLink to="/portal/tickets" className={(s) => `${navCls(s)} h-11 flex-1 justify-center`} style={navStyle}>Tickets</NavLink>
-          <NavLink to="/portal/kb" className={(s) => `${navCls(s)} h-11 flex-1 justify-center`} style={navStyle}>Knowledge base</NavLink>
+          <NavLink to={p('/tickets')} className={(s) => `${navCls(s)} h-11 flex-1 justify-center`} style={navStyle}>Tickets</NavLink>
+          <NavLink to={p('/kb')} className={(s) => `${navCls(s)} h-11 flex-1 justify-center`} style={navStyle}>Knowledge base</NavLink>
         </nav>
       </header>
       <main className="mx-auto max-w-[1120px] px-4 pb-16 pt-6 sm:px-6 sm:pt-8">

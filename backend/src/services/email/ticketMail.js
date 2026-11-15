@@ -62,16 +62,25 @@ async function ticketContext({
 const list = (v) => (Array.isArray(v) ? v : [v]).filter(Boolean);
 
 // Client portal (7a): which of these addresses belong to a contact who can
-// open this ticket in the portal (portal on, contact active with access,
-// ticket in their scope). Only they get the "View in the portal" link.
-async function portalLinkAddresses(ticket, addresses) {
-  if (!addresses.length) return new Set();
+// open this ticket in the portal (the ticket's company's portal open, contact
+// active with access, ticket in their scope). Only they get the "View in the
+// portal" link, which is that company's portal (CS).
+async function portalCompanyOf(ticket) {
   /* eslint-disable global-require */
-  const { isPortalEnabled, mayUsePortal } = require('../../middleware/portalAuth');
+  const { Company } = require('../../models');
+  const { portalOpen } = require('../portal/company');
+  /* eslint-enable global-require */
+  const company = ticket.companyId ? await Company.findByPk(ticket.companyId) : null;
+  return portalOpen(company) ? company : null;
+}
+
+async function portalLinkAddresses(ticket, addresses, company) {
+  if (!addresses.length || !company) return new Set();
+  /* eslint-disable global-require */
+  const { mayUsePortal } = require('../../middleware/portalAuth');
   const { canSeeTicket } = require('../portal/scope');
   /* eslint-enable global-require */
-  if (!(await isPortalEnabled())) return new Set();
-  const contacts = await Contact.findAll({ where: { email: addresses, status: 'active', portalAccess: true } });
+  const contacts = await Contact.findAll({ where: { email: addresses, status: 'active', portalAccess: true, companyId: company.id } });
   const out = new Set();
   for (const c of contacts) {
     // eslint-disable-next-line no-await-in-loop
@@ -80,8 +89,8 @@ async function portalLinkAddresses(ticket, addresses) {
   return out;
 }
 
-const portalFooter = (ticketId) => {
-  const url = `${surveyBaseUrl()}/portal/tickets/${ticketId}`;
+const portalFooter = (ticketId, company) => {
+  const url = `${surveyBaseUrl()}/portal/${encodeURIComponent(company.portalSlug)}/tickets/${ticketId}`;
   return {
     html: `<p style="margin-top:20px"><a href="${escapeHtml(url)}">View this request in the portal</a></p>`,
     text: `View this request in the portal: ${url}`,
@@ -104,7 +113,8 @@ async function sendTicketEmail(key, {
   });
   const out = await render(key, context);
   if (!out.enabled) return null;
-  const linked = CATALOG[key]?.audience === 'contact' ? await portalLinkAddresses(ticket, everyone) : new Set();
+  const portalCompany = CATALOG[key]?.audience === 'contact' ? await portalCompanyOf(ticket) : null;
+  const linked = await portalLinkAddresses(ticket, everyone, portalCompany);
   const withLink = everyone.filter((a) => linked.has(String(a).toLowerCase()));
   const without = everyone.filter((a) => !linked.has(String(a).toLowerCase()));
   const fromRow = await SystemSettings.findOne({ where: { key: 'smtp.fromEmail' } });
@@ -127,7 +137,7 @@ async function sendTicketEmail(key, {
     await sendMail(mail);
     return mail;
   }
-  const linkedOut = await render(key, context, undefined, { footer: portalFooter(ticket.id) });
+  const linkedOut = await render(key, context, undefined, { footer: portalFooter(ticket.id, portalCompany) });
   const linkedMail = copy(linkedOut, without.length ? withLink : null);
   await sendMail(linkedMail);
   if (without.length) await sendMail(copy(out, without));

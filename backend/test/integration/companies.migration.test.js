@@ -20,6 +20,8 @@ const companyCategories = require('../../migrations/20260101000084-company-ticke
 const notices = require('../../migrations/20260101000088-agent-notices');
 // CS: each company's SLA row points at Companies.
 const companySla = require('../../migrations/20260101000091-company-sla');
+// CS: each company's portal and survey columns, on Companies.
+const companyPortal = require('../../migrations/20260101000092-company-portal');
 
 // down() drops Companies, which 072's portal-admin and KB-audience tables and
 // 073's Microsoft 365 columns and detected departments, and 074's agent
@@ -27,6 +29,7 @@ const companySla = require('../../migrations/20260101000091-company-sla');
 // down refuses).
 const migration = {
   down: async (...args) => {
+    await companyPortal.down(...args);
     await companySla.down(...args);
     await notices.down(...args);
     await companyCategories.down(...args);
@@ -35,7 +38,7 @@ const migration = {
     await agent.down(...args);
     await m365.down(...args);
     await portal.down(...args);
-    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); await companySla.up(...args); throw e; }
+    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); await companySla.up(...args); await companyPortal.up(...args); throw e; }
   },
   up: async (...args) => {
     await base.up(...args);
@@ -50,6 +53,7 @@ const migration = {
     await companyCategories.up(...args);
     await notices.up(...args);
     await companySla.up(...args);
+    await companyPortal.up(...args);
   },
 };
 

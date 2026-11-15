@@ -784,6 +784,18 @@ Contact.addHook('afterUpdate', 'prunePortalAdminRoles', async (contact, options)
 // the same transaction, so a company never exists without one. Lazy: the
 // service needs this module.
 Company.addHook('afterCreate', 'ownSla', (company, options) => require('../services/sla/companySla').ensureCompanySla(company, options && options.transaction)); // eslint-disable-line global-require
+// CS: its portal switched off, or the company made inactive, ends every
+// session signed in to its portal.
+Company.addHook('afterUpdate', 'portalClosed', async (company) => {
+  const closed = (company.changed('portalEnabled') && !company.portalEnabled) || (company.changed('status') && company.status !== 'active');
+  if (closed) await require('../services/portal/sessions').destroyCompanyPortalSessions(company.id); // eslint-disable-line global-require
+});
+// CS: and its own portal link, from its name (acme, acme-2, ...).
+Company.addHook('beforeCreate', 'portalSlug', async (company, options) => {
+  if (company.portalSlug) return;
+  const { uniqueSlug } = require('../services/portal/company'); // eslint-disable-line global-require
+  company.portalSlug = await uniqueSlug(Company, company.name, { transaction: options && options.transaction });
+});
 
 require('./companyHooks')({
   Contact, Ticket, Department, Project, Asset, License, Contract, Site,

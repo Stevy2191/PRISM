@@ -119,6 +119,18 @@ const CATALOG = Object.freeze({
     placeholders: PORTAL,
     defaultEnabled: true,
   },
+  // Each company has its own portal (CS): someone at the plain /portal
+  // address asks for theirs.
+  contact_portal_link: {
+    audience: 'contact',
+    name: 'Portal link',
+    subject: 'Your {{org.name}} support portal link',
+    bodyHtml: '<p>Hi {{contact.firstName}},</p><p>Here is the link to your support portal. Bookmark it: it is the one address you sign in at.</p>'
+      + '<p><a href="{{portal.home}}">{{portal.home}}</a></p>'
+      + '<p style="color:#64748b">If you didn\'t ask for this, you can ignore this email.</p>',
+    placeholders: PORTAL,
+    defaultEnabled: true,
+  },
   staff_assigned: staff('Ticket assigned to you', '[Ticket #{{ticket.number}}] Assigned to you: {{ticket.title}}', '{{notification.message}}'),
   staff_reply: staff('New reply or comment', '[Ticket #{{ticket.number}}] New comment: {{ticket.title}}', '{{notification.message}}'),
   staff_watcher_update: staff('Update on a watched ticket', '[Ticket #{{ticket.number}}] Update: {{ticket.title}}', '{{notification.message}}'),

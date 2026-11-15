@@ -26,6 +26,7 @@ const {
 const { getSystemActorUserId } = require('../inboundEmailService');
 const { resolveContact } = require('./trayIdentity');
 const { orgTimeZone } = require('../../utils/orgTime');
+const { portalOpen } = require('../portal/company');
 
 const PLACEHOLDER_NAME = 'Unknown tray user';
 const MAX_DESCRIPTION = 20000;
@@ -63,10 +64,11 @@ async function placeholderFor(companyId) {
   });
 }
 
-// The help desk's own details, for the form and the offline message.
-async function helpdesk() {
+// The help desk's own details, for the form and the offline message. The
+// portal is the device's company's own (CS), while it is open.
+async function helpdesk(company) {
   const rows = await SystemSettings.findAll({
-    where: { key: ['branding.appName', 'company.name', 'portal.enabled', 'inboundEmail.enabled', 'inboundEmail.address'] },
+    where: { key: ['branding.appName', 'company.name', 'inboundEmail.enabled', 'inboundEmail.address'] },
     raw: true,
   });
   const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
@@ -74,7 +76,7 @@ async function helpdesk() {
   return {
     name: v['company.name'] || v['branding.appName'] || 'PRISM',
     email: v['inboundEmail.enabled'] === 'true' && v['inboundEmail.address'] ? v['inboundEmail.address'] : null,
-    portalUrl: v['portal.enabled'] === 'true' && base ? `${base}/portal` : null,
+    portalUrl: portalOpen(company) && base ? `${base}/portal/${encodeURIComponent(company.portalSlug)}` : null,
   };
 }
 
@@ -101,10 +103,10 @@ async function trayCategories(companyId) {
 async function whoami(device, query) {
   const user = parseUser(query);
   const asset = await deviceAsset(device);
-  const [company, contact, desk] = await Promise.all([
-    Company.findByPk(asset.companyId, { attributes: ['name'] }),
+  const company = await Company.findByPk(asset.companyId, { attributes: ['id', 'name', 'status', 'portalEnabled', 'portalSlug'] });
+  const [contact, desk] = await Promise.all([
     resolveContact(device, asset, user),
-    helpdesk(),
+    helpdesk(company),
   ]);
   let full = null;
   if (contact) full = await Contact.findByPk(contact.id, { include: [{ model: Department, as: 'department', attributes: ['name'] }] });

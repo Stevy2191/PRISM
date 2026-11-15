@@ -44,10 +44,11 @@ describe('a company gets its own SLA', () => {
 
   it("one company's change leaves every other company alone", async () => {
     const beta = await makeCompany(w.admin, { name: 'Beta Law' });
-    await setSla(w.admin, acme.id, { targets: [{ ticketType: 'request', priority: 'low', resolutionMinutes: 7 }] });
-    expect(expectOk(await w.admin.agent.get(slaUrl(beta.id))).sla.targets.request.low.resolutionMinutes).toBe(1440);
+    await setSla(w.admin, acme.id, { targets: [{ ticketType: 'request', priority: 'low', responseMinutes: 7 }] });
+    expect(expectOk(await w.admin.agent.get(slaUrl(acme.id))).sla.targets.request.low.responseMinutes).toBe(7);
+    expect(expectOk(await w.admin.agent.get(slaUrl(beta.id))).sla.targets.request.low.responseMinutes).toBe(1440);
     const own = await internalCompany();
-    expect(expectOk(await w.admin.agent.get(slaUrl(own.id))).sla.targets.request.low.resolutionMinutes).toBe(1440);
+    expect(expectOk(await w.admin.agent.get(slaUrl(own.id))).sla.targets.request.low.responseMinutes).toBe(1440);
   });
 
   it('goes with the company when it is deleted', async () => {
@@ -131,22 +132,22 @@ describe('access', () => {
 
 describe("tickets run on their company's SLA", () => {
   it('targets, support hours, holidays and the due date time zone are the company\'s', async () => {
-    freezeClock('2026-12-01T15:00:00.000Z'); // Tue 09:00 in Chicago
+    freezeClock('2026-03-03T15:00:00.000Z'); // Tue 09:00 in Chicago (CST)
     await setSla(w.admin, acme.id, {
       is24x7: false,
       timezone: 'America/Chicago',
       schedule: weekdays(),
       targets: [{ ticketType: 'incident', priority: 'high', resolutionMinutes: 600, useBusinessHours: true }],
     });
-    expectOk(await w.admin.agent.post(`${slaUrl(acme.id)}/holidays`).send({ name: 'Closed', date: '2026-12-02' }), 201);
+    expectOk(await w.admin.agent.post(`${slaUrl(acme.id)}/holidays`).send({ name: 'Closed', date: '2026-03-04' }), 201);
     const contact = await makeContact(w.admin, { companyId: acme.id });
     const t = await makeTicket(w.admin.agent, { title: 'Acme', contactId: contact.id, type: 'incident', priority: 'high' });
     const s = await TicketSla.findOne({ where: { ticketId: t.id } });
     expect(s.slaPolicyId).toBe((await slaRowOf(acme.id)).id);
-    // 8h Tuesday (09-17), Wednesday off, 2h Thursday: 11:00 Chicago on Thu 3 Dec.
-    expect(new Date(s.resolutionDueAt).toISOString()).toBe('2026-12-03T17:00:00.000Z');
+    // 8h Tuesday (09-17), Wednesday off, 2h Thursday: 11:00 Chicago on Thu 5 Mar.
+    expect(new Date(s.resolutionDueAt).toISOString()).toBe('2026-03-05T17:00:00.000Z');
     const fresh = await Ticket.findByPk(t.id);
-    expect([fresh.dueDate, String(fresh.dueTime).slice(0, 5)]).toEqual(['2026-12-03', '11:00']);
+    expect([fresh.dueDate, String(fresh.dueTime).slice(0, 5)]).toEqual(['2026-03-05', '11:00']);
     // Your company's tickets keep your SLA (around the clock).
     const ours = await makeTicket(w.admin.agent, { title: 'Ours', contactId: w.contact.id, type: 'incident', priority: 'high' });
     expect((await TicketSla.findOne({ where: { ticketId: ours.id } })).slaPolicyId).toBe((await slaRowOf((await internalCompany()).id)).id);

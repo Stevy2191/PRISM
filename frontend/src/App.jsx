@@ -147,11 +147,6 @@ function settingsElement(id, access) {
     : page;
 }
 
-function KbRedirect() {
-  const { slug } = useParams();
-  return <Navigate to={`/portal/kb/a/${encodeURIComponent(slug)}`} replace />;
-}
-
 export default function App() {
   return (
     <Routes>
@@ -161,11 +156,9 @@ export default function App() {
       <Route path="/survey/:token" element={<SurveyPage />} />
       {/* An install link (8d): public; the install key is the credential. */}
       <Route path="/install/:key" element={<InstallPage />} />
-      {/* The client portal (contacts sign in there; its own session and frame). */}
+      {/* The client portal: /portal, and each company's at /portal/<slug>
+          (contacts sign in there; its own session and frame). */}
       <Route path="/portal/*" element={<PortalApp />} />
-      {/* The old public Help Center lives in the portal now, behind sign-in. */}
-      <Route path="/kb" element={<Navigate to="/portal/kb" replace />} />
-      <Route path="/kb/a/:slug" element={<KbRedirect />} />
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

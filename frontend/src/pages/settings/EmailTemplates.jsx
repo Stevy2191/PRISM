@@ -127,9 +127,13 @@ export default function EmailTemplates() {
           <form onSubmit={save} className="card min-w-0 space-y-4 p-4" aria-label={`Edit ${detail.name}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-navy-900">{detail.name}</h2>
-              {detail.audience === 'staff' ? (
+              {detail.decidedBy === 'staff' && (
                 <span className="text-xs text-navy-500">Whether staff get this email is set in Notifications, and by each person in Preferences.</span>
-              ) : (
+              )}
+              {detail.decidedBy === 'company' && (
+                <span className="text-xs text-navy-500">Each company turns surveys on or off on its page, under Setup › Surveys.</span>
+              )}
+              {!detail.decidedBy && (
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"

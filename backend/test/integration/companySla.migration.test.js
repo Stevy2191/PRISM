@@ -47,8 +47,8 @@ it('gives each company a copy of its policy, with its hours, zone and holidays',
   // A rule that set a shared policy.
   await run("INSERT INTO WorkflowRules (name, triggerEvent, isActive, createdAt, updatedAt) VALUES ('Gold rule', 'ticket_created', 1, NOW(), NOW())");
   const [{ id: ruleId }] = await sel("SELECT id FROM WorkflowRules WHERE name = 'Gold rule'");
-  await run(`INSERT INTO WorkflowActions (ruleId, actionType, actionValue, position, createdAt, updatedAt)
-    VALUES (?, 'set_sla_policy', ?, 0, NOW(), NOW())`, [ruleId, JSON.stringify({ slaPolicyId: goldId })]);
+  await run(`INSERT INTO WorkflowActions (ruleId, actionType, actionValue, position, createdAt)
+    VALUES (?, 'set_sla_policy', ?, 0, NOW())`, [ruleId, JSON.stringify({ slaPolicyId: goldId })]);
 
   await migration.up(qi(), Sequelize);
 

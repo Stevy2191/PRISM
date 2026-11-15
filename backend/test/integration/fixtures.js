@@ -211,6 +211,17 @@ async function setEverySla(admin, fields) {
   for (const { companyId } of rows) if (companyId) await setSla(admin, companyId, fields); // eslint-disable-line no-await-in-loop
 }
 
+// CS: each company's own portal. openPortal() turns on every company's
+// (or the given ones'); portalApi(companyId) is that company's portal API
+// (your own company's by default), where its contacts sign in.
+async function openPortal(...companyIds) {
+  await models.Company.update({ portalEnabled: true }, companyIds.length ? { where: { id: companyIds } } : { where: {} });
+}
+async function portalApi(companyId) {
+  const company = companyId ? await models.Company.findByPk(companyId) : await models.Company.findOne({ where: { isInternal: true } });
+  return `${API}/portal/c/${company.portalSlug}`;
+}
+
 // The SLA row (SlaPolicy) a company's tickets use.
 const slaRowOf = (companyId) => models.SlaPolicy.findOne({ where: { companyId } });
 const internalCompany = () => models.Company.findOne({ where: { isInternal: true } });
@@ -220,4 +231,5 @@ module.exports = {
   makeContractor, makeContact, makeTicket, makeProject, makeTask, makeSubtask, makeTeam,
   setSettings, projectStatusId, taskStatusId, freezeClock, advanceClock, unfreezeClock, waitFor, makeWorld,
   LEDGER_NOW, makeLedger, makeCompany, setCompanyAccess, setSla, setEverySla, slaRowOf, internalCompany,
+  openPortal, portalApi,
 };

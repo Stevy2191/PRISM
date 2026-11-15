@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  IconArrowLeft, IconPencil, IconTrash, IconFile, IconUsers, IconLock, IconFolder, IconEye, IconExternalLink,
+  IconArrowLeft, IconPencil, IconTrash, IconFile, IconUsers, IconLock, IconFolder, IconEye,
 } from '@tabler/icons-react';
 import api, { errMessage } from '../api/api';
 import { usePermission } from '../context/AuthContext';
@@ -56,7 +56,6 @@ export default function ArticleView() {
 
   const published = article.status === 'published';
   const isPublic = article.visibility === 'portal';
-  const onPortal = published && isPublic;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -90,11 +89,6 @@ export default function ArticleView() {
           {article.author && <span>By {article.author.displayName}</span>}
           <span>· Updated {fmtDate(article.updatedAt)}</span>
           <span className="flex items-center gap-1"><IconEye size={13} /> {article.viewCount}</span>
-          {onPortal && (
-            <a href={`/kb/a/${article.slug}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline" style={{ color: 'var(--color-accent)' }}>
-              <IconExternalLink size={13} /> View on portal
-            </a>
-          )}
         </div>
       </div>
 

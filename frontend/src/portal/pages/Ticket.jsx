@@ -2,7 +2,7 @@ import { submitOnEnter, ENTER_HINT } from '../../utils/sendOnEnter';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { IconFile } from '@tabler/icons-react';
-import portalApi, { errMessage } from '../api';
+import portalApi, { errMessage, p, apiPath } from '../api';
 import {
   ticketNo, statusTone, fmtDateTime, fmtSize, uploadFiles,
 } from '../format';
@@ -23,7 +23,7 @@ function Files({ ticketId, files }) {
       {files.map((f) => (
         <li key={f.id} className="flex min-w-0 items-center gap-2 text-sm">
           <IconFile size={16} aria-hidden="true" className="flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
-          <a href={`/api/v1/portal/tickets/${ticketId}/attachments/${f.id}/download`} className="min-w-0 truncate hover:underline" style={{ color: 'var(--color-accent)' }}>{f.originalName}</a>
+          <a href={apiPath(`/tickets/${ticketId}/attachments/${f.id}/download`)} className="min-w-0 truncate hover:underline" style={{ color: 'var(--color-accent)' }}>{f.originalName}</a>
           <span className="num flex-shrink-0 text-xs" style={{ color: 'var(--color-text-muted)' }}>{fmtSize(f.size)}</span>
         </li>
       ))}
@@ -132,7 +132,7 @@ export default function Ticket() {
       <div className="card mx-auto max-w-lg p-10 text-center">
         <h1 className="text-lg font-semibold">Ticket not found</h1>
         <p className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>It may not be one you can see.</p>
-        <Link to="/portal/tickets" className="btn-primary mt-4 inline-flex">Back to tickets</Link>
+        <Link to={p('/tickets')} className="btn-primary mt-4 inline-flex">Back to tickets</Link>
       </div>
     );
   }
@@ -151,7 +151,7 @@ export default function Ticket() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        crumbs={[{ label: 'Tickets', to: '/portal/tickets' }, { label: ticketNo(ticket.id), id: true }]}
+        crumbs={[{ label: 'Tickets', to: p('/tickets') }, { label: ticketNo(ticket.id), id: true }]}
         title={ticket.title}
         sub={<span className="flex items-center gap-2"><span className="num font-semibold">{ticketNo(ticket.id)}</span><StatusChip tone={statusTone(ticket.statusBehavior)}>{ticket.status}</StatusChip></span>}
       />

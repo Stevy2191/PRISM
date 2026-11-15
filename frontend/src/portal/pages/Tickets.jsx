@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
-import portalApi from '../api';
+import portalApi, { p } from '../api';
 import { usePortalAuth } from '../PortalAuth';
 import { ticketNo, statusTone, fmtUpdated } from '../format';
 import { useNarrow } from '../../hooks/useNarrow';
@@ -57,7 +57,7 @@ export default function Tickets() {
         title="Tickets"
         sub={sub}
         actions={(
-          <Link to="/portal/tickets/new" className="btn-primary h-11 sm:h-10">
+          <Link to={p('/tickets/new')} className="btn-primary h-11 sm:h-10">
             <IconPlus size={15} aria-hidden="true" />{narrow ? 'New' : 'New ticket'}
           </Link>
         )}
@@ -96,7 +96,7 @@ export default function Tickets() {
       ) : narrow ? (
         <div className="flex flex-col gap-2.5">
           {data.tickets.map((t) => (
-            <Link key={t.id} to={`/portal/tickets/${t.id}`} className="card flex flex-col gap-1.5 p-4" style={{ color: 'var(--color-text-primary)' }}>
+            <Link key={t.id} to={p(`/tickets/${t.id}`)} className="card flex flex-col gap-1.5 p-4" style={{ color: 'var(--color-text-primary)' }}>
               <div className="flex items-center justify-between gap-2 text-[13px]">
                 <span className="num font-semibold" style={{ color: 'var(--color-text-muted)' }}>{ticketNo(t.id)}</span>
                 <StatusChip tone={statusTone(t.statusBehavior)}>{t.status}</StatusChip>
@@ -125,7 +125,7 @@ export default function Tickets() {
               {data.tickets.map((t) => (
                 <tr key={t.id} className="h-[58px] border-b last:border-b-0" style={{ borderColor: 'var(--color-border)' }}>
                   <td className="num px-5" style={{ color: 'var(--color-text-muted)' }}>{ticketNo(t.id)}</td>
-                  <td className="px-3"><Link to={`/portal/tickets/${t.id}`} className="block truncate font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>{t.title}</Link></td>
+                  <td className="px-3"><Link to={p(`/tickets/${t.id}`)} className="block truncate font-semibold hover:underline" style={{ color: 'var(--color-accent)' }}>{t.title}</Link></td>
                   {isAdmin && <td className="truncate px-3" style={{ color: 'var(--color-text-secondary)' }}>{t.contact?.displayName}</td>}
                   <td className="px-3"><StatusChip tone={statusTone(t.statusBehavior)}>{t.status}</StatusChip></td>
                   <td className="px-5 text-[13.5px]" style={{ color: 'var(--color-text-secondary)' }}>{fmtUpdated(t.updatedAt)}</td>

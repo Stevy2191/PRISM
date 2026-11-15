@@ -12,7 +12,7 @@ router.post('/invite/accept', portalLoginLimiter, ctrl.acceptInvite);
 router.post('/reset', portalLoginLimiter, ctrl.resetPassword);
 router.post('/forgot', portalForgotLimiter, ctrl.forgot);
 // Sign in with Microsoft (7b): a browser round trip, so GETs that redirect.
+// Microsoft calls back to one address for every company (routes/portal).
 router.get('/microsoft/start', portalLoginLimiter, ctrl.microsoftStart);
-router.get('/microsoft/callback', portalLoginLimiter, ctrl.microsoftCallback);
 
 module.exports = router;

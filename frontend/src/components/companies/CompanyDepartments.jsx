@@ -32,7 +32,8 @@ function DepartmentAdmins({ department, companyId, canEdit, onError }) {
   );
 }
 
-function CompanyAdmins({ company, canEdit, onError }) {
+// Also shown on the company's Setup › Portal (CS).
+export function CompanyAdmins({ company, canEdit, onError }) {
   const [admins, setAdmins] = useState([]);
   const load = useCallback(() => {
     api.get(`/companies/${company.id}/portal-admins`).then(({ data }) => setAdmins(data.contacts)).catch(() => setAdmins([]));
@@ -104,7 +105,6 @@ export default function CompanyDepartments({ company }) {
   return (
     <div className="space-y-4">
       {error && <Notice tone="bad">{error}</Notice>}
-      {portalAdmins && <CompanyAdmins company={company} canEdit={canManagePortal} onError={setError} />}
       {portalAdmins && (
         <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
           A department&apos;s admins see all of that department&apos;s tickets in the portal. Admins come from the department&apos;s own contacts; moving to another department removes the role.

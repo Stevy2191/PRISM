@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { IconEye, IconEyeOff, IconLayoutGrid } from '@tabler/icons-react';
 import { usePortalAuth } from '../PortalAuth';
 import { Brand } from '../PortalLayout';
-import { errMessage, safeNext } from '../api';
+import { errMessage, safeNext, p, apiPath } from '../api';
 import Notice from '../../components/ui/Notice';
 
 // Why Microsoft sign-in sent someone back (?refused=, from the callback).
@@ -15,6 +15,7 @@ const REFUSED = {
   other_company: ['Your account is linked to another organization', 'Contact support: nothing has been changed.'],
   conflict: ['Your account needs a hand from support', 'Your email belongs to a portal account linked to a different Microsoft account. Contact support.'],
   inactive: ['Your portal access has ended', 'Contact support if this is unexpected.'],
+  wrong_company: ["That account belongs to another company's portal", 'Use the portal link your own help desk gave you.'],
   unavailable: ['Microsoft sign-in isn\'t available right now', 'Try again later, or sign in with email if you have a password.'],
   failed: ['Sign-in with Microsoft didn\'t finish', 'Please try again.'],
 };
@@ -53,7 +54,7 @@ export default function SignIn() {
   return (
     <div className="flex min-h-screen flex-col md:flex-row" style={{ backgroundColor: 'var(--color-bg)' }}>
       <section className="flex flex-col justify-between gap-4 border-b px-4 py-6 md:w-[46%] md:flex-none md:border-b-0 md:border-r md:px-14 md:py-11" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
-        <Brand config={config} to="/portal/sign-in" support={false} />
+        <Brand config={config} to={p('/sign-in')} support={false} />
         <div>
           {tagline && <p className="max-w-[460px] text-lg font-semibold leading-snug md:text-[30px] md:leading-tight" style={{ color: 'var(--color-text-primary)' }}>{tagline}</p>}
           <p className="mt-3 hidden max-w-[440px] text-[15px] leading-relaxed md:block" style={{ color: 'var(--color-text-secondary)' }}>
@@ -65,10 +66,10 @@ export default function SignIn() {
       <section className="flex flex-1 items-start justify-center px-4 py-8 md:items-center md:p-12">
         <form onSubmit={submit} className="flex w-full max-w-[380px] flex-col gap-4">
           <div>
-            <h1 className="page-title">Sign in</h1>
-            <p className="mt-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Raise and follow your support tickets.</p>
+            <h1 className="page-title">{config?.company?.name || 'Sign in'}</h1>
+            <p className="mt-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Sign in to raise and follow your support tickets.</p>
           </div>
-          {config && config.enabled === false && <Notice tone="warn">The support portal is switched off at the moment.</Notice>}
+          {config && config.enabled === false && <Notice tone="warn">This portal isn&apos;t open. Check the link your help desk sent you.</Notice>}
           {error && <Notice tone="bad">{error}</Notice>}
           {refused && (
             <section aria-label="Microsoft account not allowed" className="rounded-lg border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
@@ -78,7 +79,7 @@ export default function SignIn() {
           )}
           {config?.microsoft && (
             <>
-              <a href="/api/v1/portal/auth/microsoft/start" className="btn-primary h-12 justify-center text-[15px]">
+              <a href={apiPath('/auth/microsoft/start')} className="btn-primary h-12 justify-center text-[15px]">
                 <IconLayoutGrid size={16} aria-hidden="true" />Sign in with Microsoft
               </a>
               <div className="flex items-center gap-3 text-[12.5px] before:flex-1 before:border-t after:flex-1 after:border-t" style={{ color: 'var(--color-text-muted)', borderColor: 'var(--color-border)' }}>or with email</div>
@@ -97,7 +98,7 @@ export default function SignIn() {
               </button>
             </div>
           </div>
-          <div className="text-right text-sm"><Link to="/portal/forgot" className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>Forgot password?</Link></div>
+          <div className="text-right text-sm"><Link to={p('/forgot')} className="font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>Forgot password?</Link></div>
           <button type="submit" disabled={busy} className={`${config?.microsoft ? 'btn-secondary' : 'btn-primary'} h-12 justify-center text-[15px]`}>
             {busy ? 'Signing in…' : 'Sign in with email'}
           </button>

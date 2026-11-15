@@ -74,7 +74,6 @@ const DEFAULTS = {
   // — see csatService.js). sendDelayHours=0 means "send immediately" (the
   // scheduler still applies its own poll interval, so "immediately" is
   // best-effort within a few minutes, not synchronous).
-  'csat.enabled': 'false',
   'csat.sendDelayHours': '0',
   'csat.surveyQuestion': 'How satisfied were you with the support you received?',
   'csat.expiryDays': '7',
@@ -97,7 +96,6 @@ const DEFAULTS = {
   'workload.defaultTicketMinutes': String(DEFAULT_TICKET_MINUTES),
 
   // Settings -> Client portal: the whole portal is off until switched on.
-  'portal.enabled': 'false',
   // The Microsoft app registration contacts sign in through (7b): one
   // multi-tenant app for the install. The secret is stored encrypted.
   'portal.msClientId': '',

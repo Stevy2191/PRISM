@@ -17,7 +17,8 @@ import CompanySla from '../../components/companies/CompanySla';
 import CompanyCategories from '../../components/companies/CompanyCategories';
 import CompanyDevices from '../../components/companies/CompanyDevices';
 import CompanyNotices from '../../components/companies/CompanyNotices';
-import CompanyMicrosoft365 from '../../components/companies/CompanyMicrosoft365';
+import CompanyPortal from '../../components/companies/CompanyPortal';
+import CompanySurveys from '../../components/companies/CompanySurveys';
 
 // Parts in menu order; `can` says who sees each.
 const PARTS = [
@@ -28,7 +29,8 @@ const PARTS = [
   ['categories', 'Categories', (p) => p('tickets.categories.manage')],
   ['devices', 'Devices', (p) => p('assets.view')],
   ['notices', 'Agent notices', (p) => p('devices.manage') || p('portal.manage')],
-  ['m365', 'Microsoft 365', (p) => p('portal.manage')],
+  ['portal', 'Portal', (p) => p('companies.view')],
+  ['surveys', 'Surveys', (p) => p('companies.view')],
 ];
 
 export default function YourCompany() {
@@ -91,7 +93,8 @@ export default function YourCompany() {
           {part === 'categories' && <CompanyCategories company={company} />}
           {part === 'devices' && <CompanyDevices company={company} />}
           {part === 'notices' && <CompanyNotices company={company} />}
-          {part === 'm365' && <CompanyMicrosoft365 company={company} notice={params.get('m365')} />}
+          {part === 'portal' && <CompanyPortal company={company} m365Notice={params.get('m365')} />}
+          {part === 'surveys' && <CompanySurveys company={company} />}
         </>
       )}
     </div>

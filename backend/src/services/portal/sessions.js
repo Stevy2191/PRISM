@@ -17,4 +17,15 @@ async function destroyPortalSessions(contactId, keepSid) {
   return stale.length;
 }
 
-module.exports = { destroyPortalSessions };
+// Every portal session signed in to a company's portal: when its portal is
+// switched off or the company made inactive.
+async function destroyCompanyPortalSessions(companyId) {
+  const rows = await sequelize.query('SELECT sid, data FROM Sessions', { type: QueryTypes.SELECT });
+  const ended = rows.filter((row) => {
+    try { const d = JSON.parse(row.data); return !!d?.contactId && d.companyId === companyId; } catch { return false; }
+  }).map((row) => row.sid);
+  if (ended.length) await sequelize.query('DELETE FROM Sessions WHERE sid IN (:sids)', { replacements: { sids: ended } });
+  return ended.length;
+}
+
+module.exports = { destroyPortalSessions, destroyCompanyPortalSessions };

@@ -1,7 +1,7 @@
 import { submitOnEnter, ENTER_HINT } from '../../utils/sendOnEnter';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import portalApi, { errMessage } from '../api';
+import portalApi, { errMessage, p } from '../api';
 import { usePortalAuth } from '../PortalAuth';
 import { uploadFiles } from '../format';
 import FilePicker from '../FilePicker';
@@ -41,7 +41,7 @@ export default function TicketNew() {
         ...(form.forContactId ? { forContactId: Number(form.forContactId) } : {}),
       });
       const failed = files.length ? await uploadFiles(portalApi, data.ticket.id, files) : [];
-      navigate(`/portal/tickets/${data.ticket.id}`, { state: failed.length ? { failedUploads: failed } : undefined });
+      navigate(p(`/tickets/${data.ticket.id}`), { state: failed.length ? { failedUploads: failed } : undefined });
     } catch (err) {
       setError(errMessage(err, 'Could not create the ticket.'));
       setBusy(false);
@@ -50,7 +50,7 @@ export default function TicketNew() {
 
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
-      <PageHeader title="New ticket" crumbs={[{ label: 'Tickets', to: '/portal/tickets' }, { label: 'New ticket' }]} />
+      <PageHeader title="New ticket" crumbs={[{ label: 'Tickets', to: p('/tickets') }, { label: 'New ticket' }]} />
       <form onSubmit={submit} className="flex flex-col gap-4">
         {error && <Notice tone="bad">{error}</Notice>}
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
@@ -97,7 +97,7 @@ export default function TicketNew() {
           </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <Link to="/portal/tickets" className="btn-secondary h-11">Cancel</Link>
+          <Link to={p('/tickets')} className="btn-secondary h-11">Cancel</Link>
           <button type="submit" disabled={busy} className="btn-primary h-11">{busy ? 'Creating…' : 'Create ticket'}</button>
         </div>
       </form>

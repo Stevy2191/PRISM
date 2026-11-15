@@ -2,7 +2,7 @@ import {
   createContext, useCallback, useContext, useEffect, useState,
 } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import portalApi, { safeNext } from './api';
+import portalApi, { safeNext, p } from './api';
 
 // Who is signed in to the portal (a contact, never a staff user), plus the
 // public portal config (on/off, Microsoft sign-in offered, branding).
@@ -59,7 +59,7 @@ export function RequireContact({ children }) {
   if (loading) return <p className="py-16 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading…</p>;
   if (!me) {
     const next = safeNext(`${location.pathname}${location.search}`);
-    return <Navigate to={`/portal/sign-in?next=${encodeURIComponent(next)}`} replace />;
+    return <Navigate to={p(`/sign-in?next=${encodeURIComponent(next)}`)} replace />;
   }
   return children;
 }

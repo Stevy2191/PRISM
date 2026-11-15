@@ -1,14 +1,21 @@
 // Client-portal sign-in: email + password, the invite link (set your first
 // password), forgot / reset password, sign-out and "who am I".
+//
+// Each company has its own portal (CS): all of this happens at one company's
+// address (req.portalCompany, routes/portal), and only that company's
+// contacts get anywhere. A contact of another company is answered exactly as
+// an unknown email is.
 const bcrypt = require('bcryptjs');
-const { Contact } = require('../../models');
+const { Contact, Company } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { validatePassword, describeProblems } = require('../../utils/passwordPolicy');
 const { getAllSettings, getPortalMicrosoftApp } = require('../settingsController');
 const {
-  isPortalEnabled, mayUsePortal, destroySession, accessEnded, loadPortalContact,
+  mayUsePortal, destroySession, accessEnded, loadPortalContact,
 } = require('../../middleware/portalAuth');
+const { findBySlug, portalOpen, impliedCompany } = require('../../services/portal/company');
+const { TOKEN_INVALID } = require('../../services/portal/tokens');
 const { issuePortalToken, consumePortalToken, findUsableToken } = require('../../services/portal/tokens');
 const { sendPortalLink } = require('../../services/portal/portalMail');
 const { signInMethod } = require('../../services/portal/signInMethod');
@@ -46,7 +53,7 @@ async function contactPayload(contact) {
     id: contact.id,
     displayName: displayName(contact),
     email: contact.email,
-    company: contact.company ? { id: contact.company.id, name: contact.company.name } : null,
+    company: contact.company ? { id: contact.company.id, name: contact.company.name, slug: contact.company.portalSlug } : null,
     department: contact.department ? { id: contact.department.id, name: contact.department.name } : null,
     isCompanyAdmin: companyAdmin,
     adminDepartmentIds: deptIds,
@@ -64,12 +71,15 @@ function assertStrongPassword(password, contact) {
   if (!policy.ok) throw new ApiError(400, describeProblems(policy.problems), 'WEAK_PASSWORD');
 }
 
-// GET /portal/config — public: what the sign-in page needs.
+// GET /portal/c/:slug/config — public: what the sign-in page needs. A
+// closed or unknown portal answers the same, without naming a company.
 const config = asyncHandler(async (req, res) => {
-  const [values, msApp] = await Promise.all([getAllSettings(), getPortalMicrosoftApp()]);
+  const [values, msApp, found] = await Promise.all([getAllSettings(), getPortalMicrosoftApp(), findBySlug(req.params.slug)]);
+  const open = portalOpen(found);
   res.json({
-    enabled: values['portal.enabled'] === 'true',
-    microsoft: !!(msApp.clientId && msApp.clientSecret),
+    enabled: open,
+    company: open ? { name: found.name, slug: found.portalSlug } : null,
+    microsoft: open && !!found.msTenantId && !!(msApp.clientId && msApp.clientSecret),
     branding: {
       appName: values['branding.appName'],
       tagline: values['branding.tagline'],
@@ -78,14 +88,16 @@ const config = asyncHandler(async (req, res) => {
   });
 });
 
-// POST /portal/auth/login { email, password }
+// POST /portal/c/:slug/auth/login { email, password }
 const login = asyncHandler(async (req, res) => {
   const email = cleanEmail(req.body?.email);
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
   if (!email || !password) throw new ApiError(400, 'Email and password are required', 'MISSING_CREDENTIALS');
-  if (!(await isPortalEnabled())) throw new ApiError(403, 'The support portal is switched off', 'PORTAL_DISABLED');
 
-  const contact = await Contact.scope('withPassword').findOne({ where: { email } });
+  // Only this company's contacts; the hash is checked either way, so another
+  // company's contact costs and answers the same as an unknown email.
+  const found = await Contact.scope('withPassword').findOne({ where: { email } });
+  const contact = found && found.companyId === req.portalCompany.id ? found : null;
   const ok = await bcrypt.compare(password, (contact && contact.passwordHash) || DUMMY_HASH);
   if (contact && contact.msObjectId) throw useMicrosoft();
   if (!contact || !contact.passwordHash || !ok) throw new ApiError(401, 'Invalid email or password', 'INVALID_CREDENTIALS');
@@ -108,11 +120,13 @@ const me = asyncHandler(async (req, res) => {
   res.json({ contact: await contactPayload(req.contact) });
 });
 
-// Starts a portal session for a contact who just proved who they are.
-// extra: more session fields (a Microsoft sign-in's tenant and check time).
+// Starts a portal session for a contact who just proved who they are, at
+// their company's portal. extra: more session fields (a Microsoft sign-in's
+// tenant and check time).
 async function signIn(req, contact, method, extra = {}) {
   await regenerateSession(req);
   req.session.contactId = contact.id;
+  req.session.companyId = contact.companyId;
   Object.assign(req.session, extra);
   await Contact.update({ portalLastSignInAt: new Date() }, { where: { id: contact.id } });
   await portalAudit(req, 'portal.sign_in', contact.id, { method });
@@ -121,10 +135,17 @@ async function signIn(req, contact, method, extra = {}) {
 
 // Shared by invite/accept and reset: check the link, check the password,
 // then spend the link and save. A refused password leaves the link usable.
+// A link only works at its contact's own company's portal.
+async function usableLink(req, kind) {
+  const { contact } = await findUsableToken((req.body || {}).token, kind);
+  if (contact.companyId !== req.portalCompany.id) throw TOKEN_INVALID();
+  if (!mayUsePortal(contact)) throw accessEnded();
+  return contact;
+}
+
 async function setPasswordFromLink(req, kind) {
   const { token, password } = req.body || {};
-  const { contact } = await findUsableToken(token, kind);
-  if (!mayUsePortal(contact) || !(await isPortalEnabled())) throw accessEnded();
+  const contact = await usableLink(req, kind);
   if (contact.msObjectId) throw useMicrosoft();
   assertStrongPassword(password, contact);
   await consumePortalToken(token, kind);
@@ -136,8 +157,7 @@ async function setPasswordFromLink(req, kind) {
 // POST /portal/auth/invite/check { token } — who the invite is for, so the
 // page can show it. Spends nothing.
 const checkInvite = asyncHandler(async (req, res) => {
-  const { contact } = await findUsableToken((req.body || {}).token, 'invite');
-  if (!mayUsePortal(contact) || !(await isPortalEnabled())) throw accessEnded();
+  const contact = await usableLink(req, 'invite');
   if (contact.msObjectId) throw useMicrosoft();
   const full = await loadPortalContact(contact.id);
   res.json({ email: contact.email, companyName: full.company ? full.company.name : '' });
@@ -165,41 +185,78 @@ const resetPassword = asyncHandler(async (req, res) => {
 
 // The work behind /forgot, after the response has gone: whether an email is
 // known must show neither in the answer nor in how long it takes.
-async function sendResetIfAllowed(email) {
-  if (!(await isPortalEnabled())) return;
+async function sendResetIfAllowed(email, company) {
   const contact = await Contact.findOne({ where: { email } });
-  if (!mayUsePortal(contact) || contact.msObjectId) return;
+  if (!mayUsePortal(contact) || contact.msObjectId || contact.companyId !== company.id) return;
   const { token } = await issuePortalToken(contact.id, 'reset');
-  await sendPortalLink('reset', contact, token);
+  await sendPortalLink('reset', contact, company, token);
   await portalAudit(null, 'portal.reset_sent', contact.id, null);
 }
 
-// POST /portal/auth/forgot { email } — always 202.
+// POST /portal/c/:slug/auth/forgot { email } — always 202.
 const forgot = asyncHandler(async (req, res) => {
   const email = cleanEmail(req.body?.email);
   res.status(202).json({ ok: true });
   if (!email) return;
-  sendResetIfAllowed(email).catch((err) => console.error('[portal] reset email failed:', err.message));
+  sendResetIfAllowed(email, req.portalCompany).catch((err) => console.error('[portal] reset email failed:', err.message));
+});
+
+// GET /portal/home — the plain /portal address: your own company's portal
+// while there are no customers (and it is open); otherwise none, and the
+// page asks for the company's own link.
+const home = asyncHandler(async (req, res) => {
+  const [company, values] = await Promise.all([impliedCompany(), getAllSettings()]);
+  res.json({
+    slug: portalOpen(company) ? company.portalSlug : null,
+    branding: {
+      appName: values['branding.appName'],
+      logoUrl: values['company.logoFilename'] ? '/api/v1/settings/logo' : null,
+    },
+  });
+});
+
+// The work behind /link, after the response has gone.
+async function sendLinkIfAllowed(email) {
+  const contact = await Contact.findOne({ where: { email } });
+  if (!mayUsePortal(contact)) return;
+  const company = await Company.findByPk(contact.companyId);
+  if (!portalOpen(company)) return;
+  await sendPortalLink('link', contact, company);
+  await portalAudit(null, 'portal.link_sent', contact.id, null);
+}
+
+// POST /portal/link { email } — "email me my link". Always 202, whether or
+// not the email is known.
+const sendLink = asyncHandler(async (req, res) => {
+  const email = cleanEmail(req.body?.email);
+  res.status(202).json({ ok: true });
+  if (!email) return;
+  sendLinkIfAllowed(email).catch((err) => console.error('[portal] link email failed:', err.message));
 });
 
 // --- Sign in with Microsoft (7b) ---------------------------------------------
 
 // How long the browser may spend at Microsoft between start and callback.
 const MS_SIGN_IN_MAX_AGE_MS = 10 * 60 * 1000;
-const refusedUrl = (code) => `${publicBaseUrl()}/portal/sign-in?refused=${encodeURIComponent(code)}`;
+const refusedUrl = (slug, code) => (slug
+  ? `${publicBaseUrl()}/portal/${encodeURIComponent(slug)}/sign-in?refused=${encodeURIComponent(code)}`
+  : `${publicBaseUrl()}/portal?refused=${encodeURIComponent(code)}`);
 
-// GET /portal/auth/microsoft/start — off to Microsoft. The state, nonce and
-// PKCE verifier stay in this browser's portal session (server-side) until
-// the callback spends them.
+// GET /portal/c/:slug/auth/microsoft/start — off to Microsoft. The state,
+// nonce, PKCE verifier and this company stay in this browser's portal
+// session (server-side) until the callback spends them.
 const microsoftStart = asyncHandler(async (req, res) => {
-  if (!(await isPortalEnabled())) return res.redirect(302, refusedUrl('unavailable'));
+  const company = req.portalCompany;
+  if (!company.msTenantId) return res.redirect(302, refusedUrl(company.portalSlug, 'unavailable'));
   let built;
   try {
     built = await buildSignInRequest();
   } catch {
-    return res.redirect(302, refusedUrl('unavailable'));
+    return res.redirect(302, refusedUrl(company.portalSlug, 'unavailable'));
   }
-  req.session.msSignIn = { ...built.pending, at: Date.now() };
+  req.session.msSignIn = {
+    ...built.pending, at: Date.now(), companyId: company.id, slug: company.portalSlug,
+  };
   return res.redirect(302, built.url);
 });
 
@@ -219,11 +276,13 @@ const microsoftCallback = asyncHandler(async (req, res) => {
   delete req.session.msSignIn;
   const refuse = async (code, meta = {}) => {
     await portalAudit(req, 'portal.sign_in_refused', meta.contactId || null, { method: 'microsoft', reason: code, tenantId: meta.tenantId || null });
-    return res.redirect(302, refusedUrl(code));
+    return res.redirect(302, refusedUrl(pending && pending.slug, code));
   };
   const fresh = pending && Date.now() - pending.at <= MS_SIGN_IN_MAX_AGE_MS;
   if (!fresh || typeof req.query.state !== 'string' || req.query.state !== pending.state || req.query.error) return refuse('failed');
-  if (!(await isPortalEnabled())) return refuse('unavailable');
+  // The portal it started at, still open and still on the same tenant.
+  const company = await Company.findByPk(pending.companyId);
+  if (!portalOpen(company) || company.portalSlug !== pending.slug || !company.msTenantId) return refuse('unavailable');
 
   let person;
   try {
@@ -232,7 +291,10 @@ const microsoftCallback = asyncHandler(async (req, res) => {
     console.warn('[portal] Microsoft sign-in failed:', err.message);
     return refuse('failed');
   }
+  // Only this company's tenant signs in at this company's portal.
+  if (person.tid !== company.msTenantId) return refuse('wrong_company', { tenantId: person.tid });
   const result = await resolveMicrosoftSignIn(person);
+  if (!result.refused && result.company.id !== company.id) return refuse('wrong_company', { tenantId: person.tid });
   if (result.refused) {
     if (result.error) console.warn('[portal] Microsoft group check failed:', result.error);
     return refuse(result.refused, { tenantId: person.tid, contactId: result.contact && result.contact.id });
@@ -241,10 +303,10 @@ const microsoftCallback = asyncHandler(async (req, res) => {
   await signIn(req, result.contact, 'microsoft', { msTenantId: person.tid, msCheckedAt: Date.now() });
   // Just linked: sessions from their old password end with it.
   if (result.linked) await destroyPortalSessions(result.contact.id, req.sessionID);
-  return res.redirect(302, `${publicBaseUrl()}/portal`);
+  return res.redirect(302, `${publicBaseUrl()}/portal/${encodeURIComponent(company.portalSlug)}`);
 });
 
 module.exports = {
   microsoftStart, microsoftCallback,
-  config, login, logout, me, checkInvite, acceptInvite, resetPassword, forgot, contactPayload, displayName,
+  config, login, logout, me, checkInvite, acceptInvite, resetPassword, forgot, home, sendLink, contactPayload, displayName,
 };

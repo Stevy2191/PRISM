@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import portalApi, { errMessage } from '../api';
+import portalApi, { errMessage, p } from '../api';
 import { usePortalAuth } from '../PortalAuth';
 import AccountCard from './AccountCard';
 import Notice from '../../components/ui/Notice';
@@ -36,7 +36,7 @@ export default function SetPassword({ kind }) {
     try {
       const { data } = await portalApi.post(invite ? '/auth/invite/accept' : '/auth/reset', { token, password });
       setMe(data.contact);
-      navigate('/portal/tickets', { replace: true });
+      navigate(p('/tickets'), { replace: true });
     } catch (err) {
       setError(errMessage(err, 'Could not save your password.'));
     } finally {
@@ -48,7 +48,7 @@ export default function SetPassword({ kind }) {
     return (
       <AccountCard caption={invite ? 'From the invite email' : 'Password reset'} title="This link can't be used">
         <Notice tone="bad">{linkError}</Notice>
-        <Link to="/portal/forgot" className="btn-secondary h-11 justify-center">Send me a new link</Link>
+        <Link to={p('/forgot')} className="btn-secondary h-11 justify-center">Send me a new link</Link>
       </AccountCard>
     );
   }
