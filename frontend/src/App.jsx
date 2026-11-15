@@ -39,10 +39,9 @@ import NotFound from './pages/NotFound';
 
 // Settings hub + sections
 import SettingsHome from './pages/settings/SettingsHome';
+import StartingValues from './pages/settings/StartingValues';
 import YourCompany from './pages/settings/YourCompany';
 import SettingsStatuses from './pages/settings/Statuses';
-import SettingsBusinessHours from './pages/settings/BusinessHours';
-import SettingsHolidays from './pages/settings/Holidays';
 import SettingsWorkHours from './pages/settings/WorkHours';
 import Workload from './pages/workload/Workload';
 import SettingsTeams from './pages/settings/Teams';
@@ -60,7 +59,6 @@ import RecurringTicketEditor from './pages/settings/RecurringTicketEditor';
 import SettingsSingleSignOn from './pages/settings/SingleSignOn';
 import SettingsProjectTemplates from './pages/settings/ProjectTemplates';
 import ProjectTemplateEditor from './pages/settings/ProjectTemplateEditor';
-import SLAs from './pages/settings/SLAs';
 import Schedules from './pages/settings/Schedules';
 import SettingsImport from './pages/settings/Import';
 import SettingsExport from './pages/settings/Export';
@@ -132,7 +130,7 @@ const SETTINGS_COMPONENTS = {
   mdms: SettingsMdms,
   'project-templates': SettingsProjectTemplates, 'project-template-new': ProjectTemplateEditor, 'project-template-edit': ProjectTemplateEditor,
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
-  slas: SLAs, 'business-hours': SettingsBusinessHours, holidays: SettingsHolidays, 'work-hours': SettingsWorkHours,
+  'starting-values': StartingValues, 'work-hours': SettingsWorkHours,
   'time-tracking': SettingsTimeTracking, 'work-types': SettingsWorkTypes,
   'asset-categories': SettingsAssetCategories, 'asset-alerts': SettingsAssetAlerts,
   'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory,

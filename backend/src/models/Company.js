@@ -16,8 +16,6 @@ module.exports = (sequelize) => {
       website: { type: DataTypes.STRING(255), allowNull: true },
       notes: { type: DataTypes.TEXT, allowNull: true },
       accountManagerId: { type: DataTypes.INTEGER, allowNull: true },
-      // null = the default SLA policy.
-      slaPolicyId: { type: DataTypes.INTEGER, allowNull: true },
       // Microsoft 365 (client portal 7b). One tenant links to one company.
       msTenantId: { type: DataTypes.STRING(36), allowNull: true, unique: true },
       // When the tenant's admin approved PRISM's app (admin consent).

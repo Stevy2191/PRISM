@@ -14,7 +14,7 @@ const {
 const slaCalendar = require('./calendar');
 const { ApiError } = require('../../middleware/error');
 const { businessMinutesBetween, addBusinessMinutes, addBusinessDays } = require('./businessTime');
-const { orgTimeZone, dateInZone, timeInZone } = require('../../utils/orgTime');
+const { dateInZone, timeInZone } = require('../../utils/orgTime');
 const {
   emptyClock, startClock, stopClock, retarget, warnMinutes, fixedClock, stopFixed, startFixed,
 } = require('./clock');
@@ -85,7 +85,9 @@ function clockFromTarget(c, start, target, calendar, warnPct, run) {
 // organization's calendar, so lists, the calendar and overdue filters agree.
 async function mirrorDueDate(ticketId, dueAt, transaction) {
   if (!dueAt) return;
-  const tz = await orgTimeZone({ transaction });
+  // The ticket's company's zone (CS): its due date reads as that company's day.
+  const ticket = await Ticket.findByPk(ticketId, { attributes: ['companyId'], transaction });
+  const tz = await require('./companySla').zoneForCompany(ticket && ticket.companyId, transaction); // eslint-disable-line global-require
   await Ticket.update(
     { dueDate: dateInZone(new Date(dueAt), tz), dueTime: timeInZone(dueAt, tz) },
     { where: { id: ticketId }, hooks: false, transaction }
@@ -112,13 +114,9 @@ function shouldRun(c, ticket, status, state) {
   return true;
 }
 
-// The company's policy, else the default.
+// The ticket's company's own SLA, else the starting values (CS).
 async function selectPolicyId(ticket, transaction) {
-  if (ticket.companyId) {
-    const company = await Company.findByPk(ticket.companyId, { attributes: ['slaPolicyId'], transaction });
-    if (company && company.slaPolicyId) return company.slaPolicyId;
-  }
-  return slaCalendar.getDefaultPolicyId(transaction);
+  return require('./companySla').policyIdForCompany(ticket.companyId, transaction); // eslint-disable-line global-require
 }
 
 function markMet(c, s, ticket, status, now) {

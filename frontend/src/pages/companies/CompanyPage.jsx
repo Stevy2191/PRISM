@@ -12,6 +12,7 @@ import CompanyGlance from '../../components/companies/CompanyGlance';
 import CompanyOverview from '../../components/companies/CompanyOverview';
 import CompanySites from '../../components/companies/CompanySites';
 import CompanyDepartments from '../../components/companies/CompanyDepartments';
+import CompanySla from '../../components/companies/CompanySla';
 import CompanyCategories from '../../components/companies/CompanyCategories';
 import CompanyRecordList from '../../components/companies/CompanyRecordList';
 import CompanyMicrosoft365 from '../../components/companies/CompanyMicrosoft365';
@@ -26,7 +27,7 @@ const GROUPS = [
   ['people', 'People', [['contacts', 'Contacts'], ['departments', 'Departments'], ['sites', 'Sites']]],
   ['work', 'Work', [['tickets', 'Tickets'], ['projects', 'Projects']]],
   ['assets', 'Assets', [['assets', 'Assets'], ['devices', 'Devices'], ['notices', 'Agent notices'], ['vendor', 'Vendor']]],
-  ['setup', 'Setup', [['details', 'Details'], ['categories', 'Categories'], ['m365', 'Microsoft 365']]],
+  ['setup', 'Setup', [['details', 'Details'], ['sla', 'SLA and hours'], ['categories', 'Categories'], ['m365', 'Microsoft 365']]],
 ];
 
 // A company's page (spec: Companies nav tab).
@@ -128,6 +129,7 @@ export default function CompanyPage() {
           default roles): the editor that was Settings → Departments. */}
       {part === 'departments' && (company.isInternal ? <AdminDepartments embedded /> : <CompanyDepartments company={company} />)}
       {part === 'categories' && <CompanyCategories company={company} />}
+      {part === 'sla' && <CompanySla base={`/companies/${company.id}/sla`} who={company.name} />}
       {['contacts', 'tickets', 'projects', 'assets'].includes(part) && <CompanyRecordList key={part} kind={part} companyId={company.id} />}
       {part === 'vendor' && (
         <div className="space-y-6">

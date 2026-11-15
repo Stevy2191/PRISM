@@ -13,6 +13,7 @@ import { useCompanySummary } from '../../context/CompanyContext';
 import CompanyProfile from './CompanyProfile';
 import AdminDepartments from '../AdminDepartments';
 import CompanySites from '../../components/companies/CompanySites';
+import CompanySla from '../../components/companies/CompanySla';
 import CompanyCategories from '../../components/companies/CompanyCategories';
 import CompanyDevices from '../../components/companies/CompanyDevices';
 import CompanyNotices from '../../components/companies/CompanyNotices';
@@ -23,6 +24,7 @@ const PARTS = [
   ['profile', 'Profile and sign-in page', (p) => p('settings.manage_branding') || p('settings.manage_system')],
   ['departments', 'Departments', (p) => p('people.manage_departments')],
   ['sites', 'Sites', (p) => p('companies.view')],
+  ['sla', 'Support hours, holidays and SLA', (p) => p('companies.view')],
   ['categories', 'Categories', (p) => p('tickets.categories.manage')],
   ['devices', 'Devices', (p) => p('assets.view')],
   ['notices', 'Agent notices', (p) => p('devices.manage') || p('portal.manage')],
@@ -85,6 +87,7 @@ export default function YourCompany() {
       {needsCompany && company && (
         <>
           {part === 'sites' && <CompanySites company={company} />}
+          {part === 'sla' && <CompanySla base={`/companies/${company.id}/sla`} who="your company" />}
           {part === 'categories' && <CompanyCategories company={company} />}
           {part === 'devices' && <CompanyDevices company={company} />}
           {part === 'notices' && <CompanyNotices company={company} />}

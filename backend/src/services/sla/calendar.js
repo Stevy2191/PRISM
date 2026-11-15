@@ -1,8 +1,8 @@
-// Loads what the SLA clocks need about a policy — its per-priority targets,
-// warning point and business-hours calendar — with a small in-process cache
-// (single backend instance). Any write to policies, targets, business hours
-// or holidays calls invalidate().
-const { SlaPolicy, SlaTarget, BusinessHours, Holiday } = require('../../models');
+// Loads what the SLA clocks need about a company's SLA row (CS) — its
+// targets, warning point, support hours, time zone and holidays — with a
+// small in-process cache (single backend instance). Any write to a row, its
+// targets or its holidays calls invalidate().
+const { SlaPolicy, SlaTarget, Holiday } = require('../../models');
 const { isValidZone } = require('../../utils/orgTime');
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -27,23 +27,19 @@ function invalidate() {
   cache = new Map();
 }
 
-async function loadCalendar(businessHoursId, transaction) {
-  if (!businessHoursId) return null;
-  const bh = await BusinessHours.findByPk(businessHoursId, { transaction });
-  if (!bh) return null;
-  if (!usableSchedule(bh)) {
-    console.warn(`[sla] business-hours schedule ${bh.id} has no usable open hours; SLA clocks count every hour`);
+async function loadCalendar(policy, transaction) {
+  if (policy.is24x7) return null;
+  if (!usableSchedule(policy)) {
+    console.warn(`[sla] the support hours of SLA ${policy.id} have no usable open hours; its clocks count every hour`);
     return null;
   }
-  const holidays = bh.holidayListId
-    ? (await Holiday.findAll({ where: { holidayListId: bh.holidayListId }, attributes: ['date'], transaction })).map((h) => String(h.date).slice(0, 10))
-    : [];
+  const holidays = (await Holiday.findAll({ where: { slaPolicyId: policy.id }, attributes: ['date'], transaction })).map((h) => String(h.date).slice(0, 10));
   return {
-    timezone: bh.timezone || 'UTC', schedule: bh.schedule || {}, is24x7: !!bh.is24x7, holidays: new Set(holidays),
+    timezone: policy.timezone || 'UTC', schedule: policy.schedule || {}, is24x7: false, holidays: new Set(holidays),
   };
 }
 
-// → { id, name, warnAtPercent, calendar, targets: Map<'type:priority', SlaTarget> } or null.
+// → { id, name, warnAtPercent, timezone, calendar, targets: Map<'type:priority', SlaTarget> } or null.
 // Pass the caller's transaction: a ticket save holds one connection, and a
 // lookup on a second one can starve the pool under concurrent saves.
 async function getPolicy(policyId, transaction) {
@@ -54,15 +50,17 @@ async function getPolicy(policyId, transaction) {
     id: policy.id,
     name: policy.name,
     warnAtPercent: policy.warnAtPercent,
-    calendar: await loadCalendar(policy.businessHoursId, transaction),
+    timezone: policy.timezone || 'UTC',
+    calendar: await loadCalendar(policy, transaction),
     targets: new Map(policy.targets.map((t) => [`${t.ticketType}:${t.priority}`, t.toJSON()])),
   } : null;
   cache.set(policyId, value);
   return value;
 }
 
+// The starting values: what a ticket uses when its company has no row yet.
 async function getDefaultPolicyId(transaction) {
-  const row = await SlaPolicy.findOne({ where: { isDefault: true }, attributes: ['id'], transaction });
+  const row = await SlaPolicy.findOne({ where: { companyId: null }, order: [['isDefault', 'DESC'], ['id', 'ASC']], attributes: ['id'], transaction });
   return row ? row.id : null;
 }
 

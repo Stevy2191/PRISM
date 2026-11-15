@@ -7,7 +7,7 @@ const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { logActivity } = require('../../services/ticketActivity');
 const { changeDueDate: moveDueDate } = require('../../services/sla/ticketSla');
-const { orgTimeZone, toDateString, zoneWallTime } = require('../../utils/orgTime');
+const { toDateString, zoneWallTime } = require('../../utils/orgTime');
 const { canAccessTicket, hasPermission, parseRecordId } = require('../../services/permissionService');
 const { ticketInclude, ticketDetailFor, assertCanEditTicket } = require('./shared');
 
@@ -30,7 +30,8 @@ const changeDueDate = asyncHandler(async (req, res) => {
   const text = (reason || '').trim();
   if (text.length > REASON_MAX) throw bad(`Reason must be ${REASON_MAX} characters or fewer`);
 
-  const to = zoneWallTime(date, dueTime, await orgTimeZone());
+  // In the ticket's company's time zone (CS), as its due date is shown.
+  const to = zoneWallTime(date, dueTime, await require('../../services/sla/companySla').zoneForCompany(ticket.companyId)); // eslint-disable-line global-require
   if (to.getTime() > Date.now() + MAX_AHEAD_MS) throw bad('A due date can be at most two years ahead');
 
   const sla = await TicketSla.findOne({

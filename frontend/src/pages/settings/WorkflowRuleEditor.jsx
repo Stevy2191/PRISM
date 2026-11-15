@@ -80,7 +80,6 @@ const ACTION_OPTIONS = [
   { value: 'send_notification', label: 'Send notification' },
   { value: 'add_private_comment', label: 'Add private comment' },
   { value: 'escalate_to_user', label: 'Escalate to user' },
-  { value: 'set_sla_policy', label: 'Set SLA policy' },
   { value: 'suggest_playbook', label: 'Suggest a bundle' },
 ];
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'critical'];
@@ -235,7 +234,7 @@ function ConditionValueInput({ kind, field, value, onChange, statuses, departmen
 }
 
 // ==================== Action row ====================
-function ActionRow({ action, dragging, onDragStart, onDragOver, onDrop, onDragEnd, onChange, onDelete, statuses, assignableUsers, teams, slaPolicies, playbooks = [] }) {
+function ActionRow({ action, dragging, onDragStart, onDragOver, onDrop, onDragEnd, onChange, onDelete, statuses, assignableUsers, teams, playbooks = [] }) {
   const v = action.actionValue || {};
   const setValue = (patch) => onChange({ ...action, actionValue: { ...v, ...patch } });
 
@@ -275,12 +274,6 @@ function ActionRow({ action, dragging, onDragStart, onDragOver, onDrop, onDragEn
         </select>
       )}
 
-      {action.actionType === 'set_sla_policy' && (
-        <select className="input h-9 text-sm" value={v.slaPolicyId || ''} onChange={(e) => setValue({ slaPolicyId: Number(e.target.value) })}>
-          <option value="">Select SLA policy…</option>
-          {slaPolicies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      )}
 
       {action.actionType === 'suggest_playbook' && (
         <select className="input h-9 text-sm" value={v.playbookId || ''} onChange={(e) => setValue({ playbookId: Number(e.target.value) })} aria-label="Bundle to suggest">
@@ -455,7 +448,6 @@ export default function WorkflowRuleEditor() {
   const [triggerEvent, setTriggerEvent] = useState('ticket_created');
   const [hoursBefore, setHoursBefore] = useState(24);
   const [slaClock, setSlaClock] = useState('any');
-  const [slaPolicies, setSlaPolicies] = useState([]);
   const [playbooks, setPlaybooks] = useState([]);
   const [conditionMatch, setConditionMatch] = useState('all');
   const [conditions, setConditions] = useState([]);
@@ -483,7 +475,6 @@ export default function WorkflowRuleEditor() {
     api.get('/ticket-categories').then(({ data }) => setCategories(data.categories || [])).catch(() => {});
     api.get('/users/assignable').then(({ data }) => setAssignableUsers(data.users)).catch(() => {});
     api.get('/teams').then(({ data }) => setTeams(data.teams)).catch(() => {});
-    api.get('/sla-policies').then(({ data }) => setSlaPolicies(data.policies)).catch(() => {});
     api.get('/playbooks').then(({ data }) => setPlaybooks(data.playbooks)).catch(() => {});
     api.get('/roles').then(({ data }) => setRoles(data.roles)).catch(() => {});
     api.get('/custom-fields').then(({ data }) => setCustomFieldDefs(data.customFields.filter((f) => f.isActive))).catch(() => {});
@@ -669,7 +660,6 @@ export default function WorkflowRuleEditor() {
                 statuses={statuses}
                 assignableUsers={assignableUsers}
                 teams={teams}
-                slaPolicies={slaPolicies}
                 playbooks={playbooks}
               />
             ))}
