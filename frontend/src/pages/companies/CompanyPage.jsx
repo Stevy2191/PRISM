@@ -122,7 +122,7 @@ export default function CompanyPage() {
           ))}
         </div>
       )}
-      {tab === 'overview' && <CompanyGlance company={company} onOpen={open} />}
+      {tab === 'overview' && <CompanyGlance company={company} onOpen={open} justMade={params.get('created') === '1'} />}
       {/* Keyed on updatedAt so the form re-reads a saved company. */}
       {part === 'details' && <CompanyOverview key={company.updatedAt} company={company} onSaved={setCompany} />}
       {part === 'portal' && <CompanyPortal company={company} m365Notice={m365Notice} />}

@@ -4,7 +4,7 @@
 const { Op, fn, col } = require('sequelize');
 const {
   Company, CompanyDomain, Site, User, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, TicketCategory, Device, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, TicketCategory, Device, SlaPolicy, Holiday, AuditLog, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
@@ -181,6 +181,16 @@ const glance = asyncHandler(async (req, res) => {
     seesAssets ? Device.count({ where: { ...here, revokedAt: null } }) : null,
     seesAssets ? Device.count({ where: { ...here, revokedAt: null, lastSeenAt: { [Op.gte]: online } } }) : null,
   ]);
+  // CS: its SLA (copied when it was made: reviewed once saved), support
+  // hours, portal and surveys (chosen once switched, either way).
+  const slaRow = await SlaPolicy.findOne({ where: { companyId: company.id } });
+  const [holidays, slaSaves, surveyChoices] = await Promise.all([
+    slaRow ? Holiday.count({ where: { slaPolicyId: slaRow.id } }) : 0,
+    AuditLog.count({ where: { entityType: 'Company', entityId: company.id, action: ['company.sla', 'company.sla.reset'] } }),
+    AuditLog.count({ where: { entityType: 'Company', entityId: company.id, action: 'company.surveys' } }),
+  ]);
+  const DAY = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+  const openDays = slaRow && !slaRow.is24x7 && slaRow.schedule ? Object.entries(slaRow.schedule).filter(([, d]) => d && d.enabled) : [];
   res.json({
     glance: {
       openTickets,
@@ -193,6 +203,14 @@ const glance = asyncHandler(async (req, res) => {
       categories,
       devices,
       devicesOnline,
+      sla: slaRow ? {
+        reviewed: slaSaves > 0,
+        hours: slaRow.is24x7 ? 'Around the clock' : openDays.map(([d, h]) => `${DAY[d]} ${h.start}–${h.end}`).join(', ') || 'No open days',
+        timezone: slaRow.timezone,
+        holidays,
+      } : null,
+      portal: { enabled: company.portalEnabled === true, slug: company.portalSlug },
+      surveys: { enabled: company.csatEnabled === true, chosen: surveyChoices > 0 },
     },
   });
 });

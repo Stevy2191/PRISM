@@ -30,6 +30,27 @@ it('counts what the company has set up', async () => {
   expect(glance).toMatchObject({ openTickets: 1, contacts: 2, portalContacts: 1, categories: 1, domains: 1 });
 });
 
+it("says whether the SLA was reviewed, the portal is on and surveys were chosen (CS)", async () => {
+  const a = w.admin.agent;
+  const look = async () => expectOk(await a.get(`${API}/companies/${alpha.id}/glance`)).glance;
+  let g = await look();
+  expect(g.sla).toEqual({ reviewed: false, hours: 'Around the clock', timezone: 'UTC', holidays: 0 });
+  expect(g.portal).toEqual({ enabled: false, slug: alpha.portalSlug });
+  expect(g.surveys).toEqual({ enabled: true, chosen: false });
+  const week = Object.fromEntries(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    .map((d, i) => [d, { enabled: i < 5, start: '08:00', end: '17:00' }]));
+  expectOk(await a.put(`${API}/companies/${alpha.id}/sla`).send({ is24x7: false, schedule: week, timezone: 'America/Chicago' }));
+  expectOk(await a.post(`${API}/companies/${alpha.id}/sla/holidays`).send({ name: 'Day', date: '2026-12-24' }), 201);
+  expectOk(await a.put(`${API}/companies/${alpha.id}/portal`).send({ enabled: true }));
+  expectOk(await a.put(`${API}/companies/${alpha.id}/surveys`).send({ enabled: true }));
+  expectOk(await a.put(`${API}/companies/${alpha.id}/surveys`).send({ enabled: false }));
+  g = await look();
+  expect(g.sla).toEqual({
+    reviewed: true, hours: 'Mon 08:00–17:00, Tue 08:00–17:00, Wed 08:00–17:00, Thu 08:00–17:00, Fri 08:00–17:00', timezone: 'America/Chicago', holidays: 1,
+  });
+  expect([g.portal.enabled, g.surveys]).toEqual([true, { enabled: false, chosen: true }]);
+});
+
 it('is fenced like the company, and leaves out what the viewer may not see', async () => {
   const beta = await makeCompany(w.admin, { name: 'Beta Law' });
   const tech = await makeTech('tech-gl', w.deptA.id);

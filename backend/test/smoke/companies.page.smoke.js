@@ -20,8 +20,9 @@ it('shows the company, and adds a domain and a site', async () => {
 
   // Overview: the setup checklist says what's missing and opens its place.
   const setup = page.getByTestId('company-setup');
-  await setup.getByText('Setup · 1 of').waitFor();
-  await setup.getByRole('button', { name: 'Add a domain' }).click();
+  await setup.getByText('Set up this company · 1 of 9 done').waitFor();
+  for (const step of ['SLA targets', 'Support hours and holidays', 'Portal', 'Satisfaction surveys']) await setup.getByText(step, { exact: true }).waitFor(); // eslint-disable-line no-await-in-loop
+  await setup.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByLabel('New domain').fill('acme.test');
   await page.getByRole('button', { name: 'Add domain' }).click();
   await page.getByText('acme.test').waitFor();
@@ -30,6 +31,10 @@ it('shows the company, and adds a domain and a site', async () => {
   await page.getByLabel('Site name').fill('HQ');
   await page.getByRole('button', { name: 'Add site' }).click();
   await page.getByRole('cell', { name: 'HQ' }).waitFor();
+
+  // Just made (from the Companies list): a note says where things are.
+  await page.goto(`/companies/${acme.id}?created=1`);
+  await page.getByRole('status').getByText('Acme is created. It starts with a copy of your starting SLA targets').waitFor();
 
   await openCompanyTab(page, 'People', 'Contacts');
   await page.getByRole('link', { name: 'Ann Able' }).waitFor();
