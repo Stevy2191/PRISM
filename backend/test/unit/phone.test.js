@@ -23,3 +23,13 @@ it('shows (XXX) XXX-XXXX, and anything else as it is', () => {
   expect(formatPhone('ext 12')).toBe('ext 12');
   expect(formatPhone(null)).toBe('');
 });
+
+it('an extension is 1 to 4 digits, and shows after the number', () => {
+  const { normalizeExtension, normalizeExtensionLenient } = require('../../src/utils/phone'); // eslint-disable-line global-require
+  expect(normalizeExtension('1234')).toBe('1234');
+  expect(normalizeExtension('x 42')).toBe('42');
+  expect(normalizeExtension('')).toBeNull();
+  expect(() => normalizeExtension('12345')).toThrow('An extension is up to 4 digits');
+  expect(normalizeExtensionLenient('12345')).toBeNull();
+  expect(formatPhone('9792776200', '1234')).toBe('(979) 277-6200 ext. 1234');
+});

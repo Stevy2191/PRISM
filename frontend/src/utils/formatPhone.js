@@ -12,12 +12,17 @@ export function formatPhone(value) {
 }
 
 // For showing a stored number: (XXX) XXX-XXXX when it is 10 digits (or 11
-// starting with 1), otherwise as it is, so nothing is ever cut off.
-export function showPhone(value) {
+// starting with 1), otherwise as it is, so nothing is ever cut off. With an
+// extension: (XXX) XXX-XXXX ext. 1234.
+export function showPhone(value, ext) {
   if (!value) return '';
   let digits = String(value).replace(/\D/g, '');
   if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
-  return digits.length === 10 ? formatPhone(digits) : String(value);
+  const shown = digits.length === 10 ? formatPhone(digits) : String(value);
+  return ext ? `${shown} ext. ${ext}` : shown;
 }
+
+// An extension as it is typed: digits only, at most 4.
+export const formatExtension = (value) => String(value || '').replace(/\D/g, '').slice(0, 4);
 
 export default formatPhone;

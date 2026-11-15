@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api, { errMessage } from '../api/api';
 import LoadMore from '../components/LoadMore';
 import { initials } from '../utils/userDisplay';
-import { formatPhone } from '../utils/formatPhone';
+import { formatPhone, formatExtension } from '../utils/formatPhone';
 import { useAnyPermission, useAuth, usePermission } from '../context/AuthContext';
 import ContactPortalBlock from '../components/portal/ContactPortalBlock';
 import { assignableContactDepartments } from '../utils/contactDepartments';
@@ -144,7 +144,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
   const [name, setName] = useState(contact.displayName);
   const [editingName, setEditingName] = useState(false);
   const [fields, setFields] = useState({
-    email: contact.email || '', phone: formatPhone(contact.phone || ''), mobile: formatPhone(contact.mobile || ''), jobTitle: contact.jobTitle || '',
+    email: contact.email || '', phone: formatPhone(contact.phone || ''), phoneExt: contact.phoneExt || '', mobile: formatPhone(contact.mobile || ''), jobTitle: contact.jobTitle || '',
   });
   const [notes, setNotes] = useState(contact.notes || '');
   const [notesSaved, setNotesSaved] = useState(true);
@@ -164,7 +164,7 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
 
   useEffect(() => {
     setName(contact.displayName);
-    setFields({ email: contact.email || '', phone: formatPhone(contact.phone || ''), mobile: formatPhone(contact.mobile || ''), jobTitle: contact.jobTitle || '' });
+    setFields({ email: contact.email || '', phone: formatPhone(contact.phone || ''), phoneExt: contact.phoneExt || '', mobile: formatPhone(contact.mobile || ''), jobTitle: contact.jobTitle || '' });
     setNotes(contact.notes || '');
   }, [contact.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -266,8 +266,11 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
           <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.email} onChange={(e) => setFields((f) => ({ ...f, email: e.target.value }))} onBlur={() => saveField('email')} />
         </div>
         <div>
-          <label className="mb-1 block text-xs" style={{ color: MUTED }}>Phone{saved('phone')}</label>
-          <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.phone} onChange={(e) => setFields((f) => ({ ...f, phone: formatPhone(e.target.value) }))} onBlur={() => saveField('phone')} placeholder="(555) 123-4567" inputMode="tel" />
+          <label className="mb-1 block text-xs" style={{ color: MUTED }} htmlFor="contact-phone">Phone{saved('phone')}{saved('phoneExt')}</label>
+          <div className="flex gap-2">
+            <input id="contact-phone" disabled={!canEdit} className="input h-9 min-w-0 flex-1 text-sm" style={fieldStyle} value={fields.phone} onChange={(e) => setFields((f) => ({ ...f, phone: formatPhone(e.target.value) }))} onBlur={() => saveField('phone')} placeholder="(555) 123-4567" inputMode="tel" />
+            <input aria-label="Extension" disabled={!canEdit} className="input h-9 w-20 text-sm" style={fieldStyle} value={fields.phoneExt} onChange={(e) => setFields((f) => ({ ...f, phoneExt: formatExtension(e.target.value) }))} onBlur={() => saveField('phoneExt')} placeholder="Ext." inputMode="numeric" />
+          </div>
         </div>
         <div>
           <label className="mb-1 block text-xs" style={{ color: MUTED }}>Mobile{saved('mobile')}</label>

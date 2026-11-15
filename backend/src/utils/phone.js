@@ -30,11 +30,33 @@ function normalizePhoneLenient(value) {
   }
 }
 
-// (XXX) XXX-XXXX for a 10-digit number; anything else as it is.
-function formatPhone(value) {
-  if (!value) return '';
-  const d = digitsOf(value);
-  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : String(value);
+// An extension beside a phone number (people only: contacts and staff):
+// 1 to 4 digits, stored as they are.
+function normalizeExtension(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const ext = String(value).replace(/\D/g, '');
+  if (!ext) return null;
+  if (ext.length > 4) throw new ApiError(400, 'An extension is up to 4 digits', 'VALIDATION_ERROR');
+  return ext;
 }
 
-module.exports = { normalizePhone, normalizePhoneLenient, formatPhone };
+function normalizeExtensionLenient(value) {
+  try {
+    return normalizeExtension(value);
+  } catch {
+    return null;
+  }
+}
+
+// (XXX) XXX-XXXX for a 10-digit number; anything else as it is. With an
+// extension: (XXX) XXX-XXXX ext. 1234.
+function formatPhone(value, ext) {
+  if (!value) return '';
+  const d = digitsOf(value);
+  const shown = d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : String(value);
+  return ext ? `${shown} ext. ${ext}` : shown;
+}
+
+module.exports = {
+  normalizePhone, normalizePhoneLenient, normalizeExtension, normalizeExtensionLenient, formatPhone,
+};

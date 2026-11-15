@@ -13,7 +13,7 @@ const {
   findDepartmentInCompany, findSiteInCompany, resolveRecordCompany, isCompanyChange, getInternalCompanyId,
 } = require('../services/companyService');
 const { logContactActivity } = require('../services/contactActivity');
-const { normalizePhone } = require('../utils/phone');
+const { normalizePhone, normalizeExtension } = require('../utils/phone');
 const { parsePagination, paginated } = require('../utils/pagination');
 const { orgToday } = require('../utils/orgTime');
 const { issuePortalToken } = require('../services/portal/tokens');
@@ -151,7 +151,7 @@ const alphaIndex = asyncHandler(async (req, res) => {
 // POST /contacts
 const create = asyncHandler(async (req, res) => {
   const {
-    firstName, lastName, email, phone, mobile, departmentId, siteId, jobTitle, assignedTo, notes, displayName, companyId,
+    firstName, lastName, email, phone, phoneExt, mobile, departmentId, siteId, jobTitle, assignedTo, notes, displayName, companyId,
   } = req.body || {};
   const first = (firstName || '').trim();
   const last = (lastName || '').trim();
@@ -185,6 +185,7 @@ const create = asyncHandler(async (req, res) => {
     displayName: (displayName && displayName.trim()) || `${first} ${last}`.trim(),
     email: email || null,
     phone: normalizePhone(phone),
+    phoneExt: normalizeExtension(phoneExt),
     mobile: normalizePhone(mobile),
     companyId: contactCompanyId,
     departmentId: resolvedDepartmentId,
@@ -306,13 +307,14 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const allowed = [
-    'firstName', 'lastName', 'displayName', 'email', 'phone', 'mobile', 'departmentId', 'siteId', 'jobTitle', 'assignedTo', 'notes',
+    'firstName', 'lastName', 'displayName', 'email', 'phone', 'phoneExt', 'mobile', 'departmentId', 'siteId', 'jobTitle', 'assignedTo', 'notes',
   ];
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key] === '' ? null : req.body[key];
   }
   if (changes.phone !== undefined) changes.phone = normalizePhone(changes.phone);
+  if (changes.phoneExt !== undefined) changes.phoneExt = normalizeExtension(changes.phoneExt);
   if (changes.mobile !== undefined) changes.mobile = normalizePhone(changes.mobile);
   // The company's "Unknown tray user" stands in for agent tickets from
   // people who match no contact. Making it a person would file every
@@ -553,6 +555,7 @@ const createFromUser = asyncHandler(async (req, res) => {
     displayName: shown || `${first} ${last}`.trim(),
     email: user.email || null,
     phone: normalizePhone(user.phone),
+    phoneExt: user.phoneExt || null,
     companyId,
     departmentId: dept ? dept.id : null,
     jobTitle: user.jobTitle || null,

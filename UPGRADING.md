@@ -20,6 +20,12 @@ contacts already did. **Database:** migration 094 puts numbers already saved
 as `(979) 277-6200`, `979-277-6200` or `+1 979 277 6200` into that form; any
 other number (an extension, a number from abroad) is left as it was.
 
+**Extensions:** contacts and staff profiles have an **Ext.** box beside the
+phone number (up to 4 digits), shown as `(979) 277-6200 ext. 1234` in the
+contacts list, on the ticket page and on the contact's page. The contact CSV
+import takes an Extension column. **Database:** migration 095 adds the
+extension to contacts and users.
+
 ### Company settings (CS)
 
 Your own company and your customers are now clearly apart. **Settings › Your

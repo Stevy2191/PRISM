@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { IconX, IconUserEdit } from '@tabler/icons-react';
 import api from '../../../api/api';
 import { initials } from '../../../utils/userDisplay';
-import { formatPhone } from '../../../utils/formatPhone';
+import { formatPhone, showPhone } from '../../../utils/formatPhone';
 import TimeDropdownPicker from '../../../components/TimeDropdownPicker';
 import CategoryPicker from '../../../components/CategoryPicker';
 import { forTicketType } from '../../../components/categoryTree';
@@ -312,7 +312,7 @@ export function Sidebar({
                 </div>
                 <div><dt className="text-xs" style={{ color: MUTED }}>Department</dt><dd style={{ color: TEXT }}>{ticket.contact?.department?.name || '—'}</dd></div>
                 <div><dt className="text-xs" style={{ color: MUTED }}>Email</dt><dd style={{ color: TEXT }}>{ticket.contact?.email || '—'}</dd></div>
-                <div><dt className="text-xs" style={{ color: MUTED }}>Phone</dt><dd style={{ color: TEXT }}>{ticket.contact?.phone ? formatPhone(ticket.contact.phone) : '—'}</dd></div>
+                <div><dt className="text-xs" style={{ color: MUTED }}>Phone</dt><dd style={{ color: TEXT }}>{ticket.contact?.phone ? showPhone(ticket.contact.phone, ticket.contact.phoneExt) : '—'}</dd></div>
               </dl>
               {ticket.contact && !ticket.contact.departmentId && (
                 <div className="mt-2 rounded-md border p-2.5" style={{ borderColor: BORDER, backgroundColor: BG }}>

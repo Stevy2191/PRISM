@@ -24,6 +24,8 @@ module.exports = (sequelize) => {
         } },
       },
       phone: { type: DataTypes.STRING(50), allowNull: true },
+      // The extension for `phone`: up to 4 digits.
+      phoneExt: { type: DataTypes.STRING(4), allowNull: true },
       mobile: { type: DataTypes.STRING(50), allowNull: true },
       departmentId: { type: DataTypes.INTEGER, allowNull: true },
       // The company this record belongs to (client companies, sub-project 2).

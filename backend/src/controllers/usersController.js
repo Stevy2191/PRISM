@@ -17,7 +17,7 @@ const {
 } = require('../utils/username');
 const { settleAccountRoles } = require('../services/accountRoles');
 const { computeDisplayName } = require('../utils/userDisplay');
-const { normalizePhone } = require('../utils/phone');
+const { normalizePhone, normalizeExtension } = require('../utils/phone');
 const { validWorkHours } = require('../services/workload/capacity');
 const { validatePassword, describeProblems } = require('../utils/passwordPolicy');
 const { getAllSettings } = require('./settingsController');
@@ -197,7 +197,7 @@ async function parseNewOverrides(actor, overrides) {
 const create = asyncHandler(async (req, res) => {
   const {
     username: rawUsername, displayName, email, role, departmentId, password,
-    firstName, lastName, phone, jobTitle, roleId, overrides,
+    firstName, lastName, phone, phoneExt, jobTitle, roleId, overrides,
   } = req.body || {};
   if (!rawUsername || !String(rawUsername).trim()) {
     throw new ApiError(400, 'Username is required', 'VALIDATION_ERROR');
@@ -265,6 +265,7 @@ const create = asyncHandler(async (req, res) => {
       firstName: firstName ? firstName.trim() : null,
       lastName: lastName ? lastName.trim() : null,
       phone: normalizePhone(phone),
+      phoneExt: normalizeExtension(phoneExt),
       jobTitle: jobTitle ? jobTitle.trim() : null,
       email: email || null,
       role: legacyRole,
@@ -334,7 +335,7 @@ const update = asyncHandler(async (req, res) => {
   if (!isSelf) await assertCanManageAccount(req.user, user);
 
   const {
-    role, departmentId, password, firstName, lastName, phone, jobTitle, email, userType, hourlyRate, username,
+    role, departmentId, password, firstName, lastName, phone, phoneExt, jobTitle, email, userType, hourlyRate, username,
   } = req.body || {};
   const changes = {};
 
@@ -426,6 +427,7 @@ const update = asyncHandler(async (req, res) => {
   if (firstName !== undefined) changes.firstName = firstName ? firstName.trim() : null;
   if (lastName !== undefined) changes.lastName = lastName ? lastName.trim() : null;
   if (phone !== undefined) changes.phone = normalizePhone(phone);
+  if (phoneExt !== undefined) changes.phoneExt = normalizeExtension(phoneExt);
   if (jobTitle !== undefined) changes.jobTitle = jobTitle ? jobTitle.trim() : null;
   if (email !== undefined) {
     const next = email ? String(email).trim() : null;

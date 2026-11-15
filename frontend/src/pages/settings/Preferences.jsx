@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useTheme, THEME_OPTIONS } from '../../context/ThemeContext';
 import { useNavStyle, NAV_STYLE_OPTIONS } from '../../context/NavStyleContext';
-import { formatPhone } from '../../utils/formatPhone';
+import { formatPhone, formatExtension } from '../../utils/formatPhone';
 import SettingsPage from '../../components/settings/SettingsPage';
 import RichTextEditor from '../../components/RichTextEditor';
 
@@ -320,6 +320,7 @@ function ProfileSection({ user, onSaved }) {
     lastName: user?.lastName || '',
     email: user?.email || '',
     phone: formatPhone(user?.phone || ''),
+    phoneExt: user?.phoneExt || '',
     jobTitle: user?.jobTitle || '',
   });
   const [saving, setSaving] = useState(false);
@@ -339,6 +340,7 @@ function ProfileSection({ user, onSaved }) {
         lastName: form.lastName.trim() || null,
         email: form.email.trim() || null,
         phone: form.phone.trim() || null,
+        phoneExt: form.phoneExt || null,
         jobTitle: form.jobTitle.trim() || null,
       });
       await onSaved();
@@ -372,8 +374,11 @@ function ProfileSection({ user, onSaved }) {
           <input type="email" className="input" value={form.email} onChange={set('email')} readOnly={!canChangeEmail} title={canChangeEmail ? undefined : 'Ask an administrator to change your email address'} />
         </div>
         <div>
-          <label className="label">Phone</label>
-          <input className="input" value={form.phone} onChange={setPhone} placeholder="(555) 123-4567" inputMode="tel" />
+          <label className="label" htmlFor="pref-phone">Phone</label>
+          <div className="flex gap-2">
+            <input id="pref-phone" className="input min-w-0 flex-1" value={form.phone} onChange={setPhone} placeholder="(555) 123-4567" inputMode="tel" />
+            <input aria-label="Extension" className="input w-24" value={form.phoneExt} onChange={(e) => setForm((f) => ({ ...f, phoneExt: formatExtension(e.target.value) }))} placeholder="Ext." inputMode="numeric" />
+          </div>
         </div>
         <div>
           <label className="label">Job title</label>

@@ -9,7 +9,7 @@ import OwnerBadge from '../components/users/OwnerBadge';
 import OwnershipPanel from '../components/users/OwnershipPanel';
 import Collapsible from '../components/Collapsible';
 import AccessRestricted, { isForbidden } from '../components/AccessRestricted';
-import { formatPhone } from '../utils/formatPhone';
+import { formatPhone, formatExtension } from '../utils/formatPhone';
 import SettingsPage from '../components/settings/SettingsPage';
 import { canOpen, findPage } from './settings/registry';
 import DepartmentOptions from '../components/companies/DepartmentOptions';
@@ -605,6 +605,7 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
     lastName: user.lastName || '',
     email: user.email || '',
     phone: formatPhone(user.phone || ''),
+    phoneExt: user.phoneExt || '',
     jobTitle: user.jobTitle || '',
     departmentId: user.departmentId || '',
     userType: user.userType || 'internal',
@@ -646,6 +647,7 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
         lastName: form.lastName.trim() || null,
         email: form.email.trim() || null,
         phone: form.phone.trim() || null,
+        phoneExt: form.phoneExt || null,
         jobTitle: form.jobTitle.trim() || null,
         departmentId: form.departmentId || null,
       };
@@ -731,8 +733,11 @@ function ProfileTab({ user, departments, onUpdate, canManageContractor }) {
           <input type="email" className="input" value={form.email} onChange={set('email')} />
         </div>
         <div>
-          <label className="label">Phone</label>
-          <input className="input" value={form.phone} onChange={setPhone} placeholder="(555) 123-4567" inputMode="tel" />
+          <label className="label" htmlFor="user-phone">Phone</label>
+          <div className="flex gap-2">
+            <input id="user-phone" className="input min-w-0 flex-1" value={form.phone} onChange={setPhone} placeholder="(555) 123-4567" inputMode="tel" />
+            <input aria-label="Extension" className="input w-24" value={form.phoneExt} onChange={(e) => setForm((f) => ({ ...f, phoneExt: formatExtension(e.target.value) }))} placeholder="Ext." inputMode="numeric" />
+          </div>
         </div>
         <div>
           <label className="label">Job title</label>

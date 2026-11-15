@@ -43,6 +43,11 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(50),
         allowNull: true,
       },
+      // The extension for `phone`: up to 4 digits.
+      phoneExt: {
+        type: DataTypes.STRING(4),
+        allowNull: true,
+      },
       jobTitle: {
         type: DataTypes.STRING(150),
         allowNull: true,

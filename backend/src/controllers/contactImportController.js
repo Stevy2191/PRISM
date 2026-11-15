@@ -5,13 +5,13 @@ const { Contact, Department, Company } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit } = require('../middleware/audit');
 const { logContactActivity } = require('../services/contactActivity');
-const { normalizePhoneLenient } = require('../utils/phone');
+const { normalizePhoneLenient, normalizeExtensionLenient } = require('../utils/phone');
 const { toCsv } = require('../utils/csv');
 const { getInternalCompanyId } = require('../services/companyService');
 const { companyScopeWhere } = require('../services/permissionService');
 const { andWhere } = require('../services/recordScope');
 
-const IMPORT_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'mobile', 'department', 'jobTitle', 'company'];
+const IMPORT_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'phoneExt', 'mobile', 'department', 'jobTitle', 'company'];
 
 // GET /contacts/import/sample — a template CSV with the expected headers.
 const sample = asyncHandler(async (req, res) => {
@@ -193,6 +193,7 @@ const commit = asyncHandler(async (req, res) => {
         displayName: `${rec.firstName || ''} ${rec.lastName || ''}`.trim() || rec.email,
         email: rec.email || null,
         phone: normalizePhoneLenient(rec.phone),
+        phoneExt: normalizeExtensionLenient(rec.phoneExt),
         mobile: normalizePhoneLenient(rec.mobile),
         companyId: rec.companyId,
         departmentId: deptId,

@@ -4,7 +4,7 @@ import api, { errMessage } from '../api/api';
 import { usePagination } from '../hooks/usePagination';
 import Pagination from '../components/Pagination';
 import PersonAvatar from '../components/ui/Avatar';
-import { formatPhone } from '../utils/formatPhone';
+import { formatPhone, formatExtension, showPhone } from '../utils/formatPhone';
 import { useAuth, useAnyPermission } from '../context/AuthContext';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
@@ -79,8 +79,11 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Phone</label>
-          <input className="input" style={fieldStyle} value={form.phone} onChange={setPhoneField('phone')} placeholder="(555) 123-4567" inputMode="tel" />
+          <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }} htmlFor="new-contact-phone">Phone</label>
+          <div className="flex gap-2">
+            <input id="new-contact-phone" className="input min-w-0 flex-1" style={fieldStyle} value={form.phone} onChange={setPhoneField('phone')} placeholder="(555) 123-4567" inputMode="tel" />
+            <input aria-label="Extension" className="input w-24" style={fieldStyle} value={form.phoneExt} onChange={(e) => setForm((f) => ({ ...f, phoneExt: formatExtension(e.target.value) }))} placeholder="Ext." inputMode="numeric" />
+          </div>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: TEXT }}>Mobile</label>
@@ -112,7 +115,7 @@ function ContactFormFields({ form, setForm, departments, assignableUsers }) {
 
 function NewContactModal({ departments, assignableUsers, currentUserId, onClose, onCreated }) {
   const [form, setForm] = useState({
-    firstName: '', lastName: '', email: '', phone: '', mobile: '',
+    firstName: '', lastName: '', email: '', phone: '', phoneExt: '', mobile: '',
     departmentId: '', jobTitle: '', assignedTo: String(currentUserId || ''), notes: '', companyId: '',
   });
   const [error, setError] = useState('');
@@ -132,6 +135,7 @@ function NewContactModal({ departments, assignableUsers, currentUserId, onClose,
         lastName: form.lastName.trim(),
         email: form.email || null,
         phone: form.phone || null,
+        phoneExt: form.phoneExt || null,
         mobile: form.mobile || null,
         departmentId: form.departmentId || null,
         companyId: form.companyId || undefined,
@@ -418,7 +422,7 @@ export default function Contacts() {
                       <div className="mt-2 space-y-0.5 text-sm" style={{ color: MUTED }}>
                         {multiCompany && c.company && <p className="truncate" style={{ color: TEXT }}>{c.company.name}</p>}
                         <p className="truncate">{c.email || '—'}</p>
-                        <p>{c.phone ? formatPhone(c.phone) : '—'}</p>
+                        <p>{c.phone ? showPhone(c.phone, c.phoneExt) : '—'}</p>
                       </div>
                     </Link>
                   ))}
@@ -485,7 +489,7 @@ export default function Contacts() {
                           <span className="whitespace-nowrap text-sm" style={{ color: MUTED }}>No department</span>
                         )}
                       </td>
-                      <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{c.phone ? formatPhone(c.phone) : '—'}</td>
+                      <td className="num whitespace-nowrap px-4 py-3 text-sm" style={{ color: MUTED }}>{c.phone ? showPhone(c.phone, c.phoneExt) : '—'}</td>
                       <td className="px-4 py-3">
                         {c.assignedToUser ? (
                           <span className="flex items-center gap-2 whitespace-nowrap text-sm" style={{ color: TEXT }}>
