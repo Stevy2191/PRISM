@@ -10,8 +10,13 @@ its design and plan live. The reasoning behind the shape of the roadmap is in
 [the roadmap design](superpowers/specs/2026-10-03-prism-psa-roadmap-design.md);
 read that before designing any sub-project.
 
-## Where things stand (updated 2026-11-03)
+## Where things stand (updated 2026-11-15)
 
+- **Phase 2 is released as `v0.5.0`** (2026-11-15): the PRISM agent (8a–8d)
+  for Windows, macOS and Linux, plus PB, PB2, 9 (per-company categories) and
+  CS (company settings). The owner has tested the agent on macOS and Arch;
+  Windows, Ubuntu and Fedora are still being tested, and fixes from that ship
+  as `v0.5.1`, `v0.5.2`, … Release notes: `## v0.5.0` in `UPGRADING.md`.
 - **Phase 1 is released as `v0.4.0`** (2026-11-03): sub-projects 1–7
   (including 5d, attachment virus scanning, 6, project management, 6b, the
   look A restyle, and 7, the client portal). Release notes: `## v0.4.0` in
@@ -151,7 +156,7 @@ consistent between tickets and projects, and covered by tests.
 - Settings (2026-10-12): one menu with search, regrouped pages, one page layout ([spec](superpowers/specs/2026-10-12-settings-redesign-design.md), [plan](superpowers/plans/2026-10-12-settings-redesign.md)).
 - Settings cleanup (2026-10-12): unused settings removed, one organization name, assignment rules folded into workflow rules, Modules & tabs removed.
 
-### Phase 2 — The PRISM agent (`v0.5.0`)
+### Phase 2 — The PRISM agent (`v0.5.0`, Released 2026-11-15)
 
 Reshaped 2026-11-03 (owner): the agent, inventory and tray app on Windows,
 macOS and Linux, without the rest of RMM. Built as 8a (server and Windows),
@@ -159,7 +164,7 @@ macOS and Linux, without the rest of RMM. Built as 8a (server and Windows),
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
-| 8 | PRISM agent: inventory and the tray app — for Windows, macOS and Linux (owner, 2026-11-03): a system service and per-user tray app (Go; MSI, .pkg, .deb/.rpm), enrollment per company straight to PRISM over HTTPS (no gateway yet, decided 2026-11-03), signed updates; every computer an Asset with hardware, OS, network, installed software, logged-in user and last seen; tray **Submit a ticket** form with a health snapshot. Absorbs the inventory half of 9, the first version of 9b, and 19 (macOS and Linux) | Building — 8a (server and Windows), 8b (macOS), 8c (Linux: Ubuntu, Fedora, Arch) and 8d (install keys you can copy again, install links, push scripts for PDQ/GPO/Intune/RMMs) shipped to `dev` (2026-11-09), waiting on the owner's hand tests (Windows 11 and 10; a Mac; Ubuntu 24.04, Fedora, Arch) before v0.5.0 | [spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md); [mockups](mockups/agent-8/) ([canvas](https://claude.ai/artifact/3yKJ5XAMj7giMFSS2XuxCe)) | [plan 8a](superpowers/plans/2026-11-03-agent-8a-server-windows.md) (server and Windows); [plan 8b](superpowers/plans/2026-11-04-agent-8b-macos.md) (macOS); [plan 8c](superpowers/plans/2026-11-04-agent-8c-linux.md) (Linux); [plan 8d](superpowers/plans/2026-11-09-agent-8d-install-links.md) (install links) |
+| 8 | PRISM agent: inventory and the tray app — for Windows, macOS and Linux (owner, 2026-11-03): a system service and per-user tray app (Go; MSI, .pkg, .deb/.rpm), enrollment per company straight to PRISM over HTTPS (no gateway yet, decided 2026-11-03), signed updates; every computer an Asset with hardware, OS, network, installed software, logged-in user and last seen; tray **Submit a ticket** form with a health snapshot. Absorbs the inventory half of 9, the first version of 9b, and 19 (macOS and Linux) | Released in v0.5.0 (2026-11-15) — 8a (server and Windows), 8b (macOS), 8c (Linux: Ubuntu, Fedora, Arch) and 8d (install keys you can copy again, install links, push scripts for PDQ/GPO/Intune/RMMs). Owner tested macOS and Arch; Windows 11 and 10, Ubuntu 24.04 and Fedora still being tested (fixes ship as v0.5.x) | [spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md); [mockups](mockups/agent-8/) ([canvas](https://claude.ai/artifact/3yKJ5XAMj7giMFSS2XuxCe)) | [plan 8a](superpowers/plans/2026-11-03-agent-8a-server-windows.md) (server and Windows); [plan 8b](superpowers/plans/2026-11-04-agent-8b-macos.md) (macOS); [plan 8c](superpowers/plans/2026-11-04-agent-8c-linux.md) (Linux); [plan 8d](superpowers/plans/2026-11-09-agent-8d-install-links.md) (install links) |
 | 9 | Inventory → into 8. Monitoring (heartbeats are in 8; checks and alerts that open tickets) → moved to Phase 4 as 16a (2026-11-03) | Moved | — | — |
 | 9b | Per-company ticket categories and software lists: each company its own category tree (never shared), top-level categories for incidents, requests or both, a required choice with Other / I'm not sure on the agent and the portal, the agent's form with the ticket type, categories and attachments; then each company's software list, "which app?" steps, the step-by-step picker on staff and portal forms, copying a tree, a company setup checklist (owner, 2026-11-05 and 2026-11-10) | Building — categories per company and per type, not sure, the Categories tab, the agent's form (type, categories, attachments) shipped to `dev` 2026-11-11; software lists, which-app steps, the staff/portal stepper, copying and the setup checklist to follow | — | [plan](superpowers/plans/2026-11-05-company-ticket-categories-9.md) |
 | 9b | Tray app → its first version (Submit a ticket, health snapshot) is in 8; the screenshot button and a "My tickets" list come later (2026-11-03) | Moved into 8 | — | — |

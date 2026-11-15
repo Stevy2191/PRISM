@@ -10,6 +10,38 @@ backend start.
 
 ## Unreleased
 
+## v0.5.0
+
+Released 2026-11-15. Phase 2, RMM core.
+
+- **The PRISM agent** for Windows, macOS and Linux (Ubuntu, Fedora, Arch):
+  every computer it is installed on becomes an Asset of its company and keeps
+  its hardware, software and users current, and people get **Submit a ticket**
+  in the tray or menu bar. Tested on macOS and Arch Linux; Windows, Ubuntu and
+  Fedora are still being tested, so roll it out there gradually.
+- **Each company has its own settings on its own page**: SLA targets, support
+  hours, holidays and time zone, its own portal link, satisfaction surveys,
+  ticket categories, and what applies to it. Your own company's page is in
+  Settings.
+- **Checklists and bundles** (playbooks) on tickets.
+- **Ticket categories per company**, for incidents and requests.
+- **Phone numbers** shown as (979) 277-6200, with an extension for people.
+- Sign-in behind an HTTPS proxy fixed, and Settings rearranged.
+
+**Before upgrading:**
+
+1. **Take a database dump** (see `RELEASING.md`). This release runs
+   migrations 074 to 095, which move SLAs, business hours and holidays onto
+   each company and turn the one portal switch into one per company. Rolling
+   back to v0.4.0 afterwards needs that dump.
+2. **Give each customer its own portal link** (its page, Setup › Portal) once
+   you have upgraded: the plain `/portal` address no longer signs anyone in
+   while you have customer companies.
+
+The `docker-compose.yml` and `.env` settings are unchanged from v0.4.0. A test
+HTTPS certificate is now offered by `setup.sh` (`docker-compose.tls.yml`), for
+trying the agent on a local network.
+
 ### Phone numbers
 
 Every phone number in PRISM (users, contacts, companies, sites, contracts
@@ -77,6 +109,8 @@ switch; where the portal was on, companies with contacts who could sign in
 keep it on) and 093 (a bundle turned off for one company). They run on
 start; nothing to do. After upgrading, give each customer its portal link
 (Setup › Portal) in place of the plain `/portal` address.
+
+### The PRISM agent (sub-projects 8a to 8d)
 
 The PRISM agent for Windows (sub-project 8a) and macOS (8b). Every computer
 it's installed on becomes an Asset of its company and keeps its hardware,
