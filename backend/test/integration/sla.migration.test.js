@@ -2,13 +2,12 @@ const Sequelize = require('sequelize');
 const { resetData, closeDb, models, sequelize } = require('./helpers');
 const migration = require('../../migrations/20260101000060-sla-engine');
 const dueDates = require('../../migrations/20260101000061-sla-due-dates');
+const companySla = require('../../migrations/20260101000091-company-sla');
 
 // SLA engine schema (sub-project 4): the old one-row-per-priority SlaPolicies
 // table becomes a "Standard" default policy with one target per priority.
 
-const {
-  SlaPolicy, SlaTarget, BusinessHours, TicketStatus, Department,
-} = models;
+const { SlaTarget, TicketStatus, Department } = models;
 const enumOf = async (table, column) => {
   const [rows] = await sequelize.query(`SHOW COLUMNS FROM ${table} LIKE '${column}'`);
   return [...rows[0].Type.matchAll(/'([^']*)'/g)].map((m) => m[1]);
@@ -27,15 +26,20 @@ const asInstalled = async () => {
   await sequelize.query('ALTER TABLE WorkflowActions MODIFY actionType VARCHAR(50) NOT NULL');
 };
 
-// 061 builds on 060: roll it back for these cases and put it back after.
-beforeAll(async () => { await dueDates.down(qi(), Sequelize); });
+// 061 and 091 build on 060: roll them back for these cases and put them back after.
+beforeAll(async () => {
+  await resetData();
+  await companySla.down(qi(), Sequelize);
+  await dueDates.down(qi(), Sequelize);
+});
 beforeEach(async () => {
   await resetData();
   await asInstalled();
 });
 afterAll(async () => {
   await dueDates.up(qi(), Sequelize);
-  await BusinessHours.destroy({ where: {} });
+  await sequelize.query('DELETE FROM BusinessHours');
+  await companySla.up(qi(), Sequelize);
   await closeDb();
 });
 
@@ -61,10 +65,15 @@ describe('sla-engine migration', () => {
   it('links the global business-hours schedule when one exists', async () => {
     await migration.down(qi());
     const dept = await Department.create({ name: 'Facilities' });
-    await BusinessHours.create({ name: 'Dept', departmentId: dept.id, timezone: 'UTC' });
-    const global = await BusinessHours.create({ name: 'Office', departmentId: null, timezone: 'America/Chicago' });
+    const add = (name, departmentId, tz) => sequelize.query(
+      'INSERT INTO BusinessHours (name, departmentId, timezone, createdAt) VALUES (?, ?, ?, NOW())', { replacements: [name, departmentId, tz] },
+    );
+    await add('Dept', dept.id, 'UTC');
+    await add('Office', null, 'America/Chicago');
+    const [{ id: globalId }] = await sequelize.query("SELECT id FROM BusinessHours WHERE name = 'Office'", { type: Sequelize.QueryTypes.SELECT });
     await migration.up(qi(), Sequelize);
-    expect((await SlaPolicy.findOne({ where: { isDefault: true } })).businessHoursId).toBe(global.id);
+    const [std] = await sequelize.query('SELECT businessHoursId FROM SlaPolicies WHERE isDefault = 1', { type: Sequelize.QueryTypes.SELECT });
+    expect(std.businessHoursId).toBe(globalId);
   });
 
   it('adds the SLA notification types to a saved notification setting', async () => {
@@ -98,8 +107,7 @@ describe('sla-engine migration', () => {
     expect(await SlaTarget.count()).toBe(4);
     // VARCHAR columns already take the new values: left as they are.
     expect([await colType('WorkflowRules', 'triggerEvent'), await colType('WorkflowActions', 'actionType')]).toEqual(['varchar(50)', 'varchar(50)']);
-    const rule = await models.WorkflowRule.create({ name: 'esc', triggerEvent: 'sla_breached', triggerConfig: { clock: 'any' } });
-    await models.WorkflowAction.create({ ruleId: rule.id, actionType: 'set_sla_policy', actionValue: { slaPolicyId: 1 }, position: 0 });
+    await models.WorkflowRule.create({ name: 'esc', triggerEvent: 'sla_breached', triggerConfig: { clock: 'any' } });
   });
 
   it('still rewrites the columns where an install does have ENUMs', async () => {
@@ -113,7 +121,7 @@ describe('sla-engine migration', () => {
   });
 
   it('down keeps the default policy targets as the per-priority rows', async () => {
-    const std = await SlaPolicy.findOne({ where: { isDefault: true } });
+    const [std] = await sequelize.query('SELECT id FROM SlaPolicies WHERE isDefault = 1', { type: Sequelize.QueryTypes.SELECT });
     await SlaTarget.update({ responseMinutes: 45 }, { where: { slaPolicyId: std.id, priority: 'critical' } });
     await migration.down(qi());
     const rows = await sequelize.query("SELECT firstResponseHours FROM SlaPolicies WHERE priority = 'critical'", { type: Sequelize.QueryTypes.SELECT });

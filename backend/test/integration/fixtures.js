@@ -5,7 +5,7 @@
 // `jest` is not required here: Jest injects it into every module it loads,
 // and requiring @jest/globals as well is a duplicate declaration.
 /* global jest */
-const { createUserAndLogin, ROLE } = require('./helpers');
+const { createUserAndLogin, ROLE, models } = require('./helpers');
 
 const API = '/api/v1';
 
@@ -192,9 +192,32 @@ async function makeLedger(w) {
   return { tina, carl, ticket, project };
 }
 
+// CS: each company has its own SLA, and the starting values new companies
+// copy. setSla(admin, 'start' | companyId, fields) saves one of them;
+// `targets` is a list of { ticketType, priority, ...changes } merged into the
+// current grid, the rest (warnAtPercent, timezone, is24x7, schedule) as sent.
+async function setSla(admin, where, fields = {}) {
+  const base = where === 'start' ? `${API}/sla/starting-values` : `${API}/companies/${where}/sla`;
+  const { targets = [], ...rest } = fields;
+  const grid = expectOk(await admin.agent.get(base)).sla.targets;
+  for (const { ticketType, priority, ...t } of targets) Object.assign(grid[ticketType][priority], t);
+  return expectOk(await admin.agent.put(base).send({ ...rest, targets: grid })).sla;
+}
+
+// The same change on the starting values and on every company's own SLA.
+async function setEverySla(admin, fields) {
+  await setSla(admin, 'start', fields);
+  const rows = await models.SlaPolicy.findAll({ attributes: ['companyId'] });
+  for (const { companyId } of rows) if (companyId) await setSla(admin, companyId, fields); // eslint-disable-line no-await-in-loop
+}
+
+// The SLA row (SlaPolicy) a company's tickets use.
+const slaRowOf = (companyId) => models.SlaPolicy.findOne({ where: { companyId } });
+const internalCompany = () => models.Company.findOne({ where: { isInternal: true } });
+
 module.exports = {
   API, expectOk, makeAdmin, makeDept, makeUser, makeTech, makeManager, makeStaff, makeOwnTier,
   makeContractor, makeContact, makeTicket, makeProject, makeTask, makeSubtask, makeTeam,
   setSettings, projectStatusId, taskStatusId, freezeClock, advanceClock, unfreezeClock, waitFor, makeWorld,
-  LEDGER_NOW, makeLedger, makeCompany, setCompanyAccess,
+  LEDGER_NOW, makeLedger, makeCompany, setCompanyAccess, setSla, setEverySla, slaRowOf, internalCompany,
 };

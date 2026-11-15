@@ -1,16 +1,16 @@
 const {
-  resetData, closeDb, models, sequelize, createUserAndLogin, ROLE,
+  resetData, closeDb, models, createUserAndLogin, ROLE,
 } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeTicket, makeProject, makeTask, makeCompany, makeContact, setCompanyAccess,
-  makeTeam, setSettings, freezeClock, unfreezeClock,
+  makeTeam, setSettings, freezeClock, unfreezeClock, setEverySla, internalCompany,
 } = require('./fixtures');
 
 // Workload (sub-project 6, task 12): capacity, the planned date on a ticket
 // and the read-only people x days screen, built from the viewer's own scope.
 
 const {
-  SlaPolicy, TicketSla, Ticket, TicketActivity, AuditLog, TaskAssignee,
+  TicketSla, Ticket, TicketActivity, AuditLog, TaskAssignee,
 } = models;
 const MON = '2026-11-02';
 const NOV = (d) => `2026-11-${String(d).padStart(2, '0')}`;
@@ -30,8 +30,6 @@ const newTicket = (fields = {}) => makeTicket(w.admin.agent, {
 beforeEach(async () => {
   freezeClock('2026-11-02T12:00:00Z');
   await resetData();
-  await sequelize.query('DELETE FROM Holidays');
-  await sequelize.query('DELETE FROM HolidayLists');
   w = await makeWorld();
   tina = await makeTech('tina', w.deptA.id);
   carl = await makeTech('carl', w.deptA.id);
@@ -218,18 +216,14 @@ describe('today and holidays', () => {
     }
   });
 
-  it('global and own-department holidays count, other departments\' do not', async () => {
-    const mk = async (name, departmentId, date) => {
-      const list = expectOk(await w.admin.agent.post(`${API}/holiday-lists`).send({ name, departmentId }), 201).holidayList;
-      expectOk(await w.admin.agent.post(`${API}/holiday-lists/${list.id}/holidays`).send({ name, date }), 201);
-    };
-    await mk('Company day', null, NOV(3));
-    await mk('Desk day', w.deptA.id, NOV(4));
-    await mk('Facilities day', w.deptB.id, NOV(5));
+  it("your company's holidays count, a customer's do not", async () => {
+    const own = await internalCompany();
+    const acme = await makeCompany(w.admin);
+    expectOk(await w.admin.agent.post(`${API}/companies/${own.id}/sla/holidays`).send({ name: 'Company day', date: NOV(3) }), 201);
+    expectOk(await w.admin.agent.post(`${API}/companies/${acme.id}/sla/holidays`).send({ name: 'Acme day', date: NOV(5) }), 201);
     const res = await load(w.admin.agent);
     const cells = row(res, tina).cells;
     expect(cells[NOV(3)].capacity).toBe(0);
-    expect(cells[NOV(4)].capacity).toBe(0);
     expect(cells[NOV(5)].capacity).toBe(480);
     expect(cells[NOV(2)].capacity).toBe(480);
     expect(res.days.find((d) => d.date === NOV(3)).holiday).toBeTruthy();
@@ -250,10 +244,7 @@ describe('today and holidays', () => {
 
 describe('ticket planned date', () => {
   it('PATCH ticket plannedDate audited and logged, SLA dueDate unchanged', async () => {
-    const std = await SlaPolicy.findOne({ where: { isDefault: true } });
-    expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({
-      targets: [{ ticketType: 'incident', priority: 'high', resolutionMinutes: 2880 }],
-    }));
+    await setEverySla(w.admin, { targets: [{ ticketType: 'incident', priority: 'high', resolutionMinutes: 2880 }] });
     const t = await newTicket({ type: 'incident', priority: 'high', assigneeId: tina.user.id });
     const before = await Ticket.findByPk(t.id);
     const slaBefore = await TicketSla.findOne({ where: { ticketId: t.id } });

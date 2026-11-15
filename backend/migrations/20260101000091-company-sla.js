@@ -127,7 +127,9 @@ module.exports = {
     };
 
     // Each company: a copy of the policy it is on, with its hours and holidays.
-    const companies = await select('SELECT id, name, slaPolicyId, isInternal FROM Companies');
+    // (Companies.slaPolicyId is missing when 048 was rolled back and re-run.)
+    const chosen = (await columnsOf(qi, Sequelize, 'Companies')).includes('slaPolicyId') ? 'slaPolicyId' : 'NULL AS slaPolicyId';
+    const companies = await select(`SELECT id, name, ${chosen}, isInternal FROM Companies`);
     const copyFor = new Map();
     for (const c of companies) {
       const source = policyById.get(c.slaPolicyId) || def;

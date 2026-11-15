@@ -164,15 +164,13 @@ it('Staff hours saves a 6h override', async () => {
   await models.SystemSettings.update({ value: JSON.stringify({ 1: 480, 2: 480, 3: 480, 4: 480, 5: 480, 6: 0, 7: 0 }) }, { where: { key: 'workload.defaultWorkHours' } });
 });
 
-it('Holidays appears under Workload in Settings', async () => {
+it("Staff hours is under Hours & SLAs; your staff's days off are Your company's holidays", async () => {
   const page = await smoke.pageAs('admin');
-  await page.goto('/settings/holidays');
+  await page.goto('/settings/work-hours');
   const crumb = page.getByRole('navigation', { name: 'Breadcrumb' });
-  await crumb.getByText(/Workload/).waitFor();
-  await page.getByRole('heading', { level: 1, name: 'Holidays' }).waitFor();
-  await page.getByText('Days off for the SLA clock and workload').first().waitFor();
-  await page.goto('/settings');
-  await page.getByText('Staff hours').first().waitFor();
+  await crumb.getByText(/Hours & SLAs/).waitFor();
+  await page.goto('/settings/your-company?part=sla');
+  await page.getByRole('region', { name: 'Holidays' }).waitFor();
 });
 
 it("drag a task within a helper's row moves its dates and keeps the main assignee", async () => {

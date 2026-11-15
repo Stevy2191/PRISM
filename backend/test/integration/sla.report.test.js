@@ -1,13 +1,13 @@
 const { resetData, closeDb, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeOwnTier, makeTicket, makeCompany, makeContact,
-  freezeClock, advanceClock, unfreezeClock,
+  freezeClock, advanceClock, unfreezeClock, setEverySla,
 } = require('./fixtures');
 const { runSlaPass } = require('../../src/services/sla/slaScheduler');
 
 // SLA compliance report on real SLA clocks (sub-project 4).
 
-const { SlaPolicy, TicketSla } = models;
+const { TicketSla } = models;
 const T0 = '2026-03-09T15:00:00.000Z';
 const MIN = 60000;
 const RANGE = 'startDate=2026-03-01&endDate=2026-03-31';
@@ -24,11 +24,10 @@ beforeEach(async () => {
   await resetData();
   w = await makeWorld();
   tech = await makeTech('tech', w.deptA.id);
-  const std = await SlaPolicy.findOne({ where: { isDefault: true } });
   // medium: assign 5, response 10, resolution 30
-  expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send({
+  await setEverySla(w.admin, {
     targets: [{ ticketType: 'request', priority: 'medium', assignMinutes: 5, responseMinutes: 10, resolutionMinutes: 30 }],
-  }));
+  });
   freezeClock(T0);
 });
 afterEach(unfreezeClock);

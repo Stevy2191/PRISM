@@ -1,8 +1,9 @@
 const { resetData, closeDb, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeOwnTier, makeTicket, makeCompany, makeContact, freezeClock, advanceClock, unfreezeClock,
+  setSla, setEverySla, slaRowOf, internalCompany,
 } = require('./fixtures');
-const { recalcTicketSla, changeDueDate } = require('../../src/services/sla/ticketSla');
+const { changeDueDate } = require('../../src/services/sla/ticketSla');
 const { runSlaPass } = require('../../src/services/sla/slaScheduler');
 
 // SLA due dates (spec 2026-10-13 change): the resolution target fixes the
@@ -10,7 +11,7 @@ const { runSlaPass } = require('../../src/services/sla/slaScheduler');
 // it; later changes don't move it.
 
 const {
-  SlaPolicy, TicketSla, TicketStatus, BusinessHours, SystemSettings, Ticket, TicketDueDateChange, Blueprint,
+  TicketSla, TicketStatus, Ticket, TicketDueDateChange, Blueprint,
   TicketActivity, AuditLog, WorkflowRule, WorkflowAction,
 } = models;
 const T0 = '2026-03-10T19:15:00.000Z'; // Tue 14:15 in Chicago (CDT)
@@ -21,7 +22,7 @@ const iso = (d) => (d ? new Date(d).toISOString() : d);
 let w;
 let std;
 const sla = (ticketId) => TicketSla.findOne({ where: { ticketId } });
-const setStandard = async (fields) => expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send(fields));
+const setStandard = (fields) => setEverySla(w.admin, fields);
 const newTicket = (fields = {}) => makeTicket(w.admin.agent, {
   title: 'Printer', contactId: w.contact.id, departmentId: w.deptA.id, type: 'incident', priority: 'high', ...fields,
 });
@@ -31,7 +32,7 @@ const weekdays = () => Object.fromEntries(['monday', 'tuesday', 'wednesday', 'th
 beforeEach(async () => {
   await resetData();
   w = await makeWorld();
-  std = await SlaPolicy.findOne({ where: { isDefault: true } });
+  std = await slaRowOf((await internalCompany()).id);
   await setStandard({
     targets: [
       { ticketType: 'incident', priority: 'high', resolutionMinutes: 240 },
@@ -43,7 +44,6 @@ beforeEach(async () => {
 });
 afterEach(unfreezeClock);
 afterAll(async () => {
-  await BusinessHours.destroy({ where: {} });
   await TicketStatus.destroy({ where: { name: 'Waiting on customer' } });
   await closeDb();
 });
@@ -56,25 +56,24 @@ it("the due date comes from the ticket's type and priority", async () => {
   const row = await sla(incident.id);
   expect(iso(row.resolutionOriginalDueAt)).toBe(at(240));
   const fresh = await Ticket.findByPk(incident.id);
-  expect([fresh.dueDate, String(fresh.dueTime).slice(0, 5)]).toEqual(['2026-03-10', '23:15']); // org time zone UTC
+  expect([fresh.dueDate, String(fresh.dueTime).slice(0, 5)]).toEqual(['2026-03-10', '23:15']); // the company's zone, UTC
 });
 
 it('a Request/Low 20-business-day target lands 20 open days later at the same time', async () => {
-  const bh = await BusinessHours.create({ name: 'Office', timezone: 'America/Chicago', schedule: weekdays() });
   await setStandard({
-    businessHoursId: bh.id,
+    is24x7: false,
+    timezone: 'America/Chicago',
+    schedule: weekdays(),
     targets: [{ ticketType: 'request', priority: 'low', resolutionMinutes: 20, resolutionUnit: 'business_days' }],
   });
   const t = await newTicket({ type: 'request', priority: 'low' });
   expect(iso((await sla(t.id)).resolutionDueAt)).toBe('2026-04-07T19:15:00.000Z');
 });
 
-it("the company's policy wins over the default", async () => {
+it("a customer's own targets set its tickets' due dates", async () => {
   const acme = await makeCompany(w.admin);
   const contact = await makeContact(w.admin, { companyId: acme.id });
-  expectOk(await w.admin.agent.post(`${API}/sla-policies`).send({
-    name: 'Gold', companyIds: [acme.id], targets: [{ ticketType: 'incident', priority: 'high', resolutionMinutes: 60 }],
-  }), 201);
+  await setSla(w.admin, acme.id, { targets: [{ ticketType: 'incident', priority: 'high', resolutionMinutes: 60 }] });
   const t = await makeTicket(w.admin.agent, { title: 'Acme', contactId: contact.id, type: 'incident', priority: 'high' });
   expect(iso((await sla(t.id)).resolutionDueAt)).toBe(at(60));
 });
@@ -85,8 +84,8 @@ it('a blueprint ticket gets the SLA of its type and priority', async () => {
   expect(iso((await sla(t.id)).resolutionDueAt)).toBe(at(90));
 });
 
-it('the mirrored due date uses the organization time zone across the UTC date line', async () => {
-  await SystemSettings.upsert({ key: 'company.timezone', value: 'America/Chicago' });
+it("the mirrored due date uses the company's time zone across the UTC date line", async () => {
+  await setSla(w.admin, std.companyId, { timezone: 'America/Chicago' });
   unfreezeClock();
   freezeClock('2026-03-10T03:00:00.000Z'); // 22:00 CDT on Mar 9
   const t = await newTicket({ type: 'change' }); // due +90 min = 23:30 CDT Mar 9 = 04:30Z Mar 10
@@ -124,21 +123,6 @@ it('reopening keeps the original due date and is breached if past it', async () 
   expectOk(await w.admin.agent.patch(`${API}/tickets/${t.id}`).send({ status: 'Open' }));
   s = await sla(t.id);
   expect([iso(s.resolutionRunningSince), iso(s.resolutionDueAt), iso(s.resolutionBreachedAt), s.resolutionMetAt]).toEqual([at(100), at(90), at(90), null]);
-});
-
-it('Set SLA policy after an extension recomputes the original and current due date and keeps the history', async () => {
-  const t = await newTicket();
-  await TicketSla.update({ resolutionDueAt: at(500) }, { where: { ticketId: t.id } });
-  await TicketDueDateChange.create({ ticketId: t.id, userId: w.admin.user.id, fromDueAt: at(240), toDueAt: at(500), reason: 'Parts', kind: 'extension' });
-  const gold = expectOk(await w.admin.agent.post(`${API}/sla-policies`).send({
-    name: 'Gold', targets: [{ ticketType: 'incident', priority: 'high', resolutionMinutes: 120 }],
-  }), 201).policy;
-  advanceClock(5 * MIN);
-  await recalcTicketSla(t.id, { policyId: gold.id });
-  const s = await sla(t.id);
-  expect([s.slaPolicyId, iso(s.resolutionDueAt), iso(s.resolutionOriginalDueAt)]).toEqual([gold.id, at(120), at(120)]);
-  expect(await TicketDueDateChange.count({ where: { ticketId: t.id } })).toBe(1);
-  expect((await Ticket.findByPk(t.id)).dueDate).toBe('2026-03-10');
 });
 
 describe('changing the due date', () => {

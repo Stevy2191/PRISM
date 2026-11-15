@@ -1,7 +1,7 @@
 const { resetData, closeDb, models } = require('./helpers');
 const {
   API, expectOk, makeWorld, makeTech, makeTicket, makeTeam, makeCompany, makeContact,
-  freezeClock, advanceClock, unfreezeClock, setCompanyAccess,
+  freezeClock, advanceClock, unfreezeClock, setCompanyAccess, setEverySla,
 } = require('./fixtures');
 const { runSlaPass } = require('../../src/services/sla/slaScheduler');
 
@@ -9,7 +9,7 @@ const { runSlaPass } = require('../../src/services/sla/slaScheduler');
 // notifies, and fires sla_warning / sla_breached workflow rules.
 
 const {
-  SlaPolicy, TicketSla, Notification, WorkflowRule, WorkflowAction, WorkflowRuleLog, SystemSettings,
+  TicketSla, Notification, WorkflowRule, WorkflowAction, WorkflowRuleLog, SystemSettings,
 } = models;
 const T0 = '2026-03-09T15:00:00.000Z';
 const MIN = 60000;
@@ -17,9 +17,8 @@ const now = () => new Date();
 
 let w;
 let tech;
-let std;
 const sla = (ticketId) => TicketSla.findOne({ where: { ticketId } });
-const setStandard = async (fields) => expectOk(await w.admin.agent.patch(`${API}/sla-policies/${std.id}`).send(fields));
+const setStandard = (fields) => setEverySla(w.admin, fields);
 const newTicket = (fields = {}) => makeTicket(w.admin.agent, {
   title: 'Printer', contactId: w.contact.id, departmentId: w.deptA.id, priority: 'medium', ...fields,
 });
@@ -35,7 +34,6 @@ beforeEach(async () => {
   await resetData();
   w = await makeWorld();
   tech = await makeTech('tech', w.deptA.id);
-  std = await SlaPolicy.findOne({ where: { isDefault: true } });
   // medium: assign 10, response 20, resolution 40; warn at 50%
   await setStandard({ warnAtPercent: 50, targets: [{ ticketType: 'request', priority: 'medium', assignMinutes: 10, responseMinutes: 20, resolutionMinutes: 40 }] });
   freezeClock(T0);
@@ -145,25 +143,11 @@ describe('workflow rules', () => {
     expect(await WorkflowRuleLog.count({ where: { ruleId: r.id } })).toBe(0);
   });
 
-  it('set_sla_policy switches the policy and re-times the ticket', async () => {
-    const gold = expectOk(await w.admin.agent.post(`${API}/sla-policies`).send({
-      name: 'Gold', targets: [{ ticketType: 'request', priority: 'medium', responseMinutes: 5, resolutionMinutes: 600 }],
-    }), 201).policy;
-    await rule('ticket_created', null, [{ actionType: 'set_sla_policy', actionValue: { slaPolicyId: gold.id } }]);
-    const t = await newTicket();
-    const s = await sla(t.id);
-    expect([s.slaPolicyId, s.responseTargetMinutes, s.resolutionTargetMinutes, s.assignTargetMinutes]).toEqual([gold.id, 5, 600, null]);
-  });
-
-  it('rule save validates the clock and the policy', async () => {
+  it('rule save validates the clock', async () => {
     const post = (b) => w.admin.agent.post(`${API}/workflow-rules`).send({
       name: 'r', triggerEvent: 'sla_breached', actions: [{ actionType: 'add_tag', actionValue: { tag: 'x' } }], ...b,
     });
     expect((await post({ triggerConfig: { clock: 'lunch' } })).status).toBe(400);
     expect((await post({ triggerConfig: { clock: 'resolution' } })).status).toBe(201);
-    const bad = await post({ triggerEvent: 'ticket_created', actions: [{ actionType: 'set_sla_policy', actionValue: { slaPolicyId: 999999 } }] });
-    expect(bad.status).toBe(400);
-    const badId = await post({ triggerEvent: 'ticket_created', actions: [{ actionType: 'set_sla_policy', actionValue: { slaPolicyId: '1e1' } }] });
-    expect(badId.status).toBe(400);
   });
 });

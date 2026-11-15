@@ -1,22 +1,32 @@
 const Sequelize = require('sequelize');
 const { resetData, closeDb, models, sequelize } = require('./helpers');
 const migration = require('../../migrations/20260101000061-sla-due-dates');
+// CS: 091 moved hours and holidays onto each company's SLA row; it is rolled
+// back for these cases and put back after.
+const companySla = require('../../migrations/20260101000091-company-sla');
 
 // SLA due dates (spec 2026-10-13 change): targets per ticket type ×
 // priority with units, no pausing statuses, a due date history and the
 // Adjust SLA due dates permission.
 
-const { SlaPolicy, SlaTarget, TicketSla } = models;
+const { SlaTarget, TicketSla } = models;
 const qi = () => sequelize.getQueryInterface();
 const tables = async () => (await qi().showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
 const select = (sql, replacements) => sequelize.query(sql, { type: Sequelize.QueryTypes.SELECT, replacements });
 
+// Raw read: the SlaPolicy model carries 091's columns.
+const defaultPolicy = async () => (await select('SELECT id FROM SlaPolicies WHERE isDefault = 1 ORDER BY id LIMIT 1'))[0];
+
+beforeAll(async () => { await resetData(); await companySla.down(qi(), Sequelize); });
 beforeEach(resetData);
-afterAll(closeDb);
+afterAll(async () => {
+  await companySla.up(qi(), Sequelize);
+  await closeDb();
+});
 
 it("copies each priority target to all five ticket types", async () => {
   await migration.down(qi(), Sequelize);
-  const std = await SlaPolicy.findOne({ where: { isDefault: true } });
+  const std = await defaultPolicy();
   await sequelize.query("UPDATE SlaTargets SET resolutionMinutes = 999 WHERE slaPolicyId = ? AND priority = 'low'", { replacements: [std.id] });
   await migration.up(qi(), Sequelize);
   const lows = await SlaTarget.findAll({ where: { slaPolicyId: std.id, priority: 'low' } });
@@ -49,7 +59,7 @@ it('grants Adjust SLA due dates to System Administrator only', async () => {
 });
 
 it('rolls back and re-applies', async () => {
-  const std = await SlaPolicy.findOne({ where: { isDefault: true } });
+  const std = await defaultPolicy();
   await SlaTarget.update({ resolutionMinutes: 20, resolutionUnit: 'business_days' }, { where: { slaPolicyId: std.id, ticketType: 'incident', priority: 'low' } });
   await migration.down(qi(), Sequelize);
   expect(await tables()).not.toContain('TicketDueDateChanges');

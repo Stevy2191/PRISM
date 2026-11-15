@@ -18,6 +18,8 @@ const keyCopy = require('../../migrations/20260101000083-enrollment-key-copy');
 const companyCategories = require('../../migrations/20260101000084-company-ticket-categories');
 // The agent's notices point at Companies too.
 const notices = require('../../migrations/20260101000088-agent-notices');
+// CS: each company's SLA row points at Companies.
+const companySla = require('../../migrations/20260101000091-company-sla');
 
 // down() drops Companies, which 072's portal-admin and KB-audience tables and
 // 073's Microsoft 365 columns and detected departments, and 074's agent
@@ -25,6 +27,7 @@ const notices = require('../../migrations/20260101000088-agent-notices');
 // down refuses).
 const migration = {
   down: async (...args) => {
+    await companySla.down(...args);
     await notices.down(...args);
     await companyCategories.down(...args);
     await checklists.down(...args);
@@ -32,7 +35,7 @@ const migration = {
     await agent.down(...args);
     await m365.down(...args);
     await portal.down(...args);
-    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); throw e; }
+    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); await companySla.up(...args); throw e; }
   },
   up: async (...args) => {
     await base.up(...args);
@@ -46,6 +49,7 @@ const migration = {
     await keyCopy.up(...args);
     await companyCategories.up(...args);
     await notices.up(...args);
+    await companySla.up(...args);
   },
 };
 
@@ -61,13 +65,6 @@ afterAll(async () => {
   await sequelize.query("DELETE FROM Assets WHERE assetTag LIKE 'MIGPROBE-%'");
   await sequelize.query("DELETE FROM AssetCategories WHERE name = 'MigProbe'");
   await sequelize.query("DELETE FROM Companies WHERE isInternal = 0");
-  // down() drops Companies and up() rebuilds it as of this migration, so
-  // columns later migrations add to it must be put back for later suites.
-  if (!(await qi().describeTable('Companies')).slaPolicyId) {
-    await qi().addColumn('Companies', 'slaPolicyId', {
-      type: Sequelize.INTEGER, allowNull: true, references: { model: 'SlaPolicies', key: 'id' }, onDelete: 'SET NULL',
-    });
-  }
   await closeDb();
 });
 

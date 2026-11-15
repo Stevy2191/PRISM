@@ -54,17 +54,6 @@ function stopClock(state, now, calendar, warnPct) {
   }, calendar, warnPct);
 }
 
-// New target (priority or policy change): bank, switch target, breach now if
-// already past it, restart if the clock should run.
-function retarget(state, targetMinutes, now, calendar, warnPct, shouldRun) {
-  const banked = stopClock(state, now, calendar, warnPct);
-  const target = targetMinutes ?? null;
-  let { breachedAt } = banked;
-  if (!breachedAt && target !== null && banked.usedMinutes > target) breachedAt = new Date(now);
-  const next = { ...banked, targetMinutes: target, breachedAt };
-  return shouldRun ? startClock(next, now, calendar, warnPct) : derive(next, calendar, warnPct);
-}
-
 // The resolution clock runs to a fixed due instant (spec 2026-10-13
 // change): set once at creation, moved only by an explicit due date change.
 // Stopping banks time but keeps dueAt/warnAt; restarting never moves them.
@@ -100,5 +89,5 @@ function startFixed(state, now) {
 }
 
 module.exports = {
-  emptyClock, derive, startClock, stopClock, retarget, warnMinutes, fixedClock, stopFixed, startFixed,
+  emptyClock, derive, startClock, stopClock, warnMinutes, fixedClock, stopFixed, startFixed,
 };

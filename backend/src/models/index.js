@@ -780,16 +780,10 @@ Contact.addHook('afterUpdate', 'prunePortalAdminRoles', async (contact, options)
   await require('../services/portal/adminRoles').pruneAdminRoles(contact, { transaction: options.transaction });
 });
 
-// CS: a new company gets its own SLA, copied from the starting values, after
-// the company's own transaction commits. Lazy: the service needs this module.
-Company.addHook('afterCreate', 'ownSla', (company, options) => {
-  const make = () => require('../services/sla/companySla').ensureCompanySla(company).catch((err) => console.error('[sla] could not give a new company its SLA:', err.message)); // eslint-disable-line global-require
-  if (options && options.transaction && typeof options.transaction.afterCommit === 'function') {
-    options.transaction.afterCommit(make);
-    return undefined;
-  }
-  return make();
-});
+// CS: a new company gets its own SLA, copied from the starting values, in
+// the same transaction, so a company never exists without one. Lazy: the
+// service needs this module.
+Company.addHook('afterCreate', 'ownSla', (company, options) => require('../services/sla/companySla').ensureCompanySla(company, options && options.transaction)); // eslint-disable-line global-require
 
 require('./companyHooks')({
   Contact, Ticket, Department, Project, Asset, License, Contract, Site,
