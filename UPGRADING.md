@@ -594,24 +594,16 @@ company is dropped, as before).
 
 ### Settings: your company and your customers kept apart
 
-Settings now holds only settings that apply everywhere. Its **Organization**
-section is split in two: **Your company** (your company profile, your own
-departments and a link to your company's page) and **Customers** (customer
-companies, the client portal and customer happiness).
+Settings now holds only settings that apply everywhere, with two sections
+for companies: **Your company** (your own company's one page, described under
+Company settings above) and **Customers** (customer companies, the client
+portal and satisfaction surveys).
 
-Anything set per company lives on that company's page, your own company's
-page included: departments, ticket categories, sites, Microsoft 365, agent
-keys and portal admins. **Settings → Ticket categories** now holds only the
-rule "Require a category on new tickets", with links to the category lists.
-
-A company's **SLA policy** is now chosen on its page (Setup → Details), by
-anyone with Manage system settings; **Settings → SLAs** shows which companies
-are on each policy and links to them. Old addresses (`/settings/companies`,
-`/admin/departments`) lead to the new places. No migration; nothing to do.
-
-Your own departments open inside Settings (Your company → Departments) and
-are also on your company's page. Menu entries that leave Settings for a
-company's page carry an arrow (↗) and say "Opens outside Settings".
+Anything set per company lives on that company's page: departments, ticket
+categories, sites, SLA and hours, portal, surveys, Microsoft 365, agent keys
+and portal admins. **Settings › Ticket rules** holds "Require a category on
+new tickets". Menu entries that leave Settings for a company's page carry an
+arrow (↗) and say "Opens outside Settings".
 
 **About PRISM** is its own section at the bottom of the Settings menu. It
 shows the version, not the commit. A build from a branch now has a real
@@ -687,13 +679,13 @@ and **Details** (resolution, relationships and activity). On a phone the
 button that opens the sidebar is **Ticket info**.
 
 **Company page:** five tabs. **Overview** shows open tickets, contacts,
-computers and the account manager, and a **Setup** checklist (contacts,
-departments, ticket categories, agent installed, email domain, portal
-access, account manager, sites); each line opens the place that sets it.
-**People** has Contacts, Departments and Sites; **Work** has Tickets and
-Projects; **Assets** has Assets, Devices and (for a vendor) Vendor;
-**Setup** has Details (the form that was Overview), Categories and
-Microsoft 365.
+computers and the account manager, and a **Set up this company** list
+(details, SLA targets, support hours and holidays, contacts, email domain,
+ticket categories, portal, surveys, agent); each line opens the place that
+sets it. **People** has Contacts, Departments and Sites; **Work** has Tickets
+and Projects; **Assets** has Assets, Devices, Agent notices and (for a vendor)
+Vendor; **Setup** has Details, SLA and hours, Portal (with Microsoft 365),
+Surveys, Categories and What applies here.
 
 **Contact page:** a contact's **Assigned to** is now called **Account
 manager** (the same field; the Contacts list and its filter too). A field
