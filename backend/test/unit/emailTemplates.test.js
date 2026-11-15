@@ -92,7 +92,7 @@ it('every catalogue default only uses its own placeholders', () => {
     // Project notifications (sub-project 6) name the project instead of a
     // ticket; portal account emails (7a) are about no ticket at all.
     if (/^contact_portal_/.test(key)) expect(t.subject).not.toContain('{{ticket.');
-    else expect(t.subject).toContain(/^staff_(task_|budget_)/.test(key) ? '[{{project.name}}]' : '[Ticket #{{ticket.number}}]');
+    else expect(t.subject).toContain(/^staff_(task_|budget_)/.test(key) ? '[{{project.name}}]' : '[{{ticket.number}}]');
     expect(['contact', 'staff']).toContain(t.audience);
     const htmlOnes = t.placeholders.filter((p) => p.html).map((p) => p.name);
     expect(htmlOnes.every((n) => ['signature', 'survey.starLinks'].includes(n))).toBe(true);
