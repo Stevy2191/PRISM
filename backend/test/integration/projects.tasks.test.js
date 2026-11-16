@@ -72,7 +72,7 @@ describe('S4: linkedTicketId on project tasks', () => {
     expect(out.status).toBe(400);
     expect(out.body).toEqual(refused);
     const [fresh] = expectOk(await mgr.agent.get(`${API}/projects/${proj.id}/tasks`)).tasks;
-    expect(fresh.linkedTicket).toEqual({ id: mine.id, title: 'Visible' });
+    expect(fresh.linkedTicket).toEqual({ id: mine.id, ticketNumber: mine.ticketNumber, title: 'Visible' });
   });
 
   it('re-sending a task\'s existing link unchanged is not a new link', async () => {
@@ -106,12 +106,12 @@ describe('S4: linkedTicketId on project tasks', () => {
   it('accepts a visible ticket id sent as a numeric string, and stores the number', async () => {
     const task = await makeTask(mgr.agent, proj.id, { linkedTicketId: String(mine.id) });
     expect(task.linkedTicketId).toBe(mine.id);
-    expect(task.linkedTicket).toEqual({ id: mine.id, title: 'Visible' });
+    expect(task.linkedTicket).toEqual({ id: mine.id, ticketNumber: mine.ticketNumber, title: 'Visible' });
   });
 
   it('a visible ticket links, and clearing the link with null still works', async () => {
     const task = await makeTask(mgr.agent, proj.id, { linkedTicketId: mine.id });
-    expect(task.linkedTicket).toEqual({ id: mine.id, title: 'Visible' });
+    expect(task.linkedTicket).toEqual({ id: mine.id, ticketNumber: mine.ticketNumber, title: 'Visible' });
     const cleared = expectOk(await mgr.agent.patch(`${API}/projects/${proj.id}/tasks/${task.id}`).send({ linkedTicketId: null })).task;
     expect(cleared.linkedTicketId).toBeNull();
     expect(cleared.linkedTicket).toBeNull();
@@ -564,9 +564,9 @@ describe('tasks, subtasks, codes and rollups', () => {
   it('Q19: a linked ticket the viewer can\'t open is shown as restricted, in the list and on the task', async () => {
     const secret = await makeTicket(w.admin.agent, { title: 'Secret', contactId: w.contact.id, departmentId: w.deptB.id });
     const t = await makeTask(w.admin.agent, P.id, { linkedTicketId: secret.id });
-    expect((await listTasks())[0].linkedTicket).toEqual({ id: secret.id, restricted: true });
+    expect((await listTasks())[0].linkedTicket).toEqual({ id: secret.id, ticketNumber: secret.ticketNumber, restricted: true });
     const patched = expectOk(await mgr.agent.patch(taskUrl(t)).send({ title: 'Renamed' })).task;
-    expect(patched.linkedTicket).toEqual({ id: secret.id, restricted: true });
-    expect(expectOk(await w.admin.agent.get(`${API}/projects/${P.id}/tasks`)).tasks[0].linkedTicket).toEqual({ id: secret.id, title: 'Secret' });
+    expect(patched.linkedTicket).toEqual({ id: secret.id, ticketNumber: secret.ticketNumber, restricted: true });
+    expect(expectOk(await w.admin.agent.get(`${API}/projects/${P.id}/tasks`)).tasks[0].linkedTicket).toEqual({ id: secret.id, ticketNumber: secret.ticketNumber, title: 'Secret' });
   });
 });

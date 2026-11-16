@@ -292,8 +292,8 @@ describe('notifications', () => {
     const watcher = await makeTech('watcher', w.deptA.id);
     await watch(watcher);
     await ok(w.admin.agent.post(tUrl('/comments')).send({ body: 'x'.repeat(100) }), 201);
-    expect(await inbox(tech)).toContainEqual(['comment', `Someone commented on ticket: ${'x'.repeat(80)}…`]);
-    expect(await inbox(watcher)).toEqual([['watcher_update', "Someone commented on ticket you're watching: Printer"]]);
+    expect(await inbox(tech)).toContainEqual(['comment', `${w.admin.user.displayName} commented on Printer: ${'x'.repeat(80)}…`]);
+    expect(await inbox(watcher)).toEqual([['watcher_update', `${w.admin.user.displayName} commented on a ticket you're watching: Printer`]]);
   });
 
   it('an internal comment reaches the assignee only', async () => {
@@ -310,7 +310,7 @@ describe('notifications', () => {
     await ok(w.admin.agent.post(tUrl('/comments', quiet)).send({ body: 'hello' }), 201);
     const got = await inbox(tech);
     expect(got).not.toContainEqual(['assigned', 'Ticket assigned to you: Quiet']);
-    expect(got).toContainEqual(['comment', 'Someone commented on ticket: hello']);
+    expect(got).toContainEqual(['comment', `${w.admin.user.displayName} commented on Quiet: hello`]);
     expect(got).toContainEqual(['assigned', 'Ticket assigned to you: Printer']);
   });
 

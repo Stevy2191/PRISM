@@ -63,8 +63,10 @@ async function findTask(parent, rawId) {
 // A linked ticket the viewer can't open shows only its id (Q19).
 async function shownLinkedTicket(viewer, linked) {
   if (!linked) return linked;
-  if (viewer && await canAccessTicket(viewer, linked)) return { id: linked.id, title: linked.title };
-  return { id: linked.id, restricted: true };
+  // Its number (CN) is no more than its id told before.
+  const ticketNumber = linked.number || undefined;
+  if (viewer && await canAccessTicket(viewer, linked)) return { id: linked.id, ticketNumber, title: linked.title };
+  return { id: linked.id, ticketNumber, restricted: true };
 }
 
 // Seconds logged per task in a parent (each task's own entries).

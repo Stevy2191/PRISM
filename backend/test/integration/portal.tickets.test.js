@@ -191,6 +191,15 @@ describe('replying', () => {
     expect(last.author).toEqual({ displayName: 'Pat Plain', side: 'you' });
   });
 
+  it('a customer\'s reply tells the assignee who wrote it', async () => {
+    const tina = await makeTech('tina', w.deptA.id);
+    const t = await makeTicket(w.admin.agent, { title: 'Pat laptop', contactId: plain.id, assigneeId: tina.user.id });
+    const me = await portalAs(plain);
+    expectOk(await me.post(`${P}/tickets/${t.id}/replies`).send({ body: 'Did that' }), 201);
+    const note = await models.Notification.findOne({ where: { userId: tina.user.id, type: 'comment' }, order: [['id', 'DESC']] });
+    expect(note.message).toBe('Pat Plain commented on Pat laptop: Did that');
+  });
+
   it('a tech\'s Reply (type reply, as the staff composer sends it) shows as support, not as the customer', async () => {
     const t = await makeTicket(w.admin.agent, { title: 'Pat laptop', contactId: plain.id });
     expectOk(await w.admin.agent.post(`${API}/tickets/${t.id}/comments`).send({ body: 'Try a restart', type: 'reply' }), 201);

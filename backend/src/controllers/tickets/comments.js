@@ -5,6 +5,7 @@ const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const {
   notifyComment,
+  commenterName,
   notifyWatchers,
   createNotification,
 } = require('../../services/notifications');
@@ -130,7 +131,7 @@ const createComment = asyncHandler(async (req, res) => {
     await notifyComment(ticket, comment, req.user.id);
     await notifyWatchers(
       ticket,
-      `Someone commented on ticket you're watching: ${ticket.title}`,
+      `${await commenterName(ticket, comment, req.user.id)} commented on a ticket you're watching: ${ticket.title}`,
       [req.user.id, ticket.assigneeId]
     );
     // Fire-and-forget: only a human-authored reply through this HTTP

@@ -446,7 +446,7 @@ async function slaAtRiskFor(buckets, where) {
   const dueOf = (t) => (t.sla.worst ? new Date(t.sla.worst.dueAt).getTime() : Infinity);
   return tickets
     .map((t) => ({
-      id: t.id, title: t.title, priority: t.priority, status: t.status, assignee: t.assignee, sla: toSlaView(t.sla, now),
+      id: t.id, ticketNumber: ticketNumberOf(t), title: t.title, priority: t.priority, status: t.status, assignee: t.assignee, sla: toSlaView(t.sla, now),
     }))
     .sort((a, b) => dueOf(a) - dueOf(b))
     .slice(0, SLA_PANEL_LIMIT);
@@ -463,7 +463,7 @@ async function needsAttentionFor(buckets, where) {
       status: { [Op.in]: buckets.open },
       [Op.or]: [slaFilterWhere('breached', now), slaFilterWhere('at_risk', now), { assigneeId: null }, { categoryUnsure: true }],
     }),
-    attributes: ['id', 'title', 'priority', 'status', 'assigneeId', 'categoryUnsure', 'createdAt'],
+    attributes: ['id', 'number', 'title', 'priority', 'status', 'assigneeId', 'categoryUnsure', 'createdAt'],
     include: [
       { model: TicketSla, as: 'sla', required: false, include: [{ model: SlaPolicy, as: 'policy', attributes: ['id', 'name'] }] },
       { model: User, as: 'assignee', attributes: ['id', 'displayName'] },
@@ -479,6 +479,7 @@ async function needsAttentionFor(buckets, where) {
     const state = sla?.worst?.state;
     return {
       id: t.id,
+      ticketNumber: ticketNumberOf(t),
       title: t.title,
       priority: t.priority,
       status: t.status,

@@ -107,10 +107,32 @@ async function notifyComment(ticket, comment, authorId) {
     await createNotification({
       userId: ticket.assigneeId,
       type: 'comment',
-      message: `Someone commented on ticket: ${truncate(comment.body, 80)}`,
+      message: `${await commenterName(ticket, comment, authorId)} commented on ${ticket.title}: ${truncate(comment.body, 80)}`,
       ticketId: ticket.id,
     });
   }
+}
+
+// Who wrote a comment, for a notification: the customer contact for a reply
+// from the portal, the tray or email (those are saved under PRISM's own
+// account), else the staff member. "Someone" only when neither is known.
+async function commenterName(ticket, comment, authorId) {
+  const { Contact, User } = require('../models'); // eslint-disable-line global-require
+  try {
+    const c = comment || {};
+    const contactId = c.authorContactId || (c.fromCustomer ? ticket.contactId : null);
+    if (contactId) {
+      const contact = await Contact.findByPk(contactId, { attributes: ['displayName', 'firstName', 'lastName'] });
+      const name = contact && (contact.displayName || [contact.firstName, contact.lastName].filter(Boolean).join(' '));
+      if (name) return name;
+    }
+    const userId = c.fromCustomer ? null : (c.authorId || authorId);
+    if (userId) {
+      const user = await User.findByPk(userId, { attributes: ['displayName'] });
+      if (user && user.displayName) return user.displayName;
+    }
+  } catch { /* fall through */ }
+  return 'Someone';
 }
 
 // Notifies a ticket's watchers (create/comment/status-change events), skipping
@@ -204,6 +226,7 @@ async function notifySecurityAdmins({ type, message }) {
 }
 
 module.exports = {
+  commenterName,
   canReachProject,
   notifySecurityAdmins,
   createNotification,

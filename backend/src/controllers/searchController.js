@@ -74,7 +74,7 @@ const search = asyncHandler(async (req, res) => {
   ]);
 
   res.json({
-    tickets: tickets.map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority })),
+    tickets: tickets.map((t) => ({ id: t.id, ticketNumber: t.number, title: t.title, status: t.status, priority: t.priority })),
     projects: projects.map((p) => ({ id: p.id, name: p.name, projectCode: p.projectCode, status: p.status })),
     contacts: contacts.map((c) => ({ id: c.id, displayName: c.displayName, email: c.email })),
   });
