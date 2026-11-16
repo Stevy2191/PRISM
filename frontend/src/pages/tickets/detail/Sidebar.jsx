@@ -10,6 +10,7 @@ import TimeDropdownPicker from '../../../components/TimeDropdownPicker';
 import CategoryPicker from '../../../components/CategoryPicker';
 import { forTicketType } from '../../../components/categoryTree';
 import SlaPanel from './SlaPanel';
+import ComputerCard from './ComputerCard';
 import ContactPicker from '../../../components/portal/ContactPicker';
 import CcPanel from './CcPanel';
 import DueDateModal from './DueDateModal';
@@ -342,6 +343,7 @@ export function Sidebar({
             </>
           )}
         </SidebarSection>
+        {!collapsed && <ComputerCard snapshot={ticket.agentSnapshot} />}
 
         <SidebarSection title="Ticket Info" collapsed={collapsed}>
           {collapsed ? (

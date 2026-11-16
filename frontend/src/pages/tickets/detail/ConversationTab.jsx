@@ -1,4 +1,6 @@
-// Conversation tab: the comment thread.
+// Conversation tab: the comment thread, newest first (the reply box sits
+// above it); older messages load at the bottom. The PRISM agent's health
+// snapshot isn't a message: it's in the sidebar's Computer card.
 import { IconLock, IconWorld, IconMail } from '@tabler/icons-react';
 import LoadMore from '../../../components/LoadMore';
 import Avatar from '../../../components/ui/Avatar';
@@ -9,13 +11,11 @@ import { TEXT, MUTED, timeAgo } from '../theme';
 export function ConversationTab({
   ticket, comments, total, onLoadMore, onSplit,
 }) {
+  const shown = [...comments].reverse().filter((c) => !(ticket.agentSnapshot && c.id === ticket.agentSnapshot.commentId));
   return (
     <div className="space-y-3">
-      {/* Older messages sit above the thread, where they'd be if they were
-          already loaded. */}
-      <LoadMore loaded={comments.length} total={total} onLoadMore={onLoadMore} noun="messages" />
-      {comments.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No messages yet.</p>}
-      {comments.map((c) => {
+      {shown.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No messages yet.</p>}
+      {shown.map((c) => {
         // A customer reply (portal or email) is marked; a portal reply also
         // names the contact who wrote it.
         const isCustomer = !!c.fromCustomer || !!c.authorContact || c.authorId === ticket.requesterId;
@@ -75,6 +75,8 @@ export function ConversationTab({
           </div>
         );
       })}
+      {/* Older messages are below, where they'd be if they were already loaded. */}
+      <LoadMore loaded={comments.length} total={total} onLoadMore={onLoadMore} noun="messages" />
     </div>
   );
 }

@@ -12,6 +12,9 @@ import CannedPicker from '../../../components/CannedPicker';
 export function ReplyBox({
   ticket, onSend, fileRef, onAttach, isStaff, canViewPrivateComments, collapsible = false,
 }) {
+  // It sits at the top of the conversation, above the newest message, and
+  // scrolls with it (not pinned under the thread).
+  const box = 'rounded-xl border border-navy-100 bg-surface';
   const draftKey = `prism.ticket.${ticket.id}.draft`;
   const [text, setText] = useState(() => { try { return localStorage.getItem(draftKey) || ''; } catch { return ''; } });
   const [mode, setMode] = useState('reply'); // 'reply' | 'comment'
@@ -76,7 +79,7 @@ export function ReplyBox({
 
   if (!open) {
     return (
-      <div className="flex-shrink-0 border-t border-navy-100 bg-surface p-3">
+      <div className={`${box} p-3`}>
         {/* Looks like a one-line field; it is the button that opens the composer. */}
         <button
           type="button"
@@ -92,7 +95,7 @@ export function ReplyBox({
   }
 
   return (
-    <div className="flex-shrink-0 border-t border-navy-100 bg-surface p-3 sm:p-4">
+    <div className={`${box} p-3 sm:p-4`}>
       {(isStaff || collapsible) && (
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           {isStaff ? (

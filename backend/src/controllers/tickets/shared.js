@@ -16,6 +16,7 @@ const {
   SlaPolicy,
   TicketDueDateChange,
   Ticket,
+  Comment,
 } = require('../../models');
 const { toSlaView } = require('../../services/sla/slaView');
 const { ticketWaitingView } = require('../../services/ticketWaiting');
@@ -210,8 +211,32 @@ async function assertCanEditTicket(user, ticket) {
 // server re-checks every request).
 // The ticket as GET /tickets/:id returns it: the viewer's view, its access
 // flags, and on its SLA the due date history.
+// The PRISM agent's health snapshot (a private note "Health snapshot from
+// <computer>" of "Label: value" lines), for the ticket's sidebar rather than
+// the conversation. Only for viewers who may read private notes.
+const SNAPSHOT_PREFIX = 'Health snapshot from ';
+async function agentSnapshotFor(viewer, ticket) {
+  if (ticket.source !== 'agent') return null;
+  if (!(await hasPermission(viewer.id, 'tickets.view_private_comments'))) return null;
+  const note = await Comment.findOne({
+    where: { ticketId: ticket.id, type: 'comment_private', body: { [Op.startsWith]: SNAPSHOT_PREFIX } },
+    attributes: ['id', 'body', 'createdAt'],
+    order: [['id', 'ASC']],
+  });
+  if (!note) return null;
+  const [first, ...rest] = String(note.body).split('\n');
+  const items = rest.map((l) => {
+    const at = l.indexOf(': ');
+    return at > 0 ? { label: l.slice(0, at), value: l.slice(at + 2) } : null;
+  }).filter(Boolean);
+  return {
+    commentId: note.id, createdAt: note.createdAt, computer: first.slice(SNAPSHOT_PREFIX.length), items,
+  };
+}
+
 async function ticketDetailFor(viewer, ticket) {
   const json = await shownTicketFor(viewer, ticket);
+  json.agentSnapshot = await agentSnapshotFor(viewer, ticket);
   if (ticket.sla) {
     const changes = await TicketDueDateChange.findAll({
       where: { ticketId: ticket.id },
@@ -226,7 +251,7 @@ async function ticketDetailFor(viewer, ticket) {
   json.mergedInto = null;
   if (ticket.mergedIntoId) {
     const into = await Ticket.findByPk(ticket.mergedIntoId, { attributes: ['id', 'number', 'title', 'companyId', 'departmentId', 'assigneeId'] });
-    if (into) json.mergedInto = (await canAccessTicket(viewer, into)) ? { id: into.id, title: into.title } : { id: into.id };
+    if (into) json.mergedInto = (await canAccessTicket(viewer, into)) ? { id: into.id, ticketNumber: into.number, title: into.title } : { id: into.id, ticketNumber: into.number };
   }
   return { ...json, access: await ticketAccessFor(viewer, ticket) };
 }
@@ -247,6 +272,7 @@ module.exports = {
   assertCanEditTicket,
   shownTicketFor,
   ticketDetailFor,
+  SNAPSHOT_PREFIX,
   ticketAccessFor,
   ticketInclude,
   withCustomFields,

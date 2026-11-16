@@ -1,6 +1,7 @@
 const Sequelize = require('sequelize');
 const {
   resetData, closeDb, models, getApp, sequelize,
+  createUserAndLogin, ROLE,
 } = require('./helpers');
 const { makeWorld, makeCompany } = require('./fixtures');
 const { resetRateLimits } = require('../../src/middleware/rateLimit');
@@ -192,4 +193,23 @@ it('round trip: down removes the mark and keeps the contacts; up puts the column
   expect(Number(rows[0].n)).toBe(1);
   await migration.up(qi, Sequelize);
   expect((await qi.describeTable('Contacts')).isPlaceholder).toBeDefined();
+});
+
+it('the ticket carries the snapshot for its sidebar, only for those who may read private notes', async () => {
+  await contactIn(company, 'maria.chen@riversideclinic.org');
+  const res = await device.post(TICKETS, ask());
+  const { ticket } = (await w.admin.agent.get(`/api/v1/tickets/${res.body.ticketId}`)).body;
+  const note = await models.Comment.findOne({ where: { ticketId: res.body.ticketId } });
+  expect(ticket.agentSnapshot).toEqual(expect.objectContaining({ commentId: note.id, computer: expect.any(String) }));
+  const byLabel = Object.fromEntries(ticket.agentSnapshot.items.map((i) => [i.label, i.value]));
+  expect(byLabel).toEqual(expect.objectContaining({
+    OS: 'Windows 11 Pro 24H2 (build 26100.2314)', 'Memory in use': '11.0 GB of 16.0 GB (69%)', 'Free on C:': '212 GB of 476 GB', 'IP addresses': '10.20.1.45',
+  }));
+  // A ticket made by hand has none.
+  const own = (await w.admin.agent.post('/api/v1/tickets').send({ title: 'By hand', contactId: w.contact.id })).body.ticket;
+  expect((await w.admin.agent.get(`/api/v1/tickets/${own.id}`)).body.ticket.agentSnapshot).toBeNull();
+  // Read Only can't see private notes: no snapshot either.
+  const viewer = await createUserAndLogin({ username: 'viewer', roleName: ROLE.READ_ONLY, departmentId: w.deptA.id });
+  const seen = await viewer.agent.get(`/api/v1/tickets/${res.body.ticketId}`);
+  if (seen.status === 200) expect(seen.body.ticket.agentSnapshot).toBeNull();
 });

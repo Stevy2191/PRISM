@@ -582,6 +582,24 @@ export default function TicketDetail() {
               Ticket info
             </button>
             <ActionsMenu items={headerActions} className="flex-shrink-0 md:hidden" />
+            {/* Desk: what you do with the ticket, beside the breadcrumb, so
+                the conversation below gets the room. */}
+            <div className="flex flex-wrap items-center justify-end gap-2 max-md:hidden">
+              {ticket.access?.canTake && (
+                <Button variant="primary" onClick={takeTicket} disabled={taking}>
+                  {taking ? 'Taking…' : 'Take it'}
+                </Button>
+              )}
+              {hasPermission('time.log') && (
+                <TimerButton kind="ticket" parentId={ticket.id} label={`${formatTicketId(ticket)} ${ticket.title}`} onStopRequest={setStoppedTimer} anyTask />
+              )}
+              {headerActions.map(({ label, icon: Icon, onSelect }) => (
+                <Button key={label} onClick={onSelect}>
+                  <Icon size={15} aria-hidden="true" />
+                  {label}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm">
@@ -624,27 +642,17 @@ export default function TicketDetail() {
               </span>
             )}
           </div>
-          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+          {/* On a phone: Take it and the timer under the details (the rest are
+              in the ⋯ menu). On a desk they're up by the breadcrumb. */}
+          <div className="flex w-full flex-wrap items-center gap-2 md:hidden">
             {ticket.access?.canTake && (
               <Button variant="primary" onClick={takeTicket} disabled={taking}>
                 {taking ? 'Taking…' : 'Take it'}
               </Button>
             )}
             {hasPermission('time.log') && (
-              <TimerButton
-                kind="ticket"
-                parentId={ticket.id}
-                label={`${formatTicketId(ticket)} ${ticket.title}`}
-                onStopRequest={setStoppedTimer}
-                anyTask
-              />
+              <TimerButton kind="ticket" parentId={ticket.id} label={`${formatTicketId(ticket)} ${ticket.title}`} onStopRequest={setStoppedTimer} anyTask />
             )}
-            {headerActions.map(({ label, icon: Icon, onSelect }) => (
-              <Button key={label} onClick={onSelect} className="max-md:hidden">
-                <Icon size={15} aria-hidden="true" />
-                {label}
-              </Button>
-            ))}
           </div>
         </div>
       </header>
@@ -736,10 +744,11 @@ export default function TicketDetail() {
           </div>
 
           <div className="p-4 sm:p-5" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
-            {/* The problem as it was raised opens the conversation. */}
+            {/* Newest first: the reply box, then the thread from the latest
+                message down, and the problem as it was raised at the bottom. */}
             {activeTab === 'conversation' && (
-              <div className="mb-3">
-                <DescriptionCard description={ticket.description} canEdit={isStaff && !!ticket.access?.edit} onSave={saveTicketText} />
+              <div className="mb-4">
+                <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} isStaff={isStaff} canViewPrivateComments={canViewPrivateComments} collapsible={isPhone} />
               </div>
             )}
             {activeTab === 'conversation' && (
@@ -750,6 +759,11 @@ export default function TicketDetail() {
                 onLoadMore={() => setCommentLimit((n) => n + SUBLIST_STEP)}
                 onSplit={isStaff && ticket.access?.edit ? splitComment : undefined}
               />
+            )}
+            {activeTab === 'conversation' && (commentTotal <= comments.length) && (
+              <div className="mt-3">
+                <DescriptionCard description={ticket.description} canEdit={isStaff && !!ticket.access?.edit} onSave={saveTicketText} />
+              </div>
             )}
             {activeTab === 'time' && (
               <TimeLog
@@ -819,11 +833,6 @@ export default function TicketDetail() {
             )}
           </div>
 
-          {/* Sibling below the scrollable tab content, not inside it — stays
-              pinned to the bottom of the main content column. */}
-          {activeTab === 'conversation' && (
-            <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} isStaff={isStaff} canViewPrivateComments={canViewPrivateComments} collapsible={isPhone} />
-          )}
         </div>
 
         <div className="hidden md:contents">

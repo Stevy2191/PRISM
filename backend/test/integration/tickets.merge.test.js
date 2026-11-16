@@ -209,8 +209,8 @@ describe('POST /tickets/:id/merge', () => {
     const s = await ticket({ assigneeId: olly.user.id });
     expectOk(await merge(w.admin.agent, target.id, [s.id]));
     expect(expectOk(await w.admin.agent.get(`${API}/tickets/${s.id}`)).ticket.mergedInto)
-      .toEqual({ id: target.id, title: 'Secret target' });
-    expect(expectOk(await olly.agent.get(`${API}/tickets/${s.id}`)).ticket.mergedInto).toEqual({ id: target.id });
+      .toEqual({ id: target.id, ticketNumber: target.ticketNumber, title: 'Secret target' });
+    expect(expectOk(await olly.agent.get(`${API}/tickets/${s.id}`)).ticket.mergedInto).toEqual({ id: target.id, ticketNumber: target.ticketNumber });
     expect(expectOk(await w.admin.agent.get(`${API}/tickets/${target.id}`)).ticket.mergedInto).toBeNull();
   });
 
