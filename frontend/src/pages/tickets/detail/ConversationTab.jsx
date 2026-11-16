@@ -27,10 +27,10 @@ export function ConversationTab({
           : (c.authorContact?.displayName || (c.fromCustomer ? ticket.contact?.displayName : null) || c.author?.displayName);
         const isPublicComment = c.type === 'comment_public';
         return (
-          <div key={c.id} className="flex items-start gap-3">
+          <div key={c.id} className={`flex items-start gap-3 ${isCustomer ? '' : 'flex-row-reverse'}`}>
             <span className="mt-1 max-sm:hidden"><Avatar name={name || '?'} size={32} /></span>
             <div
-              className={`conv-bubble min-w-0 flex-1 ${
+              className={`conv-bubble min-w-0 max-w-[72%] max-sm:max-w-[88%] ${
                 isPrivate
                   ? 'conv-bubble--private'
                   : isPublicComment
