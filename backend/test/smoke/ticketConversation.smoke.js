@@ -4,7 +4,8 @@ const { startSmoke } = require('./harness');
 
 // The conversation reads newest first: the latest message at the top, the
 // oldest below; the reply bar is pinned under it and opens the composer when
-// clicked. The description is on Details, not in the conversation. A tray ticket's
+// clicked. The description is on Details, not in the conversation. Like a
+// text thread, support's messages are on the right and the customer's on the left. A tray ticket's
 // health snapshot is in the sidebar's Computer card, not the thread.
 
 let smoke;
@@ -25,6 +26,7 @@ beforeAll(async () => {
   });
   await models.Comment.create({ ticketId: ticket.id, authorId: w.admin.user.id, type: 'reply', body: 'First answer', createdAt: at(20) });
   await models.Comment.create({ ticketId: ticket.id, authorId: w.admin.user.id, type: 'reply', body: 'Latest answer', createdAt: at(5) });
+  await models.Comment.create({ ticketId: ticket.id, authorId: w.admin.user.id, type: 'reply', body: 'Customer question', fromCustomer: true, createdAt: at(25) });
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 
@@ -42,6 +44,12 @@ it('newest message first, reply bar under them, description on Details; the snap
   await page.getByRole('button', { name: 'Details', exact: true }).click();
   await page.getByText('It takes minutes to open Outlook.').waitFor();
   await page.getByRole('button', { name: 'Conversation', exact: true }).click();
+  // Like a text thread: support on the right, the customer on the left.
+  const mid = async (text) => {
+    const b = await page.getByText(text, { exact: true }).locator('xpath=ancestor::div[contains(@class,"conv-bubble")]').boundingBox();
+    return b.x + b.width / 2;
+  };
+  expect(await mid('Latest answer')).toBeGreaterThan(await mid('Customer question'));
   // Not in the thread; in the Computer card instead.
   expect(await page.getByText('Health snapshot from').count()).toBe(0);
   const card = page.getByRole('region', { name: 'Computer' });
