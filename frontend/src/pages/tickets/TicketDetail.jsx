@@ -744,8 +744,8 @@ export default function TicketDetail() {
           </div>
 
           <div className="p-4 sm:p-5" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
-            {/* Newest first: the thread from the latest message down, and the
-                problem as it was raised at the bottom. */}
+            {/* Newest first: the thread from the latest message down. The
+                description is on Details, not in the conversation. */}
             {activeTab === 'conversation' && (
               <ConversationTab
                 ticket={ticket}
@@ -754,11 +754,6 @@ export default function TicketDetail() {
                 onLoadMore={() => setCommentLimit((n) => n + SUBLIST_STEP)}
                 onSplit={isStaff && ticket.access?.edit ? splitComment : undefined}
               />
-            )}
-            {activeTab === 'conversation' && (commentTotal <= comments.length) && (
-              <div className="mt-3">
-                <DescriptionCard description={ticket.description} canEdit={isStaff && !!ticket.access?.edit} onSave={saveTicketText} />
-              </div>
             )}
             {activeTab === 'time' && (
               <TimeLog
@@ -811,6 +806,7 @@ export default function TicketDetail() {
             )}
             {activeTab === 'details' && (
               <div className="space-y-8">
+                <DescriptionCard description={ticket.description} canEdit={isStaff && !!ticket.access?.edit} onSave={saveTicketText} />
                 <ResolutionTab ticket={ticket} onSave={saveResolution} isStaff={isStaff && !!ticket.access?.edit} />
                 <section aria-labelledby="ticket-relationships">
                   <h3 id="ticket-relationships" className="mb-3 text-sm font-semibold" style={{ color: TEXT }}>Relationships{relations.length > 0 ? ` (${relations.length})` : ''}</h3>

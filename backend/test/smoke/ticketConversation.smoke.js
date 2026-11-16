@@ -3,8 +3,8 @@ const { makeWorld, makeTicket } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
 
 // The conversation reads newest first: the latest message at the top, the
-// oldest and the description below; the reply bar is pinned under it all and
-// opens the composer when clicked. A tray ticket's
+// oldest below; the reply bar is pinned under it and opens the composer when
+// clicked. The description is on Details, not in the conversation. A tray ticket's
 // health snapshot is in the sidebar's Computer card, not the thread.
 
 let smoke;
@@ -28,16 +28,20 @@ beforeAll(async () => {
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 
-it('newest message first, description last, reply bar under them; the snapshot is the Computer card', async () => {
+it('newest message first, reply bar under them, description on Details; the snapshot is the Computer card', async () => {
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto(`/tickets/${ticket.id}`);
   await page.getByText('Latest answer').waitFor();
   const order = await page.evaluate(() => {
     const text = document.body.innerText;
-    return ['Latest answer', 'First answer', 'It takes minutes to open Outlook.', 'Reply to '].map((s) => text.indexOf(s));
+    return ['Latest answer', 'First answer', 'Reply to '].map((s) => text.indexOf(s));
   });
   expect(order.every((n) => n >= 0)).toBe(true);
   expect([...order].sort((a, b) => a - b)).toEqual(order);
+  expect(await page.getByText('It takes minutes to open Outlook.').count()).toBe(0);
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
+  await page.getByText('It takes minutes to open Outlook.').waitFor();
+  await page.getByRole('button', { name: 'Conversation', exact: true }).click();
   // Not in the thread; in the Computer card instead.
   expect(await page.getByText('Health snapshot from').count()).toBe(0);
   const card = page.getByRole('region', { name: 'Computer' });

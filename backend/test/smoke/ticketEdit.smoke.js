@@ -30,12 +30,16 @@ beforeEach(resetRateLimits);
 
 // The description has its own tab (user decision 2026-10-27), out of the
 // conversation and the reply box's way.
-// The description opens the Conversation tab, which the page lands on.
-const openDescription = (page) => page.getByTestId('ticket-description').waitFor();
+// The description is on the Details tab, not in the conversation.
+const openDescription = async (page) => {
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
+  await page.getByTestId('ticket-description').waitFor();
+};
 
-it('the description opens the conversation; line breaks kept', async () => {
+it('the description is on Details, not in the conversation; line breaks kept', async () => {
   await admin.goto(`/tickets/${t.id}`);
   await admin.getByRole('button', { name: 'Conversation', exact: true }).waitFor();
+  expect(await admin.getByTestId('ticket-description').count()).toBe(0);
   await openDescription(admin);
   const card = admin.getByTestId('ticket-description');
   await card.waitFor();
