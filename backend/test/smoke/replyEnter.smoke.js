@@ -17,6 +17,8 @@ afterAll(async () => { await smoke.stop(); await closeDb(); });
 it('Shift+Enter adds a line; Enter sends the reply with both lines', async () => {
   const page = await smoke.pageAs('admin');
   await page.goto(`/tickets/${ticket.id}`);
+  // The reply bar opens the composer.
+  await page.getByRole('button', { name: /^Reply/ }).filter({ visible: true }).click();
   const box = page.getByPlaceholder(/^Reply to /).filter({ visible: true });
   await box.click();
   await page.keyboard.type('Line one');
@@ -26,10 +28,14 @@ it('Shift+Enter adds a line; Enter sends the reply with both lines', async () =>
   const sent = page.waitForResponse((r) => r.url().endsWith(`/tickets/${ticket.id}/comments`) && r.request().method() === 'POST');
   await page.keyboard.press('Enter');
   expect((await sent).status()).toBe(201);
-  expect(await box.inputValue()).toBe('');
   const c = await models.Comment.findOne({ where: { ticketId: ticket.id, type: 'reply' } });
   expect(c.body).toBe('Line one\nLine two');
+  // Sent: the composer closes back to the empty bar.
+  const bar = page.getByRole('button', { name: 'Reply', exact: true }).filter({ visible: true });
+  await bar.waitFor();
   // Enter on an empty box sends nothing.
+  await bar.click();
+  expect(await box.inputValue()).toBe('');
   await page.keyboard.press('Enter');
   expect(await models.Comment.count({ where: { ticketId: ticket.id, type: 'reply' } })).toBe(1);
 });

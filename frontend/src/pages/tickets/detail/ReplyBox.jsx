@@ -12,9 +12,9 @@ import CannedPicker from '../../../components/CannedPicker';
 export function ReplyBox({
   ticket, onSend, fileRef, onAttach, isStaff, canViewPrivateComments, collapsible = false,
 }) {
-  // It sits at the top of the conversation, above the newest message, and
-  // scrolls with it (not pinned under the thread).
-  const box = 'rounded-xl border border-navy-100 bg-surface';
+  // Pinned under the conversation. Collapsible: a one-line bar until you
+  // click it, so the thread above gets the room.
+  const box = 'flex-shrink-0 border-t border-navy-100 bg-surface';
   const draftKey = `prism.ticket.${ticket.id}.draft`;
   const [text, setText] = useState(() => { try { return localStorage.getItem(draftKey) || ''; } catch { return ''; } });
   const [mode, setMode] = useState('reply'); // 'reply' | 'comment'
@@ -47,6 +47,7 @@ export function ReplyBox({
       await onSend(text, type, recipients);
       setText('');
       setCc(''); setBcc('');
+      if (collapsible) setExpanded(false);
       try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
     } catch (err) {
       setError(err?.response?.data?.message || 'Could not send. Try again.');

@@ -71,6 +71,8 @@ it('desktop keeps Link ticket, Merge and Generate report as buttons', async () =
     await page.getByRole('button', { name, exact: true }).filter({ visible: true }).first().waitFor();
   }
   expect(await page.getByRole('button', { name: 'More actions' }).filter({ visible: true }).count()).toBe(0);
+  // The reply bar under the conversation opens the composer.
+  await page.getByRole('button', { name: /^Reply/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Send/ }).filter({ visible: true }).first().waitFor();
 });
 

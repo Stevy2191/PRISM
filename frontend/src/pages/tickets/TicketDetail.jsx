@@ -744,13 +744,8 @@ export default function TicketDetail() {
           </div>
 
           <div className="p-4 sm:p-5" style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
-            {/* Newest first: the reply box, then the thread from the latest
-                message down, and the problem as it was raised at the bottom. */}
-            {activeTab === 'conversation' && (
-              <div className="mb-4">
-                <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} isStaff={isStaff} canViewPrivateComments={canViewPrivateComments} collapsible={isPhone} />
-              </div>
-            )}
+            {/* Newest first: the thread from the latest message down, and the
+                problem as it was raised at the bottom. */}
             {activeTab === 'conversation' && (
               <ConversationTab
                 ticket={ticket}
@@ -833,6 +828,10 @@ export default function TicketDetail() {
             )}
           </div>
 
+          {/* Pinned under the conversation: a one-line bar until clicked. */}
+          {activeTab === 'conversation' && (
+            <ReplyBox ticket={ticket} onSend={sendReply} fileRef={fileRef} onAttach={handleReplyAttach} isStaff={isStaff} canViewPrivateComments={canViewPrivateComments} collapsible />
+          )}
         </div>
 
         <div className="hidden md:contents">

@@ -2,8 +2,9 @@ const { resetData, closeDb, models } = require('../integration/helpers');
 const { makeWorld, makeTicket } = require('../integration/fixtures');
 const { startSmoke } = require('./harness');
 
-// The conversation reads newest first: the reply box on top, then the latest
-// message, the oldest, and the description at the bottom. A tray ticket's
+// The conversation reads newest first: the latest message at the top, the
+// oldest and the description below; the reply bar is pinned under it all and
+// opens the composer when clicked. A tray ticket's
 // health snapshot is in the sidebar's Computer card, not the thread.
 
 let smoke;
@@ -27,13 +28,13 @@ beforeAll(async () => {
 });
 afterAll(async () => { await smoke.stop(); await closeDb(); });
 
-it('reply box first, newest message next, description last; the snapshot is the Computer card', async () => {
+it('newest message first, description last, reply bar under them; the snapshot is the Computer card', async () => {
   const page = await smoke.pageAs('admin', undefined, DESKTOP);
   await page.goto(`/tickets/${ticket.id}`);
   await page.getByText('Latest answer').waitFor();
   const order = await page.evaluate(() => {
     const text = document.body.innerText;
-    return ['Save draft', 'Latest answer', 'First answer', 'It takes minutes to open Outlook.'].map((s) => text.indexOf(s));
+    return ['Latest answer', 'First answer', 'It takes minutes to open Outlook.', 'Reply to '].map((s) => text.indexOf(s));
   });
   expect(order.every((n) => n >= 0)).toBe(true);
   expect([...order].sort((a, b) => a - b)).toEqual(order);
@@ -45,4 +46,9 @@ it('reply box first, newest message next, description last; the snapshot is the 
   expect(await card.getByText('Battery').count()).toBe(0);
   await card.getByRole('button', { name: /Show all/ }).click();
   await card.getByText('not present').waitFor();
+  // The bar opens the full composer, which can be put away again.
+  await page.getByRole('button', { name: /^Reply/ }).filter({ visible: true }).click();
+  await page.getByRole('button', { name: 'Send Reply' }).waitFor();
+  await page.getByRole('button', { name: 'Collapse reply' }).click();
+  await page.getByRole('button', { name: 'Send Reply' }).waitFor({ state: 'detached' });
 });

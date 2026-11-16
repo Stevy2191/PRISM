@@ -86,6 +86,7 @@ it('canned picker inserts a rendered response into the reply box', async () => {
   const agentRes = await page.context().request.post(`${API}/canned-responses`, { data: { title: 'Greeting', body: 'Hi {{contact.firstName}}, about #{{ticket.number}}' } });
   expect(agentRes.status()).toBe(201);
   await page.goto(`/tickets/${t.id}`);
+  await page.getByRole('button', { name: /^Reply/ }).filter({ visible: true }).click();
   await page.getByRole('button', { name: 'Insert' }).click();
   await page.getByTestId('canned-picker').getByText('Greeting').click();
   const box = page.getByPlaceholder(/Reply to/);
