@@ -149,7 +149,15 @@ export default function TicketDetail() {
   const canViewPrivateComments = usePermission('tickets.view_private_comments');
   const fileRef = useRef(null);
 
-  const [ticket, setTicket] = useState(null);
+  const [ticket, setTicketRaw] = useState(null);
+  // A save answers with the ticket but not its agent snapshot (only the full
+  // load carries it): keep the one we have, or the snapshot note would drop
+  // back into the conversation and the Computer card would vanish.
+  const setTicket = useCallback((next) => setTicketRaw((prev) => {
+    const value = typeof next === 'function' ? next(prev) : next;
+    if (value && prev && value.id === prev.id && value.agentSnapshot === undefined) return { ...value, agentSnapshot: prev.agentSnapshot };
+    return value;
+  }), []);
   // A stopped header timer, waiting in the Log time form.
   const [stoppedTimer, setStoppedTimer] = useState(null);
   const [comments, setComments] = useState([]);

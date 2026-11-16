@@ -50,6 +50,14 @@ it('newest message first, reply bar under them, description on Details; the snap
   expect(await card.getByText('Battery').count()).toBe(0);
   await card.getByRole('button', { name: /Show all/ }).click();
   await card.getByText('not present').waitFor();
+  // A save answers without the snapshot: it still stays out of the thread
+  // and in its card (found by the owner changing the team, 2026-11-16).
+  const saved = page.waitForResponse((r) => r.url().endsWith(`/tickets/${ticket.id}`) && r.request().method() === 'PATCH');
+  await page.getByLabel('Priority').filter({ visible: true }).first().selectOption('high');
+  expect((await saved).status()).toBe(200);
+  await page.waitForTimeout(500);
+  expect(await page.getByText('Health snapshot from').count()).toBe(0);
+  await card.getByText('Front desk Mac mini').waitFor();
   // The bar opens the full composer, which can be put away again.
   await page.getByRole('button', { name: /^Reply/ }).filter({ visible: true }).click();
   await page.getByRole('button', { name: 'Send Reply' }).waitFor();
