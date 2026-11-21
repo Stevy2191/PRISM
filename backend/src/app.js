@@ -14,6 +14,7 @@ const { resolveTrustProxy } = require('./config/validateEnv');
 require('./models'); // register models + associations
 const apiRoutes = require('./routes');
 const wellKnownRoutes = require('./routes/wellKnown');
+const { mcpHandler } = require('./mcp/endpoint');
 const { notFound, errorHandler } = require('./middleware/error');
 const { sameOriginWrites } = require('./middleware/sameOrigin');
 
@@ -106,6 +107,8 @@ function createApp({ sessionStore } = {}) {
   const portalSession = session(sessionOptions('prism.portal.sid', portalSessionSecret(), Object.create(store), { path: PORTAL_API_PATH }));
   // /.well-known (MCP-O): public metadata, no session needed.
   app.use('/.well-known', wellKnownRoutes);
+  // /mcp (MCP-O): Claude, with an OAuth access token; no session.
+  app.all('/mcp', mcpHandler(app));
 
   // Exactly one session per request: portal paths see only the portal
   // session and every other path only the staff one. Two instances can't
