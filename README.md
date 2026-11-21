@@ -492,6 +492,13 @@ knowledge base, reports and settings. Responses are JSON; errors look like:
 
 A key acts with its owner's permissions.
 
+### Claude (MCP)
+
+[`mcp/`](mcp/README.md) is an MCP server that lets Claude (Claude Desktop,
+Claude Code) work with PRISM through this API: search and triage tickets,
+read a customer's history, add notes, log time and search the knowledge base,
+with exactly the permissions of the API key's owner. It can run read-only.
+
 ---
 
 ## Roadmap, design notes and release notes

@@ -68,6 +68,30 @@ jobs:
         # values through the job environment above.
         run: npm test
 
+  mcp:
+    # The MCP server (mcp/): lets Claude work with PRISM through its API.
+    # Its tests run against a fake PRISM, so no database is needed.
+    name: MCP server tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mcp
+        run: npm ci
+
+      - name: Test
+        working-directory: ./mcp
+        run: npm test
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest

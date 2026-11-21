@@ -1,0 +1,23 @@
+{
+  "name": "prism-mcp",
+  "version": "1.0.0",
+  "license": "AGPL-3.0-only",
+  "description": "MCP server that lets Claude work with a PRISM help desk through its API",
+  "type": "module",
+  "bin": {
+    "prism-mcp": "src/index.js"
+  },
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "start:http": "node src/index.js --http",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  }
+}
