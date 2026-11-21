@@ -293,14 +293,27 @@ const secretRevealLimiter = rateLimit({
 
 // Clears every limiter's counters. Used by the test suite so one case's
 // login attempts don't rate-limit the next; never called at runtime.
+// Claude connections (MCP-O): registering apps and the token endpoint are
+// unauthenticated, so they're limited per IP. Claude's servers share
+// addresses across many people, so this is generous.
+const oauthStore = new MemoryStore();
+const oauthLimiter = rateLimit({
+  store: oauthStore,
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'slow_down', error_description: 'Too many requests, please try again shortly' },
+});
+
 function resetRateLimits() {
   [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
-    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore, secretRevealStore, installStore, agentTrayFileStore, agentTrayFileIpStore, agentTrayReplyStore]
+    portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore, secretRevealStore, installStore, agentTrayFileStore, agentTrayFileIpStore, agentTrayReplyStore, oauthStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
   loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
-  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, secretRevealLimiter, installLimiter, agentTrayFileLimiter, agentTrayFileIpLimiter, agentTrayReplyLimiter,
+  portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, secretRevealLimiter, installLimiter, agentTrayFileLimiter, agentTrayFileIpLimiter, agentTrayReplyLimiter, oauthLimiter,
 };

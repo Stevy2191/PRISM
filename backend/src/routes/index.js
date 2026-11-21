@@ -59,6 +59,7 @@ const workloadRoutes = require('./workload');
 const portalRoutes = require('./portal');
 const agentRoutes = require('./agent');
 const installRoutes = require('./install');
+const oauthRoutes = require('./oauth');
 
 const { getVersionInfo } = require('../utils/version');
 
@@ -85,6 +86,11 @@ router.use('/portal', portalRoutes);
 router.use('/agent', agentRoutes);
 // Install links (8d): public; the install key in the path is the credential.
 router.use('/install', installRoutes);
+
+// Claude connections (MCP-O): PRISM as the OAuth authorization server for
+// /mcp. Apps call these without a session; the consent and Owner endpoints
+// inside check the staff session themselves.
+router.use('/oauth', oauthRoutes);
 
 // Settings has its own public (login branding) + admin endpoints inside it.
 router.use('/settings', settingsRoutes);

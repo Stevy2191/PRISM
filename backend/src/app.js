@@ -13,6 +13,7 @@ const sequelize = require('./config/database');
 const { resolveTrustProxy } = require('./config/validateEnv');
 require('./models'); // register models + associations
 const apiRoutes = require('./routes');
+const wellKnownRoutes = require('./routes/wellKnown');
 const { notFound, errorHandler } = require('./middleware/error');
 const { sameOriginWrites } = require('./middleware/sameOrigin');
 
@@ -103,6 +104,9 @@ function createApp({ sessionStore } = {}) {
   // sessions the portal's cookie path. Object.create shares the table and
   // every method while keeping each instance's generate apart.
   const portalSession = session(sessionOptions('prism.portal.sid', portalSessionSecret(), Object.create(store), { path: PORTAL_API_PATH }));
+  // /.well-known (MCP-O): public metadata, no session needed.
+  app.use('/.well-known', wellKnownRoutes);
+
   // Exactly one session per request: portal paths see only the portal
   // session and every other path only the staff one. Two instances can't
   // share req.session, and this is what keeps a contact session off staff
