@@ -1,8 +1,7 @@
 // Authentication middleware.
 // Accepts either a session cookie (browser clients) or an X-API-Key header.
-const bcrypt = require('bcryptjs');
-const { Op } = require('sequelize');
-const { User, ApiKey, Role } = require('../models');
+const { User, Role } = require('../models');
+const { resolveApiKey: resolveKey } = require('../services/apiKeys');
 const { ApiError } = require('./error');
 const { noteOwnerLevel } = require('../services/permissionService');
 
@@ -50,29 +49,9 @@ async function authenticate(req, res, next) {
   }
 }
 
-// Validate a plaintext API key against stored bcrypt hashes.
-async function resolveApiKey(plaintext) {
-  // Keys carry an 8-char prefix of the secret hex (after "prism_") to narrow
-  // candidates before the expensive bcrypt compare.
-  const prefix = plaintext.slice(6, 14);
-  const candidates = await ApiKey.findAll({
-    where: {
-      prefix,
-      [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
-    },
-    include: [{ model: User, as: 'user', include: primaryRoleInclude }],
-  });
-
-  for (const candidate of candidates) {
-    // eslint-disable-next-line no-await-in-loop
-    const match = await bcrypt.compare(plaintext, candidate.keyHash);
-    if (match && candidate.user && candidate.user.isActive) {
-      candidate.lastUsed = new Date();
-      await candidate.save();
-      return candidate.user;
-    }
-  }
-  return null;
+// The active user an API key belongs to, or null (services/apiKeys).
+function resolveApiKey(plaintext) {
+  return resolveKey(plaintext, { userInclude: primaryRoleInclude });
 }
 
 module.exports = { authenticate, resolveApiKey };

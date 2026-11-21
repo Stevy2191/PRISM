@@ -10,6 +10,24 @@ backend start.
 
 ## Unreleased
 
+**API keys are checked in milliseconds.** Each request with an API key used
+to spend about 0.37 s on a bcrypt check that held up the whole backend, so a
+script or integration (or Claude through the new MCP server) slowed PRISM down
+for everyone else: one person's page took 2.8 s while eight API requests
+were running. Keys are now stored as a SHA-256 hash and looked up directly
+(a key is 32 random bytes, so that protects it just as well), and `lastUsed`
+is written at most once a minute. Migration 099 adds the column; **existing
+keys keep working** and move to the new hash the first time they're used.
+Rolling back 099 deletes keys made or used since the upgrade, since the older
+code can't check them; their owners make new ones.
+
+**Ticket numbers work on every ticket route.** `/api/v1/tickets/WC-T0042`
+already opened a ticket; now its comments, time, attachments, updates and
+every other `/tickets/:id/...` route take the number (current or old) too.
+
+**The Claude MCP server.** `mcp/` lets Claude Desktop and Claude Code work
+with PRISM through an API key; see `mcp/README.md`.
+
 **Company numbers (CN).** Every company and every department now has a code
 (Washington County → `WC`, Human Resources → `HR`), suggested from its name
 and editable. Tickets are numbered per company (`WC-T0042`) and projects per
