@@ -35,8 +35,14 @@ dependencies is fixed, among them the rich-text editor (Tiptap 3), React
 Router 7 and nodemailer 10. Nothing to do on upgrade; the editor works as
 before.
 
-**The Claude MCP server.** `mcp/` lets Claude Desktop and Claude Code work
-with PRISM through an API key; see `mcp/README.md`.
+**Claude can connect to PRISM.** claude.ai, the Claude apps, Claude Desktop
+and Claude Code connect at `https://your-prism/mcp`: each person signs in to
+PRISM and approves (OAuth), and Claude acts as them. **Off until an Owner
+turns it on** in Settings › Claude, read-only unless they allow changes, and
+every connection can be revoked there. It needs `PUBLIC_APP_URL` set to
+PRISM's `https://` address. Migration 100 adds its three tables; nginx now
+routes `/mcp` and `/.well-known/oauth-*` to the backend. `mcp/` also has a
+standalone program for an API key; see `mcp/README.md`.
 
 **Company numbers (CN).** Every company and every department now has a code
 (Washington County → `WC`, Human Resources → `HR`), suggested from its name

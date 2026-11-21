@@ -494,10 +494,16 @@ A key acts with its owner's permissions.
 
 ### Claude (MCP)
 
-[`mcp/`](mcp/README.md) is an MCP server that lets Claude (Claude Desktop,
-Claude Code) work with PRISM through this API: search and triage tickets,
-read a customer's history, add notes, log time and search the knowledge base,
-with exactly the permissions of the API key's owner. It can run read-only.
+Claude can work with PRISM: search and triage tickets, read a customer's
+history, add notes, log time and search the knowledge base, always with
+exactly the permissions of the person it acts for.
+
+- **claude.ai, the Claude apps, a whole team:** an Owner turns it on in
+  **Settings › Claude**; each person adds `https://your-prism/mcp` as a
+  connector in Claude, signs in to PRISM and clicks Allow (OAuth). Read-only
+  unless the Owner allows changes; every connection can be revoked.
+- **Claude Desktop or Claude Code with an API key:** the standalone program
+  in [`mcp/`](mcp/README.md).
 
 ---
 

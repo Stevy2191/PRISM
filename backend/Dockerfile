@@ -10,6 +10,15 @@ RUN npm install --omit=dev && npm cache clean --force
 # App source
 COPY . .
 
+# The MCP server's tools, shared with the standalone program in mcp/ (MCP-O):
+# /mcp runs them in this process. Built with the named context "mcp"
+# (docker buildx --build-context mcp=./mcp; CI and docker-compose.dev.yml
+# pass it).
+COPY --from=mcp package*.json /mcp/
+RUN cd /mcp && npm ci --omit=dev && npm cache clean --force
+COPY --from=mcp src /mcp/src
+ENV PRISM_MCP_DIR=/mcp
+
 # Agent packages (8a): CI builds the agent and places the packages and their
 # manifest.json in agent-dist/ before this image is built (COPY . . above
 # brings them in). PRISM signs and serves them to enrolled agents only.

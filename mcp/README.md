@@ -7,8 +7,17 @@ PRISM's own API with an API key, so **Claude sees and changes exactly what the
 key's owner can, and nothing more**. Every change appears in PRISM's audit log
 under that user.
 
-It needs nothing installed inside PRISM: it is a separate program that talks to
-`https://your-prism/api/v1`.
+There are two ways to connect Claude:
+
+- **claude.ai, the Claude apps, and everyone on a team: built into PRISM.**
+  An Owner turns it on in **Settings › Claude**; each person adds
+  `https://your-prism/mcp` as a connector, signs in to PRISM and clicks
+  Allow. Nothing to install or run; see [Connecting from claude.ai](#connecting-from-claudeai).
+- **This program**, for Claude Desktop or Claude Code with an API key: a
+  separate program that talks to `https://your-prism/api/v1`. The rest of
+  this README is about it.
+
+Both offer the same tools.
 
 ## Tools
 
@@ -103,9 +112,31 @@ browser page are refused unless their origin is listed in
 `PRISM_MCP_ALLOWED_ORIGINS`. `GET /health` answers without a key for
 monitoring.
 
-> **claude.ai and the Claude mobile app** connect to remote MCP servers by
-> signing in with OAuth, which this server does not offer yet; they can't pass
-> a bearer key. Use Claude Desktop or Claude Code for now.
+## Connecting from claude.ai
+
+PRISM serves MCP itself at `https://your-prism/mcp`, with OAuth sign-in, so
+claude.ai, the Claude mobile apps, Claude Desktop and Claude Code can connect
+by URL with no key:
+
+1. **An Owner turns it on** in **Settings › Claude**. PRISM must be reachable
+   at an `https://` address on port 443, set as `PUBLIC_APP_URL` in `.env`
+   (Claude connects from Anthropic's cloud). Choose whether Claude may make
+   changes (off: it can only look).
+2. **In Claude**, Settings › Connectors › **Add custom connector**: name it
+   PRISM and paste `https://your-prism/mcp`. Leave the OAuth settings alone.
+   On a Team or Enterprise plan an owner adds it once.
+3. **Each person clicks Connect**, signs in to PRISM the way they always do
+   (local, Active Directory or single sign-on) and clicks **Allow**.
+
+Claude then acts as that person, with exactly their permissions. Access
+tokens last an hour and refresh for up to 30 days of use; **Settings ›
+Claude** lists every connection and revokes any of them, and turning the
+setting off disconnects everyone. The token works only on `/mcp`, never on
+the rest of PRISM's API.
+
+The HTTP mode of this program (above) also works with claude.ai, by adding
+`Authorization: Bearer prism_…` as a request header on the connector, if you'd
+rather use an API key.
 
 ## Settings
 

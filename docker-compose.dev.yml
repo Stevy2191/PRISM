@@ -45,7 +45,11 @@ services:
       - clamav_data:/var/lib/clamav
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      # /mcp runs the tools from mcp/ (MCP-O).
+      additional_contexts:
+        mcp: ./mcp
     restart: unless-stopped
     depends_on:
       mariadb:

@@ -104,6 +104,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          # The backend image carries the MCP tools from mcp/ (MCP-O); the
+          # frontend's Dockerfile never asks for this context.
+          build-contexts: |
+            mcp=./mcp
           push: true
           tags: ${{ steps.tags.outputs.tags }}
           labels: ${{ steps.tags.outputs.labels }}

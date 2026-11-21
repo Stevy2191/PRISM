@@ -58,6 +58,11 @@ jobs:
         working-directory: ./backend
         run: npm ci
 
+      # /mcp loads the shared tools from mcp/ (MCP-O).
+      - name: Install the MCP server's dependencies
+        working-directory: ./mcp
+        run: npm ci
+
       - name: Audit production dependencies
         working-directory: ./backend
         # Fails on high or critical advisories; moderates are reviewed by hand.
