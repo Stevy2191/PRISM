@@ -2,9 +2,27 @@ const express = require('express');
 const ctrl = require('../controllers/ticketsController');
 const canned = require('../controllers/cannedResponsesController');
 const { requirePermission } = require('../middleware/requirePermission');
+const { findTicketIdByNumber } = require('../services/tickets/numbers');
 const { upload, enforceMaxAttachmentSize, verifyFileSignature, scanUpload } = require('../middleware/upload');
 
 const router = express.Router();
+
+// Every /tickets/:id route takes the company ticket number (WC-T0042, an old
+// number it had, or a plain id), resolved here once so each handler keeps
+// reading a numeric id. Access is still decided by each handler on the
+// ticket it finds, so a number reaches exactly what its id would. A number
+// that matches nothing is left as it is, and the handler's own lookup 404s.
+router.param('id', async (req, res, next, raw) => {
+  try {
+    if (!/^\d+$/.test(raw)) {
+      const id = await findTicketIdByNumber(raw);
+      if (id) req.params.id = String(id);
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 const viewMin = requirePermission('tickets.view_own', 'tickets.view_department', 'tickets.view_all');
 const editMin = requirePermission('tickets.edit_own', 'tickets.edit_department', 'tickets.edit_all');

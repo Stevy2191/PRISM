@@ -1,7 +1,7 @@
 const Sequelize = require('sequelize');
 const { resetData, closeDb, models, sequelize } = require('./helpers');
 const {
-  API, expectOk, makeWorld, makeCompany, makeContact, makeTicket,
+  API, expectOk, makeWorld, makeCompany, makeContact, makeTicket, makeTech, setCompanyAccess,
 } = require('./fixtures');
 const migration = require('../../migrations/20260101000097-ticket-numbers');
 const { findTicketIdByNumber } = require('../../src/services/tickets/numbers');
@@ -115,4 +115,42 @@ it('migration 097 numbers every ticket within its company, moves task codes, and
   expect(task.code).toBe('WC-T0002-T01');
   expect(await counter(wc.id)).toBe(2);
   await migration.up(qi, Sequelize); // twice is harmless
+});
+
+it('every ticket route takes the number, current or old, as well as the id', async () => {
+  const t = await ticketFor(pat);
+  const agent = w.admin.agent;
+  expectOk(await agent.patch(`${API}/tickets/WC-T0001`).send({ priority: 'high' }));
+  expect((await models.Ticket.findByPk(t.id)).priority).toBe('high');
+  expectOk(await agent.post(`${API}/tickets/wc-t1/comments`).send({ body: 'Checked the toner', type: 'comment_private' }), 201);
+  const { comments } = expectOk(await agent.get(`${API}/tickets/WC-T0001/comments`));
+  expect(comments.map((c) => c.body)).toContain('Checked the toner');
+  expectOk(await agent.post(`${API}/tickets/WC-T0001/time`).send({ durationMinutes: 15 }), 201);
+  expectOk(await agent.get(`${API}/tickets/WC-T0001/activity`));
+  // After a renumber, the old number still reaches it.
+  expectOk(await agent.patch(`${API}/companies/${wc.id}`).send({ code: 'WCO' }));
+  expectOk(await agent.patch(`${API}/tickets/WC-T0001`).send({ priority: 'low' }));
+  expect((await models.Ticket.findByPk(t.id)).priority).toBe('low');
+  // An unknown number is a plain 404, never another ticket.
+  expect((await agent.patch(`${API}/tickets/WC-T0099`).send({ priority: 'high' })).status).toBe(404);
+  expect((await agent.get(`${API}/tickets/NOPE/comments`)).status).toBe(404);
+});
+
+it('a number is no way round access: someone who can\'t see the ticket gets the same answer as for its id', async () => {
+  const t = await ticketFor(lee);
+  const tech = await makeTech('wconly', w.deptA.id);
+  await setCompanyAccess(w.admin, tech.user.id, { allCompanies: false, companyIds: [wc.id] });
+  for (const [method, path, body] of [
+    ['patch', '', { priority: 'high' }],
+    ['get', '/comments'],
+    ['post', '/comments', { body: 'hi', type: 'comment_private' }],
+  ]) {
+    // eslint-disable-next-line no-await-in-loop
+    const byId = await tech.agent[method](`${API}/tickets/${t.id}${path}`).send(body);
+    // eslint-disable-next-line no-await-in-loop
+    const byNumber = await tech.agent[method](`${API}/tickets/ACME-T0001${path}`).send(body);
+    expect([method, path, byNumber.status]).toEqual([method, path, byId.status]);
+    expect(byNumber.status).toBeGreaterThanOrEqual(400);
+  }
+  expect((await models.Ticket.findByPk(t.id)).priority).not.toBe('high');
 });
