@@ -25,6 +25,16 @@ code can't check them; their owners make new ones.
 already opened a ticket; now its comments, time, attachments, updates and
 every other `/tickets/:id/...` route take the number (current or old) too.
 
+**Faster first load.** Pages now load as you open them instead of all at
+once: the first download drops from 3.9 MB to 0.6 MB, and the client portal
+no longer downloads the staff app. A tab left open across an upgrade reloads
+itself once when it next changes page, to pick up the new version.
+
+**Security updates.** Every high and critical advisory in PRISM's
+dependencies is fixed, among them the rich-text editor (Tiptap 3), React
+Router 7 and nodemailer 10. Nothing to do on upgrade; the editor works as
+before.
+
 **The Claude MCP server.** `mcp/` lets Claude Desktop and Claude Code work
 with PRISM through an API key; see `mcp/README.md`.
 

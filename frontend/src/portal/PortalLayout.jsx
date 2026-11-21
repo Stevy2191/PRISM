@@ -1,8 +1,9 @@
 import { p } from './api';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { IconMenu2, IconX } from '@tabler/icons-react';
 import { usePortalAuth } from './PortalAuth';
+import Spinner from '../components/Spinner';
 
 // The portal frame (mockups Tickets / Phone): brand "· Support", Tickets and
 // Projects (CN), Knowledge base, who is signed in and Sign out; on a phone a menu button
@@ -81,7 +82,7 @@ export default function PortalLayout() {
         </nav>
       </header>
       <main className="mx-auto max-w-[1120px] px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
-        <Outlet />
+        <Suspense fallback={<Spinner />}><Outlet /></Suspense>
       </main>
     </div>
   );

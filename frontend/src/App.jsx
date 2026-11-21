@@ -1,92 +1,95 @@
+import { Suspense } from 'react';
 import {
   Routes, Route, Navigate, useParams,
 } from 'react-router-dom';
+import { lazyPage } from './utils/lazyPage';
+import Spinner from './components/Spinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import SettingsShell from './components/settings/SettingsShell';
 import { allRoutes, REDIRECTS, redirectTarget } from './pages/settings/registry';
-
-import Login from './pages/Login';
-import ChangePassword from './pages/ChangePassword';
-import SurveyPage from './pages/SurveyPage';
-import InstallPage from './pages/InstallPage';
-import Dashboard from './pages/Dashboard';
-import Tickets from './pages/tickets/Tickets';
-import TicketNew from './pages/tickets/TicketNew';
-import TicketRoute from './pages/tickets/TicketRoute';
-import TicketFormPage from './pages/tickets/form/TicketFormPage';
-import Projects from './pages/Projects';
-import ProjectNew from './pages/ProjectNew';
-import ProjectDetail from './pages/projects/ProjectDetail';
-import Contacts from './pages/Contacts';
-import ContactDetail from './pages/ContactDetail';
-import CompaniesList from './pages/companies/CompaniesList';
-import CompanyPage from './pages/companies/CompanyPage';
-import Assets from './pages/Assets';
-import AssetDetail from './pages/AssetDetail';
-import Licenses from './pages/assets/Licenses';
-import LicenseDetail from './pages/assets/LicenseDetail';
-import Contracts from './pages/assets/Contracts';
-import ContractDetail from './pages/assets/ContractDetail';
-import Reports from './pages/Reports';
-import Calendar from './pages/Calendar';
-import KnowledgeBase from './pages/KnowledgeBase';
-import ArticleEditor from './pages/ArticleEditor';
-import ArticleView from './pages/ArticleView';
-import PortalApp from './portal/PortalApp';
-import ClientPortalSettings from './pages/settings/ClientPortal';
-import NotFound from './pages/NotFound';
-
-// Settings hub + sections
-import SettingsHome from './pages/settings/SettingsHome';
-import StartingValues from './pages/settings/StartingValues';
-import YourCompany from './pages/settings/YourCompany';
-import SettingsStatuses from './pages/settings/Statuses';
-import SettingsWorkHours from './pages/settings/WorkHours';
-import Workload from './pages/workload/Workload';
-import SettingsTeams from './pages/settings/Teams';
-import SettingsPreferences from './pages/settings/Preferences';
-import SettingsAbout from './pages/settings/About';
-import SettingsLayouts from './pages/settings/Layouts';
-import SettingsAssetCategories from './pages/settings/AssetCategories';
-import SettingsAssetAlerts from './pages/settings/AssetAlerts';
-import SettingsTimeTracking from './pages/settings/TimeTracking';
-import SettingsWorkTypes from './pages/settings/WorkTypes';
-import SettingsCannedResponses from './pages/settings/CannedResponses';
-import TicketRules from './pages/settings/TicketRules';
-import SettingsRecurringTickets from './pages/settings/RecurringTickets';
-import RecurringTicketEditor from './pages/settings/RecurringTicketEditor';
-import SettingsSingleSignOn from './pages/settings/SingleSignOn';
-import SettingsProjectTemplates from './pages/settings/ProjectTemplates';
-import ProjectTemplateEditor from './pages/settings/ProjectTemplateEditor';
-import Schedules from './pages/settings/Schedules';
-import SettingsImport from './pages/settings/Import';
-import SettingsExport from './pages/settings/Export';
-import SettingsNotifications from './pages/settings/Notifications';
-import SettingsEmailTemplates from './pages/settings/EmailTemplates';
-import WorkflowRules from './pages/settings/WorkflowRules';
-import WorkflowRuleEditor from './pages/settings/WorkflowRuleEditor';
-import CalendarIntegration from './pages/settings/CalendarIntegration';
-import CustomerHappiness from './pages/settings/CustomerHappiness';
-import SettingsChecklists from './pages/settings/checklists/Checklists';
-import ChecklistEditor from './pages/settings/checklists/ChecklistEditor';
-import BundleEditor from './pages/settings/checklists/BundleEditor';
-import SettingsMdms from './pages/settings/playbooks/Mdms';
-
-// Existing admin pages (reached via the Settings hub)
-import AdminUsers from './pages/AdminUsers';
-import UserDetail from './pages/UserDetail';
-import AdminRoles from './pages/AdminRoles';
-import RoleEditor from './pages/RoleEditor';
-import AdminBlueprints from './pages/AdminBlueprints';
-import AdminApiKeys from './pages/AdminApiKeys';
-import SettingsDirectory from './pages/settings/Directory';
-import SettingsEmail from './pages/settings/Email';
-import SettingsSystemInfo from './pages/settings/SystemInfo';
-import EmailLog from './pages/settings/EmailLog';
 import AccessRestricted from './components/AccessRestricted';
 import { useAuth } from './context/AuthContext';
-import AuditLog from './pages/settings/AuditLog';
+
+const Login = lazyPage(() => import('./pages/Login'));
+const ChangePassword = lazyPage(() => import('./pages/ChangePassword'));
+const SurveyPage = lazyPage(() => import('./pages/SurveyPage'));
+const InstallPage = lazyPage(() => import('./pages/InstallPage'));
+const Dashboard = lazyPage(() => import('./pages/Dashboard'));
+const Tickets = lazyPage(() => import('./pages/tickets/Tickets'));
+const TicketNew = lazyPage(() => import('./pages/tickets/TicketNew'));
+const TicketRoute = lazyPage(() => import('./pages/tickets/TicketRoute'));
+const TicketFormPage = lazyPage(() => import('./pages/tickets/form/TicketFormPage'));
+const Projects = lazyPage(() => import('./pages/Projects'));
+const ProjectNew = lazyPage(() => import('./pages/ProjectNew'));
+const ProjectDetail = lazyPage(() => import('./pages/projects/ProjectDetail'));
+const Contacts = lazyPage(() => import('./pages/Contacts'));
+const ContactDetail = lazyPage(() => import('./pages/ContactDetail'));
+const CompaniesList = lazyPage(() => import('./pages/companies/CompaniesList'));
+const CompanyPage = lazyPage(() => import('./pages/companies/CompanyPage'));
+const Assets = lazyPage(() => import('./pages/Assets'));
+const AssetDetail = lazyPage(() => import('./pages/AssetDetail'));
+const Licenses = lazyPage(() => import('./pages/assets/Licenses'));
+const LicenseDetail = lazyPage(() => import('./pages/assets/LicenseDetail'));
+const Contracts = lazyPage(() => import('./pages/assets/Contracts'));
+const ContractDetail = lazyPage(() => import('./pages/assets/ContractDetail'));
+const Reports = lazyPage(() => import('./pages/Reports'));
+const Calendar = lazyPage(() => import('./pages/Calendar'));
+const KnowledgeBase = lazyPage(() => import('./pages/KnowledgeBase'));
+const ArticleEditor = lazyPage(() => import('./pages/ArticleEditor'));
+const ArticleView = lazyPage(() => import('./pages/ArticleView'));
+const PortalApp = lazyPage(() => import('./portal/PortalApp'));
+const ClientPortalSettings = lazyPage(() => import('./pages/settings/ClientPortal'));
+const NotFound = lazyPage(() => import('./pages/NotFound'));
+
+// Settings hub + sections
+const SettingsHome = lazyPage(() => import('./pages/settings/SettingsHome'));
+const StartingValues = lazyPage(() => import('./pages/settings/StartingValues'));
+const YourCompany = lazyPage(() => import('./pages/settings/YourCompany'));
+const SettingsStatuses = lazyPage(() => import('./pages/settings/Statuses'));
+const SettingsWorkHours = lazyPage(() => import('./pages/settings/WorkHours'));
+const Workload = lazyPage(() => import('./pages/workload/Workload'));
+const SettingsTeams = lazyPage(() => import('./pages/settings/Teams'));
+const SettingsPreferences = lazyPage(() => import('./pages/settings/Preferences'));
+const SettingsAbout = lazyPage(() => import('./pages/settings/About'));
+const SettingsLayouts = lazyPage(() => import('./pages/settings/Layouts'));
+const SettingsAssetCategories = lazyPage(() => import('./pages/settings/AssetCategories'));
+const SettingsAssetAlerts = lazyPage(() => import('./pages/settings/AssetAlerts'));
+const SettingsTimeTracking = lazyPage(() => import('./pages/settings/TimeTracking'));
+const SettingsWorkTypes = lazyPage(() => import('./pages/settings/WorkTypes'));
+const SettingsCannedResponses = lazyPage(() => import('./pages/settings/CannedResponses'));
+const TicketRules = lazyPage(() => import('./pages/settings/TicketRules'));
+const SettingsRecurringTickets = lazyPage(() => import('./pages/settings/RecurringTickets'));
+const RecurringTicketEditor = lazyPage(() => import('./pages/settings/RecurringTicketEditor'));
+const SettingsSingleSignOn = lazyPage(() => import('./pages/settings/SingleSignOn'));
+const SettingsProjectTemplates = lazyPage(() => import('./pages/settings/ProjectTemplates'));
+const ProjectTemplateEditor = lazyPage(() => import('./pages/settings/ProjectTemplateEditor'));
+const Schedules = lazyPage(() => import('./pages/settings/Schedules'));
+const SettingsImport = lazyPage(() => import('./pages/settings/Import'));
+const SettingsExport = lazyPage(() => import('./pages/settings/Export'));
+const SettingsNotifications = lazyPage(() => import('./pages/settings/Notifications'));
+const SettingsEmailTemplates = lazyPage(() => import('./pages/settings/EmailTemplates'));
+const WorkflowRules = lazyPage(() => import('./pages/settings/WorkflowRules'));
+const WorkflowRuleEditor = lazyPage(() => import('./pages/settings/WorkflowRuleEditor'));
+const CalendarIntegration = lazyPage(() => import('./pages/settings/CalendarIntegration'));
+const CustomerHappiness = lazyPage(() => import('./pages/settings/CustomerHappiness'));
+const SettingsChecklists = lazyPage(() => import('./pages/settings/checklists/Checklists'));
+const ChecklistEditor = lazyPage(() => import('./pages/settings/checklists/ChecklistEditor'));
+const BundleEditor = lazyPage(() => import('./pages/settings/checklists/BundleEditor'));
+const SettingsMdms = lazyPage(() => import('./pages/settings/playbooks/Mdms'));
+
+// Existing admin pages (reached via the Settings hub)
+const AdminUsers = lazyPage(() => import('./pages/AdminUsers'));
+const UserDetail = lazyPage(() => import('./pages/UserDetail'));
+const AdminRoles = lazyPage(() => import('./pages/AdminRoles'));
+const RoleEditor = lazyPage(() => import('./pages/RoleEditor'));
+const AdminBlueprints = lazyPage(() => import('./pages/AdminBlueprints'));
+const AdminApiKeys = lazyPage(() => import('./pages/AdminApiKeys'));
+const SettingsDirectory = lazyPage(() => import('./pages/settings/Directory'));
+const SettingsEmail = lazyPage(() => import('./pages/settings/Email'));
+const SettingsSystemInfo = lazyPage(() => import('./pages/settings/SystemInfo'));
+const EmailLog = lazyPage(() => import('./pages/settings/EmailLog'));
+const AuditLog = lazyPage(() => import('./pages/settings/AuditLog'));
 
 const staff = (el) => <ProtectedRoute roles={['admin', 'technician']}>{el}</ProtectedRoute>;
 const perm = (el, keys) => <ProtectedRoute permission={keys}>{el}</ProtectedRoute>;
@@ -147,64 +150,71 @@ function settingsElement(id, access) {
     : page;
 }
 
+// Every page loads on demand (lazyPage), so the first screen doesn't carry
+// the whole app, and the client portal never downloads the staff pages.
+// Inside the staff frame, Layout and SettingsShell show their own fallback
+// so the navigation stays put while a page loads; this one covers pages
+// outside it (sign-in, the portal, surveys).
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
-      {/* Fully public — a contact reaches this via an emailed CSAT survey link, no PRISM login. */}
-      <Route path="/survey/:token" element={<SurveyPage />} />
-      {/* An install link (8d): public; the install key is the credential. */}
-      <Route path="/install/:key" element={<InstallPage />} />
-      {/* The client portal: /portal, and each company's at /portal/<slug>
-          (contacts sign in there; its own session and frame). */}
-      <Route path="/portal/*" element={<PortalApp />} />
+    <Suspense fallback={<Spinner className="min-h-screen" />}>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+        {/* Fully public — a contact reaches this via an emailed CSAT survey link, no PRISM login. */}
+        <Route path="/survey/:token" element={<SurveyPage />} />
+        {/* An install link (8d): public; the install key is the credential. */}
+        <Route path="/install/:key" element={<InstallPage />} />
+        {/* The client portal: /portal, and each company's at /portal/<slug>
+            (contacts sign in there; its own session and frame). */}
+        <Route path="/portal/*" element={<PortalApp />} />
 
-      <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
 
-        <Route path="/tickets" element={perm(<Tickets />, TICKETS_KEYS)} />
-        <Route path="/tickets/new" element={perm(<TicketNew />, TICKETS_KEYS)} />
-        <Route path="/tickets/:id" element={perm(<TicketRoute />, TICKETS_KEYS)} />
-        <Route path="/tickets/:id/forms/:formId" element={perm(<TicketFormPage />, TICKETS_KEYS)} />
+          <Route path="/tickets" element={perm(<Tickets />, TICKETS_KEYS)} />
+          <Route path="/tickets/new" element={perm(<TicketNew />, TICKETS_KEYS)} />
+          <Route path="/tickets/:id" element={perm(<TicketRoute />, TICKETS_KEYS)} />
+          <Route path="/tickets/:id/forms/:formId" element={perm(<TicketFormPage />, TICKETS_KEYS)} />
 
-        <Route path="/contacts" element={perm(<Contacts />, CONTACTS_KEYS)} />
-        <Route path="/contacts/:id" element={perm(<ContactDetail />, CONTACTS_KEYS)} />
+          <Route path="/contacts" element={perm(<Contacts />, CONTACTS_KEYS)} />
+          <Route path="/contacts/:id" element={perm(<ContactDetail />, CONTACTS_KEYS)} />
 
-        <Route path="/companies" element={perm(<CompaniesList />, COMPANIES_KEYS)} />
-        <Route path="/companies/:id" element={perm(<CompanyPage />, COMPANIES_KEYS)} />
+          <Route path="/companies" element={perm(<CompaniesList />, COMPANIES_KEYS)} />
+          <Route path="/companies/:id" element={perm(<CompanyPage />, COMPANIES_KEYS)} />
 
-        <Route path="/assets" element={perm(<Assets />, ASSETS_KEYS)} />
-        <Route path="/assets/licenses" element={perm(<Licenses />, ASSETS_KEYS)} />
-        <Route path="/assets/licenses/:id" element={perm(<LicenseDetail />, ASSETS_KEYS)} />
-        <Route path="/assets/contracts" element={perm(<Contracts />, ASSETS_KEYS)} />
-        <Route path="/assets/contracts/:id" element={perm(<ContractDetail />, ASSETS_KEYS)} />
-        <Route path="/assets/:id" element={perm(<AssetDetail />, ASSETS_KEYS)} />
+          <Route path="/assets" element={perm(<Assets />, ASSETS_KEYS)} />
+          <Route path="/assets/licenses" element={perm(<Licenses />, ASSETS_KEYS)} />
+          <Route path="/assets/licenses/:id" element={perm(<LicenseDetail />, ASSETS_KEYS)} />
+          <Route path="/assets/contracts" element={perm(<Contracts />, ASSETS_KEYS)} />
+          <Route path="/assets/contracts/:id" element={perm(<ContractDetail />, ASSETS_KEYS)} />
+          <Route path="/assets/:id" element={perm(<AssetDetail />, ASSETS_KEYS)} />
 
-        <Route path="/projects" element={perm(<Projects />, PROJECTS_KEYS)} />
-        <Route path="/projects/new" element={staff(<ProjectNew />)} />
-        <Route path="/projects/:id" element={perm(<ProjectDetail />, PROJECTS_KEYS)} />
+          <Route path="/projects" element={perm(<Projects />, PROJECTS_KEYS)} />
+          <Route path="/projects/new" element={staff(<ProjectNew />)} />
+          <Route path="/projects/:id" element={perm(<ProjectDetail />, PROJECTS_KEYS)} />
 
-        <Route path="/workload" element={perm(<Workload />, ['workload.view'])} />
-        <Route path="/reports" element={perm(<Reports />, REPORTS_KEYS)} />
-        <Route path="/calendar" element={perm(<Calendar />, CALENDAR_KEYS)} />
+          <Route path="/workload" element={perm(<Workload />, ['workload.view'])} />
+          <Route path="/reports" element={perm(<Reports />, REPORTS_KEYS)} />
+          <Route path="/calendar" element={perm(<Calendar />, CALENDAR_KEYS)} />
 
-        <Route path="/knowledge" element={perm(<KnowledgeBase />, KB_KEYS)} />
-        <Route path="/knowledge/new" element={perm(<ArticleEditor />, KB_KEYS)} />
-        <Route path="/knowledge/:id" element={perm(<ArticleView />, KB_KEYS)} />
-        <Route path="/knowledge/:id/edit" element={perm(<ArticleEditor />, KB_KEYS)} />
+          <Route path="/knowledge" element={perm(<KnowledgeBase />, KB_KEYS)} />
+          <Route path="/knowledge/new" element={perm(<ArticleEditor />, KB_KEYS)} />
+          <Route path="/knowledge/:id" element={perm(<ArticleView />, KB_KEYS)} />
+          <Route path="/knowledge/:id/edit" element={perm(<ArticleEditor />, KB_KEYS)} />
 
-        {/* Settings: the menu and the routes come from one registry (spec:
-            Settings redesign), so a menu entry always matches its guard. */}
-        <Route element={<SettingsShell />}>
-          <Route path="/settings" element={<SettingsHome />} />
-          {allRoutes().map((r) => <Route key={r.path} path={r.path} element={settingsElement(r.id, r.access)} />)}
-          {REDIRECTS.map(([from, to]) => <Route key={from} path={from} element={<ParamRedirect to={to} />} />)}
+          {/* Settings: the menu and the routes come from one registry (spec:
+              Settings redesign), so a menu entry always matches its guard. */}
+          <Route element={<SettingsShell />}>
+            <Route path="/settings" element={<SettingsHome />} />
+            {allRoutes().map((r) => <Route key={r.path} path={r.path} element={settingsElement(r.id, r.access)} />)}
+            {REDIRECTS.map(([from, to]) => <Route key={from} path={from} element={<ParamRedirect to={to} />} />)}
+          </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 }

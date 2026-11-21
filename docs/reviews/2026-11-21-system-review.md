@@ -5,6 +5,23 @@ new MCP server). Everything below was checked by running it, not just by
 reading: the backend ran on MariaDB 10.11 with Node 24, the frontend was
 built, the agent was vetted and tested, and every dependency tree was audited.
 
+## Status: all four fixed (same day)
+
+| # | Fix | Result |
+|---|---|---|
+| 1 | API keys stored and looked up as SHA-256 (migration 099); old keys move over on first use; `lastUsed` written at most once a minute | 0.385 s → 0.006 s per key request; a browser request behind eight key requests 2.78 s → 0.012 s |
+| 2 | `npm audit fix`, nodemailer 10, React Router 7, Tiptap 3, a patched uuid; CI now audits every package and fails on high or critical | backend 19 → 5 moderate (all under `sequelize-cli`'s start-up formatter); frontend 40 → 0; MCP 0 |
+| 3 | Every page and the portal load on demand, with a reload-once guard for tabs left open across an upgrade | first download 3.87 MB → 591 KB (815 → 171 KB compressed) |
+| 4 | One `router.param` resolves a ticket number on every `/tickets/:id` route; access is still checked on the ticket found | all write routes take `WC-T0042` and old numbers |
+
+Found and fixed on the way: the frontend's unit tests couldn't run (three
+were written for vitest, which was never installed, and CI only built the
+frontend). They now run under `node:test` in CI: 143 pass. A browser smoke
+test (`email.smoke.js`) had been failing since the reply box became a
+one-line bar. A new smoke test drives the rich-text editor end to end.
+
+---
+
 ## Summary
 
 PRISM is in good shape. The security groundwork is unusually careful: it

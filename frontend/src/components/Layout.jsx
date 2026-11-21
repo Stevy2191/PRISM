@@ -1,8 +1,10 @@
+import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useNavStyle } from '../context/NavStyleContext';
 import TopNav from './TopNav';
 import SidebarCompact from './SidebarCompact';
 import TimerReminder from './work/TimerReminder';
+import Spinner from './Spinner';
 
 export default function Layout() {
   const { navStyle } = useNavStyle();
@@ -21,7 +23,7 @@ export default function Layout() {
           : { paddingTop: 56, paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
       >
         <div className="w-full px-4 py-4 sm:px-6 sm:py-8">
-          <Outlet />
+          <Suspense fallback={<Spinner />}><Outlet /></Suspense>
         </div>
       </main>
     </div>

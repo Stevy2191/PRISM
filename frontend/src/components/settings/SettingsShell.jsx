@@ -2,12 +2,13 @@
 // rail on the left, the page on the right. Under md there is no rail:
 // Settings home lists the sections, then a section's pages, and a page links
 // back to its section.
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { findPage, sectionByName } from '../../pages/settings/registry';
 import SettingsMenu from './SettingsMenu';
 import { rememberSection } from './sectionIcons';
+import Spinner from '../Spinner';
 
 export default function SettingsShell() {
   const { pathname } = useLocation();
@@ -34,7 +35,7 @@ export default function SettingsShell() {
             <IconChevronLeft size={16} aria-hidden="true" />{section.name}
           </Link>
         )}
-        <Outlet />
+        <Suspense fallback={<Spinner />}><Outlet /></Suspense>
       </div>
     </div>
   );
