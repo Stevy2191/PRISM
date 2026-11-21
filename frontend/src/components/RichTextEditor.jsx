@@ -1,18 +1,14 @@
 import { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
-import TextAlign from '@tiptap/extension-text-align';
-import Placeholder from '@tiptap/extension-placeholder';
-import TextStyle from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
-import Highlight from '@tiptap/extension-highlight';
-import Table from '@tiptap/extension-table';
-import TableRow from '@tiptap/extension-table-row';
-import TableCell from '@tiptap/extension-table-cell';
-import TableHeader from '@tiptap/extension-table-header';
+import { StarterKit } from '@tiptap/starter-kit';
+import { Image } from '@tiptap/extension-image';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { Placeholder } from '@tiptap/extensions';
+import { TextStyle, Color } from '@tiptap/extension-text-style';
+import { Highlight } from '@tiptap/extension-highlight';
+import {
+  Table, TableRow, TableCell, TableHeader,
+} from '@tiptap/extension-table';
 import {
   IconBold, IconItalic, IconUnderline, IconStrikethrough, IconH1, IconH2, IconH3,
   IconList, IconListNumbers, IconBlockquote, IconCode, IconLink, IconUnlink,
@@ -47,9 +43,11 @@ function Btn({ onClick, active, disabled, title, children }) {
 }
 
 const EDITOR_EXTENSIONS = [
-  StarterKit.configure({ heading: { levels: [1, 2, 3, 4] } }),
-  Underline,
-  Link.configure({ openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' } }),
+  // Tiptap 3's StarterKit includes Link and Underline (they were separate in 2).
+  StarterKit.configure({
+    heading: { levels: [1, 2, 3, 4] },
+    link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' } },
+  }),
   Image.configure({ inline: false, allowBase64: true }),
   TextAlign.configure({ types: ['heading', 'paragraph'] }),
   TextStyle,
@@ -72,6 +70,9 @@ export default function RichTextEditor({ value, onChange, onReady }) {
     extensions: EDITOR_EXTENSIONS,
     content: value || '',
     onUpdate: ({ editor: ed }) => onChange(ed.getHTML()),
+    // The toolbar reads editor.isActive() as it renders, so it must re-render
+    // as the caret moves (Tiptap 3 stopped doing that by default).
+    shouldRerenderOnTransaction: true,
   });
 
   // Sync external value changes (e.g. loading an existing article) into the
@@ -80,7 +81,7 @@ export default function RichTextEditor({ value, onChange, onReady }) {
     if (!editor) return;
     const current = editor.getHTML();
     if ((value || '') !== current) {
-      editor.commands.setContent(value || '', false);
+      editor.commands.setContent(value || '', { emitUpdate: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);

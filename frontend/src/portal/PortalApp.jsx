@@ -13,7 +13,7 @@ import Ticket from './pages/Ticket';
 import Kb from './pages/Kb';
 import KbArticle from './pages/KbArticle';
 import PortalHome from './pages/PortalHome';
-import { setPortalSlug, plainApi } from './api';
+import { setPortalSlug, plainApi, p } from './api';
 import Projects from './pages/Projects';
 import Project from './pages/Project';
 
@@ -40,7 +40,10 @@ function CompanyPortal() {
           <Route path="projects/:id" element={<Project />} />
           <Route path="kb" element={<Kb />} />
           <Route path="kb/a/:slug" element={<KbArticle />} />
-          <Route path="*" element={<Navigate to="tickets" replace />} />
+          {/* Absolute on purpose: a relative "tickets" inside a catch-all
+              resolves against the whole unknown URL (React Router 7), so
+              /portal/acme/oops would go to /portal/acme/oops/tickets, and on. */}
+          <Route path="*" element={<Navigate to={p('/tickets')} replace />} />
         </Route>
       </Routes>
     </PortalAuthProvider>

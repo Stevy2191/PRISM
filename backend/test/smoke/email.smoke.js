@@ -57,6 +57,8 @@ it('ticket: add and remove a CC; reply shows Cc/Bcc toggle', async () => {
   await panel.getByRole('button', { name: 'Remove boss@acme.com' }).click();
   await panel.getByText("No one is CC'd.").waitFor();
 
+  // The reply box starts as a one-line bar; open it first.
+  await page.getByRole('button', { name: 'Reply', exact: true }).click();
   await page.getByRole('button', { name: 'Cc/Bcc' }).click();
   await page.getByLabel('Cc', { exact: true }).waitFor();
   await page.getByLabel('Bcc', { exact: true }).waitFor();
