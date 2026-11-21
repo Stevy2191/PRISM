@@ -26,6 +26,9 @@ const Comment = require('./Comment')(sequelize);
 const Attachment = require('./Attachment')(sequelize);
 const TimeEntry = require('./TimeEntry')(sequelize);
 const ApiKey = require('./ApiKey')(sequelize);
+const OAuthClient = require('./OAuthClient')(sequelize);
+const OAuthRequest = require('./OAuthRequest')(sequelize);
+const OAuthConnection = require('./OAuthConnection')(sequelize);
 const AuditLog = require('./AuditLog')(sequelize);
 const Blueprint = require('./Blueprint')(sequelize);
 const TicketRelation = require('./TicketRelation')(sequelize);
@@ -172,6 +175,9 @@ const db = {
   TaskStatus,
   WorkType,
   ApiKey,
+  OAuthClient,
+  OAuthRequest,
+  OAuthConnection,
   AuditLog,
   Blueprint,
   TicketRelation,
@@ -417,6 +423,12 @@ TicketRelation.belongsTo(Ticket, { foreignKey: 'relatedTicketId', as: 'relatedTi
 // User <-> ApiKey
 User.hasMany(ApiKey, { foreignKey: 'userId', as: 'apiKeys', onDelete: 'CASCADE' });
 ApiKey.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// MCP-O: apps people connect to PRISM, their consents and connections
+OAuthRequest.belongsTo(OAuthClient, { foreignKey: 'clientId', as: 'client' });
+OAuthConnection.belongsTo(OAuthClient, { foreignKey: 'clientId', as: 'client' });
+OAuthConnection.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(OAuthConnection, { foreignKey: 'userId', as: 'oauthConnections', onDelete: 'CASCADE' });
 
 // User <-> AuditLog
 User.hasMany(AuditLog, { foreignKey: 'userId', as: 'auditLogs' });
