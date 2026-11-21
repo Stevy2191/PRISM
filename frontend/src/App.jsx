@@ -12,6 +12,9 @@ import AccessRestricted from './components/AccessRestricted';
 import { useAuth } from './context/AuthContext';
 
 const Login = lazyPage(() => import('./pages/Login'));
+const OAuthConsent = lazyPage(() => import('./pages/OAuthConsent'));
+const OAuthConsentError = lazyPage(() => import('./pages/OAuthConsent').then((m) => ({ default: m.OAuthConsentError })));
+const ClaudeConnections = lazyPage(() => import('./pages/settings/ClaudeConnections'));
 const ChangePassword = lazyPage(() => import('./pages/ChangePassword'));
 const SurveyPage = lazyPage(() => import('./pages/SurveyPage'));
 const InstallPage = lazyPage(() => import('./pages/InstallPage'));
@@ -138,7 +141,7 @@ const SETTINGS_COMPONENTS = {
   'asset-categories': SettingsAssetCategories, 'asset-alerts': SettingsAssetAlerts,
   'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory,
   email: SettingsEmail, 'email-log': EmailLog, 'email-templates': SettingsEmailTemplates,
-  calendar: CalendarIntegration, schedules: Schedules, import: SettingsImport,
+  calendar: CalendarIntegration, claude: ClaudeConnections, schedules: Schedules, import: SettingsImport,
   export: SettingsExport, 'audit-log': AuditLog, system: SettingsSystemInfo,
 };
 
@@ -165,6 +168,9 @@ export default function App() {
         <Route path="/survey/:token" element={<SurveyPage />} />
         {/* An install link (8d): public; the install key is the credential. */}
         <Route path="/install/:key" element={<InstallPage />} />
+        {/* Claude asking to connect (MCP-O): sign in first, outside the frame. */}
+        <Route path="/oauth/consent/error" element={<OAuthConsentError />} />
+        <Route path="/oauth/consent/:id" element={<ProtectedRoute><OAuthConsent /></ProtectedRoute>} />
         {/* The client portal: /portal, and each company's at /portal/<slug>
             (contacts sign in there; its own session and frame). */}
         <Route path="/portal/*" element={<PortalApp />} />

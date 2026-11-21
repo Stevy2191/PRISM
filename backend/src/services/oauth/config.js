@@ -70,6 +70,44 @@ function redirectAllowed(uri, domains) {
   return hostAllowed(host, domains);
 }
 
+const HOST_RE = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
+
+function settingsError(message, code = 'VALIDATION_ERROR') {
+  // eslint-disable-next-line global-require
+  const { ApiError } = require('../../middleware/error');
+  return new ApiError(400, message, code);
+}
+
+// The Owner's PUT /oauth/settings. Returns what changed, for the audit log.
+async function setOAuthSettings(body) {
+  const changes = {};
+  if (body.allowedDomains !== undefined) {
+    if (!Array.isArray(body.allowedDomains)) throw settingsError('allowedDomains must be a list of domains');
+    const domains = [...new Set(body.allowedDomains.map((d) => String(d).trim().toLowerCase()).filter(Boolean))];
+    if (!domains.length) throw settingsError('List at least one domain, such as claude.ai');
+    const bad = domains.find((d) => !HOST_RE.test(d));
+    if (bad) throw settingsError(`"${bad}" is not a domain (write claude.ai, not https://claude.ai)`);
+    changes['mcp.allowedDomains'] = domains.join(',');
+  }
+  if (body.allowWrites !== undefined) {
+    if (typeof body.allowWrites !== 'boolean') throw settingsError('allowWrites must be true or false');
+    changes['mcp.allowWrites'] = String(body.allowWrites);
+  }
+  if (body.enabled !== undefined) {
+    if (typeof body.enabled !== 'boolean') throw settingsError('enabled must be true or false');
+    if (body.enabled && !(await oauthConfig()).httpsReady) {
+      throw settingsError('Set PUBLIC_APP_URL to PRISM\'s https:// address first: Claude only connects over HTTPS', 'HTTPS_REQUIRED');
+    }
+    changes['mcp.enabled'] = String(body.enabled);
+  }
+  for (const [key, value] of Object.entries(changes)) {
+    // eslint-disable-next-line no-await-in-loop
+    await SystemSettings.upsert({ key, value });
+  }
+  return changes;
+}
+
 module.exports = {
+  setOAuthSettings,
   oauthConfig, hostAllowed, redirectAllowed, parseDomains, DEFAULTS, SCOPE,
 };

@@ -12,6 +12,11 @@ const grants = require('../services/oauth/grants');
 const { authenticate } = require('../middleware/auth');
 const { blockUntilPasswordChanged } = require('../middleware/role');
 const { ApiError } = require('../middleware/error');
+const { requirePermission } = require('../middleware/requirePermission');
+const { requireOwner } = require('../services/ownership');
+const { OAuthConnection, OAuthClient, User } = require('../models');
+const { Op } = require('sequelize');
+const { setOAuthSettings } = require('../services/oauth/config');
 
 const router = express.Router();
 
@@ -86,6 +91,49 @@ router.post('/revoke', oauthLimiter, whenOn, asyncHandler(async (req, res) => {
   await grants.revokeToken((req.body || {}).token);
   res.set('Cache-Control', 'no-store');
   res.status(200).json({});
+}));
+
+// The Owner's controls (Settings › Claude). These work while connections are
+// off: this is where they're turned on.
+const ownerOnly = [authenticate, blockUntilPasswordChanged, requirePermission('settings.manage_system'), requireOwner('Claude connections')];
+
+function settingsView(config) {
+  return {
+    enabled: config.enabledSetting,
+    allowWrites: config.allowWrites,
+    allowedDomains: config.allowedDomains,
+    connectorUrl: config.resource,
+    httpsReady: config.httpsReady,
+  };
+}
+
+router.get('/settings', ownerOnly, asyncHandler(async (req, res) => {
+  res.json(settingsView(await oauthConfig()));
+}));
+
+router.put('/settings', ownerOnly, asyncHandler(async (req, res) => {
+  const changes = await setOAuthSettings(req.body || {});
+  await writeAudit(req, 'oauth.settings', 'SystemSettings', null, changes);
+  res.json(settingsView(await oauthConfig()));
+}));
+
+router.get('/connections', ownerOnly, asyncHandler(async (req, res) => {
+  const connections = await OAuthConnection.findAll({
+    where: { revokedAt: null, refreshExpiresAt: { [Op.gt]: new Date() } },
+    include: [
+      { model: User, as: 'user', attributes: ['id', 'username', 'displayName'] },
+      { model: OAuthClient, as: 'client', attributes: ['id', 'name', 'kind'] },
+    ],
+    order: [['createdAt', 'DESC']],
+  });
+  res.json({ connections });
+}));
+
+router.delete('/connections/:id', ownerOnly, asyncHandler(async (req, res) => {
+  const connection = await OAuthConnection.findOne({ where: { id: req.params.id, revokedAt: null } });
+  if (!connection) throw new ApiError(404, 'Connection not found', 'NOT_FOUND');
+  await grants.revokeConnection(connection, 'admin', req);
+  res.json({ ok: true });
 }));
 
 module.exports = router;

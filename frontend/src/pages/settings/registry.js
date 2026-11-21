@@ -79,6 +79,7 @@ export const PAGES = [
   { id: 'email-templates', group: 'Sign-in & email', name: 'Email templates', desc: 'What PRISM emails say', keywords: ['template', 'auto-reply', 'signature', 'branding', 'placeholder', 'survey email'], path: '/settings/email-templates', access: SYSTEM, width: 'wide' },
   { id: 'email-log', group: 'Sign-in & email', name: 'Email log', desc: 'What came in and what was sent', keywords: ['mail log', 'bounce', 'delivery'], path: '/settings/email-log', access: OWNER, width: 'wide' },
   { id: 'calendar', group: 'Sign-in & email', name: 'Calendar apps', desc: 'The Google and Microsoft apps people connect their calendars through', keywords: ['google', 'microsoft', 'outlook', 'oauth'], path: '/settings/calendar-integration', access: OWNER, width: 'narrow' },
+  { id: 'claude', group: 'Sign-in & email', name: 'Claude', desc: 'Let people connect Claude to PRISM', keywords: ['claude', 'mcp', 'ai', 'oauth', 'connector', 'anthropic'], path: '/settings/claude', access: OWNER, width: 'narrow' },
   // System
   { id: 'schedules', group: 'System', name: 'Background jobs', desc: 'Scheduled jobs and their status', keywords: ['schedule', 'job', 'cron', 'sync'], path: '/settings/schedules', access: SYSTEM, width: 'narrow' },
   { id: 'import', group: 'System', name: 'Import', desc: 'Bring records in from a file', keywords: ['csv', 'upload', 'migrate'], path: '/settings/import', access: { roles: ['admin'] }, width: 'narrow' },
