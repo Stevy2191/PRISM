@@ -47,17 +47,23 @@ export function toQuery(params = {}) {
 }
 
 export class PrismClient {
-  constructor({ url, apiKey, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = globalThis.fetch } = {}) {
-    if (!apiKey) throw new Error('A PRISM API key is required (PRISM_API_KEY, or a Bearer token in HTTP mode)');
+  // `headers` replaces the API key with other credentials: inside PRISM,
+  // /mcp authenticates its own API calls with a per-request grant.
+  constructor({
+    url, apiKey, headers, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = globalThis.fetch,
+  } = {}) {
+    if (!apiKey && !(headers && Object.keys(headers).length)) {
+      throw new Error('A PRISM API key is required (PRISM_API_KEY, or a Bearer token in HTTP mode)');
+    }
     this.base = apiBase(url);
-    this.apiKey = apiKey;
+    this.authHeaders = apiKey ? { 'X-API-Key': apiKey } : { ...headers };
     this.timeoutMs = timeoutMs;
     this.fetch = fetchImpl;
   }
 
   async request(method, path, { query, body } = {}) {
     const url = `${this.base}${path}${toQuery(query)}`;
-    const headers = { 'X-API-Key': this.apiKey, Accept: 'application/json' };
+    const headers = { ...this.authHeaders, Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     let res;
     try {

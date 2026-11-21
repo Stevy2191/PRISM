@@ -86,6 +86,14 @@ test('the client sends the key and turns PRISM errors into PrismApiError', async
   assert.throws(() => new PrismClient({ url: fakeUrl }), /API key is required/);
 });
 
+test('the client can send other headers instead of an API key (used inside PRISM)', async () => {
+  const client = new PrismClient({ url: fakeUrl, headers: { 'X-API-Key': GOOD_KEY, 'X-Extra': 'yes' } });
+  assert.equal((await client.get('/auth/me')).user.id, 7);
+  assert.equal(lastRequest().key, GOOD_KEY);
+  assert.throws(() => new PrismClient({ url: fakeUrl }), /API key is required/);
+  assert.throws(() => new PrismClient({ url: fakeUrl, headers: {} }), /API key is required/);
+});
+
 test('every tool is listed, and read-only mode leaves out the ones that change things', async () => {
   const all = await connect();
   const names = (await all.listTools()).tools.map((t) => t.name).sort();
