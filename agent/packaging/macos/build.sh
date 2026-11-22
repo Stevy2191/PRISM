@@ -37,7 +37,7 @@ ROOT="$WORK/root"
 BIN="$ROOT/Library/Application Support/PRISM/bin"
 APP="$ROOT/Applications/Utilities/PRISM Agent.app"
 DESK="$ROOT/Applications/Help desk.app"
-mkdir -p "$BIN" "$APP/Contents/MacOS" "$DESK/Contents/MacOS" "$ROOT/Library/LaunchDaemons" "$ROOT/Library/LaunchAgents"
+mkdir -p "$BIN" "$APP/Contents/MacOS" "$APP/Contents/Resources" "$DESK/Contents/MacOS" "$DESK/Contents/Resources" "$ROOT/Library/LaunchDaemons" "$ROOT/Library/LaunchAgents"
 lipo -create -output "$BIN/prism-agent" "$WORK/arm64/prism-agent" "$WORK/amd64/prism-agent"
 lipo -create -output "$APP/Contents/MacOS/prism-tray" "$WORK/arm64/prism-tray" "$WORK/amd64/prism-tray"
 # The bundle's version: the release's numbers (CFBundleShortVersionString
@@ -45,6 +45,9 @@ lipo -create -output "$APP/Contents/MacOS/prism-tray" "$WORK/arm64/prism-tray" "
 short="${VERSION%%-*}"
 if [ "$short" != "$VERSION" ]; then build="${VERSION##*.}"; else build="$short"; fi
 sed -e "s/__VERSION__/$short/" -e "s/__BUILD__/$build/" "$HERE/Info.plist" > "$APP/Contents/Info.plist"
+# The PRISM icon (packaging/icon, rebuilt by its build-icons.sh).
+cp "$HERE/../icon/prism.icns" "$APP/Contents/Resources/prism.icns"
+cp "$HERE/../icon/prism.icns" "$DESK/Contents/Resources/prism.icns"
 # Help desk.app: the same program, named help-desk, which opens the window.
 cp "$APP/Contents/MacOS/prism-tray" "$DESK/Contents/MacOS/help-desk"
 sed -e "s/__VERSION__/$short/" -e "s/__BUILD__/$build/" "$HERE/HelpDesk-Info.plist" > "$DESK/Contents/Info.plist"

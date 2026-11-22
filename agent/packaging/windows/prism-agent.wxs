@@ -47,7 +47,12 @@
     <Property Id="ENROLL_KEY" Secure="yes" Hidden="yes" />
     <Property Id="REMOVE_DATA" Secure="yes" />
     <Property Id="ARPNOMODIFY" Value="1" />
-    <Property Id="ARPCOMMENTS" Value="Reports this computer to PRISM and puts Submit a ticket in the notification area." />
+    <Property Id="ARPCOMMENTS" Value="Reports this computer to PRISM, and the Help desk app for tickets." />
+    <!-- The PRISM icon (owner, 2026-11-22; packaging/icon): Add/Remove
+         Programs, the Start menu shortcut, and (installed beside it) the
+         Help desk window's own icon. -->
+    <Icon Id="PrismIcon" SourceFile="$(sys.SOURCEFILEDIR)..\icon\prism.ico" />
+    <Property Id="ARPPRODUCTICON" Value="PrismIcon" />
 
     <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="PrismDir" Name="PRISM">
@@ -87,6 +92,7 @@
 
     <Component Id="TrayExe" Directory="INSTALLFOLDER" Bitness="always64">
       <File Id="TrayExe" Source="$(var.BinDir)\prism-tray.exe" KeyPath="yes" />
+      <File Id="PrismIco" Source="$(sys.SOURCEFILEDIR)..\icon\prism.ico" />
       <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run"
                      Name="PRISM" Type="string" Value="&quot;[#TrayExe]&quot;" />
     </Component>
@@ -96,7 +102,7 @@
            and their conversations, and Past tickets. Same Id as the old
            "Submit a ticket" shortcut, so an upgrade replaces it. -->
       <Shortcut Id="SubmitTicket" Name="Help desk" Description="Your tickets with the help desk, and new ones"
-                Target="[#TrayExe]" Arguments="form" WorkingDirectory="INSTALLFOLDER" />
+                Target="[#TrayExe]" Arguments="form" WorkingDirectory="INSTALLFOLDER" Icon="PrismIcon" />
       <RegistryValue Root="HKLM" Key="Software\PRISM\Agent" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
     </Component>
 

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- PRISM app icon, macOS grid: the rounded square is 824 px inset 100
+       (Apple's template), so it sits in line with other apps' icons.
+       Source for prism.icns (build-icons.sh). -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A5FE0"/><stop offset="1" stop-color="#1E3DB0"/></linearGradient>
+    <filter id="s" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.28"/></filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#g)" filter="url(#s)"/>
+  <g transform="translate(100 100) scale(0.9196) translate(-64 -64)">
+    <path fill="#fff" fill-rule="evenodd" d="M340 250H580A190 190 0 0 1 580 630H470V774H340Z M470 365H570A75 75 0 0 1 570 515H470Z"/>
+  </g>
+</svg>

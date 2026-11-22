@@ -55,6 +55,7 @@ func newWindow(title string, width, height uint, dataPath string) window {
 		return nil
 	}
 	w.SetSize(minWidth, minHeight, webview2.HintMin)
+	setWindowIcon(w.Window())
 	return w
 }
 

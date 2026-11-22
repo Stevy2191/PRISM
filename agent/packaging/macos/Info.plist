@@ -13,6 +13,8 @@
 	<string>PRISM Agent</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.prism.tray</string>
+	<key>CFBundleIconFile</key>
+	<string>prism</string>
 	<key>CFBundleExecutable</key>
 	<string>prism-tray</string>
 	<key>CFBundlePackageType</key>

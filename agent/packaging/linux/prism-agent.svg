@@ -1,5 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#2448C9"/>
-  <path fill="#fff" d="M10 7h10v3h-6v5h6v3h-6v7h-4z"/>
-  <path fill="#fff" d="M19 9h4v7h-4z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- PRISM app icon (owner, 2026-11-22: the P, refined, matching the tray
+       icon and the web app). Windows and Linux: the rounded square fills
+       the canvas less a small margin. Source for prism.ico and the Linux
+       icon (build-icons.sh). -->
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A5FE0"/><stop offset="1" stop-color="#1E3DB0"/></linearGradient></defs>
+  <rect x="32" y="32" width="960" height="960" rx="214" fill="url(#g)"/>
+  <g transform="translate(32 32) scale(1.0714) translate(-64 -64)">
+    <path fill="#fff" fill-rule="evenodd" d="M340 250H580A190 190 0 0 1 580 630H470V774H340Z M470 365H570A75 75 0 0 1 570 515H470Z"/>
+  </g>
 </svg>

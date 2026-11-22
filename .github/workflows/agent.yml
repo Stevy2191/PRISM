@@ -185,6 +185,7 @@ jobs:
           $run = (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run').PRISM
           if ($run -notlike '*prism-tray.exe*') { throw "Run key: $run" }
           if (-not (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Help desk.lnk")) { throw 'no Start menu shortcut' }
+          if (-not (Test-Path "$env:ProgramFiles\PRISM\Agent\prism.ico")) { throw 'no prism.ico beside the tray' }
 
           Write-Host '--- Installing again with the key keeps the same enrollment'
           $before = Get-Content "$env:ProgramData\PRISM\agent.json" -Raw
@@ -331,6 +332,8 @@ jobs:
           test -x /usr/local/bin/prism-agent
           test -d "/Applications/Utilities/PRISM Agent.app"
           test -x "/Applications/Help desk.app/Contents/MacOS/help-desk"
+          test -f "/Applications/Help desk.app/Contents/Resources/prism.icns"
+          test -f "/Applications/Utilities/PRISM Agent.app/Contents/Resources/prism.icns"
           lipo -info "$data/bin/prism-agent" | grep -q arm64
           lipo -info "$data/bin/prism-agent" | grep -q x86_64
           /usr/local/bin/prism-agent version | grep -qx "$VERSION"
