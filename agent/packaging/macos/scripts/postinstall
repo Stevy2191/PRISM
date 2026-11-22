@@ -4,7 +4,7 @@
 # menu-bar app. The enrollment, if any, is kept from before.
 set -u
 DATA="/Library/Application Support/PRISM"
-chown -R root:wheel "$DATA/bin" "/Applications/Utilities/PRISM Agent.app" \
+chown -R root:wheel "$DATA/bin" "/Applications/Utilities/PRISM Agent.app" "/Applications/Help desk.app" \
   /Library/LaunchDaemons/com.prism.agent.plist /Library/LaunchAgents/com.prism.tray.plist
 chmod 0755 "$DATA" "$DATA/bin"
 chown root:wheel "$DATA"

@@ -109,7 +109,7 @@ func Remove(removeData bool, dataDir string) error {
 			return err
 		}
 	}
-	for _, p := range []string{MacTrayApp, MacBinDir, MacLogDir} {
+	for _, p := range []string{MacTrayApp, MacHelpDeskApp, MacBinDir, MacLogDir} {
 		if err := os.RemoveAll(p); err != nil {
 			return err
 		}

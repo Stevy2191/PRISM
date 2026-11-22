@@ -113,6 +113,18 @@ it('a ticket shows public replies, never private comments', async () => {
   await page.context().close();
 });
 
+it("the desktop app's Past tickets link opens on my closed tickets", async () => {
+  const closedName = (await models.TicketStatus.findOne({ where: { behaviorType: 'closed' } })).name;
+  const done = await makeTicket(w.admin.agent, { title: 'Pat old printer jam', contactId: pat.id });
+  await models.Ticket.update({ status: closedName }, { where: { id: done.id } });
+  const page = await contactPage(pat);
+  await page.goto(A('/tickets?status=closed&scope=mine'));
+  await page.getByText('Pat old printer jam').first().waitFor();
+  expect(await page.getByText('Pat laptop will not start').count()).toBe(0);
+  expect(await page.getByRole('button', { name: 'Closed', exact: true }).getAttribute('aria-pressed')).toBe('true');
+  await page.context().close();
+});
+
 it('a department admin sees the Billing department pill and can raise a ticket For a Billing contact', async () => {
   const page = await contactPage(dana);
   await page.goto(A('/tickets'));

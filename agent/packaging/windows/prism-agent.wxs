@@ -92,7 +92,10 @@
     </Component>
 
     <Component Id="StartMenu" Directory="ProgramMenuFolder" Bitness="always64">
-      <Shortcut Id="SubmitTicket" Name="Submit a ticket" Description="Send the help desk a ticket from this computer"
+      <!-- The Help desk app (owner, 2026-11-22): new tickets, your tickets
+           and their conversations, and Past tickets. Same Id as the old
+           "Submit a ticket" shortcut, so an upgrade replaces it. -->
+      <Shortcut Id="SubmitTicket" Name="Help desk" Description="Your tickets with the help desk, and new ones"
                 Target="[#TrayExe]" Arguments="form" WorkingDirectory="INSTALLFOLDER" />
       <RegistryValue Root="HKLM" Key="Software\PRISM\Agent" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
     </Component>

@@ -9,6 +9,7 @@
 # Installs:
 #   /Library/Application Support/PRISM/bin/prism-agent  (+ /usr/local/bin link)
 #   /Applications/Utilities/PRISM Agent.app             (the menu-bar app)
+#   /Applications/Help desk.app                         (the Help desk window, as an app)
 #   /Library/LaunchDaemons/com.prism.agent.plist        (the service, root)
 #   /Library/LaunchAgents/com.prism.tray.plist          (the menu bar, per user)
 set -euo pipefail
@@ -35,7 +36,8 @@ done
 ROOT="$WORK/root"
 BIN="$ROOT/Library/Application Support/PRISM/bin"
 APP="$ROOT/Applications/Utilities/PRISM Agent.app"
-mkdir -p "$BIN" "$APP/Contents/MacOS" "$ROOT/Library/LaunchDaemons" "$ROOT/Library/LaunchAgents"
+DESK="$ROOT/Applications/Help desk.app"
+mkdir -p "$BIN" "$APP/Contents/MacOS" "$DESK/Contents/MacOS" "$ROOT/Library/LaunchDaemons" "$ROOT/Library/LaunchAgents"
 lipo -create -output "$BIN/prism-agent" "$WORK/arm64/prism-agent" "$WORK/amd64/prism-agent"
 lipo -create -output "$APP/Contents/MacOS/prism-tray" "$WORK/arm64/prism-tray" "$WORK/amd64/prism-tray"
 # The bundle's version: the release's numbers (CFBundleShortVersionString
@@ -43,6 +45,9 @@ lipo -create -output "$APP/Contents/MacOS/prism-tray" "$WORK/arm64/prism-tray" "
 short="${VERSION%%-*}"
 if [ "$short" != "$VERSION" ]; then build="${VERSION##*.}"; else build="$short"; fi
 sed -e "s/__VERSION__/$short/" -e "s/__BUILD__/$build/" "$HERE/Info.plist" > "$APP/Contents/Info.plist"
+# Help desk.app: the same program, named help-desk, which opens the window.
+cp "$APP/Contents/MacOS/prism-tray" "$DESK/Contents/MacOS/help-desk"
+sed -e "s/__VERSION__/$short/" -e "s/__BUILD__/$build/" "$HERE/HelpDesk-Info.plist" > "$DESK/Contents/Info.plist"
 cp "$HERE/com.prism.agent.plist" "$ROOT/Library/LaunchDaemons/"
 cp "$HERE/com.prism.tray.plist" "$ROOT/Library/LaunchAgents/"
 
@@ -54,10 +59,12 @@ SIGNARGS=(--force --options runtime -s "$IDENT")
 codesign "${SIGNARGS[@]}" "$BIN/prism-agent"
 codesign "${SIGNARGS[@]}" "$APP/Contents/MacOS/prism-tray"
 codesign "${SIGNARGS[@]}" "$APP"
+codesign "${SIGNARGS[@]}" "$DESK/Contents/MacOS/help-desk"
+codesign "${SIGNARGS[@]}" "$DESK"
 lipo -info "$BIN/prism-agent" | grep -q "x86_64 arm64\|arm64 x86_64"
 lipo -info "$APP/Contents/MacOS/prism-tray" | grep -q "x86_64 arm64\|arm64 x86_64"
 
-chmod 0755 "$BIN/prism-agent" "$APP/Contents/MacOS/prism-tray"
+chmod 0755 "$BIN/prism-agent" "$APP/Contents/MacOS/prism-tray" "$DESK/Contents/MacOS/help-desk"
 chmod 0644 "$ROOT/Library/LaunchDaemons/com.prism.agent.plist" "$ROOT/Library/LaunchAgents/com.prism.tray.plist"
 chmod 0755 "$HERE/scripts/preinstall" "$HERE/scripts/postinstall"
 

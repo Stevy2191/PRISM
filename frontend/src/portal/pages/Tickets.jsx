@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
 import portalApi, { p } from '../api';
 import { usePortalAuth } from '../PortalAuth';
@@ -17,8 +17,12 @@ const STATUSES = [['open', 'Open'], ['closed', 'Closed'], ['all', 'All']];
 export default function Tickets() {
   const { me } = usePortalAuth();
   const narrow = useNarrow();
-  const [scope, setScope] = useState('all');
-  const [status, setStatus] = useState('open');
+  // ?status= and ?scope= pick where the list starts: the desktop app's
+  // Past tickets opens …/tickets?status=closed&scope=mine (2026-11-22).
+  const [params] = useSearchParams();
+  const fromUrl = (key, allowed, fallback) => (allowed.includes(params.get(key)) ? params.get(key) : fallback);
+  const [scope, setScope] = useState(() => fromUrl('scope', ['all', 'mine', 'watching', 'department', 'company'], 'all'));
+  const [status, setStatus] = useState(() => fromUrl('status', STATUSES.map(([k]) => k), 'open'));
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [data, setData] = useState({ tickets: [], totalPages: 1, total: 0 });

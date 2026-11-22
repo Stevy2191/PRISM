@@ -99,6 +99,17 @@ func TicketURL(portal string, ticketID int64) string {
 	return strings.TrimRight(portal, "/") + "/tickets/" + strconv.FormatInt(ticketID, 10)
 }
 
+// HistoryURL is the portal's list of the person's closed tickets, which the
+// app's Past tickets window opens (they sign in to the portal there once:
+// closed tickets are behind the person's own sign-in, owner 2026-11-13 and
+// 2026-11-22), or "".
+func HistoryURL(portal string) string {
+	if !SafePortalURL(portal) {
+		return ""
+	}
+	return strings.TrimRight(portal, "/") + "/tickets?status=closed&scope=mine"
+}
+
 // Draft is a message that couldn't be sent yet.
 type Draft struct {
 	Subject        string `json:"subject"`

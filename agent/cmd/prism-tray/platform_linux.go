@@ -23,15 +23,16 @@ import (
 func init() { runtime.LockOSThread() }
 
 const (
-	trayLock = "prism-tray.lock"
-	formLock = "prism-tray-form.lock"
+	trayLock    = "prism-tray.lock"
+	formLock    = "prism-tray-form.lock"
+	historyLock = "prism-tray-history.lock"
 	// GNOME and KDE end items that open a window with an ellipsis, as macOS.
 	submitLabel    = "Submit a ticket…"
 	connectedLabel = "connected to the help desk"
 )
 
 // setTrayIcon: the StatusNotifierItem shows the boxed P. On GNOME without
-// the AppIndicator extension nothing shows; the "Submit a ticket" launcher
+// the AppIndicator extension nothing shows; the "Help desk" launcher
 // app is the way in there.
 func setTrayIcon(dot bool) { systray.SetIcon(trayPNG(dot)) }
 
@@ -92,7 +93,8 @@ func newWindow(title string, width, height uint, _ string) window {
 		return nil
 	}
 	w.SetTitle(title)
-	w.SetSize(int(width), int(height), webview.HintFixed)
+	w.SetSize(minWidth, minHeight, webview.HintMin)
+	w.SetSize(int(width), int(height), webview.HintNone)
 	return w
 }
 

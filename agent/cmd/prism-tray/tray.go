@@ -10,6 +10,13 @@
 //	prism-tray form              the window, on its home (the icon starts it)
 //	prism-tray form new          … on the new-ticket form
 //	prism-tray form ticket <id>  … on one of the person's tickets
+//	prism-tray history           Past tickets: the portal's closed tickets,
+//	                             in a window that keeps the portal sign-in
+//
+// The window is the Help desk app (owner, 2026-11-22): the Start menu,
+// Applications and the desktop's app list open it like any program, it can
+// be made as big as the person likes, and wide it shows their tickets beside
+// the one they're reading.
 //
 // This file is shared; platform_windows.go and platform_darwin.go hold the
 // differences (single instance, opening links, the web view, the icon).
@@ -42,6 +49,7 @@ type window interface {
 	Dispatch(f func())
 	Destroy()
 	SetHtml(html string)
+	Navigate(url string)
 	Eval(js string)
 	Bind(name string, f interface{}) error
 	// The native window (an HWND, NSWindow or GtkWindow), to hide it while
@@ -49,9 +57,25 @@ type window interface {
 	Window() unsafe.Pointer
 }
 
+// launchedAsApp: this program was started as the Help desk app (macOS's
+// /Applications/Help desk.app runs it as help-desk), which opens the window
+// rather than a second icon.
+func launchedAsApp(arg0 string) bool {
+	name := arg0[strings.LastIndexAny(arg0, `/\`)+1:]
+	return strings.EqualFold(strings.TrimSuffix(strings.ToLower(name), ".exe"), "help-desk")
+}
+
 func main() {
+	if len(os.Args) > 0 && launchedAsApp(os.Args[0]) {
+		runForm()
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "form" {
 		runForm()
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "history" {
+		runHistory()
 		return
 	}
 	// The pop-up's own short-lived process (Windows).
@@ -91,7 +115,7 @@ func onReady() {
 	// computer's status. The lines can't be hidden, so every group always has
 	// something in it.
 	submit := systray.AddMenuItem(submitLabel, "Send the help desk a ticket from this computer")
-	homeItem := systray.AddMenuItem("Notices and all my tickets", "Notices from the help desk, and every open ticket of yours")
+	homeItem := systray.AddMenuItem("Open Help desk", "Your tickets, notices from the help desk, and past tickets")
 	portal := systray.AddMenuItem("Open the support portal", "Your tickets, in the browser")
 	portal.Hide()
 	systray.AddSeparator()
@@ -268,7 +292,42 @@ func openForm(args ...string) {
 	_ = exec.Command(exe, append([]string{"form"}, args...)...).Start()
 }
 
-// runForm is the Submit a ticket window.
+// The app's window: opened at this size, never smaller than the minimum
+// (the single-column layout), and as big as the person likes.
+const (
+	appWidth, appHeight = 1080, 720
+	minWidth, minHeight = 440, 600
+)
+
+// runHistory is Past tickets: the support portal's closed tickets in their
+// own window. The person signs in to the portal there (closed tickets are
+// behind their own sign-in, not the computer's); the window's profile keeps
+// that sign-in, so it's once, not every time.
+func runHistory() {
+	if !singleInstance(historyLock) {
+		bringToFront("Past tickets")
+		return
+	}
+	var who ipc.WhoamiAnswer
+	if err := ipc.Call(map[string]string{"op": "whoami"}, &who, 30*time.Second); err != nil {
+		return
+	}
+	u := trayui.HistoryURL(who.Helpdesk.PortalURL)
+	if u == "" {
+		return
+	}
+	w := newWindow("Past tickets", appWidth, appHeight, filepath.Join(trayui.DraftDir(), "PortalView"))
+	if w == nil {
+		openURL(u)
+		return
+	}
+	defer w.Destroy()
+	keepSignIn(w, filepath.Join(trayui.DraftDir(), "PortalView"))
+	w.Navigate(u)
+	w.Run()
+}
+
+// runForm is the Help desk window.
 func runForm() {
 	if !singleInstance(formLock) {
 		bringToFront("Help desk")
@@ -319,7 +378,7 @@ func runForm() {
 		return
 	}
 	// The web view's profile goes in the user's own folder.
-	w := newWindow("Help desk", 460, 840, filepath.Join(draftDir, "WebView"))
+	w := newWindow("Help desk", appWidth, appHeight, filepath.Join(draftDir, "WebView"))
 	if w == nil {
 		noWebView(who)
 		return
@@ -419,6 +478,15 @@ func runForm() {
 		}
 	})
 	_ = w.Bind("prismOpenPortal", func() { openURL(who.Helpdesk.PortalURL) })
+	_ = w.Bind("prismOpenHistory", func() {
+		if trayui.HistoryURL(who.Helpdesk.PortalURL) == "" {
+			return
+		}
+		exe, err := os.Executable()
+		if err == nil {
+			_ = exec.Command(exe, "history").Start()
+		}
+	})
 	_ = w.Bind("prismClose", func() { w.Dispatch(w.Terminate) })
 	_ = w.Bind("prismOpenTicket", func(id int64) {
 		if u := trayui.TicketURL(who.Helpdesk.PortalURL, id); u != "" {

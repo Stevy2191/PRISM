@@ -22,8 +22,9 @@ import (
 func init() { runtime.LockOSThread() }
 
 const (
-	trayLock = "prism-tray.lock"
-	formLock = "prism-tray-form.lock"
+	trayLock    = "prism-tray.lock"
+	formLock    = "prism-tray-form.lock"
+	historyLock = "prism-tray-history.lock"
 	// Mac menus end items that open a window with an ellipsis (TrayMac board).
 	submitLabel    = "Submit a ticket…"
 	connectedLabel = "connected"
@@ -90,7 +91,8 @@ func newWindow(title string, width, height uint, _ string) window {
 		return nil
 	}
 	w.SetTitle(title)
-	w.SetSize(int(width), int(height), webview.HintFixed)
+	w.SetSize(minWidth, minHeight, webview.HintMin)
+	w.SetSize(int(width), int(height), webview.HintNone)
 	// Once its window is up, bring it in front of every other app's.
 	w.Dispatch(func() { frontWindow(w.Window()) })
 	return w
@@ -101,3 +103,7 @@ func noWebView(ipc.WhoamiAnswer) { log.Print("prism-tray: the web view could not
 
 // The form is already open (in its own process): bring it to the front.
 func bringToFront(string) { activateForm() }
+
+// WKWebView's default website data store is persistent: the portal's
+// sign-in in Past tickets is kept with nothing more to do.
+func keepSignIn(window, string) {}

@@ -10,6 +10,14 @@ backend start.
 
 ## Unreleased
 
+**The agent's window is now the Help desk app.** People open it like any
+program: **Help desk** in the Start menu (it replaces "Submit a ticket"), in
+Applications on a Mac, and in the app list on Linux. It can be made as big as
+they like; wide, their tickets sit beside the one they're reading.
+**Past tickets** opens their closed tickets from the support portal in the app,
+behind their own portal sign-in (once, remembered on that computer); open
+tickets and new ones still need no sign-in. Ships with the next agent release.
+
 **API keys are checked in milliseconds.** Each request with an API key used
 to spend about 0.37 s on a bcrypt check that held up the whole backend, so a
 script or integration (or Claude through the new MCP server) slowed PRISM down

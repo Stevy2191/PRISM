@@ -180,11 +180,11 @@ jobs:
           if ($p.ExitCode -ne 0 -or $who -notmatch 'You:\s+\S*prismci') { throw "a standard user couldn't reach the service: $who" }
           Remove-LocalUser -Name prismci
 
-          Write-Host '--- The device key is SYSTEM-only; the tray starts at sign-in; the Start menu has Submit a ticket'
+          Write-Host '--- The device key is SYSTEM-only; the tray starts at sign-in; the Start menu has Help desk'
           try { [IO.File]::ReadAllBytes("$env:ProgramData\PRISM\device.key") | Out-Null; throw 'the device key is readable by an administrator' } catch [UnauthorizedAccessException] { }
           $run = (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run').PRISM
           if ($run -notlike '*prism-tray.exe*') { throw "Run key: $run" }
-          if (-not (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Submit a ticket.lnk")) { throw 'no Start menu shortcut' }
+          if (-not (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Help desk.lnk")) { throw 'no Start menu shortcut' }
 
           Write-Host '--- Installing again with the key keeps the same enrollment'
           $before = Get-Content "$env:ProgramData\PRISM\agent.json" -Raw
@@ -330,6 +330,7 @@ jobs:
           sudo launchctl print system/com.prism.agent | grep -E "state = running"
           test -x /usr/local/bin/prism-agent
           test -d "/Applications/Utilities/PRISM Agent.app"
+          test -x "/Applications/Help desk.app/Contents/MacOS/help-desk"
           lipo -info "$data/bin/prism-agent" | grep -q arm64
           lipo -info "$data/bin/prism-agent" | grep -q x86_64
           /usr/local/bin/prism-agent version | grep -qx "$VERSION"
@@ -388,6 +389,7 @@ jobs:
           if sudo launchctl print system/com.prism.agent >/dev/null 2>&1; then echo "the service is still loaded"; exit 1; fi
           test ! -e /usr/local/bin/prism-agent
           test ! -e "/Applications/Utilities/PRISM Agent.app"
+          test ! -e "/Applications/Help desk.app"
           sudo test -f "$data/agent.json"
           sudo installer -pkg "$pkg" -target /
           sudo "$data/bin/prism-agent" uninstall --remove-data

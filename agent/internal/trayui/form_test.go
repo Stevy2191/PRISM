@@ -109,3 +109,23 @@ func TestFormCarriesTheCategoriesAndADraftsChoices(t *testing.T) {
 		t.Error("no empty category list")
 	}
 }
+
+func TestHistoryOpensThePortalsClosedTickets(t *testing.T) {
+	if got := HistoryURL("https://desk.example.com/portal/riverside/"); got != "https://desk.example.com/portal/riverside/tickets?status=closed&scope=mine" {
+		t.Errorf("HistoryURL = %q", got)
+	}
+	for _, bad := range []string{"", "http://desk.example.com/portal", "javascript:alert(1)", "https://u:p@desk.example.com/portal"} {
+		if got := HistoryURL(bad); got != "" {
+			t.Errorf("HistoryURL(%q) = %q, want nothing", bad, got)
+		}
+	}
+}
+
+func TestTheWindowIsTheHelpDeskApp(t *testing.T) {
+	html, _ := Render(Page{PortalURL: "https://desk.example.com/portal"})
+	for _, want := range []string{"<title>Help desk</title>", `id="pick"`, "Past tickets", "prismOpenHistory", "@media (min-width: 820px)"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}

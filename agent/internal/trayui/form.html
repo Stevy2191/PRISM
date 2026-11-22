@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
-<title>Submit a ticket</title>
+<title>Help desk</title>
 <style>
 :root{--bg:#F3F5F7;--surf:#FFFFFF;--surf2:#F8F9FB;--bd:#DFE3E8;--bd2:#CBD2DA;--acc:#2448C9;--acc-h:#16328F;--on-acc:#FFFFFF;--tx:#16202B;--tx3:#5B6875;--succ-ink:#14603A;--succ-bg:#E5F5EC;--warn-ink:#8A4B00;--warn-bg:#FFF3DF;--dang:#B42318;--dang-bg:#FDECEA;--focus:rgba(36,72,201,.35);color-scheme:light}
 @media (prefers-color-scheme: dark){:root{--bg:#0F141A;--surf:#171E26;--surf2:#1B232D;--bd:#26303B;--bd2:#36424F;--acc:#7C93F5;--acc-h:#9AADF8;--on-acc:#0B1220;--tx:#F2F5F8;--tx3:#93A0AE;--succ-ink:#7FDDAE;--succ-bg:#123022;--warn-ink:#F0B561;--warn-bg:#2E2310;--dang:#F26B5B;--dang-bg:#3A1A17;--focus:rgba(124,147,245,.45);color-scheme:dark}}
@@ -88,6 +88,25 @@ select.fi{appearance:auto}
 .msg.you{align-self:flex-end;background:var(--focus);border-color:transparent}
 .msg small{display:block;font-size:11.5px;color:var(--tx3);margin-bottom:2px;white-space:normal}
 .reply{min-height:64px;flex:none}
+.panes{flex:1;min-height:0;display:flex;flex-direction:column}
+.past{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.past small{font-size:11.5px;color:var(--tx3)}
+#pick{display:none}
+/* The app (owner, 2026-11-22): a window people open like any program and
+   can make as big as they like. Wide, it is two panes: home (notices, New
+   ticket, my tickets) down the side, and the ticket, the form or a
+   placeholder beside it. Narrow, it is the single column it always was. */
+@media (min-width: 820px){
+  .panes{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+  .panes>#home[hidden]{display:flex!important}
+  #home{grid-column:1;grid-row:1;border-right:1px solid var(--bd);overflow-y:auto;background:var(--surf2)}
+  .panes>.pane:not(#home){grid-column:2;grid-row:1;overflow-y:auto;width:100%;max-width:880px}
+  #pick:not([hidden]){display:flex;align-items:center;justify-content:center;text-align:center;color:var(--tx3)}
+  #back-t,#back-f{display:none}
+  #home .tk button{background:transparent}
+  #home .tk button:hover{background:var(--surf)}
+  #home .tk button[aria-current="true"]{background:var(--focus)}
+}
 </style>
 </head>
 <body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}" data-start="{{.Start}}" data-ticket="{{.StartTicket}}" data-home="{{.HomeJSON}}" data-seen="{{.SeenJSON}}" data-capture="{{.CanCapture}}">
@@ -97,6 +116,7 @@ select.fi{appearance:auto}
     <div style="min-width:0"><div style="font-weight:700">{{.HelpdeskName}}</div><div class="mut" style="font-size:12.5px">Powered by PRISM</div></div>
   </div>
 
+  <div class="panes">
   <section id="home" class="pane" aria-labelledby="t-home" hidden>
     <h2 id="t-home" class="pick">Help desk</h2>
     <div class="notices" id="notices" aria-label="Notices from the help desk"></div>
@@ -108,8 +128,12 @@ select.fi{appearance:auto}
     </div>
     <div class="foot">
       <p class="me">{{.Name}} · {{.Computer}}</p>
-      <button class="btn link" type="button" id="all" hidden>Closed tickets, in the portal</button>
+      <span class="past" id="all-wrap" hidden><button class="btn link" type="button" id="all">Past tickets</button><small>Sign in once with your portal account</small></span>
     </div>
+  </section>
+
+  <section id="pick" class="pane" aria-label="Nothing open" hidden>
+    <div><p style="margin:0 0 4px;font-weight:600;color:var(--tx)">Pick a ticket, or start a new one.</p><p style="margin:0" id="pick-sub">Your open tickets are on the left. Older ones are under Past tickets.</p></div>
   </section>
 
   <section id="ticket" class="pane" aria-labelledby="t-ticket" hidden>
@@ -177,6 +201,7 @@ select.fi{appearance:auto}
     </dl>{{end}}
     <div class="row"><button class="btn" type="button" id="close">Close</button><button class="btn primary" type="button" id="retry">Try again</button></div>
   </section>
+  </div>
 </div>
 <script>
 (function () {
@@ -187,7 +212,16 @@ select.fi{appearance:auto}
   }
   var $ = function (id) { return document.getElementById(id); };
   var ticketId = null;
-  function show(id) { ['home', 'ticket', 'form', 'sent', 'offline'].forEach(function (p) { $(p).hidden = p !== id; }); }
+  // Narrow: one pane at a time. Wide: home always shows (CSS), and the
+  // placeholder fills the other side while home is the current pane.
+  function show(id) {
+    ['home', 'ticket', 'form', 'sent', 'offline'].forEach(function (p) { $(p).hidden = p !== id; });
+    $('pick').hidden = id !== 'home';
+    if (id !== 'ticket') markOpen(null);
+  }
+  function markOpen(id) {
+    document.querySelectorAll('#mine button').forEach(function (b) { b.setAttribute('aria-current', String(Number(b.dataset.id) === id)); });
+  }
   function setBusy(b) { $('send').disabled = b; $('retry').disabled = b; $('send').textContent = b ? 'Sending…' : 'Submit'; }
   function fail(msg) { show('form'); $('err').textContent = msg; $('err').hidden = false; }
   // The company's categories, one dropdown per level (sub-project 9). Other
@@ -407,7 +441,7 @@ select.fi{appearance:auto}
     var list = $('mine'); list.innerHTML = '';
     var tickets = home.tickets || [];
     tickets.forEach(function (t) {
-      var li = el('li'), b = el('button'); b.type = 'button';
+      var li = el('li'), b = el('button'); b.type = 'button'; b.dataset.id = String(t.id);
       if (isNew(t)) { var dot = el('span', 'new'); dot.title = 'New reply'; b.appendChild(dot); }
       var mid = el('span', 't'); mid.appendChild(el('b', null, t.title));
       mid.appendChild(el('span', null, ticketNo(t.number) + ' · ' + (t.lastReply ? t.lastReply.from + ' replied ' + when(t.lastReply.at) : 'updated ' + when(t.updatedAt))));
@@ -418,9 +452,11 @@ select.fi{appearance:auto}
     list.hidden = !tickets.length;
     var none = $('mine-none'); none.hidden = !!tickets.length;
     none.textContent = home.offline ? "Can't reach the help desk right now, so your tickets can't be shown. You can still write a ticket; it's kept until you're back online."
-      : (home.matched ? 'You have no open tickets. Closed ones are in the support portal.'
+      : (home.matched ? 'You have no open tickets. Older ones are under Past tickets.'
         : "The help desk doesn't have you on file yet, so tickets can't be listed here. You can still send one.");
-    $('all').hidden = !document.body.dataset.portal;
+    $('all-wrap').hidden = !document.body.dataset.portal;
+    if (!document.body.dataset.portal) $('pick-sub').textContent = 'Your open tickets are on the left.';
+    if (open && !$('ticket').hidden) markOpen(open.id);
     markSeen();
   }
   function goHome(refresh) {
@@ -450,7 +486,7 @@ select.fi{appearance:auto}
   function openTicket(id) {
     $('tk-err').hidden = true; $('reply').value = '';
     $('t-ticket').textContent = 'Opening…'; $('tk-state').textContent = ''; $('thread').innerHTML = '';
-    show('ticket');
+    show('ticket'); markOpen(id);
     new Promise(function (resolve) { window.prismTicketDone = resolve; window.prismTicketStart(id); }).then(function (a) {
       if (a && a.ticket && a.ticket.id) { renderTicket(a); $('reply').focus(); return; }
       $('t-ticket').textContent = 'Ticket';
@@ -469,7 +505,7 @@ select.fi{appearance:auto}
     });
   });
   $('new').addEventListener('click', function () { show('form'); if (!kind()) document.querySelector('input[name=kind]').focus(); else $('subj').focus(); });
-  $('all').addEventListener('click', function () { window.prismOpenPortal(); });
+  $('all').addEventListener('click', function () { if (window.prismOpenHistory) window.prismOpenHistory(); else window.prismOpenPortal(); });
   $('tk-portal').addEventListener('click', function () { if (open) window.prismOpenTicket(open.id); });
   $('back-t').addEventListener('click', function () { goHome(true); });
   $('back-f').addEventListener('click', function () { goHome(false); });

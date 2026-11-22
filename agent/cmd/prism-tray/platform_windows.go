@@ -17,6 +17,7 @@ import (
 const (
 	trayLock       = `Local\PRISMTray`
 	formLock       = `Local\PRISMTrayForm`
+	historyLock    = `Local\PRISMTrayHistory`
 	submitLabel    = "Submit a ticket"
 	connectedLabel = "connected to the help desk"
 )
@@ -53,8 +54,13 @@ func newWindow(title string, width, height uint, dataPath string) window {
 	if w == nil {
 		return nil
 	}
+	w.SetSize(minWidth, minHeight, webview2.HintMin)
 	return w
 }
+
+// WebView2 keeps cookies in the profile folder (dataPath): the portal's
+// sign-in in Past tickets is kept with nothing more to do.
+func keepSignIn(window, string) {}
 
 // The WebView2 runtime is missing (rare on Windows 10, built into 11): say
 // how to reach the help desk instead.

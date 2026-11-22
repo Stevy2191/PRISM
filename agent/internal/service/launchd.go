@@ -21,6 +21,8 @@ const (
 	MacAgentLink   = "/usr/local/bin/prism-agent"
 	MacTrayApp     = "/Applications/Utilities/PRISM Agent.app"
 	MacTrayBin     = MacTrayApp + "/Contents/MacOS/prism-tray"
+	// The Help desk window as an app (owner, 2026-11-22).
+	MacHelpDeskApp = "/Applications/Help desk.app"
 	MacLogDir      = "/Library/Logs/PRISM"
 	MacLog         = MacLogDir + "/agent.log"
 )

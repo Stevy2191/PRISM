@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Help desk.app (owner, 2026-11-22): the Help desk window as an app in
+  /Applications, opened like any other (Launchpad, Spotlight, the Dock). Its
+  program is prism-tray under the name help-desk, which opens the window
+  (launchedAsApp). Unlike the menu-bar app it has a Dock icon while open.
+  The package build replaces __VERSION__ and __BUILD__.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Help desk</string>
+	<key>CFBundleDisplayName</key>
+	<string>Help desk</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.prism.helpdesk</string>
+	<key>CFBundleExecutable</key>
+	<string>help-desk</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__BUILD__</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>PRISM</string>
+</dict>
+</plist>
