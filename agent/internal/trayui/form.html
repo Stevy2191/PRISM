@@ -12,7 +12,7 @@ html,body{height:100%;margin:0}
 body{background:var(--surf);color:var(--tx);font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.45}
 h2{margin:0;font-size:20px;letter-spacing:-0.01em;font-weight:650}
 .head{padding:18px 20px 0;display:flex;align-items:center;gap:10px}
-.logo{width:22px;height:22px;border-radius:6px;background:var(--acc);flex:none}
+.logo{width:28px;height:28px;flex:none;display:block}
 .mut{color:var(--tx3);font-size:13px}
 .pane{padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px}
 #form{flex:1}
@@ -105,14 +105,15 @@ select.fi{appearance:auto}
   #back-t,#back-f{display:none}
   #home .tk button{background:transparent}
   #home .tk button:hover{background:var(--surf)}
-  #home .tk button[aria-current="true"]{background:var(--focus)}
+  #home .tk button[aria-current="true"]{background:color-mix(in srgb,var(--acc) 12%,var(--surf));box-shadow:inset 3px 0 0 var(--acc)}
 }
 </style>
 </head>
 <body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}" data-start="{{.Start}}" data-ticket="{{.StartTicket}}" data-home="{{.HomeJSON}}" data-seen="{{.SeenJSON}}" data-capture="{{.CanCapture}}">
 <div class="wrap">
   <div class="head">
-    <span class="logo" aria-hidden="true"></span>
+    <!-- The PRISM icon (agent/packaging/icon/prism.svg), inline: the page loads nothing. -->
+    <svg class="logo" viewBox="0 0 1024 1024" aria-hidden="true"><defs><linearGradient id="logo-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A5FE0"/><stop offset="1" stop-color="#1E3DB0"/></linearGradient></defs><rect x="32" y="32" width="960" height="960" rx="214" fill="url(#logo-g)"/><g transform="translate(32 32) scale(1.0714) translate(-64 -64)"><path fill="#fff" fill-rule="evenodd" d="M340 250H580A190 190 0 0 1 580 630H470V774H340Z M470 365H570A75 75 0 0 1 570 515H470Z"/></g></svg>
     <div style="min-width:0"><div style="font-weight:700">{{.HelpdeskName}}</div><div class="mut" style="font-size:12.5px">Powered by PRISM</div></div>
   </div>
 
