@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 import { Image } from '@tiptap/extension-image';
@@ -42,7 +42,9 @@ function Btn({ onClick, active, disabled, title, children }) {
   );
 }
 
-const EDITOR_EXTENSIONS = [
+// A fresh set for every editor: Tiptap 3's destroy() tears down the
+// extension objects an editor was given, so editors must not share them.
+const editorExtensions = () => [
   // Tiptap 3's StarterKit includes Link and Underline (they were separate in 2).
   StarterKit.configure({
     heading: { levels: [1, 2, 3, 4] },
@@ -50,13 +52,13 @@ const EDITOR_EXTENSIONS = [
   }),
   Image.configure({ inline: false, allowBase64: true }),
   TextAlign.configure({ types: ['heading', 'paragraph'] }),
-  TextStyle,
-  Color,
+  TextStyle.configure(),
+  Color.configure(),
   Highlight.configure({ multicolor: true }),
   Table.configure({ resizable: true }),
-  TableRow,
-  TableHeader,
-  TableCell,
+  TableRow.configure(),
+  TableHeader.configure(),
+  TableCell.configure(),
   Placeholder.configure({ placeholder: 'Write the article… use the toolbar for headings, lists, links, images, tables, and more.' }),
 ];
 
@@ -66,8 +68,9 @@ const EDITOR_EXTENSIONS = [
 // `onReady(editor)` hands the TipTap editor to a parent that inserts text at
 // the caret (e.g. the email template editor's placeholder chips).
 export default function RichTextEditor({ value, onChange, onReady }) {
+  const [extensions] = useState(editorExtensions);
   const editor = useEditor({
-    extensions: EDITOR_EXTENSIONS,
+    extensions,
     content: value || '',
     onUpdate: ({ editor: ed }) => onChange(ed.getHTML()),
     // The toolbar reads editor.isActive() as it renders, so it must re-render
@@ -77,8 +80,11 @@ export default function RichTextEditor({ value, onChange, onReady }) {
 
   // Sync external value changes (e.g. loading an existing article) into the
   // editor without clobbering the caret while the user is typing.
+  // Tiptap 3 destroys the editor it made for a render React then discarded
+  // (lazy pages and Suspense make that common) and hands over a new one on
+  // the next render; a destroyed editor has no schema, so skip it here.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
     const current = editor.getHTML();
     if ((value || '') !== current) {
       editor.commands.setContent(value || '', { emitUpdate: false });
@@ -87,11 +93,11 @@ export default function RichTextEditor({ value, onChange, onReady }) {
   }, [value, editor]);
 
   useEffect(() => {
-    if (editor && onReady) onReady(editor);
+    if (editor && !editor.isDestroyed && onReady) onReady(editor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);
 
-  if (!editor) return null;
+  if (!editor || editor.isDestroyed) return null;
 
   const setLink = () => {
     const prev = editor.getAttributes('link').href || '';
