@@ -29,10 +29,12 @@ it('turn on, connect from Claude, see it, revoke it', async () => {
   const admin = await makeAdmin();
   const owner = await smoke.pageAs('admin');
   await owner.goto('/settings/claude');
-  await owner.getByText('Let people connect Claude').waitFor();
+  await owner.getByRole('checkbox', { name: /Let people connect Claude/ }).waitFor();
   expect(await owner.getByLabel('Connector URL').textContent()).toBe(`${ISSUER}/mcp`);
-  await owner.getByRole('checkbox', { name: /Let people connect Claude/ }).check();
+  // It ticks once the server has saved it (not on the click itself).
+  await owner.getByRole('checkbox', { name: /Let people connect Claude/ }).click();
   await owner.getByText('Saved').waitFor();
+  expect(await owner.getByRole('checkbox', { name: /Let people connect Claude/ }).isChecked()).toBe(true);
   expect((await models.SystemSettings.findByPk('mcp.enabled')).value).toBe('true');
   await owner.getByText('No one has connected yet.').waitFor();
 

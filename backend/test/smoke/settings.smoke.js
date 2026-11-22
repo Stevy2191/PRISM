@@ -280,10 +280,14 @@ describe('the rest in the frame, and every page opens', () => {
     }
     expect(links.length).toBeGreaterThan(30);
     // Per-company settings link out to company pages (owner, 2026-11-14).
+    // Your company's page is headed with the company's own name (an earlier
+    // test here renames it), not the menu's "Your company".
+    const ownName = (await models.Company.findOne({ where: { isInternal: true } })).name;
     for (const [href, name] of links.filter(([h]) => !h.startsWith('/companies'))) {
       resetRateLimits();
       await page.goto(href); // eslint-disable-line no-await-in-loop
-      await page.getByRole('main').getByRole('heading', { level: 1, name }).waitFor(); // eslint-disable-line no-await-in-loop
+      const heading = href === '/settings/your-company' ? ownName : name;
+      await page.getByRole('main').getByRole('heading', { level: 1, name: heading }).waitFor(); // eslint-disable-line no-await-in-loop
     }
   });
 

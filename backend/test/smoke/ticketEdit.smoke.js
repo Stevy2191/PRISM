@@ -83,6 +83,9 @@ it('the description edits with Save, and Cancel throws the change away', async (
   await admin.getByRole('button', { name: 'Edit description' }).click();
   await box.fill('Started after the Windows update.');
   await admin.getByRole('button', { name: 'Save description' }).click();
+  // Edit mode closes only once the server has saved it; the text alone can
+  // show before that (it is still in the box).
+  await admin.getByRole('button', { name: 'Edit description' }).waitFor();
   await admin.getByTestId('ticket-description').getByText('Started after the Windows update.').waitFor();
   expect((await fetchTicket(t.id)).description).toBe('Started after the Windows update.');
 });

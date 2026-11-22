@@ -77,7 +77,9 @@ it('the article editor formats text, shows what is on, and saves it all', async 
   const article = await models.KbArticle.findOne({ where: { title: 'Resetting a printer' } });
   const html = article.body;
   expect(html).toMatch(/<h2[^>]*>Before you start<\/h2>/);
-  expect(html).toMatch(/<strong>(<u>)?off(<\/u>)?<\/strong>|<u><strong>off<\/strong><\/u>/);
+  // Bold and underlined (Tiptap may keep the space before "off" inside them).
+  expect(html).toMatch(/<(strong|u)>(<(strong|u)>)?\s?off(<\/(strong|u)>){1,2}/);
+  expect(html).toMatch(/<strong>[^<]*(<u>)?\s?off/);
   expect(html).toMatch(/<u>/);
   expect(html).toMatch(/<a [^>]*href="https:\/\/example\.com\/drivers"[^>]*>Drivers<\/a>/);
   expect(html).toMatch(/rel="noopener noreferrer nofollow"/);
