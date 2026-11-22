@@ -65,6 +65,18 @@ func launchedAsApp(arg0 string) bool {
 	return strings.EqualFold(strings.TrimSuffix(strings.ToLower(name), ".exe"), "help-desk")
 }
 
+// openWindowOnRelaunch: started with no instructions (Finder may add a
+// -psn_ argument), so a person opened it. An installer or the sign-in start
+// says "tray" or nothing while no tray runs; neither opens the window.
+func openWindowOnRelaunch(args []string) bool {
+	for _, a := range args[1:] {
+		if !strings.HasPrefix(a, "-psn_") {
+			return false
+		}
+	}
+	return true
+}
+
 func main() {
 	if len(os.Args) > 0 && launchedAsApp(os.Args[0]) {
 		runForm()
@@ -83,8 +95,12 @@ func main() {
 		runNotify(os.Args[2:])
 		return
 	}
-	// One icon per sign-in session.
+	// One icon per sign-in session. Opened again by a person while it runs
+	// (PRISM Agent.app or prism-tray.exe double-clicked): the window.
 	if !singleInstance(trayLock) {
+		if openWindowOnRelaunch(os.Args) {
+			openForm()
+		}
 		return
 	}
 	systray.Run(onReady, func() {})

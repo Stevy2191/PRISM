@@ -19,3 +19,24 @@ func TestLaunchedAsTheHelpDeskApp(t *testing.T) {
 		}
 	}
 }
+
+// Opening the app again while the tray is running (double-clicking
+// PRISM Agent.app, or prism-tray.exe) opens the window; an installer
+// starting the tray ("tray") never does.
+func TestASecondLaunchByAPersonOpensTheWindow(t *testing.T) {
+	cases := []struct {
+		args []string
+		want bool
+	}{
+		{[]string{"/Applications/Utilities/PRISM Agent.app/Contents/MacOS/prism-tray"}, true},
+		{[]string{`C:\Program Files\PRISM\Agent\prism-tray.exe`}, true},
+		{[]string{"/Applications/Utilities/PRISM Agent.app/Contents/MacOS/prism-tray", "-psn_0_12345"}, true},
+		{[]string{`C:\Program Files\PRISM\Agent\prism-tray.exe`, "tray"}, false},
+		{[]string{"prism-tray", "notify", "x"}, false},
+	}
+	for _, c := range cases {
+		if got := openWindowOnRelaunch(c.args); got != c.want {
+			t.Errorf("openWindowOnRelaunch(%q) = %v, want %v", c.args, got, c.want)
+		}
+	}
+}
