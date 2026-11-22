@@ -28,11 +28,14 @@ it('the ticket list filters by company, and opens pre-filtered from ?companyId='
   const page = await smoke.pageAs('admin');
   await page.goto('/tickets');
   await shown(page, 'HOME ticket').waitFor();
-  await page.getByLabel('Company').selectOption(String(acme.id));
+  await page.getByLabel('Company', { exact: true }).selectOption(String(acme.id));
   await page.getByText('HOME ticket').first().waitFor({ state: 'detached' });
   await shown(page, 'ACME ticket').waitFor();
   await page.goto(`/tickets?companyId=${acme.id}`);
   await shown(page, 'ACME ticket').waitFor();
+  // ACME's ticket was already in the unfiltered report; wait for the filter
+  // to take HOME's away rather than checking straight after the selection.
+  await page.getByText('HOME ticket').waitFor({ state: 'detached' });
   expect(await page.getByText('HOME ticket').count()).toBe(0);
 });
 
@@ -46,7 +49,10 @@ it('a report filters by company', async () => {
   const dates = page.locator('input[type=date]');
   await dates.nth(0).fill('2000-01-01');
   await dates.nth(1).fill('2099-12-31');
-  await page.getByLabel('Company').selectOption(String(acme.id));
+  await page.getByLabel('Company', { exact: true }).selectOption(String(acme.id));
   await shown(page, 'ACME ticket').waitFor();
+  // ACME's ticket was already in the unfiltered report; wait for the filter
+  // to take HOME's away rather than checking straight after the selection.
+  await page.getByText('HOME ticket').waitFor({ state: 'detached' });
   expect(await page.getByText('HOME ticket').count()).toBe(0);
 });

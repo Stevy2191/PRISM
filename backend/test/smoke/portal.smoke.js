@@ -149,6 +149,9 @@ it('forgot password shows the same message for any email', async () => {
     const page = await contactPage(null, PHONE);
     await page.goto(A('/sign-in')); // eslint-disable-line no-await-in-loop
     await page.getByRole('link', { name: 'Forgot password?' }).click(); // eslint-disable-line no-await-in-loop
+    // Navigation is a React transition (React Router 7): until the Forgot page
+    // is up, "Email" is still the sign-in form's field.
+    await page.getByRole('heading', { name: 'Reset your password' }).waitFor(); // eslint-disable-line no-await-in-loop
     await page.getByLabel('Email').fill(email); // eslint-disable-line no-await-in-loop
     await page.getByRole('button', { name: 'Send link' }).click(); // eslint-disable-line no-await-in-loop
     const status = page.getByRole('status'); // eslint-disable-line no-await-in-loop
