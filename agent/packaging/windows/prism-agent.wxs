@@ -67,6 +67,7 @@
     <Feature Id="Main" Title="PRISM Agent" Level="1">
       <ComponentRef Id="AgentExe" />
       <ComponentRef Id="TrayExe" />
+      <ComponentRef Id="PrismIco" />
       <ComponentRef Id="StartMenu" />
       <ComponentRef Id="DataFolder" />
     </Feature>
@@ -92,9 +93,15 @@
 
     <Component Id="TrayExe" Directory="INSTALLFOLDER" Bitness="always64">
       <File Id="TrayExe" Source="$(var.BinDir)\prism-tray.exe" KeyPath="yes" />
-      <File Id="PrismIco" Source="$(sys.SOURCEFILEDIR)..\icon\prism.ico" />
       <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run"
                      Name="PRISM" Type="string" Value="&quot;[#TrayExe]&quot;" />
+    </Component>
+
+    <!-- prism.ico beside the tray: the Help desk window sets it as its own
+         icon. Its own component: WiX can't generate the GUID of one that
+         holds a second file next to an unversioned keypath. -->
+    <Component Id="PrismIco" Directory="INSTALLFOLDER" Bitness="always64">
+      <File Id="PrismIco" Source="$(sys.SOURCEFILEDIR)..\icon\prism.ico" KeyPath="yes" />
     </Component>
 
     <Component Id="StartMenu" Directory="ProgramMenuFolder" Bitness="always64">
