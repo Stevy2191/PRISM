@@ -80,7 +80,8 @@ export default function TimeEntryForm({
         const preferred = kind === 'ticket' ? 'Remote support' : 'Project work';
         const active = data.workTypes.filter((t) => t.isActive);
         const def = active.find((t) => t.name === preferred) || active[0];
-        if (def) setForm((f) => ({ ...f, workTypeId: def.id, billable: def.billableDefault }));
+        // Never over a type the person already picked while the list loaded.
+        if (def) setForm((f) => (f.workTypeId ? f : { ...f, workTypeId: def.id, billable: def.billableDefault }));
       }
     }).catch(() => {});
   }, [entry, kind]);
