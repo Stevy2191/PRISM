@@ -445,6 +445,28 @@ reverse proxy with a real certificate in front, set `PUBLIC_APP_URL` to its
 `https://` address and keep `COOKIE_SECURE=true`; the proxy must send
 `X-Forwarded-Proto: https`.
 
+### Behind a Cloudflare Tunnel
+
+Point the tunnel's public hostname at `http://<docker host>:<APP_PORT>` (or
+`http://frontend:80` when cloudflared runs in the same compose project), then
+in `.env`:
+
+- `PUBLIC_APP_URL=https://<the tunnel's hostname>` and `COOKIE_SECURE=true`
+  (cloudflared sends `X-Forwarded-Proto: https`, so cookies are issued Secure
+  and HSTS is sent).
+- `TRUSTED_PROXIES=<the address cloudflared connects from>`: `172.16.0.0/12`
+  for cloudflared on the Docker host, or the compose network's subnet. Without
+  it every visitor shares the tunnel's address, and the per-address sign-in
+  limit stops protecting anyone (see `.env.example`).
+- Publish the port on loopback only, so the tunnel is the only way in: change
+  `ports` under `frontend` in `docker-compose.yml` to
+  `"127.0.0.1:${APP_PORT:-80}:80"`.
+
+Worth adding on Cloudflare's side: a rate-limiting rule on
+`/api/v1/auth/login` and `/api/v1/portal/auth/login`. Cloudflare Access in
+front of the whole hostname would also shut out the client portal, agents,
+survey links and Claude, which all reach PRISM without a staff sign-in.
+
 ### Pulling the images
 
 `docker compose up -d` (and `docker compose pull`) fetch these images automatically,

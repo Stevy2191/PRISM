@@ -18,6 +18,10 @@ on:
   pull_request:
     paths: ['agent/**', '.github/workflows/agent.yml']
 
+# Read-only by default (a job that publishes asks for more itself).
+permissions:
+  contents: read
+
 jobs:
   windows:
     name: Windows MSI (build, sign, install test)

@@ -5,6 +5,19 @@
 # stack with no manual steps.
 set -e
 
+# The container starts as root only to hand the uploads volume to the
+# unprivileged "node" user (a volume from an older PRISM is root's), then runs
+# everything as that user: a flaw in the app can't act as root in here.
+if [ "$(id -u)" = "0" ]; then
+  uploads="${UPLOAD_DIR:-/uploads}"
+  mkdir -p "$uploads"
+  if [ "$(stat -c %U "$uploads")" != "node" ]; then
+    echo "[entrypoint] handing $uploads to the node user (once)..."
+    chown -R node:node "$uploads" || echo "[entrypoint] warning: could not hand $uploads to the node user"
+  fi
+  exec su-exec node "$0" "$@"
+fi
+
 echo "[entrypoint] running database migrations..."
 
 attempt=0

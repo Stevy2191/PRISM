@@ -10,6 +10,31 @@ backend start.
 
 ## Unreleased
 
+**Security pass (2026-11-23).** Nothing to do unless noted.
+- Known vulnerabilities fixed: the agent is built with Go 1.26.11 (45 Go
+  standard-library advisories) and `golang.org/x/sys` 0.50.0; the backend's
+  `glob`/`minimatch` are pinned past their advisories (`npm audit`: 0 in the
+  backend, frontend and MCP server); the web server image moves from
+  nginx 1.27, which no longer gets security fixes, to 1.30; ClamAV to 1.5.5.
+  Images install exactly the audited `package-lock.json` (`npm ci`).
+- **The backend no longer runs as root** inside its container. On the first
+  start after the upgrade it hands the uploads volume to its own user (a
+  one-off `chown`, quick unless you have a great many attachments).
+- New headers on every page: a Content-Security-Policy (only PRISM's own
+  scripts run), a Permissions-Policy, and, over HTTPS only, HSTS (browsers
+  then refuse plain HTTP to this host for a year).
+- **Behind a Cloudflare Tunnel, set `TRUSTED_PROXIES`** (see `.env.example`).
+  Without it every visitor reaches PRISM from the tunnel's address, so the
+  sign-in limit (10 tries per 15 minutes per address) counts everyone as one:
+  one attacker locks every user out, and guessing isn't slowed per person.
+  With it, PRISM takes each visitor's own address from `CF-Connecting-IP`,
+  believing it only from the tunnel. Also bind `APP_PORT` to `127.0.0.1` so
+  the tunnel is the only way in.
+- Calendar feeds (iCal URLs people add) can only reach the public internet,
+  now checked on the address actually connected to (a name can't resolve to
+  a public address for the check and an internal one for the fetch), with a
+  15 s / 5 MB limit and at most 1,000 occurrences of one repeating event.
+
 **The agent's window is now the Help desk app.** People open it like any
 program: **Help desk** in the Start menu (it replaces "Submit a ticket"), in
 Applications on a Mac, and in the app list on Linux. It can be made as big as

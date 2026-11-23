@@ -35,7 +35,9 @@ start() { # name, extra docker args...
     -v "$here/nginx/site.conf:/etc/nginx/prism/site.conf:ro" \
     -v "$here/nginx/tls.conf:/etc/nginx/prism/tls.conf:ro" \
     -v "$here/nginx/test-ca.conf:/etc/nginx/prism/test-ca.conf:ro" \
+    -v "$here/nginx/headers.conf:/etc/nginx/prism/headers.conf:ro" \
     -v "$here/nginx/tls-on.sh:/docker-entrypoint.d/40-prism-tls-on.sh:ro" \
+    -v "$here/nginx/real-ip.sh:/docker-entrypoint.d/45-prism-real-ip.sh:ro" \
     -v "$site:/usr/share/nginx/html:ro" "$@" nginx:1.30-alpine >/dev/null
 }
 start prism-nginx-check -p 127.0.0.1:18089:80
@@ -68,7 +70,16 @@ for base in http://127.0.0.1:18089 https://localhost:18443; do
   check "a font" $base/assets/inter-abc123.woff2 200 "Cache-Control: public, immutable"
   check "hashed file keeps nosniff" $base/assets/index-abc123.js 200 "X-Content-Type-Options: nosniff"
   check "missing hashed file is a 404" $base/assets/index-missing.js 404
+  check "a Content-Security-Policy" $base/tickets/12 200 "Content-Security-Policy: default-src 'self'"
+  check "hashed file keeps the CSP" $base/assets/index-abc123.js 200 "Content-Security-Policy:"
+  check "a Permissions-Policy" $base/ 200 "Permissions-Policy:"
 done
+echo "-- HSTS only over HTTPS"
+check "HSTS over HTTPS" https://localhost:18443/ 200 "Strict-Transport-Security: max-age=31536000"
+if curl -s -D - -o /dev/null -H 'X-Forwarded-Proto: https' http://127.0.0.1:18089/ | grep -qi '^Strict-Transport-Security'; then
+  echo "ok   HSTS behind an HTTPS proxy"; else echo "FAIL no HSTS behind an HTTPS proxy"; fail=1; fi
+if curl -s -D - -o /dev/null -H 'X-Forwarded-Proto:' http://127.0.0.1:18089/ | grep -qi '^Strict-Transport-Security'; then
+  echo "FAIL plain HTTP sent HSTS"; fail=1; else echo "ok   no HSTS over plain HTTP"; fi
 echo "-- plain HTTP"
 check "no test certificate to download" http://127.0.0.1:18089/prism-test-ca.crt 404
 echo "-- HTTPS"

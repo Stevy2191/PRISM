@@ -11,6 +11,12 @@ const { createApp, createSessionStore } = require('../../src/app');
 const DIST = path.join(__dirname, '../../../frontend/dist');
 const PASSWORD = 'IntegrationPass!2026'; // every fixture user's password
 
+// The Content-Security-Policy nginx sends in production
+// (frontend/nginx/headers.conf), so the smoke tests run the app under it.
+const CSP = /add_header Content-Security-Policy "([^"]+)"/.exec(
+  fs.readFileSync(path.join(__dirname, '../../../frontend/nginx/headers.conf'), 'utf8'),
+)[1];
+
 // PRISM_CHROMIUM wins; otherwise the newest headless shell playwright has
 // installed under ~/.cache/ms-playwright.
 function findChromium() {
@@ -36,6 +42,10 @@ async function startSmoke() {
   await sessionStore.sync();
 
   const outer = express();
+  outer.use((req, res, next) => {
+    if (!req.path.startsWith('/api/')) res.setHeader('Content-Security-Policy', CSP);
+    next();
+  });
   outer.use(express.static(DIST, { index: false }));
   // Client-side routes get the SPA; everything under /api goes to the API.
   outer.use((req, res, next) => (
@@ -48,6 +58,17 @@ async function startSmoke() {
   });
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch({ executablePath: findChromium() });
+  // Every context, whether a test makes it or pageAs does, reports what the
+  // production CSP refused (checked at stop()).
+  const cspViolations = [];
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (options) => {
+    const context = await newContext(options);
+    context.on('console', (msg) => {
+      if (/Content Security Policy/i.test(msg.text())) cspViolations.push(msg.text());
+    });
+    return context;
+  };
 
   // A page signed in as `username`: the context's request client shares its
   // cookie jar with the pages it opens.
@@ -59,8 +80,10 @@ async function startSmoke() {
     return context.newPage();
   }
 
+  // Anything the production CSP refused fails the file.
   async function stop() {
     await browser.close();
+    if (cspViolations.length) throw new Error(`Content-Security-Policy violations:\n${[...new Set(cspViolations)].join('\n')}`);
     await new Promise((resolve) => { server.close(resolve); });
   }
 

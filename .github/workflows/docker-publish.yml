@@ -11,6 +11,10 @@ on:
 env:
   REGISTRY: ghcr.io
 
+# Read-only by default (a job that publishes asks for more itself).
+permissions:
+  contents: read
+
 jobs:
   # Images are only built once the suite passes, so a failing test stops the
   # release rather than shipping :latest to the registry regardless.

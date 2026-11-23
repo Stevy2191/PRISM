@@ -52,8 +52,11 @@ function decryptToken(stored) {
   const parts = String(stored).split(':');
   if (parts.length !== 3) return null; // not our format — corrupt/legacy, fail closed
   const [ivHex, authTagHex, ciphertextHex] = parts;
+  if (!/^[0-9a-f]{32}$/i.test(authTagHex)) return null;
   try {
-    const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), Buffer.from(ivHex, 'hex'));
+    // Only a full 16-byte tag: GCM would otherwise accept a truncated one,
+    // which is far easier to forge.
+    const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), Buffer.from(ivHex, 'hex'), { authTagLength: 16 });
     decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
     const plaintext = Buffer.concat([decipher.update(Buffer.from(ciphertextHex, 'hex')), decipher.final()]);
     return plaintext.toString('utf8');

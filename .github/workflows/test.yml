@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_call:
 
+# Read-only by default (a job that publishes asks for more itself).
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend test suite

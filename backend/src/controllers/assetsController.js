@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { escapeHtml } = require('../utils/richHtml');
 const path = require('path');
 const { Op, col } = require('sequelize');
 const {
@@ -739,7 +740,7 @@ const sendCheckoutForm = asyncHandler(async (req, res) => {
     to,
     subject,
     text: body,
-    html: `<p>${body.replace(/\n/g, '<br/>')}</p>`,
+    html: `<p>${escapeHtml(body).replace(/\n/g, '<br/>')}</p>`,
     attachments: [{ filename: attachment.originalName, path: filePath }],
   });
 

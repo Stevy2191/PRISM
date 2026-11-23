@@ -5,7 +5,8 @@ WORKDIR /app
 
 # Install dependencies first for better layer caching.
 COPY package*.json ./
-RUN npm install --omit=dev && npm cache clean --force
+# npm ci: exactly the audited package-lock.json, nothing newer.
+RUN apk add --no-cache su-exec && npm ci --omit=dev && npm cache clean --force
 
 # App source
 COPY . .

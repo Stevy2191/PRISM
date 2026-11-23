@@ -9,15 +9,15 @@ const { syncIntegration, ensureValidAccessToken, providerCredentials } = require
 const google = require('../services/googleCalendar');
 const microsoft = require('../services/microsoftCalendar');
 const ical = require('../services/icalCalendar');
+const { baseUrl } = require('../services/agent/installLinks');
 
 const PROVIDER_LIBS = { google, microsoft };
 
-// OAuth callbacks are a top-level browser redirect back to our own origin,
-// so building an absolute callback URL from the live request (rather than a
-// dedicated env var) mirrors this app's existing "same-origin by default"
-// deployment story (see index.js's CORS_ORIGIN comment).
+// OAuth callbacks are a top-level browser redirect back to our own origin:
+// PUBLIC_APP_URL when it's set, else the address this request came in on
+// (only a plain host[:port] from the Host header, never anything else).
 function callbackUrl(req, provider) {
-  return `${req.protocol}://${req.get('host')}/api/v1/calendar/integrations/${provider}/callback`;
+  return `${baseUrl(req)}/api/v1/calendar/integrations/${provider}/callback`;
 }
 
 // GET /calendar/integrations

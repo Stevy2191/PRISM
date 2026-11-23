@@ -76,6 +76,9 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    environment:
+      PRISM_TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      PRISM_REAL_IP_HEADER: ${REAL_IP_HEADER:-CF-Connecting-IP}
     ports:
       - "${APP_PORT:-3000}:80"
 

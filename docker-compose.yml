@@ -71,6 +71,10 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      # Behind a Cloudflare Tunnel or another proxy: see TRUSTED_PROXIES in .env.example.
+      PRISM_TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      PRISM_REAL_IP_HEADER: ${REAL_IP_HEADER:-CF-Connecting-IP}
     ports:
       - "${APP_PORT:-80}:80"
 
