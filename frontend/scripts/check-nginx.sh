@@ -1,6 +1,6 @@
 #!/bin/sh
 # Checks the frontend's nginx config in the image the frontend ships in
-# (nginx:1.27-alpine), laid out as frontend/Dockerfile lays it out.
+# (nginx:1.30-alpine), laid out as frontend/Dockerfile lays it out.
 #   Plain HTTP (the default): client-side routes load the app on a hard
 #   refresh (including /assets, which shares its name with the build's assets/
 #   folder), hashed files are served with caching, the hardening headers are on
@@ -36,7 +36,7 @@ start() { # name, extra docker args...
     -v "$here/nginx/tls.conf:/etc/nginx/prism/tls.conf:ro" \
     -v "$here/nginx/test-ca.conf:/etc/nginx/prism/test-ca.conf:ro" \
     -v "$here/nginx/tls-on.sh:/docker-entrypoint.d/40-prism-tls-on.sh:ro" \
-    -v "$site:/usr/share/nginx/html:ro" "$@" nginx:1.27-alpine >/dev/null
+    -v "$site:/usr/share/nginx/html:ro" "$@" nginx:1.30-alpine >/dev/null
 }
 start prism-nginx-check -p 127.0.0.1:18089:80
 start prism-nginx-check-tls -p 127.0.0.1:18090:80 -p 127.0.0.1:18443:443 \

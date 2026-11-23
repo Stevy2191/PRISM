@@ -8,7 +8,7 @@ COPY . .
 RUN npm run build
 
 # --- Serve stage ---
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY nginx/site.conf nginx/tls.conf nginx/test-ca.conf /etc/nginx/prism/

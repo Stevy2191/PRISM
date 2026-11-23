@@ -34,7 +34,7 @@ services:
   clamav:
     # Pinned to a patch release; bump it deliberately. The image ships its own
     # healthcheck (clamdcheck.sh), so `docker compose ps` shows when it is ready.
-    image: clamav/clamav:1.5.4
+    image: clamav/clamav:1.5.5
     restart: unless-stopped
     environment:
       # Match the 100 MB upload ceiling, and report (don't skip) bigger files.
