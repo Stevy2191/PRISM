@@ -126,10 +126,11 @@ func recordPID(f *os.File) {
 	_, _ = f.WriteAt([]byte(strconv.Itoa(os.Getpid())), 0)
 }
 
-// activateForm brings the already-open form to the front, if its lock file
-// names a process.
-func activateForm() {
-	b, err := os.ReadFile(lockPath(formLock))
+// activateHolder brings to the front the process holding this lock, if its
+// lock file names one (each window's single-instance lock records its
+// process id): the open Help desk window, or Past tickets.
+func activateHolder(lock string) {
+	b, err := os.ReadFile(lockPath(lock))
 	if err != nil {
 		return
 	}

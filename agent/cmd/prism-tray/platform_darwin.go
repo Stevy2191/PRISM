@@ -102,7 +102,7 @@ func newWindow(title string, width, height uint, _ string) window {
 func noWebView(ipc.WhoamiAnswer) { log.Print("prism-tray: the web view could not be created") }
 
 // The form is already open (in its own process): bring it to the front.
-func bringToFront(string) { activateForm() }
+func bringToFront(title string) { activateHolder(lockFor(title)) }
 
 // WKWebView's default website data store is persistent: the portal's
 // sign-in in Past tickets is kept with nothing more to do.

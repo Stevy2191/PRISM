@@ -77,21 +77,41 @@ func openWindowOnRelaunch(args []string) bool {
 	return true
 }
 
+// lockFor is the lock of the window with this title, which records the
+// process that has it open (bringToFront activates that process).
+func lockFor(title string) string {
+	if title == "Past tickets" {
+		return historyLock
+	}
+	return formLock
+}
+
+// launchMode is what this start is for: "form", "history", "notify" or
+// "tray". An instruction ("history" from Past tickets) wins over the name it
+// was started by: Help desk.app's help-desk, given none, opens the window.
+func launchMode(args []string) string {
+	if len(args) > 1 {
+		switch args[1] {
+		case "form", "history", "notify":
+			return args[1]
+		}
+	}
+	if len(args) > 0 && launchedAsApp(args[0]) {
+		return "form"
+	}
+	return "tray"
+}
+
 func main() {
-	if len(os.Args) > 0 && launchedAsApp(os.Args[0]) {
+	switch launchMode(os.Args) {
+	case "form":
 		runForm()
 		return
-	}
-	if len(os.Args) > 1 && os.Args[1] == "form" {
-		runForm()
-		return
-	}
-	if len(os.Args) > 1 && os.Args[1] == "history" {
+	case "history":
 		runHistory()
 		return
-	}
-	// The pop-up's own short-lived process (Windows).
-	if len(os.Args) > 1 && os.Args[1] == "notify" {
+	case "notify":
+		// The pop-up's own short-lived process (Windows).
 		runNotify(os.Args[2:])
 		return
 	}
