@@ -79,6 +79,9 @@ type Request struct {
 	Type           string `json:"type"`
 	CategoryID     int64  `json:"categoryId"`
 	CategoryUnsure bool   `json:"categoryUnsure"`
+	// Which app (9): one of the company's apps, or Not listed.
+	CatalogItemID        int64 `json:"catalogItemId"`
+	CatalogItemNotListed bool  `json:"catalogItemNotListed"`
 	// Files and screenshots the person added (sent after the ticket).
 	Attachments []Attachment `json:"attachments,omitempty"`
 	// One of the person's own tickets from this computer, and a reply to it.
@@ -170,6 +173,14 @@ type Category struct {
 	RequireChild bool   `json:"requireChild"`
 	// The ticket type it's for: "incident", "request", or empty for both.
 	TicketType string `json:"ticketType,omitempty"`
+	// "software": it asks which of the company's apps (9).
+	PickKind string `json:"pickKind,omitempty"`
+}
+
+// App is one of the company's apps, for a "which app?" step (9).
+type App struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 // Helpdesk is how to reach the help desk, from PRISM (Task 5's whoami).
@@ -189,8 +200,10 @@ type WhoamiAnswer struct {
 	Helpdesk   Helpdesk `json:"helpdesk"`
 	// The company's categories (9); none offline or from an older PRISM.
 	Categories []Category `json:"categories,omitempty"`
-	Offline    bool       `json:"offline"`
-	Error      string     `json:"error,omitempty"`
+	// The company's active apps (9); none offline or from an older PRISM.
+	Software []App  `json:"software,omitempty"`
+	Offline  bool   `json:"offline"`
+	Error    string `json:"error,omitempty"`
 }
 
 // SubmitAnswer: Number on success; Error "offline" (try again later) or
@@ -314,6 +327,11 @@ func (s *Server) submit(ctx context.Context, id Identity, req Request) SubmitAns
 	}
 	if req.CategoryUnsure {
 		body["categoryUnsure"] = true
+	}
+	if req.CatalogItemID > 0 {
+		body["catalogItemId"] = req.CatalogItemID
+	} else if req.CatalogItemNotListed {
+		body["catalogItemNotListed"] = true
 	}
 	if id.UPN != "" {
 		body["upn"] = id.UPN

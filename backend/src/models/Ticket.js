@@ -64,6 +64,9 @@ module.exports = (sequelize) => {
       // "Other / I'm not sure" (9): the person raising it went this far (or
       // nowhere) and wasn't sure; setting a category clears it.
       categoryUnsure: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      // "Which app?" (9): the company's app the ticket is about, or Not listed.
+      catalogItemId: { type: DataTypes.INTEGER, allowNull: true },
+      catalogItemNotListed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       assigneeId: {
         type: DataTypes.INTEGER,
         allowNull: true,

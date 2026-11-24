@@ -164,10 +164,19 @@ func TestSubmitCarriesTheTypeAndCategory(t *testing.T) {
 	if body["type"] != "incident" || body["categoryId"] != float64(42) || body["categoryUnsure"] != true {
 		t.Fatalf("sent %+v", body)
 	}
+	// Which app (9): the app, or Not listed.
+	s.Handle(context.Background(), maria, []byte(`{"op":"submit","subject":"Dentrix","categoryId":42,"catalogItemId":9}`))
+	if b := p.calls[1].body; b["catalogItemId"] != float64(9) {
+		t.Fatalf("sent %+v", b)
+	}
+	s.Handle(context.Background(), maria, []byte(`{"op":"submit","subject":"Some app","categoryId":42,"catalogItemNotListed":true}`))
+	if b := p.calls[2].body; b["catalogItemNotListed"] != true {
+		t.Fatalf("sent %+v", b)
+	}
 	// An unknown type, no category and sure: none of them is sent.
 	s.Handle(context.Background(), maria, []byte(`{"op":"submit","subject":"Wifi","type":"change","categoryId":0}`))
-	body = p.calls[1].body
-	for _, k := range []string{"type", "categoryId", "categoryUnsure"} {
+	body = p.calls[3].body
+	for _, k := range []string{"type", "categoryId", "categoryUnsure", "catalogItemId", "catalogItemNotListed"} {
 		if _, ok := body[k]; ok {
 			t.Errorf("%s was sent: %+v", k, body)
 		}

@@ -756,6 +756,7 @@ Asset.hasMany(AssetSoftware, { foreignKey: 'assetId', as: 'software', onDelete: 
 AssetSoftware.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
 Company.hasMany(CompanyCatalogItem, { foreignKey: 'companyId', as: 'catalogItems' });
 CompanyCatalogItem.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+Ticket.belongsTo(CompanyCatalogItem, { foreignKey: 'catalogItemId', as: 'catalogItem' });
 Device.hasMany(AgentNonce, { foreignKey: 'deviceId', as: 'nonces', onDelete: 'CASCADE' });
 
 // Playbooks (PB): MDMs and carriers on devices; forms and their versions;

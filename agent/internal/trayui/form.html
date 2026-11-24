@@ -109,7 +109,7 @@ select.fi{appearance:auto}
 }
 </style>
 </head>
-<body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}" data-start="{{.Start}}" data-ticket="{{.StartTicket}}" data-home="{{.HomeJSON}}" data-seen="{{.SeenJSON}}" data-capture="{{.CanCapture}}">
+<body data-portal="{{.PortalURL}}" data-cats="{{.CategoriesJSON}}" data-type="{{.Type}}" data-cat="{{.CategoryID}}" data-unsure="{{.CategoryUnsure}}" data-apps="{{.SoftwareJSON}}" data-app="{{.CatalogItemID}}" data-notlisted="{{.NotListed}}" data-start="{{.Start}}" data-ticket="{{.StartTicket}}" data-home="{{.HomeJSON}}" data-seen="{{.SeenJSON}}" data-capture="{{.CanCapture}}">
 <div class="wrap">
   <div class="head">
     <!-- The PRISM icon (agent/packaging/icon/prism.svg), inline: the page loads nothing. -->
@@ -247,6 +247,32 @@ select.fi{appearance:auto}
     document.querySelectorAll('input[name=kind]').forEach(function (r) { r.checked = r.value === t; });
   })();
   var UNSURE = 'unsure';
+  // Which app (9): a category (or one above it) can ask which of the
+  // company's apps it's about; "Not listed" is the way out.
+  var apps = [];
+  try { apps = JSON.parse(document.body.dataset.apps || '[]') || []; } catch (e) { apps = []; }
+  var NOT_LISTED = 'notlisted';
+  var app = document.body.dataset.notlisted === 'true' ? NOT_LISTED : (Number(document.body.dataset.app || 0) || null);
+  function asksApp() {
+    if (unsure) return false;
+    for (var i = path.length - 1; i >= 0; i--) { if (byId[path[i]] && byId[path[i]].pickKind) return true; }
+    return false;
+  }
+  function renderApp(box) {
+    if (!asksApp()) return;
+    var wrap = document.createElement('div');
+    var label = document.createElement('label');
+    label.className = 'fl'; label.htmlFor = 'app'; label.textContent = 'Which app?';
+    var sel = document.createElement('select');
+    sel.className = 'fi'; sel.id = 'app';
+    var blank = document.createElement('option'); blank.value = ''; blank.textContent = 'Choose…'; sel.appendChild(blank);
+    apps.forEach(function (a) { var o = document.createElement('option'); o.value = String(a.id); o.textContent = a.name; sel.appendChild(o); });
+    var nl = document.createElement('option'); nl.value = NOT_LISTED; nl.textContent = 'Not listed'; sel.appendChild(nl);
+    sel.value = app === NOT_LISTED ? NOT_LISTED : (app && apps.some(function (a) { return a.id === app; }) ? String(app) : '');
+    sel.addEventListener('change', function () { app = sel.value === NOT_LISTED ? NOT_LISTED : (Number(sel.value) || null); });
+    wrap.appendChild(label); wrap.appendChild(sel); box.appendChild(wrap);
+  }
+  function appDone() { return !asksApp() || !!app; }
   function renderSteps() {
     var box = $('steps');
     box.innerHTML = '';
@@ -275,6 +301,7 @@ select.fi{appearance:auto}
       if (!chosen) break;
       parent = chosen;
     }
+    renderApp(box);
   }
   function onStep(e) {
     var level = Number(e.target.dataset.level);
@@ -371,6 +398,7 @@ select.fi{appearance:auto}
   async function submit() {
     if (!kind()) { fail('Choose the ticket type: Incident or Request.'); document.querySelector('input[name=kind]').focus(); return; }
     if (!categoryDone()) { fail("Choose what it's about, or Other / I'm not sure."); var s = $('cat-' + (path.length || 0)) || $('cat-0'); if (s) s.focus(); return; }
+    if (!appDone()) { fail('Choose which app, or Not listed.'); $('app').focus(); return; }
     var subject = $('subj').value.trim();
     if (!subject) { fail('Add a subject.'); $('subj').focus(); return; }
     $('err').hidden = true;
@@ -381,7 +409,10 @@ select.fi{appearance:auto}
       // while) and answers through window.prismDone.
       var catId = path.length ? path[path.length - 1] : 0;
       var att = JSON.stringify(files.map(function (f) { return { name: f.name, type: f.type, data: f.data }; }));
-      a = await new Promise(function (resolve) { window.prismDone = resolve; window.prismSubmitStart(subject, $('desc').value, kind(), catId, kids(null).length ? unsure : false, att); });
+      var asked = asksApp();
+      var appId = asked && app !== NOT_LISTED ? app : 0;
+      var notListed = asked && app === NOT_LISTED;
+      a = await new Promise(function (resolve) { window.prismDone = resolve; window.prismSubmitStart(subject, $('desc').value, kind(), catId, kids(null).length ? unsure : false, att, appId, notListed); });
     } catch (e) { a = { error: 'offline' }; }
     setBusy(false);
     if (a && a.number) {

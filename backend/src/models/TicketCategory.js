@@ -18,6 +18,9 @@ module.exports = (sequelize) => {
       sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       requireChild: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      // 'software': this category (and everything under it) asks which of the
+      // company's apps the ticket is about (9).
+      pickKind: { type: DataTypes.STRING(20), allowNull: true },
     },
     { sequelize, modelName: 'TicketCategory', tableName: 'TicketCategories', timestamps: true }
   );

@@ -40,8 +40,8 @@ it('whoami carries only the device\'s company\'s active categories, trimmed', as
   const res = await device.get(WHOAMI);
   expect(res.status).toBe(200);
   expect(res.body.categories).toEqual([
-    { id: net.id, parentId: null, name: 'Network', requireChild: true, ticketType: null },
-    { id: expect.any(Number), parentId: net.id, name: 'Wireless', requireChild: false, ticketType: null },
+    { id: net.id, parentId: null, name: 'Network', requireChild: true, ticketType: null, pickKind: null },
+    { id: expect.any(Number), parentId: net.id, name: 'Wireless', requireChild: false, ticketType: null, pickKind: null },
   ]);
 });
 
@@ -93,4 +93,29 @@ it('the activity feed names the person who raised a tray ticket, not the account
   expect(by['By staff'].actorName).toBe(w.admin.user.displayName);
   expect(by['By staff'].suffix).toBeNull();
   expect(staff.id).toBeGreaterThan(0);
+});
+
+it('which app (9, task 4): whoami carries the company\'s active apps; the answer reaches the ticket', async () => {
+  const apps = await cat({ name: 'Software', companyId: company.id, pickKind: 'software' });
+  const add = async (c, name) => expectOk(await w.admin.agent.post(`${API}/companies/${c.id}/catalog`).send({ kind: 'software', name }), 201).item;
+  const dentrix = await add(company, 'Dentrix');
+  const fax = await add(company, 'Fax app');
+  await w.admin.agent.patch(`${API}/companies/${company.id}/catalog/${fax.id}`).send({ active: false }).expect(200);
+  const theirs = await add(other, 'Clio');
+  const who = (await device.get(WHOAMI)).body;
+  expect(who.categories.find((c) => c.id === apps.id).pickKind).toBe('software');
+  expect(who.software).toEqual([{ id: dentrix.id, name: 'Dentrix' }]);
+
+  const res = await device.post(TICKETS, ask({ categoryId: apps.id, catalogItemId: dentrix.id }));
+  expect(res.status).toBe(201);
+  expect(await models.Ticket.findByPk(res.body.ticketId)).toMatchObject({ categoryId: apps.id, catalogItemId: dentrix.id });
+  const res2 = await device.post(TICKETS, ask({ categoryId: apps.id, catalogItemNotListed: true }));
+  expect(await models.Ticket.findByPk(res2.body.ticketId)).toMatchObject({ catalogItemId: null, catalogItemNotListed: true });
+  // Another company's app is refused; a new agent must answer.
+  expect((await device.post(TICKETS, ask({ categoryId: apps.id, catalogItemId: theirs.id }))).status).toBe(400);
+  expect((await device.post(TICKETS, ask({ categoryId: apps.id, catalogItemId: null }))).status).toBe(400);
+  // An agent from before task 4 (no app keys at all) still gets its ticket in.
+  const old = await device.post(TICKETS, ask({ categoryId: apps.id }));
+  expect(old.status).toBe(201);
+  expect(await models.Ticket.findByPk(old.body.ticketId)).toMatchObject({ categoryId: apps.id, catalogItemId: null });
 });

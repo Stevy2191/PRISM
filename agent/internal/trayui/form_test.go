@@ -90,23 +90,25 @@ func TestFormCarriesTheCategoriesAndADraftsChoices(t *testing.T) {
 		Name: "Maria", Computer: "RFC-FD-01",
 		CategoriesJSON: `[{"id":1,"parentId":null,"name":"Net\"><script>alert(1)</script>","requireChild":false}]`,
 		Type:           "incident", CategoryID: 1, CategoryUnsure: true,
+		SoftwareJSON: `[{"id":9,"name":"Dentrix\"><b>"}]`, CatalogItemID: 9,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(html, `"><script>alert(1)`) {
+	if strings.Contains(html, `"><script>alert(1)`) || strings.Contains(html, `Dentrix"><b>`) {
 		t.Error("a category name escaped the attribute")
 	}
 	for _, want := range []string{`data-cats="[{&#34;id&#34;:1`, `data-type="incident"`, `data-cat="1"`, `data-unsure="true"`,
-		`Ticket type`, `value="incident"`, `value="request"`, "What's an incident?", "Nothing is broken; you need something", `"Other / I'm not sure"`, "Attach a file", `id="files"`} {
+		`Ticket type`, `value="incident"`, `value="request"`, "What's an incident?", "Nothing is broken; you need something", `"Other / I'm not sure"`, "Attach a file", `id="files"`,
+		`data-apps="[{&#34;id&#34;:9`, `data-app="9"`, "Which app?", "Not listed"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("expected %q in the page", want)
 		}
 	}
 	// No categories (offline, an older PRISM): an empty list, so no step.
 	empty, _ := Render(Page{Name: "Maria", Computer: "RFC-FD-01"})
-	if !strings.Contains(empty, `data-cats="[]"`) {
-		t.Error("no empty category list")
+	if !strings.Contains(empty, `data-cats="[]"`) || !strings.Contains(empty, `data-apps="[]"`) {
+		t.Error("no empty category or app list")
 	}
 }
 

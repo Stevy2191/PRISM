@@ -17,6 +17,7 @@ const {
   TicketDueDateChange,
   Ticket,
   Comment,
+  CompanyCatalogItem,
 } = require('../../models');
 const { toSlaView } = require('../../services/sla/slaView');
 const { ticketWaitingView } = require('../../services/ticketWaiting');
@@ -49,6 +50,10 @@ const ticketInclude = [
   },
   { model: Department, as: 'department', attributes: ['id', 'name'] },
   { model: Company, as: 'company', attributes: ['id', 'name'] },
+  // "Which app?" (9): only an app of the ticket's company.
+  {
+    model: CompanyCatalogItem, as: 'catalogItem', attributes: ['id', 'name', 'active'], where: { companyId: { [Op.eq]: col('Ticket.companyId') } }, required: false,
+  },
   { model: User, as: 'resolutionUpdatedByUser', attributes: userAttrs },
   { model: CsatResponse, as: 'csat' },
   { model: TicketSla, as: 'sla', include: [{ model: SlaPolicy, as: 'policy', attributes: ['id', 'name'] }] },

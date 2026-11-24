@@ -402,11 +402,16 @@ func runForm() {
 	if who.Categories == nil {
 		cats = []byte("[]")
 	}
+	apps, _ := json.Marshal(who.Software)
+	if who.Software == nil {
+		apps = []byte("[]")
+	}
 	html, err := trayui.Render(trayui.Page{
 		HelpdeskName: who.Helpdesk.Name, HelpdeskEmail: who.Helpdesk.Email, PortalURL: who.Helpdesk.PortalURL,
 		Name: who.Name, Company: company, Computer: who.Computer,
 		Subject: draft.Subject, Description: draft.Description,
 		CategoriesJSON: string(cats), Type: draft.Type, CategoryID: draft.CategoryID, CategoryUnsure: draft.CategoryUnsure,
+		SoftwareJSON: string(apps), CatalogItemID: draft.CatalogItemID, NotListed: draft.NotListed,
 		Start: start, StartTicket: startTicket, HomeJSON: string(homeJSON), SeenJSON: string(seenJSON),
 		CanCapture: canCapture(),
 	})
@@ -426,12 +431,13 @@ func runForm() {
 	// The type and category (9) travel with it, and with a kept draft.
 	// Attachments (owner, 2026-11-11) come as JSON: [{name, type, data
 	// (base64)}]; they go with the request, not into a kept draft.
-	_ = w.Bind("prismSubmitStart", func(subject, description, kind string, categoryID int64, unsure bool, attachments string) {
+	_ = w.Bind("prismSubmitStart", func(subject, description, kind string, categoryID int64, unsure bool, attachments string, appID int64, notListed bool) {
 		go func() {
 			var a ipc.SubmitAnswer
 			req := ipc.Request{
 				Op: "submit", Subject: subject, Description: description,
 				Type: kind, CategoryID: categoryID, CategoryUnsure: unsure,
+				CatalogItemID: appID, CatalogItemNotListed: notListed,
 			}
 			if attachments != "" && attachments != "[]" {
 				if err := json.Unmarshal([]byte(attachments), &req.Attachments); err != nil {
@@ -453,6 +459,7 @@ func runForm() {
 			case a.Error == "offline":
 				_ = trayui.SaveDraft(draftDir, trayui.Draft{
 					Subject: subject, Description: description, Type: kind, CategoryID: categoryID, CategoryUnsure: unsure,
+					CatalogItemID: appID, NotListed: notListed,
 				})
 			}
 			b, _ := json.Marshal(a)

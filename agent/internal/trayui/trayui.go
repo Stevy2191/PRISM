@@ -35,10 +35,15 @@ type Page struct {
 	// The company's categories as JSON (9), read by the page's script; "[]"
 	// when there are none (offline, or an older PRISM): no category step.
 	CategoriesJSON string
+	// The company's apps as JSON, for a "which app?" step (9); "[]" when
+	// there are none.
+	SoftwareJSON string
 	// A kept draft's choices.
 	Type           string
 	CategoryID     int64
 	CategoryUnsure bool
+	CatalogItemID  int64
+	NotListed      bool
 	// Where the window opens: "home" (the default), "new" (the ticket form)
 	// or "ticket" (StartTicket, one of the person's own).
 	Start       string
@@ -67,6 +72,9 @@ func Render(p Page) (string, error) {
 	}
 	if p.CategoriesJSON == "" {
 		p.CategoriesJSON = "[]"
+	}
+	if p.SoftwareJSON == "" {
+		p.SoftwareJSON = "[]"
 	}
 	if p.Start != "new" && p.Start != "ticket" {
 		p.Start = "home"
@@ -117,6 +125,8 @@ type Draft struct {
 	Type           string `json:"type,omitempty"`
 	CategoryID     int64  `json:"categoryId,omitempty"`
 	CategoryUnsure bool   `json:"categoryUnsure,omitempty"`
+	CatalogItemID  int64  `json:"catalogItemId,omitempty"`
+	NotListed      bool   `json:"notListed,omitempty"`
 }
 
 // DraftDir is %LOCALAPPDATA%\PRISM (per user), or the user's config folder

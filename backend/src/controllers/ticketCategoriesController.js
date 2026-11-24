@@ -20,6 +20,14 @@ const REQUIRED_KEY = 'tickets.categoryRequired';
 const bad = (message, code = 'VALIDATION_ERROR', status = 400) => new ApiError(status, message, code);
 
 // forType: the ticket type it's for, its top-level category's (9).
+// "Which app?" (9): null, or a kind from the company's lists.
+function cleanPickKind(raw) {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '') return null;
+  if (!cat.PICK_KINDS.includes(raw)) throw bad(`Ask which must be one of: ${cat.PICK_KINDS.join(', ')}`);
+  return raw;
+}
+
 const nodeJson = (tree, n) => ({ ...n, effectiveActive: cat.isEffectivelyActive(tree, n.id), forType: cat.typeOf(tree, n.id) });
 
 // 'incident', 'request', or null (both). undefined = not given.
@@ -163,6 +171,7 @@ const create = asyncHandler(async (req, res) => {
   const name = cleanName(body.name);
   const requireChild = cleanBool(body.requireChild, 'Require a sub-category') ?? false;
   const ticketType = cleanType(body.ticketType);
+  const pickKind = cleanPickKind(body.pickKind) ?? null;
   const companyId = await companyOf(req, body.companyId);
   const row = await cat.withTreeLock(async (tree, transaction) => {
     const parentId = cleanParent(tree, body.parentId, companyId);
@@ -170,7 +179,7 @@ const create = asyncHandler(async (req, res) => {
     assertUniqueName(tree, parentId, name, null, companyId);
     // Only a top-level category says its type; a sub-category goes with it.
     return TicketCategory.create({
-      companyId, name, parentId, requireChild, ticketType: parentId == null ? (ticketType ?? null) : null, sortOrder: nextSortOrder(tree, parentId, companyId),
+      companyId, name, parentId, requireChild, pickKind, ticketType: parentId == null ? (ticketType ?? null) : null, sortOrder: nextSortOrder(tree, parentId, companyId),
     }, { transaction }).catch(uniqueOr409);
   });
   await writeAudit(req, 'ticketCategory.create', 'TicketCategory', row.id, { name, parentId: row.parentId, companyId });
@@ -183,6 +192,7 @@ const update = asyncHandler(async (req, res) => {
   const requireChild = cleanBool(body.requireChild, 'Require a sub-category');
   const active = cleanBool(body.active, 'Active');
   const ticketType = cleanType(body.ticketType);
+  const pickKind = cleanPickKind(body.pickKind);
   const allowed = await getUserCompanyIds(req.user);
   const { id, audits } = await cat.withTreeLock(async (tree, transaction) => {
     const found = nodeIn(tree, req.params.id, allowed);
@@ -214,6 +224,10 @@ const update = asyncHandler(async (req, res) => {
       done.push(['ticketCategory.update', { ticketType }]);
     } else if (!topLevel && node.ticketType) {
       changes.ticketType = null;
+    }
+    if (pickKind !== undefined && pickKind !== (node.pickKind || null)) {
+      changes.pickKind = pickKind;
+      done.push(['ticketCategory.update', { pickKind }]);
     }
     if (active !== undefined && active !== node.active) {
       changes.active = active;

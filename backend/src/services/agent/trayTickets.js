@@ -16,7 +16,7 @@
 // The health snapshot becomes a private note. Everything the tray sends is
 // untrusted text: type-checked, cleaned and cut.
 const {
-  sequelize, Asset, Company, Contact, Comment, Department, SystemSettings, Ticket,
+  sequelize, Asset, Company, Contact, Comment, Department, SystemSettings, Ticket, CompanyCatalogItem,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { createTicket } = require('../tickets/ticketWrite');
@@ -96,11 +96,19 @@ async function trayCategories(companyId) {
     .filter((n) => n.companyId === companyId && isEffectivelyActive(t, n.id))
     .sort((x, y) => (x.sortOrder - y.sortOrder) || x.name.localeCompare(y.name))
     .map((n) => ({
-      id: n.id, parentId: n.parentId, name: n.name, requireChild: !!n.requireChild, ticketType: typeOf(t, n.id),
+      id: n.id, parentId: n.parentId, name: n.name, requireChild: !!n.requireChild, ticketType: typeOf(t, n.id), pickKind: n.pickKind || null,
     }));
 }
 
-// → { name, company, department, computer, helpdesk, categories }
+// The company's active apps for a "which app?" step (9): id and name only.
+async function traySoftware(companyId) {
+  const items = await CompanyCatalogItem.findAll({
+    where: { companyId, kind: 'software', active: true }, attributes: ['id', 'name'], order: [['sortOrder', 'ASC'], ['name', 'ASC']],
+  });
+  return items.map((i) => ({ id: i.id, name: i.name }));
+}
+
+// → { name, company, department, computer, helpdesk, categories, software }
 async function whoami(device, query) {
   const user = parseUser(query);
   const asset = await deviceAsset(device);
@@ -118,6 +126,7 @@ async function whoami(device, query) {
     computer: asset.name,
     helpdesk: desk,
     categories: await trayCategories(asset.companyId),
+    software: await traySoftware(asset.companyId),
   };
 }
 
@@ -228,8 +237,12 @@ async function raiseTrayTicket(device, body, req) {
     assetIds: [asset.id],
     categoryId: hasCategoryId ? b.categoryId : null,
     categoryUnsure: categoryUnsure && await companyHasCategories(asset.companyId, null, type),
+    catalogItemId: b.catalogItemId,
+    catalogItemNotListed: b.catalogItemNotListed === true,
   }, {
     req, createdById: actorId, source: 'agent', portal: { contact }, requireCategory: true,
+    // An agent from before "which app?" sends neither key: its ticket still gets in.
+    requireApp: Object.hasOwn(b, 'catalogItemId') || Object.hasOwn(b, 'catalogItemNotListed'),
   });
   // Who raised it, so that giving the ticket to a contact teaches PRISM who
   // that account on this computer is (trayIdentity).

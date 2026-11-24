@@ -1,13 +1,13 @@
 // Ticket categories (5c): loading the tree, plus the DB-side helpers built on
 // the pure ones in categoryTree.js.
-const { TicketCategory, sequelize } = require('../../models');
+const { TicketCategory, CompanyCatalogItem, sequelize } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { parseRecordId } = require('../permissionService');
 const tree = require('./categoryTree');
 
 async function loadTree({ transaction } = {}) {
   const rows = await TicketCategory.findAll({
-    attributes: ['id', 'companyId', 'parentId', 'name', 'sortOrder', 'active', 'requireChild', 'ticketType'],
+    attributes: ['id', 'companyId', 'parentId', 'name', 'sortOrder', 'active', 'requireChild', 'ticketType', 'pickKind'],
     raw: true,
     transaction,
   });
@@ -119,6 +119,60 @@ async function companyHasCategories(companyId, given = null, ticketType = null) 
   return tree.activeChildren(t, null, companyId).some((n) => tree.fitsType(t, n.id, ticketType));
 }
 
+// "Which app?" (9): the kind of item a category asks for — its own pickKind,
+// or the nearest one above it (a sub-category of Software asks too).
+const PICK_KINDS = ['software'];
+function pickKindOf(t, id) {
+  let node = id == null ? null : t.get(Number(id));
+  const seen = new Set();
+  while (node && !seen.has(node.id)) {
+    if (node.pickKind) return node.pickKind;
+    seen.add(node.id);
+    node = node.parentId == null ? null : t.get(node.parentId);
+  }
+  return null;
+}
+
+// The one check every write of a ticket's app goes through. `raw` is
+// { itemId, notListed } as sent (undefined = not sent). `current` and
+// `currentNotListed` are what's stored; `categoryId` the category the ticket
+// will have, in `companyId`. Returns { catalogItemId, catalogItemNotListed }.
+// A category that doesn't ask clears both. The stored app re-sent (or not
+// sent) is kept, even if it has since been turned off, as long as it's still
+// the company's and the category still asks for its kind. `required` (the
+// portal and the agent) wants an answer unless the person isn't sure.
+async function resolveCatalogItemForSave(raw, {
+  categoryId, tree: t, companyId, current = null, currentNotListed = false, required = false, unsure = false,
+}) {
+  const kind = categoryId == null ? null : pickKindOf(t, categoryId);
+  const sentItem = raw.itemId !== undefined && raw.itemId !== null && raw.itemId !== '';
+  const notListed = raw.notListed === true;
+  if (sentItem && notListed) throw new ApiError(400, 'Choose an app or Not listed, not both', 'VALIDATION_ERROR');
+  const appNotFound = () => new ApiError(400, 'App not found', 'VALIDATION_ERROR');
+  if (!kind) {
+    if (sentItem || notListed) throw new ApiError(400, "This category doesn't ask which app", 'VALIDATION_ERROR');
+    return { catalogItemId: null, catalogItemNotListed: false };
+  }
+  if (notListed) return { catalogItemId: null, catalogItemNotListed: true };
+  if (sentItem) {
+    const id = parseRecordId(raw.itemId);
+    if (!id) throw appNotFound();
+    const where = { id, companyId, kind };
+    if (id !== current) where.active = true;
+    if (!(await CompanyCatalogItem.count({ where }))) throw appNotFound();
+    return { catalogItemId: id, catalogItemNotListed: false };
+  }
+  // Nothing sent: keep what's stored if it still fits.
+  const cleared = raw.itemId === null || raw.itemId === '' || raw.notListed === false;
+  if (!cleared && current && await CompanyCatalogItem.count({ where: { id: current, companyId, kind } })) {
+    return { catalogItemId: current, catalogItemNotListed: false };
+  }
+  if (!cleared && !current && currentNotListed) return { catalogItemId: null, catalogItemNotListed: true };
+  if (required && !unsure) throw new ApiError(400, 'Choose the app, or Not listed', 'VALIDATION_ERROR');
+  return { catalogItemId: null, catalogItemNotListed: false };
+}
+
 module.exports = {
+  PICK_KINDS, pickKindOf, resolveCatalogItemForSave,
   ...tree, loadTree, companyHasCategories, resolveCategoryForSave, isUsableOnRun, idList, fieldAppliesToCategory, withTreeLock, lockCategoriesShared,
 };

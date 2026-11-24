@@ -26,7 +26,7 @@ const { queueContactEmail } = require('../email/ticketMail');
 const { logAssetActivity } = require('../assetActivity');
 const { syncCustomFieldValues, assertCanEditTicket } = require('../../controllers/tickets/shared');
 const {
-  resolveCategoryForSave, loadTree: loadCategoryTree, companyHasCategories, fitsType,
+  resolveCategoryForSave, loadTree: loadCategoryTree, companyHasCategories, fitsType, resolveCatalogItemForSave,
 } = require('./categories');
 const { isIsoDate } = require('../workload/capacity');
 const { ticketNumberOf } = require('./numbers');
@@ -81,12 +81,12 @@ function cleanDescription(description) {
 // contact the ticket is for (already checked by the portal's own scoping,
 // since a contact isn't a staff actor) and the contact who raised it.
 async function createTicket(actor, input, {
-  req, createdById = actor.id, source: systemSource = null, requireCategory = false, portal = null,
+  req, createdById = actor.id, source: systemSource = null, requireCategory = false, portal = null, requireApp = true,
 } = {}) {
   const {
     title, description, priority, type, status, projectId, departmentId, dueDate, dueTime,
     blueprintId, customFields, teamId, tags, watcherIds, parentTicketId, childTicketIds, relatedTicketIds,
-    assigneeId, contactId, source, assetIds, categoryId, categoryUnsure,
+    assigneeId, contactId, source, assetIds, categoryId, categoryUnsure, catalogItemId, catalogItemNotListed,
   } = input || {};
   const cleanedTitle = cleanTitle(title);
   const cleanedDescription = cleanDescription(description);
@@ -162,6 +162,15 @@ async function createTicket(actor, input, {
     const offersUnsure = systemSource === 'portal' || systemSource === 'agent';
     throw new ApiError(400, offersUnsure ? "Choose a category, or Other / I'm not sure" : 'A category is required', 'VALIDATION_ERROR');
   }
+  // "Which app?" (9): answered on a category that asks; the portal and the
+  // agent must answer it (or say they're not sure), staff may leave it.
+  const catalog = await resolveCatalogItemForSave({ itemId: catalogItemId, notListed: catalogItemNotListed }, {
+    categoryId: resolvedCategoryId,
+    tree: resolvedCategoryId ? await loadCategoryTree() : null,
+    companyId: contact.companyId,
+    required: requireApp && requireCategory && (systemSource === 'portal' || systemSource === 'agent'),
+    unsure,
+  });
   // Links stay inside one company: the new ticket's is its contact's.
   if (linkedTickets.some((t) => t.companyId !== contact.companyId)) {
     throw new ApiError(400, 'Linked ticket not found', 'VALIDATION_ERROR');
@@ -229,6 +238,8 @@ async function createTicket(actor, input, {
       teamId: resolvedTeamId,
       categoryId: resolvedCategoryId,
       categoryUnsure: unsure,
+      catalogItemId: catalog.catalogItemId,
+      catalogItemNotListed: catalog.catalogItemNotListed,
       contactId: contact.id,
       projectId: resolvedProjectId,
       departmentId: resolvedDepartmentId,
@@ -384,6 +395,21 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
   // Staff choosing a category (or clearing it) settle the "not sure" (9).
   if (changes.categoryId !== undefined && changes.categoryId !== ticket.categoryId && ticket.categoryUnsure) {
     changes.categoryUnsure = false;
+  }
+  // "Which app?" (9): checked whenever the app, the category or the company
+  // changes; a category that doesn't ask clears it, a move drops a foreign one.
+  const catalogSent = body.catalogItemId !== undefined || body.catalogItemNotListed !== undefined;
+  if (catalogSent || changes.categoryId !== undefined || movingCompany) {
+    const finalCategoryId = changes.categoryId !== undefined ? changes.categoryId : ticket.categoryId;
+    const catalog = await resolveCatalogItemForSave({ itemId: body.catalogItemId, notListed: body.catalogItemNotListed }, {
+      categoryId: finalCategoryId,
+      tree: finalCategoryId ? (tree || await loadCategoryTree()) : null,
+      companyId: targetCompanyId,
+      current: movingCompany ? null : ticket.catalogItemId,
+      currentNotListed: !movingCompany && ticket.catalogItemNotListed,
+    });
+    if (catalog.catalogItemId !== ticket.catalogItemId) changes.catalogItemId = catalog.catalogItemId;
+    if (catalog.catalogItemNotListed !== !!ticket.catalogItemNotListed) changes.catalogItemNotListed = catalog.catalogItemNotListed;
   }
   if (changes.assigneeId && Number(changes.assigneeId) !== ticket.assigneeId) {
     changes.assigneeId = await assertCanWorkTicket(changes.assigneeId, targetCompanyId, 'Assignee');

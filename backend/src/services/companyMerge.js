@@ -5,7 +5,7 @@
 const { Op } = require('sequelize');
 const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem,
 } = require('../models');
 const { renumberMoved } = require('./tickets/numbers');
 const { renumberMoved: renumberMovedProjects } = require('./projects/numbers');
@@ -97,6 +97,24 @@ async function moveCategories(from, into, transaction) {
   await TicketCategory.update({ companyId: into.id }, { where: { companyId: from.id }, transaction, hooks: false });
 }
 
+// The software list (9) moves too. An app on both lists is kept once (A's);
+// B's tickets that named B's copy now name A's.
+async function moveCatalog(from, into, transaction) {
+  const ours = new Map((await CompanyCatalogItem.findAll({ where: { companyId: into.id }, transaction }))
+    .map((i) => [`${i.kind}\n${i.name.toLowerCase()}`, i]));
+  const theirs = await CompanyCatalogItem.findAll({ where: { companyId: from.id }, transaction });
+  for (const item of theirs) {
+    const kept = ours.get(`${item.kind}\n${item.name.toLowerCase()}`);
+    if (kept) {
+      /* eslint-disable no-await-in-loop */
+      await Ticket.update({ catalogItemId: kept.id }, { where: { catalogItemId: item.id }, transaction, hooks: false });
+      await item.destroy({ transaction });
+      /* eslint-enable no-await-in-loop */
+    }
+  }
+  await CompanyCatalogItem.update({ companyId: into.id }, { where: { companyId: from.id }, transaction, hooks: false });
+}
+
 // CS: the merged-away company's own SLA goes with it; its tickets' clocks
 // move onto the company they now belong to (their due dates stay as set).
 async function moveSla(from, into, transaction) {
@@ -112,6 +130,7 @@ async function moveSla(from, into, transaction) {
 async function mergeCompanies(from, into, transaction) {
   await moveSla(from, into, transaction);
   await moveCategories(from, into, transaction);
+  await moveCatalog(from, into, transaction);
   await renameClashes(Department, from, into, 255, transaction);
   await renameClashes(Site, from, into, 150, transaction);
   // CN: B's tickets take the next numbers in A; their B numbers stay findable.
