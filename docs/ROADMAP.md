@@ -10,42 +10,41 @@ its design and plan live. The reasoning behind the shape of the roadmap is in
 [the roadmap design](superpowers/specs/2026-10-03-prism-psa-roadmap-design.md);
 read that before designing any sub-project.
 
-## Where things stand (updated 2026-11-15)
+## Where things stand (updated 2026-11-24)
 
+- **Now: finish 9b** (per-company software lists, "which app?" steps, the
+  step-by-step category picker on the staff and portal forms, copying a
+  category tree, the company setup checklist). Its first half shipped to `dev`
+  2026-11-11. Then **Phase 3, Money, as a full feature set** (owner,
+  2026-11-24): every sub-project 10–15, designed together first so rates,
+  agreements, billing and sales share one model.
 - **Phase 2 is released as `v0.5.0`** (2026-11-15): the PRISM agent (8a–8d)
-  for Windows, macOS and Linux, plus PB, PB2, 9 (per-company categories) and
-  CS (company settings). The owner has tested the agent on macOS and Arch;
-  Windows, Ubuntu and Fedora are still being tested, and fixes from that ship
-  as `v0.5.1`, `v0.5.2`, … Release notes: `## v0.5.0` in `UPGRADING.md`.
-- **Phase 1 is released as `v0.4.0`** (2026-11-03): sub-projects 1–7
-  (including 5d, attachment virus scanning, 6, project management, 6b, the
-  look A restyle, and 7, the client portal). Release notes: `## v0.4.0` in
-  `UPGRADING.md`.
-- **Now: test Phase 1 by hand, and design the agent alongside it** (owner's
-  decision, 2026-11-03). Phase 1 bugs, additions and changes go in its
-  **Testing feedback** list below and ship as `v0.4.1`, `v0.4.2`, …
-- **Next up: sub-project 8, the PRISM agent: inventory and the tray app**
-  ([spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md)), on
-  Windows, macOS and Linux. Design and mockups approved 2026-11-03; plan 8a
-  (server side and Windows) is next to build. The agent puts every computer into Assets with its hardware, OS,
-  network, software and usual user, and its tray app's **Submit a ticket**
-  raises tickets. Monitoring, scripting, patching and remote access stay
-  later.
-- **Playbooks (PB), a Phase 1 addition:** built 2026-11-06 on branch
-  `claude/loving-keller-icsgxx` (forms and checklists on tickets, playbooks,
-  MDMs and cellular on devices, device check-out/in through forms, revoking
-  the agent at check-in). Release notes under `## Unreleased` in
-  `UPGRADING.md`; to merge into `dev`.
-- **Open items carried forward:**
-  - Split ticket (5b) now carries the source ticket's category (decided
-    2026-10-24).
-  - Done 2026-10-26: touch and keyboard dispatch on Workload ("Assign…" on
-    every item you may move; same rules as a drag).
-  - Fixed 2026-10-26: "today", overdue, expiring-soon, report presets, chart
-    buckets and CSV dates all follow the organization's time zone, server and
-    browser (`utils/orgTime.js`, `frontend/src/utils/orgDate.js`).
-  - Decided 2026-10-26: helpers only view and log time (no files). A project's
-    lead and members edit it whatever their role (see `UPGRADING.md`).
+  for Windows, macOS and Linux, plus PB, PB2, 9, CS and CN. The owner has
+  tested the agent on macOS and Arch; Windows 11 and 10, Ubuntu 24.04 and
+  Fedora are still to test. Fixes ship as `v0.5.x`.
+- **On `dev` since `v0.5.0`, not yet released** (notes under
+  `## Unreleased` in `UPGRADING.md`):
+  - The ticket conversation as a text thread, newest first, with the reply
+    bar pinned under it and the description on Details (2026-11-16).
+  - An MCP server, then Claude connections (MCP-O): Claude signs in to PRISM
+    with OAuth and works with tickets through `/mcp`; off until an Owner turns
+    it on in Settings › Claude (2026-11-21–22).
+  - API keys checked by SHA-256 instead of bcrypt; every ticket route takes
+    the company ticket number; a smaller first download (2026-11-21).
+  - The agent's window became the **Help desk app** (Start menu,
+    Applications, the app list), with Past tickets behind a portal sign-in,
+    and a PRISM app icon (2026-11-22–23).
+  - A security pass (2026-11-23): every known CVE in dependencies and images
+    fixed, a Content-Security-Policy, HSTS, `TRUSTED_PROXIES` for a
+    Cloudflare Tunnel, a stronger SSRF guard on calendar feeds, a non-root
+    backend container.
+- **Phase 1 is released as `v0.4.0`** (2026-11-03): sub-projects 1–7.
+- **Open items:**
+  - Five browser smoke tests (`projectTemplates`, `companies.projects`,
+    `virusscan`) still use the New project form's old labels and the old
+    attachment button; they failed before the security pass too.
+  - Security follow-ups: an image scan in CI (Trivy), and running
+    `frontend/scripts/check-nginx.sh` on a machine with Docker.
 
 ## How to resume
 
@@ -167,12 +166,18 @@ macOS and Linux, without the rest of RMM. Built as 8a (server and Windows),
 |---|---|---|---|---|
 | 8 | PRISM agent: inventory and the tray app — for Windows, macOS and Linux (owner, 2026-11-03): a system service and per-user tray app (Go; MSI, .pkg, .deb/.rpm), enrollment per company straight to PRISM over HTTPS (no gateway yet, decided 2026-11-03), signed updates; every computer an Asset with hardware, OS, network, installed software, logged-in user and last seen; tray **Submit a ticket** form with a health snapshot. Absorbs the inventory half of 9, the first version of 9b, and 19 (macOS and Linux) | Released in v0.5.0 (2026-11-15) — 8a (server and Windows), 8b (macOS), 8c (Linux: Ubuntu, Fedora, Arch) and 8d (install keys you can copy again, install links, push scripts for PDQ/GPO/Intune/RMMs). Owner tested macOS and Arch; Windows 11 and 10, Ubuntu 24.04 and Fedora still being tested (fixes ship as v0.5.x) | [spec](superpowers/specs/2026-11-03-agent-inventory-tray-design.md); [mockups](mockups/agent-8/) ([canvas](https://claude.ai/artifact/3yKJ5XAMj7giMFSS2XuxCe)) | [plan 8a](superpowers/plans/2026-11-03-agent-8a-server-windows.md) (server and Windows); [plan 8b](superpowers/plans/2026-11-04-agent-8b-macos.md) (macOS); [plan 8c](superpowers/plans/2026-11-04-agent-8c-linux.md) (Linux); [plan 8d](superpowers/plans/2026-11-09-agent-8d-install-links.md) (install links) |
 | 9 | Inventory → into 8. Monitoring (heartbeats are in 8; checks and alerts that open tickets) → moved to Phase 4 as 16a (2026-11-03) | Moved | — | — |
-| 9b | Per-company ticket categories and software lists: each company its own category tree (never shared), top-level categories for incidents, requests or both, a required choice with Other / I'm not sure on the agent and the portal, the agent's form with the ticket type, categories and attachments; then each company's software list, "which app?" steps, the step-by-step picker on staff and portal forms, copying a tree, a company setup checklist (owner, 2026-11-05 and 2026-11-10) | Building — categories per company and per type, not sure, the Categories tab, the agent's form (type, categories, attachments) shipped to `dev` 2026-11-11; software lists, which-app steps, the staff/portal stepper, copying and the setup checklist to follow | — | [plan](superpowers/plans/2026-11-05-company-ticket-categories-9.md) |
+| 9b | Per-company ticket categories and software lists: each company its own category tree (never shared), top-level categories for incidents, requests or both, a required choice with Other / I'm not sure on the agent and the portal, the agent's form with the ticket type, categories and attachments; then each company's software list, "which app?" steps, the step-by-step picker on staff and portal forms, copying a tree, a company setup checklist (owner, 2026-11-05 and 2026-11-10) | Building — categories per company and per type, not sure, the Categories tab, the agent's form (type, categories, attachments) shipped to `dev` 2026-11-11; software lists, which-app steps, the staff/portal stepper, copying and the setup checklist are next (2026-11-24) | — | [plan](superpowers/plans/2026-11-05-company-ticket-categories-9.md) |
 | 9b | Tray app → its first version (Submit a ticket, health snapshot) is in 8; the screenshot button and a "My tickets" list come later (2026-11-03) | Moved into 8 | — | — |
+| HD | Help desk app — the agent's window as an app people open (Start menu, Applications, app list): new tickets, their open tickets beside the one they read, Capture my screen, reply pop-ups, Past tickets from the portal behind one sign-in, the PRISM icon | Shipped (2026-11-22–23) | — | — |
+| MCP-O | Claude connections — an MCP server for PRISM's tools; Claude signs in with OAuth (discovery, DCR and client ID metadata documents, PKCE, refresh rotation), Settings › Claude, a consent page; off until an Owner turns it on | Shipped (2026-11-21–22) | — | — |
+| SEC | Security pass — dependency and image CVEs, CSP/HSTS/Permissions-Policy, real client IP behind a Cloudflare Tunnel, SSRF guard, non-root backend, read-only workflow tokens | Shipped (2026-11-23) | — | — |
 
 **Testing feedback (Phase 2):** _none yet_
 
 ### Phase 3 — Money (`v0.6.0`)
+
+To be built as a full feature set (owner, 2026-11-24), designed as one before
+any of it is built.
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
