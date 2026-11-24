@@ -17,6 +17,16 @@ router.get('/vendors', requirePermission('assets.view', 'projects.manage_expense
 router.get('/', canView, ctrl.list);
 router.post('/', canManage, ctrl.create);
 router.get('/:id', canView, ctrl.get);
+
+// A company's software list (9): read by anyone who reaches the company (the
+// ticket forms ask "which app?"); the controller checks the permission to
+// change it.
+const catalog = require('../controllers/catalogController');
+router.get('/:id/catalog/found-software', catalog.foundSoftware);
+router.get('/:id/catalog', catalog.list);
+router.post('/:id/catalog', catalog.create);
+router.patch('/:id/catalog/:itemId', catalog.update);
+router.delete('/:id/catalog/:itemId', catalog.remove);
 router.get('/:id/glance', canView, ctrl.glance);
 // CS: the company's own SLA, support hours and holidays.
 const companySla = require('../controllers/companySlaController');

@@ -119,6 +119,7 @@ const DetectedDepartment = require('./DetectedDepartment')(sequelize);
 const AgentEnrollmentKey = require('./AgentEnrollmentKey')(sequelize);
 const Device = require('./Device')(sequelize);
 const AssetSoftware = require('./AssetSoftware')(sequelize);
+const CompanyCatalogItem = require('./CompanyCatalogItem')(sequelize);
 const AgentNonce = require('./AgentNonce')(sequelize);
 const Mdm = require('./Mdm')(sequelize);
 const Form = require('./Form')(sequelize);
@@ -248,6 +249,7 @@ const db = {
   AgentEnrollmentKey,
   Device,
   AssetSoftware,
+  CompanyCatalogItem,
   AgentNonce,
   Mdm,
   Form,
@@ -752,6 +754,8 @@ Device.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
 Device.belongsTo(AgentEnrollmentKey, { foreignKey: 'enrollmentKeyId', as: 'enrollmentKey' });
 Asset.hasMany(AssetSoftware, { foreignKey: 'assetId', as: 'software', onDelete: 'CASCADE' });
 AssetSoftware.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+Company.hasMany(CompanyCatalogItem, { foreignKey: 'companyId', as: 'catalogItems' });
+CompanyCatalogItem.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 Device.hasMany(AgentNonce, { foreignKey: 'deviceId', as: 'nonces', onDelete: 'CASCADE' });
 
 // Playbooks (PB): MDMs and carriers on devices; forms and their versions;
