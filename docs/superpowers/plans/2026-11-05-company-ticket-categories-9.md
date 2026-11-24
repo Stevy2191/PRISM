@@ -85,9 +85,11 @@
 - `GET/POST/PATCH/DELETE /companies/:id/catalog?kind=software` (company access; editing needs `companies.manage`, or the category permission for the internal company). Names unique per company and kind; deactivating hides an item from pickers but keeps it on old tickets.
 - `GET /companies/:id/catalog/found-software?search=`: the distinct programs the agent found on that company's computers (`AssetSoftware` joined to its Assets), with how many computers have each, and whether it's already on the list. It reads only; adding is a normal POST (owner decision 3).
 
-- [ ] **Step 1: Failing tests:** CRUD, uniqueness, company fence (another company's list and found-software are refused), found-software groups versions and counts computers, excludes what's listed already.
-- [ ] **Step 2–4:** Run → FAIL; implement; run → PASS.
-- [ ] **Step 5: Commit** `feat(catalog): each company's software list`
+- [x] **Step 1: Failing tests:** CRUD, uniqueness, company fence (another company's list and found-software are refused), found-software groups versions and counts computers, excludes what's listed already.
+- [x] **Step 2–4:** Run → FAIL; implement; run → PASS.
+- [x] **Step 5: Commit** `feat(catalog): each company's software list`
+
+*As built (2026-11-24):* migration 101; `/companies/:id/catalog` (read with company reach, change with `tickets.categories.manage`), `found-software` also needs `assets.view`. Deleting an item clears it from tickets (FK SET NULL); turning it off keeps it.
 
 ### Task 4: "Which app?" steps
 
@@ -98,7 +100,9 @@
 
 - A category with `pickKind` is answered by choosing one of the company's active items of that kind, or **Not listed** (which can carry the app's name in the description). The item shows on the ticket and in reports.
 
-- [ ] **Step 1–5:** tests (item from another company refused, inactive refused, kind must match, not-listed allowed, item cleared when the ticket's company changes), implement, commit `feat(categories): a category can ask which app`
+- [x] **Step 1–5:** tests (item from another company refused, inactive refused, kind must match, not-listed allowed, item cleared when the ticket's company changes), implement, commit `feat(categories): a category can ask which app`
+
+*As built (2026-11-24):* migration 102. `pickKind` is inherited by sub-categories. One check, `resolveCatalogItemForSave`, for staff create/update, the portal and the agent; required only for portal and agent tickets, never when not sure; agents from before this (no app keys) are exempt. Merging companies keeps an app on both lists once and repoints tickets. whoami carries `software` and each category's `pickKind`; the agent's form asks Which app?.
 
 ### Task 5: Staff screens: the company's Categories and Software tabs
 
@@ -110,9 +114,9 @@
 - **Categories tab:** the existing tree editor for that company, plus "Ask which app" on a category. A company with none shows an empty state: **Add the first category**. A **Copy from another company** action copies a tree as a starting point. A copy, not a link: the copies are independent (owner decision 1).
 - **Software tab:** the list (name, publisher, notes, active), **Add app** (type it in) and **Add from this company's computers** (search the found-software list, tick several, add).
 
-- [ ] **Step 1–5:** smoke tests (build a tree, copy one, a client's tree never shows on another company or in Settings; add apps by hand and from found software), implement, commit `feat(companies): Categories and Software tabs`
+- [x] **Step 1–5:** smoke tests (build a tree, copy one, a client's tree never shows on another company or in Settings; add apps by hand and from found software), implement, commit `feat(companies): Categories and Software tabs`
 
-*As built so far (2026-11-10):* the **Categories** tab (Settings' editor, given a company) with **For** (incidents, requests or both) on each top-level category. Still to do: **Copy from another company**, the **Software** tab (with Task 3).
+*As built (2026-11-10, 24):* the **Categories** tab (Settings' editor, given a company) with **For** on top-level categories, **asks which app**, **Add the first category** and **Copy from another company** (`POST /ticket-categories/copy`, only into a company with none, active categories). The **Software** tab: add, edit, turn off, remove, and **From their computers** (found software, ticked and added).
 
 ### Task 6: Staff and portal ticket forms
 
@@ -121,7 +125,9 @@
 - Modify: staff new-ticket and ticket-detail category fields (scoped to the ticket's company), the portal's new-ticket page, ticket list filters
 - Test: smoke tests for both
 
-- [ ] **Step 1–5:** tests (the picker shows only the ticket company's tree; changing the ticket's company resets it; the portal requires a choice when there are categories; not sure and not listed reach the ticket), implement, commit `feat(tickets): the category stepper on staff and portal tickets`
+- [x] **Step 1–5:** tests (the picker shows only the ticket company's tree; changing the ticket's company resets it; the portal requires a choice when there are categories; not sure and not listed reach the ticket), implement, commit `feat(tickets): the category stepper on staff and portal tickets`
+
+*As built (2026-11-24):* the portal's New ticket uses `CategoryStepper` (one level at a time, Other / I'm not sure, then Which app?); `/portal/meta` adds `tree` and `software`. Staff keep the cascading `CategoryPicker` and gain `AppPicker` on New ticket and in the sidebar. The ticket list takes `?catalogItemId=`.
 
 ### Task 7: The agent's Submit a ticket window
 
@@ -144,13 +150,15 @@
 - The checklist: sites, departments, contacts, ticket categories, software list, portal access, agent installed (enrollment key made, computers reporting). Each line says what's there ("3 departments") or what's missing, with a button to the tab that fixes it. It shows the state; it doesn't block anything.
 - Later, outside this plan: the same checklist as a form the client's own admin fills in through the portal.
 
-- [ ] **Step 1–5:** tests, implement, commit `feat(companies): a setup checklist`
+- [x] **Step 1–5:** tests, implement, commit `feat(companies): a setup checklist`
 
 ### Task 9: Reports, docs and release
 
 - Category reports and filters take a company (and group by company when "all"). UPGRADING (what moved where, the migration of the existing tree to the internal company), ROADMAP, and the release notes. Full suites, then the owner's hand test.
 
-- [ ] **Commit** `docs(9): per-company categories and software lists`
+- [x] **Commit** `docs(9): per-company categories and software lists`
+
+*As built (2026-11-24):* custom reports gain an **App** column and group-by; grouping by category names the company when a report spans several. The setup checklist (built in CS) adds Software list, Sites and Departments.
 
 
 ## Security review (2026-11-11): categories, the agent's form and attachments

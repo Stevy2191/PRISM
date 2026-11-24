@@ -67,6 +67,8 @@ async function buildTicketListWhere(req, { ignoreStatus = false } = {}) {
   // id matches nothing (never every ticket).
   // "Category not sure" (9): tickets raised with Other / I'm not sure, for triage.
   if (req.query.categoryUnsure === 'true') where.categoryUnsure = true;
+  // "Which app?" (9): tickets about one of a company's apps.
+  if (req.query.catalogItemId) where.catalogItemId = parseRecordId(req.query.catalogItemId) || -1;
   if (req.query.category) {
     const categoryId = parseRecordId(req.query.category);
     const tree = categoryId ? await loadCategoryTree() : null;

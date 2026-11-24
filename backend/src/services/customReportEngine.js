@@ -5,7 +5,7 @@ const { Op } = require('sequelize');
 const {
   Ticket, TimeEntry, User, Team, Project, ProjectExpense, ProjectMaterial,
   Department, Contact, CustomField, TicketFieldValue,
-  Company,
+  Company, CompanyCatalogItem,
 } = require('../models');
 const { getUserReportScope } = require('./permissionService');
 const { andWhere, companyFilterWhere } = require('./recordScope');
@@ -32,6 +32,7 @@ const FIELD_DEFS = {
     { key: 'assignee', label: 'Assignee', type: 'string' },
     { key: 'team', label: 'Team', type: 'string' },
     { key: 'category', label: 'Category', type: 'string' },
+    { key: 'app', label: 'App', type: 'string' },
     { key: 'createdAt', label: 'Created date', type: 'date' },
     { key: 'closedAt', label: 'Closed date', type: 'date' },
     { key: 'dueDate', label: 'Due date', type: 'date' },
@@ -96,7 +97,7 @@ const FIELD_DEFS = {
 };
 
 const GROUP_BY_OPTIONS = {
-  tickets: ['company', 'department', 'assignee', 'status', 'priority', 'month', 'type', 'source', 'category'],
+  tickets: ['company', 'department', 'assignee', 'status', 'priority', 'month', 'type', 'source', 'category', 'app'],
   projects: ['company', 'department', 'status', 'month'],
   time_entries: ['company', 'tech', 'month', 'ticket', 'project'],
   expenses_materials: [],
@@ -151,6 +152,7 @@ async function loadTicketRecords(req, filters) {
       { model: Contact, as: 'contact', attributes: ['id', 'displayName'], include: [{ model: Department, as: 'department', attributes: ['id', 'name'] }] },
       { model: Team, as: 'team', attributes: ['id', 'name'] },
       { model: Department, as: 'department', attributes: ['id', 'name'] },
+      { model: CompanyCatalogItem, as: 'catalogItem', attributes: ['id', 'name'] },
       { model: TicketFieldValue, as: 'fieldValues', include: [{ model: CustomField, as: 'field' }] },
     ],
     order: [['createdAt', 'DESC']],
@@ -180,6 +182,8 @@ async function loadTicketRecords(req, filters) {
       assignee: t.assignee?.displayName || 'Unassigned',
       team: t.team?.name || '',
       category: categoryPath(t.categoryId),
+      // "Which app?" (9)
+      app: t.catalogItem ? t.catalogItem.name : (t.catalogItemNotListed ? 'Not listed' : ''),
       createdAt: t.createdAt ? dayOf(t.createdAt, range.tz) : '',
       closedAt: t.resolvedAt ? dayOf(t.resolvedAt, range.tz) : '',
       dueDate: t.dueDate || '',
@@ -198,6 +202,12 @@ async function loadTicketRecords(req, filters) {
   });
 
   if (filters.tag) records = records.filter((r) => r._tagList.includes(filters.tag));
+  // Each company has its own categories (9): across companies, a category is
+  // grouped with its company's name, so two companies' "Network" stay apart.
+  const manyCompanies = new Set(records.map((r) => r._companyName)).size > 1;
+  records.forEach((r) => {
+    r._categoryGroup = r.category && manyCompanies ? `${r._companyName} · ${r.category}` : r.category;
+  });
   if (filters.customField && filters.customField.key) {
     const fk = `cf_${filters.customField.key}`;
     records = records.filter((r) => String(r[fk] ?? '') === String(filters.customField.value ?? ''));
@@ -443,7 +453,8 @@ function groupKeyFor(dataSource, groupBy, record) {
     if (groupBy === 'type') return record.type;
     if (groupBy === 'source') return record.source;
     if (groupBy === 'month') return record._month;
-    if (groupBy === 'category') return record.category || 'Uncategorized';
+    if (groupBy === 'category') return record._categoryGroup || 'Uncategorized';
+    if (groupBy === 'app') return record.app || 'No app';
   }
   if (dataSource === 'projects') {
     if (groupBy === 'department') return record._departmentName;

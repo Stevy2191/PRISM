@@ -123,3 +123,35 @@ it('merging companies brings the list along; a shared name points at the one kep
   expect(names.sort()).toEqual(['Acrobat', 'Clio', 'Dentrix']);
   expect((await ticketOf(t.id)).catalogItemId).toBe(dentrix.id);
 });
+
+it('reports and the ticket list (task 9): the App column, grouping by app, categories by company, a filter by app', async () => {
+  const run = async (body) => expectOk(await a().post(`${API}/reports/custom`).send({ dataSource: 'tickets', ...body }));
+  const meta = expectOk(await a().get(`${API}/reports/custom/metadata`)).dataSources.find((d) => d.key === 'tickets');
+  expect(meta.fields.map((f) => f.key)).toContain('app');
+  expect(meta.groupBy).toContain('app');
+
+  const t1 = await makeTicket(a(), { title: 'D1', contactId: amy.id, categoryId: apps.id, catalogItemId: dentrix.id });
+  await makeTicket(a(), { title: 'D2', contactId: amy.id, categoryId: line.id, catalogItemId: dentrix.id });
+  await makeTicket(a(), { title: 'NL', contactId: amy.id, categoryId: apps.id, catalogItemNotListed: true });
+  await makeTicket(a(), { title: 'Net', contactId: amy.id, categoryId: net.id });
+  const bNet = await cat({ name: 'Network', companyId: beta.id });
+  await makeTicket(a(), { title: 'B net', contactId: bob.id, categoryId: bNet.id });
+
+  const { tableData } = await run({ fields: ['title', 'app'] });
+  expect(tableData.rows.find((r) => r.id === t1.id).app).toBe('Dentrix');
+  expect(tableData.rows.find((r) => r.title === 'NL').app).toBe('Not listed');
+
+  const byApp = Object.fromEntries((await run({ fields: ['title'], groupBy: 'app' })).chartData.map((g) => [g.name, g.count]));
+  expect(byApp).toEqual({ Dentrix: 2, 'Not listed': 1, 'No app': 2 });
+
+  // Across companies, a category is named with its company: two "Network"s stay apart.
+  const byCat = Object.fromEntries((await run({ fields: ['title'], groupBy: 'category' })).chartData.map((g) => [g.name, g.count]));
+  expect(byCat['Alpha Dental · Network']).toBe(1);
+  expect(byCat['Beta Law · Network']).toBe(1);
+  // One company: just the path.
+  const oneCo = Object.fromEntries((await run({ fields: ['title'], groupBy: 'category', filters: { companyId: alpha.id } })).chartData.map((g) => [g.name, g.count]));
+  expect(oneCo.Network).toBe(1);
+
+  const listed = expectOk(await a().get(`${API}/tickets`).query({ catalogItemId: dentrix.id })).tickets.map((t) => t.title).sort();
+  expect(listed).toEqual(['D1', 'D2']);
+});

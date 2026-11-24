@@ -10,6 +10,20 @@ backend start.
 
 ## Unreleased
 
+**Each company's software list, and "which app?" (9b, finished).** A
+company's page has a **Software** tab (Setup › Software): the apps its people
+use, added by hand or ticked from what the PRISM agent found on its
+computers. A ticket category can be set to **asks which app** (it and
+everything under it): people raising a ticket then pick the app from that
+company's list, or **Not listed**. The portal's New ticket now picks the
+category one level at a time, with Other / I'm not sure at every level; the
+agent's Help desk window and staff tickets ask Which app? too. **Copy from
+another company** starts an empty company's categories from another's tree
+(an independent copy). The setup checklist adds the software list, sites and
+departments. Custom reports gain an **App** column and grouping, and group
+categories by company when a report spans several. Migrations 101 and 102;
+nothing to do. Agents from before this keep raising tickets as they did.
+
 **Security pass (2026-11-23).** Nothing to do unless noted.
 - Known vulnerabilities fixed: the agent is built with Go 1.26.11 (45 Go
   standard-library advisories) and `golang.org/x/sys` 0.50.0; the backend's
