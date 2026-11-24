@@ -4,7 +4,7 @@
 const { Op, fn, col } = require('sequelize');
 const {
   Company, CompanyDomain, Site, User, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, TicketCategory, Device, SlaPolicy, Holiday, AuditLog, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, TicketCategory, CompanyCatalogItem, Device, SlaPolicy, Holiday, AuditLog, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
@@ -197,7 +197,7 @@ const glance = asyncHandler(async (req, res) => {
   const open = andWhere(await ticketScopeWhere(req.user), { ...here, status: { [Op.in]: buckets.open } });
   const contacts = andWhere(await contactScopeWhere(req.user), { ...here, status: 'active', isPlaceholder: false });
   const online = new Date(Date.now() - 10 * 60 * 1000);
-  const [openTickets, pastSla, contactCount, portalCount, departments, sites, domains, categories, devices, devicesOnline] = await Promise.all([
+  const [openTickets, pastSla, contactCount, portalCount, departments, sites, domains, categories, software, devices, devicesOnline] = await Promise.all([
     Ticket.count({ where: open }),
     Ticket.count({ where: andWhere(open, slaFilterWhere('breached')) }),
     Contact.count({ where: contacts }),
@@ -206,6 +206,7 @@ const glance = asyncHandler(async (req, res) => {
     Site.count({ where: here }),
     CompanyDomain.count({ where: here }),
     seesCategories ? TicketCategory.count({ where: { ...here, active: true } }) : null,
+    seesCategories ? CompanyCatalogItem.count({ where: { ...here, kind: 'software', active: true } }) : null,
     seesAssets ? Device.count({ where: { ...here, revokedAt: null } }) : null,
     seesAssets ? Device.count({ where: { ...here, revokedAt: null, lastSeenAt: { [Op.gte]: online } } }) : null,
   ]);
@@ -229,6 +230,7 @@ const glance = asyncHandler(async (req, res) => {
       sites,
       domains,
       categories,
+      software,
       devices,
       devicesOnline,
       sla: slaRow ? {

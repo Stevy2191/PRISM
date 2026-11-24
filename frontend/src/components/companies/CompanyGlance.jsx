@@ -54,6 +54,17 @@ export default function CompanyGlance({ company, onOpen, justMade = false }) {
       key: 'categories', done: g.categories > 0, label: 'Ticket categories',
       detail: g.categories > 0 ? `${g.categories}` : `${company.name}'s own list; start from yours or from nothing`, action: 'Set up', open: ['setup', 'categories'],
     }]),
+    ...(g.software === null || !company.isClient ? [] : [{
+      key: 'software', done: g.software > 0, label: 'Software list',
+      detail: g.software > 0 ? `${g.software} ${g.software === 1 ? 'app' : 'apps'}` : 'the apps their people use, for "which app?" questions; add them or pick from their computers', action: 'Add apps', open: ['setup', 'software'],
+    }]),
+    ...(!company.isClient ? [] : [{
+      key: 'sites', done: g.sites > 0, label: 'Sites',
+      detail: g.sites > 0 ? `${g.sites} ${g.sites === 1 ? 'site' : 'sites'}` : 'their offices and locations', action: 'Add', open: ['people', 'sites'],
+    }, {
+      key: 'departments', done: g.departments.length > 0, label: 'Departments',
+      detail: g.departments.length > 0 ? `${g.departments.length} ${g.departments.length === 1 ? 'department' : 'departments'}` : 'optional; groups their people and tickets', action: 'Add', open: ['people', 'departments'],
+    }]),
     ...(!company.isClient ? [] : [{
       key: 'portal', done: g.portal.enabled, label: 'Portal',
       detail: g.portal.enabled ? `on · ${g.portalContacts} of ${g.contacts} can sign in` : `off. Turn it on to give ${company.name} its own link.`, action: 'Set up', open: ['setup', 'portal'],

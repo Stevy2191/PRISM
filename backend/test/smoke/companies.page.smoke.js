@@ -20,9 +20,9 @@ it('shows the company, and adds a domain and a site', async () => {
 
   // Overview: the setup checklist says what's missing and opens its place.
   const setup = page.getByTestId('company-setup');
-  await setup.getByText('Set up this company · 1 of 9 done').waitFor();
-  for (const step of ['SLA targets', 'Support hours and holidays', 'Portal', 'Satisfaction surveys']) await setup.getByText(step, { exact: true }).waitFor(); // eslint-disable-line no-await-in-loop
-  await setup.getByRole('button', { name: 'Add', exact: true }).click();
+  await setup.getByText('Set up this company · 1 of 12 done').waitFor();
+  for (const step of ['SLA targets', 'Support hours and holidays', 'Portal', 'Satisfaction surveys', 'Software list', 'Sites', 'Departments']) await setup.getByText(step, { exact: true }).waitFor(); // eslint-disable-line no-await-in-loop
+  await setup.getByRole('listitem').filter({ hasText: 'Email domain' }).getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByLabel('New domain').fill('acme.test');
   await page.getByRole('button', { name: 'Add domain' }).click();
   await page.getByText('acme.test').waitFor();

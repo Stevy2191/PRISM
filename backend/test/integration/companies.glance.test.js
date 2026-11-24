@@ -18,7 +18,7 @@ it('counts what the company has set up', async () => {
   const a = w.admin.agent;
   let { glance } = expectOk(await a.get(`${API}/companies/${alpha.id}/glance`));
   expect(glance).toMatchObject({
-    openTickets: 0, pastSla: 0, contacts: 0, portalContacts: 0, departments: [], sites: 0, domains: 0, categories: 0, devices: 0, devicesOnline: 0,
+    openTickets: 0, pastSla: 0, contacts: 0, portalContacts: 0, departments: [], sites: 0, domains: 0, categories: 0, software: 0, devices: 0, devicesOnline: 0,
   });
   const amy = await makeContact(w.admin, { companyId: alpha.id, firstName: 'Amy', lastName: 'Ng' });
   await models.Contact.update({ portalAccess: true }, { where: { id: amy.id } });
@@ -26,8 +26,11 @@ it('counts what the company has set up', async () => {
   await makeTicket(a, { title: 'Wifi', contactId: amy.id });
   expectOk(await a.post(`${API}/ticket-categories`).send({ name: 'Network', companyId: alpha.id }), 201);
   expectOk(await a.post(`${API}/companies/${alpha.id}/domains`).send({ domain: 'alphadental.test' }), 201);
+  // The software list (9): active apps only.
+  expectOk(await a.post(`${API}/companies/${alpha.id}/catalog`).send({ kind: 'software', name: 'Dentrix' }), 201);
+  expectOk(await a.post(`${API}/companies/${alpha.id}/catalog`).send({ kind: 'software', name: 'Old', active: false }), 201);
   ({ glance } = expectOk(await a.get(`${API}/companies/${alpha.id}/glance`)));
-  expect(glance).toMatchObject({ openTickets: 1, contacts: 2, portalContacts: 1, categories: 1, domains: 1 });
+  expect(glance).toMatchObject({ openTickets: 1, contacts: 2, portalContacts: 1, categories: 1, software: 1, domains: 1 });
 });
 
 it("says whether the SLA was reviewed, the portal is on and surveys were chosen (CS)", async () => {
