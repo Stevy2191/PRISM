@@ -5,10 +5,12 @@
 // hold printers, shared drives and the like. Names are unique per company
 // and kind (the controller compares them without case).
 
+// showAllTables gives names or { tableName } depending on the dialect.
+const tableNames = async (qi) => (await qi.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
+
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    const tables = await queryInterface.showAllTables();
-    if (tables.includes('CompanyCatalogItems')) return;
+    if ((await tableNames(queryInterface)).includes('CompanyCatalogItems')) return;
     await queryInterface.createTable('CompanyCatalogItems', {
       id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
       companyId: {
@@ -27,7 +29,6 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    const tables = await queryInterface.showAllTables();
-    if (tables.includes('CompanyCatalogItems')) await queryInterface.dropTable('CompanyCatalogItems');
+    if ((await tableNames(queryInterface)).includes('CompanyCatalogItems')) await queryInterface.dropTable('CompanyCatalogItems');
   },
 };

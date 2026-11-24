@@ -5,6 +5,8 @@ const migration = require('../../migrations/20260101000068-ticket-categories');
 // after the round trip, which recreates the table without it.
 const companyCategories = require('../../migrations/20260101000084-company-ticket-categories');
 const categoryType = require('../../migrations/20260101000086-category-ticket-type');
+// 102 (9b) adds pickKind to the same table.
+const whichApp = require('../../migrations/20260101000102-category-which-app');
 
 const qi = () => sequelize.getQueryInterface();
 const tables = async () => (await qi().showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
@@ -55,5 +57,6 @@ it('down then up leaves the schema as the full chain does', async () => {
   await migration.up(qi(), Sequelize);
   await companyCategories.up(qi(), Sequelize);
   await categoryType.up(qi(), Sequelize);
+  await whichApp.up(qi(), Sequelize);
   await expectUp();
 });

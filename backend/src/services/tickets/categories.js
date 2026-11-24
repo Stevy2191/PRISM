@@ -142,7 +142,7 @@ function pickKindOf(t, id) {
 // the company's and the category still asks for its kind. `required` (the
 // portal and the agent) wants an answer unless the person isn't sure.
 async function resolveCatalogItemForSave(raw, {
-  categoryId, tree: t, companyId, current = null, currentNotListed = false, required = false, unsure = false,
+  categoryId, tree: t, companyId, current = null, currentNotListed = false, required = false, unsure = false, sameCategory = false,
 }) {
   const kind = categoryId == null ? null : pickKindOf(t, categoryId);
   const sentItem = raw.itemId !== undefined && raw.itemId !== null && raw.itemId !== '';
@@ -150,6 +150,12 @@ async function resolveCatalogItemForSave(raw, {
   if (sentItem && notListed) throw new ApiError(400, 'Choose an app or Not listed, not both', 'VALIDATION_ERROR');
   const appNotFound = () => new ApiError(400, 'App not found', 'VALIDATION_ERROR');
   if (!kind) {
+    // The stored answer re-sent unchanged is never refused: kept on the same
+    // category (even one that has since stopped asking), dropped with a new
+    // category that doesn't ask.
+    const resent = (sentItem && parseRecordId(raw.itemId) === current) || (notListed && currentNotListed);
+    if (resent && sameCategory) return { catalogItemId: current, catalogItemNotListed: !current && notListed };
+    if (resent) return { catalogItemId: null, catalogItemNotListed: false };
     if (sentItem || notListed) throw new ApiError(400, "This category doesn't ask which app", 'VALIDATION_ERROR');
     return { catalogItemId: null, catalogItemNotListed: false };
   }

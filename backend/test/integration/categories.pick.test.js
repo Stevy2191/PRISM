@@ -155,3 +155,15 @@ it('reports and the ticket list (task 9): the App column, grouping by app, categ
   const listed = expectOk(await a().get(`${API}/tickets`).query({ catalogItemId: dentrix.id })).tickets.map((t) => t.title).sort();
   expect(listed).toEqual(['D1', 'D2']);
 });
+
+it('review: a stored app re-sent unchanged still saves after its category stops asking', async () => {
+  const t = await makeTicket(a(), { title: 'Dentrix', contactId: amy.id, categoryId: apps.id, catalogItemId: dentrix.id });
+  await a().patch(`${API}/ticket-categories/${apps.id}`).send({ pickKind: null }).expect(200);
+  // A client PATCHing the ticket back as it was.
+  expectOk(await a().patch(`${API}/tickets/${t.id}`).send({ title: 'Dentrix again', categoryId: apps.id, catalogItemId: dentrix.id }));
+  expect((await ticketOf(t.id)).catalogItemId).toBe(dentrix.id);
+  // But a new app on it is refused, and a new category that doesn't ask clears it.
+  expect((await a().patch(`${API}/tickets/${t.id}`).send({ catalogItemId: acrobat.id })).status).toBe(400);
+  expectOk(await a().patch(`${API}/tickets/${t.id}`).send({ categoryId: net.id, catalogItemId: dentrix.id }));
+  expect((await ticketOf(t.id)).catalogItemId).toBeNull();
+});

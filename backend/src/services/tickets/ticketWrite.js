@@ -407,6 +407,7 @@ async function prepareTicketUpdate(req, ticket, body, { categoryTree = null } = 
       companyId: targetCompanyId,
       current: movingCompany ? null : ticket.catalogItemId,
       currentNotListed: !movingCompany && ticket.catalogItemNotListed,
+      sameCategory: !movingCompany && finalCategoryId === ticket.categoryId,
     });
     if (catalog.catalogItemId !== ticket.catalogItemId) changes.catalogItemId = catalog.catalogItemId;
     if (catalog.catalogItemNotListed !== !!ticket.catalogItemNotListed) changes.catalogItemNotListed = catalog.catalogItemNotListed;
