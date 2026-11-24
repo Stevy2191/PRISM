@@ -31,6 +31,34 @@ function inUseMessage(err) {
   return text ? `${errMessage(err)} (used by ${text})` : errMessage(err);
 }
 
+// "Copy from another company": the companies you reach that have a tree.
+// A copy is a starting point; the two trees change independently.
+function CopyFrom({ companyId, onCopy, busy }) {
+  const [sources, setSources] = useState(null);
+  useEffect(() => {
+    Promise.all([
+      api.get('/ticket-categories'),
+      api.get('/companies', { params: { kind: 'client', limit: 500 } }).catch(() => ({ data: { companies: [] } })),
+    ]).then(([cats, cos]) => {
+      const withTree = new Set(cats.data.categories.filter((c) => c.active).map((c) => c.companyId));
+      setSources((cos.data.companies || []).filter((c) => withTree.has(c.id) && String(c.id) !== String(companyId) && !(companyId === 'internal' && c.isInternal)));
+    }).catch(() => setSources([]));
+  }, [companyId]);
+  if (!sources || !sources.length) return null;
+  return (
+    <select
+      className="input w-auto"
+      aria-label="Copy categories from another company"
+      value=""
+      disabled={busy}
+      onChange={(e) => { if (e.target.value) onCopy(Number(e.target.value)); }}
+    >
+      <option value="">Copy from another company…</option>
+      {sources.map((c) => <option key={c.id} value={c.id}>{c.isInternal ? `${c.name} (yours)` : c.name}</option>)}
+    </select>
+  );
+}
+
 export function CategoryEditor({ companyId = 'internal', companyName = '' }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -146,6 +174,7 @@ export function CategoryEditor({ companyId = 'internal', companyName = '' }) {
             {!c.active && <span className="eyebrow">retired</span>}
             {c.active && !effective && <span className="eyebrow">hidden (parent retired)</span>}
             {c.requireChild && <span className="eyebrow">sub-category required</span>}
+            {c.pickKind === 'software' && <span className="eyebrow">asks which app</span>}
             {c.parentId == null && c.forType && <span className="eyebrow">{c.forType === 'incident' ? 'incidents' : 'requests'}</span>}
             {usageText(c.usage) && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{usageText(c.usage)}</span>}
           </div>
@@ -197,6 +226,10 @@ export function CategoryEditor({ companyId = 'internal', companyName = '' }) {
               <input type="checkbox" checked={c.requireChild} onChange={(e) => patch(c.id, { requireChild: e.target.checked })} disabled={busy} />
               must choose a sub-category
             </label>
+            <label className="flex items-center gap-1" title="People then pick one of the company's apps from its Software list (or Not listed). Sub-categories ask too.">
+              <input type="checkbox" checked={c.pickKind === 'software'} onChange={(e) => patch(c.id, { pickKind: e.target.checked ? 'software' : null })} disabled={busy} />
+              asks which app
+            </label>
             <select
               className="input w-auto py-0.5 text-xs"
               aria-label={`Move ${c.name} to`}
@@ -224,6 +257,7 @@ export function CategoryEditor({ companyId = 'internal', companyName = '' }) {
   const roots = childrenOf(index, null, { includeRetired: true });
 
   const startAdding = () => { setAdding({ parentId: null }); setNewName(''); };
+  const copyFrom = (fromCompanyId) => run(() => api.post('/ticket-categories/copy', { fromCompanyId, toCompanyId: companyId }));
   return (
     <>
       {error && <div role="alert" className="rounded-md bg-red-50 p-4 text-red-700">{error}</div>}
@@ -238,6 +272,10 @@ export function CategoryEditor({ companyId = 'internal', companyName = '' }) {
               {companyName ? `${companyName} has no ticket categories yet.` : 'No categories yet.'} People raising a ticket pick one
               step by step (Network → Wireless), with Other / I&apos;m not sure at every step.
             </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button type="button" className="btn-primary" onClick={startAdding}>Add the first category</button>
+              <CopyFrom companyId={companyId} onCopy={copyFrom} busy={busy} />
+            </div>
           </div>
         )}
       </SettingsPanel>

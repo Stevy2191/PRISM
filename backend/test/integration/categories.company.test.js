@@ -154,3 +154,44 @@ it('migration 084: existing categories belong to the internal company; down and 
   const rows = await sequelize.query('SELECT name, companyId FROM TicketCategories ORDER BY name', { type: Sequelize.QueryTypes.SELECT });
   expect(rows).toEqual([{ name: 'Old', companyId: internal.id }, { name: 'Older', companyId: internal.id }]);
 });
+
+describe('copy a tree from another company (9, task 5)', () => {
+  it('copies the active tree as independent rows, with requireChild, type and which-app', async () => {
+    const net = await cat({ name: 'Network', companyId: alpha.id, requireChild: true, ticketType: 'incident' });
+    const wifi = await cat({ name: 'Wireless', parentId: net.id, companyId: alpha.id });
+    await cat({ name: 'Intermittent', parentId: wifi.id, companyId: alpha.id });
+    await cat({ name: 'Apps', companyId: alpha.id, pickKind: 'software' });
+    const old = await cat({ name: 'Fax', companyId: alpha.id });
+    await a().patch(`${API}/ticket-categories/${old.id}`).send({ active: false }).expect(200);
+
+    const res = expectOk(await a().post(`${API}/ticket-categories/copy`).send({ fromCompanyId: alpha.id, toCompanyId: beta.id }), 201);
+    expect(res.copied).toBe(4);
+    const copied = await listOf(beta.id);
+    expect(copied.map((c) => c.name).sort()).toEqual(['Apps', 'Intermittent', 'Network', 'Wireless']);
+    const bNet = copied.find((c) => c.name === 'Network');
+    expect(bNet).toMatchObject({ requireChild: true, ticketType: 'incident', companyId: beta.id });
+    expect(copied.find((c) => c.name === 'Apps').pickKind).toBe('software');
+    const bWifi = copied.find((c) => c.name === 'Wireless');
+    expect(bWifi.parentId).toBe(bNet.id);
+    expect(copied.find((c) => c.name === 'Intermittent').parentId).toBe(bWifi.id);
+    // Independent: renaming the copy leaves the original alone.
+    await a().patch(`${API}/ticket-categories/${bNet.id}`).send({ name: 'Networking' }).expect(200);
+    expect((await listOf(alpha.id)).some((c) => c.name === 'Network')).toBe(true);
+  });
+
+  it('only into a company with no categories yet, from one you reach, not onto itself', async () => {
+    await cat({ name: 'Network', companyId: alpha.id });
+    await cat({ name: 'Hardware', companyId: beta.id });
+    expect((await a().post(`${API}/ticket-categories/copy`).send({ fromCompanyId: alpha.id, toCompanyId: beta.id })).status).toBe(409);
+    expect((await a().post(`${API}/ticket-categories/copy`).send({ fromCompanyId: alpha.id, toCompanyId: alpha.id })).status).toBe(400);
+    const gamma = await makeCompany(w.admin, { name: 'Gamma' });
+    const tech = await makeTech('tia', w.deptA.id);
+    await setCompanyAccess(w.admin, tech.user.id, { allCompanies: false, companyIds: [gamma.id] });
+    // No category permission.
+    expect((await tech.agent.post(`${API}/ticket-categories/copy`).send({ fromCompanyId: alpha.id, toCompanyId: gamma.id })).status).toBe(403);
+    // The help desk's own tree is "internal".
+    await cat({ name: 'Printers' });
+    expectOk(await a().post(`${API}/ticket-categories/copy`).send({ fromCompanyId: 'internal', toCompanyId: gamma.id }), 201);
+    expect((await listOf(gamma.id)).map((c) => c.name)).toEqual(['Printers']);
+  });
+});

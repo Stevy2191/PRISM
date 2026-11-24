@@ -304,6 +304,48 @@ const updateSettings = asyncHandler(async (req, res) => {
   res.json({ categoryRequired: value });
 });
 
+// POST /ticket-categories/copy { fromCompanyId, toCompanyId } — a starting
+// point for a company with no categories yet: the other company's active
+// tree, copied as new rows (requireChild, type and "which app?" with them).
+// A copy, not a link: the two trees change independently (owner, 2026-11-05).
+const copy = asyncHandler(async (req, res) => {
+  const body = req.body || {};
+  const fromId = await companyOf(req, body.fromCompanyId);
+  const toId = await companyOf(req, body.toCompanyId);
+  if (fromId === toId) throw bad('Choose another company to copy from');
+  const made = await cat.withTreeLock(async (tree, transaction) => {
+    if ([...tree.values()].some((n) => n.companyId === toId)) {
+      throw bad('This company already has categories; copying is only for a company with none', 'HAS_CATEGORIES', 409);
+    }
+    const idMap = new Map();
+    let count = 0;
+    // Parents before children, level by level, in their sort order.
+    let level = cat.childrenOf(tree, null, fromId);
+    while (level.length) {
+      const next = [];
+      for (const n of level.filter((x) => x.active)) {
+        // eslint-disable-next-line no-await-in-loop
+        const row = await TicketCategory.create({
+          companyId: toId,
+          parentId: n.parentId == null ? null : idMap.get(n.parentId),
+          name: n.name,
+          requireChild: n.requireChild,
+          ticketType: n.parentId == null ? (n.ticketType || null) : null,
+          pickKind: n.pickKind || null,
+          sortOrder: n.sortOrder,
+        }, { transaction });
+        idMap.set(n.id, row.id);
+        count += 1;
+        next.push(...cat.childrenOf(tree, n.id, fromId));
+      }
+      level = next;
+    }
+    return count;
+  });
+  await writeAudit(req, 'ticketCategory.copy', 'Company', toId, { fromCompanyId: fromId, copied: made });
+  res.status(201).json({ copied: made });
+});
+
 module.exports = {
-  list, create, update, reorder, remove, updateSettings, categoryRequired,
+  list, create, update, reorder, remove, updateSettings, categoryRequired, copy,
 };
