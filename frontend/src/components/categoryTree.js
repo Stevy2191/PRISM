@@ -39,3 +39,13 @@ export function forTicketType(categories, type) {
   if (type !== 'incident' && type !== 'request') return categories;
   return categories.filter((c) => !c.forType || c.forType === type);
 }
+
+// "Which app?" (9): the kind of item this category asks for (its own
+// pickKind or the nearest above it), or null.
+export function asksApp(index, id) {
+  for (const i of pathIds(index, id).reverse()) {
+    const kind = index.get(i).pickKind;
+    if (kind) return kind;
+  }
+  return null;
+}

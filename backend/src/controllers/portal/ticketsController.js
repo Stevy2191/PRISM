@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { Op } = require('sequelize');
 const {
-  Ticket, TicketStatus, Comment, Attachment, Contact, Team, User,
+  Ticket, TicketStatus, Comment, Attachment, Contact, Team, User, CompanyCatalogItem,
 } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { UPLOAD_ROOT } = require('../../middleware/upload');
@@ -71,9 +71,23 @@ const meta = asyncHandler(async (req, res) => {
     .filter((n) => isEffectivelyActive(tree, n.id) && !(n.requireChild && activeChildren(tree, n.id).length))
     .map((n) => categoryJson(tree, n.id))
     .sort((a, b) => a.path.join(' / ').localeCompare(b.path.join(' / ')));
+  // The tree for the step-by-step picker (9): each active request category
+  // with its parent, whether a sub-category is needed, and whether it asks
+  // which app; and the company's active apps for that step.
+  const stepTree = [...tree.values()]
+    .filter((n) => n.companyId === req.contact.companyId && fitsType(tree, n.id, 'request') && isEffectivelyActive(tree, n.id))
+    .sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name))
+    .map((n) => ({
+      id: n.id, parentId: n.parentId, name: n.name, requireChild: !!n.requireChild, pickKind: n.pickKind || null,
+    }));
+  const software = (await CompanyCatalogItem.findAll({
+    where: { companyId: req.contact.companyId, kind: 'software', active: true }, attributes: ['id', 'name'], order: [['sortOrder', 'ASC'], ['name', 'ASC']],
+  })).map((i) => ({ id: i.id, name: i.name }));
   const people = await forContacts(req.contact);
   res.json({
     categories,
+    tree: stepTree,
+    software,
     priorities: PRIORITIES,
     forContacts: people.map((c) => ({ id: c.id, displayName: displayName(c) })),
   });
@@ -195,7 +209,7 @@ const requiredText = (value, what) => {
   return value.trim();
 };
 
-// POST /portal/tickets { title, description, categoryId?, categoryUnsure?, priority?, forContactId? }
+// POST /portal/tickets { title, description, categoryId?, categoryUnsure?, catalogItemId?, catalogItemNotListed?, priority?, forContactId? }
 const create = asyncHandler(async (req, res) => {
   const body = req.body || {};
   const title = requiredText(body.title, 'A title');
@@ -219,6 +233,8 @@ const create = asyncHandler(async (req, res) => {
     priority: body.priority || undefined,
     categoryId: body.categoryId === '' ? null : body.categoryId,
     categoryUnsure: body.categoryUnsure === true,
+    catalogItemId: body.catalogItemId,
+    catalogItemNotListed: body.catalogItemNotListed === true,
     contactId: target.id,
   }, {
     // A category is required when the company has any (9); Other / I'm not

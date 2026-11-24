@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildIndex, childrenOf, pathIds, isEffectivelyActive, pathLabel,
+  buildIndex, childrenOf, pathIds, isEffectivelyActive, pathLabel, asksApp,
 } from './categoryTree.js';
 
 // Hardware(1) › Laptop(2) › Battery(3); Hardware › Printer(4, retired) › Toner(5); Software(6), Access(7).
@@ -42,4 +42,17 @@ test('pathLabel joins names', () => {
   const idx = buildIndex(cats);
   assert.equal(pathLabel(idx, 3), 'Hardware › Laptop › Battery');
   assert.equal(pathLabel(idx, null), '');
+});
+
+test('asksApp: a category asks which app when it, or one above it, says so (9)', () => {
+  const index = buildIndex([
+    { id: 1, parentId: null, name: 'Software', active: true, pickKind: 'software' },
+    { id: 2, parentId: 1, name: 'Crashes', active: true, pickKind: null },
+    { id: 3, parentId: null, name: 'Network', active: true },
+  ]);
+  assert.equal(asksApp(index, 1), 'software');
+  assert.equal(asksApp(index, 2), 'software');
+  assert.equal(asksApp(index, 3), null);
+  assert.equal(asksApp(index, null), null);
+  assert.equal(asksApp(index, 99), null);
 });

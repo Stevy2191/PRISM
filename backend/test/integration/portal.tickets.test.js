@@ -331,3 +331,36 @@ describe('attachments', () => {
     }
   });
 });
+
+describe('the category stepper and which app (9, task 6)', () => {
+  it('meta carries the company\'s request tree and its active apps; a ticket takes the app', async () => {
+    const a = w.admin.agent;
+    const cat = async (body) => expectOk(await a.post(`${API}/ticket-categories`).send(body), 201).category;
+    const apps = await cat({ name: 'Software', companyId: alpha.id, pickKind: 'software', requireChild: true });
+    const crash = await cat({ name: 'Crashes', parentId: apps.id, companyId: alpha.id });
+    await cat({ name: 'Outage', companyId: alpha.id, ticketType: 'incident' });
+    await cat({ name: 'Theirs', companyId: beta.id });
+    const dentrix = expectOk(await a.post(`${API}/companies/${alpha.id}/catalog`).send({ kind: 'software', name: 'Dentrix' }), 201).item;
+    const off = expectOk(await a.post(`${API}/companies/${alpha.id}/catalog`).send({ kind: 'software', name: 'Old app', active: false }), 201).item;
+    expectOk(await a.post(`${API}/companies/${beta.id}/catalog`).send({ kind: 'software', name: 'Clio' }), 201);
+
+    const pat = await portalAs(plain);
+    const meta = expectOk(await pat.get(`${P}/meta`));
+    expect([...meta.tree].sort((x, y) => x.id - y.id)).toEqual([
+      { id: apps.id, parentId: null, name: 'Software', requireChild: true, pickKind: 'software' },
+      { id: crash.id, parentId: apps.id, name: 'Crashes', requireChild: false, pickKind: null },
+    ]);
+    expect(meta.software).toEqual([{ id: dentrix.id, name: 'Dentrix' }]);
+
+    const ok = expectOk(await pat.post(`${P}/tickets`).send({
+      title: 'Dentrix crashed', description: 'd', categoryId: crash.id, catalogItemId: dentrix.id,
+    }), 201);
+    expect(await models.Ticket.findByPk(ok.ticket.id)).toMatchObject({ categoryId: crash.id, catalogItemId: dentrix.id });
+    const nl = expectOk(await pat.post(`${P}/tickets`).send({
+      title: 'Some app', description: 'd', categoryId: crash.id, catalogItemNotListed: true,
+    }), 201);
+    expect(await models.Ticket.findByPk(nl.ticket.id)).toMatchObject({ catalogItemNotListed: true });
+    expect((await pat.post(`${P}/tickets`).send({ title: 't', description: 'd', categoryId: crash.id })).status).toBe(400);
+    expect((await pat.post(`${P}/tickets`).send({ title: 't', description: 'd', categoryId: crash.id, catalogItemId: off.id })).status).toBe(400);
+  });
+});

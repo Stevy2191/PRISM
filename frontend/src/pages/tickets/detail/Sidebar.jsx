@@ -8,7 +8,8 @@ import { initials } from '../../../utils/userDisplay';
 import { formatPhone, showPhone } from '../../../utils/formatPhone';
 import TimeDropdownPicker from '../../../components/TimeDropdownPicker';
 import CategoryPicker from '../../../components/CategoryPicker';
-import { forTicketType } from '../../../components/categoryTree';
+import { forTicketType, buildIndex, asksApp } from '../../../components/categoryTree';
+import AppPicker from '../../../components/tickets/AppPicker';
 import SlaPanel from './SlaPanel';
 import ComputerCard from './ComputerCard';
 import ContactPicker from '../../../components/portal/ContactPicker';
@@ -186,6 +187,14 @@ export function Sidebar({
     api.get('/ticket-categories', { params: { companyId: ticket.companyId || 'internal' } })
       .then(({ data }) => setCategories(data.categories)).catch(() => {});
   }, [ticket.companyId]);
+  // "Which app?" (9): the company's apps, when the ticket's category asks.
+  const asksForApp = !!(ticket.categoryId && categoryDraft === undefined && asksApp(buildIndex(categories), ticket.categoryId));
+  const [apps, setApps] = useState([]);
+  useEffect(() => {
+    if (!asksForApp || !ticket.companyId) return;
+    api.get(`/companies/${ticket.companyId}/catalog`, { params: { kind: 'software', active: 'true' } })
+      .then(({ data }) => setApps(data.items)).catch(() => setApps([]));
+  }, [asksForApp, ticket.companyId]);
   // A ticket whose SLA sets its due date: moved only through the dialog.
   const [changingContact, setChangingContact] = useState(false);
   const slaDue = ticket.sla?.clocks?.resolution?.dueAt;
@@ -399,6 +408,20 @@ export function Sidebar({
                     <p className="mt-1 text-xs" style={{ color: MUTED }} data-testid="category-unsure">
                       {ticket.categoryId ? 'Not sure beyond this: choose the rest to triage it.' : 'Raised as Other / I\'m not sure: choose a category to triage it.'}
                     </p>
+                  )}
+                  {asksForApp && (
+                    <div className="mt-2" data-testid="sidebar-app">
+                      <span className="mb-1 block text-xs" style={{ color: MUTED }}>Which app?</span>
+                      <AppPicker
+                        id="sidebar-app"
+                        apps={apps}
+                        current={ticket.catalogItem || null}
+                        value={{ catalogItemId: ticket.catalogItemId, catalogItemNotListed: ticket.catalogItemNotListed }}
+                        onChange={(v) => patchTicket(v)}
+                        disabled={!canEdit}
+                        className="input h-9 text-sm"
+                      />
+                    </div>
                   )}
                   {categoryDraft !== undefined && (
                     <div className="mt-1 flex gap-2">

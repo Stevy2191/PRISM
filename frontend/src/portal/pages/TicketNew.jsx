@@ -7,18 +7,25 @@ import { uploadFiles } from '../format';
 import FilePicker from '../FilePicker';
 import PageHeader from '../../components/ui/PageHeader';
 import Notice from '../../components/ui/Notice';
+import CategoryStepper, { stepperDone } from '../../components/tickets/CategoryStepper';
 
 const PRIORITIES = { low: 'Low', medium: 'Medium', high: 'High', critical: 'Critical' };
 const Optional = () => <span className="ml-1.5 text-xs font-normal" style={{ color: 'var(--color-text-muted)' }}>optional</span>;
 
-// Mockup TicketNew: title and description required; files, For (admins),
-// category and priority optional.
+// Mockup TicketNew: title and description required; files, For (admins)
+// and priority optional. The category is chosen step by step when the
+// company has categories (9), with Other / I'm not sure at every step.
 export default function TicketNew() {
   const { me } = usePortalAuth();
   const navigate = useNavigate();
-  const [meta, setMeta] = useState({ categories: [], priorities: [], forContacts: [] });
+  const [meta, setMeta] = useState({
+    categories: [], tree: [], software: [], priorities: [], forContacts: [],
+  });
+  const [choice, setChoice] = useState({
+    categoryId: null, categoryUnsure: false, catalogItemId: null, catalogItemNotListed: false,
+  });
   const [form, setForm] = useState({
-    title: '', description: '', categoryId: '', priority: '', forContactId: '',
+    title: '', description: '', priority: '', forContactId: '',
   });
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -28,15 +35,25 @@ export default function TicketNew() {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const others = meta.forContacts.filter((c) => c.id !== me?.id);
 
+  const tree = meta.tree || [];
   const submit = async (e) => {
     e.preventDefault();
+    if (!stepperDone(tree, choice)) {
+      setError(choice.categoryId && !choice.categoryUnsure ? "Finish choosing what it's about (or Other / I'm not sure), and which app if it asks." : "Choose what it's about, or Other / I'm not sure.");
+      return;
+    }
     setBusy(true); setError('');
     try {
       const { data } = await portalApi.post('/tickets', {
         title: form.title,
         description: form.description,
-        // No category picked is "Other / I'm not sure" (9).
-        ...(form.categoryId ? { categoryId: Number(form.categoryId) } : { categoryUnsure: true }),
+        // The step-by-step choice (9); with no categories, nothing to say.
+        ...(tree.length ? {
+          categoryId: choice.categoryId,
+          categoryUnsure: choice.categoryUnsure,
+          ...(choice.catalogItemId ? { catalogItemId: choice.catalogItemId } : {}),
+          ...(choice.catalogItemNotListed ? { catalogItemNotListed: true } : {}),
+        } : {}),
         ...(form.priority ? { priority: form.priority } : {}),
         ...(form.forContactId ? { forContactId: Number(form.forContactId) } : {}),
       });
@@ -80,13 +97,7 @@ export default function TicketNew() {
                 <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>You can raise tickets for the people you look after.</p>
               </div>
             )}
-            <div>
-              <label htmlFor="nt-cat" className="label">Category<Optional /></label>
-              <select id="nt-cat" className="input h-11" value={form.categoryId} onChange={set('categoryId')}>
-                <option value="">Other / I&apos;m not sure</option>
-                {meta.categories.map((c) => <option key={c.id} value={c.id}>{c.path.join(' › ')}</option>)}
-              </select>
-            </div>
+            {tree.length > 0 && <CategoryStepper tree={tree} apps={meta.software || []} value={choice} onChange={setChoice} idPrefix="nt-cat" />}
             <div>
               <label htmlFor="nt-pri" className="label">Priority<Optional /></label>
               <select id="nt-pri" className="input h-11" value={form.priority} onChange={set('priority')}>

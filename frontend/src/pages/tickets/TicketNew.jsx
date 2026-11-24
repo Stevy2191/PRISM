@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import CategoryPicker from '../../components/CategoryPicker';
-import { forTicketType } from '../../components/categoryTree';
+import { forTicketType, buildIndex, asksApp } from '../../components/categoryTree';
+import AppPicker from '../../components/tickets/AppPicker';
 import api, { errMessage } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { assignableContactDepartments } from '../../utils/contactDepartments';
@@ -56,6 +57,9 @@ export default function TicketNew() {
   const [categories, setCategories] = useState([]);
   const [categoryRequired, setCategoryRequired] = useState(false);
   const [categoryId, setCategoryId] = useState(null);
+  // "Which app?" (9): the company's apps, and the answer when the category asks.
+  const [apps, setApps] = useState([]);
+  const [app, setApp] = useState({ catalogItemId: null, catalogItemNotListed: false });
   // Required only while there is an active category to pick (as the server rules).
   // Only the categories for the ticket's type (9); a category of the other
   // type is dropped when the type changes.
@@ -98,7 +102,12 @@ export default function TicketNew() {
       setCategoryRequired(data.categoryRequired);
       setCategoryId((cur) => (cur && data.categories.some((c) => c.id === cur) ? cur : null));
     }).catch(() => {});
+    setApp({ catalogItemId: null, catalogItemNotListed: false });
+    if (categoryCompany === 'internal') { setApps([]); return; }
+    api.get(`/companies/${categoryCompany}/catalog`, { params: { kind: 'software', active: 'true' } })
+      .then(({ data }) => setApps(data.items)).catch(() => setApps([]));
   }, [categoryCompany]);
+  const asksForApp = !!(categoryId && asksApp(buildIndex(categories), categoryId));
 
   // Additional Details section — active custom fields scoped to the
   // currently-selected ticket type and category. Re-fetched whenever either
@@ -222,6 +231,8 @@ export default function TicketNew() {
         priority,
         source,
         categoryId: categoryId || null,
+        ...(asksForApp && app.catalogItemId ? { catalogItemId: app.catalogItemId } : {}),
+        ...(asksForApp && app.catalogItemNotListed ? { catalogItemNotListed: true } : {}),
         tags: tags.length ? tags : undefined,
         departmentId: customerDeptId || undefined,
         dueDate: dueDate || undefined,
@@ -316,6 +327,12 @@ export default function TicketNew() {
                 <div>
                   <Label required={categoryNeeded} htmlFor="ticket-category">Category</Label>
                   <CategoryPicker categories={typeCategories} value={categoryId} onChange={setCategoryId} required={categoryNeeded} id="ticket-category" />
+                </div>
+              )}
+              {asksForApp && (
+                <div>
+                  <Label htmlFor="ticket-app">Which app?</Label>
+                  <AppPicker id="ticket-app" apps={apps} value={app} onChange={setApp} />
                 </div>
               )}
               <div>
