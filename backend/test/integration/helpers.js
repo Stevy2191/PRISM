@@ -218,7 +218,7 @@ async function resetData() {
   await sequelize.query(
     "DELETE FROM SystemSettings WHERE `key` LIKE 'sso.%' OR `key` LIKE 'timeTracking.%' "
     + "OR `key` LIKE 'csat.%' OR `key` LIKE 'integrations.%' OR `key` = 'notifications.enabledTypes' OR `key` = 'company.timezone' "
-    + "OR `key` LIKE 'smtp.%' OR `key` LIKE 'inboundEmail.%' OR `key` = 'notifications.emailDefaults' OR `key` LIKE 'mcp.%'"
+    + "OR `key` LIKE 'smtp.%' OR `key` LIKE 'inboundEmail.%' OR `key` = 'notifications.emailDefaults' OR `key` LIKE 'mcp.%' OR `key` LIKE 'money.%'"
   ).catch(() => {});
   await sequelize.query("UPDATE SystemSettings SET value = 'false' WHERE `key` = 'tickets.categoryRequired'").catch(() => {});
   // Workload settings go back to their migrated defaults (rows are kept: the migration test reads them).

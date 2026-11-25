@@ -106,6 +106,8 @@ const guard = [authenticate, blockUntilPasswordChanged, globalLimiter];
 router.get('/version', guard, (req, res) => res.json(getVersionInfo()));
 
 router.use('/users', guard, usersRoutes);
+// Money (Phase 3).
+router.use('/money', guard, require('./money'));
 router.use('/roles', guard, rolesRoutes);
 router.use('/permissions', guard, permissionsRoutes);
 router.use('/departments', guard, departmentsRoutes);
