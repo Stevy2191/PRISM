@@ -23,6 +23,7 @@
     "connect-session-sequelize": "^8.0.6",
     "cors": "^2.8.5",
     "csv-parse": "^7.0.1",
+    "decimal.js": "10.6.0",
     "dotenv": "^17.4.2",
     "express": "^4.22.2",
     "express-rate-limit": "^8.2.1",
