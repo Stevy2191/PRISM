@@ -45,6 +45,9 @@ it('after hours follows the customer\'s support hours and holidays; a tech can o
   expect(await isAfterHours({ startTime: '2026-12-05T16:00:00Z', afterHours: false }, alpha.id)).toBe(false);
   expect(await isAfterHours({ startTime: '2026-12-01T16:00:00Z', afterHours: true }, alpha.id)).toBe(true);
   expect(await isAfterHours({ startTime: null, afterHours: null }, alpha.id)).toBe(false);
+  // Owner, 2026-11-25: remote work started in hours that runs past closing
+  // is not after-hours work — the start time decides.
+  expect(await isAfterHours({ startTime: '2026-12-01T22:30:00Z', endTime: '2026-12-01T23:45:00Z', afterHours: null }, alpha.id)).toBe(false);
 });
 
 it('a 24x7 customer is never after hours', async () => {

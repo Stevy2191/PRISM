@@ -120,7 +120,11 @@ accounting (B) or a QuickBooks/Xero connector (C).
   **trip charge only** (labor covered within support hours).
 - Remote work for an event-basis customer: 30-minute steps, no minimum
   (proposed, accepted).
-- After-hours work: the after-hours rate, same minimum and steps.
+- After-hours work: the after-hours rate, same minimum and steps. An
+  after-hours on-site call has the 1-hour minimum for every customer,
+  agreement or not (owner, 2026-11-25). An entry is after hours by its
+  start time: remote work that starts in hours and runs past closing is
+  not after-hours work (owner, 2026-11-25).
 - Billed time is rounded when the invoice is drafted; time entries keep the
   real minutes.
 

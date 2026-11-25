@@ -8,8 +8,10 @@
 //   day in whole steps, no minimum.
 // - Recurring customer: a call = the trip charge only, labor in hours
 //   covered; remote work in hours covered.
-// - After hours: billed at the after-hours rate in whole steps. An event
-//   customer's call keeps its minimum after hours too.
+// - After hours: billed at the after-hours rate in whole steps; an on-site
+//   call keeps its minimum after hours, for every customer (owner,
+//   2026-11-25). Whether an entry is after hours goes by its start time, so
+//   remote work that runs past closing isn't after-hours work.
 const { D, cents } = require('./money');
 
 const minutesOf = (seconds) => seconds / 60;
@@ -55,7 +57,11 @@ function chargesFor(entries, {
 
     if (recurring) {
       if (inHours.length) covered.push({ ticketId, date, minutes: Math.round(inMinutes), entryIds: ids(inHours) });
-      if (afterHours.length) lines.push(line('after_hours', afterHours, ahMinutes, roundUpToStep(ahMinutes, stepMinutes), rates.afterHoursRate));
+      if (afterHours.length) {
+        // An after-hours call keeps the minimum for them too (owner, 2026-11-25).
+        const billed = roundUpToStep(ahMinutes, stepMinutes);
+        lines.push(line('after_hours', afterHours, ahMinutes, onSite ? Math.max(billed, minimumMinutes) : billed, rates.afterHoursRate));
+      }
     } else {
       let inBilled = roundUpToStep(inMinutes, stepMinutes);
       let ahBilled = roundUpToStep(ahMinutes, stepMinutes);

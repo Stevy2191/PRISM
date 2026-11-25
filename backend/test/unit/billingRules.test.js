@@ -75,10 +75,13 @@ describe('recurring customer', () => {
     expect(r.lines).toEqual([]);
     expect(r.covered[0].minutes).toBe(70);
   });
-  it('after hours: steps at the after-hours rate, no minimum', () => {
+  it('after hours: steps at the after-hours rate; a call keeps the minimum', () => {
     expect(brief(recurring([e(40, { afterHours: true })]))).toEqual([['after_hours', 60, '150.00']]);
     expect(brief(recurring([e(10, { afterHours: true })]))).toEqual([['after_hours', 30, '75.00']]);
-    expect(brief(recurring([site(20, { afterHours: true })]))).toEqual([['trip', 0, '45.00'], ['after_hours', 30, '75.00']]);
+    // Owner, 2026-11-25: an after-hours call keeps the 1-hour minimum for
+    // customers with an agreement too.
+    expect(brief(recurring([site(20, { afterHours: true })]))).toEqual([['trip', 0, '45.00'], ['after_hours', 60, '150.00']]);
+    expect(brief(recurring([site(70, { afterHours: true })]))).toEqual([['trip', 0, '45.00'], ['after_hours', 90, '225.00']]);
   });
 });
 

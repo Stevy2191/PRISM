@@ -24,9 +24,9 @@
 ## Interpretations of the spec (made while planning; the owner can overrule)
 
 - **After-hours minimum:** the 1-hour minimum belongs to *calls* (on-site
-  visits) of event-basis customers, after hours too; after-hours remote work
-  and a recurring customer's after-hours work bill in 30-minute steps with no
-  minimum.
+  visits), after hours too, for every customer (owner, 2026-11-25, overruling
+  the first reading that limited it to event-basis customers); after-hours
+  remote work bills in 30-minute steps with no minimum.
 - **Timesheet approval** goes to System Administrators and Department
   Managers by default; every other new permission to System Administrators
   only.
