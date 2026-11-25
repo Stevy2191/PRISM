@@ -13,8 +13,10 @@ read that before designing any sub-project.
 ## Where things stand (updated 2026-11-24)
 
 - **Now: Phase 3, Money** — design approved 2026-11-25
-  ([spec](superpowers/specs/2026-11-25-phase3-money-design.md)); planning
-  step 1, the money core.
+  ([spec](superpowers/specs/2026-11-25-phase3-money-design.md)). Step 1, the
+  money core, shipped to `dev` 2026-11-25
+  ([plan](superpowers/plans/2026-11-25-phase3-step1-money-core.md)); next,
+  step 2: bills, purchasing, stock, materials and expenses.
 - **9b is finished** (2026-11-24): each company's software list, "which
   app?" category steps, the portal's step-by-step picker, copying a tree, and
   the setup checklist.
@@ -180,7 +182,8 @@ To be built as a full feature set (owner, 2026-11-24), designed as one:
 [spec](superpowers/specs/2026-11-25-phase3-money-design.md) (approved
 2026-11-25). Built in seven steps: 1 money core, 2 bills and purchasing,
 3 agreements, invoicing and payments, 4 sales, 5 project billing, 6 books
-reports, 7 a security check. Each step gets its own plan.
+reports, 7 a security check. Each step gets its own plan. Step 1 shipped
+2026-11-25 ([plan](superpowers/plans/2026-11-25-phase3-step1-money-core.md)).
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|

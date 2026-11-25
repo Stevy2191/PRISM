@@ -10,6 +10,33 @@ backend start.
 
 ## Unreleased
 
+**Money, step 1: the money core (Phase 3).** Nothing bills yet; this is
+what the next steps (bills, invoices, payments) post into. New:
+- **Settings › Money:** Money settings (a **Customer billing** switch only an
+  Owner can turn on, off by default; currency; default markup, 0 %; payment
+  terms, 30 days; Microsoft 365 frontline licenses), **Rates and billing
+  rules** (hourly and after-hours rates, the trip charge, the 1-hour minimum
+  and 30-minute steps for an on-site call), **Sales tax** and **Products and
+  services**.
+- **Sales tax:** tax rates (one default) and tax categories saying what share
+  of a charge is taxed. They start at Parts and equipment 100 %, Managed
+  services 80 %, Remote support 80 %, On-site labor 100 %, Cabling 100 %,
+  Licenses 100 %, Fees 0 % — **confirm these with your CPA** before charging tax.
+- **A customer's Setup › Billing:** tax on or off, tax exemption with the
+  certificate and its expiry, its tax rate, invoicing monthly or per job,
+  payment terms and its own rates.
+- **Support tiers** (Full user, Light user, Not covered) on contacts and as a
+  default on a customer's departments; with Microsoft 365 sync, a frontline
+  license (F1/F3) makes someone Light. Check the frontline license IDs in
+  Money settings against Microsoft's list.
+- **Time:** work types can be *On site*; time entries have **After hours**
+  (automatic from the customer's support hours, or Yes/No), and time on an
+  invoice will be locked.
+- Nine new permissions (category *money*), all for System Administrators;
+  Department Managers also get *Approve timesheets*. Technicians keep logging
+  time and see no rates.
+- Migrations 103–108; nothing to do.
+
 **Each company's software list, and "which app?" (9b, finished).** A
 company's page has a **Software** tab (Setup › Software): the apps its people
 use, added by hand or ticked from what the PRISM agent found on its
