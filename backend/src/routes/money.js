@@ -5,7 +5,8 @@ const products = require('../controllers/money/catalogController');
 const billsCtrl = require('../controllers/money/billsController');
 const stockCtrl = require('../controllers/money/stockController');
 const poCtrl = require('../controllers/money/purchaseOrdersController');
-const { billUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
+const expensesCtrl = require('../controllers/money/expensesController');
+const { billUpload, receiptUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
 
 // Money (Phase 3). Each route names the permission it needs; customer
@@ -41,6 +42,15 @@ router.post('/bills/:id/pay', canBills, billsCtrl.pay);
 router.post('/bills/:id/void', canBills, billsCtrl.voidIt);
 router.post('/bills/:id/file', canBills, billUpload.single('file'), verifyFileSignature, scanUpload('Bill'), billsCtrl.uploadFile);
 router.get('/bills/:id/file', canBills, billsCtrl.downloadFile);
+
+// Expenses (step 2): paid directly, with the receipt.
+router.get('/expenses', canBills, expensesCtrl.list);
+router.post('/expenses', canBills, expensesCtrl.create);
+router.get('/expenses/:id', canBills, expensesCtrl.get);
+router.patch('/expenses/:id', canBills, expensesCtrl.update);
+router.post('/expenses/:id/void', canBills, expensesCtrl.voidIt);
+router.post('/expenses/:id/receipt', canBills, receiptUpload.single('file'), verifyFileSignature, scanUpload('Expense'), expensesCtrl.uploadReceipt);
+router.get('/expenses/:id/receipt', canBills, expensesCtrl.downloadReceipt);
 
 // Shelf stock (step 2).
 const canBuy = requirePermission('money.purchasing.manage');

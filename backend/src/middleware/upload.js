@@ -137,6 +137,8 @@ const licenseUpload = makeLinkedUpload('licenses');
 const companyUpload = makeLinkedUpload('companies');
 // Vendors' bills (Phase 3).
 const billUpload = makeLinkedUpload('bills');
+// Receipts for expenses (Phase 3): PDFs and phone photos.
+const receiptUpload = makeLinkedUpload('expenses');
 const contractUpload = makeLinkedUpload('contracts');
 
 // Knowledge Base attachments — uploaded how-tos / documents. Broader
@@ -333,6 +335,6 @@ const csvUpload = multer({
 });
 
 module.exports = {
-  upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload, kbUpload, companyUpload, billUpload,
+  upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload, kbUpload, companyUpload, billUpload, receiptUpload,
   UPLOAD_ROOT, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature, scanUpload, BLOCKED_EXTENSIONS,
 };

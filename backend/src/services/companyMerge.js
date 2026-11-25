@@ -5,7 +5,7 @@
 const { Op } = require('sequelize');
 const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, Bill, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, Bill, PurchaseOrder, Expense, sequelize,
 } = require('../models');
 const { renumberMoved } = require('./tickets/numbers');
 const { renumberMoved: renumberMovedProjects } = require('./projects/numbers');
@@ -17,6 +17,7 @@ const OWNED = {
 };
 const SUPPLIED = {
   vendorAssets: Asset, vendorLicenses: License, vendorContracts: Contract, vendorMaterials: ProjectMaterial,
+  vendorPurchaseOrders: PurchaseOrder, vendorExpenses: Expense,
 };
 
 async function mergeCounts(fromId, transaction) {

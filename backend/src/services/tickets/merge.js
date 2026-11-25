@@ -8,7 +8,7 @@
 // that doesn't exist. Nothing is written until every check passes.
 const { Op } = require('sequelize');
 const {
-  Ticket, Comment, Attachment, TimeEntry, ProjectMaterial, Task, ActiveTimer, TicketWatcher, TicketCc, AssetTicket, TicketRelation, Contact, TicketPlaybook, TicketForm, TicketPlaybookSuggestion, sequelize,
+  Ticket, Comment, Attachment, TimeEntry, ProjectMaterial, Task, ActiveTimer, TicketWatcher, TicketCc, AssetTicket, TicketRelation, Contact, TicketPlaybook, TicketForm, TicketPlaybookSuggestion, BillLine, PurchaseOrder, Expense, sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -216,6 +216,10 @@ async function mergeTickets(req, targetRaw, sourceRaws) {
       await TimeEntry.update({ ticketId: target.id }, { where: { ticketId: { [Op.in]: sourceIds } }, transaction });
       // Materials (Phase 3) go with the time; billed ones refuse, like billed time.
       await ProjectMaterial.update({ ticketId: target.id }, { where: { ticketId: { [Op.in]: sourceIds } }, transaction });
+      // Bills, purchase orders and expenses for the work follow it too.
+      for (const Model of [BillLine, PurchaseOrder, Expense]) {
+        await Model.update({ ticketId: target.id }, { where: { ticketId: { [Op.in]: sourceIds } }, transaction }); // eslint-disable-line no-await-in-loop
+      }
       await moveTimers(sourceIds, target.id, transaction);
       await moveTasks(sources, target, transaction);
       await moveForms(sourceIds, target.id, transaction);
