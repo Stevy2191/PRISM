@@ -5,7 +5,7 @@
 const { Op } = require('sequelize');
 const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, sequelize,
 } = require('../models');
 const { renumberMoved } = require('./tickets/numbers');
 const { renumberMoved: renumberMovedProjects } = require('./projects/numbers');
@@ -131,6 +131,11 @@ async function mergeCompanies(from, into, transaction) {
   await moveSla(from, into, transaction);
   await moveCategories(from, into, transaction);
   await moveCatalog(from, into, transaction);
+  // Ledger entries (Phase 3) are never changed as money; whose company they
+  // are filed under follows a merge. Raw SQL: the model refuses updates.
+  await sequelize.query('UPDATE LedgerEntries SET companyId = :into WHERE companyId = :from', {
+    replacements: { into: into.id, from: from.id }, transaction,
+  });
   await renameClashes(Department, from, into, 255, transaction);
   await renameClashes(Site, from, into, 150, transaction);
   // CN: B's tickets take the next numbers in A; their B numbers stay findable.

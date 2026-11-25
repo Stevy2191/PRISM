@@ -120,6 +120,9 @@ const AgentEnrollmentKey = require('./AgentEnrollmentKey')(sequelize);
 const Device = require('./Device')(sequelize);
 const AssetSoftware = require('./AssetSoftware')(sequelize);
 const CompanyCatalogItem = require('./CompanyCatalogItem')(sequelize);
+const LedgerAccount = require('./LedgerAccount')(sequelize);
+const LedgerEntry = require('./LedgerEntry')(sequelize);
+const LedgerLine = require('./LedgerLine')(sequelize);
 const AgentNonce = require('./AgentNonce')(sequelize);
 const Mdm = require('./Mdm')(sequelize);
 const Form = require('./Form')(sequelize);
@@ -250,6 +253,9 @@ const db = {
   Device,
   AssetSoftware,
   CompanyCatalogItem,
+  LedgerAccount,
+  LedgerEntry,
+  LedgerLine,
   AgentNonce,
   Mdm,
   Form,
@@ -757,6 +763,9 @@ AssetSoftware.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
 Company.hasMany(CompanyCatalogItem, { foreignKey: 'companyId', as: 'catalogItems' });
 CompanyCatalogItem.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 Ticket.belongsTo(CompanyCatalogItem, { foreignKey: 'catalogItemId', as: 'catalogItem' });
+LedgerEntry.hasMany(LedgerLine, { foreignKey: 'entryId', as: 'lines' });
+LedgerLine.belongsTo(LedgerEntry, { foreignKey: 'entryId', as: 'entry' });
+LedgerLine.belongsTo(LedgerAccount, { foreignKey: 'accountId', as: 'account' });
 Device.hasMany(AgentNonce, { foreignKey: 'deviceId', as: 'nonces', onDelete: 'CASCADE' });
 
 // Playbooks (PB): MDMs and carriers on devices; forms and their versions;

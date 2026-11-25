@@ -166,7 +166,7 @@ async function resetData() {
     'ProjectIdSequences', 'ProjectContacts', 'ProjectPhases', 'Projects',
     'ProjectTemplateDependencies', 'ProjectTemplateTasks', 'ProjectTemplatePhases', 'ProjectTemplates',
     'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
-    'CustomFields', 'TicketCategories', 'CompanyCatalogItems', 'TeamMembers', 'Teams',
+    'CustomFields', 'TicketCategories', 'CompanyCatalogItems', 'LedgerLines', 'LedgerEntries', 'TeamMembers', 'Teams',
     'AuditLogs', 'SystemAuditLogs',
     'Sites', 'CompanyDomains', 'UserCompanyAccess', 'RoleCompanyAccess',
     'OAuthConnections', 'OAuthRequests', 'OAuthClients',
