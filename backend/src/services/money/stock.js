@@ -112,6 +112,23 @@ async function adjustStock(product, newOnHand, { note = null, userId = null } = 
   });
 }
 
+// A shelf item taken back off a job: back on the shelf, and its cost
+// posting reversed (the job never used it).
+async function returnToStock(material, { transaction, userId = null }) {
+  const use = await StockMovement.findOne({ where: { materialId: material.id, reason: 'use' }, transaction });
+  if (!use) return null;
+  return withLockedProduct({ id: use.productId }, transaction, async (p, t) => {
+    const qty = D(use.quantity).negated();
+    await p.update({ onHand: unit(D(p.onHand).plus(qty)) }, { transaction: t });
+    if (use.ledgerEntryId) {
+      await ledger.reverseEntry(use.ledgerEntryId, { date: await orgToday(), memo: `${material.itemName} returned to the shelf`, transaction: t, userId });
+    }
+    return StockMovement.create({
+      productId: p.id, quantity: unit(qty), reason: 'receive', unitCost: use.unitCost, materialId: material.id, note: 'Returned from a job', createdBy: userId,
+    }, { transaction: t });
+  });
+}
+
 module.exports = {
-  stockIn, stockOut, adjustStock, quantity,
+  stockIn, stockOut, adjustStock, returnToStock, quantity,
 };

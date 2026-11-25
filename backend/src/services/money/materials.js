@@ -90,10 +90,7 @@ async function addMaterial(job, input, {
 // Removing a shelf item puts it back on the shelf.
 async function removeMaterial(material, { user }) {
   await sequelize.transaction(async (t) => {
-    if (material.fromStock && material.catalogProductId) {
-      const product = await CatalogProduct.findByPk(material.catalogProductId, { transaction: t });
-      if (product) await stock.stockIn(product, unit(material.quantity), { note: `Returned from ${material.itemName}`, transaction: t, userId: user.id });
-    }
+    if (material.fromStock) await stock.returnToStock(material, { transaction: t, userId: user.id });
     await material.destroy({ transaction: t });
   });
 }

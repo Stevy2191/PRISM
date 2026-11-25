@@ -70,6 +70,10 @@ it('edits and removals; removing a shelf item puts it back', async () => {
   expectOk(await tech.agent.patch(`${url()}/${m.id}`).send({ notes: 'Bay 3' }));
   expectOk(await tech.agent.delete(`${url()}/${m.id}`));
   expect(unit((await models.CatalogProduct.findByPk(cable.id)).onHand)).toBe('1000.0000');
+  // Its cost comes back off the books with it.
+  const ledger = require('../../src/services/money/ledger');
+  const b = Object.fromEntries((await ledger.balances()).map((x) => [x.code, x.balance]));
+  expect([b['5000'], b['1200']]).toEqual(['0.00', '0.00']);
 });
 
 it('billed materials are locked on every path', async () => {
