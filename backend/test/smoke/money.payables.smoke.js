@@ -85,7 +85,7 @@ it('a PO for a laptop and cable: received with a serial, the laptop becomes an a
   const form = page.getByRole('form', { name: 'Purchase order' });
   await form.getByLabel('Vendor', { exact: true }).selectOption({ label: 'CDW' });
   await form.getByLabel('For', { exact: true }).selectOption('ticket');
-  await form.getByLabel('Ticket ID').fill(String(ticket.id));
+  await form.getByLabel('Ticket number').fill(ticket.number);
   await form.getByRole('group', { name: 'Item 1' }).getByLabel('Product', { exact: true }).selectOption({ label: 'Dell Latitude 5450' });
   await form.getByRole('button', { name: 'Add an item' }).click();
   const second = form.getByRole('group', { name: 'Item 2' });
