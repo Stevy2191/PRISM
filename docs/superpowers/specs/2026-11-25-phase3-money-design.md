@@ -1,7 +1,7 @@
 # Phase 3 — Money: design
 
 Status: **draft for the owner's approval** (2026-11-25). Covers roadmap
-sub-projects 10–15 as one design, built in six steps (see *Build order*).
+sub-projects 10–15 as one design, built in six steps plus a closing security check (see *Build order*).
 Read the [roadmap design](2026-10-03-prism-psa-roadmap-design.md) first;
 this document keeps its principles (one time ledger, exact money, one
 currency, card data never on PRISM's servers, MSP screens switchable).
@@ -141,6 +141,10 @@ accounting (B) or a QuickBooks/Xero connector (C).
   additions caught up on the next invoice; leavers drop off with no refund
   (both settings); a cancelled agreement's last invoice carries only extras.
 - **Net 30** for contract customers (a per-customer setting).
+- **Event-basis customers (no agreement):** billed **monthly with everyone
+  else by default** (visits and parts on the invoice of the 1st), with a
+  **per-customer switch to bill each job when its ticket closes** (owner,
+  2026-11-25). Terms per customer as for everyone.
 
 **Invoices and payment**
 - Email with a **pay link that needs no sign-in**, showing only that invoice,
@@ -319,6 +323,23 @@ of receivables and payables, sales tax collected by period and category,
 profit per customer (revenue minus labor cost, materials, bills), expenses
 by category, and an export (CSV, and a journal export an accountant can
 import).
+
+### Step 7 — Security check (owner, 2026-11-25)
+
+The last step, before Phase 3 is released, repeats the 2026-11-23 security
+pass over everything Phase 3 added and the system as a whole:
+- known vulnerabilities in every dependency and image (`npm audit`,
+  govulncheck, base image versions), fixed where a fix exists;
+- static analysis (semgrep) of the new code;
+- a hand review of the new attack surface: the public pages (pay link,
+  quote, contract signing, website form), the Stripe webhook, money
+  calculations done server-side, company scope on every new record
+  (bills, invoices, agreements, quotes, payments), the new permissions,
+  stored secrets (Stripe keys), file uploads (bill PDFs, receipts,
+  certificates) and generated PDFs, CSV exports (spreadsheet formula
+  injection), and the CSP exception for the embedded website form;
+- findings fixed with tests, the rest written up with their severity, and
+  the full backend, smoke and agent suites run before release.
 
 ### Public endpoints (security)
 
