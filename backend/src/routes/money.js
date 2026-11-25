@@ -6,6 +6,7 @@ const billsCtrl = require('../controllers/money/billsController');
 const stockCtrl = require('../controllers/money/stockController');
 const poCtrl = require('../controllers/money/purchaseOrdersController');
 const expensesCtrl = require('../controllers/money/expensesController');
+const payablesReports = require('../controllers/money/payablesReportsController');
 const { billUpload, receiptUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
 
@@ -66,5 +67,11 @@ router.get('/purchase-orders/:id', canBuy, poCtrl.get);
 router.post('/purchase-orders/:id/order', canBuy, poCtrl.order);
 router.post('/purchase-orders/:id/cancel', canBuy, poCtrl.cancel);
 router.post('/purchase-orders/:id/receive', canBuy, poCtrl.receive);
+
+// Contractor and supplier reports (step 2).
+const canPayablesReports = requirePermission('money.bills.manage', 'money.books.view');
+router.get('/reports/paid-by-vendor', canPayablesReports, payablesReports.paid);
+router.get('/reports/1099', canPayablesReports, payablesReports.form1099);
+router.get('/reports/open-bills', canPayablesReports, payablesReports.openBills);
 
 module.exports = router;

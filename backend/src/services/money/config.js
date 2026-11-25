@@ -23,6 +23,8 @@ const DEFAULTS = {
   'money.stepMinutes': '30',
   'money.defaultMarkupPercent': '0',
   'money.defaultTermsDays': '30',
+  // 1099-NEC threshold for payments from 2026 (verify with the CPA).
+  'money.form1099Threshold': '2000',
   'money.frontlineSkuIds': FRONTLINE_SKU_IDS.join(','),
 };
 
@@ -45,6 +47,7 @@ async function moneyConfig() {
     stepMinutes: Number(v['money.stepMinutes']),
     defaultMarkupPercent: unit(v['money.defaultMarkupPercent']),
     defaultTermsDays: Number(v['money.defaultTermsDays']),
+    form1099Threshold: cents(v['money.form1099Threshold']),
     frontlineSkuIds: String(v['money.frontlineSkuIds']).split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
   };
 }

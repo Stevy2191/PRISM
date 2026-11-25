@@ -30,7 +30,7 @@ const get = asyncHandler(async (req, res) => {
   res.json({ settings: await moneyConfig() });
 });
 
-// PUT /money/settings { customerBilling?, currency?, defaultMarkupPercent?, defaultTermsDays?, frontlineSkuIds? }
+// PUT /money/settings { customerBilling?, currency?, defaultMarkupPercent?, defaultTermsDays?, form1099Threshold?, frontlineSkuIds? }
 const update = asyncHandler(async (req, res) => {
   const body = req.body || {};
   const values = {};
@@ -52,6 +52,11 @@ const update = asyncHandler(async (req, res) => {
   if (body.defaultTermsDays !== undefined) {
     if (!Number.isInteger(body.defaultTermsDays) || body.defaultTermsDays < 0 || body.defaultTermsDays > 365) throw bad('Payment terms must be 0 to 365 days');
     values['money.defaultTermsDays'] = String(body.defaultTermsDays);
+  }
+  if (body.form1099Threshold !== undefined) {
+    const s = String(body.form1099Threshold).trim();
+    if (!/^\d{1,9}(\.\d{1,2})?$/.test(s)) throw bad('The 1099 threshold must be an amount of 0 or more');
+    values['money.form1099Threshold'] = s;
   }
   if (body.frontlineSkuIds !== undefined) {
     const ids = (Array.isArray(body.frontlineSkuIds) ? body.frontlineSkuIds : String(body.frontlineSkuIds).split(/[\s,]+/))

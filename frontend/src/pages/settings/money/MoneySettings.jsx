@@ -22,6 +22,7 @@ export default function MoneySettings() {
         currency: data.settings.currency,
         defaultMarkupPercent: String(Number(data.settings.defaultMarkupPercent)),
         defaultTermsDays: String(data.settings.defaultTermsDays),
+        form1099Threshold: String(Number(data.settings.form1099Threshold)),
         frontlineSkuIds: data.settings.frontlineSkuIds.join('\n'),
       });
     }).catch((err) => setError(errMessage(err)));
@@ -48,7 +49,7 @@ export default function MoneySettings() {
       <SettingsPanel title="Money">
         <form
           className="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-3"
-          onSubmit={(e) => { e.preventDefault(); save({ currency: form.currency, defaultMarkupPercent: form.defaultMarkupPercent, defaultTermsDays: Number(form.defaultTermsDays) }, 'Money settings'); }}
+          onSubmit={(e) => { e.preventDefault(); save({ currency: form.currency, defaultMarkupPercent: form.defaultMarkupPercent, defaultTermsDays: Number(form.defaultTermsDays), form1099Threshold: form.form1099Threshold }, 'Money settings'); }}
         >
           <label className="text-sm">Currency
             <input className="input mt-1" maxLength={3} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} />
@@ -58,6 +59,10 @@ export default function MoneySettings() {
           </label>
           <label className="text-sm">Payment terms (days)
             <input className="input mt-1" inputMode="numeric" value={form.defaultTermsDays} onChange={(e) => setForm({ ...form, defaultTermsDays: e.target.value })} />
+          </label>
+          <label className="text-sm">1099 threshold ($)
+            <input className="input mt-1" inputMode="decimal" value={form.form1099Threshold} onChange={(e) => setForm({ ...form, form1099Threshold: e.target.value })} />
+            <span className="mt-1 block text-xs text-ink-500">Contractors paid this much or more in a year show on the 1099 report. $2,000 from 2026; check with your CPA.</span>
           </label>
           <div className="sm:col-span-3"><button type="submit" className="btn-primary">Save</button></div>
         </form>
