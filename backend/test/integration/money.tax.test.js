@@ -135,10 +135,14 @@ it('merging keeps the surviving company\'s billing settings', async () => {
 
 it('migration 105 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
+  // 106's products point at the tax categories: undone first, redone after.
+  const products = require('../../migrations/20260101000106-catalog-products');
+  await products.down(qi, Sequelize);
   await migration.down(qi, Sequelize);
   const names = (await qi.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
   expect(names).not.toContain('CompanyBilling');
   expect(names).not.toContain('TaxCategories');
   await migration.up(qi, Sequelize);
+  await products.up(qi, Sequelize);
   expect(await models.TaxCategory.count()).toBe(7);
 });
