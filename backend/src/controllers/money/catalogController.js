@@ -50,6 +50,15 @@ async function readFields(body, isCreate) {
   if (body.usagePerPurchase !== undefined) out.usagePerPurchase = decimal(body.usagePerPurchase, 'Units per purchase', { allowNull: false, positive: true });
   for (const key of ['stocked', 'serialized', 'active']) if (body[key] !== undefined) out[key] = bool(body[key], key);
   if (body.notes !== undefined) out.notes = text(body.notes, 'Notes', 5000);
+  if (body.assetCategoryId !== undefined) {
+    if (body.assetCategoryId === null || body.assetCategoryId === '') out.assetCategoryId = null;
+    else {
+      const { AssetCategory } = require('../../models'); // eslint-disable-line global-require
+      const ac = await AssetCategory.findByPk(parseRecordId(body.assetCategoryId) || 0);
+      if (!ac) throw bad('Asset category not found');
+      out.assetCategoryId = ac.id;
+    }
+  }
   // Every product has a tax category (review fix): an invoice line must
   // never be untaxed because nobody chose one. "Fees" (0 %) is for untaxed.
   if (isCreate && (body.taxCategoryId === undefined || body.taxCategoryId === null || body.taxCategoryId === '')) {

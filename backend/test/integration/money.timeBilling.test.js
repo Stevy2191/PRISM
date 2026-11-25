@@ -7,6 +7,7 @@ const {
 } = require('./fixtures');
 const { isAfterHours } = require('../../src/services/money/afterHours');
 const slaCalendar = require('../../src/services/sla/calendar');
+const { downFrom, upFrom } = require('./moneyMigrations');
 const migration = require('../../migrations/20260101000107-time-billing');
 
 // Phase 3, step 1, task 6 (integration): after hours comes from the
@@ -95,10 +96,10 @@ it('the On-site work type is on site; others are not; the flag can be set', asyn
 
 it('migration 107 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
-  await migration.down(qi, Sequelize);
+  await downFrom('20260101000107');
   expect((await qi.describeTable('TimeEntries')).billingStatus).toBeUndefined();
   expect((await qi.describeTable('WorkTypes')).onSite).toBeUndefined();
-  await migration.up(qi, Sequelize);
+  await upFrom('20260101000107');
   expect((await qi.describeTable('TimeEntries')).afterHours).toBeDefined();
   expect((await models.WorkType.findOne({ where: { name: 'On-site' } })).onSite).toBe(true);
 });

@@ -3,6 +3,7 @@ const { resetData, closeDb, models, sequelize } = require('./helpers');
 const { API, expectOk, makeWorld, makeTech } = require('./fixtures');
 const { unitPrice, usageCost } = require('../../src/services/money/catalog');
 const { moneyConfig } = require('../../src/services/money/config');
+const { downFrom, upFrom } = require('./moneyMigrations');
 const migration = require('../../migrations/20260101000106-catalog-products');
 
 // Phase 3, step 1, task 5: the products and services you sell or buy.
@@ -78,15 +79,8 @@ it('a technician sees no products or costs', async () => {
 
 it('migration 106 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
-  // 110's stock points at the products: undone first, redone after.
-  const stockMig = require('../../migrations/20260101000110-stock');
-  const materialsMig = require('../../migrations/20260101000111-materials-everywhere');
-  await materialsMig.down(qi, Sequelize);
-  await stockMig.down(qi, Sequelize);
-  await migration.down(qi, Sequelize);
+  await downFrom('20260101000106');
   expect((await qi.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName))).not.toContain('CatalogProducts');
-  await migration.up(qi, Sequelize);
-  await stockMig.up(qi, Sequelize);
-  await materialsMig.up(qi, Sequelize);
+  await upFrom('20260101000106');
   expect(await models.CatalogProduct.count()).toBe(0);
 });

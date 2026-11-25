@@ -87,6 +87,8 @@ router.delete('/:id/expenses/:expenseId', requirePermission('projects.manage_exp
 
 // Materials
 router.get('/:id/materials', ctrl.listMaterials);
+// Phase 3: the project's purchase orders (those who buy).
+router.get('/:id/purchase-orders', requirePermission('money.purchasing.manage'), require('../controllers/money/purchaseOrdersController').projectPurchaseOrders);
 // Phase 3: the project's bills (amounts only with money permissions).
 router.get('/:id/bills', require('../controllers/money/billsController').projectBills);
 router.post('/:id/materials', requirePermission('projects.manage_expenses'), ctrl.createMaterial);

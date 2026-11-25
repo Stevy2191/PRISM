@@ -6,6 +6,7 @@ const {
   API, expectOk, makeWorld, makeCompany, makeContact, makeTech,
 } = require('./fixtures');
 const { effectiveTier, tierCounts } = require('../../src/services/money/tiers');
+const { downFrom, upFrom } = require('./moneyMigrations');
 const migration = require('../../migrations/20260101000108-support-tiers');
 
 // Phase 3, step 1, task 7: support tiers (Full, Light, Not covered) on
@@ -72,9 +73,9 @@ it('the contact shows its tier and why; only money.billing.manage sets it', asyn
 
 it('migration 108 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
-  await migration.down(qi, Sequelize);
+  await downFrom('20260101000108');
   expect((await qi.describeTable('Contacts')).supportTier).toBeUndefined();
   expect((await qi.describeTable('Departments')).defaultSupportTier).toBeUndefined();
-  await migration.up(qi, Sequelize);
+  await upFrom('20260101000108');
   expect((await qi.describeTable('Contacts')).m365Frontline).toBeDefined();
 });

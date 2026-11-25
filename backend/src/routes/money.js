@@ -4,6 +4,7 @@ const tax = require('../controllers/money/taxController');
 const products = require('../controllers/money/catalogController');
 const billsCtrl = require('../controllers/money/billsController');
 const stockCtrl = require('../controllers/money/stockController');
+const poCtrl = require('../controllers/money/purchaseOrdersController');
 const { billUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
 
@@ -47,5 +48,13 @@ router.get('/stock', canBuy, stockCtrl.list);
 router.get('/stock/:productId/movements', canBuy, stockCtrl.movements);
 router.post('/stock/:productId/adjust', canBuy, stockCtrl.adjust);
 router.patch('/stock/:productId', canBuy, stockCtrl.update);
+
+// Purchase orders (step 2).
+router.get('/purchase-orders', canBuy, poCtrl.list);
+router.post('/purchase-orders', canBuy, poCtrl.create);
+router.get('/purchase-orders/:id', canBuy, poCtrl.get);
+router.post('/purchase-orders/:id/order', canBuy, poCtrl.order);
+router.post('/purchase-orders/:id/cancel', canBuy, poCtrl.cancel);
+router.post('/purchase-orders/:id/receive', canBuy, poCtrl.receive);
 
 module.exports = router;

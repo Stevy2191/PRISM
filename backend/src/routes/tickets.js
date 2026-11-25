@@ -55,6 +55,8 @@ router.get('/:id/materials', ticketMaterials.list);
 router.post('/:id/materials', ticketMaterials.create);
 router.patch('/:id/materials/:materialId', ticketMaterials.update);
 router.delete('/:id/materials/:materialId', ticketMaterials.remove);
+// Phase 3: the ticket's purchase orders (those who buy).
+router.get('/:id/purchase-orders', requirePermission('money.purchasing.manage'), require('../controllers/money/purchaseOrdersController').ticketPurchaseOrders);
 // Phase 3: the ticket's bills (amounts only with money permissions).
 router.get('/:id/bills', require('../controllers/money/billsController').ticketBills);
 router.post('/:id/split', editMin, ctrl.split);

@@ -130,6 +130,8 @@ const CatalogProduct = require('./CatalogProduct')(sequelize);
 const Bill = require('./Bill')(sequelize);
 const BillLine = require('./BillLine')(sequelize);
 const StockMovement = require('./StockMovement')(sequelize);
+const PurchaseOrder = require('./PurchaseOrder')(sequelize);
+const PurchaseOrderLine = require('./PurchaseOrderLine')(sequelize);
 const AgentNonce = require('./AgentNonce')(sequelize);
 const Mdm = require('./Mdm')(sequelize);
 const Form = require('./Form')(sequelize);
@@ -270,6 +272,8 @@ const db = {
   Bill,
   BillLine,
   StockMovement,
+  PurchaseOrder,
+  PurchaseOrderLine,
   AgentNonce,
   Mdm,
   Form,
@@ -783,6 +787,10 @@ LedgerLine.belongsTo(LedgerAccount, { foreignKey: 'accountId', as: 'account' });
 CompanyBilling.belongsTo(TaxRate, { foreignKey: 'taxRateId', as: 'taxRate' });
 CatalogProduct.belongsTo(TaxCategory, { foreignKey: 'taxCategoryId', as: 'taxCategory' });
 StockMovement.belongsTo(CatalogProduct, { foreignKey: 'productId', as: 'product' });
+PurchaseOrder.hasMany(PurchaseOrderLine, { foreignKey: 'purchaseOrderId', as: 'lines', onDelete: 'CASCADE' });
+PurchaseOrderLine.belongsTo(PurchaseOrder, { foreignKey: 'purchaseOrderId', as: 'purchaseOrder' });
+PurchaseOrderLine.belongsTo(CatalogProduct, { foreignKey: 'catalogProductId', as: 'product' });
+PurchaseOrder.belongsTo(Company, { foreignKey: 'vendorCompanyId', as: 'vendor' });
 Bill.hasMany(BillLine, { foreignKey: 'billId', as: 'lines', onDelete: 'CASCADE' });
 BillLine.belongsTo(Bill, { foreignKey: 'billId', as: 'bill' });
 Bill.belongsTo(Company, { foreignKey: 'vendorCompanyId', as: 'vendor' });

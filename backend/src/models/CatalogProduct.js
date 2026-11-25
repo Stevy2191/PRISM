@@ -23,6 +23,8 @@ module.exports = (sequelize) => {
       // Shelf stock (step 2), in usage units.
       onHand: { type: DataTypes.DECIMAL(12, 4), allowNull: false, defaultValue: 0 },
       lowStockAt: { type: DataTypes.DECIMAL(12, 4), allowNull: true },
+      // What a serialized product becomes when received (step 2).
+      assetCategoryId: { type: DataTypes.INTEGER, allowNull: true },
     },
     { sequelize, modelName: 'CatalogProduct', tableName: 'CatalogProducts' }
   );

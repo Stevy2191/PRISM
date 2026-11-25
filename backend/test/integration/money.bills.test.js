@@ -7,6 +7,7 @@ const {
 } = require('./fixtures');
 const ledger = require('../../src/services/money/ledger');
 const { invalidateAllPermissions } = require('../../src/services/permissionService');
+const { downFrom, upFrom } = require('./moneyMigrations');
 const migration = require('../../migrations/20260101000109-bills');
 
 // Phase 3, step 2, task 1: contractor and supplier bills, linked to tickets.
@@ -150,10 +151,10 @@ it('merging a vendor moves its bills', async () => {
 
 it('migration 109 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
-  await migration.down(qi, Sequelize);
+  await downFrom('20260101000109');
   const names = (await qi.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
   expect(names).not.toContain('Bills');
   expect((await qi.describeTable('Companies')).is1099).toBeUndefined();
-  await migration.up(qi, Sequelize);
+  await upFrom('20260101000109');
   expect((await qi.describeTable('Companies')).is1099).toBeDefined();
 });

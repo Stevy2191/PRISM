@@ -7,6 +7,7 @@ const {
 } = require('./fixtures');
 const { taxForLines, customerBilling, isExemptOn } = require('../../src/services/money/tax');
 const { invalidateAllPermissions } = require('../../src/services/permissionService');
+const { downFrom, upFrom } = require('./moneyMigrations');
 const migration = require('../../migrations/20260101000105-tax-and-company-billing');
 
 // Phase 3, step 1, task 4: tax rates, tax categories with a taxable share,
@@ -134,21 +135,11 @@ it('merging keeps the surviving company\'s billing settings', async () => {
 
 it('migration 105 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
-  // 106's products point at the tax categories: undone first, redone after.
-  const products = require('../../migrations/20260101000106-catalog-products');
-  const stockMig = require('../../migrations/20260101000110-stock');
-  const materialsMig = require('../../migrations/20260101000111-materials-everywhere');
-  await materialsMig.down(qi, Sequelize);
-  await stockMig.down(qi, Sequelize);
-  await products.down(qi, Sequelize);
-  await migration.down(qi, Sequelize);
+  await downFrom('20260101000105');
   const names = (await qi.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
   expect(names).not.toContain('CompanyBilling');
   expect(names).not.toContain('TaxCategories');
-  await migration.up(qi, Sequelize);
-  await products.up(qi, Sequelize);
-  await stockMig.up(qi, Sequelize);
-  await materialsMig.up(qi, Sequelize);
+  await upFrom('20260101000105');
   expect(await models.TaxCategory.count()).toBe(7);
 });
 

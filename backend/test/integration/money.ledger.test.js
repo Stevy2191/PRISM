@@ -4,6 +4,7 @@ const {
 } = require('./helpers');
 const { makeWorld, makeCompany } = require('./fixtures');
 const ledger = require('../../src/services/money/ledger');
+const { downFrom, upFrom } = require('./moneyMigrations');
 const migration = require('../../migrations/20260101000103-ledger');
 
 // Phase 3, step 1, task 2: the double-entry ledger underneath every money
@@ -95,11 +96,11 @@ it('filters balances by company and by date', async () => {
 
 it('migration 103 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
-  await migration.down(qi, Sequelize);
+  await downFrom('20260101000103');
   const names = (await qi.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName));
   expect(names).not.toContain('LedgerEntries');
   expect(names).not.toContain('LedgerAccounts');
-  await migration.up(qi, Sequelize);
+  await upFrom('20260101000103');
   expect(await models.LedgerAccount.count()).toBeGreaterThanOrEqual(19);
 });
 

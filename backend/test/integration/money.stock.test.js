@@ -6,6 +6,7 @@ const { API, expectOk, makeWorld, makeTech } = require('./fixtures');
 const stock = require('../../src/services/money/stock');
 const ledger = require('../../src/services/money/ledger');
 const { unit } = require('../../src/services/money/money');
+const { downFrom, upFrom } = require('./moneyMigrations');
 const migration = require('../../migrations/20260101000110-stock');
 
 // Phase 3, step 2, task 2: shelf stock, bought by the box and used by the
@@ -84,12 +85,8 @@ it('a technician sees no stock', async () => {
 
 it('migration 110 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
-  // 111's materials point at the products: undone first, redone after.
-  const materialsMig = require('../../migrations/20260101000111-materials-everywhere');
-  await materialsMig.down(qi, Sequelize);
-  await migration.down(qi, Sequelize);
+  await downFrom('20260101000110');
   expect((await qi.describeTable('CatalogProducts')).onHand).toBeUndefined();
-  await migration.up(qi, Sequelize);
-  await materialsMig.up(qi, Sequelize);
+  await upFrom('20260101000110');
   expect((await qi.describeTable('CatalogProducts')).lowStockAt).toBeDefined();
 });

@@ -8,6 +8,7 @@ const {
 const stock = require('../../src/services/money/stock');
 const { unit } = require('../../src/services/money/money');
 const { invalidateAllPermissions } = require('../../src/services/permissionService');
+const { downFrom, upFrom } = require('./moneyMigrations');
 const migration = require('../../migrations/20260101000111-materials-everywhere');
 
 // Phase 3, step 2, task 3: materials on tickets as on projects — from the
@@ -114,8 +115,8 @@ it('another company\'s ticket can\'t be reached through its materials', async ()
 
 it('migration 111 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
-  await migration.down(qi, Sequelize);
+  await downFrom('20260101000111');
   expect((await qi.describeTable('ProjectMaterials')).ticketId).toBeUndefined();
-  await migration.up(qi, Sequelize);
+  await upFrom('20260101000111');
   expect((await qi.describeTable('ProjectMaterials')).billingStatus).toBeDefined();
 });

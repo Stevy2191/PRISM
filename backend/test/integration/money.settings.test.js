@@ -7,6 +7,7 @@ const { API, expectOk, makeWorld, makeTech, makeManager } = require('./fixtures'
 const { requireCustomerBilling } = require('../../src/middleware/customerBilling');
 const { moneyConfig } = require('../../src/services/money/config');
 const { invalidateAllPermissions } = require('../../src/services/permissionService');
+const { downFrom, upFrom } = require('./moneyMigrations');
 const migration = require('../../migrations/20260101000104-money-permissions');
 
 // Phase 3, step 1, task 3: the new permissions, the Customer billing switch
@@ -100,8 +101,8 @@ it('requireCustomerBilling answers 404 while the switch is off', async () => {
 
 it('migration 104 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
-  await migration.down(qi, Sequelize);
+  await downFrom('20260101000104');
   expect(await models.Permission.count({ where: { key: KEYS } })).toBe(0);
-  await migration.up(qi, Sequelize);
+  await upFrom('20260101000104');
   expect(await models.Permission.count({ where: { key: KEYS } })).toBe(KEYS.length);
 });
