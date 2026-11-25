@@ -10,7 +10,7 @@ import SettingsPage, { SettingsPanel } from '../../../components/settings/Settin
 
 const KINDS = [['product', 'Product'], ['service', 'Service'], ['labor', 'Labor'], ['license', 'License'], ['fee', 'Fee']];
 const BLANK = {
-  name: '', sku: '', kind: 'product', unit: 'each', cost: '', price: '', markupPercent: '', purchaseUnit: '', usagePerPurchase: '1', taxCategoryId: '', stocked: false, serialized: false,
+  name: '', sku: '', kind: 'product', unit: 'each', cost: '', price: '', markupPercent: '', purchaseUnit: '', usagePerPurchase: '1', taxCategoryId: '', stocked: false, serialized: false, assetCategoryId: '',
 };
 const money4 = (v) => (v === null || v === undefined ? '—' : `$${Number(v).toFixed(Number(v) < 1 ? 4 : 2)}`);
 
@@ -18,6 +18,7 @@ export default function ProductsSettings() {
   const canEdit = usePermission('money.rates.manage');
   const [products, setProducts] = useState(null);
   const [cats, setCats] = useState([]);
+  const [assetCats, setAssetCats] = useState([]);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState(null); // null, or a product being added/edited
   const [error, setError] = useState('');
@@ -25,6 +26,7 @@ export default function ProductsSettings() {
     .then(({ data }) => setProducts(data.products)).catch((err) => setError(errMessage(err)));
   useEffect(() => { const t = setTimeout(load, 200); return () => clearTimeout(t); }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { api.get('/money/tax-categories').then(({ data }) => setCats(data.taxCategories)).catch(() => {}); }, []);
+  useEffect(() => { api.get('/assets/categories').then(({ data }) => setAssetCats(data.categories)).catch(() => {}); }, []);
 
   const save = async (e) => {
     e.preventDefault();
@@ -37,6 +39,7 @@ export default function ProductsSettings() {
       markupPercent: form.markupPercent === '' ? null : form.markupPercent,
       purchaseUnit: form.purchaseUnit || null,
       taxCategoryId: form.taxCategoryId ? Number(form.taxCategoryId) : null,
+      assetCategoryId: form.serialized && form.assetCategoryId ? Number(form.assetCategoryId) : null,
     };
     delete body.id;
     try {
@@ -69,6 +72,9 @@ export default function ProductsSettings() {
               <label className="flex items-center gap-1"><input type="checkbox" checked={!!form.stocked} onChange={set('stocked')} /> Kept in stock</label>
               <label className="flex items-center gap-1"><input type="checkbox" checked={!!form.serialized} onChange={set('serialized')} /> Has serial numbers</label>
             </div>
+            {form.serialized && (
+              <label className="text-sm">Becomes this kind of asset when received<select className="input mt-1" value={form.assetCategoryId || ''} onChange={set('assetCategoryId')}><option value="">Computers</option>{assetCats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            )}
             <div className="flex gap-2 sm:col-span-3">
               <button type="submit" className="btn-primary">Save</button>
               <button type="button" className="btn-secondary" onClick={() => setForm(null)}>Cancel</button>
@@ -86,7 +92,7 @@ export default function ProductsSettings() {
                 <td className="table-td">{KINDS.find(([v]) => v === p.kind)?.[1]}</td>
                 <td className="table-td">{p.usageCost === null ? '—' : `${money4(p.usageCost)}/${p.unit}`}</td>
                 <td className="table-td">{`${money4(p.unitPrice)}/${p.unit}`}</td>
-                <td className="table-td text-right">{canEdit && <button type="button" className="btn-secondary h-8 px-3 text-xs" onClick={() => setForm({ ...BLANK, ...p, taxCategoryId: p.taxCategoryId || '' })}>Edit</button>}</td>
+                <td className="table-td text-right">{canEdit && <button type="button" className="btn-secondary h-8 px-3 text-xs" onClick={() => setForm({ ...BLANK, ...p, taxCategoryId: p.taxCategoryId || '', assetCategoryId: p.assetCategoryId || '' })}>Edit</button>}</td>
               </tr>
             ))}
             {!products.length && <tr><td className="table-td" colSpan={5}>No products yet.</td></tr>}

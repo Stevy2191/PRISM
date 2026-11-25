@@ -6,12 +6,17 @@ import { CARD_BG, BORDER, TEXT, MUTED, BLUE, fieldStyle, formatCost } from '../t
 import { Modal } from './Modal';
 
 // ==================== Materials tab ====================
-export function MaterialsTab({ data, canManageExpenses, onAdd, onDelete, onLoadMore }) {
+export function MaterialsTab({ data, canManageExpenses, onAdd, onPick, onDelete, onLoadMore }) {
   return (
     <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
         <h2 className="font-semibold" style={{ color: TEXT }}>Materials</h2>
-        {canManageExpenses && <button onClick={onAdd} className="btn-primary">+ Add item</button>}
+        {canManageExpenses && (
+          <div className="flex gap-2">
+            {onPick && <button type="button" onClick={onPick} className="btn-secondary">From the catalog or shelf</button>}
+            <button type="button" onClick={onAdd} className="btn-primary">+ Add item</button>
+          </div>
+        )}
       </div>
       <table className="min-w-full">
         <thead>
@@ -20,7 +25,7 @@ export function MaterialsTab({ data, canManageExpenses, onAdd, onDelete, onLoadM
         <tbody>
           {data.materials.map((m) => (
             <tr key={m.id}>
-              <td className="table-td font-medium" style={{ color: TEXT }}>{m.itemName}</td>
+              <td className="table-td font-medium" style={{ color: TEXT }}>{m.itemName}{m.fromStock && <span className="ml-2 text-xs" style={{ color: MUTED }}>from the shelf</span>}</td>
               <td className="table-td" style={{ color: MUTED }}>{m.vendor || '—'}</td>
               <td className="table-td" style={{ color: MUTED }}>{m.modelNumber || '—'}</td>
               <td className="table-td" style={{ color: MUTED }}>{m.quantity}</td>

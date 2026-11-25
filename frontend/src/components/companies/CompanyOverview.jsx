@@ -14,7 +14,7 @@ export default function CompanyOverview({ company, onSaved }) {
   const { showToast } = useToast();
   const canManage = hasPermission('companies.manage');
   const [form, setForm] = useState({
-    name: company.name, code: company.code || '', isClient: company.isClient, isVendor: company.isVendor, status: company.status,
+    name: company.name, code: company.code || '', isClient: company.isClient, isVendor: company.isVendor, is1099: !!company.is1099, status: company.status,
     phone: formatPhone(company.phone || ''), website: company.website || '', notes: company.notes || '',
     accountManagerId: company.accountManagerId || '',
   });
@@ -29,7 +29,7 @@ export default function CompanyOverview({ company, onSaved }) {
     setError('');
     try {
       const { data } = await api.patch(`/companies/${company.id}`, {
-        ...form, phone: form.phone || null, website: form.website || null, notes: form.notes || null,
+        ...form, is1099: form.isVendor ? form.is1099 : false, phone: form.phone || null, website: form.website || null, notes: form.notes || null,
         accountManagerId: form.accountManagerId || null,
       });
       onSaved(data.company);
@@ -86,6 +86,7 @@ export default function CompanyOverview({ company, onSaved }) {
         <div className="flex items-center gap-6 text-sm">
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.isClient} disabled={!canManage || company.isInternal} onChange={set('isClient')} /> Client</label>
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.isVendor} disabled={!canManage} onChange={set('isVendor')} /> Vendor</label>
+          {form.isVendor && <label className="flex items-center gap-2" title="Contractors paid $2,000 or more in a year get a 1099 (see Money › Reports)."><input type="checkbox" checked={form.is1099} disabled={!canManage} onChange={set('is1099')} /> Gets a 1099</label>}
         </div>
         <div>
           <label className="label" htmlFor="co-status">Status</label>

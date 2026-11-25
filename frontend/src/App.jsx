@@ -37,6 +37,7 @@ const LicenseDetail = lazyPage(() => import('./pages/assets/LicenseDetail'));
 const Contracts = lazyPage(() => import('./pages/assets/Contracts'));
 const ContractDetail = lazyPage(() => import('./pages/assets/ContractDetail'));
 const Reports = lazyPage(() => import('./pages/Reports'));
+const MoneyHome = lazyPage(() => import('./pages/money/MoneyHome'));
 const Calendar = lazyPage(() => import('./pages/Calendar'));
 const KnowledgeBase = lazyPage(() => import('./pages/KnowledgeBase'));
 const ArticleEditor = lazyPage(() => import('./pages/ArticleEditor'));
@@ -117,6 +118,7 @@ const CALENDAR_KEYS = [...TICKETS_KEYS, ...PROJECTS_KEYS];
 const CONTACTS_KEYS = ['people.view_own_department', 'people.view_all'];
 const ASSETS_KEYS = ['assets.view'];
 const REPORTS_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
+const MONEY_PERMISSION_KEYS = ['money.bills.manage', 'money.purchasing.manage', 'money.books.view'];
 const KB_KEYS = ['kb.view'];
 const COMPANIES_KEYS = ['companies.view'];
 
@@ -208,6 +210,7 @@ export default function App() {
 
           <Route path="/workload" element={perm(<Workload />, ['workload.view'])} />
           <Route path="/reports" element={perm(<Reports />, REPORTS_KEYS)} />
+          <Route path="/money" element={perm(<MoneyHome />, MONEY_PERMISSION_KEYS)} />
           <Route path="/calendar" element={perm(<Calendar />, CALENDAR_KEYS)} />
 
           <Route path="/knowledge" element={perm(<KnowledgeBase />, KB_KEYS)} />

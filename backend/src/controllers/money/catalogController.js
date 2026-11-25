@@ -127,4 +127,18 @@ const update = asyncHandler(async (req, res) => {
   res.json({ product: productJson(p, await moneyConfig()) });
 });
 
-module.exports = { list, create, update };
+// GET /money/products/pick?search= — any staff member adding materials to a
+// job: active products, what's on the shelf, no costs or prices.
+const pick = asyncHandler(async (req, res) => {
+  const search = String(req.query.search || '').trim().slice(0, 100);
+  const where = { active: true, kind: 'product' };
+  if (search) where[Op.or] = [{ name: { [Op.like]: `%${escapeLike(search)}%` } }, { sku: { [Op.like]: `%${escapeLike(search)}%` } }];
+  const rows = await CatalogProduct.findAll({
+    where, attributes: ['id', 'name', 'sku', 'unit', 'stocked', 'serialized', 'onHand'], order: [['name', 'ASC']], limit: 50,
+  });
+  res.json({ products: rows.map((p) => ({ ...p.get({ plain: true }), onHand: p.stocked ? unit(p.onHand) : null })) });
+});
+
+module.exports = {
+  pick, list, create, update,
+};

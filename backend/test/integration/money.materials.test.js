@@ -53,6 +53,22 @@ it('a technician adds cable from the shelf; sees the quantity, not the price', a
   expect(seen.totalPrice).toBe('54.00');
 });
 
+it('the product picker shows what is on the shelf, never a price', async () => {
+  const picked = expectOk(await tech.agent.get(`${API}/money/products/pick?search=cat6`)).products;
+  expect(picked).toEqual([expect.objectContaining({ id: cable.id, name: 'Cat6 cable', unit: 'ft', stocked: true, onHand: '1000.0000' })]);
+  expect(JSON.stringify(picked)).not.toMatch(/cost|price/i);
+});
+
+it('a project takes cable from the shelf; deleting it puts it back', async () => {
+  const { makeProject } = require('./fixtures');
+  const project = await makeProject(a(), { name: 'Office move', ownerDepartmentId: w.deptA.id });
+  const m = expectOk(await a().post(`${API}/projects/${project.id}/materials`).send({ catalogProductId: cable.id, quantity: '250', fromStock: true }), 201).material;
+  expect(m).toMatchObject({ projectId: project.id, fromStock: true, itemName: 'Cat6 cable' });
+  expect(unit((await models.CatalogProduct.findByPk(cable.id)).onHand)).toBe('750.0000');
+  expectOk(await a().delete(`${API}/projects/${project.id}/materials/${m.id}`));
+  expect(unit((await models.CatalogProduct.findByPk(cable.id)).onHand)).toBe('1000.0000');
+});
+
 it('more than is on the shelf is refused, and nothing is added', async () => {
   expect((await tech.agent.post(url()).send({ catalogProductId: cable.id, quantity: '1200', fromStock: true })).status).toBe(409);
   expect(await models.ProjectMaterial.count({ where: { ticketId: ticket.id } })).toBe(0);

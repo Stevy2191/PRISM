@@ -12,6 +12,8 @@ export const ASSETS_PERMISSION_KEYS = ['assets.view'];
 export const REPORTS_PERMISSION_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
 export const KNOWLEDGE_PERMISSION_KEYS = ['kb.view'];
 export const WORKLOAD_PERMISSION_KEYS = ['workload.view'];
+// Money (Phase 3): bills, purchasing, stock, expenses and their reports.
+export const MONEY_PERMISSION_KEYS = ['money.bills.manage', 'money.purchasing.manage', 'money.books.view'];
 // "Any permission starting with settings." plus the three People permissions
 // that specifically unlock a Settings-hub card (manage_roles, manage_departments,
 // view_all) — deliberately narrower than the full People permission set.
@@ -64,6 +66,7 @@ export const NAV = [
     ],
   },
   { key: 'reports', to: '/reports', label: 'Reports', icon: '📊' },
+  { key: 'money', to: '/money', label: 'Money', icon: '💵' },
   { key: 'knowledge', to: '/knowledge', label: 'Knowledge', icon: '📚' },
   { key: 'settings', to: '/settings', label: 'Settings', icon: '⚙️' },
 ];
@@ -83,6 +86,7 @@ export function permissionGate(key, hasAnyPermission) {
   if (key === 'workload') return hasAnyPermission(WORKLOAD_PERMISSION_KEYS);
   if (key === 'reports') return hasAnyPermission(REPORTS_PERMISSION_KEYS);
   if (key === 'knowledge') return hasAnyPermission(KNOWLEDGE_PERMISSION_KEYS);
+  if (key === 'money') return hasAnyPermission(MONEY_PERMISSION_KEYS);
   if (key === 'settings') return hasAnyPermission(SETTINGS_PERMISSION_KEYS);
   return true;
 }

@@ -20,6 +20,7 @@ const TYPES = [
   ['task_unblocked', 'Project task ready to start', 'A task you are on stops waiting on another task.'],
   ['budget_warning', 'Project budget warning', 'A project you work on is close to its hour budget.'],
   ['budget_reached', 'Project budget reached', 'A project you work on has used its hour budget.'],
+  ['stock_low', 'Stock running low', 'Something on the shelf drops to its low level (for those who buy).'],
 ];
 
 // Which events can also email, and their defaults, come from the server

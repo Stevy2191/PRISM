@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   IconBell, IconMessageReply, IconUserCheck, IconAlertTriangle, IconMessageCircle,
-  IconHourglass, IconRefresh, IconBolt, IconEye, IconShieldExclamation, IconShieldOff, IconUserPlus, IconPlayerPlay, IconClock,
+  IconHourglass, IconRefresh, IconBolt, IconEye, IconShieldExclamation, IconShieldOff, IconUserPlus, IconPlayerPlay, IconClock, IconPackage,
 } from '@tabler/icons-react';
 import api from '../api/api';
 
@@ -21,10 +21,11 @@ const NOTIF_TYPE = {
   task_unblocked: { Icon: IconPlayerPlay, color: 'var(--color-success)' },
   budget_warning: { Icon: IconClock, color: 'var(--color-warning)' },
   budget_reached: { Icon: IconClock, color: 'var(--color-danger)' },
+  stock_low: { Icon: IconPackage, color: 'var(--color-warning)' },
 };
 
 // Security alerts have no ticket; they open the page that explains them.
-const NOTIF_LINK = { virus_blocked: '/settings/system', scanner_unavailable: '/settings/system' };
+const NOTIF_LINK = { virus_blocked: '/settings/system', scanner_unavailable: '/settings/system', stock_low: '/money?tab=stock' };
 
 function tint(color) {
   return `color-mix(in srgb, ${color} 18%, var(--color-bg))`;

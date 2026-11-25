@@ -24,6 +24,7 @@ import TimelineTab from './detail/TimelineTab';
 import GenerateProjectReportModal from './detail/ReportModal';
 import { hoursFromMinutes, localToday } from './detail/taskFilters';
 import PortalPanel from './detail/PortalPanel';
+import { PickMaterialModal } from '../../components/work/MaterialsPanel';
 
 // Rows loaded at a time by the growing detail lists.
 const SUBLIST_STEP = 25;
@@ -66,6 +67,7 @@ export default function ProjectDetail() {
   const { logVersion } = useTimer();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddMaterial, setShowAddMaterial] = useState(false);
+  const [showPickMaterial, setShowPickMaterial] = useState(false);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [closeWarning, setCloseWarning] = useState(false);
   const [dismissedCloseWarning, setDismissedCloseWarning] = useState(false);
@@ -285,6 +287,7 @@ export default function ProjectDetail() {
       )}
       {tab === 'costs' && (
         <CostsTab
+          projectId={project.id}
           expenses={expenses}
           materials={materials}
           canManage={canManageExpenses && canEdit}
@@ -296,6 +299,7 @@ export default function ProjectDetail() {
           }}
           onMoreExpenses={() => setExpenseLimit((n) => n + SUBLIST_STEP)}
           onAddMaterial={() => setShowAddMaterial(true)}
+          onPickMaterial={() => setShowPickMaterial(true)}
           onDeleteMaterial={async (matId) => {
             await api.delete(`/projects/${id}/materials/${matId}`);
             await reloadMaterials();
@@ -399,6 +403,18 @@ export default function ProjectDetail() {
           onSave={async (payload) => {
             await api.post(`/projects/${id}/materials`, payload);
             setShowAddMaterial(false);
+            await reloadMaterials();
+            reloadProject();
+          }}
+        />
+      )}
+
+      {showPickMaterial && (
+        <PickMaterialModal
+          url={`/projects/${id}/materials`}
+          onClose={() => setShowPickMaterial(false)}
+          onSaved={async () => {
+            setShowPickMaterial(false);
             await reloadMaterials();
             reloadProject();
           }}

@@ -8,6 +8,8 @@ import { useAuth, usePermission } from '../../context/AuthContext';
 import { assignableContactDepartments } from '../../utils/contactDepartments';
 import { useTimer } from '../../context/TimerContext';
 import TimeLog from '../../components/work/TimeLog';
+import MaterialsPanel from '../../components/work/MaterialsPanel';
+import BillsPanel from '../../components/work/BillsPanel';
 import TaskList from '../../components/work/TaskList';
 import Spinner from '../../components/Spinner';
 import { formatTicketId } from '../../utils/ticketId';
@@ -72,6 +74,7 @@ const TABS = [
   { key: 'conversation', label: 'Conversation' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'time', label: 'Time' },
+  { key: 'materials', label: 'Materials' },
   { key: 'attachments', label: 'Files' },
   { key: 'details', label: 'Details' },
 ];
@@ -774,6 +777,12 @@ export default function TicketDetail() {
                 reloadKey={logVersion + timeVersion}
                 onChanged={afterTimeChange}
               />
+            )}
+            {activeTab === 'materials' && (
+              <div className="space-y-8">
+                <MaterialsPanel ticketId={ticket.id} canEdit={isStaff && !!ticket.access?.edit} />
+                <BillsPanel kind="ticket" id={ticket.id} />
+              </div>
             )}
             {activeTab === 'tasks' && (
               <PlaybookPanel

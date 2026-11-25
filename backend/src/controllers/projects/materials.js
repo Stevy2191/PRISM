@@ -6,6 +6,7 @@ const { logProjectActivity } = require('../../services/projectActivity');
 const { parsePagination, paginated } = require('../../utils/pagination');
 const { resolveVendorFields, hideUnreachableVendors } = require('../../services/companyService');
 const { canAccessProject } = require('../../services/permissionService');
+const materials = require('../../services/money/materials');
 const {
   SUBLIST_LIMIT, SUBLIST_MAX, userAttrs, resolveProjectTaskId,
   assertCanEditProject,
@@ -46,6 +47,20 @@ const createMaterial = asyncHandler(async (req, res) => {
   if (!project) throw new ApiError(404, 'Project not found', 'NOT_FOUND');
   if (!(await canAccessProject(req.user, project))) throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   await assertCanEditProject(req.user, project);
+
+  // Phase 3: from the catalog or the shelf, through the shared materials
+  // service (catalog price, stock taken off the shelf).
+  if ((req.body || {}).catalogProductId) {
+    const prices = await materials.canSeePrices(req.user);
+    const body = { ...req.body, taskId: await resolveProjectTaskId(project, req.body.taskId) };
+    if (!prices) { delete body.unitCost; delete body.unitPrice; }
+    const m = await materials.addMaterial({ kind: 'project', record: project }, body, { user: req.user, pricesAllowed: prices });
+    await writeAudit(req, 'material.create', 'ProjectMaterial', m.id, { projectId: project.id, itemName: m.itemName, fromStock: m.fromStock });
+    await logProjectActivity(project.id, req.user.id, 'material_added', { materialId: m.id, itemName: m.itemName });
+    const fresh = await ProjectMaterial.findByPk(m.id, { include: materialInclude });
+    await hideUnreachableVendors(req.user, fresh);
+    return res.status(201).json({ material: fresh });
+  }
 
   const { itemName, vendor, modelNumber, serialNumber, quantity, unitCost, taskId, notes } = req.body || {};
   if (!itemName || !itemName.trim()) throw new ApiError(400, 'Item name is required', 'VALIDATION_ERROR');
@@ -136,7 +151,7 @@ const removeMaterial = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'You do not have access to this project', 'FORBIDDEN');
   }
   await assertCanEditProject(req.user, project);
-  await material.destroy();
+  await materials.removeMaterial(material, { user: req.user }); // a shelf item goes back on the shelf
   await writeAudit(req, 'material.delete', 'ProjectMaterial', material.id, { projectId: project.id, itemName: material.itemName });
   res.json({ ok: true });
 });

@@ -28,6 +28,8 @@ router.get('/tax-categories', requirePermission('money.settings', 'money.rates.m
 router.post('/tax-categories', canSettings, tax.createCategory);
 router.patch('/tax-categories/:id', canSettings, tax.updateCategory);
 
+// Anyone who works tickets or projects picks products for materials (no prices).
+router.get('/products/pick', requirePermission('tickets.view_own', 'tickets.view_department', 'tickets.view_all', 'projects.view_own', 'projects.view_department', 'projects.view_all'), products.pick);
 router.get('/products', requirePermission('money.billing.view', 'money.purchasing.manage', 'money.rates.manage'), products.list);
 router.post('/products', requirePermission('money.rates.manage'), products.create);
 router.patch('/products/:id', requirePermission('money.rates.manage'), products.update);
