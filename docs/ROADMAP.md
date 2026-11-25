@@ -10,13 +10,15 @@ its design and plan live. The reasoning behind the shape of the roadmap is in
 [the roadmap design](superpowers/specs/2026-10-03-prism-psa-roadmap-design.md);
 read that before designing any sub-project.
 
-## Where things stand (updated 2026-11-24)
+## Where things stand (updated 2026-11-25)
 
 - **Now: Phase 3, Money** — design approved 2026-11-25
   ([spec](superpowers/specs/2026-11-25-phase3-money-design.md)). Step 1, the
   money core, shipped to `dev` 2026-11-25
-  ([plan](superpowers/plans/2026-11-25-phase3-step1-money-core.md)); next,
-  step 2: bills, purchasing, stock, materials and expenses.
+  ([plan](superpowers/plans/2026-11-25-phase3-step1-money-core.md)); step 2,
+  bills, purchasing, stock, materials and expenses, shipped to `dev`
+  2026-11-25 ([plan](superpowers/plans/2026-11-25-phase3-step2-bills-purchasing.md));
+  next, step 3: agreements, invoicing and payments.
 - **9b is finished** (2026-11-24): each company's software list, "which
   app?" category steps, the portal's step-by-step picker, copying a tree, and
   the setup checklist.
@@ -183,12 +185,13 @@ To be built as a full feature set (owner, 2026-11-24), designed as one:
 2026-11-25). Built in seven steps: 1 money core, 2 bills and purchasing,
 3 agreements, invoicing and payments, 4 sales, 5 project billing, 6 books
 reports, 7 a security check. Each step gets its own plan. Step 1 shipped
-2026-11-25 ([plan](superpowers/plans/2026-11-25-phase3-step1-money-core.md)).
+2026-11-25 ([plan](superpowers/plans/2026-11-25-phase3-step1-money-core.md)),
+step 2 the same day ([plan](superpowers/plans/2026-11-25-phase3-step2-bills-purchasing.md)).
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
 | 10 | Rates and timesheets — work types, roles, rate cards, weekly timesheets with approval | Not started | — | — |
-| 11 | Product catalog and procurement — products and services, purchase orders, receiving, stock, assets from receipts | Not started | — | — |
+| 11 | Product catalog and procurement — products and services, purchase orders, receiving, stock, assets from receipts | Done (`dev`, step 2) | [spec](superpowers/specs/2026-11-25-phase3-money-design.md) | [plan](superpowers/plans/2026-11-25-phase3-step2-bills-purchasing.md) |
 | 12 | Service agreements — managed services, block hours, retainers, T&M, fixed fee, coverage rules | Not started | — | — |
 | 13 | Billing and invoicing — billing review, invoices, tax, receivables, online payments, autopay, reminders, accounting sync | Not started | — | — |
 | 14 | Sales — opportunities, quotes, e-signature in the portal, convert to project/agreement/order | Not started | — | — |

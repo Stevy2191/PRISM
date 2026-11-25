@@ -10,6 +10,34 @@ backend start.
 
 ## Unreleased
 
+**Money, step 2: bills, purchasing, stock, materials and expenses (Phase 3).**
+All of it works with Customer billing off — it's for an internal IT team as
+much as an MSP. New:
+- **Money** in the sidebar, for those who handle bills, buying or the books.
+- **Bills** from contractors and suppliers: the vendor's number and PDF,
+  lines for contractor work, a job's materials, stock or an expense, each
+  optionally on a ticket or project; *received → entered* (with the reference
+  from your own system, such as Tyler Incode) *→ paid*, or void. A ticket's
+  new **Materials** tab lists its bills.
+- **Contractor reports:** paid per vendor by year, **1099 totals** (vendors
+  marked *Gets a 1099* on their company page, paid at least the threshold),
+  open bills by age, each as CSV. The threshold starts at **$2,000** (the
+  1099-NEC threshold for payments from 2026); **confirm it with your CPA**
+  and change it in Settings › Money. PRISM stores no tax IDs.
+- **Purchase orders** for a ticket, a project or the shelf, received in full
+  or in part; a serialized item (a laptop) becomes an asset of the job's
+  company, one per serial number. Products can say which asset category.
+- **Stock:** products kept on the shelf, counted in the unit they're used by
+  (300 ft of a 1,000 ft box), with a low level that notifies buyers.
+- **Materials on tickets:** the projects' materials table now serves tickets
+  too, from the catalog, the shelf or typed in. Technicians see quantities,
+  never prices.
+- **Expenses** paid on the spot, with a receipt photo; one for a customer's
+  job can be billed on later.
+- Merging tickets or vendor companies now carries bills, purchase orders and
+  expenses along.
+- Migrations 109–113; nothing to do.
+
 **Money, step 1: the money core (Phase 3).** Nothing bills yet; this is
 what the next steps (bills, invoices, payments) post into. New:
 - **Settings › Money:** Money settings (a **Customer billing** switch only an
