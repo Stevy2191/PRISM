@@ -21,6 +21,8 @@ export const SECTIONS = [
   { name: 'Hours & SLAs', slug: 'hours-slas', icon: 'clock', desc: 'What a new company starts with, and the hours your staff work.' },
   { name: 'Time & work', slug: 'time-work', icon: 'stopwatch', desc: 'Time entries and kinds of work.' },
   { name: 'Projects', slug: 'projects', icon: 'folder', desc: 'Starting points for new projects.' },
+  // Phase 3: rates, tax, products and money settings.
+  { name: 'Money', slug: 'money', icon: 'dollar', desc: 'Rates, sales tax, products and services, and billing settings.' },
   { name: 'Assets', slug: 'assets', icon: 'box', desc: 'Equipment, licenses and contracts.' },
   { name: 'System', slug: 'system', icon: 'server', desc: 'Data in and out, jobs, the audit log and the server.' },
   // Owner, 2026-11-14: About PRISM is its own section, not under You.
@@ -80,6 +82,11 @@ export const PAGES = [
   { id: 'email-log', group: 'Sign-in & email', name: 'Email log', desc: 'What came in and what was sent', keywords: ['mail log', 'bounce', 'delivery'], path: '/settings/email-log', access: OWNER, width: 'wide' },
   { id: 'calendar', group: 'Sign-in & email', name: 'Calendar apps', desc: 'The Google and Microsoft apps people connect their calendars through', keywords: ['google', 'microsoft', 'outlook', 'oauth'], path: '/settings/calendar-integration', access: OWNER, width: 'narrow' },
   { id: 'claude', group: 'Sign-in & email', name: 'Claude', desc: 'Let people connect Claude to PRISM', keywords: ['claude', 'mcp', 'ai', 'oauth', 'connector', 'anthropic'], path: '/settings/claude', access: OWNER, width: 'narrow' },
+  // Money (Phase 3)
+  { id: 'money-settings', group: 'Money', name: 'Money settings', desc: 'Customer billing on or off, currency, markup, payment terms', keywords: ['billing', 'invoice', 'currency', 'markup', 'terms', 'net 30', 'frontline', 'license'], path: '/settings/money/general', access: { permission: ['money.settings'] }, width: 'narrow' },
+  { id: 'money-rates', group: 'Money', name: 'Rates and billing rules', desc: 'Hourly and after-hours rates, the trip charge, minimum and steps', keywords: ['rate', 'hourly', 'after hours', 'trip charge', 'drive time', 'minimum', 'rounding'], path: '/settings/money/rates', access: { permission: ['money.rates.manage'] }, width: 'narrow' },
+  { id: 'money-tax', group: 'Money', name: 'Sales tax', desc: 'Tax rates and what share of each kind of charge is taxable', keywords: ['tax', 'sales tax', 'texas', 'exempt', 'rate'], path: '/settings/money/tax', access: { permission: ['money.settings'] }, width: 'wide' },
+  { id: 'money-products', group: 'Money', name: 'Products and services', desc: 'What you sell or buy, its cost and price', keywords: ['product', 'catalog', 'price', 'cost', 'markup', 'sku', 'cable', 'stock'], path: '/settings/money/products', access: { permission: ['money.rates.manage', 'money.billing.view', 'money.purchasing.manage'] }, width: 'wide' },
   // System
   { id: 'schedules', group: 'System', name: 'Background jobs', desc: 'Scheduled jobs and their status', keywords: ['schedule', 'job', 'cron', 'sync'], path: '/settings/schedules', access: SYSTEM, width: 'narrow' },
   { id: 'import', group: 'System', name: 'Import', desc: 'Bring records in from a file', keywords: ['csv', 'upload', 'migrate'], path: '/settings/import', access: { roles: ['admin'] }, width: 'narrow' },

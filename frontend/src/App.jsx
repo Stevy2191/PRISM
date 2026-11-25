@@ -60,6 +60,10 @@ const SettingsAssetCategories = lazyPage(() => import('./pages/settings/AssetCat
 const SettingsAssetAlerts = lazyPage(() => import('./pages/settings/AssetAlerts'));
 const SettingsTimeTracking = lazyPage(() => import('./pages/settings/TimeTracking'));
 const SettingsWorkTypes = lazyPage(() => import('./pages/settings/WorkTypes'));
+const MoneySettings = lazyPage(() => import('./pages/settings/money/MoneySettings'));
+const RatesSettings = lazyPage(() => import('./pages/settings/money/RatesSettings'));
+const TaxSettings = lazyPage(() => import('./pages/settings/money/TaxSettings'));
+const ProductsSettings = lazyPage(() => import('./pages/settings/money/ProductsSettings'));
 const SettingsCannedResponses = lazyPage(() => import('./pages/settings/CannedResponses'));
 const TicketRules = lazyPage(() => import('./pages/settings/TicketRules'));
 const SettingsRecurringTickets = lazyPage(() => import('./pages/settings/RecurringTickets'));
@@ -138,6 +142,7 @@ const SETTINGS_COMPONENTS = {
   notifications: SettingsNotifications, 'customer-happiness': CustomerHappiness,
   'starting-values': StartingValues, 'work-hours': SettingsWorkHours,
   'time-tracking': SettingsTimeTracking, 'work-types': SettingsWorkTypes,
+  'money-settings': MoneySettings, 'money-rates': RatesSettings, 'money-tax': TaxSettings, 'money-products': ProductsSettings,
   'asset-categories': SettingsAssetCategories, 'asset-alerts': SettingsAssetAlerts,
   'single-sign-on': SettingsSingleSignOn, directory: SettingsDirectory,
   email: SettingsEmail, 'email-log': EmailLog, 'email-templates': SettingsEmailTemplates,

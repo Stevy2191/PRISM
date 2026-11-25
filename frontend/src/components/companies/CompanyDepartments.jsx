@@ -65,6 +65,8 @@ export default function CompanyDepartments({ company }) {
   const { hasPermission } = useAuth();
   const canAdd = company.isInternal ? hasPermission('people.manage_departments') : hasPermission('companies.manage');
   const canManagePortal = hasPermission('portal.manage');
+  // Phase 3: a department's people default to this support tier.
+  const seesBilling = hasPermission('money.billing.view');
   // Portal admins are a client-company idea; the internal company's people are staff.
   const portalAdmins = !company.isInternal;
   const [departments, setDepartments] = useState([]);
@@ -128,6 +130,24 @@ export default function CompanyDepartments({ company }) {
           <li key={d.id} className={portalAdmins ? 'flex min-w-0 flex-col gap-2 border-b py-2.5 sm:flex-row sm:items-center sm:gap-4' : ''} style={portalAdmins ? { borderColor: 'var(--color-border)' } : undefined}>
             <span className={portalAdmins ? 'font-semibold sm:w-48 sm:flex-shrink-0' : ''}>{d.name}{d.shortCode ? <span className="ml-2 num text-xs">{d.shortCode}</span> : null}</span>
             {portalAdmins && <DepartmentAdmins department={d} companyId={company.id} canEdit={canManagePortal} onError={setError} />}
+            {portalAdmins && seesBilling && (
+              <label className="flex flex-shrink-0 items-center gap-1 text-xs">
+                Support tier
+                <select
+                  className="input h-8 w-auto py-0 text-xs"
+                  aria-label={`${d.name} support tier`}
+                  disabled={!canAdd}
+                  value={d.defaultSupportTier || 'full'}
+                  onChange={async (e) => {
+                    try { await api.patch(`/departments/${d.id}`, { defaultSupportTier: e.target.value }); load(); } catch (err) { setError(errMessage(err)); }
+                  }}
+                >
+                  <option value="full">Full users</option>
+                  <option value="light">Light users</option>
+                  <option value="none">Not covered</option>
+                </select>
+              </label>
+            )}
             {canAdd && (
               <span className={`flex flex-shrink-0 gap-3 ${portalAdmins ? 'sm:ml-auto' : 'ml-3'}`}>
                 <button type="button" className="text-xs text-prism hover:underline" onClick={() => rename(d)} aria-label={`Rename ${d.name}`}>Rename</button>

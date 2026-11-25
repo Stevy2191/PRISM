@@ -31,6 +31,7 @@ router.get('/:id/billing', canSeeBilling, billing.loadBillingCompany, billing.ge
 router.put('/:id/billing', canManageBilling, billing.loadBillingCompany, billing.update);
 router.post('/:id/billing/certificate', canManageBilling, billing.loadBillingCompany, companyUpload.single('file'), verifyFileSignature, scanUpload('Company'), billing.uploadCertificate);
 router.get('/:id/billing/certificate', canSeeBilling, billing.loadBillingCompany, billing.downloadCertificate);
+router.get('/:id/billing/tiers', canSeeBilling, billing.loadBillingCompany, billing.tiers);
 router.get('/:id/catalog/found-software', catalog.foundSoftware);
 router.get('/:id/catalog', catalog.list);
 router.post('/:id/catalog', catalog.create);

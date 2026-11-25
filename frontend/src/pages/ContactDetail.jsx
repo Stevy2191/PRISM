@@ -140,7 +140,12 @@ function ContactRail({ contacts, currentId, collapsed, onToggle, search, onSearc
 }
 
 // ==================== Center: properties panel ====================
+// Phase 3 support tiers.
+const TIER_LABEL = { full: 'Full user', light: 'Light user', none: 'Not covered' };
+
 function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSave, onAssignDepartment, onCreateTicket, onPortalChanged }) {
+  const seesBilling = usePermission('money.billing.view');
+  const setsTier = usePermission('money.billing.manage');
   const [name, setName] = useState(contact.displayName);
   const [editingName, setEditingName] = useState(false);
   const [fields, setFields] = useState({
@@ -280,6 +285,24 @@ function PropertiesPanel({ contact, departments, assignableUsers, canEdit, onSav
           <label className="mb-1 block text-xs" style={{ color: MUTED }}>Job title{saved('jobTitle')}</label>
           <input disabled={!canEdit} className="input h-9 text-sm" style={fieldStyle} value={fields.jobTitle} onChange={(e) => setFields((f) => ({ ...f, jobTitle: e.target.value }))} onBlur={() => saveField('jobTitle')} />
         </div>
+        {seesBilling && !contact.isPlaceholder && (
+          <div>
+            <label htmlFor="contact-tier" className="mb-1 block text-xs" style={{ color: MUTED }}>Support tier{saved('supportTier')}</label>
+            <select
+              id="contact-tier"
+              disabled={!setsTier}
+              className="input h-9 text-sm"
+              style={fieldStyle}
+              value={contact.supportTier || ''}
+              onChange={(e) => save('supportTier', { supportTier: e.target.value || null })}
+            >
+              <option value="">{`Automatic (${TIER_LABEL[contact.effectiveSupportTier] || 'Full user'})`}</option>
+              <option value="full">Full user</option>
+              <option value="light">Light user</option>
+              <option value="none">Not covered</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {!contact.isPlaceholder && <ContactPortalBlock contact={contact} onChanged={onPortalChanged} />}

@@ -45,6 +45,9 @@ export default function WorkTypes() {
             <label className="flex items-center gap-1 text-sm">
               <input type="checkbox" aria-label={`${t.name} billable`} checked={t.billableDefault} onChange={(e) => patch(t, { billableDefault: e.target.checked })} /> Billable by default
             </label>
+            <label className="flex items-center gap-1 text-sm" title="An on-site visit: the trip charge applies, and a customer without an agreement pays at least the minimum">
+              <input type="checkbox" aria-label={`${t.name} on site`} checked={!!t.onSite} onChange={(e) => patch(t, { onSite: e.target.checked })} /> On site
+            </label>
             <label className="flex items-center gap-1 text-sm">
               <input type="checkbox" aria-label={`${t.name} active`} checked={t.isActive} onChange={(e) => patch(t, { isActive: e.target.checked })} /> Active
             </label>

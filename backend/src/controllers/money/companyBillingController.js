@@ -10,6 +10,7 @@ const { UPLOAD_ROOT } = require('../../middleware/upload');
 const { parseRecordId } = require('../../services/permissionService');
 const { loadAccessibleCompany } = require('../companiesController');
 const { customerBilling } = require('../../services/money/tax');
+const { tierCounts } = require('../../services/money/tiers');
 
 const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 const CERT_TYPES = new Set(['.pdf', '.png', '.jpg', '.jpeg']);
@@ -103,6 +104,11 @@ const downloadCertificate = asyncHandler(async (req, res) => {
   res.download(file, row.exemptCertificateName || 'certificate');
 });
 
+// GET /companies/:id/billing/tiers — its people by support tier.
+const tiers = asyncHandler(async (req, res) => {
+  res.json({ tiers: await tierCounts(req.billingCompany.id) });
+});
+
 module.exports = {
-  loadBillingCompany, get, update, uploadCertificate, downloadCertificate,
+  loadBillingCompany, get, update, uploadCertificate, downloadCertificate, tiers,
 };

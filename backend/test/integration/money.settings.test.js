@@ -58,6 +58,7 @@ it('sets the rates, checking each value', async () => {
   })).rates;
   expect(saved).toMatchObject({ hourlyRate: '100.00', afterHoursRate: '150.50', tripCharge: '45.00' });
   expect((await moneyConfig()).afterHoursRate).toBe('150.50');
+  expect(expectOk(await a().get(`${API}/money/rates`)).rates).toMatchObject({ hourlyRate: '100.00', tripCharge: '45.00', stepMinutes: 30 });
   expect((await put({ hourlyRate: '-1' })).status).toBe(400);
   expect((await put({ hourlyRate: '10.005' })).status).toBe(400);
   expect((await put({ hourlyRate: 'abc' })).status).toBe(400);
@@ -71,6 +72,7 @@ it('a technician sees only the switch and the currency', async () => {
   const tech = await makeTech('tess', w.deptA.id);
   expect((await tech.agent.get(`${API}/money/settings`)).status).toBe(403);
   expect((await tech.agent.put(`${API}/money/rates`).send({ hourlyRate: '1' })).status).toBe(403);
+  expect((await tech.agent.get(`${API}/money/rates`)).status).toBe(403);
   expect(expectOk(await tech.agent.get(`${API}/money/config`))).toEqual({ customerBilling: false, currency: 'USD' });
 });
 

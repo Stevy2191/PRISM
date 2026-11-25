@@ -41,6 +41,7 @@ function initialState({ entry, timer, defaultTaskId, today, currentUser }) {
       taskId: entry.taskId || '',
       workTypeId: entry.workTypeId || '',
       billable: !!entry.billable,
+      afterHours: entry.afterHours === true ? 'yes' : entry.afterHours === false ? 'no' : 'auto',
       userId: entry.userId,
       note: entry.note || '',
     };
@@ -55,7 +56,7 @@ function initialState({ entry, timer, defaultTaskId, today, currentUser }) {
   const crossesMidnight = seconds / 60 > end.getHours() * 60 + end.getMinutes();
   return {
     mode: crossesMidnight ? 'duration' : 'span', entryDate: today, spanDate: localDateOf(end), startMinutes, endMinutes, minutes: Math.max(1, Math.round(seconds / 60)),
-    taskId: (timer && timer.taskId) || defaultTaskId || '', workTypeId: '', billable: true, userId: currentUser.id, note: '',
+    taskId: (timer && timer.taskId) || defaultTaskId || '', workTypeId: '', billable: true, afterHours: 'auto', userId: currentUser.id, note: '',
   };
 }
 
@@ -118,6 +119,8 @@ export default function TimeEntryForm({
       taskId: form.taskId || null,
       workTypeId: form.workTypeId || undefined,
       billable: form.billable,
+      // Phase 3: after hours from the customer's support hours unless set.
+      afterHours: form.afterHours === 'yes' ? true : form.afterHours === 'no' ? false : null,
       note: form.note,
       // Sent only when it changes who the entry is for.
       ...(canManageOthers && form.userId !== (entry ? entry.userId : currentUser.id) ? { userId: form.userId } : {}),
@@ -198,6 +201,14 @@ export default function TimeEntryForm({
         <label className="mt-6 flex items-center gap-2 text-sm" htmlFor="te-billable">
           <input id="te-billable" type="checkbox" checked={form.billable} onChange={(e) => set({ billable: e.target.checked })} /> Billable
         </label>
+        <div>
+          <label className={label} htmlFor="te-after-hours">After hours</label>
+          <select id="te-after-hours" className="input" style={field} value={form.afterHours} onChange={(e) => set({ afterHours: e.target.value })}>
+            <option value="auto">Automatic (from their support hours)</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
       </div>
       {taskOptions.length > 0 && (
         <>

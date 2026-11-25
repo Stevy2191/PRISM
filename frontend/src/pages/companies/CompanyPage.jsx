@@ -18,6 +18,7 @@ import CompanySurveys from '../../components/companies/CompanySurveys';
 import CompanyApplies from '../../components/companies/CompanyApplies';
 import CompanyCategories from '../../components/companies/CompanyCategories';
 import CompanySoftware from '../../components/companies/CompanySoftware';
+import CompanyBilling from '../../components/companies/CompanyBilling';
 import CompanyRecordList from '../../components/companies/CompanyRecordList';
 import CompanyDevices from '../../components/companies/CompanyDevices';
 import CompanyNotices from '../../components/companies/CompanyNotices';
@@ -30,7 +31,7 @@ const GROUPS = [
   ['people', 'People', [['contacts', 'Contacts'], ['departments', 'Departments'], ['sites', 'Sites']]],
   ['work', 'Work', [['tickets', 'Tickets'], ['projects', 'Projects']]],
   ['assets', 'Assets', [['assets', 'Assets'], ['devices', 'Devices'], ['notices', 'Agent notices'], ['vendor', 'Vendor']]],
-  ['setup', 'Setup', [['details', 'Details'], ['sla', 'SLA and hours'], ['portal', 'Portal'], ['surveys', 'Surveys'], ['categories', 'Categories'], ['software', 'Software'], ['applies', 'What applies here']]],
+  ['setup', 'Setup', [['details', 'Details'], ['sla', 'SLA and hours'], ['portal', 'Portal'], ['surveys', 'Surveys'], ['categories', 'Categories'], ['software', 'Software'], ['billing', 'Billing'], ['applies', 'What applies here']]],
 ];
 
 // A company's page (spec: Companies nav tab).
@@ -75,6 +76,8 @@ export default function CompanyPage() {
     devices: hasPermission('assets.view'),
     categories: (company.isClient || company.isInternal) && hasPermission('tickets.categories.manage'),
     vendor: company.isVendor,
+    // Phase 3: a customer's billing settings.
+    billing: company.isClient && hasPermission('money.billing.view'),
     notices: hasPermission('devices.manage') || hasPermission('portal.manage'),
   };
   const groups = GROUPS.map(([key, label, subs]) => [key, label, subs.filter(([k]) => has[k] !== false)]);
@@ -137,6 +140,7 @@ export default function CompanyPage() {
       {part === 'departments' && (company.isInternal ? <AdminDepartments embedded /> : <CompanyDepartments company={company} />)}
       {part === 'categories' && <CompanyCategories company={company} />}
       {part === 'software' && <CompanySoftware company={company} />}
+      {part === 'billing' && <CompanyBilling company={company} />}
       {part === 'sla' && <CompanySla base={`/companies/${company.id}/sla`} who={company.name} />}
       {['contacts', 'tickets', 'projects', 'assets'].includes(part) && <CompanyRecordList key={part} kind={part} companyId={company.id} />}
       {part === 'vendor' && (

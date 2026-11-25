@@ -9,7 +9,8 @@ const auth = (perms = [], { role = 'technician', isOwner = false } = {}) => ({
 });
 const owner = auth(['settings.manage_system', 'settings.manage_branding', 'settings.manage_statuses',
   'settings.manage_business_hours', 'settings.view_audit_log', 'people.view_all', 'people.create_users',
-  'people.manage_departments', 'people.manage_roles', 'companies.view', 'projects.manage_templates'], { role: 'admin', isOwner: true });
+  'people.manage_departments', 'people.manage_roles', 'companies.view', 'projects.manage_templates',
+  'money.settings', 'money.rates.manage', 'money.billing.view'], { role: 'admin', isOwner: true });
 
 test('every page has a known group, a name, a description, a path and a width', () => {
   for (const p of PAGES) {
@@ -146,4 +147,18 @@ test('your company is one page in Settings; customers have their own section (CS
   assert.ok(!paths.some((p) => p.startsWith('/companies')));
   for (const gone of ['/settings/company', '/settings/departments', '/admin/departments']) assert.ok(!paths.includes(gone), gone);
   assert.equal(findPage('/companies'), null);
+});
+
+test('Money holds its four pages, each behind its permission (Phase 3)', () => {
+  const ids = PAGES.filter((p) => p.group === 'Money').map((p) => p.id);
+  assert.deepEqual(ids, ['money-settings', 'money-rates', 'money-tax', 'money-products']);
+  assert.equal(visibleGroups(auth(['money.rates.manage'])).some((g) => g.name === 'Money'), true);
+  assert.equal(visibleGroups(auth([])).some((g) => g.name === 'Money'), false);
+});
+
+test('each Money page finds itself, not another Money page by prefix', () => {
+  for (const id of ['money-settings', 'money-rates', 'money-tax', 'money-products']) {
+    const page = PAGES.find((p) => p.id === id);
+    assert.equal(findPage(page.path).id, id);
+  }
 });

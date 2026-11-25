@@ -11,6 +11,7 @@ const router = express.Router();
 router.get('/config', settings.config);
 router.get('/settings', requirePermission('money.settings'), settings.get);
 router.put('/settings', requirePermission('money.settings'), settings.update);
+router.get('/rates', requirePermission('money.rates.manage'), settings.getRates);
 router.put('/rates', requirePermission('money.rates.manage'), settings.rates);
 
 const canSettings = requirePermission('money.settings');

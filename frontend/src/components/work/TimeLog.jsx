@@ -76,12 +76,15 @@ export default function TimeLog({
               <td className="table-td">
                 {e.workType?.name || '—'}
                 {!e.billable && <span className="ml-1 rounded bg-[var(--color-hover)] px-1 text-xs">non-billable</span>}
+                {e.afterHours === true && <span className="ml-1 rounded bg-[var(--color-hover)] px-1 text-xs">after hours</span>}
+                {e.billingStatus === 'billed' && <span className="ml-1 rounded bg-[var(--color-hover)] px-1 text-xs">billed</span>}
               </td>
               <td className="table-td">{e.note || '—'}</td>
               <td className="table-td font-mono font-semibold">{formatSeconds(e.durationSeconds)}</td>
               <td className="table-td">{e.laborCost != null ? money(e.laborCost) : '—'}</td>
               <td className="table-td whitespace-nowrap text-right">
-                {mayChange(e) && (
+                {/* Billed time is locked (Phase 3): the invoice says what it was. */}
+                {mayChange(e) && e.billingStatus !== 'billed' && (
                   <>
                     <button type="button" onClick={() => setEditing(e)} className="mr-2 text-xs text-[var(--color-accent)]">Edit</button>
                     <button type="button" onClick={() => remove(e)} className="text-xs" style={{ color: 'var(--color-danger)' }}>Delete</button>

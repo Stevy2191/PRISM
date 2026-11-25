@@ -66,6 +66,16 @@ const update = asyncHandler(async (req, res) => {
   res.json({ settings: await moneyConfig() });
 });
 
+// GET /money/rates
+const getRates = asyncHandler(async (req, res) => {
+  const cfg = await moneyConfig();
+  res.json({
+    rates: {
+      hourlyRate: cfg.hourlyRate, afterHoursRate: cfg.afterHoursRate, tripCharge: cfg.tripCharge, eventMinimumMinutes: cfg.eventMinimumMinutes, stepMinutes: cfg.stepMinutes,
+    },
+  });
+});
+
 // PUT /money/rates { hourlyRate?, afterHoursRate?, tripCharge?, eventMinimumMinutes?, stepMinutes? }
 const rates = asyncHandler(async (req, res) => {
   const body = req.body || {};
@@ -86,5 +96,5 @@ const rates = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  config, get, update, rates,
+  config, get, update, rates, getRates,
 };

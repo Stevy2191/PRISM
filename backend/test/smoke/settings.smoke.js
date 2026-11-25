@@ -269,7 +269,7 @@ describe('the rest in the frame, and every page opens', () => {
     const sections = await page.getByRole('complementary', { name: 'Settings menu' }).locator('a[href^="/settings?section="]').evaluateAll(
       (as) => as.map((a) => a.getAttribute('href')),
     );
-    expect(sections.length).toBe(12);
+    expect(sections.length).toBe(13); // Money joined in Phase 3
     const links = [];
     for (const href of sections) {
       await page.goto(href); // eslint-disable-line no-await-in-loop

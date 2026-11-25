@@ -1,7 +1,7 @@
 // The icon for each Settings section (registry SECTIONS[].icon), kept out of
 // the registry so that stays plain data.
 import {
-  IconBox, IconBriefcase, IconBuilding, IconChartBar, IconClock, IconFolder, IconInfoCircle, IconMail, IconServer, IconStopwatch, IconTicket, IconUser, IconUsers,
+  IconBox, IconBriefcase, IconBuilding, IconChartBar, IconClock, IconCurrencyDollar, IconFolder, IconInfoCircle, IconMail, IconServer, IconStopwatch, IconTicket, IconUser, IconUsers,
 } from '@tabler/icons-react';
 
 const ICONS = {
@@ -14,6 +14,7 @@ const ICONS = {
   clock: IconClock,
   chart: IconChartBar,
   stopwatch: IconStopwatch,
+  dollar: IconCurrencyDollar,
   folder: IconFolder,
   box: IconBox,
   server: IconServer,
