@@ -56,6 +56,13 @@ const SHORT_CODE_MAX = 6;
 // digits, at most 6, unique within its company (it sits in project numbers,
 // WC-HR-P0007; Acme can have its own HR). excludeId lets update() check
 // against every *other* department.
+// Phase 3: the support tier a department's people get by default.
+function cleanTier(raw) {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  if (!['full', 'light', 'none'].includes(raw)) throw new ApiError(400, 'The support tier must be full, light or none', 'VALIDATION_ERROR');
+  return raw;
+}
+
 async function normalizeShortCode(shortCode, companyId, excludeId) {
   const trimmed = shortCode.trim().toUpperCase();
   if (!isValidCode(trimmed, { min: 1, max: SHORT_CODE_MAX })) {
@@ -140,6 +147,7 @@ const owners = asyncHandler(async (req, res) => {
 // POST /departments
 const create = asyncHandler(async (req, res) => {
   const { name, description, shortCode, defaultRoleId } = req.body || {};
+  const defaultSupportTier = cleanTier((req.body || {}).defaultSupportTier);
   const rawCompanyId = (req.body || {}).companyId;
   const company = await Company.findByPk(
     rawCompanyId === undefined || rawCompanyId === null || rawCompanyId === ''
@@ -165,6 +173,7 @@ const create = asyncHandler(async (req, res) => {
     description: description || null,
     shortCode: normalizedShortCode,
     defaultRoleId: resolvedDefaultRoleId,
+    ...(defaultSupportTier ? { defaultSupportTier } : {}),
   });
   await writeAudit(req, 'department.create', 'Department', department.id, { name: department.name });
 
@@ -203,6 +212,8 @@ const update = asyncHandler(async (req, res) => {
     else if (!unchanged) changes.defaultRoleId = await resolveDefaultRole(req, defaultRoleId);
   }
 
+  const tier = cleanTier((req.body || {}).defaultSupportTier);
+  if (tier) changes.defaultSupportTier = tier;
   await department.update(changes);
   await writeAudit(req, 'department.update', 'Department', department.id, changes);
 

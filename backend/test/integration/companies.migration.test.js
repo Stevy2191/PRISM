@@ -38,6 +38,7 @@ const ledger = require('../../migrations/20260101000103-ledger');
 const taxBilling = require('../../migrations/20260101000105-tax-and-company-billing');
 // 106's products point at 105's tax categories.
 const products = require('../../migrations/20260101000106-catalog-products');
+const tiers = require('../../migrations/20260101000108-support-tiers');
 
 // down() drops Companies, which 072's portal-admin and KB-audience tables and
 // 073's Microsoft 365 columns and detected departments, and 074's agent
@@ -45,6 +46,7 @@ const products = require('../../migrations/20260101000106-catalog-products');
 // down refuses).
 const migration = {
   down: async (...args) => {
+    await tiers.down(...args);
     await products.down(...args);
     await taxBilling.down(...args);
     await ledger.down(...args);
@@ -63,7 +65,7 @@ const migration = {
     await agent.down(...args);
     await m365.down(...args);
     await portal.down(...args);
-    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); await companySla.up(...args); await companyPortal.up(...args); await bundleExcept.up(...args); await companyCodes.up(...args); await ticketNumbers.up(...args); await projectNumbers.up(...args); await catalog.up(...args); await whichApp.up(...args); await ledger.up(...args); await taxBilling.up(...args); await products.up(...args); throw e; }
+    try { await base.down(...args); } catch (e) { await portal.up(...args); await m365.up(...args); await agent.up(...args); await scan.up(...args); await packageFormat.up(...args); await playbooks.up(...args); await checklists.up(...args); await keyCopy.up(...args); await companyCategories.up(...args); await notices.up(...args); await companySla.up(...args); await companyPortal.up(...args); await bundleExcept.up(...args); await companyCodes.up(...args); await ticketNumbers.up(...args); await projectNumbers.up(...args); await catalog.up(...args); await whichApp.up(...args); await ledger.up(...args); await taxBilling.up(...args); await products.up(...args); await tiers.up(...args); throw e; }
   },
   up: async (...args) => {
     await base.up(...args);
@@ -88,6 +90,7 @@ const migration = {
     await ledger.up(...args);
     await taxBilling.up(...args);
     await products.up(...args);
+    await tiers.up(...args);
   },
 };
 

@@ -202,3 +202,14 @@ it('linking a contact ends the portal sessions they started with their password'
   await syncCompany(company.id);
   expect((await agent.get(`${API}/portal/me`)).status).toBe(401);
 });
+
+it('marks people with a frontline license (Phase 3 support tiers), and unmarks them when it goes', async () => {
+  const F3 = '66b55226-6b4f-492c-910c-a3b7a3c9d993';
+  const linked = await contact({ email: 'person1@tenant.test', msObjectId: uid(1) });
+  ms.tenants[TENANT].users[uid(1)].assignedLicenses = [{ skuId: F3, disabledPlans: [] }];
+  await syncCompany(company.id);
+  expect((await reload(linked)).m365Frontline).toBe(true);
+  ms.tenants[TENANT].users[uid(1)].assignedLicenses = [{ skuId: 'f245ecc8-75af-4f8e-b61f-27d8114de5f3', disabledPlans: [] }];
+  await syncCompany(company.id);
+  expect((await reload(linked)).m365Frontline).toBe(false);
+});

@@ -14,7 +14,7 @@ const { getPortalMicrosoftApp } = require('../../controllers/settingsController'
 const SCOPE = 'https://graph.microsoft.com/.default';
 const USER_FIELDS = [
   'id', 'displayName', 'givenName', 'surname', 'mail', 'userPrincipalName', 'accountEnabled',
-  'department', 'jobTitle', 'businessPhones', 'mobilePhone', 'onPremisesImmutableId',
+  'department', 'jobTitle', 'businessPhones', 'mobilePhone', 'onPremisesImmutableId', 'assignedLicenses',
 ].join(',');
 const PAGE_SIZE = 999; // Graph's maximum for directory objects
 const CHECK_GROUPS_MAX = 20; // checkMemberGroups takes at most 20 ids per call

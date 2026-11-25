@@ -7,6 +7,7 @@ const { writeAudit } = require('../middleware/audit');
 const {
   hasPermission, findAccessibleContact, canAccessContact, parseRecordId, companyScopeWhere,
 } = require('../services/permissionService');
+const { TIERS, effectiveTier } = require('../services/money/tiers');
 const { getTicketStatusBuckets } = require('../services/statusBehavior');
 const { andWhere, contactScopeWhere, ticketScopeWhere } = require('../services/recordScope');
 const {
@@ -23,7 +24,7 @@ const { portalOpen } = require('../services/portal/company');
 
 const userAttrs = ['id', 'displayName', 'username', 'email'];
 const contactInclude = [
-  { model: Department, as: 'department', attributes: ['id', 'name'] },
+  { model: Department, as: 'department', attributes: ['id', 'name', 'defaultSupportTier'] },
   { model: Company, as: 'company', attributes: ['id', 'name'] },
   { model: Site, as: 'site', attributes: ['id', 'name'] },
   { model: User, as: 'assignedToUser', attributes: userAttrs },
@@ -289,7 +290,7 @@ const get = asyncHandler(async (req, res) => {
   }
 
   res.json({
-    contact: { ...contact.toJSON(), ...(await portalFields(contact)) },
+    contact: { ...contact.toJSON(), ...(await portalFields(contact)), effectiveSupportTier: effectiveTier(contact, contact.department) },
     stats: { totalTickets, openTickets, overdueTickets, avgResolutionHours },
     recentTickets,
     // `assets` is the Assets tab's list; `computers` is its older name.
@@ -312,6 +313,15 @@ const update = asyncHandler(async (req, res) => {
   const changes = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) changes[key] = req.body[key] === '' ? null : req.body[key];
+  }
+  // The support tier (Phase 3) is billing: money.billing.manage only.
+  if ((req.body || {}).supportTier !== undefined) {
+    const tier = req.body.supportTier === '' ? null : req.body.supportTier;
+    if (tier !== null && !TIERS.includes(tier)) throw new ApiError(400, 'The support tier must be full, light or none', 'VALIDATION_ERROR');
+    if (!(await hasPermission(req.user.id, 'money.billing.manage'))) {
+      throw new ApiError(403, 'You need the Manage invoices and payments permission to set a support tier', 'FORBIDDEN');
+    }
+    changes.supportTier = tier;
   }
   if (changes.phone !== undefined) changes.phone = normalizePhone(changes.phone);
   if (changes.phoneExt !== undefined) changes.phoneExt = normalizeExtension(changes.phoneExt);
@@ -392,7 +402,7 @@ const update = asyncHandler(async (req, res) => {
   }
 
   const fresh = await Contact.findByPk(contact.id, { include: contactInclude });
-  res.json({ contact: { ...fresh.toJSON(), ...(await portalFields(fresh)) } });
+  res.json({ contact: { ...fresh.toJSON(), ...(await portalFields(fresh)), effectiveSupportTier: effectiveTier(fresh, fresh.department) } });
 });
 
 // PATCH /contacts/:id/department { departmentId } — assigns a department and

@@ -20,6 +20,7 @@ const { Company, Contact } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const graph = require('./graph');
+const { moneyConfig } = require('../money/config');
 const { recountDetected, applyDepartments } = require('./departments');
 const { destroyPortalSessions } = require('../portal/sessions');
 
@@ -43,7 +44,14 @@ function immutableIdToGuidHex(value) {
 }
 
 // The contact fields Microsoft 365 owns, from a Graph user.
-function fieldsFrom(user, contact) {
+// A frontline license (Phase 3 support tiers): any of the person's licenses
+// in money.frontlineSkuIds.
+function holdsFrontline(user, frontlineSkuIds) {
+  const held = (user.assignedLicenses || []).map((l) => String((l && l.skuId) || '').toLowerCase());
+  return held.some((id) => frontlineSkuIds.includes(id));
+}
+
+function fieldsFrom(user, contact, frontlineSkuIds = []) {
   const first = (user.givenName || user.displayName || contact.firstName || '').trim();
   const fields = {
     firstName: first.slice(0, 100) || contact.firstName,
@@ -52,6 +60,7 @@ function fieldsFrom(user, contact) {
     phone: ((user.businessPhones || [])[0] || user.mobilePhone || contact.phone || null),
     jobTitle: user.jobTitle ? String(user.jobTitle).slice(0, 150) : null,
     msDepartmentName: user.department ? String(user.department).trim().slice(0, 150) : null,
+    m365Frontline: holdsFrontline(user, frontlineSkuIds),
   };
   const email = emailOf(user);
   if (email) fields.email = email;
@@ -82,6 +91,7 @@ async function runSync(company, result) {
   // A group read proves the tenant approved the app.
   if (complete && !company.msConsentAt) await company.update({ msConsentAt: new Date() });
 
+  const { frontlineSkuIds } = await moneyConfig();
   const contacts = await Contact.scope('withPassword').findAll({ where: { companyId: company.id } });
   const byOid = new Map(contacts.filter((c) => c.msObjectId).map((c) => [c.msObjectId.toLowerCase(), c]));
   const unlinked = contacts.filter((c) => !c.msObjectId);
@@ -123,7 +133,7 @@ async function runSync(company, result) {
       }
       continue; // eslint-disable-line no-continue
     }
-    const fields = fieldsFrom(user, contact);
+    const fields = fieldsFrom(user, contact, frontlineSkuIds);
     if (user.accountEnabled === false && contact.status === 'active') fields.status = 'inactive';
     const changed = Object.keys(fields).filter((k) => (contact[k] ?? null) !== (fields[k] ?? null));
     if (!changed.length) continue; // eslint-disable-line no-continue

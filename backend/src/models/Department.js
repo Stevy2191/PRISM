@@ -23,6 +23,8 @@ module.exports = (sequelize) => {
       },
       // Short code (HR, FIN): every department has one, unique within its
       // company; it sits in project numbers (WC-HR-P0007).
+      // Phase 3: the support tier its people get unless set on them.
+      defaultSupportTier: { type: DataTypes.ENUM('full', 'light', 'none'), allowNull: false, defaultValue: 'full' },
       shortCode: {
         type: DataTypes.STRING(10),
         allowNull: true,

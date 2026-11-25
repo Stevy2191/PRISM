@@ -59,6 +59,9 @@ module.exports = (sequelize) => {
       // people who match no contact. No email, no portal access; inventory
       // matching skips it.
       isPlaceholder: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      // Phase 3 support tier: null = automatic (frontline license, department).
+      supportTier: { type: DataTypes.ENUM('full', 'light', 'none'), allowNull: true },
+      m365Frontline: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     },
     {
       sequelize,
