@@ -133,6 +133,8 @@ function makeLinkedUpload(subdir) {
   return multer({ storage, limits: { fileSize: ASSET_MAX_SIZE }, fileFilter: assetFileFilter });
 }
 const licenseUpload = makeLinkedUpload('licenses');
+// Customers' documents (Phase 3: tax exemption certificates).
+const companyUpload = makeLinkedUpload('companies');
 const contractUpload = makeLinkedUpload('contracts');
 
 // Knowledge Base attachments — uploaded how-tos / documents. Broader
@@ -329,6 +331,6 @@ const csvUpload = multer({
 });
 
 module.exports = {
-  upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload, kbUpload,
+  upload, projectUpload, assetUpload, licenseUpload, contractUpload, csvUpload, kbUpload, companyUpload,
   UPLOAD_ROOT, ASSET_MAX_SIZE, CSV_MAX_SIZE, enforceMaxAttachmentSize, verifyFileSignature, scanUpload, BLOCKED_EXTENSIONS,
 };

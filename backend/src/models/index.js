@@ -123,6 +123,9 @@ const CompanyCatalogItem = require('./CompanyCatalogItem')(sequelize);
 const LedgerAccount = require('./LedgerAccount')(sequelize);
 const LedgerEntry = require('./LedgerEntry')(sequelize);
 const LedgerLine = require('./LedgerLine')(sequelize);
+const TaxRate = require('./TaxRate')(sequelize);
+const TaxCategory = require('./TaxCategory')(sequelize);
+const CompanyBilling = require('./CompanyBilling')(sequelize);
 const AgentNonce = require('./AgentNonce')(sequelize);
 const Mdm = require('./Mdm')(sequelize);
 const Form = require('./Form')(sequelize);
@@ -256,6 +259,9 @@ const db = {
   LedgerAccount,
   LedgerEntry,
   LedgerLine,
+  TaxRate,
+  TaxCategory,
+  CompanyBilling,
   AgentNonce,
   Mdm,
   Form,
@@ -766,6 +772,7 @@ Ticket.belongsTo(CompanyCatalogItem, { foreignKey: 'catalogItemId', as: 'catalog
 LedgerEntry.hasMany(LedgerLine, { foreignKey: 'entryId', as: 'lines' });
 LedgerLine.belongsTo(LedgerEntry, { foreignKey: 'entryId', as: 'entry' });
 LedgerLine.belongsTo(LedgerAccount, { foreignKey: 'accountId', as: 'account' });
+CompanyBilling.belongsTo(TaxRate, { foreignKey: 'taxRateId', as: 'taxRate' });
 Device.hasMany(AgentNonce, { foreignKey: 'deviceId', as: 'nonces', onDelete: 'CASCADE' });
 
 // Playbooks (PB): MDMs and carriers on devices; forms and their versions;

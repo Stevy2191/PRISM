@@ -166,7 +166,7 @@ async function resetData() {
     'ProjectIdSequences', 'ProjectContacts', 'ProjectPhases', 'Projects',
     'ProjectTemplateDependencies', 'ProjectTemplateTasks', 'ProjectTemplatePhases', 'ProjectTemplates',
     'WorkflowRuleLogs', 'WorkflowActions', 'WorkflowConditions', 'WorkflowRules',
-    'CustomFields', 'TicketCategories', 'CompanyCatalogItems', 'LedgerLines', 'LedgerEntries', 'TeamMembers', 'Teams',
+    'CustomFields', 'TicketCategories', 'CompanyCatalogItems', 'LedgerLines', 'LedgerEntries', 'CompanyBilling', 'TaxRates', 'TeamMembers', 'Teams',
     'AuditLogs', 'SystemAuditLogs',
     'Sites', 'CompanyDomains', 'UserCompanyAccess', 'RoleCompanyAccess',
     'OAuthConnections', 'OAuthRequests', 'OAuthClients',
@@ -212,6 +212,15 @@ async function resetData() {
   // between installs, so a suggested code would too): LITS, as in
   // LITS-T0001 and LITS-SD-P0001.
   await sequelize.query("UPDATE Companies SET code = 'LITS', previousCodes = NULL WHERE isInternal = 1").catch(() => {});
+  // Tax categories are seeded (Phase 3): back to the seeded list and shares.
+  {
+    const { CATEGORIES } = require('../../migrations/20260101000105-tax-and-company-billing'); // eslint-disable-line global-require
+    await sequelize.query('SET STATEMENT foreign_key_checks = 0 FOR DELETE FROM TaxCategories WHERE name NOT IN (:names)', { replacements: { names: CATEGORIES.map(([n]) => n) } }).catch(() => {});
+    for (const [name, pct] of CATEGORIES) {
+      // eslint-disable-next-line no-await-in-loop
+      await sequelize.query('UPDATE TaxCategories SET taxablePercent = :pct, active = 1 WHERE name = :name', { replacements: { name, pct } }).catch(() => {});
+    }
+  }
   // SystemSettings is not truncated (other code relies on any rows an
   // install has), but settings a test flips must not leak into the next one —
   // SSO enforcement in particular would fail every subsequent login.

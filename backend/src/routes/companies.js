@@ -22,6 +22,15 @@ router.get('/:id', canView, ctrl.get);
 // ticket forms ask "which app?"); the controller checks the permission to
 // change it.
 const catalog = require('../controllers/catalogController');
+// A customer's billing settings (Phase 3): permission, then reach, then any upload.
+const billing = require('../controllers/money/companyBillingController');
+const { companyUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
+const canSeeBilling = requirePermission('money.billing.view');
+const canManageBilling = requirePermission('money.billing.manage');
+router.get('/:id/billing', canSeeBilling, billing.loadBillingCompany, billing.get);
+router.put('/:id/billing', canManageBilling, billing.loadBillingCompany, billing.update);
+router.post('/:id/billing/certificate', canManageBilling, billing.loadBillingCompany, companyUpload.single('file'), verifyFileSignature, scanUpload('Company'), billing.uploadCertificate);
+router.get('/:id/billing/certificate', canSeeBilling, billing.loadBillingCompany, billing.downloadCertificate);
 router.get('/:id/catalog/found-software', catalog.foundSoftware);
 router.get('/:id/catalog', catalog.list);
 router.post('/:id/catalog', catalog.create);
