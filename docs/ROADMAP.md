@@ -12,9 +12,9 @@ read that before designing any sub-project.
 
 ## Where things stand (updated 2026-11-24)
 
-- **Now: Phase 3, Money, as a full feature set** (owner, 2026-11-24): every
-  sub-project 10–15, designed together first so rates, agreements, billing
-  and sales share one model.
+- **Now: Phase 3, Money** — design approved 2026-11-25
+  ([spec](superpowers/specs/2026-11-25-phase3-money-design.md)); planning
+  step 1, the money core.
 - **9b is finished** (2026-11-24): each company's software list, "which
   app?" category steps, the portal's step-by-step picker, copying a tree, and
   the setup checklist.
@@ -176,8 +176,11 @@ macOS and Linux, without the rest of RMM. Built as 8a (server and Windows),
 
 ### Phase 3 — Money (`v0.6.0`)
 
-To be built as a full feature set (owner, 2026-11-24), designed as one before
-any of it is built.
+To be built as a full feature set (owner, 2026-11-24), designed as one:
+[spec](superpowers/specs/2026-11-25-phase3-money-design.md) (approved
+2026-11-25). Built in seven steps: 1 money core, 2 bills and purchasing,
+3 agreements, invoicing and payments, 4 sales, 5 project billing, 6 books
+reports, 7 a security check. Each step gets its own plan.
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|

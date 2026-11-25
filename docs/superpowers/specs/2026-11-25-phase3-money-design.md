@@ -1,6 +1,6 @@
 # Phase 3 — Money: design
 
-Status: **draft for the owner's approval** (2026-11-25). Covers roadmap
+Status: **approved by the owner** (2026-11-25). Covers roadmap
 sub-projects 10–15 as one design, built in six steps plus a closing security check (see *Build order*).
 Read the [roadmap design](2026-10-03-prism-psa-roadmap-design.md) first;
 this document keeps its principles (one time ledger, exact money, one
