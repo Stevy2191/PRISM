@@ -25,6 +25,8 @@ const later = [
   // Phase 3: billing columns on TimeEntries and WorkTypes, which 050's round
   // trip recreates without them.
   require('../../migrations/20260101000107-time-billing'),
+  // Phase 3: bill lines point at Tickets and Projects.
+  require('../../migrations/20260101000109-bills'),
 ];
 
 const qi = () => sequelize.getQueryInterface();

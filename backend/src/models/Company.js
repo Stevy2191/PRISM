@@ -23,6 +23,8 @@ module.exports = (sequelize) => {
       isInternal: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isClient: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isVendor: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      // A vendor who gets a 1099 (Phase 3): totals only, never a tax ID.
+      is1099: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       status: { type: DataTypes.ENUM('active', 'inactive'), allowNull: false, defaultValue: 'active' },
       phone: { type: DataTypes.STRING(50), allowNull: true },
       website: { type: DataTypes.STRING(255), allowNull: true },

@@ -69,6 +69,12 @@ async function readFields(body, existing) {
   if (body.name !== undefined || !existing) out.name = normalizeName(body.name);
   if (body.isClient !== undefined) out.isClient = !!body.isClient;
   if (body.isVendor !== undefined) out.isVendor = !!body.isVendor;
+  // A vendor who gets a 1099 (Phase 3): only a vendor can.
+  if (body.is1099 !== undefined) {
+    const vendor = out.isVendor !== undefined ? out.isVendor : !!(existing && existing.isVendor);
+    if (body.is1099 && !vendor) throw new ApiError(400, 'Only a vendor gets a 1099', 'VALIDATION_ERROR');
+    out.is1099 = !!body.is1099;
+  }
   if (body.code !== undefined) out.code = await readCompanyCode(body.code, existing);
   if (body.phone !== undefined) out.phone = normalizePhone(body.phone);
   if (body.website !== undefined) out.website = normalizeWebsite(body.website);

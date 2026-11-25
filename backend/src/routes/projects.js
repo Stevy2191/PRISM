@@ -87,6 +87,8 @@ router.delete('/:id/expenses/:expenseId', requirePermission('projects.manage_exp
 
 // Materials
 router.get('/:id/materials', ctrl.listMaterials);
+// Phase 3: the project's bills (amounts only with money permissions).
+router.get('/:id/bills', require('../controllers/money/billsController').projectBills);
 router.post('/:id/materials', requirePermission('projects.manage_expenses'), ctrl.createMaterial);
 router.patch('/:id/materials/:materialId', requirePermission('projects.manage_expenses'), ctrl.updateMaterial);
 router.delete('/:id/materials/:materialId', requirePermission('projects.manage_expenses'), ctrl.removeMaterial);

@@ -2,6 +2,8 @@ const express = require('express');
 const settings = require('../controllers/money/settingsController');
 const tax = require('../controllers/money/taxController');
 const products = require('../controllers/money/catalogController');
+const billsCtrl = require('../controllers/money/billsController');
+const { billUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
 
 // Money (Phase 3). Each route names the permission it needs; customer
@@ -25,5 +27,17 @@ router.patch('/tax-categories/:id', canSettings, tax.updateCategory);
 router.get('/products', requirePermission('money.billing.view', 'money.purchasing.manage', 'money.rates.manage'), products.list);
 router.post('/products', requirePermission('money.rates.manage'), products.create);
 router.patch('/products/:id', requirePermission('money.rates.manage'), products.update);
+
+// Bills (step 2): contractors' and suppliers' bills.
+const canBills = requirePermission('money.bills.manage');
+router.get('/bills', canBills, billsCtrl.list);
+router.post('/bills', canBills, billsCtrl.create);
+router.get('/bills/:id', canBills, billsCtrl.get);
+router.patch('/bills/:id', canBills, billsCtrl.update);
+router.post('/bills/:id/enter', canBills, billsCtrl.enter);
+router.post('/bills/:id/pay', canBills, billsCtrl.pay);
+router.post('/bills/:id/void', canBills, billsCtrl.voidIt);
+router.post('/bills/:id/file', canBills, billUpload.single('file'), verifyFileSignature, scanUpload('Bill'), billsCtrl.uploadFile);
+router.get('/bills/:id/file', canBills, billsCtrl.downloadFile);
 
 module.exports = router;

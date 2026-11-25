@@ -5,7 +5,7 @@
 const { Op } = require('sequelize');
 const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, Bill, sequelize,
 } = require('../models');
 const { renumberMoved } = require('./tickets/numbers');
 const { renumberMoved: renumberMovedProjects } = require('./projects/numbers');
@@ -133,6 +133,13 @@ async function mergeCompanies(from, into, transaction) {
   await moveCatalog(from, into, transaction);
   // Ledger entries (Phase 3) are never changed as money; whose company they
   // are filed under follows a merge. Raw SQL: the model refuses updates.
+  // Bills (Phase 3) follow their vendor; a bill number the kept vendor
+  // already has gets the merged vendor's name after it.
+  const keptNumbers = new Set((await Bill.findAll({ where: { vendorCompanyId: into.id }, attributes: ['billNumber'], transaction })).map((b) => b.billNumber));
+  for (const bill of await Bill.findAll({ where: { vendorCompanyId: from.id }, transaction })) {
+    const billNumber = keptNumbers.has(bill.billNumber) ? `${bill.billNumber} (${from.name})`.slice(0, 100) : bill.billNumber;
+    await bill.update({ vendorCompanyId: into.id, billNumber }, { transaction }); // eslint-disable-line no-await-in-loop
+  }
   await sequelize.query('UPDATE LedgerEntries SET companyId = :into WHERE companyId = :from', {
     replacements: { into: into.id, from: from.id }, transaction,
   });

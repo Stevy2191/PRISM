@@ -127,6 +127,8 @@ const TaxRate = require('./TaxRate')(sequelize);
 const TaxCategory = require('./TaxCategory')(sequelize);
 const CompanyBilling = require('./CompanyBilling')(sequelize);
 const CatalogProduct = require('./CatalogProduct')(sequelize);
+const Bill = require('./Bill')(sequelize);
+const BillLine = require('./BillLine')(sequelize);
 const AgentNonce = require('./AgentNonce')(sequelize);
 const Mdm = require('./Mdm')(sequelize);
 const Form = require('./Form')(sequelize);
@@ -264,6 +266,8 @@ const db = {
   TaxCategory,
   CompanyBilling,
   CatalogProduct,
+  Bill,
+  BillLine,
   AgentNonce,
   Mdm,
   Form,
@@ -776,6 +780,11 @@ LedgerLine.belongsTo(LedgerEntry, { foreignKey: 'entryId', as: 'entry' });
 LedgerLine.belongsTo(LedgerAccount, { foreignKey: 'accountId', as: 'account' });
 CompanyBilling.belongsTo(TaxRate, { foreignKey: 'taxRateId', as: 'taxRate' });
 CatalogProduct.belongsTo(TaxCategory, { foreignKey: 'taxCategoryId', as: 'taxCategory' });
+Bill.hasMany(BillLine, { foreignKey: 'billId', as: 'lines', onDelete: 'CASCADE' });
+BillLine.belongsTo(Bill, { foreignKey: 'billId', as: 'bill' });
+Bill.belongsTo(Company, { foreignKey: 'vendorCompanyId', as: 'vendor' });
+BillLine.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+BillLine.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 Device.hasMany(AgentNonce, { foreignKey: 'deviceId', as: 'nonces', onDelete: 'CASCADE' });
 
 // Playbooks (PB): MDMs and carriers on devices; forms and their versions;
