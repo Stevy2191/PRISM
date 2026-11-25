@@ -99,3 +99,44 @@ it('migration 107 rolls back and forward', async () => {
   expect((await qi.describeTable('TimeEntries')).afterHours).toBeDefined();
   expect((await models.WorkType.findOne({ where: { name: 'On-site' } })).onSite).toBe(true);
 });
+
+describe('review fix: billed time is locked on every path', () => {
+  const billIt = (id) => models.TimeEntry.update({ billingStatus: 'billed', invoiceLineId: 1 }, { where: { id }, allowBilled: true });
+
+  it('a ticket with billed time can\'t be merged away or deleted', async () => {
+    const e = expectOk(await tech.agent.post(timeUrl()).send({ durationMinutes: 30 }), 201).entry;
+    await billIt(e.id);
+    const other = await makeTicket(w.admin.agent, { title: 'Keep', contactId: ticket.contactId || ticket.contact.id });
+    const merge = await w.admin.agent.post(`${API}/tickets/${other.id}/merge`).send({ sourceIds: [ticket.id] });
+    expect(merge.status).toBe(409);
+    expect(merge.body.code).toBe('TIME_BILLED');
+    expect((await models.TimeEntry.findByPk(e.id)).ticketId).toBe(ticket.id);
+    const del = await w.admin.agent.delete(`${API}/tickets/${ticket.id}`);
+    expect(del.status).toBe(409);
+    expect(await models.TimeEntry.count({ where: { id: e.id } })).toBe(1);
+  });
+
+  it('a project with billed time can\'t be deleted', async () => {
+    const { makeProject } = require('./fixtures');
+    const project = await makeProject(w.admin.agent, { name: 'Network refresh', ownerDepartmentId: w.deptA.id });
+    const e = expectOk(await w.admin.agent.post(`${API}/projects/${project.id}/time-entries`).send({ durationMinutes: 60 }), 201).entry;
+    await billIt(e.id);
+    const del = await w.admin.agent.delete(`${API}/projects/${project.id}`);
+    expect(del.status).toBe(409);
+    expect(await models.TimeEntry.count({ where: { id: e.id } })).toBe(1);
+  });
+
+  it('unbilled time moves and goes as before; invoicing itself can still un-bill', async () => {
+    const e = expectOk(await tech.agent.post(timeUrl()).send({ durationMinutes: 30 }), 201).entry;
+    await billIt(e.id);
+    // Without the flag (any ordinary code path), changing billed time throws.
+    await expect(models.TimeEntry.update({ durationSeconds: 1 }, { where: { id: e.id } })).rejects.toThrow(/invoice/i);
+    const row = await models.TimeEntry.findByPk(e.id);
+    await expect(row.update({ note: 'x' })).rejects.toThrow(/invoice/i);
+    await expect(row.destroy()).rejects.toThrow(/invoice/i);
+    // A voided invoice un-bills it (Phase 3 step 3), with the flag.
+    await models.TimeEntry.update({ billingStatus: 'unbilled', invoiceLineId: null }, { where: { id: e.id }, allowBilled: true });
+    expectOk(await tech.agent.patch(`${timeUrl()}/${e.id}`).send({ durationMinutes: 40 }));
+    expectOk(await w.admin.agent.delete(`${API}/tickets/${ticket.id}`));
+  });
+});

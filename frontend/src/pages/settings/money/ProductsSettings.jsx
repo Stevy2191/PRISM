@@ -59,7 +59,7 @@ export default function ProductsSettings() {
             <label className="text-sm">SKU<input className="input mt-1" maxLength={100} value={form.sku || ''} onChange={set('sku')} /></label>
             <label className="text-sm">Kind<select className="input mt-1" value={form.kind} onChange={set('kind')}>{KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
             <label className="text-sm">Sold per (unit)<input className="input mt-1" maxLength={20} value={form.unit} onChange={set('unit')} /></label>
-            <label className="text-sm">Tax category<select className="input mt-1" value={form.taxCategoryId || ''} onChange={set('taxCategoryId')}><option value="">None</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            <label className="text-sm">Tax category<select className="input mt-1" required value={form.taxCategoryId || ''} onChange={set('taxCategoryId')}><option value="">Choose…</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             <label className="text-sm">Bought per (unit, if different)<input className="input mt-1" maxLength={20} placeholder="box" value={form.purchaseUnit || ''} onChange={set('purchaseUnit')} /></label>
             <label className="text-sm">{`${form.unit || 'units'} in one ${form.purchaseUnit || 'purchase'}`}<input className="input mt-1" inputMode="decimal" value={form.usagePerPurchase} onChange={set('usagePerPurchase')} /></label>
             <label className="text-sm">{`Cost per ${form.purchaseUnit || form.unit || 'unit'} ($)`}<input className="input mt-1" inputMode="decimal" value={form.cost ?? ''} onChange={set('cost')} /></label>

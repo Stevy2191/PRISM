@@ -9,7 +9,10 @@ const migration = require('../../migrations/20260101000106-catalog-products');
 
 let w;
 const a = () => w.admin.agent;
-const add = async (body) => expectOk(await a().post(`${API}/money/products`).send(body), 201).product;
+const add = async (body) => {
+  const parts = await models.TaxCategory.findOne({ where: { name: 'Parts and equipment' } });
+  return expectOk(await a().post(`${API}/money/products`).send({ taxCategoryId: parts.id, ...body }), 201).product;
+};
 const cable = { name: 'Cat6 cable', kind: 'product', unit: 'ft', cost: '180', purchaseUnit: 'box', usagePerPurchase: '1000', stocked: true };
 
 beforeEach(async () => {
@@ -42,7 +45,8 @@ it('markup: the default, the product\'s own, or its own price', async () => {
 
 it('validates, refuses duplicates, filters and searches', async () => {
   await add(cable);
-  expect((await a().post(`${API}/money/products`).send({ ...cable, name: 'CAT6 CABLE' })).status).toBe(409);
+  const anyCat = (await models.TaxCategory.findOne()).id;
+  expect((await a().post(`${API}/money/products`).send({ ...cable, name: 'CAT6 CABLE', taxCategoryId: anyCat })).status).toBe(409);
   expect((await a().post(`${API}/money/products`).send({ name: 'Bad', kind: 'product', cost: '-1' })).status).toBe(400);
   expect((await a().post(`${API}/money/products`).send({ name: 'Bad', kind: 'gadget' })).status).toBe(400);
   expect((await a().post(`${API}/money/products`).send({ name: 'Bad', kind: 'product', usagePerPurchase: '0' })).status).toBe(400);
@@ -54,7 +58,15 @@ it('validates, refuses duplicates, filters and searches', async () => {
   expect(await list({ kind: 'service' })).toEqual(['Managed services, full user']);
   expect(await list({ search: 'lat5450' })).toEqual(['Dell Latitude 5450']);
   expect(await list({ search: 'cat6' })).toEqual(['Cat6 cable']);
-  expect((await a().post(`${API}/money/products`).send({ name: 'Other', kind: 'product', sku: 'lat5450' })).status).toBe(409);
+  expect((await a().post(`${API}/money/products`).send({ name: 'Other', kind: 'product', sku: 'lat5450', taxCategoryId: anyCat })).status).toBe(409);
+});
+
+it('review fix: every product needs a tax category', async () => {
+  const res = await a().post(`${API}/money/products`).send({ name: 'No tax', kind: 'product', cost: '1', taxCategoryId: null });
+  expect(res.status).toBe(400);
+  expect((await a().post(`${API}/money/products`).send({ name: 'Missing', kind: 'product', cost: '1' })).status).toBe(400);
+  const p = await add(cable);
+  expect((await a().patch(`${API}/money/products/${p.id}`).send({ taxCategoryId: null })).status).toBe(400);
 });
 
 it('a technician sees no products or costs', async () => {

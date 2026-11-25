@@ -45,10 +45,9 @@ it('works out tax per line at the taxable share', async () => {
     { amount: '100.00', taxCategoryId: managed.id },
     { amount: '100.00', taxCategoryId: parts.id },
     { amount: '45.00', taxCategoryId: fees.id },
-    { amount: '10.00', taxCategoryId: null },
   ], billing, { categories: [managed, parts, fees] });
-  expect(out.lines.map((l) => l.tax)).toEqual(['6.60', '8.25', '0.00', '0.00']);
-  expect(out.lines.map((l) => l.taxable)).toEqual(['80.00', '100.00', '0.00', '0.00']);
+  expect(out.lines.map((l) => l.tax)).toEqual(['6.60', '8.25', '0.00']);
+  expect(out.lines.map((l) => l.taxable)).toEqual(['80.00', '100.00', '0.00']);
   expect(out.taxTotal).toBe('14.85');
 });
 
@@ -145,4 +144,11 @@ it('migration 105 rolls back and forward', async () => {
   await migration.up(qi, Sequelize);
   await products.up(qi, Sequelize);
   expect(await models.TaxCategory.count()).toBe(7);
+});
+
+it('review fix: a line with no tax category, or an unknown one, is an error, never silently untaxed', async () => {
+  const billing = await customerBilling(alpha.id);
+  const parts = await cat('Parts and equipment');
+  expect(() => taxForLines([{ amount: '10.00', taxCategoryId: null }], billing, { categories: [parts] })).toThrow(/tax category/i);
+  expect(() => taxForLines([{ amount: '10.00', taxCategoryId: 999999 }], billing, { categories: [parts] })).toThrow(/tax category/i);
 });

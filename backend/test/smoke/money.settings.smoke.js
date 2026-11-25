@@ -62,6 +62,7 @@ it('sets the rates, a tax rate and category, and a product sold by the foot', as
   await form.getByLabel('Bought per (unit, if different)').fill('box');
   await form.getByLabel('ft in one box').fill('1000');
   await form.getByLabel('Cost per box ($)').fill('180');
+  await form.getByLabel('Tax category').selectOption({ label: 'Cabling' });
   await form.getByRole('button', { name: 'Save' }).click();
   await page.getByTestId('products').getByText('$0.1800/ft').first().waitFor();
 });

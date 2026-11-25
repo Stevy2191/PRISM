@@ -5,6 +5,11 @@ const { DataTypes, Model } = require('sequelize');
 // check enforces it). userId is who the time is FOR; loggedById is who
 // entered it. "When it was entered" is createdAt; entryDate is the work date
 // in the organization's time zone.
+const billedError = () => {
+  const { ApiError } = require('../middleware/error'); // eslint-disable-line global-require
+  return new ApiError(409, 'This time is on an invoice and can\'t be changed or removed', 'TIME_BILLED');
+};
+
 module.exports = (sequelize) => {
   class TimeEntry extends Model {}
 
@@ -44,9 +49,31 @@ module.exports = (sequelize) => {
         beforeCreate: (entry) => {
           if (entry.billable === false && entry.billingStatus === 'unbilled') entry.billingStatus = 'non_billable';
         },
+        // Billed time is locked on every path (the time API, a ticket merge,
+        // a ticket or project delete): the invoice that billed it says what
+        // it was. Only invoicing itself passes { allowBilled: true } (to bill
+        // or, voiding an invoice, to un-bill).
+        beforeUpdate: (entry, options) => {
+          if (!options.allowBilled && entry.previous('billingStatus') === 'billed') throw billedError();
+        },
+        beforeDestroy: (entry, options) => {
+          if (!options.allowBilled && entry.billingStatus === 'billed') throw billedError();
+        },
+        beforeBulkUpdate: async (options) => {
+          if (!options.allowBilled && await anyBilled(options)) throw billedError();
+        },
+        beforeBulkDestroy: async (options) => {
+          if (!options.allowBilled && await anyBilled(options)) throw billedError();
+        },
       },
     }
   );
+
+  // Would a bulk update or delete touch billed time?
+  async function anyBilled(options) {
+    const { Op } = require('sequelize'); // eslint-disable-line global-require
+    return (await TimeEntry.count({ where: { [Op.and]: [options.where || {}, { billingStatus: 'billed' }] }, transaction: options.transaction })) > 0;
+  }
 
   return TimeEntry;
 };

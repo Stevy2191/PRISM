@@ -50,13 +50,16 @@ async function readFields(body, isCreate) {
   if (body.usagePerPurchase !== undefined) out.usagePerPurchase = decimal(body.usagePerPurchase, 'Units per purchase', { allowNull: false, positive: true });
   for (const key of ['stocked', 'serialized', 'active']) if (body[key] !== undefined) out[key] = bool(body[key], key);
   if (body.notes !== undefined) out.notes = text(body.notes, 'Notes', 5000);
+  // Every product has a tax category (review fix): an invoice line must
+  // never be untaxed because nobody chose one. "Fees" (0 %) is for untaxed.
+  if (isCreate && (body.taxCategoryId === undefined || body.taxCategoryId === null || body.taxCategoryId === '')) {
+    throw bad('Choose a tax category (Fees is 0 % taxable)');
+  }
   if (body.taxCategoryId !== undefined) {
-    if (body.taxCategoryId === null) out.taxCategoryId = null;
-    else {
-      const cat = await TaxCategory.findByPk(parseRecordId(body.taxCategoryId) || 0);
-      if (!cat) throw bad('Tax category not found');
-      out.taxCategoryId = cat.id;
-    }
+    if (body.taxCategoryId === null || body.taxCategoryId === '') throw bad('Choose a tax category (Fees is 0 % taxable)');
+    const cat = await TaxCategory.findByPk(parseRecordId(body.taxCategoryId) || 0);
+    if (!cat) throw bad('Tax category not found');
+    out.taxCategoryId = cat.id;
   }
   return out;
 }

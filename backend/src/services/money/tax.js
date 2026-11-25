@@ -53,13 +53,19 @@ function isExemptOn(billing, date) {
 }
 
 // lines: [{ amount, taxCategoryId }]; categories: the TaxCategory rows the
-// lines use. → { lines: [{ taxable, tax }], taxTotal } (strings, cents).
+// lines use. A line without a tax category, or with one not given, throws:
+// a missed lookup must never undercharge tax.
+// → { lines: [{ taxable, tax }], taxTotal } (strings, cents).
 function taxForLines(lines, billing, { categories = [], onDate = null } = {}) {
   const shareOf = new Map(categories.map((c) => [c.id, c.taxablePercent]));
   const today = onDate || new Date().toISOString().slice(0, 10);
   const none = !billing.chargeTax || isExemptOn(billing, today);
   const out = lines.map((l) => {
-    const share = l.taxCategoryId != null && shareOf.has(l.taxCategoryId) ? shareOf.get(l.taxCategoryId) : '0';
+    // Never silently untaxed: every line names a tax category the caller loaded.
+    if (l.taxCategoryId == null || !shareOf.has(l.taxCategoryId)) {
+      throw new Error(`Every charged line needs a known tax category (got ${l.taxCategoryId == null ? 'none' : l.taxCategoryId})`);
+    }
+    const share = shareOf.get(l.taxCategoryId);
     const taxable = D(cents(percent(l.amount, share)));
     const tax = none ? D(0) : D(cents(percent(taxable, billing.taxRatePercent)));
     return { taxable: cents(none ? 0 : taxable), tax: cents(tax) };
