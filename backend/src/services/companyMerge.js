@@ -171,6 +171,7 @@ async function mergeCompanies(from, into, transaction) {
   await into.update({
     isClient: !into.isInternal && (into.isClient || from.isClient),
     isVendor: into.isVendor || from.isVendor,
+    is1099: into.is1099 || from.is1099,
   }, { transaction });
   await from.destroy({ transaction });
 }

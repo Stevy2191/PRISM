@@ -9,6 +9,15 @@ const expensesCtrl = require('../controllers/money/expensesController');
 const payablesReports = require('../controllers/money/payablesReportsController');
 const { billUpload, receiptUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
+const { Bill, Expense } = require('../models');
+const { asyncHandler, ApiError } = require('../middleware/error');
+
+// Before an upload is written to disk: the record it's for must exist.
+const mustExist = (Model, label) => asyncHandler(async (req, res, next) => {
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0 || !(await Model.count({ where: { id } }))) throw new ApiError(404, `${label} not found`, 'NOT_FOUND');
+  next();
+});
 
 // Money (Phase 3). Each route names the permission it needs; customer
 // billing routes (later steps) also sit behind requireCustomerBilling.
@@ -43,7 +52,7 @@ router.patch('/bills/:id', canBills, billsCtrl.update);
 router.post('/bills/:id/enter', canBills, billsCtrl.enter);
 router.post('/bills/:id/pay', canBills, billsCtrl.pay);
 router.post('/bills/:id/void', canBills, billsCtrl.voidIt);
-router.post('/bills/:id/file', canBills, billUpload.single('file'), verifyFileSignature, scanUpload('Bill'), billsCtrl.uploadFile);
+router.post('/bills/:id/file', canBills, mustExist(Bill, 'Bill'), billUpload.single('file'), verifyFileSignature, scanUpload('Bill'), billsCtrl.uploadFile);
 router.get('/bills/:id/file', canBills, billsCtrl.downloadFile);
 
 // Expenses (step 2): paid directly, with the receipt.
@@ -52,7 +61,7 @@ router.post('/expenses', canBills, expensesCtrl.create);
 router.get('/expenses/:id', canBills, expensesCtrl.get);
 router.patch('/expenses/:id', canBills, expensesCtrl.update);
 router.post('/expenses/:id/void', canBills, expensesCtrl.voidIt);
-router.post('/expenses/:id/receipt', canBills, receiptUpload.single('file'), verifyFileSignature, scanUpload('Expense'), expensesCtrl.uploadReceipt);
+router.post('/expenses/:id/receipt', canBills, mustExist(Expense, 'Expense'), receiptUpload.single('file'), verifyFileSignature, scanUpload('Expense'), expensesCtrl.uploadReceipt);
 router.get('/expenses/:id/receipt', canBills, expensesCtrl.downloadReceipt);
 
 // Shelf stock (step 2).

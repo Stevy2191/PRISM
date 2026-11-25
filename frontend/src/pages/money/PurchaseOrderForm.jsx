@@ -32,7 +32,7 @@ export default function PurchaseOrderForm({ job, onClose, onSaved }) {
     try {
       const { data } = await api.post('/money/purchase-orders', {
         vendorCompanyId,
-        ...(jobKind === 'ticket' && jobId ? { ticketId: Number(jobId) } : {}),
+        ...(jobKind === 'ticket' && jobId ? { ticketId: String(jobId).trim() } : {}),
         ...(jobKind === 'project' && jobId ? { projectId: Number(jobId) } : {}),
         notes: notes || undefined,
         lines: lines.map((l) => ({
@@ -56,7 +56,7 @@ export default function PurchaseOrderForm({ job, onClose, onSaved }) {
           <label className="text-sm">For<select className="input mt-1" aria-label="For" value={jobKind} onChange={(e) => setJobKind(e.target.value)}>
             <option value="shelf">The shelf (stock)</option><option value="ticket">A ticket</option><option value="project">A project</option>
           </select></label>
-          {jobKind !== 'shelf' && <label className="text-sm">{jobKind === 'ticket' ? 'Ticket ID' : 'Project ID'}<input className="input mt-1" required inputMode="numeric" value={jobId} onChange={(e) => setJobId(e.target.value.replace(/\D/g, ''))} /></label>}
+          {jobKind !== 'shelf' && <label className="text-sm">{jobKind === 'ticket' ? 'Ticket number' : 'Project ID'}<input className="input mt-1" required placeholder={jobKind === 'ticket' ? 'WC-T0042' : ''} maxLength={40} value={jobId} onChange={(e) => setJobId(jobKind === 'ticket' ? e.target.value : e.target.value.replace(/\D/g, ''))} /></label>}
         </div>
         <fieldset className="space-y-2">
           <legend className="text-sm font-semibold">Items</legend>

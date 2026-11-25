@@ -7,6 +7,8 @@ import { Modal } from './Modal';
 
 // ==================== Materials tab ====================
 export function MaterialsTab({ data, canManageExpenses, onAdd, onPick, onDelete, onLoadMore }) {
+  // Without a money permission, catalog and shelf items come without a cost.
+  const costs = data.totalAmount !== undefined;
   return (
     <div className="overflow-x-auto rounded-[10px] border" style={{ backgroundColor: CARD_BG, borderColor: BORDER }}>
       <div className="flex items-center justify-between border-b p-4" style={{ borderColor: BORDER }}>
@@ -20,7 +22,7 @@ export function MaterialsTab({ data, canManageExpenses, onAdd, onPick, onDelete,
       </div>
       <table className="min-w-full">
         <thead>
-          <tr>{['Item', 'Vendor', 'Model', 'Qty', 'Serials', 'Total cost', ''].map((h) => <th key={h} className="table-th" style={{ borderBottom: `1px solid ${BORDER}` }}>{h}</th>)}</tr>
+          <tr>{['Item', 'Vendor', 'Model', 'Qty', 'Serials', ...(costs ? ['Total cost'] : []), ''].map((h) => <th key={h} className="table-th" style={{ borderBottom: `1px solid ${BORDER}` }}>{h}</th>)}</tr>
         </thead>
         <tbody>
           {data.materials.map((m) => (
@@ -30,15 +32,15 @@ export function MaterialsTab({ data, canManageExpenses, onAdd, onPick, onDelete,
               <td className="table-td" style={{ color: MUTED }}>{m.modelNumber || '—'}</td>
               <td className="table-td" style={{ color: MUTED }}>{m.quantity}</td>
               <td className="table-td" style={{ color: MUTED }}>{(m.serialNumber || []).join(', ') || '—'}</td>
-              <td className="table-td font-medium" style={{ color: TEXT }}>{formatCost(m.totalCost)}</td>
+              {costs && <td className="table-td font-medium" style={{ color: TEXT }}>{m.totalCost === undefined ? '—' : formatCost(m.totalCost)}</td>}
               <td className="table-td">{canManageExpenses && <button onClick={() => onDelete(m.id)} className="text-xs" style={{ color: 'var(--color-danger)' }}>delete</button>}</td>
             </tr>
           ))}
-          {data.materials.length === 0 && <tr><td colSpan={7} className="table-td" style={{ color: MUTED }}>No materials logged yet.</td></tr>}
+          {data.materials.length === 0 && <tr><td colSpan={costs ? 7 : 6} className="table-td" style={{ color: MUTED }}>No materials logged yet.</td></tr>}
         </tbody>
       </table>
       <LoadMore loaded={data.materials.length} total={data.total} onLoadMore={onLoadMore} noun="materials" />
-      <div className="border-t p-4 text-right text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>Total: {formatCost(data.totalAmount)}</div>
+      {costs && <div className="border-t p-4 text-right text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>Total: {formatCost(data.totalAmount)}</div>}
     </div>
   );
 }

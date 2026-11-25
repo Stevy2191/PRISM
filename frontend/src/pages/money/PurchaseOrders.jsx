@@ -15,7 +15,7 @@ const label = (s) => s.replace('_', ' ');
 
 function Receive({ po, onDone }) {
   const open = po.lines.filter((l) => Number(l.receivedQuantity) < Number(l.quantity));
-  const [rows, setRows] = useState(() => Object.fromEntries(open.map((l) => [l.id, { quantity: qty(Number(l.quantity) - Number(l.receivedQuantity)), serials: '' }])));
+  const [rows, setRows] = useState(() => Object.fromEntries(open.map((l) => [l.id, { quantity: qty((Number(l.quantity) - Number(l.receivedQuantity)).toFixed(4)), serials: '' }])));
   const [receivedOn, setReceivedOn] = useState(today());
   const [error, setError] = useState('');
   const submit = async () => {

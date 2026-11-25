@@ -167,8 +167,8 @@ describe('materials', () => {
   it('Q33: material edits run the create validation', async () => {
     const m = await create({ itemName: 'Switch', quantity: 2, unitCost: 5 });
     const cases = [
-      [{ quantity: 0 }, 'Quantity must be a positive number'],
-      [{ quantity: 'abc' }, 'Quantity must be a positive number'],
+      [{ quantity: 0 }, 'Quantity must be a number over 0'],
+      [{ quantity: 'abc' }, 'Quantity must be a number over 0'],
       [{ unitCost: -1 }, 'Unit cost must be a non-negative number'],
       [{ itemName: ' ' }, 'Item name is required'],
     ];

@@ -14,6 +14,7 @@ const { suggestNextAssetTag } = require('../assetTagService');
 const { D, unit, cents } = require('./money');
 const stock = require('./stock');
 const { addMaterial } = require('./materials');
+const { findTicketIdByNumber } = require('../tickets/numbers');
 
 const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 const conflict = (message) => new ApiError(409, message, 'PO_STATE');
@@ -43,7 +44,7 @@ async function createPurchaseOrder(input, user) {
   let ticketId = null;
   let projectId = null;
   if (input.ticketId) {
-    const t = await findAccessibleTicket(user, parseRecordId(input.ticketId) || 0);
+    const t = await findAccessibleTicket(user, (await findTicketIdByNumber(input.ticketId)) || 0); // WC-T0042 or its id
     if (!t) throw bad('Ticket not found');
     ticketId = t.id;
   }
@@ -84,8 +85,11 @@ async function createPurchaseOrder(input, user) {
 }
 
 async function setStatus(po, from, to, extra = {}) {
-  if (!from.includes(po.status)) throw conflict(`A ${po.status.replace('_', ' ')} purchase order can't be ${to === 'ordered' ? 'ordered' : 'cancelled'}`);
-  await po.update({ status: to, ...extra });
+  await sequelize.transaction(async (transaction) => {
+    const fresh = await PurchaseOrder.findByPk(po.id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!from.includes(fresh.status)) throw conflict(`A ${fresh.status.replace('_', ' ')} purchase order can't be ${to === 'ordered' ? 'ordered' : 'cancelled'}`);
+    await fresh.update({ status: to, ...extra }, { transaction });
+  });
   return load(po.id);
 }
 const orderPurchaseOrder = (po, { orderedOn } = {}, today) => setStatus(po, ['draft'], 'ordered', { orderedOn: isDate(orderedOn) ? orderedOn : today });
@@ -117,6 +121,8 @@ async function receive(po, rawLines, { user, receivedOn }) {
           unitCost: usageCost, poLineId: line.id, transaction, userId: user.id,
         }));
       } else {
+        // A job line whose ticket or project was deleted has nowhere to go.
+        if (!job || !job.record) throw conflict('This purchase order\'s ticket or project no longer exists; receive its items onto the shelf another way');
         const serials = Array.isArray(r.serials) ? r.serials.map((x) => String(x).trim()).filter(Boolean) : [];
         if (product && product.serialized) {
           if (!D(qty).isInteger() || serials.length !== Number(qty)) throw bad(`${line.description} needs one serial number for each received`);
@@ -141,8 +147,9 @@ async function receive(po, rawLines, { user, receivedOn }) {
           quantity: usageQty,
           unitCost: usageCost,
           serialNumber: serials,
-          poLineId: line.id,
-        }, { user, transaction, pricesAllowed: true }));
+        }, {
+          user, transaction, pricesAllowed: true, poLineId: line.id,
+        }));
       }
       await line.update({ receivedQuantity: unit(after) }, { transaction });
       /* eslint-enable no-await-in-loop */

@@ -1,7 +1,7 @@
 // A ticket's materials (Phase 3, step 2): parts and cable used on it, from
 // the catalog, the shelf, or typed in. Anyone who may edit the ticket adds
 // them; prices are seen and set only with a money permission.
-const { ProjectMaterial } = require('../../models');
+const { ProjectMaterial, Task } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { logActivity } = require('../../services/ticketActivity');
@@ -36,7 +36,10 @@ const create = asyncHandler(async (req, res) => {
   const ticket = await loadTicket(req);
   await assertCanEditTicket(req.user, ticket);
   const prices = await materials.canSeePrices(req.user);
-  const m = await materials.addMaterial({ kind: 'ticket', record: ticket }, req.body || {}, { user: req.user, pricesAllowed: prices });
+  // A task only of this ticket's own.
+  const rawTask = parseRecordId((req.body || {}).taskId);
+  const task = rawTask ? await Task.findOne({ where: { id: rawTask, ticketId: ticket.id }, attributes: ['id'] }) : null;
+  const m = await materials.addMaterial({ kind: 'ticket', record: ticket }, req.body || {}, { user: req.user, pricesAllowed: prices, taskId: task ? task.id : null });
   await writeAudit(req, 'material.create', 'ProjectMaterial', m.id, { ticketId: ticket.id, itemName: m.itemName, quantity: m.quantity });
   await logActivity(ticket.id, req.user.id, 'material_added', null, `${unit(m.quantity).replace(/\.?0+$/, '')} × ${m.itemName}`).catch(() => {});
   res.status(201).json({ material: materials.materialJson(await ProjectMaterial.findByPk(m.id), { canSeePrices: prices }) });
@@ -65,14 +68,19 @@ const update = asyncHandler(async (req, res) => {
     return String(v);
   };
   if (body.unitPrice !== undefined) changes.unitPrice = num(body.unitPrice, 'Unit price');
-  if (body.unitCost !== undefined) changes.unitCost = cents(num(body.unitCost, 'Unit cost') || 0);
+  if (body.unitCost !== undefined) changes.unitCost = unit(num(body.unitCost, 'Unit cost') || 0);
   if (body.billable !== undefined) {
     changes.billable = body.billable === true;
     changes.billingStatus = changes.billable ? 'unbilled' : 'non_billable';
   }
-  const qty = changes.quantity ?? m.quantity;
-  const cost = changes.unitCost ?? m.unitCost;
-  changes.totalCost = cents(D(cost || 0).times(D(qty)));
+  // The total is worked out again only when what it's made of changes, so
+  // it keeps matching what the books posted.
+  if (changes.quantity !== undefined || changes.unitCost !== undefined) {
+    if (m.fromStock && changes.unitCost !== undefined) throw new ApiError(400, 'A shelf item\'s cost comes from the shelf', 'VALIDATION_ERROR');
+    const qty = changes.quantity ?? m.quantity;
+    const cost = changes.unitCost ?? m.unitCost;
+    changes.totalCost = cents(D(cost || 0).times(D(qty)));
+  }
   await m.update(changes);
   res.json({ material: materials.materialJson(m, { canSeePrices: prices }) });
 });

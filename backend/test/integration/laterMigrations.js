@@ -33,6 +33,8 @@ const later = [
   require('../../migrations/20260101000112-purchase-orders'),
   // Phase 3: expenses point at Tickets and Projects.
   require('../../migrations/20260101000113-expenses'),
+  // Phase 3: wider unit cost on ProjectMaterials.
+  require('../../migrations/20260101000114-material-unit-cost'),
 ];
 
 const qi = () => sequelize.getQueryInterface();

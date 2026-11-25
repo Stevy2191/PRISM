@@ -12,6 +12,7 @@ const {
 } = require('../permissionService');
 const { D, cents, sum } = require('./money');
 const ledger = require('./ledger');
+const { findTicketIdByNumber } = require('../tickets/numbers');
 
 const KINDS = ['contractor', 'materials', 'stock', 'expense'];
 const EXPENSE_ACCOUNTS = ['6100', '6200', '6300', '6900'];
@@ -61,7 +62,7 @@ async function readLines(rawLines, user) {
     }
     if (l.ticketId) {
       // eslint-disable-next-line no-await-in-loop
-      const t = await findAccessibleTicket(user, parseRecordId(l.ticketId) || 0);
+      const t = await findAccessibleTicket(user, (await findTicketIdByNumber(l.ticketId)) || 0); // WC-T0042 or its id
       if (!t) throw bad(`${n}: ticket not found`);
       line.ticketId = t.id;
     }
@@ -137,7 +138,10 @@ async function updateBill(bill, input, user) {
     await assertNumberFree(changes.vendorCompanyId || bill.vendorCompanyId, changes.billNumber || bill.billNumber, bill.id);
   }
   await sequelize.transaction(async (transaction) => {
-    await bill.update(changes, { transaction });
+    // Checked again under the lock: an enter racing this edit wins cleanly.
+    const locked = await Bill.findByPk(bill.id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (other.length && locked.status !== 'received') throw conflict('Only the notes of an entered bill can change; void it and enter it again');
+    await locked.update(changes, { transaction });
     if (lines) {
       await BillLine.destroy({ where: { billId: bill.id }, transaction });
       await BillLine.bulkCreate(lines.map((l) => ({ ...l, billId: bill.id })), { transaction });

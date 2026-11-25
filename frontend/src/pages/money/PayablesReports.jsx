@@ -14,13 +14,20 @@ const AGES = [['current', 'Not yet due'], ['1-30', '1–30 days late'], ['31-60'
 export default function PayablesReports() {
   const [report, setReport] = useState('paid');
   const [year, setYear] = useState(new Date().getFullYear());
-  const [data, setData] = useState(null);
+  // The data is kept with the report and year it answers, so switching
+  // tabs never renders one report's rows with another's layout, and a slow
+  // answer to an earlier choice is ignored.
+  const [loaded, setLoaded] = useState(null);
   const [error, setError] = useState('');
   const params = report === 'open' ? {} : { year };
+  const key = `${report}:${report === 'open' ? '' : year}`;
+  const data = loaded && loaded.key === key ? loaded.data : null;
   useEffect(() => {
-    setData(null); setError('');
-    api.get(URL_OF[report], { params }).then((r) => setData(r.data)).catch((err) => setError(errMessage(err)));
-  }, [report, year]); // eslint-disable-line react-hooks/exhaustive-deps
+    let live = true;
+    setError('');
+    api.get(URL_OF[report], { params }).then((r) => { if (live) setLoaded({ key, data: r.data }); }).catch((err) => { if (live) setError(errMessage(err)); });
+    return () => { live = false; };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const csv = () => download(api, URL_OF[report], `prism-${report}-${report === 'open' ? 'now' : year}.csv`, { ...params, format: 'csv' }).catch((err) => setError(errMessage(err)));
 
   return (

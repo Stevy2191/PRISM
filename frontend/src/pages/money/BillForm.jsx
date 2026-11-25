@@ -34,7 +34,7 @@ export default function BillForm({ job, onClose, onSaved }) {
           description: l.description,
           amount: l.amount,
           expenseAccount: l.kind === 'expense' ? l.expenseAccount : undefined,
-          ticketId: l.ticketId ? Number(l.ticketId) : undefined,
+          ticketId: String(l.ticketId).trim() || undefined,
           projectId: l.projectId ? Number(l.projectId) : undefined,
         })),
       };
@@ -70,7 +70,7 @@ export default function BillForm({ job, onClose, onSaved }) {
               )}
               {l.kind !== 'stock' && (
                 <>
-                  <label className="text-xs">Ticket ID<input className="input mt-1" inputMode="numeric" value={l.ticketId} onChange={(e) => setLine(i, 'ticketId', e.target.value.replace(/\D/g, ''))} /></label>
+                  <label className="text-xs">Ticket number<input className="input mt-1" placeholder="WC-T0042" maxLength={40} value={l.ticketId} onChange={(e) => setLine(i, 'ticketId', e.target.value)} /></label>
                   <label className="text-xs">Project ID<input className="input mt-1" inputMode="numeric" value={l.projectId} onChange={(e) => setLine(i, 'projectId', e.target.value.replace(/\D/g, ''))} /></label>
                 </>
               )}

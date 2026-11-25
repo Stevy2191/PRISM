@@ -33,16 +33,20 @@ function ExpenseForm({ onClose, onSaved }) {
         amount: form.amount,
         paymentMethod: form.paymentMethod,
         vendorCompanyId: form.vendorCompanyId || undefined,
-        ...(form.jobKind === 'ticket' && form.jobId ? { ticketId: Number(form.jobId) } : {}),
+        ...(form.jobKind === 'ticket' && form.jobId ? { ticketId: String(form.jobId).trim() } : {}),
         ...(form.jobKind === 'project' && form.jobId ? { projectId: Number(form.jobId) } : {}),
         rebillable: form.rebillable,
       });
+      // The expense is recorded now; a receipt that fails to upload is
+      // reported, and the form closes so the expense isn't saved twice.
+      let receiptError = '';
       if (file) {
         const fd = new FormData();
         fd.append('file', file);
-        await api.post(`/money/expenses/${data.expense.id}/receipt`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await api.post(`/money/expenses/${data.expense.id}/receipt`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+          .catch((err) => { receiptError = `The expense is saved, but its receipt wasn't: ${errMessage(err)}`; });
       }
-      onSaved();
+      onSaved(receiptError);
     } catch (err) { setError(errMessage(err)); }
   };
   return (
@@ -56,9 +60,9 @@ function ExpenseForm({ onClose, onSaved }) {
         <label className="text-sm">Paid by<select className="input mt-1" aria-label="Paid by" value={form.paymentMethod} onChange={set('paymentMethod')}>{METHODS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></label>
         <VendorPicker label="Where (optional)" value={form.vendorCompanyId} onChange={(v) => setForm({ ...form, vendorCompanyId: v })} />
         <label className="text-sm">For a job<select className="input mt-1" aria-label="For a job" value={form.jobKind} onChange={set('jobKind')}><option value="">No</option><option value="ticket">A ticket</option><option value="project">A project</option></select></label>
-        {form.jobKind && <label className="text-sm">{form.jobKind === 'ticket' ? 'Ticket ID' : 'Project ID'}<input className="input mt-1" required inputMode="numeric" value={form.jobId} onChange={(e) => setForm({ ...form, jobId: e.target.value.replace(/\D/g, '') })} /></label>}
+        {form.jobKind && <label className="text-sm">{form.jobKind === 'ticket' ? 'Ticket number' : 'Project ID'}<input className="input mt-1" required placeholder={form.jobKind === 'ticket' ? 'WC-T0042' : ''} maxLength={40} value={form.jobId} onChange={(e) => setForm({ ...form, jobId: form.jobKind === 'ticket' ? e.target.value : e.target.value.replace(/\D/g, '') })} /></label>}
         {form.jobKind && <label className="flex items-center gap-2 text-sm sm:col-span-3"><input type="checkbox" checked={form.rebillable} onChange={set('rebillable')} /> Bill it on to the customer</label>}
-        <label className="text-sm sm:col-span-3">Receipt (PDF or photo)<input type="file" className="mt-1 block text-sm" accept=".pdf,.png,.jpg,.jpeg,image/*" capture="environment" onChange={(e) => setFile(e.target.files[0] || null)} /></label>
+        <label className="text-sm sm:col-span-3">Receipt (PDF or photo)<input type="file" className="mt-1 block text-sm" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={(e) => setFile(e.target.files[0] || null)} /></label>
         <div className="flex justify-end gap-2 sm:col-span-3">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn-primary">Save expense</button>
@@ -109,7 +113,7 @@ export default function Expenses() {
           </table>
         </div>
       )}
-      {adding && <ExpenseForm onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); }} />}
+      {adding && <ExpenseForm onClose={() => setAdding(false)} onSaved={(receiptError) => { setAdding(false); setError(receiptError || ''); load(); }} />}
     </section>
   );
 }

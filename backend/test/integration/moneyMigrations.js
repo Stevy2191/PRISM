@@ -16,6 +16,7 @@ const MONEY = [
   '20260101000111-materials-everywhere',
   '20260101000112-purchase-orders',
   '20260101000113-expenses',
+  '20260101000114-material-unit-cost',
 ].filter((name) => {
   try { require.resolve(`../../migrations/${name}`); return true; } catch { return false; }
 }).map((name) => ({ name, m: require(`../../migrations/${name}`) })); // eslint-disable-line global-require, import/no-dynamic-require

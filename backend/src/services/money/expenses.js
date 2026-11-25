@@ -11,6 +11,7 @@ const { ApiError } = require('../../middleware/error');
 const { parseRecordId, findAccessibleTicket, findAccessibleProject } = require('../permissionService');
 const { D, cents } = require('./money');
 const ledger = require('./ledger');
+const { findTicketIdByNumber } = require('../tickets/numbers');
 
 const ACCOUNTS = ['6100', '6200', '6300', '6900'];
 const PAY_METHODS = ['card', 'cash', 'check', 'ach', 'reimbursed', 'other'];
@@ -28,7 +29,7 @@ function description(raw) {
 async function job(input, user) {
   if (input.ticketId && input.projectId) throw bad('An expense is for a ticket or a project, not both');
   if (input.ticketId) {
-    const t = await findAccessibleTicket(user, parseRecordId(input.ticketId) || 0);
+    const t = await findAccessibleTicket(user, (await findTicketIdByNumber(input.ticketId)) || 0); // WC-T0042 or its id
     if (!t) throw bad('Ticket not found');
     return { ticketId: t.id, projectId: null, companyId: t.companyId };
   }

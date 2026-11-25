@@ -36,8 +36,10 @@ function money4(raw, label) {
 const jobWhere = (job) => (job.kind === 'ticket' ? { ticketId: job.record.id } : { projectId: job.record.id });
 
 // job: { kind: 'ticket'|'project', record }. Returns the new material.
+// poLineId and taskId come from the caller (receiving a PO; a project's own
+// task, checked), never from a request body.
 async function addMaterial(job, input, {
-  user, transaction = null, pricesAllowed = false,
+  user, transaction = null, pricesAllowed = false, poLineId = null, taskId = null,
 } = {}) {
   const qty = quantity(input.quantity);
   if (!pricesAllowed && (input.unitPrice !== undefined || input.unitCost !== undefined)) {
@@ -61,11 +63,11 @@ async function addMaterial(job, input, {
   const run = async (t) => {
     const material = await ProjectMaterial.create({
       ...jobWhere(job),
-      taskId: input.taskId || null,
+      taskId,
       itemName,
       catalogProductId: product ? product.id : null,
       quantity: unit(qty),
-      unitCost: cost == null ? 0 : cents(cost),
+      unitCost: cost == null ? 0 : unit(cost),
       totalCost: cost == null ? 0 : cents(D(cost).times(qty)),
       unitPrice: price == null ? null : unit(price),
       taxCategoryId: product ? product.taxCategoryId : null,
@@ -73,7 +75,7 @@ async function addMaterial(job, input, {
       billingStatus: input.billable === false ? 'non_billable' : 'unbilled',
       fromStock,
       serialNumber: serials,
-      poLineId: input.poLineId || null,
+      poLineId,
       notes: input.notes ? String(input.notes).slice(0, 5000) : null,
       addedBy: user.id,
     }, { transaction: t });
