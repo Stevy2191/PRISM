@@ -84,8 +84,12 @@ it('a technician sees no stock', async () => {
 
 it('migration 110 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
+  // 111's materials point at the products: undone first, redone after.
+  const materialsMig = require('../../migrations/20260101000111-materials-everywhere');
+  await materialsMig.down(qi, Sequelize);
   await migration.down(qi, Sequelize);
   expect((await qi.describeTable('CatalogProducts')).onHand).toBeUndefined();
   await migration.up(qi, Sequelize);
+  await materialsMig.up(qi, Sequelize);
   expect((await qi.describeTable('CatalogProducts')).lowStockAt).toBeDefined();
 });

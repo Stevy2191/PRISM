@@ -49,6 +49,12 @@ router.patch('/:id', editMin, ctrl.update);
 router.post('/:id/due-date', editMin, ctrl.changeDueDate);
 router.post('/:id/take', viewMin, ctrl.take);
 router.post('/:id/merge', editMin, ctrl.merge);
+// Phase 3: the ticket's materials (from the catalog or the shelf).
+const ticketMaterials = require('../controllers/tickets/materials');
+router.get('/:id/materials', ticketMaterials.list);
+router.post('/:id/materials', ticketMaterials.create);
+router.patch('/:id/materials/:materialId', ticketMaterials.update);
+router.delete('/:id/materials/:materialId', ticketMaterials.remove);
 // Phase 3: the ticket's bills (amounts only with money permissions).
 router.get('/:id/bills', require('../controllers/money/billsController').ticketBills);
 router.post('/:id/split', editMin, ctrl.split);

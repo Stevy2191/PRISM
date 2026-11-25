@@ -27,6 +27,8 @@ const later = [
   require('../../migrations/20260101000107-time-billing'),
   // Phase 3: bill lines point at Tickets and Projects.
   require('../../migrations/20260101000109-bills'),
+  // Phase 3: ticket materials and billing columns on ProjectMaterials.
+  require('../../migrations/20260101000111-materials-everywhere'),
 ];
 
 const qi = () => sequelize.getQueryInterface();

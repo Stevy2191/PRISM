@@ -137,6 +137,8 @@ it('migration 105 rolls back and forward', async () => {
   // 106's products point at the tax categories: undone first, redone after.
   const products = require('../../migrations/20260101000106-catalog-products');
   const stockMig = require('../../migrations/20260101000110-stock');
+  const materialsMig = require('../../migrations/20260101000111-materials-everywhere');
+  await materialsMig.down(qi, Sequelize);
   await stockMig.down(qi, Sequelize);
   await products.down(qi, Sequelize);
   await migration.down(qi, Sequelize);
@@ -146,6 +148,7 @@ it('migration 105 rolls back and forward', async () => {
   await migration.up(qi, Sequelize);
   await products.up(qi, Sequelize);
   await stockMig.up(qi, Sequelize);
+  await materialsMig.up(qi, Sequelize);
   expect(await models.TaxCategory.count()).toBe(7);
 });
 

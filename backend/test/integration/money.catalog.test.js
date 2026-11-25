@@ -80,10 +80,13 @@ it('migration 106 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
   // 110's stock points at the products: undone first, redone after.
   const stockMig = require('../../migrations/20260101000110-stock');
+  const materialsMig = require('../../migrations/20260101000111-materials-everywhere');
+  await materialsMig.down(qi, Sequelize);
   await stockMig.down(qi, Sequelize);
   await migration.down(qi, Sequelize);
   expect((await qi.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName))).not.toContain('CatalogProducts');
   await migration.up(qi, Sequelize);
   await stockMig.up(qi, Sequelize);
+  await materialsMig.up(qi, Sequelize);
   expect(await models.CatalogProduct.count()).toBe(0);
 });

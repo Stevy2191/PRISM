@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  Ticket, TimeEntry, Task, TicketRelation, TicketWatcher, AssetTicket, Asset, Contact, TicketStatus, TicketSla, Team, sequelize,
+  Ticket, TimeEntry, ProjectMaterial, Task, TicketRelation, TicketWatcher, AssetTicket, Asset, Contact, TicketStatus, TicketSla, Team, sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
@@ -605,6 +605,8 @@ async function deleteTicket(req, ticket) {
     // The ledger and tasks have no database cascade (sub-project 3): a
     // ticket's time and tasks go with it, as the old foreign keys did.
     await TimeEntry.destroy({ where: { ticketId: ticket.id }, transaction: t });
+    // Its materials (Phase 3) go too; billed ones refuse, like billed time.
+    await ProjectMaterial.destroy({ where: { ticketId: ticket.id }, transaction: t });
     await Task.destroy({ where: { ticketId: ticket.id }, transaction: t });
     await ticket.destroy({ transaction: t });
     await writeAudit(req, 'ticket.delete', 'Ticket', ticket.id, { title: ticket.title }, { transaction: t });
