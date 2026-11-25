@@ -20,6 +20,9 @@ module.exports = (sequelize) => {
       serialized: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       notes: { type: DataTypes.TEXT, allowNull: true },
+      // Shelf stock (step 2), in usage units.
+      onHand: { type: DataTypes.DECIMAL(12, 4), allowNull: false, defaultValue: 0 },
+      lowStockAt: { type: DataTypes.DECIMAL(12, 4), allowNull: true },
     },
     { sequelize, modelName: 'CatalogProduct', tableName: 'CatalogProducts' }
   );

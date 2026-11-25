@@ -3,6 +3,7 @@ const settings = require('../controllers/money/settingsController');
 const tax = require('../controllers/money/taxController');
 const products = require('../controllers/money/catalogController');
 const billsCtrl = require('../controllers/money/billsController');
+const stockCtrl = require('../controllers/money/stockController');
 const { billUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
 
@@ -39,5 +40,12 @@ router.post('/bills/:id/pay', canBills, billsCtrl.pay);
 router.post('/bills/:id/void', canBills, billsCtrl.voidIt);
 router.post('/bills/:id/file', canBills, billUpload.single('file'), verifyFileSignature, scanUpload('Bill'), billsCtrl.uploadFile);
 router.get('/bills/:id/file', canBills, billsCtrl.downloadFile);
+
+// Shelf stock (step 2).
+const canBuy = requirePermission('money.purchasing.manage');
+router.get('/stock', canBuy, stockCtrl.list);
+router.get('/stock/:productId/movements', canBuy, stockCtrl.movements);
+router.post('/stock/:productId/adjust', canBuy, stockCtrl.adjust);
+router.patch('/stock/:productId', canBuy, stockCtrl.update);
 
 module.exports = router;

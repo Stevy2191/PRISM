@@ -78,8 +78,12 @@ it('a technician sees no products or costs', async () => {
 
 it('migration 106 rolls back and forward', async () => {
   const qi = sequelize.getQueryInterface();
+  // 110's stock points at the products: undone first, redone after.
+  const stockMig = require('../../migrations/20260101000110-stock');
+  await stockMig.down(qi, Sequelize);
   await migration.down(qi, Sequelize);
   expect((await qi.showAllTables()).map((t) => (typeof t === 'string' ? t : t.tableName))).not.toContain('CatalogProducts');
   await migration.up(qi, Sequelize);
+  await stockMig.up(qi, Sequelize);
   expect(await models.CatalogProduct.count()).toBe(0);
 });
