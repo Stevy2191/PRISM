@@ -30,7 +30,7 @@ async function assertNameFree(name, exceptId = 0) {
 
 const othersActive = (type) => WorkType.count({ where: { isActive: true, id: { [Op.ne]: type.id } } });
 
-// POST /work-types { name, billableDefault?, isActive? }
+// POST /work-types { name, billableDefault?, isActive?, onSite? }
 const create = asyncHandler(async (req, res) => {
   const name = cleanName(req.body?.name);
   await assertNameFree(name);
@@ -39,13 +39,14 @@ const create = asyncHandler(async (req, res) => {
     name,
     billableDefault: req.body.billableDefault === undefined ? true : !!req.body.billableDefault,
     isActive: req.body.isActive === undefined ? true : !!req.body.isActive,
+    onSite: req.body.onSite === true,
     position: (Number.isFinite(maxPosition) ? maxPosition : -1) + 1,
   });
   await writeAudit(req, 'workType.create', 'WorkType', workType.id, { name });
   res.status(201).json({ workType });
 });
 
-// PATCH /work-types/:id { name?, billableDefault?, isActive? }
+// PATCH /work-types/:id { name?, billableDefault?, isActive?, onSite? }
 const update = asyncHandler(async (req, res) => {
   const workType = await typeFor(req.params.id);
   const changes = {};
@@ -55,6 +56,7 @@ const update = asyncHandler(async (req, res) => {
   }
   if (req.body?.billableDefault !== undefined) changes.billableDefault = !!req.body.billableDefault;
   if (req.body?.isActive !== undefined) changes.isActive = !!req.body.isActive;
+  if (req.body?.onSite !== undefined) changes.onSite = req.body.onSite === true;
   if (changes.isActive === false && workType.isActive && !(await othersActive(workType))) {
     throw bad('At least one work type must stay active');
   }

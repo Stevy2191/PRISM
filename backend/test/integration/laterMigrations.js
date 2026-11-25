@@ -22,6 +22,9 @@ const later = [
   require('../../migrations/20260101000082-checklists-simpler'),
   // CS: a column on 080's Playbooks, which 080's round trip recreates without it.
   require('../../migrations/20260101000093-bundle-except-companies'),
+  // Phase 3: billing columns on TimeEntries and WorkTypes, which 050's round
+  // trip recreates without them.
+  require('../../migrations/20260101000107-time-billing'),
 ];
 
 const qi = () => sequelize.getQueryInterface();

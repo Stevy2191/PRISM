@@ -206,6 +206,21 @@ async function resolveTarget(req, parent, value) {
   return target;
 }
 
+// After hours (Phase 3): null = decide from the customer's support hours,
+// true/false = the technician says.
+function resolveAfterHours(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'boolean') throw bad('afterHours must be true, false or null');
+  return value;
+}
+
+// Billed time is locked (Phase 3): the invoice that billed it says what it was.
+function assertNotBilled(entry) {
+  if (entry.billingStatus === 'billed') {
+    throw new ApiError(409, 'This time is on an invoice and can\'t be changed', 'TIME_BILLED');
+  }
+}
+
 // An entry is yours if it's for you or you entered it (Q4).
 async function assertCanChange(req, entry, verb) {
   const own = entry.userId === req.user.id || entry.loggedById === req.user.id;
@@ -242,6 +257,7 @@ async function createEntry(req, parent, body = {}) {
     entryDate,
     ...duration,
     billable: body.billable === undefined ? workType.billableDefault : resolveBillable(body.billable),
+    afterHours: resolveAfterHours(body.afterHours),
     workTypeId: workType.id,
     note: cleanNote(body.note),
     laborCost: calculateLaborCost(target, { durationSeconds: duration.durationSeconds }),
@@ -253,6 +269,7 @@ async function createEntry(req, parent, body = {}) {
 
 async function updateEntry(req, parent, entry, body = {}) {
   await assertCanChange(req, entry, 'edit');
+  assertNotBilled(entry);
   const changes = {};
   const duration = readDuration(body, false);
   // An older entry over the limit keeps its time until its time is edited.
@@ -269,7 +286,11 @@ async function updateEntry(req, parent, entry, body = {}) {
   if (body.entryDate !== undefined) changes.entryDate = await resolveEntryDate(body.entryDate, { onEdit: true });
   if (body.taskId !== undefined) changes.taskId = await resolveTaskId(parent, body.taskId);
   if (body.workTypeId !== undefined) changes.workTypeId = (await resolveWorkType(body.workTypeId, entry.workTypeId)).id;
-  if (body.billable !== undefined) changes.billable = resolveBillable(body.billable);
+  if (body.billable !== undefined) {
+    changes.billable = resolveBillable(body.billable);
+    changes.billingStatus = changes.billable ? 'unbilled' : 'non_billable';
+  }
+  if (body.afterHours !== undefined) changes.afterHours = resolveAfterHours(body.afterHours);
   if (body.note !== undefined) changes.note = cleanNote(body.note);
   if (changes.durationSeconds !== undefined || changes.userId !== undefined) { // Q1
     const forUser = target || await User.findByPk(entry.userId);
@@ -283,6 +304,7 @@ async function updateEntry(req, parent, entry, body = {}) {
 
 async function deleteEntry(req, parent, entry) {
   await assertCanChange(req, entry, 'remove');
+  assertNotBilled(entry);
   await entry.destroy();
   await writeAudit(req, 'time.delete', 'TimeEntry', entry.id, { ...parent.where, durationSeconds: entry.durationSeconds });
   await budgetCheck(parent);

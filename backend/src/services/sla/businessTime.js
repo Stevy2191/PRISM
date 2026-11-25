@@ -107,4 +107,14 @@ function addBusinessDays(start, days, calendar) {
   return new Date(Math.min(close, Math.max(open, target)));
 }
 
-module.exports = { addBusinessMinutes, businessMinutesBetween, addBusinessDays };
+// Is `instant` inside the calendar's open hours? (null / 24x7: always.)
+function isOpenAt(instant, calendar) {
+  if (isWallClock(calendar)) return true;
+  const ms = new Date(instant).getTime();
+  const w = openWindow(dateInZone(new Date(ms), calendar.timezone), calendar);
+  return !!w && ms >= w[0] && ms < w[1];
+}
+
+module.exports = {
+  addBusinessMinutes, businessMinutesBetween, addBusinessDays, isOpenAt,
+};

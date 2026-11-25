@@ -10,6 +10,8 @@ module.exports = (sequelize) => {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       name: { type: DataTypes.STRING(100), allowNull: false, unique: true },
       billableDefault: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      // On-site work: a visit (a "call"), the trip charge applies (Phase 3).
+      onSite: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       position: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     },

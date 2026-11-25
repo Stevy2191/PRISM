@@ -27,8 +27,25 @@ module.exports = (sequelize) => {
       // From userId's contractor rate (utils/laborCost.js); null for internal
       // staff, not 0. Recomputed whenever the duration or userId changes.
       laborCost: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+      // Phase 3: where the entry stands for billing; a billed entry is locked.
+      billingStatus: { type: DataTypes.ENUM('unbilled', 'covered', 'billed', 'non_billable'), allowNull: false, defaultValue: 'unbilled' },
+      // null = decide from the customer's support hours; true/false = override.
+      afterHours: { type: DataTypes.BOOLEAN, allowNull: true },
+      invoiceLineId: { type: DataTypes.INTEGER, allowNull: true },
     },
-    { sequelize, modelName: 'TimeEntry', tableName: 'TimeEntries', timestamps: true }
+    {
+      sequelize,
+      modelName: 'TimeEntry',
+      tableName: 'TimeEntries',
+      timestamps: true,
+      hooks: {
+        // Every way an entry is made (form, timer, import): time that isn't
+        // billable is never waiting to be billed.
+        beforeCreate: (entry) => {
+          if (entry.billable === false && entry.billingStatus === 'unbilled') entry.billingStatus = 'non_billable';
+        },
+      },
+    }
   );
 
   return TimeEntry;
