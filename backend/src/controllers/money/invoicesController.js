@@ -3,15 +3,14 @@
 // money.billing.manage; an invoice is reached only through a company in the
 // caller's reach (out of reach reads as not found).
 const { Op } = require('sequelize');
-const {
-  Invoice, Company, Contact,
-} = require('../../models');
+const { Invoice, Company } = require('../../models');
 const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { parseRecordId, canAccessCompany, companyScopeWhere } = require('../../services/permissionService');
 const { escapeLike } = require('../../utils/escapeLike');
 const invoices = require('../../services/money/invoices');
-const { invoicePdf } = require('../../services/money/invoicePdf');
+const { invoicePdfFor, pdfName } = require('../../services/money/invoicePdf');
+const { emailInvoice } = require('../../services/money/invoiceMail');
 
 const notFound = () => new ApiError(404, 'Invoice not found', 'NOT_FOUND');
 const isDate = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -88,8 +87,10 @@ const remove = asyncHandler(async (req, res) => {
 
 const send = asyncHandler(async (req, res) => {
   const invoice = await invoices.sendInvoice(await findInvoice(req), { userId: req.user.id, issuedOn: (req.body || {}).issuedOn || null });
-  await writeAudit(req, 'money.invoice.send', 'Invoice', invoice.id, { number: invoice.number, total: invoice.total });
-  res.json({ invoice: invoices.invoiceJson(invoice) });
+  // Emailed with its pay link once it's sent; a mail failure doesn't unsend it.
+  const delivery = invoice.status === 'paid' ? null : await emailInvoice(invoice);
+  await writeAudit(req, 'money.invoice.send', 'Invoice', invoice.id, { number: invoice.number, total: invoice.total, emailed: delivery ? delivery.emailed : false });
+  res.json({ invoice: invoices.invoiceJson(invoice), delivery });
 });
 
 const voidIt = asyncHandler(async (req, res) => {
@@ -105,23 +106,25 @@ const creditNote = asyncHandler(async (req, res) => {
   res.status(201).json({ invoice: invoices.invoiceJson(note) });
 });
 
-async function pdfFor(invoice) {
-  const [company, billTo] = await Promise.all([
-    Company.findByPk(invoice.companyId, { attributes: ['id', 'name'] }),
-    invoice.billToContactId ? Contact.findByPk(invoice.billToContactId, { attributes: ['id', 'displayName'] }) : null,
-  ]);
-  return invoicePdf(invoice, { company, billTo });
-}
-const pdfName = (invoice) => `${invoice.number || `draft-${invoice.id}`}.pdf`;
-
 const pdf = asyncHandler(async (req, res) => {
   const invoice = await findInvoice(req);
-  const buffer = await pdfFor(invoice);
+  const buffer = await invoicePdfFor(invoice);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${pdfName(invoice)}"`);
   res.send(buffer);
 });
 
+// POST /money/invoices/:id/email: a fresh pay link, emailed again.
+const email = asyncHandler(async (req, res) => {
+  const invoice = await findInvoice(req);
+  if (invoice.kind !== 'invoice' || !['sent', 'partly_paid'].includes(invoice.status)) {
+    throw new ApiError(409, 'Only an open invoice is emailed', 'INVOICE_STATE');
+  }
+  const delivery = await emailInvoice(invoice);
+  await writeAudit(req, 'money.invoice.email', 'Invoice', invoice.id, { emailed: delivery.emailed, to: delivery.to });
+  res.json({ delivery });
+});
+
 module.exports = {
-  list, forCompany, get, create, update, remove, send, voidIt, creditNote, pdf, pdfFor, pdfName,
+  list, forCompany, get, create, update, remove, send, voidIt, creditNote, pdf, email,
 };

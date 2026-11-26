@@ -137,6 +137,8 @@ const Agreement = require('./Agreement')(sequelize);
 const AgreementLine = require('./AgreementLine')(sequelize);
 const Invoice = require('./Invoice')(sequelize);
 const InvoiceLine = require('./InvoiceLine')(sequelize);
+const Payment = require('./Payment')(sequelize);
+const Refund = require('./Refund')(sequelize);
 const AgentNonce = require('./AgentNonce')(sequelize);
 const Mdm = require('./Mdm')(sequelize);
 const Form = require('./Form')(sequelize);
@@ -284,6 +286,8 @@ const db = {
   AgreementLine,
   Invoice,
   InvoiceLine,
+  Payment,
+  Refund,
   AgentNonce,
   Mdm,
   Form,
@@ -810,6 +814,11 @@ InvoiceLine.belongsTo(Invoice, { foreignKey: 'invoiceId', as: 'invoice' });
 Invoice.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 Invoice.belongsTo(Contact, { foreignKey: 'billToContactId', as: 'billTo' });
 Invoice.hasMany(Invoice, { foreignKey: 'creditForInvoiceId', as: 'creditNotes' });
+Invoice.hasMany(Payment, { foreignKey: 'invoiceId', as: 'payments' });
+Payment.belongsTo(Invoice, { foreignKey: 'invoiceId', as: 'invoice' });
+Payment.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+Payment.hasMany(Refund, { foreignKey: 'paymentId', as: 'refunds' });
+Refund.belongsTo(Payment, { foreignKey: 'paymentId', as: 'payment' });
 Bill.hasMany(BillLine, { foreignKey: 'billId', as: 'lines', onDelete: 'CASCADE' });
 BillLine.belongsTo(Bill, { foreignKey: 'billId', as: 'bill' });
 Bill.belongsTo(Company, { foreignKey: 'vendorCompanyId', as: 'vendor' });

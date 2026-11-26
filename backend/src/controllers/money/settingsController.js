@@ -5,6 +5,7 @@ const { ApiError, asyncHandler } = require('../../middleware/error');
 const { writeAudit } = require('../../middleware/audit');
 const { assertOwner } = require('../../services/ownership');
 const { moneyConfig, saveValues } = require('../../services/money/config');
+const stripe = require('../../services/money/stripe');
 
 const bad = (message) => new ApiError(400, message, 'VALIDATION_ERROR');
 
@@ -26,8 +27,18 @@ const config = asyncHandler(async (req, res) => {
 });
 
 // GET /money/settings
+// Stripe's keys are never shown: only whether they're set.
+const shown = async () => ({ ...(await moneyConfig()), ...(await stripe.status()) });
 const get = asyncHandler(async (req, res) => {
-  res.json({ settings: await moneyConfig() });
+  res.json({ settings: await shown() });
+});
+
+// PUT /money/settings/stripe { secretKey?, webhookSecret?, publishableKey? } — Owners only.
+const stripeKeys = asyncHandler(async (req, res) => {
+  await assertOwner(req.user, 'Setting the Stripe keys');
+  const changed = await stripe.saveKeys(req.body || {}, req.user.id);
+  await writeAudit(req, 'money.stripe.keys', 'SystemSettings', null, { changed });
+  res.json({ settings: await shown() });
 });
 
 // PUT /money/settings { customerBilling?, currency?, defaultMarkupPercent?, defaultTermsDays?, form1099Threshold?, frontlineSkuIds? }
@@ -82,13 +93,18 @@ const update = asyncHandler(async (req, res) => {
       values[`money.${key}`] = String(body[key]);
     }
   }
+  if (body.cardFeePercent !== undefined) {
+    const s = String(body.cardFeePercent).trim();
+    if (!/^\d{1,2}(\.\d{1,2})?$/.test(s) || Number(s) > 10) throw bad('The online payment fee must be a percent from 0 to 10');
+    values['money.cardFeePercent'] = s;
+  }
   if (body.autoSend !== undefined) {
     if (typeof body.autoSend !== 'boolean') throw bad('Auto-send must be true or false');
     values['money.autoSend'] = String(body.autoSend);
   }
   await saveValues(values);
   await writeAudit(req, 'money.settings', 'SystemSettings', null, values);
-  res.json({ settings: await moneyConfig() });
+  res.json({ settings: await shown() });
 });
 
 // GET /money/rates
@@ -121,5 +137,6 @@ const rates = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  stripeKeys,
   config, get, update, rates, getRates,
 };

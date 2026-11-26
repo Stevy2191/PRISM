@@ -84,16 +84,19 @@ async function reverseEntry(entryId, {
 // entries in [from, to] (dates, inclusive) and, if given, one company.
 // The balance is debit-positive for assets and expenses, credit-positive
 // for the rest.
-async function balances({ from = null, to = null, companyId = null } = {}) {
+async function balances({
+  from = null, to = null, companyId = null, transaction = null,
+} = {}) {
   const entryWhere = {};
   if (from || to) entryWhere.entryDate = { ...(from ? { [Op.gte]: from } : {}), ...(to ? { [Op.lte]: to } : {}) };
   if (companyId) entryWhere.companyId = companyId;
   const [accounts, lines] = await Promise.all([
-    LedgerAccount.findAll({ order: [['code', 'ASC']] }),
+    LedgerAccount.findAll({ order: [['code', 'ASC']], transaction }),
     LedgerLine.findAll({
       attributes: ['accountId', 'debit', 'credit'],
       include: [{ model: LedgerEntry, as: 'entry', attributes: [], where: entryWhere, required: true }],
       raw: true,
+      transaction,
     }),
   ]);
   return accounts.map((a) => {

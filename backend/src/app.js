@@ -66,7 +66,10 @@ function createApp({ sessionStore } = {}) {
   // is kept for middleware/agentAuth; nothing else keeps it.
   app.use(express.json({
     limit: '1mb',
-    verify: (req, res, buf) => { if (req.originalUrl.startsWith('/api/v1/agent/')) req.rawBody = buf; },
+    // Stripe's webhook (Phase 3) is signed over its exact bytes too.
+    verify: (req, res, buf) => {
+      if (req.originalUrl.startsWith('/api/v1/agent/') || req.originalUrl === '/api/v1/money/stripe/webhook') req.rawBody = buf;
+    },
   }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

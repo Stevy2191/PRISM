@@ -38,6 +38,18 @@ const surveySubmitLimiter = rateLimit({
   message: { error: true, message: 'Too many attempts, please try again later', code: 'RATE_LIMITED' },
 });
 
+// /pay/:token — the public pay link (Phase 3): 30 requests per 10 minutes
+// per IP, enough to view and pay, too few to guess tokens.
+const payStore = new MemoryStore();
+const payLimiter = rateLimit({
+  store: payStore,
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: true, message: 'Too many attempts, please try again later', code: 'RATE_LIMITED' },
+});
+
 // POST /contacts/import(/parse) — authenticated, 5 imports per hour per user
 // (a bulk write/parse operation, not a per-row action).
 const contactsImportStore = new MemoryStore();
@@ -307,13 +319,13 @@ const oauthLimiter = rateLimit({
 });
 
 function resetRateLimits() {
-  [loginStore, surveyStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
+  [loginStore, surveyStore, payStore, contactsImportStore, apiKeyCreateStore, passwordChangeStore, globalStore, ssoStore,
     portalLoginStore, portalForgotStore, portalGlobalStore, agentEnrollStore, agentHeartbeatStore, agentInventoryStore, agentTrayTicketStore, agentReadStore, agentDownloadStore, secretRevealStore, installStore, agentTrayFileStore, agentTrayFileIpStore, agentTrayReplyStore, oauthStore]
     .forEach((store) => store.resetAll && store.resetAll());
 }
 
 module.exports = {
-  loginLimiter, surveySubmitLimiter, contactsImportLimiter, globalLimiter,
+  loginLimiter, surveySubmitLimiter, payLimiter, contactsImportLimiter, globalLimiter,
   apiKeyCreateLimiter, passwordChangeLimiter, ssoLimiter, resetRateLimits,
   portalLoginLimiter, portalForgotLimiter, portalGlobalLimiter, agentEnrollLimiter, agentHeartbeatLimiter, agentInventoryLimiter, agentTrayTicketLimiter, agentReadLimiter, agentDownloadLimiter, secretRevealLimiter, installLimiter, agentTrayFileLimiter, agentTrayFileIpLimiter, agentTrayReplyLimiter, oauthLimiter,
 };

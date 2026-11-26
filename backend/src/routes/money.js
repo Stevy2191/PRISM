@@ -10,6 +10,7 @@ const payablesReports = require('../controllers/money/payablesReportsController'
 const agreementsCtrl = require('../controllers/money/agreementsController');
 const invoicesCtrl = require('../controllers/money/invoicesController');
 const billingRunCtrl = require('../controllers/money/billingRunController');
+const paymentsCtrl = require('../controllers/money/paymentsController');
 const { requireCustomerBilling } = require('../middleware/customerBilling');
 const { billUpload, receiptUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
@@ -30,6 +31,7 @@ const router = express.Router();
 router.get('/config', settings.config);
 router.get('/settings', requirePermission('money.settings'), settings.get);
 router.put('/settings', requirePermission('money.settings'), settings.update);
+router.put('/settings/stripe', requirePermission('money.settings'), settings.stripeKeys);
 router.get('/rates', requirePermission('money.rates.manage'), settings.getRates);
 router.put('/rates', requirePermission('money.rates.manage'), settings.rates);
 
@@ -111,6 +113,13 @@ router.post('/invoices/:id/send', ...canBill, invoicesCtrl.send);
 router.post('/invoices/:id/void', ...canBill, invoicesCtrl.voidIt);
 router.post('/invoices/:id/credit-note', ...canBill, invoicesCtrl.creditNote);
 router.get('/invoices/:id/pdf', ...canViewBilling, invoicesCtrl.pdf);
+router.post('/invoices/:id/email', ...canBill, invoicesCtrl.email);
+
+// Payments, credit and refunds (step 3).
+router.get('/payments', ...canViewBilling, paymentsCtrl.list);
+router.post('/invoices/:id/payments', ...canBill, paymentsCtrl.record);
+router.post('/invoices/:id/apply-credit', ...canBill, paymentsCtrl.applyCredit);
+router.post('/payments/:id/refund', ...canBill, paymentsCtrl.refund);
 
 // The billing run (step 3).
 router.post('/billing-run', ...canBill, billingRunCtrl.run);

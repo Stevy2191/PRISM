@@ -32,6 +32,17 @@ const PORTAL = [
   { name: 'portal.home', description: 'The portal address' },
 ];
 
+const INVOICE = [
+  { name: 'contact.firstName', description: "Contact's first name" },
+  { name: 'contact.name', description: "Contact's full name" },
+  { name: 'org.name', description: 'Your organization name' },
+  { name: 'invoice.number', description: 'Invoice number, e.g. INV-1001' },
+  { name: 'invoice.total', description: 'Invoice total, e.g. $145.00' },
+  { name: 'invoice.balance', description: 'What is still owed' },
+  { name: 'invoice.dueOn', description: 'Due date' },
+  { name: 'invoice.payUrl', description: 'Link to view and pay the invoice (no sign-in)' },
+];
+
 const staff = (name, subject, intro) => ({
   audience: 'staff',
   name,
@@ -129,6 +140,17 @@ const CATALOG = Object.freeze({
       + '<p><a href="{{portal.home}}">{{portal.home}}</a></p>'
       + '<p style="color:#64748b">If you didn\'t ask for this, you can ignore this email.</p>',
     placeholders: PORTAL,
+    defaultEnabled: true,
+  },
+  // Invoices (Phase 3): the invoice with its pay link; reminders.
+  invoice_sent: {
+    audience: 'contact',
+    name: 'Invoice',
+    subject: 'Invoice {{invoice.number}} from {{org.name}}',
+    bodyHtml: '<p>Hi {{contact.firstName}},</p><p>Here is invoice {{invoice.number}} for {{invoice.total}}, due {{invoice.dueOn}}. The PDF is attached.</p>'
+      + '<p><a href="{{invoice.payUrl}}">View and pay online</a></p>'
+      + '<p style="color:#64748b">Thank you for your business.</p>',
+    placeholders: INVOICE,
     defaultEnabled: true,
   },
   staff_assigned: staff('Ticket assigned to you', '[{{ticket.number}}] Assigned to you: {{ticket.title}}', '{{notification.message}}'),

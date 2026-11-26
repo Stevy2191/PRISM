@@ -39,6 +39,8 @@ const later = [
   require('../../migrations/20260101000115-agreements'),
   // Phase 3: invoices point at tickets, contacts; time, materials and expenses point at invoice lines.
   require('../../migrations/20260101000116-invoices'),
+  // Phase 3: payments point at invoices and companies.
+  require('../../migrations/20260101000117-payments'),
 ];
 
 const qi = () => sequelize.getQueryInterface();

@@ -71,6 +71,10 @@ router.use('/auth', authRoutes);
 
 // Fully public — contact CSAT survey links, no PRISM login involved.
 router.use('/survey', surveyRoutes);
+// Fully public (Phase 3): the invoice pay link, and Stripe's webhook (its
+// signature is the credential). Both 404 while Customer billing is off.
+router.use('/pay', require('./pay')); // eslint-disable-line global-require
+router.post('/money/stripe/webhook', require('../middleware/customerBilling').requireCustomerBilling, require('../controllers/money/payLinkController').webhook); // eslint-disable-line global-require
 
 // Fully public — single sign-on. These run before a session exists by
 // necessity; protection comes from single-use expiring state rows and the

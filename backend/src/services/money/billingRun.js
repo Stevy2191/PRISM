@@ -29,6 +29,7 @@ const { chargesFor } = require('./billingRules');
 const { isAfterHours } = require('./afterHours');
 const { quantityFor } = require('./agreements');
 const invoices = require('./invoices');
+const { emailInvoice } = require('./invoiceMail');
 
 const monthStart = (date) => `${date.slice(0, 7)}-01`;
 function monthEnd(date) {
@@ -372,7 +373,12 @@ async function maybeRunBilling({ now = new Date() } = {}) {
   if (cfg.autoSend) {
     for (const d of result.drafted) {
       // eslint-disable-next-line no-await-in-loop
-      try { await invoices.sendInvoice({ id: d.invoiceId }, { issuedOn: today }); } catch (err) { console.error('[billing] auto-send failed', d.invoiceId, err.message); }
+      try {
+        const sent = await invoices.sendInvoice({ id: d.invoiceId }, { issuedOn: today });
+        if (sent.status !== 'paid') await emailInvoice(sent);
+      } catch (err) {
+        console.error('[billing] auto-send failed', d.invoiceId, err.message);
+      }
     }
   }
   return { ran: true, result };

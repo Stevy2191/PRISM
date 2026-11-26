@@ -35,6 +35,9 @@ const DEFAULTS = {
   // The billing run: people, devices or licenses added during a month are
   // charged a full month on the next invoice. Leavers drop off, no refund.
   'money.catchUpAdditions': 'true',
+  // An optional fee on online payments, as a percent of what's paid (owner:
+  // fees absorbed by default).
+  'money.cardFeePercent': '0',
 };
 
 async function rawValues() {
@@ -63,6 +66,7 @@ async function moneyConfig() {
     creditNoteNextNumber: Number(v['money.creditNoteNextNumber']),
     autoSend: v['money.autoSend'] === 'true',
     catchUpAdditions: v['money.catchUpAdditions'] === 'true',
+    cardFeePercent: unit(v['money.cardFeePercent']),
     frontlineSkuIds: String(v['money.frontlineSkuIds']).split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
   };
 }

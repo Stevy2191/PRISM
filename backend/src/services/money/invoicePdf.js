@@ -4,8 +4,12 @@
 const {
   newDocument, drawHeader, fieldGrid, paragraph, table, addFooters, PAGE_MARGIN, CONTENT_WIDTH, TEXT, MUTED,
 } = require('../pdfReport');
+const { Company, Contact } = require('../../models');
 const { D, cents } = require('./money');
-const { balanceOf } = require('./invoices');
+
+// (invoices.js reaches this file through the invoice email; it can't be
+// required back from here.)
+const balanceOf = (inv) => cents(D(inv.total).minus(inv.amountPaid).minus(inv.creditApplied));
 
 const KIND_TITLE = { invoice: 'Invoice', credit_note: 'Credit note' };
 const usd = (v) => `$${D(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
@@ -60,4 +64,14 @@ function invoicePdf(invoice, { company, billTo = null }) {
   });
 }
 
-module.exports = { invoicePdf };
+// The PDF for a loaded invoice, with its customer and bill-to contact.
+async function invoicePdfFor(invoice) {
+  const [company, billTo] = await Promise.all([
+    Company.findByPk(invoice.companyId, { attributes: ['id', 'name'] }),
+    invoice.billToContactId ? Contact.findByPk(invoice.billToContactId, { attributes: ['id', 'displayName'] }) : null,
+  ]);
+  return invoicePdf(invoice, { company, billTo });
+}
+const pdfName = (invoice) => `${invoice.number || `draft-${invoice.id}`}.pdf`;
+
+module.exports = { invoicePdf, invoicePdfFor, pdfName };

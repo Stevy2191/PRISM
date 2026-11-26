@@ -79,7 +79,7 @@ it('layout carries the org name and a cid logo only when hasLogo', () => {
 it('every catalogue default only uses its own placeholders', () => {
   const keys = Object.keys(CATALOG);
   expect(keys.sort()).toEqual([
-    'contact_auto_reply', 'contact_csat_survey', 'contact_portal_invite', 'contact_portal_link', 'contact_portal_reset', 'contact_resolved', 'contact_tech_reply',
+    'contact_auto_reply', 'contact_csat_survey', 'contact_portal_invite', 'contact_portal_link', 'contact_portal_reset', 'contact_resolved', 'contact_tech_reply', 'invoice_sent',
     'staff_assigned', 'staff_budget_reached', 'staff_budget_warning', 'staff_new_in_queue', 'staff_reply', 'staff_sla_breached',
     'staff_sla_warning', 'staff_task_added', 'staff_task_unblocked', 'staff_watcher_update',
   ]);
@@ -91,7 +91,8 @@ it('every catalogue default only uses its own placeholders', () => {
     expect({ key, unknown: used.filter((u) => !allowed.has(u)) }).toEqual({ key, unknown: [] });
     // Project notifications (sub-project 6) name the project instead of a
     // ticket; portal account emails (7a) are about no ticket at all.
-    if (/^contact_portal_/.test(key)) expect(t.subject).not.toContain('{{ticket.');
+    // Invoice emails (Phase 3) name the invoice, not a ticket.
+    if (/^(contact_portal_|invoice_)/.test(key)) expect(t.subject).not.toContain('{{ticket.');
     else expect(t.subject).toContain(/^staff_(task_|budget_)/.test(key) ? '[{{project.name}}]' : '[{{ticket.number}}]');
     expect(['contact', 'staff']).toContain(t.audience);
     const htmlOnes = t.placeholders.filter((p) => p.html).map((p) => p.name);

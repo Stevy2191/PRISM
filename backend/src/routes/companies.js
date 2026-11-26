@@ -26,12 +26,15 @@ const catalog = require('../controllers/catalogController');
 const billing = require('../controllers/money/companyBillingController');
 const { requireCustomerBilling } = require('../middleware/customerBilling');
 const invoicesCtrl = require('../controllers/money/invoicesController');
+const paymentsCtrl = require('../controllers/money/paymentsController');
 const { companyUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const canSeeBilling = requirePermission('money.billing.view');
 const canManageBilling = requirePermission('money.billing.manage');
 router.get('/:id/billing', canSeeBilling, billing.loadBillingCompany, billing.get);
 // A company's invoices (Phase 3, step 3): hidden while Customer billing is off.
 router.get('/:id/invoices', requireCustomerBilling, requirePermission('money.billing.view', 'money.billing.manage'), billing.loadBillingCompany, invoicesCtrl.forCompany);
+router.get('/:id/credit', requireCustomerBilling, requirePermission('money.billing.view', 'money.billing.manage'), billing.loadBillingCompany, paymentsCtrl.credit);
+router.post('/:id/credit/refund', requireCustomerBilling, requirePermission('money.billing.manage'), billing.loadBillingCompany, paymentsCtrl.refundCredit);
 router.put('/:id/billing', canManageBilling, billing.loadBillingCompany, billing.update);
 router.post('/:id/billing/certificate', canManageBilling, billing.loadBillingCompany, companyUpload.single('file'), verifyFileSignature, scanUpload('Company'), billing.uploadCertificate);
 router.get('/:id/billing/certificate', canSeeBilling, billing.loadBillingCompany, billing.downloadCertificate);
