@@ -30,6 +30,7 @@ const {
 } = require('./categories');
 const { isIsoDate } = require('../workload/capacity');
 const { ticketNumberOf } = require('./numbers');
+const { draftForTicket } = require('../money/billingRun');
 
 
 // A status must be one of the configured ticket statuses (Q25). Returns its
@@ -545,6 +546,12 @@ async function runTicketUpdateEffects(req, ticket, before, changes, { quiet = fa
       await maybeCreateCsatSurvey(ticket);
       // Off by default; any move into a closed status (user decision 2026-10-15).
       queueContactEmail('contact_resolved', ticket);
+      // A customer billed per job gets the ticket's work invoiced now (Phase 3).
+      try {
+        await draftForTicket(ticket, { userId: req.user.id });
+      } catch (err) {
+        console.error('[billing] drafting the closed ticket\'s invoice failed', ticket.id, err.message);
+      }
     }
   }
   if (changes.priority !== undefined && ticket.priority !== before.priority) {

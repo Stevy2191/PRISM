@@ -9,6 +9,7 @@ const expensesCtrl = require('../controllers/money/expensesController');
 const payablesReports = require('../controllers/money/payablesReportsController');
 const agreementsCtrl = require('../controllers/money/agreementsController');
 const invoicesCtrl = require('../controllers/money/invoicesController');
+const billingRunCtrl = require('../controllers/money/billingRunController');
 const { requireCustomerBilling } = require('../middleware/customerBilling');
 const { billUpload, receiptUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
@@ -110,5 +111,9 @@ router.post('/invoices/:id/send', ...canBill, invoicesCtrl.send);
 router.post('/invoices/:id/void', ...canBill, invoicesCtrl.voidIt);
 router.post('/invoices/:id/credit-note', ...canBill, invoicesCtrl.creditNote);
 router.get('/invoices/:id/pdf', ...canViewBilling, invoicesCtrl.pdf);
+
+// The billing run (step 3).
+router.post('/billing-run', ...canBill, billingRunCtrl.run);
+router.get('/billing-run/preview', ...canBill, billingRunCtrl.preview);
 
 module.exports = router;

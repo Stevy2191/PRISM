@@ -32,6 +32,9 @@ const DEFAULTS = {
   'money.creditNotePrefix': 'CN-',
   'money.creditNoteNextNumber': '1001',
   'money.autoSend': 'false',
+  // The billing run: people, devices or licenses added during a month are
+  // charged a full month on the next invoice. Leavers drop off, no refund.
+  'money.catchUpAdditions': 'true',
 };
 
 async function rawValues() {
@@ -59,6 +62,7 @@ async function moneyConfig() {
     creditNotePrefix: v['money.creditNotePrefix'],
     creditNoteNextNumber: Number(v['money.creditNoteNextNumber']),
     autoSend: v['money.autoSend'] === 'true',
+    catchUpAdditions: v['money.catchUpAdditions'] === 'true',
     frontlineSkuIds: String(v['money.frontlineSkuIds']).split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
   };
 }
