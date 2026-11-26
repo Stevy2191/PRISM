@@ -15,6 +15,8 @@ const ticketRoutes = require('./tickets');
 const kbRoutes = require('./kb');
 const ticketsCtrl = require('../../controllers/portal/ticketsController');
 const projectsCtrl = require('../../controllers/portal/projectsController');
+const invoicesCtrl = require('../../controllers/portal/invoicesController');
+const { requireCustomerBilling } = require('../../middleware/customerBilling');
 // Registers the Microsoft 15-minute re-check on every portal request (7b).
 require('../../services/microsoft365/sessionCheck');
 
@@ -31,6 +33,12 @@ company.use('/kb', portalGuard, kbRoutes);
 // CN: the company's projects (status and progress).
 company.get('/projects', portalGuard, projectsCtrl.list);
 company.get('/projects/:id', portalGuard, projectsCtrl.get);
+// Phase 3: the company's invoices (only while Customer billing is on).
+const billingGuard = [...portalGuard, requireCustomerBilling];
+company.get('/invoices', billingGuard, invoicesCtrl.list);
+company.get('/invoices/:id', billingGuard, invoicesCtrl.get);
+company.get('/invoices/:id/pdf', billingGuard, invoicesCtrl.pdf);
+company.post('/invoices/:id/pay', billingGuard, invoicesCtrl.pay);
 
 const router = express.Router();
 router.get('/home', ctrl.home);
