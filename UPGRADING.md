@@ -10,6 +10,56 @@ backend start.
 
 ## Unreleased
 
+**Money, step 3: agreements, invoicing, payments and timesheets (Phase 3).**
+Everything here except timesheets shows only while **Customer billing** is on
+(Settings › Money; Owners turn it on). New:
+- **Agreements** on a customer (Money › Agreements, or the customer's
+  Setup › Billing): lines per user (Full or Light), per device type, per
+  license, flat, or a prepaid block of hours with an overage rate. The
+  preview shows this month's counts.
+- **The billing run** on the 1st (your organization's time zone): one draft
+  per customer with the coming month's fees (the first month prorated by
+  days; people, devices and licenses added during the month caught up on the
+  next invoice) and last month's extras — billable time after your billing
+  rules, trip charges, materials and rebilled expenses. Covered time is
+  listed at $0. Drafts wait for review (Money › Invoices) unless *Send the
+  1st's invoices without review* is on. Customers set to *invoice per job*
+  get an invoice when their ticket closes. Project work waits for step 5.
+- **Invoices:** numbered when sent (INV-1001 on; prefix and next number in
+  Settings › Money), a PDF, emailed to the bill-to contact (else the
+  company's portal admins) with a **pay link** that needs no sign-in. Credit
+  notes (CN-1001 on), void, and invoices made by hand. Customers see and pay
+  theirs in the client portal.
+- **Payments:** by check, cash or transfer, or online through **Stripe
+  Checkout** (card or US bank account). Overpayments become the customer's
+  credit, applied to a later invoice or refunded; refunds of online payments
+  go through Stripe. An optional online-payment fee (off by default).
+- **Reminders** 3 days before the due date and 7 and 30 days late, and an
+  optional late fee (off by default), in Settings › Money.
+- **Timesheets** (sidebar › Projects › Timesheets): each person's week from
+  the time they logged, submitted to their department's manager, approved or
+  sent back. A submitted week is locked. Works with Customer billing off.
+
+To take payments online:
+1. In Stripe, create a secret key (or a restricted key with Checkout
+   Sessions, Payment Intents and Refunds write access).
+2. Add a webhook endpoint at `https://<your PRISM address>/api/v1/money/stripe/webhook`
+   for the events `checkout.session.completed`,
+   `checkout.session.async_payment_succeeded`,
+   `checkout.session.async_payment_failed` and `charge.refunded`.
+3. As an Owner, paste the secret key and the webhook's signing secret in
+   Settings › Money › Online payments. They're stored encrypted and never
+   shown again.
+4. `PUBLIC_APP_URL` must be PRISM's public address: the pay links in emails
+   use it. nginx needs nothing new (all of it is under `/api/v1`).
+
+Microsoft 365 license counts for agreements need the application permission
+**Organization.Read.All** on PRISM's Microsoft app (with admin consent again
+in each tenant); until then, license lines use the typed count.
+
+Prices, the after-hours rate and the trip charge are still yours to set
+(Settings › Money › Rates). Migrations 115–118; nothing else to do.
+
 **Money, step 2: bills, purchasing, stock, materials and expenses (Phase 3).**
 All of it works with Customer billing off — it's for an internal IT team as
 much as an MSP. New:

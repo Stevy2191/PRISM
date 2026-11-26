@@ -18,7 +18,9 @@ read that before designing any sub-project.
   ([plan](superpowers/plans/2026-11-25-phase3-step1-money-core.md)); step 2,
   bills, purchasing, stock, materials and expenses, shipped to `dev`
   2026-11-25 ([plan](superpowers/plans/2026-11-25-phase3-step2-bills-purchasing.md));
-  next, step 3: agreements, invoicing and payments.
+  step 3, agreements, invoicing, payments and timesheets, shipped to `dev`
+  2026-11-26 ([plan](superpowers/plans/2026-11-26-phase3-step3-agreements-invoicing.md));
+  next, step 4: sales (website form, quotes, signed agreements).
 - **9b is finished** (2026-11-24): each company's software list, "which
   app?" category steps, the portal's step-by-step picker, copying a tree, and
   the setup checklist.
@@ -186,14 +188,15 @@ To be built as a full feature set (owner, 2026-11-24), designed as one:
 3 agreements, invoicing and payments, 4 sales, 5 project billing, 6 books
 reports, 7 a security check. Each step gets its own plan. Step 1 shipped
 2026-11-25 ([plan](superpowers/plans/2026-11-25-phase3-step1-money-core.md)),
-step 2 the same day ([plan](superpowers/plans/2026-11-25-phase3-step2-bills-purchasing.md)).
+step 2 the same day ([plan](superpowers/plans/2026-11-25-phase3-step2-bills-purchasing.md)),
+step 3 on 2026-11-26 ([plan](superpowers/plans/2026-11-26-phase3-step3-agreements-invoicing.md)).
 
 | # | Sub-project | Status | Spec | Plan |
 |---|---|---|---|---|
-| 10 | Rates and timesheets — work types, roles, rate cards, weekly timesheets with approval | Not started | — | — |
+| 10 | Rates and timesheets — work types, roles, rate cards, weekly timesheets with approval | Done (`dev`, steps 1 and 3) | [spec](superpowers/specs/2026-11-25-phase3-money-design.md) | [plan](superpowers/plans/2026-11-26-phase3-step3-agreements-invoicing.md) |
 | 11 | Product catalog and procurement — products and services, purchase orders, receiving, stock, assets from receipts | Done (`dev`, step 2) | [spec](superpowers/specs/2026-11-25-phase3-money-design.md) | [plan](superpowers/plans/2026-11-25-phase3-step2-bills-purchasing.md) |
-| 12 | Service agreements — managed services, block hours, retainers, T&M, fixed fee, coverage rules | Not started | — | — |
-| 13 | Billing and invoicing — billing review, invoices, tax, receivables, online payments, autopay, reminders, accounting sync | Not started | — | — |
+| 12 | Service agreements — managed services, block hours, retainers, T&M, fixed fee, coverage rules | Done (`dev`, step 3) | [spec](superpowers/specs/2026-11-25-phase3-money-design.md) | [plan](superpowers/plans/2026-11-26-phase3-step3-agreements-invoicing.md) |
+| 13 | Billing and invoicing — billing review, invoices, tax, receivables, online payments, autopay, reminders, accounting sync | Done (`dev`, step 3; accounting sync later) | [spec](superpowers/specs/2026-11-25-phase3-money-design.md) | [plan](superpowers/plans/2026-11-26-phase3-step3-agreements-invoicing.md) |
 | 14 | Sales — opportunities, quotes, e-signature in the portal, convert to project/agreement/order | Not started | — | — |
 | 15 | Project billing — fixed fee, T&M, milestones, money budgets | Not started | — | — |
 
