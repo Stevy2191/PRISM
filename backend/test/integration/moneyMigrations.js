@@ -20,6 +20,7 @@ const MONEY = [
   '20260101000115-agreements',
   '20260101000116-invoices',
   '20260101000117-payments',
+  '20260101000118-timesheets',
 ].filter((name) => {
   try { require.resolve(`../../migrations/${name}`); return true; } catch { return false; }
 }).map((name) => ({ name, m: require(`../../migrations/${name}`) })); // eslint-disable-line global-require, import/no-dynamic-require

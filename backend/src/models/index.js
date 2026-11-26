@@ -139,6 +139,7 @@ const Invoice = require('./Invoice')(sequelize);
 const InvoiceLine = require('./InvoiceLine')(sequelize);
 const Payment = require('./Payment')(sequelize);
 const Refund = require('./Refund')(sequelize);
+const Timesheet = require('./Timesheet')(sequelize);
 const AgentNonce = require('./AgentNonce')(sequelize);
 const Mdm = require('./Mdm')(sequelize);
 const Form = require('./Form')(sequelize);
@@ -288,6 +289,7 @@ const db = {
   InvoiceLine,
   Payment,
   Refund,
+  Timesheet,
   AgentNonce,
   Mdm,
   Form,
@@ -819,6 +821,8 @@ Payment.belongsTo(Invoice, { foreignKey: 'invoiceId', as: 'invoice' });
 Payment.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
 Payment.hasMany(Refund, { foreignKey: 'paymentId', as: 'refunds' });
 Refund.belongsTo(Payment, { foreignKey: 'paymentId', as: 'payment' });
+Timesheet.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+Timesheet.belongsTo(User, { foreignKey: 'decidedById', as: 'decidedBy' });
 Bill.hasMany(BillLine, { foreignKey: 'billId', as: 'lines', onDelete: 'CASCADE' });
 BillLine.belongsTo(Bill, { foreignKey: 'billId', as: 'bill' });
 Bill.belongsTo(Company, { foreignKey: 'vendorCompanyId', as: 'vendor' });

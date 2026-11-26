@@ -13,6 +13,7 @@ const { canWorkCompany } = require('../ticketPeople');
 const { checkBudgetAlertsSafely } = require('../projects/budget');
 const { hasPermission, parseRecordId } = require('../permissionService');
 const { calculateLaborCost } = require('../../utils/laborCost');
+const { assertWeekOpen } = require('./timesheets');
 const {
   orgTimeZone, todayInZone, dateInZone, toDateString,
 } = require('../../utils/orgTime');
@@ -246,6 +247,7 @@ async function createEntry(req, parent, body = {}) {
   await assertWithinLimit(duration.durationSeconds);
   const target = await resolveTarget(req, parent, body.userId);
   const entryDate = await resolveEntryDate(body.entryDate, { onEdit: false });
+  await assertWeekOpen(req.user.id, target.id, entryDate);
   const taskId = await resolveTaskId(parent, body.taskId);
   const workType = given(body.workTypeId) ? await resolveWorkType(body.workTypeId) : await defaultWorkType(parent);
   if (!workType) throw bad('No active work type is configured');
@@ -270,6 +272,7 @@ async function createEntry(req, parent, body = {}) {
 async function updateEntry(req, parent, entry, body = {}) {
   await assertCanChange(req, entry, 'edit');
   assertNotBilled(entry);
+  await assertWeekOpen(req.user.id, entry.userId, entry.entryDate);
   const changes = {};
   const duration = readDuration(body, false);
   // An older entry over the limit keeps its time until its time is edited.
@@ -292,6 +295,10 @@ async function updateEntry(req, parent, entry, body = {}) {
   }
   if (body.afterHours !== undefined) changes.afterHours = resolveAfterHours(body.afterHours);
   if (body.note !== undefined) changes.note = cleanNote(body.note);
+  // Moved into another week (or to someone else): that week must be open too.
+  if (changes.entryDate !== undefined || changes.userId !== undefined) {
+    await assertWeekOpen(req.user.id, changes.userId ?? entry.userId, changes.entryDate ?? entry.entryDate);
+  }
   if (changes.durationSeconds !== undefined || changes.userId !== undefined) { // Q1
     const forUser = target || await User.findByPk(entry.userId);
     changes.laborCost = calculateLaborCost(forUser, { durationSeconds: changes.durationSeconds ?? entry.durationSeconds });
@@ -305,6 +312,7 @@ async function updateEntry(req, parent, entry, body = {}) {
 async function deleteEntry(req, parent, entry) {
   await assertCanChange(req, entry, 'remove');
   assertNotBilled(entry);
+  await assertWeekOpen(req.user.id, entry.userId, entry.entryDate);
   await entry.destroy();
   await writeAudit(req, 'time.delete', 'TimeEntry', entry.id, { ...parent.where, durationSeconds: entry.durationSeconds });
   await budgetCheck(parent);
@@ -321,12 +329,14 @@ async function logTimerEntry(req, parent, { startedAt, endedAt, taskId, note }) 
   const task = taskId ? await Task.findOne({ where: { id: taskId, ...parent.where }, attributes: ['id'] }) : null;
   const workType = await defaultWorkType(parent);
   if (!workType) throw bad('No active work type is configured');
+  const timerDate = dateInZone(start, await orgTimeZone());
+  await assertWeekOpen(req.user.id, req.user.id, timerDate);
   const entry = await TimeEntry.create({
     ...parent.where,
     taskId: task ? task.id : null,
     userId: req.user.id,
     loggedById: req.user.id,
-    entryDate: dateInZone(start, await orgTimeZone()),
+    entryDate: timerDate,
     startTime: start,
     endTime: new Date(start.getTime() + durationSeconds * 1000),
     durationSeconds,

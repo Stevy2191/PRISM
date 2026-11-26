@@ -22,6 +22,7 @@ const { startCsatScheduler } = require('./services/csatScheduler');
 const { startAssetAlertScheduler } = require('./services/assetAlertScheduler');
 const { startBillingScheduler } = require('./services/money/billingRun');
 const { startReminderScheduler } = require('./services/money/reminders');
+const { startTimesheetScheduler } = require('./services/time/timesheets');
 const { startOAuthCleanup } = require('./services/oauth/cleanup');
 
 const PORT = parseInt(process.env.PORT, 10) || 3001;
@@ -118,6 +119,7 @@ async function start() {
     startAssetAlertScheduler();
     startBillingScheduler();
     startReminderScheduler();
+    startTimesheetScheduler();
     startOAuthCleanup();
   } catch (err) {
     console.error('[prism] failed to start:', err);

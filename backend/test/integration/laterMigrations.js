@@ -41,6 +41,8 @@ const later = [
   require('../../migrations/20260101000116-invoices'),
   // Phase 3: payments point at invoices and companies.
   require('../../migrations/20260101000117-payments'),
+  // Phase 3: timesheets point at Users; timesheet notification types.
+  require('../../migrations/20260101000118-timesheets'),
 ];
 
 const qi = () => sequelize.getQueryInterface();
