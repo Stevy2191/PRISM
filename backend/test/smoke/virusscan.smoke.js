@@ -59,6 +59,9 @@ it('an infected ticket attachment shows the blocked message and adds nothing', a
   const dialog = new Promise((resolve) => {
     page.once('dialog', (d) => { const m = d.message(); d.dismiss(); resolve(m); });
   });
+  // The reply bar opens the composer, which holds the attach input.
+  await page.getByRole('button', { name: /^Reply/ }).filter({ visible: true }).click();
+  await page.getByRole('button', { name: 'Attach a file' }).waitFor();
   await page.locator('input[type="file"]').first().setInputFiles({
     name: 'eicar.txt', mimeType: 'text/plain', buffer: Buffer.from('X5O!P%@AP'),
   });

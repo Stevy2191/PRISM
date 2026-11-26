@@ -84,7 +84,7 @@ it('Create project lands on the new project with its phases', async () => {
   await startFrom(page, 'Network refresh');
   await page.getByLabel('Start date').fill('2026-11-16');
   await page.getByLabel('Project name').fill('Northgate network');
-  await page.getByLabel('Owned by').selectOption({ label: 'Service Desk' });
+  await page.getByLabel('Done by').selectOption({ label: 'Service Desk' });
   await page.getByRole('button', { name: 'Create project' }).click();
   await page.waitForURL(/\/projects\/\d+$/);
   for (const name of ['Plan', 'Install']) {
@@ -132,7 +132,7 @@ it('removing the template tags on New project makes a project with no tags', asy
   await startFrom(page, 'Network refresh');
   await page.getByText('network', { exact: true }).filter({ visible: true }).first().waitFor();
   await page.getByLabel('Project name').fill('Untagged job');
-  await page.getByLabel('Owned by department').selectOption({ label: 'Service Desk' });
+  await page.getByLabel('Done by').selectOption({ label: 'Service Desk' });
   await page.locator('form span:has-text("network") button').first().click();
   await page.getByRole('button', { name: 'Create project' }).click();
   await page.waitForURL(/\/projects\/\d+$/);
@@ -199,7 +199,7 @@ it('Copy an existing project keeps the source\'s tags unless removed', async () 
     await page.getByText('keepme', { exact: true }).filter({ visible: true }).first().waitFor();
     await page.getByLabel('Start date').fill('2026-11-16');
     await page.getByLabel('Project name').fill(name);
-    await page.getByLabel('Owned by department').selectOption({ label: 'Service Desk' });
+    await page.getByLabel('Done by').selectOption({ label: 'Service Desk' });
     if (removeTag) await page.locator('form span:has-text("keepme") button').first().click();
     await page.getByRole('button', { name: 'Create project' }).click();
     await page.waitForURL(/\/projects\/\d+$/);

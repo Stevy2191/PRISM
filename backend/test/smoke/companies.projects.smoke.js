@@ -22,7 +22,10 @@ it('a project for a client: owned by an internal department, for one of the clie
   const owner = page.locator('select').filter({ hasText: 'Service Desk' }).first();
   expect(await owner.locator('option').allTextContents()).not.toContain('Acme HR');
   await owner.selectOption(String(sd.id));
-  const forDept = page.locator('select').filter({ hasText: 'Acme HR' }).first();
+  // "For" is the whole company until One department is picked; then the department select shows.
+  await page.getByRole('radio', { name: /One department/ }).click();
+  const forDept = page.getByLabel('Department it is for');
+  await forDept.locator('option', { hasText: 'Acme HR' }).waitFor({ state: 'attached' });
   expect(await forDept.locator('option').allTextContents()).not.toContain('Service Desk');
   await forDept.selectOption(String(acmeHr.id));
   await page.getByRole('button', { name: /Create project/i }).click();
