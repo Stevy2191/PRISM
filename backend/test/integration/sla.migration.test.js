@@ -3,6 +3,7 @@ const { resetData, closeDb, models, sequelize } = require('./helpers');
 const migration = require('../../migrations/20260101000060-sla-engine');
 const dueDates = require('../../migrations/20260101000061-sla-due-dates');
 const companySla = require('../../migrations/20260101000091-company-sla');
+const { downFrom, upFrom } = require('./moneyMigrations');
 
 // SLA engine schema (sub-project 4): the old one-row-per-priority SlaPolicies
 // table becomes a "Standard" default policy with one target per priority.
@@ -26,9 +27,12 @@ const asInstalled = async () => {
   await sequelize.query('ALTER TABLE WorkflowActions MODIFY actionType VARCHAR(50) NOT NULL');
 };
 
-// 061 and 091 build on 060: roll them back for these cases and put them back after.
+// 061 and 091 build on 060: roll them back for these cases and put them back
+// after. So do Phase 3's agreements (115 on), whose SLA column points at
+// SlaPolicies.
 beforeAll(async () => {
   await resetData();
+  await downFrom('20260101000115');
   await companySla.down(qi(), Sequelize);
   await dueDates.down(qi(), Sequelize);
 });
@@ -40,6 +44,7 @@ afterAll(async () => {
   await dueDates.up(qi(), Sequelize);
   await sequelize.query('DELETE FROM BusinessHours');
   await companySla.up(qi(), Sequelize);
+  await upFrom('20260101000115');
   await closeDb();
 });
 
