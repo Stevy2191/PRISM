@@ -17,6 +17,9 @@ const OAuthConsentError = lazyPage(() => import('./pages/OAuthConsent').then((m)
 const ClaudeConnections = lazyPage(() => import('./pages/settings/ClaudeConnections'));
 const ChangePassword = lazyPage(() => import('./pages/ChangePassword'));
 const SurveyPage = lazyPage(() => import('./pages/SurveyPage'));
+const PayPage = lazyPage(() => import('./pages/PayPage'));
+const PayReturn = lazyPage(() => import('./pages/PayPage').then((m) => ({ default: m.PayReturn })));
+const Timesheets = lazyPage(() => import('./pages/Timesheets'));
 const InstallPage = lazyPage(() => import('./pages/InstallPage'));
 const Dashboard = lazyPage(() => import('./pages/Dashboard'));
 const Tickets = lazyPage(() => import('./pages/tickets/Tickets'));
@@ -118,7 +121,7 @@ const CALENDAR_KEYS = [...TICKETS_KEYS, ...PROJECTS_KEYS];
 const CONTACTS_KEYS = ['people.view_own_department', 'people.view_all'];
 const ASSETS_KEYS = ['assets.view'];
 const REPORTS_KEYS = ['reports.view_own', 'reports.view_department', 'reports.view_all'];
-const MONEY_PERMISSION_KEYS = ['money.bills.manage', 'money.purchasing.manage', 'money.books.view'];
+const MONEY_PERMISSION_KEYS = ['money.bills.manage', 'money.purchasing.manage', 'money.books.view', 'money.billing.view', 'money.billing.manage'];
 const KB_KEYS = ['kb.view'];
 const COMPANIES_KEYS = ['companies.view'];
 
@@ -173,6 +176,10 @@ export default function App() {
         <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         {/* Fully public — a contact reaches this via an emailed CSAT survey link, no PRISM login. */}
         <Route path="/survey/:token" element={<SurveyPage />} />
+        {/* Fully public (Phase 3) — the invoice pay link from the email, and Stripe's return pages. */}
+        <Route path="/pay/thanks" element={<PayReturn paid />} />
+        <Route path="/pay/cancelled" element={<PayReturn paid={false} />} />
+        <Route path="/pay/:token" element={<PayPage />} />
         {/* An install link (8d): public; the install key is the credential. */}
         <Route path="/install/:key" element={<InstallPage />} />
         {/* Claude asking to connect (MCP-O): sign in first, outside the frame. */}
@@ -211,6 +218,7 @@ export default function App() {
           <Route path="/workload" element={perm(<Workload />, ['workload.view'])} />
           <Route path="/reports" element={perm(<Reports />, REPORTS_KEYS)} />
           <Route path="/money" element={perm(<MoneyHome />, MONEY_PERMISSION_KEYS)} />
+          <Route path="/timesheets" element={perm(<Timesheets />, ['time.log'])} />
           <Route path="/calendar" element={perm(<Calendar />, CALENDAR_KEYS)} />
 
           <Route path="/knowledge" element={perm(<KnowledgeBase />, KB_KEYS)} />

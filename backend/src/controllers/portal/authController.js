@@ -24,6 +24,7 @@ const {
   buildSignInRequest, completeSignIn, resolveMicrosoftSignIn, publicBaseUrl,
 } = require('../../services/microsoft365/signIn');
 const { isCompanyAdmin, adminDepartmentIds } = require('../../services/portal/scope');
+const { moneyConfig } = require('../../services/money/config');
 
 // Compared against when there's no contact or no hash, so a wrong email
 // costs the same bcrypt time as a wrong password.
@@ -44,10 +45,11 @@ function regenerateSession(req) {
 
 // The /me payload (also returned by login).
 async function contactPayload(contact) {
-  const [companyAdmin, deptIds, withHash] = await Promise.all([
+  const [companyAdmin, deptIds, withHash, money] = await Promise.all([
     isCompanyAdmin(contact),
     adminDepartmentIds(contact),
     Contact.scope('withPassword').findByPk(contact.id, { attributes: ['id', 'passwordHash', 'msObjectId'] }),
+    moneyConfig(),
   ]);
   return {
     id: contact.id,
@@ -58,6 +60,8 @@ async function contactPayload(contact) {
     isCompanyAdmin: companyAdmin,
     adminDepartmentIds: deptIds,
     signInMethod: signInMethod(withHash),
+    // Phase 3: invoices show in the portal only while Customer billing is on.
+    invoices: money.customerBilling,
   };
 }
 

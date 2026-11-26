@@ -15,6 +15,7 @@ import KbArticle from './pages/KbArticle';
 import PortalHome from './pages/PortalHome';
 import { setPortalSlug, plainApi, p } from './api';
 import Projects from './pages/Projects';
+import Invoices from './pages/Invoices';
 import Project from './pages/Project';
 
 // One company's portal, at /portal/<slug>: for its contacts. Its own auth
@@ -37,6 +38,7 @@ function CompanyPortal() {
           <Route path="tickets/new" element={<TicketNew />} />
           <Route path="tickets/:id" element={<Ticket />} />
           <Route path="projects" element={<Projects />} />
+          <Route path="invoices" element={<Invoices />} />
           <Route path="projects/:id" element={<Project />} />
           <Route path="kb" element={<Kb />} />
           <Route path="kb/a/:slug" element={<KbArticle />} />

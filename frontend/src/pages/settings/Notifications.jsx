@@ -21,6 +21,9 @@ const TYPES = [
   ['budget_warning', 'Project budget warning', 'A project you work on is close to its hour budget.'],
   ['budget_reached', 'Project budget reached', 'A project you work on has used its hour budget.'],
   ['stock_low', 'Stock running low', 'Something on the shelf drops to its low level (for those who buy).'],
+  ['timesheet_due', 'Timesheet to submit', 'A finished week with time logged hasn\'t been submitted.'],
+  ['timesheet_submitted', 'Timesheet submitted', 'Someone you approve for submitted their week.'],
+  ['timesheet_rejected', 'Timesheet sent back', 'Your manager sent your week back with a note.'],
 ];
 
 // Which events can also email, and their defaults, come from the server

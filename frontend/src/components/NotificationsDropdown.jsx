@@ -22,10 +22,13 @@ const NOTIF_TYPE = {
   budget_warning: { Icon: IconClock, color: 'var(--color-warning)' },
   budget_reached: { Icon: IconClock, color: 'var(--color-danger)' },
   stock_low: { Icon: IconPackage, color: 'var(--color-warning)' },
+  timesheet_due: { Icon: IconClock, color: 'var(--color-warning)' },
+  timesheet_submitted: { Icon: IconClock, color: 'var(--color-info)' },
+  timesheet_rejected: { Icon: IconClock, color: 'var(--color-danger)' },
 };
 
 // Security alerts have no ticket; they open the page that explains them.
-const NOTIF_LINK = { virus_blocked: '/settings/system', scanner_unavailable: '/settings/system', stock_low: '/money?tab=stock' };
+const NOTIF_LINK = { virus_blocked: '/settings/system', scanner_unavailable: '/settings/system', stock_low: '/money?tab=stock', timesheet_due: '/timesheets', timesheet_submitted: '/timesheets', timesheet_rejected: '/timesheets' };
 
 function tint(color) {
   return `color-mix(in srgb, ${color} 18%, var(--color-bg))`;

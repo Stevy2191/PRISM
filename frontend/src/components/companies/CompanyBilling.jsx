@@ -6,6 +6,11 @@ import api, { errMessage } from '../../api/api';
 import { usePermission } from '../../context/AuthContext';
 import Notice from '../ui/Notice';
 import Spinner from '../Spinner';
+import Agreements from '../../pages/money/Agreements';
+import Invoices from '../../pages/money/Invoices';
+import Payments from '../../pages/money/Payments';
+import useMoneyConfig from '../../pages/money/useMoneyConfig';
+import { usd } from '../../pages/money/fmt';
 
 const RATE_FIELDS = [['hourlyRate', 'Hourly rate'], ['afterHoursRate', 'After-hours rate'], ['tripCharge', 'Trip charge']];
 
@@ -18,6 +23,7 @@ export default function CompanyBilling({ company }) {
   const [error, setError] = useState('');
   const [saved, setSaved] = useState('');
   const base = `/companies/${company.id}/billing`;
+  const config = useMoneyConfig();
   const fill = (billing) => {
     setB(billing);
     setForm({
@@ -127,6 +133,35 @@ export default function CompanyBilling({ company }) {
           <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>From each person&apos;s tier, else a Microsoft 365 frontline license (Light), else their department.</p>
         </section>
       )}
+      {config && config.customerBilling && <CustomerAccount company={company} />}
     </div>
+  );
+}
+
+// With Customer billing on: the customer's agreement, invoices, payments
+// and unused credit (Phase 3, step 3).
+function CustomerAccount({ company }) {
+  const [credit, setCredit] = useState(null);
+  useEffect(() => {
+    api.get(`/companies/${company.id}/credit`).then(({ data }) => setCredit(data.credit)).catch(() => {});
+  }, [company.id]);
+  return (
+    <>
+      <section className="card space-y-3 p-5">
+        <h2 className="text-[15px] font-semibold text-navy-900">Agreement</h2>
+        <Agreements companyId={company.id} />
+      </section>
+      <section className="card space-y-3 p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[15px] font-semibold text-navy-900">Invoices</h2>
+          {credit !== null && Number(credit) > 0 && <span className="text-sm" data-testid="customer-credit">Unused credit: {usd(credit)}</span>}
+        </div>
+        <Invoices companyId={company.id} />
+      </section>
+      <section className="card space-y-3 p-5">
+        <h2 className="text-[15px] font-semibold text-navy-900">Payments</h2>
+        <Payments companyId={company.id} />
+      </section>
+    </>
   );
 }
