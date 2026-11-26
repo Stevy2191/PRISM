@@ -8,6 +8,7 @@ const poCtrl = require('../controllers/money/purchaseOrdersController');
 const expensesCtrl = require('../controllers/money/expensesController');
 const payablesReports = require('../controllers/money/payablesReportsController');
 const agreementsCtrl = require('../controllers/money/agreementsController');
+const invoicesCtrl = require('../controllers/money/invoicesController');
 const { requireCustomerBilling } = require('../middleware/customerBilling');
 const { billUpload, receiptUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
@@ -98,5 +99,16 @@ router.get('/agreements/:id', ...canViewBilling, agreementsCtrl.get);
 router.patch('/agreements/:id', ...canBill, agreementsCtrl.update);
 router.get('/agreements/:id/preview', ...canViewBilling, agreementsCtrl.preview);
 router.post('/agreements/:id/cancel', ...canBill, agreementsCtrl.cancel);
+
+// Invoices and credit notes (step 3).
+router.get('/invoices', ...canViewBilling, invoicesCtrl.list);
+router.post('/invoices', ...canBill, invoicesCtrl.create);
+router.get('/invoices/:id', ...canViewBilling, invoicesCtrl.get);
+router.patch('/invoices/:id', ...canBill, invoicesCtrl.update);
+router.delete('/invoices/:id', ...canBill, invoicesCtrl.remove);
+router.post('/invoices/:id/send', ...canBill, invoicesCtrl.send);
+router.post('/invoices/:id/void', ...canBill, invoicesCtrl.voidIt);
+router.post('/invoices/:id/credit-note', ...canBill, invoicesCtrl.creditNote);
+router.get('/invoices/:id/pdf', ...canViewBilling, invoicesCtrl.pdf);
 
 module.exports = router;

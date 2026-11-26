@@ -71,7 +71,7 @@ it('time entries carry the after-hours choice and a billing status', async () =>
 
 it('billed time is locked; unbilled time is not', async () => {
   const e = expectOk(await tech.agent.post(timeUrl()).send({ durationMinutes: 45 }), 201).entry;
-  await models.TimeEntry.update({ billingStatus: 'billed', invoiceLineId: 1 }, { where: { id: e.id } });
+  await models.TimeEntry.update({ billingStatus: 'billed' }, { where: { id: e.id } });
   for (const res of [
     await tech.agent.patch(`${timeUrl()}/${e.id}`).send({ durationMinutes: 50 }),
     await w.admin.agent.patch(`${timeUrl()}/${e.id}`).send({ note: 'x' }),
@@ -105,7 +105,7 @@ it('migration 107 rolls back and forward', async () => {
 });
 
 describe('review fix: billed time is locked on every path', () => {
-  const billIt = (id) => models.TimeEntry.update({ billingStatus: 'billed', invoiceLineId: 1 }, { where: { id }, allowBilled: true });
+  const billIt = (id) => models.TimeEntry.update({ billingStatus: 'billed' }, { where: { id }, allowBilled: true });
 
   it('a ticket with billed time can\'t be merged away or deleted', async () => {
     const e = expectOk(await tech.agent.post(timeUrl()).send({ durationMinutes: 30 }), 201).entry;

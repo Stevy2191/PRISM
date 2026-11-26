@@ -5,7 +5,7 @@
 const { Op } = require('sequelize');
 const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, Bill, PurchaseOrder, Expense, Agreement, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, Bill, PurchaseOrder, Expense, Agreement, Invoice, sequelize,
 } = require('../models');
 const { renumberMoved } = require('./tickets/numbers');
 const { renumberMoved: renumberMovedProjects } = require('./projects/numbers');
@@ -14,7 +14,7 @@ const { ApiError } = require('../middleware/error');
 
 const OWNED = {
   contacts: Contact, departments: Department, sites: Site, tickets: Ticket,
-  projects: Project, assets: Asset, licenses: License, contracts: Contract,
+  projects: Project, assets: Asset, licenses: License, contracts: Contract, invoices: Invoice,
 };
 const SUPPLIED = {
   vendorAssets: Asset, vendorLicenses: License, vendorContracts: Contract, vendorMaterials: ProjectMaterial,
@@ -138,6 +138,10 @@ async function moveAgreements(from, into, transaction) {
     throw new ApiError(409, 'Both companies have an active agreement. Cancel one before merging.', 'AGREEMENT_EXISTS');
   }
   await Agreement.update({ companyId: into.id }, { where: { companyId: from.id }, transaction });
+  // A billing period is billed once per company: the kept company's run
+  // invoice for a month stays the one for that month.
+  const keptPeriods = (await Invoice.findAll({ where: { companyId: into.id, periodKey: { [Op.ne]: null } }, attributes: ['periodKey'], transaction })).map((i) => i.periodKey);
+  if (keptPeriods.length) await Invoice.update({ periodKey: null }, { where: { companyId: from.id, periodKey: keptPeriods }, transaction });
 }
 
 async function mergeCompanies(from, into, transaction) {

@@ -66,6 +66,26 @@ const update = asyncHandler(async (req, res) => {
     }
     values['money.frontlineSkuIds'] = ids.join(',');
   }
+  const cfg = await moneyConfig();
+  for (const [key, label] of [['invoicePrefix', 'Invoice'], ['creditNotePrefix', 'Credit note']]) {
+    if (body[key] !== undefined) {
+      const s = String(body[key]).trim().toUpperCase();
+      if (!/^[A-Z0-9-]{0,10}$/.test(s)) throw bad(`${label} prefix: up to 10 letters, digits or dashes`);
+      values[`money.${key}`] = s;
+    }
+  }
+  // A number can only move forward: one already given is never given again.
+  for (const [key, label] of [['invoiceNextNumber', 'invoice'], ['creditNoteNextNumber', 'credit note']]) {
+    if (body[key] !== undefined) {
+      if (!Number.isInteger(body[key]) || body[key] < 1 || body[key] > 999999999) throw bad(`The next ${label} number must be a whole number`);
+      if (body[key] < cfg[key]) throw bad(`The next ${label} number can only go up (it is ${cfg[key]})`);
+      values[`money.${key}`] = String(body[key]);
+    }
+  }
+  if (body.autoSend !== undefined) {
+    if (typeof body.autoSend !== 'boolean') throw bad('Auto-send must be true or false');
+    values['money.autoSend'] = String(body.autoSend);
+  }
   await saveValues(values);
   await writeAudit(req, 'money.settings', 'SystemSettings', null, values);
   res.json({ settings: await moneyConfig() });

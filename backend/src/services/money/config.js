@@ -26,6 +26,12 @@ const DEFAULTS = {
   // 1099-NEC threshold for payments from 2026 (verify with the CPA).
   'money.form1099Threshold': '2000',
   'money.frontlineSkuIds': FRONTLINE_SKU_IDS.join(','),
+  // Invoices (step 3): numbers are given at sending, from these counters.
+  'money.invoicePrefix': 'INV-',
+  'money.invoiceNextNumber': '1001',
+  'money.creditNotePrefix': 'CN-',
+  'money.creditNoteNextNumber': '1001',
+  'money.autoSend': 'false',
 };
 
 async function rawValues() {
@@ -48,6 +54,11 @@ async function moneyConfig() {
     defaultMarkupPercent: unit(v['money.defaultMarkupPercent']),
     defaultTermsDays: Number(v['money.defaultTermsDays']),
     form1099Threshold: cents(v['money.form1099Threshold']),
+    invoicePrefix: v['money.invoicePrefix'],
+    invoiceNextNumber: Number(v['money.invoiceNextNumber']),
+    creditNotePrefix: v['money.creditNotePrefix'],
+    creditNoteNextNumber: Number(v['money.creditNoteNextNumber']),
+    autoSend: v['money.autoSend'] === 'true',
     frontlineSkuIds: String(v['money.frontlineSkuIds']).split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
   };
 }

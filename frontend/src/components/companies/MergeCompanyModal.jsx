@@ -5,7 +5,7 @@ import Modal from '../Modal';
 
 const COUNT_LABELS = {
   contacts: 'Contacts', departments: 'Departments', sites: 'Sites', tickets: 'Tickets', projects: 'Projects',
-  assets: 'Assets', licenses: 'Licenses', contracts: 'Contracts', vendorAssets: 'Assets bought from it',
+  assets: 'Assets', licenses: 'Licenses', contracts: 'Contracts', invoices: 'Invoices', vendorAssets: 'Assets bought from it',
   vendorLicenses: 'Licenses bought from it', vendorContracts: 'Contracts with it', vendorMaterials: 'Project materials bought from it', vendorPurchaseOrders: 'Purchase orders with it', vendorExpenses: 'Expenses paid to it',
   domains: 'Email domains', userAccess: 'User access grants', roleAccess: 'Role access grants',
 };

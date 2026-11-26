@@ -95,7 +95,7 @@ it('edits and removals; removing a shelf item puts it back', async () => {
 
 it('billed materials are locked on every path', async () => {
   const m = expectOk(await a().post(url()).send({ itemName: 'Patch panel', quantity: '1', unitPrice: '89.00' }), 201).material;
-  await models.ProjectMaterial.update({ billingStatus: 'billed', invoiceLineId: 1 }, { where: { id: m.id }, allowBilled: true });
+  await models.ProjectMaterial.update({ billingStatus: 'billed' }, { where: { id: m.id }, allowBilled: true });
   for (const res of [
     await a().patch(`${url()}/${m.id}`).send({ notes: 'x' }),
     await a().delete(`${url()}/${m.id}`),
