@@ -134,8 +134,9 @@ it('prepaid hours: worked time draws the block down; past it, overage', async ()
   await log(betaTicket, '2026-12-03', 240, remote);
   await log(betaTicket, '2026-12-04', 210, remote);
   const inv = await draft(beta.id, { runDate: '2027-01-01' });
+  // December's block was never billed: it comes with January's.
   expect(amounts(inv)).toEqual([
-    ['prepaid_hours', '900.00'], ['covered', '0.00'], ['covered', '0.00'], ['overage', '165.00'],
+    ['prepaid_hours', '900.00'], ['prepaid_hours', '900.00'], ['covered', '0.00'], ['covered', '0.00'], ['overage', '165.00'],
   ]);
 });
 
@@ -166,20 +167,23 @@ it('a customer billed per job: the ticket is invoiced when it closes, and its wo
   expect(res.drafted.find((d) => d.companyId === beta.id)).toBeUndefined();
 });
 
-it('a cancelled agreement\'s last invoice carries only extras', async () => {
+it('a cancelled agreement\'s last invoice carries only its unbilled last days and extras, no new month', async () => {
   await alphaAgreement();
   const agreement = await models.Agreement.findOne({ where: { companyId: alpha.id } });
   await a().post(`${API}/money/agreements/${agreement.id}/cancel`).send({ cancelledOn: '2026-12-31' }).expect(200);
   await log(alphaTicket, '2026-12-20', 40, onSite);
   const inv = await draft(alpha.id, { runDate: '2027-01-01' });
-  expect(amounts(inv)).toEqual([['trip', '45.00'], ['covered', '0.00']]);
+  // Never billed: Dec 15–31 (17 of 31 days), then December's call. No January.
+  expect(amounts(inv)).toEqual([
+    ['agreement', '625.16'], ['agreement', '76.77'], ['agreement', '164.52'], ['license', '95.97'], ['trip', '45.00'], ['covered', '0.00'],
+  ]);
 });
 
 it('the preview shows what each customer would get and writes nothing', async () => {
   await alphaAgreement();
   const visit = await log(betaTicket, '2026-12-10', 40, onSite);
   const preview = expectOk(await a().get(`${API}/money/billing-run/preview?runDate=2027-01-01`));
-  expect(preview.drafts.map((d) => [d.companyId, d.total]).sort()).toEqual([[alpha.id, '1755.00'], [beta.id, '145.00']].sort());
+  expect(preview.drafts.map((d) => [d.companyId, d.total]).sort()).toEqual([[alpha.id, '2717.42'], [beta.id, '145.00']].sort());
   expect(await models.Invoice.count()).toBe(0);
   expect(await statusOf(visit)).toBe('unbilled');
   expect((await models.AgreementLine.findOne()).lastBilledQuantity).toBeNull();

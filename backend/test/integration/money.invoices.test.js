@@ -141,8 +141,9 @@ it('a credit note credits the customer, never more than the invoice', async () =
     reason: 'Trip charge waived', lines: [{ kind: 'trip', description: 'Trip charge waived', quantity: '1', unitPrice: '45', taxCategoryId: cat('On-site labor') }],
   }), 201).invoice;
   expect(credit).toMatchObject({ kind: 'credit_note', status: 'sent', number: 'CN-1001', total: '48.71', creditForInvoiceId: inv.id });
+  // Credited on an open invoice: applied to it straight away.
   const b = await bal();
-  expect([b['4100'], b['2100'], b['2200']]).toEqual(['150.00', '17.24', '48.71']);
+  expect([b['4100'], b['2100'], b['2200'], b['1100']]).toEqual(['150.00', '17.24', '0.00', '256.24']);
   const tooMuch = await a().post(`${API}/money/invoices/${inv.id}/credit-note`).send({
     reason: 'x', lines: [{ kind: 'fee', description: 'x', quantity: '1', unitPrice: '300', taxCategoryId: cat('Fees') }],
   });
