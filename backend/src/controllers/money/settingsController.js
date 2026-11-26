@@ -98,6 +98,30 @@ const update = asyncHandler(async (req, res) => {
     if (!/^\d{1,2}(\.\d{1,2})?$/.test(s) || Number(s) > 10) throw bad('The online payment fee must be a percent from 0 to 10');
     values['money.cardFeePercent'] = s;
   }
+  if (body.reminderDaysBefore !== undefined) {
+    if (!Number.isInteger(body.reminderDaysBefore) || body.reminderDaysBefore < 0 || body.reminderDaysBefore > 60) throw bad('Remind 0 to 60 days before the due date (0: no reminder)');
+    values['money.reminderDaysBefore'] = String(body.reminderDaysBefore);
+  }
+  if (body.reminderDaysLate !== undefined) {
+    const days = body.reminderDaysLate;
+    if (!Array.isArray(days) || days.length > 5 || days.some((d) => !Number.isInteger(d) || d < 1 || d > 365)) throw bad('Late reminders: up to 5 numbers of days late, 1 to 365');
+    values['money.reminderDaysLate'] = [...new Set(days)].sort((x, y) => x - y).join(',');
+  }
+  const feeType = body.lateFeeType !== undefined ? body.lateFeeType : cfg.lateFeeType;
+  if (body.lateFeeType !== undefined) {
+    if (!['none', 'flat', 'percent'].includes(body.lateFeeType)) throw bad('Late fee: none, flat or percent');
+    values['money.lateFeeType'] = body.lateFeeType;
+  }
+  if (body.lateFeeAmount !== undefined) {
+    const s = String(body.lateFeeAmount).trim();
+    if (!/^\d{1,6}(\.\d{1,2})?$/.test(s)) throw bad('The late fee must be an amount of 0 or more');
+    if (feeType === 'percent' && Number(s) > 25) throw bad('A late fee percent can be at most 25');
+    values['money.lateFeeAmount'] = s;
+  }
+  if (body.lateFeeAfterDays !== undefined) {
+    if (!Number.isInteger(body.lateFeeAfterDays) || body.lateFeeAfterDays < 1 || body.lateFeeAfterDays > 365) throw bad('Charge the late fee 1 to 365 days after the due date');
+    values['money.lateFeeAfterDays'] = String(body.lateFeeAfterDays);
+  }
   if (body.autoSend !== undefined) {
     if (typeof body.autoSend !== 'boolean') throw bad('Auto-send must be true or false');
     values['money.autoSend'] = String(body.autoSend);

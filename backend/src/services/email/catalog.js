@@ -153,6 +153,26 @@ const CATALOG = Object.freeze({
     placeholders: INVOICE,
     defaultEnabled: true,
   },
+  invoice_reminder_due: {
+    audience: 'contact',
+    name: 'Invoice reminder (before due)',
+    subject: 'Reminder: invoice {{invoice.number}} is due {{invoice.dueOn}}',
+    bodyHtml: '<p>Hi {{contact.firstName}},</p><p>A friendly reminder that invoice {{invoice.number}} ({{invoice.balance}} still to pay) is due {{invoice.dueOn}}.</p>'
+      + '<p><a href="{{invoice.payUrl}}">View and pay online</a></p>'
+      + '<p style="color:#64748b">If you have already paid, thank you, and please ignore this email.</p>',
+    placeholders: INVOICE,
+    defaultEnabled: true,
+  },
+  invoice_reminder_late: {
+    audience: 'contact',
+    name: 'Invoice reminder (overdue)',
+    subject: 'Invoice {{invoice.number}} is overdue',
+    bodyHtml: '<p>Hi {{contact.firstName}},</p><p>Invoice {{invoice.number}} was due {{invoice.dueOn}} and {{invoice.balance}} is still to pay.</p>'
+      + '<p><a href="{{invoice.payUrl}}">View and pay online</a></p>'
+      + '<p style="color:#64748b">If you have already paid, thank you, and please ignore this email. Questions? Just reply.</p>',
+    placeholders: INVOICE,
+    defaultEnabled: true,
+  },
   staff_assigned: staff('Ticket assigned to you', '[{{ticket.number}}] Assigned to you: {{ticket.title}}', '{{notification.message}}'),
   staff_reply: staff('New reply or comment', '[{{ticket.number}}] New comment: {{ticket.title}}', '{{notification.message}}'),
   staff_watcher_update: staff('Update on a watched ticket', '[{{ticket.number}}] Update: {{ticket.title}}', '{{notification.message}}'),

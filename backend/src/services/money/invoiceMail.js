@@ -22,15 +22,16 @@ async function recipients(invoice) {
   return admins.map((x) => x.contact).filter((c) => c && c.status === 'active' && EMAIL.test(c.email || ''));
 }
 
-// → { emailed, to: [emails], payUrl, reason? }. Never throws for a mail failure.
-async function emailInvoice(invoice) {
+// → { emailed, to: [emails], payUrl, reason? }. Never throws for a mail
+// failure. template: invoice_sent, or a reminder (no PDF attached).
+async function emailInvoice(invoice, { template = 'invoice_sent' } = {}) {
   const token = await issuePayToken(invoice);
   const url = payUrl(token);
   const to = await recipients(invoice);
   if (!to.length) return { emailed: false, to: [], payUrl: url, reason: 'No one to send it to: choose who it\'s billed to' };
   try {
     const first = to[0];
-    const out = await render('invoice_sent', {
+    const out = await render(template, {
       contact: { firstName: first.firstName || first.displayName || '', name: first.displayName || '' },
       invoice: {
         number: invoice.number,
@@ -40,14 +41,14 @@ async function emailInvoice(invoice) {
         payUrl: url,
       },
     });
-    if (!out.enabled) return { emailed: false, to: [], payUrl: url, reason: 'The invoice email is switched off' };
-    const pdf = await invoicePdfFor(invoice);
+    if (!out.enabled) return { emailed: false, to: [], payUrl: url, reason: 'That email is switched off' };
+    const pdf = template === 'invoice_sent' ? await invoicePdfFor(invoice) : null;
     await sendMail({
       to: to.map((c) => c.email),
       subject: out.subject,
       html: out.html,
       text: out.text,
-      attachments: [...out.attachments, { filename: pdfName(invoice), content: pdf, contentType: 'application/pdf' }],
+      attachments: [...out.attachments, ...(pdf ? [{ filename: pdfName(invoice), content: pdf, contentType: 'application/pdf' }] : [])],
     });
     return { emailed: true, to: to.map((c) => c.email), payUrl: url };
   } catch (err) {

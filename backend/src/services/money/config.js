@@ -38,6 +38,13 @@ const DEFAULTS = {
   // An optional fee on online payments, as a percent of what's paid (owner:
   // fees absorbed by default).
   'money.cardFeePercent': '0',
+  // Reminders (days before the due date; days late) and an optional late
+  // fee: 'none' (default), 'flat' (an amount) or 'percent' (of what's owed).
+  'money.reminderDaysBefore': '3',
+  'money.reminderDaysLate': '7,30',
+  'money.lateFeeType': 'none',
+  'money.lateFeeAmount': '0',
+  'money.lateFeeAfterDays': '30',
 };
 
 async function rawValues() {
@@ -67,6 +74,11 @@ async function moneyConfig() {
     autoSend: v['money.autoSend'] === 'true',
     catchUpAdditions: v['money.catchUpAdditions'] === 'true',
     cardFeePercent: unit(v['money.cardFeePercent']),
+    reminderDaysBefore: Number(v['money.reminderDaysBefore']),
+    reminderDaysLate: String(v['money.reminderDaysLate']).split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0).sort((x, y) => x - y),
+    lateFeeType: ['flat', 'percent'].includes(v['money.lateFeeType']) ? v['money.lateFeeType'] : 'none',
+    lateFeeAmount: unit(v['money.lateFeeAmount']),
+    lateFeeAfterDays: Number(v['money.lateFeeAfterDays']),
     frontlineSkuIds: String(v['money.frontlineSkuIds']).split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
   };
 }

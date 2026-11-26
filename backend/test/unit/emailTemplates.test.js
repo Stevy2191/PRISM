@@ -79,7 +79,7 @@ it('layout carries the org name and a cid logo only when hasLogo', () => {
 it('every catalogue default only uses its own placeholders', () => {
   const keys = Object.keys(CATALOG);
   expect(keys.sort()).toEqual([
-    'contact_auto_reply', 'contact_csat_survey', 'contact_portal_invite', 'contact_portal_link', 'contact_portal_reset', 'contact_resolved', 'contact_tech_reply', 'invoice_sent',
+    'contact_auto_reply', 'contact_csat_survey', 'contact_portal_invite', 'contact_portal_link', 'contact_portal_reset', 'contact_resolved', 'contact_tech_reply', 'invoice_reminder_due', 'invoice_reminder_late', 'invoice_sent',
     'staff_assigned', 'staff_budget_reached', 'staff_budget_warning', 'staff_new_in_queue', 'staff_reply', 'staff_sla_breached',
     'staff_sla_warning', 'staff_task_added', 'staff_task_unblocked', 'staff_watcher_update',
   ]);
