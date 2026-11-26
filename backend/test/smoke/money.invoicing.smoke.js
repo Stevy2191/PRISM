@@ -51,7 +51,7 @@ it('an agreement for Alpha, with this month\'s count', async () => {
   await page.getByRole('button', { name: 'New agreement' }).click();
   const form = page.getByRole('form', { name: 'Agreement' });
   await form.getByLabel('Customer', { exact: true }).selectOption({ label: 'Alpha Dental' });
-  await form.getByLabel('Starts').fill('2026-12-01');
+  await form.getByLabel('Starts').fill('2027-01-01');
   const line = form.getByRole('group', { name: 'Line 1' });
   await line.getByLabel('Price').fill('95');
   await form.getByRole('button', { name: 'Save agreement' }).click();
