@@ -224,3 +224,22 @@ step 3 on 2026-11-26 ([plan](superpowers/plans/2026-11-26-phase3-step3-agreement
 | 22 | Integrations — outgoing webhooks, published API docs, Teams/Slack | Not started | — | — |
 
 **Testing feedback (Phase 5):** _none yet_
+
+### Wishlist (from the Gorelo review, 2026-11-26)
+
+Features the owner wants after reviewing Gorelo (an all-in-one PSA + RMM).
+Not yet placed in a phase; each needs a spec before it is planned. The RMM
+items from the same review belong to Phase 4 and are kept in the Claude Code
+memory note `project_rmm_scope_from_gorelo.md`, to read before designing it.
+
+| Item | Status | Spec | Plan |
+|---|---|---|---|
+| Vendor email thread inside a ticket — a separate conversation with a vendor's support, kept on the ticket, never copied to the client | Not started | — | — |
+| Shipment tracking on tickets — a tracking number shows the delivery status | Not started | — | — |
+| "Who else is viewing / replying" on a ticket, so two technicians don't answer at once | Not started | — | — |
+| Portal branding per portal — logo, colours, favicon, sign-in background, custom domain | Not started | — | — |
+| Two-way calendar sync (Outlook / Microsoft 365) — put a ticket or task on a technician's calendar | Not started | — | — |
+| Password manager sync (e.g. Bitwarden) — goes with 20, client documentation and credential vault | Not started | — | — |
+| Native iOS and Android apps — eventually | Not started | — | — |
+| Approvals by a client contact — **the owner reversed the 2026-10-14 decision to drop approvals** ([service desk design](superpowers/specs/2026-10-14-service-desk-design.md)) on 2026-11-26; it can come back as a workflow-rule action | Not started | — | — |
+| Maybe later: Pax8 subscription counts as a quantity source on agreement lines (beside per user, per device and Microsoft 365 license counts) | Not started | — | — |
