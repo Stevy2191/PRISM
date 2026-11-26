@@ -4,7 +4,7 @@
 const { Op, fn, col } = require('sequelize');
 const {
   Company, CompanyDomain, Site, User, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, TicketCategory, CompanyCatalogItem, Device, SlaPolicy, Holiday, AuditLog, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, SystemSettings, TicketCategory, CompanyCatalogItem, Device, SlaPolicy, Holiday, AuditLog, Agreement, sequelize,
 } = require('../models');
 const { ApiError, asyncHandler } = require('../middleware/error');
 const { writeAudit, writeSystemAudit } = require('../middleware/audit');
@@ -299,7 +299,7 @@ const remove = asyncHandler(async (req, res) => {
     Department.count(byCompany), Contact.count(byCompany), Ticket.count(byCompany), Project.count(byCompany),
     Asset.count(byCompany), License.count(byCompany), Contract.count(byCompany), Site.count(byCompany),
     Asset.count(byVendor), License.count(byVendor), Contract.count(byVendor), ProjectMaterial.count(byVendor),
-    TicketCategory.count(byCompany),
+    TicketCategory.count(byCompany), Agreement.count(byCompany),
   ]);
   if (counts.some((n) => n > 0)) {
     throw new ApiError(409, 'This company has records. Deactivate or merge it instead.', 'COMPANY_IN_USE');

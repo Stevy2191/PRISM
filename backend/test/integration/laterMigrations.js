@@ -35,6 +35,8 @@ const later = [
   require('../../migrations/20260101000113-expenses'),
   // Phase 3: wider unit cost on ProjectMaterials.
   require('../../migrations/20260101000114-material-unit-cost'),
+  // Phase 3: agreements point at Companies, SLAs, asset categories, products.
+  require('../../migrations/20260101000115-agreements'),
 ];
 
 const qi = () => sequelize.getQueryInterface();

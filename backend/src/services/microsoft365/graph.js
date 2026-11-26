@@ -196,6 +196,18 @@ async function searchGroups(tenantId, q) {
   return (res.value || []).map((g) => ({ id: g.id, name: g.displayName }));
 }
 
+// The licenses the tenant has bought and how many are assigned (Phase 3
+// agreements bill license lines by consumedUnits). Needs the application
+// permission Organization.Read.All, which the portal's app registration
+// (User.Read.All, GroupMember.Read.All) doesn't have until it's added and
+// consented again; until then the call fails and agreements fall back to
+// the typed count.
+async function subscribedSkus(tenantId) {
+  assertGuid(tenantId, 'tenant');
+  const data = await graphRequest(tenantId, '/subscribedSkus?$select=skuId,skuPartNumber,consumedUnits');
+  return (data.value || []).map((s) => ({ skuId: String(s.skuId || '').toLowerCase(), skuPartNumber: s.skuPartNumber || '', consumedUnits: Number(s.consumedUnits) || 0 }));
+}
+
 module.exports = {
-  GraphError, appToken, clearTokenCache, listGroupMembers, getUser, memberOfAny, searchGroups,
+  GraphError, appToken, clearTokenCache, listGroupMembers, getUser, memberOfAny, searchGroups, subscribedSkus,
 };

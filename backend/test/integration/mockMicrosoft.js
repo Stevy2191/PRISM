@@ -7,7 +7,7 @@
 //   process.env.MS_LOGIN_BASE = ms.loginBase;  process.env.MS_GRAPH_BASE = ms.graphBase;
 //
 // State is plain data the tests edit directly:
-//   ms.tenants[tenantId] = { users: { [id]: GraphUser }, groups: { [id]: { name, members: [userId|groupId] } } }
+//   ms.tenants[tenantId] = { users: { [id]: GraphUser }, groups: { [id]: { name, members: [userId|groupId] } }, skus?: [{ skuId, skuPartNumber, consumedUnits }] }
 //   ms.failures          queue of { match: RegExp, status, retryAfter?, code? } consumed in order
 //                        by the first request whose "METHOD path" matches
 //   ms.pageSize          members per page (default 2, so 5 members = 3 pages)
@@ -169,6 +169,9 @@ async function startMockMicrosoft({ clientId = 'ms-test-client', clientSecret = 
         .some((id) => id === userId || (tenant.groups[id] && inGroup(id, userId)));
       return json({ value: groupIds.filter((g) => inGroup(g, m[1])) });
     }
+
+    // Licenses the tenant has bought and how many are in use (Phase 3 agreements).
+    if (path === '/subscribedSkus' && req.method === 'GET') return json({ value: (tenant && tenant.skus) || [] });
 
     m = path.match(/^\/users\/([^/]+)$/);
     if (m && req.method === 'GET') {

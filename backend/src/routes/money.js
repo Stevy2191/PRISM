@@ -7,6 +7,8 @@ const stockCtrl = require('../controllers/money/stockController');
 const poCtrl = require('../controllers/money/purchaseOrdersController');
 const expensesCtrl = require('../controllers/money/expensesController');
 const payablesReports = require('../controllers/money/payablesReportsController');
+const agreementsCtrl = require('../controllers/money/agreementsController');
+const { requireCustomerBilling } = require('../middleware/customerBilling');
 const { billUpload, receiptUpload, verifyFileSignature, scanUpload } = require('../middleware/upload');
 const { requirePermission } = require('../middleware/requirePermission');
 const { Bill, Expense } = require('../models');
@@ -84,5 +86,17 @@ const canPayablesReports = requirePermission('money.bills.manage', 'money.books.
 router.get('/reports/paid-by-vendor', canPayablesReports, payablesReports.paid);
 router.get('/reports/1099', canPayablesReports, payablesReports.form1099);
 router.get('/reports/open-bills', canPayablesReports, payablesReports.openBills);
+
+// Customer billing (step 3): hidden (404) while the switch is off.
+const canViewBilling = [requireCustomerBilling, requirePermission('money.billing.view', 'money.billing.manage')];
+const canBill = [requireCustomerBilling, requirePermission('money.billing.manage')];
+
+// Agreements (step 3).
+router.get('/agreements', ...canViewBilling, agreementsCtrl.list);
+router.post('/agreements', ...canBill, agreementsCtrl.create);
+router.get('/agreements/:id', ...canViewBilling, agreementsCtrl.get);
+router.patch('/agreements/:id', ...canBill, agreementsCtrl.update);
+router.get('/agreements/:id/preview', ...canViewBilling, agreementsCtrl.preview);
+router.post('/agreements/:id/cancel', ...canBill, agreementsCtrl.cancel);
 
 module.exports = router;

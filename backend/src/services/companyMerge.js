@@ -5,11 +5,12 @@
 const { Op } = require('sequelize');
 const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, Bill, PurchaseOrder, Expense, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, Bill, PurchaseOrder, Expense, Agreement, sequelize,
 } = require('../models');
 const { renumberMoved } = require('./tickets/numbers');
 const { renumberMoved: renumberMovedProjects } = require('./projects/numbers');
 const { uniqueCode } = require('./codes');
+const { ApiError } = require('../middleware/error');
 
 const OWNED = {
   contacts: Contact, departments: Department, sites: Site, tickets: Ticket,
@@ -125,10 +126,22 @@ async function moveSla(from, into, transaction) {
   ]);
   if (!old) return;
   if (kept) await TicketSla.update({ slaPolicyId: kept.id }, { where: { slaPolicyId: old.id }, transaction, hooks: false });
+  await Agreement.update({ slaPolicyId: kept ? kept.id : null }, { where: { slaPolicyId: old.id }, transaction });
   await old.destroy({ transaction });
 }
 
+// Agreements (Phase 3) follow the company; a company bills from one active
+// agreement, so two active ones can't land on the company kept.
+async function moveAgreements(from, into, transaction) {
+  const active = await Agreement.count({ where: { companyId: [from.id, into.id], status: 'active' }, transaction });
+  if (active > 1) {
+    throw new ApiError(409, 'Both companies have an active agreement. Cancel one before merging.', 'AGREEMENT_EXISTS');
+  }
+  await Agreement.update({ companyId: into.id }, { where: { companyId: from.id }, transaction });
+}
+
 async function mergeCompanies(from, into, transaction) {
+  await moveAgreements(from, into, transaction);
   await moveSla(from, into, transaction);
   await moveCategories(from, into, transaction);
   await moveCatalog(from, into, transaction);
