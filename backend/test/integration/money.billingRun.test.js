@@ -59,9 +59,12 @@ beforeEach(async () => {
     ['money.customerBilling', 'true'], ['money.hourlyRate', '100'], ['money.afterHoursRate', '150'], ['money.tripCharge', '45'],
     ['company.timezone', 'America/Chicago'],
   ]) await models.SystemSettings.upsert({ key, value }); // eslint-disable-line no-await-in-loop
-  // Work types are kept between tests (seeded data).
-  [onSite] = await models.WorkType.findOrCreate({ where: { name: 'Run: on site' }, defaults: { onSite: true } });
-  [remote] = await models.WorkType.findOrCreate({ where: { name: 'Run: remote' }, defaults: { onSite: false } });
+  // Work types are kept between tests, and migration round trips reset
+  // their on-site flag: set it every time.
+  [onSite] = await models.WorkType.findOrCreate({ where: { name: 'Run: on site' } });
+  [remote] = await models.WorkType.findOrCreate({ where: { name: 'Run: remote' } });
+  await onSite.update({ onSite: true });
+  await remote.update({ onSite: false });
   alpha = await makeCompany(w.admin, { name: 'Alpha Dental' });
   beta = await makeCompany(w.admin, { name: 'Beta Law' });
   await people(alpha.id, 11, 'full'); // and Ana, below: 12 full users
