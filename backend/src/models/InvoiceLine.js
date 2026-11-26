@@ -22,6 +22,9 @@ module.exports = (sequelize) => {
       serviceFrom: { type: DataTypes.DATEONLY, allowNull: true },
       serviceTo: { type: DataTypes.DATEONLY, allowNull: true },
       sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      // Drawn from a prepaid block (agreementLineId), for this month of work.
+      prepaidMinutes: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      blockMonth: { type: DataTypes.STRING(7), allowNull: true },
     },
     { sequelize, modelName: 'InvoiceLine', tableName: 'InvoiceLines' }
   );

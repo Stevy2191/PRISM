@@ -7,7 +7,7 @@
 // or credited with a credit note (Dr income and tax / Cr customer credit).
 const { Op } = require('sequelize');
 const {
-  Invoice, InvoiceLine, TimeEntry, ProjectMaterial, Expense, Ticket, Project, Contact, Agreement,
+  Invoice, InvoiceLine, TimeEntry, ProjectMaterial, Expense, Ticket, Project, Contact, Agreement, Payment,
   TaxCategory, SystemSettings, sequelize,
 } = require('../../models');
 const { ApiError } = require('../../middleware/error');
@@ -64,7 +64,8 @@ async function defaultCategoryId(kind) {
 
 // Lines as given, checked. Items (timeEntryIds, materialIds, expenseIds)
 // only where allowed (drafts, not credit notes).
-async function readLines(rawLines, { items = true } = {}) {
+// internal: the billing run's own lines, which may record prepaid draws.
+async function readLines(rawLines, { items = true, internal = false } = {}) {
   if (!Array.isArray(rawLines) || !rawLines.length) throw bad('An invoice needs at least one line');
   if (rawLines.length > MAX_LINES) throw bad(`An invoice can have at most ${MAX_LINES} lines`);
   const known = new Set((await TaxCategory.findAll({ attributes: ['id'] })).map((c) => c.id));
@@ -84,6 +85,8 @@ async function readLines(rawLines, { items = true } = {}) {
       serviceFrom: isDate(l.serviceFrom) ? l.serviceFrom : null,
       serviceTo: isDate(l.serviceTo) ? l.serviceTo : null,
       sortOrder: i,
+      prepaidMinutes: internal && Number.isInteger(l.prepaidMinutes) && l.prepaidMinutes > 0 ? l.prepaidMinutes : 0,
+      blockMonth: internal && /^\d{4}-\d{2}$/.test(l.blockMonth || '') ? l.blockMonth : null,
       items: {
         timeEntryIds: items ? ids(l.timeEntryIds, `${n}'s time`) : [],
         materialIds: items ? ids(l.materialIds, `${n}'s materials`) : [],
@@ -217,8 +220,8 @@ async function load(id, options = {}) {
 }
 
 // body: { lines, notes?, chargeTax?, billToContactId?, agreementId?, periodKey?, ticketId? }
-async function createDraft(company, body, { userId = null, transaction = null } = {}) {
-  const lines = await readLines(body.lines);
+async function createDraft(company, body, { userId = null, transaction = null, internal = false } = {}) {
+  const lines = await readLines(body.lines, { internal });
   const billing = await customerBilling(company.id);
   const fields = {
     kind: 'invoice',
@@ -378,6 +381,22 @@ async function issueCreditNote(invoice, { lines: rawLines, reason }, { userId = 
     await note.update({
       number, status: 'sent', ledgerEntryId: entry ? entry.id : null, sentAt: new Date(),
     }, { transaction: t });
+    // Crediting an open invoice lowers what's owed on it at once: the credit
+    // is applied to it (Dr 2200 / Cr 1100) as far as its balance goes.
+    const owed = D(original.total).minus(original.amountPaid).minus(original.creditApplied);
+    const apply = D(note.total).lt(owed) ? D(note.total) : owed;
+    if (['sent', 'partly_paid'].includes(original.status) && apply.gt(0)) {
+      const applied = await ledger.postEntry({
+        date, memo: `Credit note ${number} applied to ${original.number}`, sourceType: 'credit_apply', sourceId: original.id, companyId: original.companyId,
+        lines: [{ account: '2200', debit: cents(apply) }, { account: '1100', credit: cents(apply) }],
+      }, { transaction: t, userId });
+      const creditApplied = cents(D(original.creditApplied).plus(apply));
+      const left = owed.minus(apply);
+      await original.update({ creditApplied, status: left.lte(0) ? 'paid' : 'partly_paid' }, { transaction: t });
+      await Payment.create({
+        companyId: original.companyId, invoiceId: original.id, method: 'credit', status: 'succeeded', amount: cents(apply), appliedAmount: cents(apply), receivedOn: date, reference: number, ledgerEntryId: applied.id, createdBy: userId,
+      }, { transaction: t });
+    }
     return note.id;
   });
   return load(id);

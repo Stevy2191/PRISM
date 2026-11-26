@@ -6,7 +6,7 @@ const { sendMail } = require('../emailSender');
 const { render } = require('../email/templates');
 const { surveyBaseUrl } = require('../csatService');
 const { D, cents } = require('./money');
-const { issuePayToken } = require('./payments');
+const { newPayToken, savePayToken } = require('./payments');
 const { invoicePdfFor, pdfName } = require('./invoicePdf');
 
 const usd = (v) => `$${D(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
@@ -24,11 +24,13 @@ async function recipients(invoice) {
 
 // → { emailed, to: [emails], payUrl, reason? }. Never throws for a mail
 // failure. template: invoice_sent, or a reminder (no PDF attached).
+// The new link is put in force only once its email has gone: a reminder
+// that isn't sent never breaks the link the customer already has.
 async function emailInvoice(invoice, { template = 'invoice_sent' } = {}) {
-  const token = await issuePayToken(invoice);
+  const token = newPayToken();
   const url = payUrl(token);
   const to = await recipients(invoice);
-  if (!to.length) return { emailed: false, to: [], payUrl: url, reason: 'No one to send it to: choose who it\'s billed to' };
+  if (!to.length) return { emailed: false, to: [], payUrl: null, reason: 'No one to send it to: choose who it\'s billed to' };
   try {
     const first = to[0];
     const out = await render(template, {
@@ -41,7 +43,7 @@ async function emailInvoice(invoice, { template = 'invoice_sent' } = {}) {
         payUrl: url,
       },
     });
-    if (!out.enabled) return { emailed: false, to: [], payUrl: url, reason: 'That email is switched off' };
+    if (!out.enabled) return { emailed: false, to: [], payUrl: null, reason: 'That email is switched off' };
     const pdf = template === 'invoice_sent' ? await invoicePdfFor(invoice) : null;
     await sendMail({
       to: to.map((c) => c.email),
@@ -50,9 +52,10 @@ async function emailInvoice(invoice, { template = 'invoice_sent' } = {}) {
       text: out.text,
       attachments: [...out.attachments, ...(pdf ? [{ filename: pdfName(invoice), content: pdf, contentType: 'application/pdf' }] : [])],
     });
+    await savePayToken(invoice, token);
     return { emailed: true, to: to.map((c) => c.email), payUrl: url };
   } catch (err) {
-    return { emailed: false, to: [], payUrl: url, reason: err.message };
+    return { emailed: false, to: [], payUrl: null, reason: err.message };
   }
 }
 

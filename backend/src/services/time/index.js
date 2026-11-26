@@ -217,7 +217,8 @@ function resolveAfterHours(value) {
 
 // Billed time is locked (Phase 3): the invoice that billed it says what it was.
 function assertNotBilled(entry) {
-  if (entry.billingStatus === 'billed') {
+  // Covered time is on an invoice too (at $0, or drawn from prepaid hours).
+  if (entry.billingStatus === 'billed' || entry.billingStatus === 'covered' || entry.invoiceLineId) {
     throw new ApiError(409, 'This time is on an invoice and can\'t be changed', 'TIME_BILLED');
   }
 }
@@ -289,7 +290,9 @@ async function updateEntry(req, parent, entry, body = {}) {
   if (body.entryDate !== undefined) changes.entryDate = await resolveEntryDate(body.entryDate, { onEdit: true });
   if (body.taskId !== undefined) changes.taskId = await resolveTaskId(parent, body.taskId);
   if (body.workTypeId !== undefined) changes.workTypeId = (await resolveWorkType(body.workTypeId, entry.workTypeId)).id;
-  if (body.billable !== undefined) {
+  // Only a change of billable moves the billing status (the edit form always
+  // sends billable).
+  if (body.billable !== undefined && resolveBillable(body.billable) !== entry.billable) {
     changes.billable = resolveBillable(body.billable);
     changes.billingStatus = changes.billable ? 'unbilled' : 'non_billable';
   }

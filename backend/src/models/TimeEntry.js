@@ -9,6 +9,8 @@ const billedError = () => {
   const { ApiError } = require('../middleware/error'); // eslint-disable-line global-require
   return new ApiError(409, 'This time is on an invoice and can\'t be changed or removed', 'TIME_BILLED');
 };
+// On an invoice: billed, or listed there as covered (Phase 3).
+const onInvoice = (status, invoiceLineId) => status === 'billed' || status === 'covered' || !!invoiceLineId;
 
 module.exports = (sequelize) => {
   class TimeEntry extends Model {}
@@ -54,10 +56,10 @@ module.exports = (sequelize) => {
         // it was. Only invoicing itself passes { allowBilled: true } (to bill
         // or, voiding an invoice, to un-bill).
         beforeUpdate: (entry, options) => {
-          if (!options.allowBilled && entry.previous('billingStatus') === 'billed') throw billedError();
+          if (!options.allowBilled && onInvoice(entry.previous('billingStatus'), entry.previous('invoiceLineId'))) throw billedError();
         },
         beforeDestroy: (entry, options) => {
-          if (!options.allowBilled && entry.billingStatus === 'billed') throw billedError();
+          if (!options.allowBilled && onInvoice(entry.billingStatus, entry.invoiceLineId)) throw billedError();
         },
         beforeBulkUpdate: async (options) => {
           if (!options.allowBilled && await anyBilled(options)) throw billedError();
@@ -69,10 +71,15 @@ module.exports = (sequelize) => {
     }
   );
 
-  // Would a bulk update or delete touch billed time?
+  // Would a bulk update or delete touch billed time? Time an invoice lists
+  // as covered (at $0, or drawn from prepaid hours) is just as locked: freed,
+  // it would be billed again (Phase 3 review).
   async function anyBilled(options) {
     const { Op } = require('sequelize'); // eslint-disable-line global-require
-    return (await TimeEntry.count({ where: { [Op.and]: [options.where || {}, { billingStatus: 'billed' }] }, transaction: options.transaction })) > 0;
+    return (await TimeEntry.count({
+      where: { [Op.and]: [options.where || {}, { [Op.or]: [{ billingStatus: ['billed', 'covered'] }, { invoiceLineId: { [Op.ne]: null } }] }] },
+      transaction: options.transaction,
+    })) > 0;
   }
 
   return TimeEntry;

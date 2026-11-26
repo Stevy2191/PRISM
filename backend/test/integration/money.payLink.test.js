@@ -44,7 +44,7 @@ const completed = (inv, extra = {}) => ({
   type: 'checkout.session.completed',
   data: {
     object: {
-      id: `cs_test_${inv.id}`, object: 'checkout.session', amount_total: 14500, currency: 'usd', payment_status: 'paid', payment_intent: `pi_${inv.id}`, metadata: { invoiceId: String(inv.id), fee: '0.00' }, ...extra,
+      id: `cs_test_${inv.id}`, object: 'checkout.session', amount_total: 14500, currency: 'usd', payment_status: 'paid', payment_intent: `pi_${inv.id}`, metadata: { source: 'prism', invoiceId: String(inv.id), fee: '0.00' }, ...extra,
     },
   },
 });
@@ -122,7 +122,7 @@ it('an online-payment fee, when set, is its own line and income', async () => {
   await anon().post(`${API}/pay/${token}/checkout`).send({}).expect(200);
   expect(fake.sessions[0].line_items.map((l) => l.price_data.unit_amount)).toEqual([14500, 435]);
   fake.intents[`pi_${inv.id}`] = { fee: 460 };
-  await hook(completed(inv, { amount_total: 14935, metadata: { invoiceId: String(inv.id), fee: '4.35' } })).expect(200);
+  await hook(completed(inv, { amount_total: 14935, metadata: { source: 'prism', invoiceId: String(inv.id), fee: '4.35' } })).expect(200);
   const b = await bal();
   expect([b['1100'], b['4300'], b['1010'], b['6000']]).toEqual(['0.00', '149.35', '144.75', '4.60']);
 });

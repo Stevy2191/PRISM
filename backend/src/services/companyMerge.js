@@ -5,7 +5,7 @@
 const { Op } = require('sequelize');
 const {
   CompanyDomain, Site, Department, Contact, Ticket, Project, Asset, License, Contract,
-  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, Bill, PurchaseOrder, Expense, Agreement, Invoice, sequelize,
+  ProjectMaterial, UserCompanyAccess, RoleCompanyAccess, TicketCategory, SlaPolicy, TicketSla, CompanyCatalogItem, Bill, PurchaseOrder, Expense, Agreement, Invoice, Payment, Refund, sequelize,
 } = require('../models');
 const { renumberMoved } = require('./tickets/numbers');
 const { renumberMoved: renumberMovedProjects } = require('./projects/numbers');
@@ -15,6 +15,7 @@ const { ApiError } = require('../middleware/error');
 const OWNED = {
   contacts: Contact, departments: Department, sites: Site, tickets: Ticket,
   projects: Project, assets: Asset, licenses: License, contracts: Contract, invoices: Invoice,
+  payments: Payment, refunds: Refund,
 };
 const SUPPLIED = {
   vendorAssets: Asset, vendorLicenses: License, vendorContracts: Contract, vendorMaterials: ProjectMaterial,

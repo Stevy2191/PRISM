@@ -159,10 +159,30 @@ function split(payment, total) {
   return { credit, applied, surcharge: D(total).minus(credit).minus(applied) };
 }
 
+// What a refund of `amount` takes back from each part of the payment, and
+// whether PRISM would accept it now (strict): not more than is left of the
+// payment, and the credit part still unused. → { part, refundable }
+async function refundParts(payment, amount, { transaction, strict }) {
+  const refundable = D(payment.amount).minus(payment.refundedAmount);
+  if (D(amount).gt(refundable)) throw bad(`That's more than is left of the payment (${cents(refundable)})`);
+  const before = split(payment, payment.refundedAmount);
+  const after = split(payment, D(payment.amount).minus(refundable).plus(amount));
+  const part = {
+    credit: after.credit.minus(before.credit), applied: after.applied.minus(before.applied), surcharge: after.surcharge.minus(before.surcharge),
+  };
+  if (strict && pos(part.credit) && part.credit.gt(await creditBalance(payment.companyId, { transaction }))) {
+    throw bad('The customer\'s credit from this payment has been used; refund less');
+  }
+  return part;
+}
+
 // Records a refund of a payment (already made in Stripe, or by hand).
-// Idempotent on stripeRefundId. → the Refund.
+// Idempotent on stripeRefundId. A refund Stripe has made is always
+// recorded (strict: false): if the customer's credit from it was used, their
+// credit goes below zero — they owe it — rather than the books disagreeing
+// with Stripe. → the Refund.
 async function recordRefund(paymentId, {
-  amount, method, stripeRefundId = null, reason = null, reference = null, userId = null,
+  amount, method, stripeRefundId = null, reason = null, reference = null, userId = null, strict = true,
 }) {
   try {
     return await sequelize.transaction(async (t) => {
@@ -171,16 +191,10 @@ async function recordRefund(paymentId, {
         if (seen) return seen;
       }
       const payment = await Payment.findByPk(paymentId, { transaction: t, lock: t.LOCK.UPDATE });
-      const refundable = D(payment.amount).minus(payment.refundedAmount);
-      if (D(amount).gt(refundable)) throw bad(`That's more than is left of the payment (${cents(refundable)})`);
-      const before = split(payment, payment.refundedAmount);
-      const after = split(payment, D(payment.refundedAmount).plus(amount));
-      const part = {
-        credit: after.credit.minus(before.credit), applied: after.applied.minus(before.applied), surcharge: after.surcharge.minus(before.surcharge),
-      };
       await lockCompany(payment.companyId, t);
-      if (pos(part.credit) && part.credit.gt(await creditBalance(payment.companyId, { transaction: t }))) {
-        throw bad('The customer\'s credit from this payment has been used; refund less');
+      const part = await refundParts(payment, amount, { transaction: t, strict });
+      if (!strict && pos(part.credit) && part.credit.gt(await creditBalance(payment.companyId, { transaction: t }))) {
+        console.warn(`[payments] refund ${stripeRefundId} takes back credit already used; customer ${payment.companyId}'s credit goes below zero`);
       }
       const lines = [];
       if (pos(part.credit)) lines.push({ account: '2200', debit: cents(part.credit) });
@@ -218,11 +232,17 @@ async function refundPayment(payment, body, { userId = null } = {}) {
     throw bad(`That's more than is left of the payment (${cents(D(payment.amount).minus(payment.refundedAmount))})`);
   }
   if (STRIPE_METHODS.includes(payment.method)) {
+    // Checked before Stripe is asked: a refund PRISM would refuse is never made.
+    await sequelize.transaction(async (t) => {
+      const row = await Payment.findByPk(payment.id, { transaction: t, lock: t.LOCK.UPDATE });
+      await lockCompany(row.companyId, t);
+      await refundParts(row, amount, { transaction: t, strict: true });
+    });
     const refund = await (await stripe.client()).refunds.create({
       payment_intent: payment.stripePaymentIntentId, amount: Math.round(D(amount).times(100).toNumber()), metadata: { paymentId: String(payment.id) },
     });
     return recordRefund(payment.id, {
-      amount, method: 'stripe', stripeRefundId: refund.id, reason, userId,
+      amount, method: 'stripe', stripeRefundId: refund.id, reason, userId, strict: false,
     });
   }
   const method = HAND_METHODS.includes(body.method) ? body.method : 'check';
@@ -235,15 +255,18 @@ async function refundPayment(payment, body, { userId = null } = {}) {
 
 const hashToken = (token) => crypto.createHash('sha256').update(String(token)).digest('hex');
 
-// A new link for the invoice; any earlier one stops working.
-async function issuePayToken(invoice, { transaction = null } = {}) {
-  const token = crypto.randomBytes(32).toString('base64url');
+// A new link's token, not yet in force (savePayToken puts it in force).
+const newPayToken = () => crypto.randomBytes(32).toString('base64url');
+
+// Puts a link in force for the invoice; any earlier one stops working.
+async function savePayToken(invoice, token, { transaction = null } = {}) {
   await Invoice.update(
     { payTokenHash: hashToken(token), payTokenExpiresAt: new Date(Date.now() + PAY_LINK_DAYS * 24 * 3600 * 1000) },
     { where: { id: invoice.id }, transaction },
   );
   return token;
 }
+const issuePayToken = (invoice, opts) => savePayToken(invoice, newPayToken(), opts);
 
 const invalidLink = () => new ApiError(404, 'This payment link isn\'t valid. Ask us for a new one.', 'PAY_LINK_INVALID');
 // The invoice a link shows: sent, not yet paid, not void, not expired.
@@ -266,7 +289,9 @@ async function createCheckout(invoice, { successUrl, cancelUrl }) {
   if (surcharge.gt(0)) {
     lineItems.push({ quantity: 1, price_data: { currency, unit_amount: centsOf(surcharge), product_data: { name: 'Online payment fee' } } });
   }
-  const metadata = { invoiceId: String(invoice.id), fee: cents(surcharge) };
+  // source: the webhook takes only sessions PRISM started (the Stripe account
+  // may sell other things too).
+  const metadata = { source: 'prism', invoiceId: String(invoice.id), fee: cents(surcharge) };
   const session = await (await stripe.client()).checkout.sessions.create({
     mode: 'payment',
     payment_method_types: ['card', 'us_bank_account'],
@@ -294,15 +319,21 @@ async function stripeFee(paymentIntentId) {
   }
 }
 
-const sessionInvoiceId = (s) => {
-  const id = Number.parseInt((s.metadata && s.metadata.invoiceId) || s.client_reference_id, 10);
+// The invoice a Checkout session pays: only for sessions PRISM started
+// (metadata.source) in the business's currency; anything else is ignored.
+async function sessionInvoiceId(s) {
+  const meta = s.metadata || {};
+  if (meta.source !== 'prism') return null;
+  const currency = String((await moneyConfig()).currency || 'USD').toLowerCase();
+  if (String(s.currency || '').toLowerCase() !== currency) return null;
+  const id = Number.parseInt(meta.invoiceId, 10);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
-};
+}
 const piOf = (s) => (typeof s.payment_intent === 'string' ? s.payment_intent : (s.payment_intent && s.payment_intent.id) || null);
 
 // A bank payment started: recorded as pending, nothing posted.
 async function pendingSession(s) {
-  const invoiceId = sessionInvoiceId(s);
+  const invoiceId = await sessionInvoiceId(s);
   const inv = invoiceId && await Invoice.findByPk(invoiceId);
   if (!inv) return;
   try {
@@ -319,7 +350,7 @@ async function pendingSession(s) {
 
 // The money arrived: post it, once.
 async function succeededSession(s, method) {
-  const invoiceId = sessionInvoiceId(s);
+  const invoiceId = await sessionInvoiceId(s);
   if (!invoiceId) return;
   const amount = cents(D(s.amount_total || 0).div(100));
   const surchargeRaw = s.metadata && /^\d{1,9}(\.\d{1,2})?$/.test(String(s.metadata.fee || '')) ? s.metadata.fee : '0';
@@ -358,7 +389,7 @@ async function succeededSession(s, method) {
 async function failedSession(s) {
   const [n] = await Payment.update({ status: 'failed' }, { where: { stripeSessionId: s.id, status: 'pending' } });
   if (n) return;
-  const invoiceId = sessionInvoiceId(s);
+  const invoiceId = await sessionInvoiceId(s);
   const inv = invoiceId && await Invoice.findByPk(invoiceId);
   if (!inv || await Payment.count({ where: { stripeSessionId: s.id } })) return;
   await Payment.create({
@@ -378,7 +409,7 @@ async function refundedCharge(charge) {
     if (await Refund.count({ where: { stripeRefundId: r.id } })) continue; // eslint-disable-line no-continue
     // eslint-disable-next-line no-await-in-loop
     await recordRefund(payment.id, {
-      amount: cents(D(r.amount).div(100)), method: 'stripe', stripeRefundId: r.id, reason: 'Refunded in Stripe',
+      amount: cents(D(r.amount).div(100)), method: 'stripe', stripeRefundId: r.id, reason: 'Refunded in Stripe', strict: false,
     });
   }
 }
@@ -427,5 +458,5 @@ function paymentJson(p) {
 
 module.exports = {
   HAND_METHODS, recordPayment, applyCredit, refundCredit, refundPayment, recordRefund, creditBalance,
-  issuePayToken, invoiceByPayToken, createCheckout, handleStripeEvent, paymentJson, settledStatus,
+  issuePayToken, newPayToken, savePayToken, invoiceByPayToken, createCheckout, handleStripeEvent, paymentJson, settledStatus,
 };

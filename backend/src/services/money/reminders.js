@@ -65,7 +65,12 @@ async function applyLateFees({ today } = {}) {
   const day = today || await orgToday();
   const overdue = await Invoice.findAll({
     where: {
-      kind: 'invoice', status: OPEN, lateFeeInvoiceId: null, dueOn: { [Op.lte]: addDays(day, -cfg.lateFeeAfterDays) },
+      kind: 'invoice',
+      status: OPEN,
+      lateFeeInvoiceId: null,
+      dueOn: { [Op.lte]: addDays(day, -cfg.lateFeeAfterDays) },
+      // A late-fee invoice never gets a late fee of its own.
+      id: { [Op.notIn]: sequelize.literal('(SELECT x.lateFeeInvoiceId FROM Invoices x WHERE x.lateFeeInvoiceId IS NOT NULL)') },
     },
     order: [['dueOn', 'ASC'], ['id', 'ASC']],
   });

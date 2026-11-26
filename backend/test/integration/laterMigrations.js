@@ -43,6 +43,8 @@ const later = [
   require('../../migrations/20260101000117-payments'),
   // Phase 3: timesheets point at Users; timesheet notification types.
   require('../../migrations/20260101000118-timesheets'),
+  // Phase 3: prepaid draws on InvoiceLines.
+  require('../../migrations/20260101000119-prepaid-draws'),
 ];
 
 const qi = () => sequelize.getQueryInterface();
